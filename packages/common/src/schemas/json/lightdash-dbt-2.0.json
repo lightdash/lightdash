@@ -426,7 +426,8 @@
                 "commaPeriod",
                 "spacePeriod",
                 "periodComma",
-                "noSeparatorPeriod"
+                "noSeparatorPeriod",
+                "apostrophePeriod"
             ]
         },
         "filterItem": {

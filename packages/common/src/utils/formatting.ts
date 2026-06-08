@@ -345,9 +345,11 @@ export function isNumber(value: unknown): value is number {
 const NUMFMT_LOCALE_PERIOD_COMMA = 'ld-pc'; // 1.234.567,50
 const NUMFMT_LOCALE_SPACE_PERIOD = 'ld-sp'; // 1 234 567.50
 const NUMFMT_LOCALE_NO_SEPARATOR = 'ld-ns'; // 1234567.50
+const NUMFMT_LOCALE_APOSTROPHE_PERIOD = 'ld-ap'; // 1'234'567.50
 addLocale({ group: '.', decimal: ',' }, NUMFMT_LOCALE_PERIOD_COMMA);
 addLocale({ group: ' ', decimal: '.' }, NUMFMT_LOCALE_SPACE_PERIOD);
 addLocale({ group: '', decimal: '.' }, NUMFMT_LOCALE_NO_SEPARATOR);
+addLocale({ group: "'", decimal: '.' }, NUMFMT_LOCALE_APOSTROPHE_PERIOD);
 
 // The numfmt locale used to render an ECMA-376 expression for a given separator.
 // DEFAULT and COMMA_PERIOD return undefined so numfmt keeps its built-in
@@ -362,6 +364,8 @@ function separatorToNumfmtLocale(
             return NUMFMT_LOCALE_SPACE_PERIOD;
         case NumberSeparator.NO_SEPARATOR_PERIOD:
             return NUMFMT_LOCALE_NO_SEPARATOR;
+        case NumberSeparator.APOSTROPHE_PERIOD:
+            return NUMFMT_LOCALE_APOSTROPHE_PERIOD;
         case NumberSeparator.COMMA_PERIOD:
         case NumberSeparator.DEFAULT:
         case undefined:
@@ -393,6 +397,8 @@ export function formatNumberValue(
                 ...options,
                 useGrouping: false,
             });
+        case NumberSeparator.APOSTROPHE_PERIOD:
+            return value.toLocaleString('en-US', options).replace(/,/g, "'");
         case NumberSeparator.DEFAULT:
             // This will apply the default style for each currency
             return value.toLocaleString(undefined, options);
@@ -540,9 +546,10 @@ export function getCustomFormat(
     if (!base) return undefined;
 
     // Apply the field-level separator unless the format already carries one.
+    // DEFAULT is a no-op, so skip the allocation for it.
     if (!base.separator) {
         const separator = getEffectiveSeparator(item);
-        if (separator) {
+        if (separator && separator !== NumberSeparator.DEFAULT) {
             return { ...base, separator };
         }
     }
@@ -724,7 +731,11 @@ export function applyCustomFormat(
             )}${bytesCompactSuffix}`;
         }
         case CustomFormatType.CUSTOM:
-            return formatValueWithExpression(format.custom || '', value);
+            return formatValueWithExpression(
+                format.custom || '',
+                value,
+                separatorToNumfmtLocale(format.separator),
+            );
         default:
             return assertUnreachable(
                 format.type,
@@ -1039,6 +1050,7 @@ export function formatItemValue(
                     return formatValueWithExpression(
                         customFormat.custom,
                         value,
+                        separatorToNumfmtLocale(customFormat.separator),
                     );
                 } catch {
                     // Fall through to the default date/timestamp render.

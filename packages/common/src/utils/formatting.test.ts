@@ -1232,6 +1232,13 @@ describe('Formatting', () => {
                     separator: NumberSeparator.NO_SEPARATOR_PERIOD,
                 }),
             ).toEqual('123456789.12');
+            expect(
+                formatNumberValue(number, {
+                    type: CustomFormatType.DEFAULT,
+                    round: 2,
+                    separator: NumberSeparator.APOSTROPHE_PERIOD,
+                }),
+            ).toEqual("123'456'789.12");
         });
 
         test('available currencies', () => {
@@ -2286,6 +2293,18 @@ describe('Formatting', () => {
                 ).toEqual('1234567.50');
             });
 
+            test('apostrophe-period (Swiss)', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...ecma,
+                            separator: NumberSeparator.APOSTROPHE_PERIOD,
+                        },
+                        big,
+                    ),
+                ).toEqual("1'234'567.50");
+            });
+
             test('currency expression localises symbol-prefixed values', () => {
                 expect(
                     formatItemValue(
@@ -2365,6 +2384,23 @@ describe('Formatting', () => {
                         big,
                     ),
                 ).toEqual('1,234,567.50');
+            });
+
+            test('CUSTOM formatOptions expression respects the field separator', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...metric,
+                            type: MetricType.NUMBER,
+                            formatOptions: {
+                                type: CustomFormatType.CUSTOM,
+                                custom: '#,##0.00',
+                            },
+                            separator: NumberSeparator.PERIOD_COMMA,
+                        },
+                        big,
+                    ),
+                ).toEqual('1.234.567,50');
             });
         });
 

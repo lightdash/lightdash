@@ -88,6 +88,10 @@ const formatSeparatorOptions = [
         value: NumberSeparator.NO_SEPARATOR_PERIOD,
         label: '100000.00',
     },
+    {
+        value: NumberSeparator.APOSTROPHE_PERIOD,
+        label: "100'000.00",
+    },
 ];
 
 const formatCurrencyOptions = currencies.map((c) => {

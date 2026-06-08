@@ -64,6 +64,7 @@ export enum NumberSeparator {
     SPACE_PERIOD = 'spacePeriod', // 100 000.00
     PERIOD_COMMA = 'periodComma', // 100.000,00
     NO_SEPARATOR_PERIOD = 'noSeparatorPeriod', // 100000.00
+    APOSTROPHE_PERIOD = 'apostrophePeriod', // 100'000.00
 }
 type CompactConfig = {
     compact: Compact;
