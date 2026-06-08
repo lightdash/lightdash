@@ -1,3 +1,11 @@
+## [0.3109.1](https://github.com/lightdash/lightdash/compare/0.3109.0...0.3109.1) (2026-06-08)
+
+
+### Bug Fixes
+
+* **ai:** make writeback agent open the PR it announces ([#24012](https://github.com/lightdash/lightdash/issues/24012)) ([d3bf841](https://github.com/lightdash/lightdash/commit/d3bf841dd3c3bf7fdbca6fd62368799bb0af2004))
+* **dashboard:** keep date zoom granularities across tab switches ([#23991](https://github.com/lightdash/lightdash/issues/23991)) ([04b9a31](https://github.com/lightdash/lightdash/commit/04b9a31d968edf5980929f23912299b82bed09a9))
+
 # [0.3109.0](https://github.com/lightdash/lightdash/compare/0.3108.0...0.3109.0) (2026-06-08)
 
 
