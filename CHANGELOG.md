@@ -1,3 +1,11 @@
+## [0.3104.2](https://github.com/lightdash/lightdash/compare/0.3104.1...0.3104.2) (2026-06-08)
+
+
+### Bug Fixes
+
+* **pivot:** show subtotals when grouped by a date dimension ([#23952](https://github.com/lightdash/lightdash/issues/23952)) ([3d05acc](https://github.com/lightdash/lightdash/commit/3d05acce77084ec1d614e8bde7293710507f98d7))
+* scope changeset operations to project ([#23980](https://github.com/lightdash/lightdash/issues/23980)) ([2d061ee](https://github.com/lightdash/lightdash/commit/2d061ee6ecd9d23bff359240c06521e85ed94e00))
+
 ## [0.3104.1](https://github.com/lightdash/lightdash/compare/0.3104.0...0.3104.1) (2026-06-08)
 
 
