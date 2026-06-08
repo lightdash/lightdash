@@ -312,9 +312,18 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         type?: string;
         message?: { content?: unknown };
         total_cost_usd?: number;
+        duration_ms?: number;
+        duration_api_ms?: number;
+        num_turns?: number;
     };
     if (typed.type === 'result') {
-        return { type: 'result', costUsd: typed.total_cost_usd ?? null };
+        return {
+            type: 'result',
+            costUsd: typed.total_cost_usd ?? null,
+            durationMs: typed.duration_ms ?? null,
+            durationApiMs: typed.duration_api_ms ?? null,
+            numTurns: typed.num_turns ?? null,
+        };
     }
     if (typed.type !== 'assistant') return { type: 'ignored' };
     const content = typed.message?.content;

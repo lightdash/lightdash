@@ -360,10 +360,34 @@ describe('interpretAgentEvent', () => {
         ).toEqual({ type: 'assistant', text: null, toolCalls: [] });
     });
 
-    it('reads the final cost from a result event', () => {
+    it('reads the cost and timing from a result event', () => {
+        expect(
+            interpretAgentEvent({
+                type: 'result',
+                total_cost_usd: 0.42,
+                duration_ms: 90000,
+                duration_api_ms: 30000,
+                num_turns: 7,
+            }),
+        ).toEqual({
+            type: 'result',
+            costUsd: 0.42,
+            durationMs: 90000,
+            durationApiMs: 30000,
+            numTurns: 7,
+        });
+    });
+
+    it('defaults missing result timing fields to null', () => {
         expect(
             interpretAgentEvent({ type: 'result', total_cost_usd: 0.42 }),
-        ).toEqual({ type: 'result', costUsd: 0.42 });
+        ).toEqual({
+            type: 'result',
+            costUsd: 0.42,
+            durationMs: null,
+            durationApiMs: null,
+            numTurns: null,
+        });
     });
 
     it.each([null, 'string', { type: 'system' }, undefined])(

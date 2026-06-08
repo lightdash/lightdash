@@ -36,6 +36,7 @@ import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
     COMPILE_STRIPPED_ENV_VARS,
+    COMPILE_TIMINGS_PATH,
     COMPILE_WRAPPER_PATH,
     CWD,
     GATHER_REPO_CONTEXT_SANDBOX_PATH,
@@ -960,11 +961,23 @@ export class AiWritebackService extends BaseService {
         const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
             (name) => `-u ${name}`,
         ).join(' ');
+        // Time each compile and append `<elapsedMs> <exitCode>` to a log we read
+        // after the run. We drop `exec` (one extra shell frame) so the timing
+        // can be recorded after the child returns; secrets are still stripped via
+        // `env -u` for the compile child, so the security property is unchanged.
         await sandbox.files.write(
             COMPILE_WRAPPER_PATH,
-            `#!/usr/bin/env bash\nexec env ${unsetFlags} lightdash compile "$@"\n`,
+            `#!/usr/bin/env bash\n` +
+                `__ld_start=$(date +%s%3N)\n` +
+                `env ${unsetFlags} lightdash compile "$@"\n` +
+                `__ld_code=$?\n` +
+                `echo "$(( $(date +%s%3N) - __ld_start )) $__ld_code" >> ${COMPILE_TIMINGS_PATH}\n` +
+                `exit $__ld_code\n`,
         );
         await sandbox.commands.run(`chmod +x ${COMPILE_WRAPPER_PATH}`);
+        // Reset the timings log each turn — the sandbox filesystem persists across
+        // pause/resume, so a resumed turn would otherwise double-count prior runs.
+        await sandbox.files.write(COMPILE_TIMINGS_PATH, '');
 
         // Push the warehouse skill files alongside the prompts. `shared.md`
         // always; the dialect file only when one exists for this warehouse.
@@ -992,14 +1005,37 @@ export class AiWritebackService extends BaseService {
         const handleEvent = (event: unknown): void => {
             const interpreted = interpretAgentEvent(event);
             if (interpreted.type === 'result') {
-                this.logger.info('AI writeback agent run summary', {
-                    event: 'ai_writeback.run.summary',
-                    source,
-                    sandboxId: sandbox.sandboxId,
-                    costUsd: interpreted.costUsd,
-                    warehouseType,
-                    toolCounts,
-                });
+                // `durationMs` is the agent's total wall-clock; `durationApiMs`
+                // is the LLM-call portion, so `durationMs - durationApiMs`
+                // approximates time spent in local tool execution (edits, git,
+                // and `lightdash compile`). A large gap points at compile/IO
+                // rather than model latency.
+                const localToolMs =
+                    interpreted.durationMs !== null &&
+                    interpreted.durationApiMs !== null
+                        ? interpreted.durationMs - interpreted.durationApiMs
+                        : null;
+                this.logger.info(
+                    `AI writeback agent run summary (wall=${
+                        interpreted.durationMs ?? '?'
+                    }ms, api=${interpreted.durationApiMs ?? '?'}ms, local=${
+                        localToolMs ?? '?'
+                    }ms, turns=${interpreted.numTurns ?? '?'}, cost=$${
+                        interpreted.costUsd ?? '?'
+                    })`,
+                    {
+                        event: 'ai_writeback.run.summary',
+                        source,
+                        sandboxId: sandbox.sandboxId,
+                        costUsd: interpreted.costUsd,
+                        durationMs: interpreted.durationMs,
+                        durationApiMs: interpreted.durationApiMs,
+                        localToolMs,
+                        numTurns: interpreted.numTurns,
+                        warehouseType,
+                        toolCounts,
+                    },
+                );
                 return;
             }
             if (interpreted.type === 'ignored') return;
@@ -1138,6 +1174,56 @@ export class AiWritebackService extends BaseService {
             exitCode: result.exitCode,
             isResume,
         });
+
+        // Report how much of the agent stage went to `lightdash compile` (each
+        // invocation timed by the wrapper) — the prime suspect for writeback
+        // latency. Best-effort: never fail the run over a missing timings file.
+        try {
+            const timings = await sandbox.commands.run(
+                `cat ${COMPILE_TIMINGS_PATH} 2>/dev/null || true`,
+                { cwd: CWD },
+            );
+            const runs = timings.stdout
+                .split('\n')
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0)
+                .map((line) => {
+                    const [ms, code] = line.split(/\s+/);
+                    return { ms: Number(ms), exitCode: Number(code) };
+                })
+                .filter((run) => Number.isFinite(run.ms));
+            if (runs.length > 0) {
+                const compileTotalMs = runs.reduce(
+                    (sum, run) => sum + run.ms,
+                    0,
+                );
+                const compileFailures = runs.filter(
+                    (run) => run.exitCode !== 0,
+                ).length;
+                this.logger.info(
+                    `AI writeback compile timings (count=${
+                        runs.length
+                    }, total=${compileTotalMs}ms, runs=[${runs
+                        .map((run) => run.ms)
+                        .join(',')}]ms, failures=${compileFailures})`,
+                    {
+                        event: 'ai_writeback.run.compile',
+                        sandboxId: sandbox.sandboxId,
+                        compileCount: runs.length,
+                        compileTotalMs,
+                        compileMs: runs.map((run) => run.ms),
+                        compileFailures,
+                    },
+                );
+            }
+        } catch (error) {
+            this.logger.debug(
+                `AiWriteback: failed to read compile timings: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+
         return { stdout: assistantText, exitCode: result.exitCode };
     }
 

@@ -67,6 +67,11 @@ export const TMP_PROFILES_DIR = '/tmp/ld-profiles';
 // runtime by runAgentInSandbox.
 export const COMPILE_WRAPPER_PATH = '/tmp/ld-writeback-compile';
 
+// The compile wrapper appends one `<elapsedMs> <exitCode>` line per invocation
+// here, so runAgentInSandbox can report how much of the agent stage was spent in
+// `lightdash compile` (the prime suspect for writeback latency) vs the LLM/edits.
+export const COMPILE_TIMINGS_PATH = '/tmp/ld-writeback-compile-timings';
+
 // Environment variables stripped from the compile child by the wrapper above.
 // ANTHROPIC_API_KEY is the only secret currently in the agent's env, but we
 // also drop common token vars defensively in case that changes.
