@@ -27,6 +27,7 @@ import {
     type AiAgentReviewItemWritebackEligibility,
     type AiAgentReviewItemWritebackPreview,
     type AiAgentReviewItemWritebackStrategy,
+    type AiAgentReviewRemediation,
     type PullRequest,
     type SessionUser,
 } from '@lightdash/common';
@@ -1297,10 +1298,49 @@ export class AiAgentAdminService extends BaseService {
         }
     }
 
+    private async createReviewRemediationPreviewThread({
+        remediation,
+        organizationUuid,
+        previewProjectUuid,
+        previewAgentUuid,
+        userUuid,
+    }: {
+        remediation: AiAgentReviewRemediation;
+        organizationUuid: string;
+        previewProjectUuid: string;
+        previewAgentUuid: string;
+        userUuid: string;
+    }): Promise<string> {
+        const threadUuid = await this.aiAgentModel.createWebAppThread({
+            organizationUuid,
+            projectUuid: previewProjectUuid,
+            userUuid,
+            createdFrom: 'web_app',
+            agentUuid: previewAgentUuid,
+        });
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                remediation.fingerprint,
+            );
+        await this.aiAgentModel.updateThreadTitle({
+            threadUuid,
+            title: `Review fix: ${reviewItem?.title ?? remediation.retryPrompt ?? remediation.fingerprint}`,
+        });
+
+        return threadUuid;
+    }
+
     async pollReviewRemediationPreview(
         payload: AiAgentReviewRemediationPreviewJobPayload,
     ): Promise<void> {
-        const { organizationUuid, remediationUuid, prUrl, startedAt } = payload;
+        const {
+            organizationUuid,
+            remediationUuid,
+            prUrl,
+            startedAt,
+            userUuid,
+        } = payload;
 
         // Status guard must run before the timeout: a poll firing after the
         // remediation reached a terminal state (e.g. an admin marked it fixed)
@@ -1372,12 +1412,24 @@ export class AiAgentAdminService extends BaseService {
             return;
         }
 
-        await this.aiAgentReviewClassifierModel.setReviewRemediationPreview({
-            remediationUuid,
-            organizationUuid,
-            previewProjectUuid,
-            previewAgentUuid,
-        });
+        const previewThreadUuid =
+            await this.createReviewRemediationPreviewThread({
+                remediation,
+                organizationUuid,
+                previewProjectUuid,
+                previewAgentUuid,
+                userUuid,
+            });
+
+        await this.aiAgentReviewClassifierModel.setReviewRemediationPreviewThread(
+            {
+                remediationUuid,
+                organizationUuid,
+                previewProjectUuid,
+                previewAgentUuid,
+                previewThreadUuid,
+            },
+        );
     }
 
     async failReviewItemWritebackJob(args: {
