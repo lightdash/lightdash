@@ -1483,7 +1483,9 @@ export class ValidationService extends BaseService {
         }
 
         // Get the chart to find which explore it uses
-        const chart = await this.savedChartModel.get(chartUuid);
+        const chart = await this.savedChartModel.get(chartUuid, undefined, {
+            projectUuid,
+        });
 
         // Check user permissions
         const { inheritsFromOrgOrProject, access } =
@@ -1532,7 +1534,10 @@ export class ValidationService extends BaseService {
         );
 
         // Delete existing validations for this chart
-        await this.validationModel.deleteChartValidations(chartUuid);
+        await this.validationModel.deleteChartValidations(
+            chartUuid,
+            projectUuid,
+        );
 
         // Store new validation errors if any
         if (validationErrors.length > 0) {
@@ -1569,8 +1574,12 @@ export class ValidationService extends BaseService {
         }
 
         // Get the dashboard to check permissions
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            {
+                projectUuid,
+            },
+        );
 
         // Check user permissions
         const { inheritsFromOrgOrProject, access } =
@@ -1639,7 +1648,10 @@ export class ValidationService extends BaseService {
         );
 
         // Delete existing validations for this dashboard
-        await this.validationModel.deleteDashboardValidations(dashboardUuid);
+        await this.validationModel.deleteDashboardValidations(
+            dashboardUuid,
+            projectUuid,
+        );
 
         // Store new validation errors if any
         if (validationErrors.length > 0) {
