@@ -5482,7 +5482,7 @@ export class ProjectService extends BaseService {
 
         const enabled = this.isProjectContextEnabled
             ? await this.isProjectContextEnabled({ user, organizationUuid })
-            : true;
+            : false;
         if (!enabled) {
             return undefined;
         }
