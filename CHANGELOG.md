@@ -1,3 +1,10 @@
+# [0.3105.0](https://github.com/lightdash/lightdash/compare/0.3104.5...0.3105.0) (2026-06-08)
+
+
+### Features
+
+* **ai-agents:** add review collection opt-in ([#23983](https://github.com/lightdash/lightdash/issues/23983)) ([232c02f](https://github.com/lightdash/lightdash/commit/232c02f331aae5864c13983a580ae99cf20c25e5))
+
 ## [0.3104.5](https://github.com/lightdash/lightdash/compare/0.3104.4...0.3104.5) (2026-06-08)
 
 
