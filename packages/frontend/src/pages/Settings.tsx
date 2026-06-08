@@ -146,6 +146,9 @@ const Settings: FC = () => {
     );
     const isAiAgentReviewClassifierEnabled =
         aiAgentReviewClassifierFlag?.enabled === true;
+    const shouldShowAiAgentReviews =
+        isAiAgentReviewClassifierEnabled &&
+        aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
 
     const { data: serviceAccountsFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.ServiceAccounts,
@@ -673,7 +676,7 @@ const Settings: FC = () => {
                     </AiSettingsProviders>
                 ),
             });
-            if (isAiAgentReviewClassifierEnabled) {
+            if (shouldShowAiAgentReviews) {
                 allowedRoutes.push({
                     path: '/ai/reviews',
                     element: (
@@ -723,7 +726,7 @@ const Settings: FC = () => {
         isSsoOrganizationSettingsEnabled,
         isLeaveOrganizationEnabled,
         isAiCopilotEnabledOrTrial,
-        isAiAgentReviewClassifierEnabled,
+        shouldShowAiAgentReviews,
     ]);
     const routeElements = useRoutes(routes);
 
@@ -1289,7 +1292,7 @@ const Settings: FC = () => {
                                                     />
                                                 }
                                             />
-                                            {isAiAgentReviewClassifierEnabled && (
+                                            {shouldShowAiAgentReviews && (
                                                 <RouterNavLink
                                                     label="Reviews"
                                                     exact
