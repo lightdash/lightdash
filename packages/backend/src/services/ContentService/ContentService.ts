@@ -502,9 +502,13 @@ export class ContentService extends BaseService {
             case ContentType.CHART:
                 switch (item.source) {
                     case ChartSourceType.DBT_EXPLORE:
-                        return this.savedChartService.restore(user, item.uuid);
+                        return this.savedChartService.restore(user, item.uuid, {
+                            projectUuid,
+                        });
                     case ChartSourceType.SQL:
-                        return this.savedSqlService.restore(user, item.uuid);
+                        return this.savedSqlService.restore(user, item.uuid, {
+                            projectUuid,
+                        });
                     default:
                         return assertUnreachable(
                             item.source,
@@ -512,9 +516,13 @@ export class ContentService extends BaseService {
                         );
                 }
             case ContentType.DASHBOARD:
-                return this.dashboardService.restore(user, item.uuid);
+                return this.dashboardService.restore(user, item.uuid, {
+                    projectUuid,
+                });
             case ContentType.SPACE:
-                return this.spaceService.restore(user, item.uuid);
+                return this.spaceService.restore(user, item.uuid, {
+                    projectUuid,
+                });
             case ContentType.DATA_APP:
                 return this.getAppGenerateService().restoreApp(
                     user,
@@ -561,11 +569,13 @@ export class ContentService extends BaseService {
                         return this.savedChartService.permanentDelete(
                             user,
                             item.uuid,
+                            { projectUuid },
                         );
                     case ChartSourceType.SQL:
                         return this.savedSqlService.permanentDelete(
                             user,
                             item.uuid,
+                            { projectUuid },
                         );
                     default:
                         return assertUnreachable(
@@ -574,9 +584,13 @@ export class ContentService extends BaseService {
                         );
                 }
             case ContentType.DASHBOARD:
-                return this.dashboardService.permanentDelete(user, item.uuid);
+                return this.dashboardService.permanentDelete(user, item.uuid, {
+                    projectUuid,
+                });
             case ContentType.SPACE:
-                return this.spaceService.permanentDelete(user, item.uuid);
+                return this.spaceService.permanentDelete(user, item.uuid, {
+                    projectUuid,
+                });
             case ContentType.DATA_APP:
                 return this.getAppGenerateService().permanentDeleteApp(
                     user,

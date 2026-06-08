@@ -2255,7 +2255,7 @@ export class SavedChartService
         const deletedChart = await this.savedChartModel.get(
             chartUuid,
             undefined,
-            { deleted: true },
+            { deleted: true, projectUuid: options?.projectUuid },
         );
         const { organizationUuid, projectUuid } = deletedChart;
 
@@ -2341,7 +2341,7 @@ export class SavedChartService
             const deletedChart = await this.savedChartModel.get(
                 chartUuid,
                 undefined,
-                { deleted: true },
+                { deleted: true, projectUuid: options?.projectUuid },
             );
             const { organizationUuid, projectUuid } = deletedChart;
 
