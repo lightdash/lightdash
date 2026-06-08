@@ -2,6 +2,7 @@ import {
     type AiAgentRecommendationAction,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemSummary,
+    type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewSignalSummary,
     type AiAgentRootCause,
     type AiAgentTargetRef,
@@ -110,6 +111,23 @@ const rootCauseColors: Record<AiAgentRootCause, string> = {
     feedback_quality: 'teal',
     not_a_failure: 'gray',
     ambiguous: 'gray',
+};
+
+const writebackBlockedReasonLabels: Record<
+    AiAgentReviewItemWritebackBlockedReason,
+    string
+> = {
+    reviews_disabled: 'Reviews are not enabled for this organization',
+    unsupported_root_cause: 'No writeback strategy for this root cause',
+    missing_project: 'No project is linked to this finding',
+    missing_project_context_entry: 'No project context entry was generated',
+    project_context_disabled: 'Project context is not enabled',
+    unsupported_source_control: 'Project is not connected to GitHub or GitLab',
+    git_app_not_installed: 'Git app is not installed',
+    missing_writeback_config: 'Writeback runtime is not configured',
+    pull_request_open: 'A pull request is already open',
+    terminal_state: 'Finding is already closed',
+    writeback_in_progress: 'Writeback is already in progress',
 };
 
 const signalLabels: Record<AiAgentTurnSignal, string> = {
@@ -626,12 +644,16 @@ const ReviewItemActionsCell = ({
         current.prWritebackStatus === 'queued' ||
         current.prWritebackStatus === 'running';
     const isTerminal =
-        current.status === 'resolved' || current.status === 'dismissed';
-    const canCreatePr =
-        current.writebackEligible &&
-        !current.linkedPrUrl &&
-        !isTerminal &&
-        !isWritebackInFlight;
+        current.status === 'resolved' ||
+        current.status === 'dismissed' ||
+        current.status === 'duplicate';
+    const canCreatePr = current.writebackEligibility.eligible;
+    const blockedReason = current.writebackEligibility.eligible
+        ? null
+        : current.writebackEligibility.reason;
+    const blockedReasonLabel = blockedReason
+        ? writebackBlockedReasonLabels[blockedReason]
+        : null;
     // project_context findings get a deterministic diff preview modal before the
     // PR is opened; other strategies (sandbox) open the PR directly.
     const previewsDiff = current.primaryRootCause === 'project_context';
@@ -753,6 +775,32 @@ const ReviewItemActionsCell = ({
                             </Text>
                         </Group>
                     )}
+
+                    {!canCreatePr &&
+                        !current.linkedPrUrl &&
+                        !isWritebackInFlight &&
+                        blockedReasonLabel && (
+                            <Tooltip
+                                label={blockedReasonLabel}
+                                withArrow
+                                openDelay={300}
+                            >
+                                <Group gap={4} wrap="nowrap" maw={220}>
+                                    <MantineIcon
+                                        icon={IconInfoCircle}
+                                        size="xs"
+                                    />
+                                    <Text
+                                        fz="xs"
+                                        c="ldGray.6"
+                                        fw={500}
+                                        lineClamp={1}
+                                    >
+                                        {blockedReasonLabel}
+                                    </Text>
+                                </Group>
+                            </Tooltip>
+                        )}
                 </Stack>
             )}
 

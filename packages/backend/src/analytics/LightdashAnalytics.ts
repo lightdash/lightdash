@@ -26,9 +26,14 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AiAgentReviewItemStatus,
+    type AiAgentReviewItemWritebackBlockedReason,
+    type AiAgentReviewItemWritebackStrategy,
+    type AiAgentRootCause,
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
     type DataAppClaudeModel,
+    type PullRequestProvider,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -2135,6 +2140,92 @@ export type AiAgentPullRequestViewedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentReviewItemsListedEvent = BaseTrack & {
+    event: 'ai_agent_review_items.listed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        totalCount: number;
+        eligibleCount: number;
+        statuses: AiAgentReviewItemStatus[] | null;
+        blockedReasons: Partial<
+            Record<AiAgentReviewItemWritebackBlockedReason, number>
+        >;
+    };
+};
+
+export type AiAgentReviewItemStatusChangedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.status_changed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        previousStatus: AiAgentReviewItemStatus;
+        newStatus: AiAgentReviewItemStatus;
+    };
+};
+
+export type AiAgentReviewItemWritebackQueuedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_queued';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy;
+        provider: PullRequestProvider;
+    };
+};
+
+export type AiAgentReviewItemWritebackPreviewViewedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_preview_viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        available: boolean;
+        strategy: AiAgentReviewItemWritebackStrategy | null;
+    };
+};
+
+export type AiAgentReviewItemWritebackCompletedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy;
+        prCreated: boolean;
+    };
+};
+
+export type AiAgentReviewItemWritebackFailedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy | null;
+        errorMessage: string;
+    };
+};
+
+export type AiAgentReviewEvent =
+    | AiAgentReviewItemsListedEvent
+    | AiAgentReviewItemStatusChangedEvent
+    | AiAgentReviewItemWritebackQueuedEvent
+    | AiAgentReviewItemWritebackPreviewViewedEvent
+    | AiAgentReviewItemWritebackCompletedEvent
+    | AiAgentReviewItemWritebackFailedEvent;
+
 export type AiRouterConfigUpdatedEvent = BaseTrack & {
     event: 'ai_router.config_updated';
     userId: string;
@@ -2315,6 +2406,7 @@ type TypedEvent =
     | AiAgentSuggestionClickEvent
     | AiAgentSuggestionSubmitEvent
     | AiAgentPullRequestViewedEvent
+    | AiAgentReviewEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent
     | AiRouterMessageRoutedEvent

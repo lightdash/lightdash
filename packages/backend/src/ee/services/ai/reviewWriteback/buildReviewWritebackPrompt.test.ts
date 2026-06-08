@@ -1,4 +1,7 @@
-import { type AiAgentReviewItemSummary } from '@lightdash/common';
+import {
+    PullRequestProvider,
+    type AiAgentReviewItemSummary,
+} from '@lightdash/common';
 import { planReviewWriteback } from './buildReviewWritebackPrompt';
 
 const baseItem = (
@@ -27,6 +30,12 @@ const baseItem = (
     prWritebackStatus: null,
     prWritebackMessage: null,
     writebackEligible: true,
+    writebackEligibility: {
+        eligible: true,
+        provider: PullRequestProvider.GITHUB,
+        strategy: 'semantic_layer',
+        reason: null,
+    },
     createdAt: new Date('2026-05-26T00:00:00.000Z'),
     updatedAt: new Date('2026-05-26T00:00:00.000Z'),
     latestFinding: {

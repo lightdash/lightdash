@@ -20,16 +20,21 @@ import {
     PullRequestProvider,
     PullRequestSource,
     UpdateAiAgentReviewItemStatus,
+    type AiAgentReviewItemWritebackBlockedReason,
+    type AiAgentReviewItemWritebackEligibility,
     type AiAgentReviewItemWritebackPreview,
+    type AiAgentReviewItemWritebackStrategy,
     type SessionUser,
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
+import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import {
     getInstallationToken,
     getPullRequest,
 } from '../../clients/github/Github';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import { type GitlabAppInstallationsModel } from '../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type PullRequestsModel } from '../../models/PullRequestsModel';
 import { type UserModel } from '../../models/UserModel';
@@ -46,6 +51,7 @@ import { type AiWritebackService } from './AiWritebackService/AiWritebackService
 import { type ProjectContextService } from './ProjectContextService/ProjectContextService';
 
 type AiAgentAdminServiceDependencies = {
+    analytics: LightdashAnalytics;
     aiAgentModel: AiAgentModel;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     featureFlagService: FeatureFlagService;
@@ -54,6 +60,7 @@ type AiAgentAdminServiceDependencies = {
     projectContextService: ProjectContextService;
     pullRequestsModel: PullRequestsModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     schedulerClient: CommercialSchedulerClient;
     userModel: UserModel;
     lightdashConfig: LightdashConfig;
@@ -72,22 +79,152 @@ const parsePullRequestUrl = (
 // Longer than the worker's 30-min job timeout — past this, a queued/running writeback has lost its worker and is treated as failed so the UI recovers and retries.
 const WRITEBACK_STALE_MS = 35 * 60 * 1000;
 
-// Root causes that can open a writeback PR (both also require a GitHub-connected
-// project). project_context additionally needs the judge-emitted entry.
-const hasWritebackStrategy = (
+type ProjectWritebackAccess =
+    | {
+          provider: PullRequestProvider;
+          hasGitAppInstallation: boolean;
+      }
+    | {
+          provider: null;
+          hasGitAppInstallation: false;
+      };
+
+type ProjectWritebackAccessEntry = [string, ProjectWritebackAccess];
+
+const terminalReviewStatuses = new Set<AiAgentReviewItemStatus>([
+    'resolved',
+    'dismissed',
+    'duplicate',
+]);
+
+const unavailableWritebackEligibility = (
+    reason: AiAgentReviewItemWritebackBlockedReason,
+    strategy: AiAgentReviewItemWritebackStrategy | null = null,
+    provider: PullRequestProvider | null = null,
+): AiAgentReviewItemWritebackEligibility => ({
+    eligible: false,
+    reason,
+    strategy,
+    provider,
+});
+
+const getWritebackStrategy = (
     item: AiAgentReviewItemSummary,
-    { projectContextEnabled }: { projectContextEnabled: boolean },
-): boolean => {
+    projectContextEnabled: boolean,
+):
+    | { strategy: AiAgentReviewItemWritebackStrategy }
+    | { eligibility: AiAgentReviewItemWritebackEligibility } => {
     if (item.primaryRootCause === 'semantic_layer') {
-        return true;
+        return { strategy: 'semantic_layer' };
     }
-    if (item.primaryRootCause === 'project_context') {
-        return (
-            projectContextEnabled &&
-            item.latestFinding?.projectContextEntry != null
+    if (item.primaryRootCause !== 'project_context') {
+        return {
+            eligibility: unavailableWritebackEligibility(
+                'unsupported_root_cause',
+            ),
+        };
+    }
+    if (!projectContextEnabled) {
+        return {
+            eligibility: unavailableWritebackEligibility(
+                'project_context_disabled',
+                'project_context',
+            ),
+        };
+    }
+    if (!item.latestFinding?.projectContextEntry) {
+        return {
+            eligibility: unavailableWritebackEligibility(
+                'missing_project_context_entry',
+                'project_context',
+            ),
+        };
+    }
+    return { strategy: 'project_context' };
+};
+
+const toReviewWritebackStrategy = (
+    strategy: ReturnType<typeof planReviewWriteback>['strategy'],
+): AiAgentReviewItemWritebackStrategy =>
+    strategy === 'project_context' ? 'project_context' : 'semantic_layer';
+
+export const getAiAgentReviewItemWritebackEligibility = (args: {
+    item: AiAgentReviewItemSummary;
+    reviewsEnabled: boolean;
+    projectContextEnabled: boolean;
+    projectAccess: ProjectWritebackAccess | null;
+    hasSemanticWritebackConfig: boolean;
+}): AiAgentReviewItemWritebackEligibility => {
+    const {
+        item,
+        reviewsEnabled,
+        projectContextEnabled,
+        projectAccess,
+        hasSemanticWritebackConfig,
+    } = args;
+
+    if (!reviewsEnabled) {
+        return unavailableWritebackEligibility('reviews_disabled');
+    }
+    if (terminalReviewStatuses.has(item.status)) {
+        return unavailableWritebackEligibility('terminal_state');
+    }
+    if (item.linkedPrUrl && item.prState === 'open') {
+        return unavailableWritebackEligibility('pull_request_open');
+    }
+    if (
+        item.prWritebackStatus === 'queued' ||
+        item.prWritebackStatus === 'running'
+    ) {
+        return unavailableWritebackEligibility('writeback_in_progress');
+    }
+
+    const strategyResult = getWritebackStrategy(item, projectContextEnabled);
+    if ('eligibility' in strategyResult) {
+        return strategyResult.eligibility;
+    }
+    const { strategy } = strategyResult;
+
+    if (!item.projectUuid) {
+        return unavailableWritebackEligibility('missing_project', strategy);
+    }
+    if (!projectAccess || !projectAccess.provider) {
+        return unavailableWritebackEligibility(
+            'unsupported_source_control',
+            strategy,
         );
     }
-    return false;
+    if (
+        strategy === 'project_context' &&
+        projectAccess.provider !== PullRequestProvider.GITHUB
+    ) {
+        return unavailableWritebackEligibility(
+            'unsupported_source_control',
+            strategy,
+            projectAccess.provider,
+        );
+    }
+    if (!projectAccess.hasGitAppInstallation) {
+        return unavailableWritebackEligibility(
+            'git_app_not_installed',
+            strategy,
+            projectAccess.provider,
+        );
+    }
+    if (strategy === 'semantic_layer' && !hasSemanticWritebackConfig) {
+        return unavailableWritebackEligibility(
+            'missing_writeback_config',
+            strategy,
+            projectAccess.provider,
+        );
+    }
+
+    return {
+        eligible: true,
+        reason: null,
+        strategy,
+        provider: projectAccess.provider,
+    };
 };
 
 const isWritebackStale = (
@@ -111,6 +248,8 @@ const withStaleWritebackOverride = (
         : item;
 
 export class AiAgentAdminService extends BaseService {
+    private readonly analytics: LightdashAnalytics;
+
     private readonly aiAgentModel: AiAgentModel;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -129,12 +268,15 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly gitlabAppInstallationsModel: GitlabAppInstallationsModel;
+
     private readonly schedulerClient: CommercialSchedulerClient;
 
     private readonly userModel: UserModel;
 
     constructor(dependencies: AiAgentAdminServiceDependencies) {
         super();
+        this.analytics = dependencies.analytics;
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
@@ -145,6 +287,8 @@ export class AiAgentAdminService extends BaseService {
         this.pullRequestsModel = dependencies.pullRequestsModel;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
+        this.gitlabAppInstallationsModel =
+            dependencies.gitlabAppInstallationsModel;
         this.schedulerClient = dependencies.schedulerClient;
         this.userModel = dependencies.userModel;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -236,7 +380,7 @@ export class AiAgentAdminService extends BaseService {
             statuses,
         });
 
-        const [writebackEnabled, projectContextEnabled] = await Promise.all([
+        const [reviewsEnabled, projectContextEnabled] = await Promise.all([
             this.isWritebackFeatureEnabled(user),
             this.isProjectContextFeatureEnabled(user),
         ]);
@@ -247,37 +391,71 @@ export class AiAgentAdminService extends BaseService {
             { projectContextEnabled },
         );
 
-        const githubProjects = writebackEnabled
-            ? await this.getGithubProjectUuids(
-                  items
-                      .filter(
-                          (item) =>
-                              hasWritebackStrategy(item, {
-                                  projectContextEnabled,
-                              }) && item.projectUuid !== null,
-                      )
-                      .map((item) => item.projectUuid as string),
-              )
-            : new Set<string>();
+        const projectAccessByUuid = await this.getProjectWritebackAccessByUuid(
+            organizationUuid,
+            items
+                .map((item) => item.projectUuid)
+                .filter((uuid): uuid is string => uuid !== null),
+        );
 
         const now = Date.now();
         const reconciled = items.map((item) => {
             const override = overrides.get(item.fingerprint);
-            const writebackEligible =
-                writebackEnabled &&
-                hasWritebackStrategy(item, { projectContextEnabled }) &&
-                item.projectUuid !== null &&
-                githubProjects.has(item.projectUuid);
-            return withStaleWritebackOverride(
-                { ...item, ...(override ?? {}), writebackEligible },
+            const staleAwareItem = withStaleWritebackOverride(
+                { ...item, ...(override ?? {}) },
                 now,
             );
+            const writebackEligibility =
+                getAiAgentReviewItemWritebackEligibility({
+                    item: staleAwareItem,
+                    reviewsEnabled,
+                    projectContextEnabled,
+                    projectAccess: staleAwareItem.projectUuid
+                        ? (projectAccessByUuid.get(
+                              staleAwareItem.projectUuid,
+                          ) ?? null)
+                        : null,
+                    hasSemanticWritebackConfig:
+                        this.hasSemanticWritebackConfig(),
+                });
+
+            return {
+                ...staleAwareItem,
+                writebackEligible: writebackEligibility.eligible,
+                writebackEligibility,
+            };
         });
 
-        if (statuses) {
-            return reconciled.filter((item) => statuses.includes(item.status));
-        }
-        return reconciled;
+        const filtered = statuses
+            ? reconciled.filter((item) => statuses.includes(item.status))
+            : reconciled;
+
+        const blockedReasons = filtered.reduce<
+            Partial<Record<AiAgentReviewItemWritebackBlockedReason, number>>
+        >((acc, item) => {
+            if (item.writebackEligibility.eligible) {
+                return acc;
+            }
+            acc[item.writebackEligibility.reason] =
+                (acc[item.writebackEligibility.reason] ?? 0) + 1;
+            return acc;
+        }, {});
+
+        this.analytics.track({
+            event: 'ai_agent_review_items.listed',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                totalCount: filtered.length,
+                eligibleCount: filtered.filter(
+                    (item) => item.writebackEligibility.eligible,
+                ).length,
+                statuses: statuses ?? null,
+                blockedReasons,
+            },
+        });
+
+        return filtered;
     }
 
     private async isWritebackFeatureEnabled(
@@ -292,17 +470,11 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             organizationName: user.organizationName ?? '',
         };
-        const [classifier, engine] = await Promise.all([
-            this.featureFlagService.get({
-                featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-                user: flagUser,
-            }),
-            this.featureFlagService.get({
-                featureFlagId: FeatureFlags.AiWriteback,
-                user: flagUser,
-            }),
-        ]);
-        return classifier.enabled && engine.enabled;
+        const classifier = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
+            user: flagUser,
+        });
+        return classifier.enabled;
     }
 
     private async isProjectContextFeatureEnabled(
@@ -323,23 +495,134 @@ export class AiAgentAdminService extends BaseService {
         return flag.enabled;
     }
 
-    private async getGithubProjectUuids(
-        projectUuids: string[],
-    ): Promise<Set<string>> {
-        const distinct = [...new Set(projectUuids)];
-        const results = await Promise.all(
-            distinct.map(async (projectUuid) => {
-                try {
-                    const project = await this.projectModel.get(projectUuid);
-                    return project.dbtConnection.type === DbtProjectType.GITHUB
-                        ? projectUuid
-                        : null;
-                } catch {
-                    return null;
-                }
-            }),
+    private hasSemanticWritebackConfig(): boolean {
+        return Boolean(
+            this.lightdashConfig.appRuntime.e2bApiKey &&
+            this.lightdashConfig.aiWriteback.anthropicApiKey,
         );
-        return new Set(results.filter((uuid): uuid is string => uuid !== null));
+    }
+
+    private async getProjectWritebackAccessByUuid(
+        organizationUuid: string,
+        projectUuids: string[],
+    ): Promise<Map<string, ProjectWritebackAccess>> {
+        const distinct = [...new Set(projectUuids)];
+        const [githubInstallationId, gitlabInstallationId] = await Promise.all([
+            this.githubAppInstallationsModel
+                .findInstallationId(organizationUuid)
+                .catch(() => undefined),
+            this.gitlabAppInstallationsModel
+                .findInstallationId(organizationUuid)
+                .catch(() => undefined),
+        ]);
+
+        const entries = await Promise.all(
+            distinct.map(
+                async (
+                    projectUuid,
+                ): Promise<ProjectWritebackAccessEntry | null> => {
+                    try {
+                        const project =
+                            await this.projectModel.get(projectUuid);
+                        if (
+                            project.dbtConnection.type === DbtProjectType.GITHUB
+                        ) {
+                            return [
+                                projectUuid,
+                                {
+                                    provider: PullRequestProvider.GITHUB,
+                                    hasGitAppInstallation:
+                                        githubInstallationId !== undefined,
+                                },
+                            ];
+                        }
+                        if (
+                            project.dbtConnection.type === DbtProjectType.GITLAB
+                        ) {
+                            return [
+                                projectUuid,
+                                {
+                                    provider: PullRequestProvider.GITLAB,
+                                    hasGitAppInstallation:
+                                        gitlabInstallationId !== undefined,
+                                },
+                            ];
+                        }
+                    } catch {
+                        return null;
+                    }
+                    return [
+                        projectUuid,
+                        {
+                            provider: null,
+                            hasGitAppInstallation: false,
+                        },
+                    ];
+                },
+            ),
+        );
+
+        return new Map(
+            entries.filter(
+                (entry): entry is ProjectWritebackAccessEntry => entry !== null,
+            ),
+        );
+    }
+
+    private static throwWritebackBlocked(
+        eligibility: AiAgentReviewItemWritebackEligibility,
+    ): never {
+        if (eligibility.eligible) {
+            throw new ParameterError('Writeback is available');
+        }
+
+        switch (eligibility.reason) {
+            case 'reviews_disabled':
+                throw new ForbiddenError(
+                    'AI agent review writeback is not enabled',
+                );
+            case 'missing_writeback_config':
+                throw new MissingConfigError(
+                    'AI writeback requires E2B_API_KEY and AI_WRITEBACK_ANTHROPIC_API_KEY',
+                );
+            case 'git_app_not_installed':
+                throw new ParameterError(
+                    `Install the ${eligibility.provider ?? 'Git'} app to open writeback pull requests`,
+                );
+            case 'pull_request_open':
+                throw new ParameterError(
+                    'A pull request is already open for this review item',
+                );
+            case 'writeback_in_progress':
+                throw new ParameterError(
+                    'A writeback is already in progress for this review item',
+                );
+            case 'terminal_state':
+                throw new ParameterError(
+                    'Writeback is not available for terminal review items',
+                );
+            case 'missing_project':
+                throw new ParameterError(
+                    'Writeback requires a project-scoped review item',
+                );
+            case 'missing_project_context_entry':
+                throw new ParameterError(
+                    'Project context writeback requires a generated context entry',
+                );
+            case 'project_context_disabled':
+                throw new ParameterError(
+                    'Project context writeback is not enabled',
+                );
+            case 'unsupported_source_control':
+                throw new ParameterError(
+                    'Writeback requires a GitHub or GitLab connected dbt project',
+                );
+            case 'unsupported_root_cause':
+            default:
+                throw new ParameterError(
+                    'Writeback is not available for this review item',
+                );
+        }
     }
 
     /**
@@ -517,6 +800,11 @@ export class AiAgentAdminService extends BaseService {
         if (!scope) {
             throw new NotFoundError('Review item not found');
         }
+        const previousReviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
 
         await this.aiAgentReviewClassifierModel.upsertReviewItemState({
             fingerprint,
@@ -536,7 +824,20 @@ export class AiAgentAdminService extends BaseService {
         if (!reviewItem) {
             throw new NotFoundError('Review item not found');
         }
-        return reviewItem;
+        if (previousReviewItem?.status !== update.status) {
+            this.analytics.track({
+                event: 'ai_agent_review_item.status_changed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    fingerprint,
+                    rootCause: reviewItem.primaryRootCause,
+                    previousStatus: previousReviewItem?.status ?? 'open',
+                    newStatus: update.status,
+                },
+            });
+        }
+        return this.getReviewItem(user, fingerprint);
     }
 
     async createReviewItemWriteback(
@@ -563,18 +864,6 @@ export class AiAgentAdminService extends BaseService {
             );
         }
 
-        const engineFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiWriteback,
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid,
-                organizationName: user.organizationName ?? '',
-            },
-        });
-        if (!engineFlag.enabled) {
-            throw new ForbiddenError('AI writeback is not enabled');
-        }
-
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
@@ -587,39 +876,25 @@ export class AiAgentAdminService extends BaseService {
             reviewItem.primaryRootCause === 'project_context'
                 ? await this.isProjectContextFeatureEnabled(user)
                 : false;
-        if (!hasWritebackStrategy(reviewItem, { projectContextEnabled })) {
-            throw new ParameterError(
-                'Writeback is not available for this review item',
-            );
-        }
-        // The semantic_layer strategy runs in the e2b sandbox with Claude Code,
-        // so fail fast at the click rather than queue → run → fail on the
-        // worker. project_context uses a deterministic GitHub merge — no sandbox,
-        // no Anthropic key — so these checks don't apply to it.
-        if (reviewItem.primaryRootCause === 'semantic_layer') {
-            if (!this.lightdashConfig.appRuntime.e2bApiKey) {
-                throw new MissingConfigError(
-                    'E2B API key is not configured (E2B_API_KEY)',
-                );
-            }
-            if (!this.lightdashConfig.aiWriteback.anthropicApiKey) {
-                throw new MissingConfigError(
-                    'Anthropic API key is not configured (AI_WRITEBACK_ANTHROPIC_API_KEY)',
-                );
-            }
-        }
-        if (reviewItem.linkedPrUrl && reviewItem.prState === 'open') {
-            throw new ParameterError(
-                'A pull request is already open for this review item',
-            );
-        }
-        const writebackInFlight =
-            reviewItem.prWritebackStatus === 'queued' ||
-            reviewItem.prWritebackStatus === 'running';
-        if (writebackInFlight && !isWritebackStale(reviewItem, Date.now())) {
-            throw new ParameterError(
-                'A writeback is already in progress for this review item',
-            );
+        const staleAwareItem = withStaleWritebackOverride(
+            reviewItem,
+            Date.now(),
+        );
+        const projectAccessByUuid = await this.getProjectWritebackAccessByUuid(
+            organizationUuid,
+            staleAwareItem.projectUuid ? [staleAwareItem.projectUuid] : [],
+        );
+        const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
+            item: staleAwareItem,
+            reviewsEnabled: true,
+            projectContextEnabled,
+            projectAccess: staleAwareItem.projectUuid
+                ? (projectAccessByUuid.get(staleAwareItem.projectUuid) ?? null)
+                : null,
+            hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
+        });
+        if (!writebackEligibility.eligible) {
+            AiAgentAdminService.throwWritebackBlocked(writebackEligibility);
         }
 
         const scope =
@@ -629,13 +904,6 @@ export class AiAgentAdminService extends BaseService {
             );
         if (!scope) {
             throw new NotFoundError('Review item not found');
-        }
-
-        const project = await this.projectModel.get(scope.projectUuid);
-        if (project.dbtConnection.type !== DbtProjectType.GITHUB) {
-            throw new ParameterError(
-                'Writeback requires a GitHub-connected dbt project',
-            );
         }
 
         await this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
@@ -654,11 +922,20 @@ export class AiAgentAdminService extends BaseService {
             userUuid: user.userUuid,
         });
 
-        const updated = await this.aiAgentReviewClassifierModel.getReviewItem(
-            organizationUuid,
-            fingerprint,
-        );
-        return updated ?? reviewItem;
+        this.analytics.track({
+            event: 'ai_agent_review_item.writeback_queued',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: scope.projectUuid,
+                fingerprint,
+                rootCause: reviewItem.primaryRootCause,
+                strategy: writebackEligibility.strategy,
+                provider: writebackEligibility.provider,
+            },
+        });
+
+        return this.getReviewItem(user, fingerprint);
     }
 
     /**
@@ -709,6 +986,7 @@ export class AiAgentAdminService extends BaseService {
                 message,
             });
 
+        let strategy: AiAgentReviewItemWritebackStrategy | null = null;
         try {
             const user = await this.userModel.findSessionUserByUUID(userUuid);
             await setProgress('Starting writeback…');
@@ -721,6 +999,8 @@ export class AiAgentAdminService extends BaseService {
                 reviewItem,
                 buildYmlPathByModel(Object.values(explores)),
             );
+            const planStrategy = toReviewWritebackStrategy(plan.strategy);
+            strategy = planStrategy;
 
             let prUrl: string | null;
             if (plan.strategy === 'project_context') {
@@ -783,8 +1063,32 @@ export class AiAgentAdminService extends BaseService {
                     'Writeback ran — no changes were needed',
                 );
             }
+            this.analytics.track({
+                event: 'ai_agent_review_item.writeback_completed',
+                userId: userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    fingerprint,
+                    rootCause: reviewItem.primaryRootCause,
+                    strategy: planStrategy,
+                    prCreated: prUrl !== null,
+                },
+            });
         } catch (error) {
             await setTerminal('failed', getErrorMessage(error));
+            this.analytics.track({
+                event: 'ai_agent_review_item.writeback_failed',
+                userId: userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    fingerprint,
+                    rootCause: reviewItem.primaryRootCause,
+                    strategy,
+                    errorMessage: getErrorMessage(error),
+                },
+            });
             throw error;
         }
     }
@@ -816,21 +1120,33 @@ export class AiAgentAdminService extends BaseService {
             throw new NotFoundError('Review item not found');
         }
 
-        const [writebackEnabled, projectContextEnabled] = await Promise.all([
+        const [reviewsEnabled, projectContextEnabled] = await Promise.all([
             this.isWritebackFeatureEnabled(user),
             this.isProjectContextFeatureEnabled(user),
         ]);
-        const writebackEligible =
-            writebackEnabled &&
-            hasWritebackStrategy(reviewItem, { projectContextEnabled }) &&
-            reviewItem.projectUuid !== null &&
-            (await this.getGithubProjectUuids([reviewItem.projectUuid])).has(
-                reviewItem.projectUuid,
-            );
-        return withStaleWritebackOverride(
-            { ...reviewItem, writebackEligible },
+        const projectAccessByUuid = await this.getProjectWritebackAccessByUuid(
+            organizationUuid,
+            reviewItem.projectUuid ? [reviewItem.projectUuid] : [],
+        );
+        const staleAwareItem = withStaleWritebackOverride(
+            reviewItem,
             Date.now(),
         );
+        const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
+            item: staleAwareItem,
+            reviewsEnabled,
+            projectContextEnabled,
+            projectAccess: staleAwareItem.projectUuid
+                ? (projectAccessByUuid.get(staleAwareItem.projectUuid) ?? null)
+                : null,
+            hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
+        });
+
+        return {
+            ...staleAwareItem,
+            writebackEligible: writebackEligibility.eligible,
+            writebackEligibility,
+        };
     }
 
     /**
@@ -856,7 +1172,25 @@ export class AiAgentAdminService extends BaseService {
         if (!reviewItem) {
             throw new NotFoundError('Review item not found');
         }
+        const trackPreviewViewed = (
+            available: boolean,
+            strategy: AiAgentReviewItemWritebackStrategy | null,
+        ) =>
+            this.analytics.track({
+                event: 'ai_agent_review_item.writeback_preview_viewed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: reviewItem.projectUuid,
+                    fingerprint,
+                    rootCause: reviewItem.primaryRootCause,
+                    available,
+                    strategy,
+                },
+            });
+
         if (reviewItem.projectUuid === null) {
+            trackPreviewViewed(false, null);
             return { available: false };
         }
 
@@ -864,9 +1198,11 @@ export class AiAgentAdminService extends BaseService {
         try {
             plan = planReviewWriteback(reviewItem);
         } catch {
+            trackPreviewViewed(false, null);
             return { available: false };
         }
         if (plan.strategy !== 'project_context') {
+            trackPreviewViewed(false, toReviewWritebackStrategy(plan.strategy));
             return { available: false };
         }
 
@@ -874,6 +1210,7 @@ export class AiAgentAdminService extends BaseService {
             projectUuid: reviewItem.projectUuid,
             entry: plan.entry,
         });
+        trackPreviewViewed(true, toReviewWritebackStrategy(plan.strategy));
         return { available: true, ...preview };
     }
 

@@ -19,6 +19,7 @@ import type {
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
+    AiAgentReviewItemWritebackEligibility,
     AiAgentReviewItemWritebackStatus,
     AiAgentReviewSignalSummary,
     AiAgentRootCause,
@@ -49,6 +50,20 @@ import {
 
 type Dependencies = {
     database: Knex;
+};
+
+type ReviewItemAggregateRow = {
+    fingerprint: string;
+    first_seen_at: Date | string;
+    last_seen_at: Date | string;
+    finding_count: string | number;
+};
+
+const defaultWritebackEligibility: AiAgentReviewItemWritebackEligibility = {
+    eligible: false,
+    reason: 'reviews_disabled',
+    provider: null,
+    strategy: null,
 };
 
 type CreateRunArgs = {
@@ -797,44 +812,121 @@ export class AiAgentReviewClassifierModel {
     async listReviewItems(
         args: ListReviewItemsArgs,
     ): Promise<AiAgentReviewItemSummary[]> {
-        const rows: DbAiAgentTurnSignal[] =
-            await this.database<AiAgentTurnSignalTable>(
-                AiAgentTurnSignalTableName,
+        const limit = Math.min(args.limit ?? 100, 500);
+        if (args.statuses?.length === 0) {
+            return [];
+        }
+        const baseQuery = this.database<AiAgentTurnSignalTable>(
+            AiAgentTurnSignalTableName,
+        )
+            .where(
+                `${AiAgentTurnSignalTableName}.organization_uuid`,
+                args.organizationUuid,
             )
-                .where('organization_uuid', args.organizationUuid)
-                .where('promoted_to_finding', true)
-                .whereNotNull('fingerprint')
-                .modify((query) => {
-                    if (args.projectUuid) {
-                        void query.where('project_uuid', args.projectUuid);
-                    }
-                    if (args.agentUuid) {
-                        void query.where('agent_uuid', args.agentUuid);
-                    }
-                    if (args.fingerprint) {
-                        void query.where('fingerprint', args.fingerprint);
-                    }
-                })
-                .orderBy('created_at', 'desc')
-                .limit(Math.min((args.limit ?? 100) * 10, 1000));
+            .where(`${AiAgentTurnSignalTableName}.promoted_to_finding`, true)
+            .whereNotNull(`${AiAgentTurnSignalTableName}.fingerprint`)
+            .modify((query) => {
+                if (args.projectUuid) {
+                    void query.where(
+                        `${AiAgentTurnSignalTableName}.project_uuid`,
+                        args.projectUuid,
+                    );
+                }
+                if (args.agentUuid) {
+                    void query.where(
+                        `${AiAgentTurnSignalTableName}.agent_uuid`,
+                        args.agentUuid,
+                    );
+                }
+                if (args.fingerprint) {
+                    void query.where(
+                        `${AiAgentTurnSignalTableName}.fingerprint`,
+                        args.fingerprint,
+                    );
+                }
+                if (args.statuses) {
+                    void query
+                        .leftJoin(
+                            AiAgentReviewItemTableName,
+                            function joinReviewItems() {
+                                this.on(
+                                    `${AiAgentReviewItemTableName}.fingerprint`,
+                                    `${AiAgentTurnSignalTableName}.fingerprint`,
+                                ).andOn(
+                                    `${AiAgentReviewItemTableName}.organization_uuid`,
+                                    `${AiAgentTurnSignalTableName}.organization_uuid`,
+                                );
+                            },
+                        )
+                        .whereRaw(
+                            `COALESCE(${AiAgentReviewItemTableName}.status, 'open') IN (${args.statuses
+                                .map(() => '?')
+                                .join(', ')})`,
+                            args.statuses,
+                        );
+                }
+            });
 
-        const byFingerprint = new Map<string, DbAiAgentTurnSignal[]>();
-        rows.forEach((row) => {
-            if (!row.fingerprint) return;
-            const group = byFingerprint.get(row.fingerprint) ?? [];
-            group.push(row);
-            byFingerprint.set(row.fingerprint, group);
-        });
+        const aggregateRows = (await baseQuery
+            .clone()
+            .select({
+                fingerprint: `${AiAgentTurnSignalTableName}.fingerprint`,
+            })
+            .min({
+                first_seen_at: `${AiAgentTurnSignalTableName}.created_at`,
+            })
+            .max({
+                last_seen_at: `${AiAgentTurnSignalTableName}.created_at`,
+            })
+            .count({
+                finding_count: '*',
+            })
+            .groupBy(`${AiAgentTurnSignalTableName}.fingerprint`)
+            .orderBy('last_seen_at', 'desc')
+            .limit(limit)) as ReviewItemAggregateRow[];
 
-        const fingerprints = Array.from(byFingerprint.keys());
+        const fingerprints = aggregateRows.map((row) => row.fingerprint);
+        if (fingerprints.length === 0) {
+            return [];
+        }
+
+        const latestRows = (await this.database<AiAgentTurnSignalTable>(
+            AiAgentTurnSignalTableName,
+        )
+            .distinctOn('fingerprint')
+            .select('*')
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn('fingerprint', fingerprints)
+            .modify((query) => {
+                if (args.projectUuid) {
+                    void query.where('project_uuid', args.projectUuid);
+                }
+                if (args.agentUuid) {
+                    void query.where('agent_uuid', args.agentUuid);
+                }
+            })
+            .orderBy('fingerprint')
+            .orderBy('created_at', 'desc')) as DbAiAgentTurnSignal[];
+
+        const latestByFingerprint = new Map(
+            latestRows
+                .filter((row) => row.fingerprint !== null)
+                .map((row) => [row.fingerprint as string, row]),
+        );
+        const aggregateByFingerprint = new Map(
+            aggregateRows.map((row) => [row.fingerprint, row]),
+        );
         const persisted = await this.getReviewItemsByFingerprint(fingerprints);
 
-        return Array.from(byFingerprint.entries())
-            .map(([fingerprint, group]) => {
-                const latest = group[0];
-                const createdAts = group.map((row) => row.created_at.getTime());
-                const firstSeenAt = new Date(Math.min(...createdAts));
-                const lastSeenAt = new Date(Math.max(...createdAts));
+        const reviewItems = fingerprints
+            .map((fingerprint): AiAgentReviewItemSummary | null => {
+                const latest = latestByFingerprint.get(fingerprint);
+                const aggregate = aggregateByFingerprint.get(fingerprint);
+                if (!latest || !aggregate) {
+                    return null;
+                }
+                const firstSeenAt = new Date(aggregate.first_seen_at);
+                const lastSeenAt = new Date(aggregate.last_seen_at);
                 const item = persisted.get(fingerprint) ?? null;
                 return {
                     uuid: fingerprint,
@@ -851,7 +943,7 @@ export class AiAgentReviewClassifierModel {
                     assignedToUserUuid: item?.assigned_to_user_uuid ?? null,
                     firstSeenAt,
                     lastSeenAt,
-                    findingCount: group.length,
+                    findingCount: Number(aggregate.finding_count),
                     statusUpdatedAt: item?.status_updated_at ?? lastSeenAt,
                     statusUpdatedByUserUuid:
                         item?.status_updated_by_user_uuid ?? null,
@@ -861,6 +953,7 @@ export class AiAgentReviewClassifierModel {
                     prWritebackStatus: item?.pr_writeback_status ?? null,
                     prWritebackMessage: item?.pr_writeback_message ?? null,
                     writebackEligible: false,
+                    writebackEligibility: defaultWritebackEligibility,
                     createdAt: item?.created_at ?? firstSeenAt,
                     updatedAt: item?.updated_at ?? lastSeenAt,
                     latestFinding: {
@@ -881,10 +974,11 @@ export class AiAgentReviewClassifierModel {
                 };
             })
             .filter(
-                (reviewItem) =>
-                    !args.statuses || args.statuses.includes(reviewItem.status),
-            )
-            .slice(0, Math.min(args.limit ?? 100, 500));
+                (reviewItem): reviewItem is AiAgentReviewItemSummary =>
+                    reviewItem !== null,
+            );
+
+        return reviewItems;
     }
 
     async getReviewItemsByFingerprint(

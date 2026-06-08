@@ -278,6 +278,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>
                 new AiAgentAdminService({
+                    analytics: context.lightdashAnalytics,
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
@@ -290,6 +291,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     pullRequestsModel: models.getPullRequestsModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    gitlabAppInstallationsModel:
+                        models.getGitlabAppInstallationsModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     userModel: models.getUserModel(),
