@@ -1,3 +1,10 @@
+## [0.3110.2](https://github.com/lightdash/lightdash/compare/0.3110.1...0.3110.2) (2026-06-08)
+
+
+### Bug Fixes
+
+* **dashboards:** reconcile stale filter ids from shared links ([#24003](https://github.com/lightdash/lightdash/issues/24003)) ([1abf66a](https://github.com/lightdash/lightdash/commit/1abf66a988997701d43390fda66e129b09d5f081))
+
 ## [0.3110.1](https://github.com/lightdash/lightdash/compare/0.3110.0...0.3110.1) (2026-06-08)
 
 
