@@ -391,19 +391,34 @@ export const applyDimensionOverrides = (
     const overrideArray =
         overrides instanceof Array ? overrides : overrides.dimensions;
 
-    // Apply overrides to existing dashboard dimensions
+    const savedIds = new Set(dashboardFilters.dimensions.map((d) => d.id));
+    // Track consumed overrides so each is applied to one saved filter and the
+    // rest can be appended afterwards.
+    const appliedOverrideIds = new Set<string>();
+
     const overriddenDimensions = dashboardFilters.dimensions.map(
         (dimension) => {
-            const override = overrideArray.find(
-                (overrideDimension) => overrideDimension.id === dimension.id,
-            );
+            // Match by id, then fall back to the target field so a shared link
+            // keeps working after an edit rotates the filter's id.
+            const override =
+                overrideArray.find((o) => o.id === dimension.id) ??
+                overrideArray.find(
+                    (o) =>
+                        !savedIds.has(o.id) &&
+                        !appliedOverrideIds.has(o.id) &&
+                        o.target.fieldId === dimension.target.fieldId &&
+                        o.target.tableName === dimension.target.tableName,
+                );
+
             if (override) {
+                appliedOverrideIds.add(override.id);
                 return {
                     ...override,
+                    // The saved dashboard owns identity, tile targeting and lock
+                    // state; the override only carries value/operator. Forcing the
+                    // id re-homes a field-matched override onto the saved filter.
+                    id: dimension.id,
                     tileTargets: dimension.tileTargets,
-                    // Lock state belongs to the saved dashboard and must not
-                    // be assertable from URL/scheduler overrides — always
-                    // re-apply the saved rule's lockedTabUuids.
                     lockedTabUuids: dimension.lockedTabUuids,
                 };
             }
@@ -411,10 +426,9 @@ export const applyDimensionOverrides = (
         },
     );
 
-    // Add scheduler filters that don't exist in dashboard saved filters
-    const existingIds = new Set(dashboardFilters.dimensions.map((d) => d.id));
+    // Append overrides that matched no saved filter by id or field.
     const newDimensions = overrideArray.filter(
-        (schedulerFilter) => !existingIds.has(schedulerFilter.id),
+        (o) => !savedIds.has(o.id) && !appliedOverrideIds.has(o.id),
     );
     overriddenDimensions.push(...newDimensions);
 
