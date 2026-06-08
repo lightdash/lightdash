@@ -665,8 +665,15 @@ export class AiAgentService extends BaseService {
                     organizationName: '',
                 },
             })
-            .then((flag) => {
+            .then(async (flag) => {
                 if (!flag.enabled) {
+                    return undefined;
+                }
+                const reviewsEnabled =
+                    await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+                        { organizationUuid },
+                    );
+                if (!reviewsEnabled) {
                     return undefined;
                 }
                 return this.schedulerClient.aiAgentReviewClassifier({

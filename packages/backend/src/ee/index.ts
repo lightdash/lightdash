@@ -319,6 +319,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    aiOrganizationSettingsModel:
+                        models.getAiOrganizationSettingsModel(),
                     catalogModel: models.getCatalogModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
