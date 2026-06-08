@@ -469,7 +469,9 @@ export class SpaceService
             trackEvent?: boolean;
         } = {},
     ) {
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+            projectUuid,
+        });
 
         if (!space) {
             throw new NotFoundError('Space not found');
@@ -494,7 +496,7 @@ export class SpaceService
 
         await this.spaceModel.moveToSpace(
             {
-                projectUuid: space.projectUuid,
+                projectUuid,
                 itemUuid: spaceUuid,
                 targetSpaceUuid,
             },
