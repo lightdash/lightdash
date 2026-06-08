@@ -52,6 +52,10 @@ Displays a single metric value prominently, with optional comparison to a previo
 | `flipColors`             | boolean                    | Reverse colors: red for increase, green for decrease (use for costs, errors, churn)                    |
 | `conditionalFormattings` | array                      | Color the big number value based on conditions — see [Conditional Formatting](#conditional-formatting) |
 
+## Number Rounding
+
+For decimal places, currencies, compact notation, and chart-level overrides, read `field-formatting-reference`.
+
 ## Conditional Formatting
 
 Changes the color of the big number text based on rules. Each rule has a `color` (hex), optional `darkColor` for dark mode, and one or more conditions. Multiple conditions within a rule are **AND**-ed. If multiple rules match, the **last** matching rule wins.

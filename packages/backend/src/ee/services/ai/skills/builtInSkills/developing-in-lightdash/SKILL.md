@@ -187,6 +187,7 @@ For period comparisons, read `period-over-period-reference` in addition to the c
 - `sankey-chart-reference` - Flow diagrams
 - `custom-viz-reference` - Vega-Lite
 - `period-over-period-reference` - PoP comparisons
+- `field-formatting-reference` - Chart-level field formatting overrides for metrics and dimensions
 
 ### Dashboards
 
