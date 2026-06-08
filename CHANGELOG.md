@@ -1,3 +1,10 @@
+## [0.3104.4](https://github.com/lightdash/lightdash/compare/0.3104.3...0.3104.4) (2026-06-08)
+
+
+### Bug Fixes
+
+* scope validation operations to project ([#23982](https://github.com/lightdash/lightdash/issues/23982)) ([c3ef6ca](https://github.com/lightdash/lightdash/commit/c3ef6caa73e37e21c7721f704187ffff282dc6ed))
+
 ## [0.3104.3](https://github.com/lightdash/lightdash/compare/0.3104.2...0.3104.3) (2026-06-08)
 
 
