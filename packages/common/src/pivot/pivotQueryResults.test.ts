@@ -1,6 +1,7 @@
 import { type ItemsMap } from '../types/field';
 import { type PivotData } from '../types/pivot';
 import { type ResultRow } from '../types/results';
+import { getPivotRowContextKey } from '../utils/conditionalFormatting';
 import {
     SortByDirection,
     VizAggregationOptions,
@@ -1063,5 +1064,148 @@ describe('passthrough dimensions (PROD-7873)', () => {
                 columnType: 'passthrough',
             },
         ]);
+    });
+});
+
+describe('hidden-metric conditional-formatting side-channel (PROD-2372)', () => {
+    // One index dim (year), one pivot dim (payment method), two metrics where
+    // one is hidden. The hidden metric is filtered out of the visible output,
+    // but its pivoted values must be stashed on `hiddenContextValues` keyed by
+    // the displayed dimension context so a CF rule referencing it still resolves.
+    const rows: ResultRow[] = [
+        {
+            orders_order_date_year: {
+                value: { raw: '2025-01-01T00:00:00Z', formatted: '2025' },
+            },
+            payments_total_revenue_any_bank_transfer: {
+                value: { raw: 100, formatted: '100' },
+            },
+            orders_total_order_amount_any_bank_transfer: {
+                value: { raw: 200, formatted: '200' },
+            },
+        },
+        {
+            orders_order_date_year: {
+                value: { raw: '2024-01-01T00:00:00Z', formatted: '2024' },
+            },
+            payments_total_revenue_any_bank_transfer: {
+                value: { raw: 50, formatted: '50' },
+            },
+            orders_total_order_amount_any_bank_transfer: {
+                value: { raw: 75, formatted: '75' },
+            },
+        },
+    ];
+
+    const pivotDetails = {
+        totalColumnCount: 1,
+        valuesColumns: [
+            {
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [
+                    {
+                        value: 'bank_transfer',
+                        referenceField: 'payments_payment_method',
+                    },
+                ],
+                referenceField: 'payments_total_revenue',
+                pivotColumnName: 'payments_total_revenue_any_bank_transfer',
+            },
+            {
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [
+                    {
+                        value: 'bank_transfer',
+                        referenceField: 'payments_payment_method',
+                    },
+                ],
+                referenceField: 'orders_total_order_amount',
+                pivotColumnName: 'orders_total_order_amount_any_bank_transfer',
+            },
+        ],
+        indexColumn: [
+            {
+                type: VizIndexType.TIME,
+                reference: 'orders_order_date_year',
+            },
+        ],
+        groupByColumns: [{ reference: 'payments_payment_method' }],
+        sortBy: [
+            {
+                direction: SortByDirection.DESC,
+                reference: 'orders_order_date_year',
+            },
+        ],
+        originalColumns: {},
+    };
+
+    it('stashes the hidden metric value keyed by index + header dims, without changing the visible output shape', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_payment_method',
+                    'payments_total_revenue',
+                    'orders_total_order_amount',
+                ],
+                hiddenMetricFieldIds: ['orders_total_order_amount'],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // Visible output only carries the one visible metric (revenue): one
+        // pivot column group, so dataValues has exactly one column per row.
+        expect(result.dataColumnCount).toBe(1);
+        result.dataValues.forEach((row) => {
+            expect(row).toHaveLength(1);
+        });
+
+        expect(result.hiddenContextValues).toBeDefined();
+
+        const key2025 = getPivotRowContextKey({
+            orders_order_date_year: '2025-01-01T00:00:00Z',
+            payments_payment_method: 'bank_transfer',
+        });
+        expect(result.hiddenContextValues![key2025]).toEqual({
+            orders_total_order_amount: { raw: 200, formatted: '200' },
+        });
+
+        const key2024 = getPivotRowContextKey({
+            orders_order_date_year: '2024-01-01T00:00:00Z',
+            payments_payment_method: 'bank_transfer',
+        });
+        expect(result.hiddenContextValues![key2024]).toEqual({
+            orders_total_order_amount: { raw: 75, formatted: '75' },
+        });
+    });
+
+    it('omits hiddenContextValues entirely when no metric is hidden', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_payment_method',
+                    'payments_total_revenue',
+                    'orders_total_order_amount',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        expect(result.hiddenContextValues).toBeUndefined();
     });
 });

@@ -734,3 +734,22 @@ export const getConditionalFormattingColor = ({
         getColorFromRange,
     });
 };
+
+/**
+ * Canonical key for a pivot cell's dimension context (index + header dims).
+ * Used by both pivotQueryResults (to store hidden values) and the pivot
+ * renderer (to look them up), so the keys cannot drift. Entries are sorted by
+ * fieldId; null and undefined raw values are normalised to the same token.
+ */
+export const getPivotRowContextKey = (
+    dimValues: Record<string, unknown>,
+): string => {
+    const entries = Object.keys(dimValues)
+        .sort()
+        .map((fieldId) => {
+            const raw = dimValues[fieldId];
+            const token = raw === null || raw === undefined ? ' ' : String(raw);
+            return [fieldId, token];
+        });
+    return JSON.stringify(entries);
+};

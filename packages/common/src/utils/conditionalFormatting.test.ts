@@ -3,6 +3,7 @@ import { FilterOperator } from '../types/filter';
 import {
     createConditionalFormattingConfigWithSingleColor,
     createConditionalFormattingRuleWithValues,
+    getPivotRowContextKey,
     hasMatchingConditionalRules,
 } from './conditionalFormatting';
 
@@ -169,5 +170,31 @@ describe('hasMatchingConditionalRules', () => {
 
             expect(result).toBe(true);
         });
+    });
+});
+
+describe('getPivotRowContextKey', () => {
+    it('is stable regardless of key insertion order', () => {
+        const a = getPivotRowContextKey({ dim_b: 'y', dim_a: 'x' });
+        const b = getPivotRowContextKey({ dim_a: 'x', dim_b: 'y' });
+        expect(a).toEqual(b);
+    });
+
+    it('distinguishes different values', () => {
+        expect(getPivotRowContextKey({ dim_a: 'x' })).not.toEqual(
+            getPivotRowContextKey({ dim_a: 'z' }),
+        );
+    });
+
+    it('distinguishes different fields with equal values', () => {
+        expect(getPivotRowContextKey({ dim_a: 'x' })).not.toEqual(
+            getPivotRowContextKey({ dim_b: 'x' }),
+        );
+    });
+
+    it('normalizes null/undefined consistently', () => {
+        expect(getPivotRowContextKey({ dim_a: null })).toEqual(
+            getPivotRowContextKey({ dim_a: undefined }),
+        );
     });
 });

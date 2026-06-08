@@ -6,6 +6,7 @@ import {
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
     getItemId,
+    getPivotRowContextKey,
     isDimension,
     isField,
     isHexCodeColor,
@@ -821,6 +822,31 @@ const PivotTable: FC<PivotTableProps> = ({
         [getField],
     );
 
+    // Merge hidden metric values from hiddenContextValues into rowFields
+    // for conditional formatting rules that reference hidden metrics
+    const mergeHiddenContextValues = useCallback(
+        (
+            dimValues: Record<string, unknown>,
+        ): ConditionalFormattingRowFields => {
+            if (!data.hiddenContextValues) return {};
+            const key = getPivotRowContextKey(dimValues);
+            const hidden = data.hiddenContextValues[key];
+            if (!hidden) return {};
+            return Object.entries(
+                hidden,
+            ).reduce<ConditionalFormattingRowFields>(
+                (acc, [fieldId, resultValue]) => {
+                    const field = getField(fieldId);
+                    if (field)
+                        acc[fieldId] = { field, value: resultValue?.raw };
+                    return acc;
+                },
+                {},
+            );
+        },
+        [data.hiddenContextValues, getField],
+    );
+
     // Build rowFields for metricsAsRows mode by looking up metric values across rows
     // that share the same index dimension values (same "row group" in the original data)
     const buildRowFieldsForMetricsAsRows = useCallback(
@@ -886,11 +912,26 @@ const PivotTable: FC<PivotTableProps> = ({
                     {},
                 );
 
-            // Merge pivoted dimensions, row dimensions, and metrics
+            // Build dim map for hidden context key lookup:
+            // use display index dims (rowDimensionFields) + header dims (headerInfo)
+            const dimValuesForKey: Record<string, unknown> = {};
+            Object.entries(rowDimensionFields).forEach(
+                ([fieldId, { value }]) => {
+                    dimValuesForKey[fieldId] = value;
+                },
+            );
+            if (headerInfo) {
+                Object.entries(headerInfo).forEach(([fieldId, rv]) => {
+                    dimValuesForKey[fieldId] = rv?.raw;
+                });
+            }
+
+            // Merge pivoted dimensions, row dimensions, metrics, and hidden metric values
             return {
                 ...pivotedDimensionFields,
                 ...rowDimensionFields,
                 ...metricFields,
+                ...mergeHiddenContextValues(dimValuesForKey),
             };
         },
         [
@@ -899,6 +940,7 @@ const PivotTable: FC<PivotTableProps> = ({
             findDataColumnIndex,
             getField,
             buildRowFieldsFromHeaderInfo,
+            mergeHiddenContextValues,
         ],
     );
 
@@ -938,10 +980,27 @@ const PivotTable: FC<PivotTableProps> = ({
                     return acc;
                 }, {});
 
-            // Merge pivoted dimensions with cell fields
-            return { ...pivotedDimensionFields, ...cellFields };
+            // Build dim map for hidden context key lookup:
+            // use index dimension cells + header dims (headerInfo)
+            const dimValuesForKey: Record<string, unknown> = {};
+            Object.values(cellFields).forEach(({ field, value }) => {
+                if (isDimension(field))
+                    dimValuesForKey[getItemId(field)] = value;
+            });
+            if (headerInfo) {
+                Object.entries(headerInfo).forEach(([fieldId, rv]) => {
+                    dimValuesForKey[fieldId] = rv?.raw;
+                });
+            }
+
+            // Merge pivoted dimensions, cell fields, and hidden metric values
+            return {
+                ...pivotedDimensionFields,
+                ...cellFields,
+                ...mergeHiddenContextValues(dimValuesForKey),
+            };
         },
-        [buildRowFieldsFromHeaderInfo],
+        [buildRowFieldsFromHeaderInfo, mergeHiddenContextValues],
     );
 
     const paddingTop = useMemo(() => {
