@@ -412,6 +412,55 @@ describe('Saved chart get API behavior', () => {
         });
     });
 
+    describe('unscoped v1 resolution', () => {
+        it('prefers the newest matching chart across projects when lookup is unscoped', async () => {
+            const secondProjectName = uniqueName(
+                'Chart get behavior unscoped second project',
+            );
+            const secondProjectUuid = await createAndRefreshProject(
+                admin,
+                secondProjectName,
+            );
+
+            try {
+                const secondSpaceResp = await admin.post<
+                    Body<{ uuid: string }>
+                >(`/api/v1/projects/${secondProjectUuid}/spaces/`, {
+                    name: uniqueName(
+                        'Chart get behavior unscoped second project space',
+                    ),
+                });
+                expect(secondSpaceResp.status).toBe(200);
+
+                const secondProjectChart = await admin.post<Body<SavedChart>>(
+                    `/api/v1/projects/${secondProjectUuid}/saved`,
+                    {
+                        ...chartPayload(mainChart.uuid),
+                        spaceUuid: secondSpaceResp.body.results.uuid,
+                    },
+                );
+                expect(secondProjectChart.status).toBe(200);
+
+                const resp = await admin.get<Body<SavedChart>>(
+                    `${apiUrl}/saved/${mainChart.uuid}`,
+                );
+                expect(resp.status).toBe(200);
+                expect(resp.body.results.uuid).toBe(
+                    secondProjectChart.body.results.uuid,
+                );
+                expect(resp.body.results.projectUuid).toBe(secondProjectUuid);
+                expect(resp.body.results.slug).toBe(mainChart.uuid);
+            } finally {
+                await admin.delete(
+                    `/api/v1/org/projects/${secondProjectUuid}`,
+                    {
+                        failOnStatusCode: false,
+                    },
+                );
+            }
+        });
+    });
+
     describe('version resolution', () => {
         it('returns the latest version of a chart', async () => {
             const resp = await admin.get<Body<SavedChart>>(
