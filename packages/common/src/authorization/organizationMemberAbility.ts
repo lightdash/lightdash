@@ -70,16 +70,6 @@ export const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-        can('view', 'DataApp', {
-            organizationUuid: member.organizationUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('view', 'DataApp', {
-            organizationUuid: member.organizationUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
-        });
         can('view', 'OrganizationDesign', {
             organizationUuid: member.organizationUuid,
         });
@@ -201,6 +191,19 @@ export const applyOrganizationMemberStaticAbilities: Record<
                     userUuid: member.userUuid,
                     role: SpaceMemberRole.ADMIN,
                 },
+            },
+        });
+        // View data apps shared org/project-wide or in spaces the user can
+        // access. Gated at interactive-viewer (not viewer) for parity with
+        // manage:Explore — plain viewers don't get data app access.
+        can('view', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            inheritsFromOrgOrProject: true,
+        });
+        can('view', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
             },
         });
         // Create personal data apps; once created, the user can also view

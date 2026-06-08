@@ -35,7 +35,6 @@ const BASE_ROLE_SCOPES = {
         'view:MetricsTree',
         'view:SpotlightTableConfig',
         'view:AiAgentThread@self',
-        'view:DataApp',
         'view:OrganizationDesign',
     ],
 
@@ -67,6 +66,7 @@ const BASE_ROLE_SCOPES = {
         'view:AiAgent',
         'view:AiAgentDocument',
         'create:AiAgentThread',
+        'view:DataApp', // Project-wide + space-access view (parity with manage:Explore)
         'create:DataApp', // Personal apps (not yet in a space)
         'view:DataApp@self', // Own personal apps
         'manage:DataApp@self', // Own personal apps
