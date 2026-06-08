@@ -44,6 +44,7 @@ import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCal
 import { ListContentToolCallDescription } from './ListContentToolCallDescription';
 import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
+import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
 import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
 import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
@@ -298,6 +299,15 @@ export const ToolCallDescription: FC<{
         case 'improveContext':
         case 'loadSkill':
         case 'loadProjectContext':
+        case 'repoShell':
+            const toolArgsRepoShell = toolCall.toolArgs as {
+                command?: string;
+            };
+            return (
+                <RepoShellToolCallDescription
+                    command={toolArgsRepoShell.command ?? null}
+                />
+            );
         case 'proposeChange':
         case 'proposeWriteback':
         case 'setupPreviewDeploy':
