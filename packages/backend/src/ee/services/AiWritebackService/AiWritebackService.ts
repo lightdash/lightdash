@@ -196,6 +196,22 @@ export class AiWritebackService extends BaseService {
             throw new ForbiddenError('User is not part of an organization');
         }
         const project = await this.projectModel.get(projectUuid);
+        // Reading repo source requires view:SourceCode (writeback requires the
+        // stricter manage:SourceCode). Gate the read so the repoShell tool can't
+        // expose dbt source to users without source-code access.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view this project source code',
+            );
+        }
         const provider = this.getGitProvider(project.dbtConnection.type);
         if (provider.provider !== PullRequestProvider.GITHUB) {
             throw new WritebackGitNotConnectedError(
