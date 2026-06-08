@@ -262,15 +262,20 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
     const [hasParameterOrderChanged, setHasParameterOrderChanged] =
         useState<boolean>(false);
 
-    // Date zoom granularities state
-    const allStandardGranularities = useMemo(
-        () => Object.values(DateGranularity),
+    // Date zoom granularities state.
+    // Default offers every standard granularity except sub-day ones; editors can
+    // still enable sub-day granularities (Second/Minute/Hour) explicitly.
+    const defaultStandardGranularities = useMemo(
+        () =>
+            Object.values(DateGranularity).filter(
+                (g) => !isSubDayGranularity(g),
+            ),
         [],
     );
 
     const [dateZoomGranularities, setDateZoomGranularitiesState] = useState<
         (DateGranularity | string)[]
-    >(allStandardGranularities);
+    >(defaultStandardGranularities);
     const [
         haveDateZoomGranularitiesChanged,
         setHaveDateZoomGranularitiesChanged,
@@ -317,9 +322,12 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
                 dashboard.config.dateZoomGranularities,
             );
         } else {
-            setDateZoomGranularitiesState(allStandardGranularities);
+            setDateZoomGranularitiesState(defaultStandardGranularities);
         }
-    }, [dashboard?.config?.dateZoomGranularities, allStandardGranularities]);
+    }, [
+        dashboard?.config?.dateZoomGranularities,
+        defaultStandardGranularities,
+    ]);
 
     // Sync default date zoom granularity from dashboard config
     useEffect(() => {
@@ -1610,9 +1618,6 @@ const DashboardGranularitySync: React.FC = () => {
     const availableCustomGranularities = useDashboardTileStatusContext(
         (c) => c.availableCustomGranularities,
     );
-    const dashboardHasTimestampDimension = useDashboardTileStatusContext(
-        (c) => c.dashboardHasTimestampDimension,
-    );
 
     // Use refs for values we read but should NOT trigger re-runs of the effect.
     // Reading dateZoomGranularities directly in the dep array would cause an
@@ -1647,9 +1652,9 @@ const DashboardGranularitySync: React.FC = () => {
         (c) => c.setDateZoomGranularity,
     );
 
-    // Once all charts have loaded, clean up stale granularities:
-    // - Custom granularities no longer provided by any explore
-    // - Sub-day granularities when no TIMESTAMP dimensions exist
+    // Once all charts have loaded, clean up stale custom granularities no longer
+    // provided by any explore. Standard granularities (incl. sub-day) are never
+    // pruned — the editor-defined list is preserved across tab switches.
     // Also resets the active dateZoomGranularity if it's a stale custom value
     // (custom granularities are not validated earlier to avoid a race condition
     // where the URL param is cleared before charts finish loading).
@@ -1666,10 +1671,6 @@ const DashboardGranularitySync: React.FC = () => {
         const isAvailable = (g: string) => {
             if (!isStandardDateGranularity(g)) {
                 return availableCustomGranularityKeys.has(g);
-            }
-            // Strip sub-day standard granularities when no timestamp dims
-            if (!dashboardHasTimestampDimension && isSubDayGranularity(g)) {
-                return false;
             }
             return true;
         };
@@ -1697,7 +1698,6 @@ const DashboardGranularitySync: React.FC = () => {
     }, [
         areAllChartsLoaded,
         availableCustomGranularities,
-        dashboardHasTimestampDimension,
         setDateZoomGranularities,
         setDefaultDateZoomGranularity,
         setDateZoomGranularity,

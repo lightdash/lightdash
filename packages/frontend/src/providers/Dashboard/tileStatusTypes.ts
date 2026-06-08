@@ -27,11 +27,6 @@ export type DashboardTileStatusContextType = {
     ) => void;
     markTileLoaded: (tileUuid: string) => void;
     areAllChartsLoaded: boolean;
-    dashboardHasTimestampDimension: boolean;
-    setTileHasTimestampDimension: (
-        tileUuid: string,
-        hasTimestamp: boolean,
-    ) => void;
     availableCustomGranularities: Record<string, string>;
     addAvailableCustomGranularities: (
         granularities: Record<string, string>,

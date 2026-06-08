@@ -83,30 +83,6 @@ const DashboardTileStatusProvider: React.FC<
         return chartTileUuids.every((tileUuid) => loadedTiles.has(tileUuid));
     }, [dashboardTiles, loadedTiles, activeTab, dashboardTabs]);
 
-    // Track which tiles have TIMESTAMP dimensions; derive boolean from set size
-    const [tilesWithTimestampDimension, setTilesWithTimestampDimension] =
-        useState<Set<string>>(new Set());
-    const dashboardHasTimestampDimension = tilesWithTimestampDimension.size > 0;
-
-    const setTileHasTimestampDimension = useCallback(
-        (tileUuid: string, hasTimestamp: boolean) => {
-            setTilesWithTimestampDimension((prev) => {
-                // If the current state already matches the desired, return it
-                if (prev.has(tileUuid) === hasTimestamp) {
-                    return prev;
-                }
-                const next = new Set(prev);
-                if (hasTimestamp) {
-                    next.add(tileUuid);
-                } else {
-                    next.delete(tileUuid);
-                }
-                return next;
-            });
-        },
-        [],
-    );
-
     // Custom granularities discovered from explores: key -> label (e.g., "fiscal_quarter" -> "Fiscal Quarter")
     const [availableCustomGranularities, setAvailableCustomGranularities] =
         useState<Record<string, string>>({});
@@ -288,8 +264,6 @@ const DashboardTileStatusProvider: React.FC<
             updateSqlChartTilesMetadata,
             markTileLoaded,
             areAllChartsLoaded,
-            dashboardHasTimestampDimension,
-            setTileHasTimestampDimension,
             availableCustomGranularities,
             addAvailableCustomGranularities,
             tileNamesById,
@@ -315,8 +289,6 @@ const DashboardTileStatusProvider: React.FC<
             updateSqlChartTilesMetadata,
             markTileLoaded,
             areAllChartsLoaded,
-            dashboardHasTimestampDimension,
-            setTileHasTimestampDimension,
             availableCustomGranularities,
             addAvailableCustomGranularities,
             tileNamesById,
