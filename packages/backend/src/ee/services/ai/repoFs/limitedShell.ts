@@ -253,8 +253,15 @@ const cmdHead = (tokens: string[], stdin: string[] | null): string[] => {
     if (stdin === null) {
         throw new ShellError('head: no input (pipe a command into head)');
     }
-    const { values } = parseArgs(tokens, new Set(['-n']));
-    const n = values.has('-n') ? Number.parseInt(values.get('-n')!, 10) : 10;
+    // Support both `head -n N` and the `head -N` shorthand the model often uses.
+    const shorthand = tokens.find((t) => /^-\d+$/.test(t));
+    const { values } = parseArgs(
+        tokens.filter((t) => !/^-\d+$/.test(t)),
+        new Set(['-n']),
+    );
+    let n = 10;
+    if (values.has('-n')) n = Number.parseInt(values.get('-n')!, 10);
+    else if (shorthand) n = Number.parseInt(shorthand.slice(1), 10);
     if (!Number.isFinite(n) || n < 0) throw new ShellError('head: invalid -n');
     return stdin.slice(0, n);
 };

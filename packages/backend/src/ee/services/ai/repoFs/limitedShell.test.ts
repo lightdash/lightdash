@@ -69,6 +69,11 @@ describe('repoFs limited shell', () => {
         expect(out.split('\n')).toHaveLength(2);
     });
 
+    it('supports the head -N shorthand', async () => {
+        const out = await run('find models -name "*.sql" | head -1');
+        expect(out.split('\n')).toHaveLength(1);
+    });
+
     it('supports grep filtering piped stdin', async () => {
         await expect(run('cat models/orders.sql | grep total')).resolves.toBe(
             '-- total',
