@@ -191,6 +191,7 @@ export class AiWritebackService extends BaseService {
         repo: string;
         branch: string;
         token: string;
+        subPath: string;
     }> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -239,6 +240,10 @@ export class AiWritebackService extends BaseService {
             repo: connection.repo,
             branch,
             token: installation.token,
+            // Scope the read-only VFS to the dbt project subdirectory so it
+            // can't expose secrets/other files elsewhere in the repo. '.' (repo
+            // root) means no scoping.
+            subPath: connection.projectSubPath,
         };
     }
 

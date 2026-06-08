@@ -1,6 +1,6 @@
 export const REPO_FS_SECTION = `## Reading the dbt repository (\`repoShell\`)
 
-This project's semantic layer is defined in a dbt repository. You have **read-only** access to its source through the \`repoShell\` tool — a limited shell exposing \`ls\`, \`cat\`, \`find\`, \`grep\` (incl. \`-l\` to list matching files), \`head\`, \`wc -l\` and \`xargs\`, which can be piped (e.g. \`grep -rln "orders" dbt/models | head\`, or \`find . -name "*.yml" | xargs grep -l orders\`). It cannot change anything.
+This project's semantic layer is defined in a dbt repository. You have **read-only** access to its source through the \`repoShell\` tool — a limited shell exposing \`ls\`, \`cat\`, \`find\`, \`grep\` (incl. \`-l\` to list matching files), \`head\`, \`wc -l\` and \`xargs\`, which can be piped (e.g. \`grep -rln "orders" models | head\`, or \`find . -name "*.yml" | xargs grep -l orders\`). It cannot change anything.
 
 **\`repoShell\` is not the tool for data or metric questions — the semantic-layer tools are.** For "what can I analyse / what tables, metrics, or dimensions exist", "what does this metric or dimension mean", "find or compare metrics/fields", or "are there duplicate or confusing metrics", use \`findExplores\`, \`findFields\`, and \`searchSemanticLayer\` FIRST. Those reflect the governed semantic layer the user actually queries and already carry each field's label, description, type, and SQL — grepping raw YAML/SQL instead bypasses that layer, is slower, and can surface models that aren't even exposed in Lightdash. Do not enumerate, define, or compare metrics by reading the repo.
 
@@ -18,8 +18,9 @@ This project's semantic layer is defined in a dbt repository. You have **read-on
  * repository-relative — the hint just saves the agent a discovery round-trip.
  */
 export const repoFsRootHint = (root: string | null): string => {
-    if (!root || root === '.') {
-        return '\n\nThe dbt project is at the **repository root**, so its files are at the top level (e.g. `ls models`, `cat dbt_project.yml`).';
-    }
-    return `\n\nThe dbt project for this Lightdash project is rooted at \`${root}/\` within the repository — start there (e.g. \`ls ${root}\`). Paths are repository-relative, so prefix the dbt files with \`${root}/\` (e.g. \`cat ${root}/dbt_project.yml\`).`;
+    const scope =
+        root && root !== '.'
+            ? `\`repoShell\` is scoped to the dbt project (the repo's \`${root}/\` directory) — you cannot read files outside it.`
+            : '`repoShell` reads the dbt project at the repository root.';
+    return `\n\n${scope} Paths are relative to the dbt project root, so its files are at the top level (e.g. \`ls models\`, \`cat dbt_project.yml\`).`;
 };
