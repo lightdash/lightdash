@@ -8,6 +8,7 @@ import {
     ApiCreateTagResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardAsCodeUpsertResponse,
+    ApiDataTimezonePreview,
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
@@ -51,6 +52,7 @@ import {
     type CalculateSubtotalsFromQuery,
     type CreateDashboard,
     type CreateDashboardWithCharts,
+    type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
     type Tag,
     type UpdateMultipleDashboards,
@@ -281,6 +283,29 @@ export class ProjectController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Preview how the warehouse disambiguates "now" under a data timezone
+     * @summary Preview data timezone
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200', 'Success')
+    @Post('preview-data-timezone')
+    @OperationId('PreviewDataTimezone')
+    async previewDataTimezone(
+        @Body() body: DataTimezonePreviewRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiDataTimezonePreview> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .previewDataTimezone(toSessionUser(req.account), body);
+        return {
+            status: 'ok',
+            results,
         };
     }
 
