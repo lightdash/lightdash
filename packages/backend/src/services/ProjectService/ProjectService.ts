@@ -330,6 +330,11 @@ export type ProjectServiceArguments = {
             entries: ProjectContextEntry[],
         ): Promise<void>;
     };
+    isProjectContextEnabled?: (args: {
+        user: Pick<SessionUser, 'userUuid'> &
+            Partial<Pick<SessionUser, 'organizationName'>>;
+        organizationUuid: string;
+    }) => Promise<boolean>;
 };
 
 export class ProjectService extends BaseService {
@@ -414,6 +419,10 @@ export class ProjectService extends BaseService {
           }
         | undefined;
 
+    isProjectContextEnabled:
+        | ProjectServiceArguments['isProjectContextEnabled']
+        | undefined;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -451,6 +460,7 @@ export class ProjectService extends BaseService {
         contentVerificationModel,
         organizationSettingsModel,
         projectContextModel,
+        isProjectContextEnabled,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -491,6 +501,7 @@ export class ProjectService extends BaseService {
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
         this.projectContextModel = projectContextModel;
+        this.isProjectContextEnabled = isProjectContextEnabled;
     }
 
     static getMetricQueryExecutionProperties({
@@ -5469,15 +5480,13 @@ export class ProjectService extends BaseService {
             return undefined;
         }
 
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.AiProjectContext,
-        });
-        return enabled ? adapter.getProjectContext() : undefined;
+        const enabled = this.isProjectContextEnabled
+            ? await this.isProjectContextEnabled({ user, organizationUuid })
+            : true;
+        if (!enabled) {
+            return undefined;
+        }
+        return adapter.getProjectContext();
     }
 
     private async replaceProjectContext(

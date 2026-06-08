@@ -47,6 +47,7 @@ import {
     buildYmlPathByModel,
     planReviewWriteback,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
+import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
 import { type AiWritebackService } from './AiWritebackService/AiWritebackService';
 import { type ProjectContextService } from './ProjectContextService/ProjectContextService';
 
@@ -55,6 +56,7 @@ type AiAgentAdminServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     featureFlagService: FeatureFlagService;
+    aiOrganizationSettingsService: AiOrganizationSettingsService;
     projectModel: ProjectModel;
     aiWritebackService: AiWritebackService;
     projectContextService: ProjectContextService;
@@ -258,6 +260,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly featureFlagService: FeatureFlagService;
 
+    private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
+
     private readonly projectModel: ProjectModel;
 
     private readonly aiWritebackService: AiWritebackService;
@@ -281,6 +285,8 @@ export class AiAgentAdminService extends BaseService {
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
         this.featureFlagService = dependencies.featureFlagService;
+        this.aiOrganizationSettingsService =
+            dependencies.aiOrganizationSettingsService;
         this.projectModel = dependencies.projectModel;
         this.aiWritebackService = dependencies.aiWritebackService;
         this.projectContextService = dependencies.projectContextService;
@@ -360,28 +366,13 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
-        const featureFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid,
-                organizationName: user.organizationName ?? '',
-            },
-        });
-
-        if (!featureFlag.enabled) {
-            throw new ForbiddenError(
-                'AI agent review classifier is not enabled',
-            );
-        }
-
         const items = await this.aiAgentReviewClassifierModel.listReviewItems({
             organizationUuid,
             statuses,
         });
 
         const [reviewsEnabled, projectContextEnabled] = await Promise.all([
-            this.isWritebackFeatureEnabled(user),
+            this.areReviewsEnabled(user),
             this.isProjectContextFeatureEnabled(user),
         ]);
         const overrides = await this.reconcileLinkedPullRequests(
@@ -458,23 +449,14 @@ export class AiAgentAdminService extends BaseService {
         return filtered;
     }
 
-    private async isWritebackFeatureEnabled(
-        user: SessionUser,
-    ): Promise<boolean> {
+    private async areReviewsEnabled(user: SessionUser): Promise<boolean> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             return false;
         }
-        const flagUser = {
-            userUuid: user.userUuid,
+        return this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
             organizationUuid,
-            organizationName: user.organizationName ?? '',
-        };
-        const classifier = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-            user: flagUser,
         });
-        return classifier.enabled;
     }
 
     private async isProjectContextFeatureEnabled(
@@ -484,15 +466,20 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             return false;
         }
-        const flag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiProjectContext,
-            user: {
-                userUuid: user.userUuid,
+        const [reviewsEnabled, aiWritebackFlag] = await Promise.all([
+            this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
                 organizationUuid,
-                organizationName: user.organizationName ?? '',
-            },
-        });
-        return flag.enabled;
+            }),
+            this.featureFlagService.get({
+                featureFlagId: FeatureFlags.AiWriteback,
+                user: {
+                    userUuid: user.userUuid,
+                    organizationUuid,
+                    organizationName: user.organizationName ?? '',
+                },
+            }),
+        ]);
+        return reviewsEnabled && aiWritebackFlag.enabled;
     }
 
     private hasSemanticWritebackConfig(): boolean {
@@ -736,21 +723,6 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
-        const featureFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid,
-                organizationName: user.organizationName ?? '',
-            },
-        });
-
-        if (!featureFlag.enabled) {
-            throw new ForbiddenError(
-                'AI agent review classifier is not enabled',
-            );
-        }
-
         return this.aiAgentReviewClassifierModel.listReviewSignals({
             organizationUuid,
         });
@@ -766,20 +738,6 @@ export class AiAgentAdminService extends BaseService {
             throw new ForbiddenError('Organization not found');
         }
         this.checkOrganizationAdminAccess(user);
-
-        const featureFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid,
-                organizationName: user.organizationName ?? '',
-            },
-        });
-        if (!featureFlag.enabled) {
-            throw new ForbiddenError(
-                'AI agent review classifier is not enabled',
-            );
-        }
 
         if (update.status === 'dismissed' && !update.dismissedReason) {
             throw new ParameterError(
@@ -850,20 +808,6 @@ export class AiAgentAdminService extends BaseService {
         }
         this.checkOrganizationAdminAccess(user);
 
-        const featureFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid,
-                organizationName: user.organizationName ?? '',
-            },
-        });
-        if (!featureFlag.enabled) {
-            throw new ForbiddenError(
-                'AI agent review classifier is not enabled',
-            );
-        }
-
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
@@ -872,10 +816,12 @@ export class AiAgentAdminService extends BaseService {
         if (!reviewItem) {
             throw new NotFoundError('Review item not found');
         }
-        const projectContextEnabled =
+        const [reviewsEnabled, projectContextEnabled] = await Promise.all([
+            this.areReviewsEnabled(user),
             reviewItem.primaryRootCause === 'project_context'
-                ? await this.isProjectContextFeatureEnabled(user)
-                : false;
+                ? this.isProjectContextFeatureEnabled(user)
+                : false,
+        ]);
         const staleAwareItem = withStaleWritebackOverride(
             reviewItem,
             Date.now(),
@@ -886,7 +832,7 @@ export class AiAgentAdminService extends BaseService {
         );
         const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
             item: staleAwareItem,
-            reviewsEnabled: true,
+            reviewsEnabled,
             projectContextEnabled,
             projectAccess: staleAwareItem.projectUuid
                 ? (projectAccessByUuid.get(staleAwareItem.projectUuid) ?? null)
@@ -1121,7 +1067,7 @@ export class AiAgentAdminService extends BaseService {
         }
 
         const [reviewsEnabled, projectContextEnabled] = await Promise.all([
-            this.isWritebackFeatureEnabled(user),
+            this.areReviewsEnabled(user),
             this.isProjectContextFeatureEnabled(user),
         ]);
         const projectAccessByUuid = await this.getProjectWritebackAccessByUuid(
