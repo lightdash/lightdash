@@ -280,20 +280,43 @@ const cmdCat = async (
 };
 
 const cmdFind = async (repoFs: RepoFs, tokens: string[]): Promise<string[]> => {
-    const { values, positionals } = parseArgs(
-        tokens,
-        new Set(['-name', '-type']),
-    );
-    const base = positionals[0] ?? '';
-    const typeFlag = values.get('-type');
-    if (typeFlag && typeFlag !== 'f' && typeFlag !== 'd') {
-        throw new ShellError(
-            `find: unsupported -type ${typeFlag} (use f or d)`,
-        );
+    // Scan manually rather than via parseArgs so we can collect MULTIPLE `-name`
+    // globs (parseArgs keeps only the last). Repeated `-name`s are OR-ed, and the
+    // `-o`/`-or` operators are accepted as separators — covering the common
+    // `find . -name a -o -name b` idiom without a full find-expression parser.
+    const nameGlobs: string[] = [];
+    const positionals: string[] = [];
+    let type: RepoEntryType | undefined;
+    for (let i = 0; i < tokens.length; i += 1) {
+        const token = tokens[i];
+        if (token === '-name') {
+            const value = tokens[i + 1];
+            if (value === undefined) {
+                throw new ShellError('find: missing value for -name');
+            }
+            nameGlobs.push(value);
+            i += 1;
+        } else if (token === '-type') {
+            const value = tokens[i + 1];
+            if (value !== 'f' && value !== 'd') {
+                throw new ShellError(
+                    `find: unsupported -type ${value ?? ''} (use f or d)`,
+                );
+            }
+            type = value === 'f' ? 'file' : 'dir';
+            i += 1;
+        } else if (token === '-o' || token === '-or') {
+            // OR separator between -name predicates; no-op (globs already OR).
+        } else if (token.startsWith('-') && token.length > 1) {
+            throw new ShellError(
+                `find: unsupported flag ${token} (supported: -name, -type, -o)`,
+            );
+        } else {
+            positionals.push(token);
+        }
     }
-    const typeByFlag: Record<string, RepoEntryType> = { f: 'file', d: 'dir' };
-    const type = typeFlag ? typeByFlag[typeFlag] : undefined;
-    return repoFs.walk(base, { type, nameGlob: values.get('-name') });
+    const base = positionals[0] ?? '';
+    return repoFs.walk(base, { type, nameGlobs });
 };
 
 const cmdGrep = async (
@@ -411,7 +434,11 @@ async function runStage(
             assertWordFlags(rest, new Set(), 'cat');
             return cmdCat(repoFs, parseArgs(rest, new Set()).positionals);
         case 'find':
-            assertWordFlags(rest, new Set(['-name', '-type']), 'find');
+            assertWordFlags(
+                rest,
+                new Set(['-name', '-type', '-o', '-or']),
+                'find',
+            );
             return cmdFind(repoFs, rest);
         case 'grep':
             assertShortFlags(rest, 'rRinEl', 'grep');

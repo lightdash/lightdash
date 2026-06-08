@@ -58,6 +58,14 @@ describe('repoFs limited shell', () => {
         );
     });
 
+    it('finds by multiple -name globs OR-ed with -o', async () => {
+        await expect(
+            run('find . -name "stg_orders.sql" -o -name "orders.sql"'),
+        ).resolves.toBe(
+            ['models/orders.sql', 'models/staging/stg_orders.sql'].join('\n'),
+        );
+    });
+
     it('greps recursively with file:line prefixes', async () => {
         await expect(run('grep -rn ref models')).resolves.toBe(
             "models/orders.sql:1:select * from {{ ref('stg_orders') }}",

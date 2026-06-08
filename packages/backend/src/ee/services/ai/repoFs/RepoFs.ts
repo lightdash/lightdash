@@ -170,17 +170,19 @@ export class RepoFs {
      */
     async walk(
         base: string,
-        opts: { type?: RepoEntryType; nameGlob?: string } = {},
+        opts: { type?: RepoEntryType; nameGlobs?: string[] } = {},
     ): Promise<string[]> {
         const index = await this.ensureIndex();
         const normalized = normalizePath(base);
         const prefix = normalized ? `${normalized}/` : '';
-        const nameRe = opts.nameGlob ? globToRegExp(opts.nameGlob) : null;
+        // Multiple globs are OR-ed (find's `-name a -o -name b`); none = match all.
+        const nameRes = (opts.nameGlobs ?? []).map(globToRegExp);
 
         const results: string[] = [];
 
         const matches = (path: string): boolean =>
-            !nameRe || nameRe.test(basename(path));
+            nameRes.length === 0 ||
+            nameRes.some((re) => re.test(basename(path)));
 
         if (opts.type !== 'dir') {
             for (const path of index.sortedPaths) {
