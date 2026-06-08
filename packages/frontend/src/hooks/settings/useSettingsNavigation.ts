@@ -1,5 +1,4 @@
 import { subject } from '@casl/ability';
-import { CommercialFeatureFlags, FeatureFlags } from '@lightdash/common';
 import {
     IconApps,
     IconAppWindow,
@@ -42,158 +41,51 @@ import {
     IconWorldCheck,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
-import { useIsGitProject } from '../../components/Explorer/WriteBackModal/hooks';
-import { useAiOrganizationSettings } from '../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
-import useApp from '../../providers/App/useApp';
 import useTracking from '../../providers/Tracking/useTracking';
 import { EventName } from '../../types/Events';
-import { useOrganization } from '../organization/useOrganization';
-import { useActiveProjectUuid } from '../useActiveProject';
-import { useProject } from '../useProject';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import {
-    type SettingsNavItem,
-    type SettingsNavSection,
-    type UseSettingsNavSectionsResult,
+    type SettingsNavigationItem,
+    type SettingsNavigationSection,
 } from './types';
+import { useSettingsContext } from './useSettingsContext';
 
 /**
- * Assembles the runtime inputs the settings page gates on (user + abilities,
- * health/organization/project, git-connection, resolved feature flags) and
- * derives the gated sidebar nav model from them. Both the settings router and
- * sidebar — and, later, a global settings search — read from this one source;
- * each nav item carries `keywords` so search can match aliases.
+ * Derives the gated settings sidebar nav model from `useSettingsContext`. Only
+ * items the user is permitted to see are included, so the sidebar can render
+ * the result as a dumb map; each item carries `keywords` so a future settings
+ * search can match aliases.
  */
-export const useSettingsNavSections = (): UseSettingsNavSectionsResult => {
+export const useSettingsNavigation = (): SettingsNavigationSection[] => {
     const { track } = useTracking();
-
-    const { data: embeddingEnabled } = useServerFeatureFlag(
-        CommercialFeatureFlags.Embedding,
-    );
-
-    const { data: isScimTokenManagementEnabled } = useServerFeatureFlag(
-        CommercialFeatureFlags.Scim,
-    );
-
-    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
-    const isAiCopilotEnabledOrTrial =
-        aiOrganizationSettingsQuery.isSuccess &&
-        (aiOrganizationSettingsQuery.data.isCopilotEnabled ||
-            aiOrganizationSettingsQuery.data.isTrial);
-
-    const { data: aiAgentReviewClassifierFlag } = useServerFeatureFlag(
-        FeatureFlags.AiAgentReviewClassifier,
-    );
-    const isAiAgentReviewClassifierEnabled =
-        aiAgentReviewClassifierFlag?.enabled === true;
-    const shouldShowAiAgentReviews =
-        isAiAgentReviewClassifierEnabled &&
-        aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
-
-    const { data: serviceAccountsFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.ServiceAccounts,
-    );
-    const isServiceAccountFeatureFlagEnabled =
-        serviceAccountsFlag?.enabled ?? false;
-
     const {
-        health: {
-            data: health,
-            isInitialLoading: isHealthLoading,
-            error: healthError,
-        },
-        user: { data: user, isInitialLoading: isUserLoading, error: userError },
-    } = useApp();
-
-    const { data: isUserImpersonationEnabled } = useServerFeatureFlag(
-        FeatureFlags.UserImpersonation,
-    );
-
-    const showImpersonationPanel =
-        isUserImpersonationEnabled?.enabled &&
-        user?.ability?.can('update', 'Organization');
-
-    const { data: leaveOrganizationFlag } = useServerFeatureFlag(
-        FeatureFlags.LeaveOrganization,
-    );
-    const isLeaveOrganizationEnabled = leaveOrganizationFlag?.enabled === true;
-
-    const { data: customRolesFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.CustomRoles,
-    );
-    const isCustomRolesEnabled =
-        health?.isCustomRolesEnabled || customRolesFlag?.enabled;
-
-    const userGroupsFeatureFlagQuery = useServerFeatureFlag(
-        FeatureFlags.UserGroupsEnabled,
-    );
-
-    const { data: dataAppsFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableDataApps,
-    );
-
-    const { data: proLimitsFlag } = useServerFeatureFlag(
-        FeatureFlags.ProLimits,
-    );
-    const isProLimitsEnabled = proLimitsFlag?.enabled ?? false;
-
-    const { data: ssoOrganizationSettingsFlag } = useServerFeatureFlag(
-        FeatureFlags.SsoOrganizationSettings,
-    );
-    const isSsoOrganizationSettingsEnabled =
-        ssoOrganizationSettingsFlag?.enabled ?? false;
-
-    const {
-        data: organization,
-        isInitialLoading: isOrganizationLoading,
-        error: organizationError,
-    } = useOrganization();
-    const { activeProjectUuid, isLoading: isActiveProjectUuidLoading } =
-        useActiveProjectUuid();
-    const {
-        data: project,
-        isInitialLoading: isProjectLoading,
-        error: projectError,
-    } = useProject(activeProjectUuid);
-
-    const isGitProject = useIsGitProject(activeProjectUuid ?? '');
-
-    const allowPasswordAuthentication =
-        !health?.auth.disablePasswordAuthentication;
-
-    const hasSocialLogin =
-        health?.auth.google.enabled ||
-        health?.auth.okta.enabled ||
-        health?.auth.oneLogin.enabled ||
-        health?.auth.azuread.enabled ||
-        health?.auth.oidc.enabled;
-
-    const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.data?.enabled ?? false;
-
-    // This allows us to enable service accounts in the UI for on-premise installations
-    const isServiceAccountsEnabled =
-        health?.isServiceAccountEnabled || isServiceAccountFeatureFlagEnabled;
-
-    const { data: warehouseCredentialsFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.OrganizationWarehouseCredentials,
-    );
-    const isWarehouseCredentialsFeatureFlagEnabled =
-        warehouseCredentialsFlag?.enabled ?? false;
-
-    // This allows us to enable organization warehouse credentials in the UI for on-premise installations
-    const isWarehouseCredentialsEnabled =
-        (health?.isOrganizationWarehouseCredentialsEnabled ?? false) ||
-        isWarehouseCredentialsFeatureFlagEnabled;
+        user,
+        organization,
+        project,
+        health,
+        allowPasswordAuthentication,
+        hasSocialLogin,
+        isGroupManagementEnabled,
+        isProLimitsEnabled,
+        isCustomRolesEnabled,
+        isSsoOrganizationSettingsEnabled,
+        isWarehouseCredentialsEnabled,
+        isScimTokenManagementEnabled,
+        isServiceAccountsEnabled,
+        isAiCopilotEnabledOrTrial,
+        shouldShowAiAgentReviews,
+        embeddingEnabled,
+        dataAppsFlag,
+        isGitProject,
+    } = useSettingsContext();
 
     const isEmbeddingEnabled = embeddingEnabled?.enabled ?? false;
     const isScimEnabled = isScimTokenManagementEnabled?.enabled ?? false;
     const isDataAppsEnabled = dataAppsFlag?.enabled ?? false;
 
-    const navSections = useMemo<SettingsNavSection[]>(() => {
+    return useMemo<SettingsNavigationSection[]>(() => {
         const ability = user?.ability;
 
-        const yourSettings: SettingsNavItem[] = [
+        const yourSettings: SettingsNavigationItem[] = [
             {
                 label: 'Profile',
                 to: '/generalSettings/profile',
@@ -257,7 +149,7 @@ export const useSettingsNavSections = (): UseSettingsNavSectionsResult => {
             });
         }
 
-        const organizationItems: SettingsNavItem[] = [];
+        const organizationItems: SettingsNavigationItem[] = [];
 
         if (ability?.can('manage', 'Organization')) {
             organizationItems.push({
@@ -489,7 +381,7 @@ export const useSettingsNavSections = (): UseSettingsNavSectionsResult => {
                 }),
             )
         ) {
-            const aiChildren: SettingsNavItem[] = [
+            const aiChildren: SettingsNavigationItem[] = [
                 {
                     label: 'General',
                     to: '/generalSettings/ai/general',
@@ -536,7 +428,7 @@ export const useSettingsNavSections = (): UseSettingsNavSectionsResult => {
             });
         }
 
-        const sections: SettingsNavSection[] = [
+        const sections: SettingsNavigationSection[] = [
             {
                 id: 'your-settings',
                 title: 'Your settings',
@@ -566,7 +458,7 @@ export const useSettingsNavSections = (): UseSettingsNavSectionsResult => {
 
         if (canUpdateCurrentProject && project && organization) {
             const base = `/generalSettings/projectManagement/${project.projectUuid}`;
-            const projectItems: SettingsNavItem[] = [
+            const projectItems: SettingsNavigationItem[] = [
                 {
                     label: 'Connection settings',
                     to: `${base}/settings`,
@@ -862,33 +754,4 @@ export const useSettingsNavSections = (): UseSettingsNavSectionsResult => {
         isGitProject,
         track,
     ]);
-
-    return {
-        navSections,
-        user,
-        health,
-        organization,
-        project,
-        showImpersonationPanel,
-        isLeaveOrganizationEnabled,
-        isCustomRolesEnabled,
-        isProLimitsEnabled,
-        isSsoOrganizationSettingsEnabled,
-        isScimTokenManagementEnabled,
-        isServiceAccountsEnabled,
-        isAiCopilotEnabledOrTrial,
-        shouldShowAiAgentReviews,
-        dataAppsFlag,
-        allowPasswordAuthentication,
-        hasSocialLogin,
-        isHealthLoading,
-        healthError,
-        isUserLoading,
-        userError,
-        isOrganizationLoading,
-        organizationError,
-        isActiveProjectUuidLoading,
-        isProjectLoading,
-        projectError,
-    };
 };

@@ -8,31 +8,32 @@ import {
 import { type Icon as TablerIcon } from '@tabler/icons-react';
 import { type UserWithAbility } from '../user/useUser';
 
-export type SettingsNavItem = {
+export type SettingsNavigationItem = {
     label: string;
     to: string;
     icon: TablerIcon;
     /** Hidden search aliases so e.g. "sso" finds "Single Sign-On". */
     keywords: string[];
-    children: SettingsNavItem[];
+    children: SettingsNavigationItem[];
     exact?: boolean;
     onClick?: () => void;
 };
 
-export type SettingsNavSection = {
+export type SettingsNavigationSection = {
     id: string;
     title: string;
     /** Secondary line under the title, e.g. the current project name. */
     subtitle: string | null;
-    items: SettingsNavItem[];
+    items: SettingsNavigationItem[];
 };
 
 /**
- * Return shape of `useSettingsNavSections`: the derived sidebar model plus the
- * gating context and query loading/error state the settings page consumes.
+ * The settings page's runtime gating inputs (user + abilities,
+ * health/organization/project, resolved feature flags) plus the loading/error
+ * state of the underlying queries. Returned by `useSettingsContext`; the
+ * router, sidebar nav, and a future settings search all derive from it.
  */
-export type UseSettingsNavSectionsResult = {
-    navSections: SettingsNavSection[];
+export type SettingsContext = {
     user: UserWithAbility | undefined;
     health: HealthState | undefined;
     organization: Organization | undefined;
@@ -47,8 +48,12 @@ export type UseSettingsNavSectionsResult = {
     isAiCopilotEnabledOrTrial: boolean;
     shouldShowAiAgentReviews: boolean;
     dataAppsFlag: FeatureFlag | undefined;
+    embeddingEnabled: FeatureFlag | undefined;
     allowPasswordAuthentication: boolean;
     hasSocialLogin: boolean | undefined;
+    isGroupManagementEnabled: boolean;
+    isWarehouseCredentialsEnabled: boolean;
+    isGitProject: boolean;
     isHealthLoading: boolean;
     healthError: ApiError | null;
     isUserLoading: boolean;

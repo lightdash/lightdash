@@ -4,18 +4,18 @@ import { useLocation } from 'react-router';
 import MantineIcon from '../components/common/MantineIcon';
 import RouterNavLink from '../components/common/RouterNavLink';
 import {
-    type SettingsNavItem,
-    type SettingsNavSection,
+    type SettingsNavigationItem,
+    type SettingsNavigationSection,
 } from '../hooks/settings/types';
 
-type SettingsNavListProps = {
-    navSections: SettingsNavSection[];
+type SettingsNavigationProps = {
+    sections: SettingsNavigationSection[];
 };
 
-const SettingsNavList: FC<SettingsNavListProps> = ({ navSections }) => {
+const SettingsNavigation: FC<SettingsNavigationProps> = ({ sections }) => {
     const location = useLocation();
 
-    const renderItem = (item: SettingsNavItem) => {
+    const renderItem = (item: SettingsNavigationItem) => {
         const leftSection = <MantineIcon icon={item.icon} />;
 
         if (item.children.length === 0) {
@@ -48,7 +48,7 @@ const SettingsNavList: FC<SettingsNavListProps> = ({ navSections }) => {
 
     return (
         <Stack gap="lg">
-            {navSections.map((section) => (
+            {sections.map((section) => (
                 <Box key={section.id}>
                     <Box mb="xs">
                         <Title order={6} fw={600}>
@@ -67,4 +67,4 @@ const SettingsNavList: FC<SettingsNavListProps> = ({ navSections }) => {
     );
 };
 
-export default SettingsNavList;
+export default SettingsNavigation;

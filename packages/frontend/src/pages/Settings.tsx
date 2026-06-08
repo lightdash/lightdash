@@ -71,16 +71,17 @@ import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
-import { useSettingsNavSections } from '../hooks/settings/useSettingsNavSections';
+import { useSettingsContext } from '../hooks/settings/useSettingsContext';
+import { useSettingsNavigation } from '../hooks/settings/useSettingsNavigation';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
 import ProjectSettings from './ProjectSettings';
 import classes from './Settings.module.css';
-import SettingsNavList from './SettingsNavList';
+import SettingsNavigation from './SettingsNavigation';
 
 const Settings: FC = () => {
+    const sections = useSettingsNavigation();
     const {
-        navSections,
         user,
         health,
         organization,
@@ -106,7 +107,7 @@ const Settings: FC = () => {
         isActiveProjectUuidLoading,
         isProjectLoading,
         projectError,
-    } = useSettingsNavSections();
+    } = useSettingsContext();
 
     const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
@@ -785,7 +786,7 @@ const Settings: FC = () => {
                         scrollHideDelay={800}
                         className={classes.sidebarScroll}
                     >
-                        <SettingsNavList navSections={navSections} />
+                        <SettingsNavigation sections={sections} />
                     </ScrollArea>
                 </Stack>
             }
