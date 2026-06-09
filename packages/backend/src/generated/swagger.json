@@ -315,7 +315,7 @@
                         "type": "object"
                     }
                 ],
-                "description": "In-place edit of a service account's name, permissions, and project access,\nwithout rotating its token. `description` is always applied. The rest depends\non the SA's scope mode, which is fixed (no switching between the two):\n\n- Organization-scoped SA: send one of `scopes` (legacy/system preset) or\n  `roleUuid` (custom org role) to change its org permission, or neither to\n  rename only. `projectAccess` is rejected.\n- Project-scoped SA (`system:member`): send `projectAccess` (≥1 grant) to\n  replace its project grants, keeping `scopes = [system:member]`. `roleUuid`\n  and any non-member `scopes` are rejected.\n\nThe token and expiry are never touched."
+                "description": "In-place edit of a service account's name, permissions, and project access,\nwithout rotating its token. `description` is always applied. The rest is\ntarget-shaped — the payload describes what the SA should become, and the SA\ncan move between scope modes:\n\n- `projectAccess` (or `scopes = [system:member]`) → project-scoped: replace\n  its project grants (≥1 required), keeping `scopes = [system:member]`.\n  Sending an org `roleUuid` / non-member `scopes` alongside is rejected.\n- org `scopes` (preset) or `roleUuid` (custom role) → organization-scoped:\n  set the org permission and drop any project grants.\n- neither → rename only, preserving the current mode and permission.\n\nThe token and expiry are never touched."
             },
             "ApiUpdateServiceAccountRequest": {
                 "$ref": "#/components/schemas/UpdateServiceAccount"
@@ -27469,6 +27469,117 @@
                 "required": ["sendEmail", "role", "email"],
                 "type": "object"
             },
+            "DataTimezonePreviewNaive": {
+                "properties": {
+                    "rendered": {
+                        "type": "string"
+                    },
+                    "readAs": {
+                        "type": "string"
+                    },
+                    "raw": {
+                        "type": "string"
+                    },
+                    "interpretedAs": {
+                        "type": "string"
+                    }
+                },
+                "required": ["rendered", "readAs", "raw", "interpretedAs"],
+                "type": "object"
+            },
+            "DataTimezonePreviewAware": {
+                "properties": {
+                    "rendered": {
+                        "type": "string"
+                    },
+                    "raw": {
+                        "type": "string"
+                    }
+                },
+                "required": ["rendered", "raw"],
+                "type": "object"
+            },
+            "ApiDataTimezonePreviewResults": {
+                "properties": {
+                    "aware": {
+                        "$ref": "#/components/schemas/DataTimezonePreviewAware"
+                    },
+                    "naive": {
+                        "$ref": "#/components/schemas/DataTimezonePreviewNaive"
+                    },
+                    "dataTimezoneApplies": {
+                        "type": "boolean"
+                    },
+                    "projectTimezone": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "aware",
+                    "naive",
+                    "dataTimezoneApplies",
+                    "projectTimezone"
+                ],
+                "type": "object"
+            },
+            "ApiDataTimezonePreview": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiDataTimezonePreviewResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DataTimezonePreviewRequest": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "credentials": {
+                                "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                            },
+                            "mode": {
+                                "type": "string",
+                                "enum": ["create"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credentials", "mode"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "dataTimezone": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "warehouseType": {
+                                "$ref": "#/components/schemas/WarehouseTypes"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            },
+                            "mode": {
+                                "type": "string",
+                                "enum": ["edit"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "dataTimezone",
+                            "warehouseType",
+                            "projectUuid",
+                            "mode"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
             "UpdateProjectMember": {
                 "properties": {
                     "role": {
@@ -38148,7 +38259,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3119.0",
+        "version": "0.3120.1",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -51343,6 +51454,48 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/preview-data-timezone": {
+            "post": {
+                "operationId": "PreviewDataTimezone",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDataTimezonePreview"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview how the warehouse disambiguates \"now\" under a data timezone",
+                "summary": "Preview data timezone",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DataTimezonePreviewRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/access/{userUuid}": {
