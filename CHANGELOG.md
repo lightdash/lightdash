@@ -1,3 +1,15 @@
+# [0.3112.0](https://github.com/lightdash/lightdash/compare/0.3111.1...0.3112.0) (2026-06-09)
+
+
+### Features
+
+* **settings:** add a search box to filter the settings sidebar ([#24038](https://github.com/lightdash/lightdash/issues/24038)) ([8ba93bb](https://github.com/lightdash/lightdash/commit/8ba93bb79882df80c1c34979e4340a389966e945))
+
+
+### Reverts
+
+* **dev:** restore simple sfw pnpm install in dev-fast-start ([#24047](https://github.com/lightdash/lightdash/issues/24047)) ([7d80012](https://github.com/lightdash/lightdash/commit/7d8001262c6e65b59595f992032264ae5a3b8261))
+
 ## [0.3111.1](https://github.com/lightdash/lightdash/compare/0.3111.0...0.3111.1) (2026-06-09)
 
 
