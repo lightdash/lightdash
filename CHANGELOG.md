@@ -1,3 +1,11 @@
+# [0.3115.0](https://github.com/lightdash/lightdash/compare/0.3114.0...0.3115.0) (2026-06-09)
+
+
+### Features
+
+* **charts:** configurable initial scroll position and visible items ([#24035](https://github.com/lightdash/lightdash/issues/24035)) ([961c77e](https://github.com/lightdash/lightdash/commit/961c77e660ae92a7c1b36572ff6a862e6a871e41))
+* support per-field number separator in YAML field definitions ([#23916](https://github.com/lightdash/lightdash/issues/23916)) ([b2c74e3](https://github.com/lightdash/lightdash/commit/b2c74e39bfe55988107f56ecd3da7304a663978b))
+
 # [0.3114.0](https://github.com/lightdash/lightdash/compare/0.3113.1...0.3114.0) (2026-06-09)
 
 
