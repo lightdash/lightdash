@@ -290,7 +290,11 @@ export class ProjectController extends BaseController {
      * Preview how the warehouse disambiguates "now" under a data timezone
      * @summary Preview data timezone
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @SuccessResponse('200', 'Success')
     @Post('preview-data-timezone')
     @OperationId('PreviewDataTimezone')
