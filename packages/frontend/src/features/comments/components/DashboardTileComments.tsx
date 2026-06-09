@@ -215,19 +215,6 @@ export const DashboardTileComments: FC<
                         <Text fz="xs">No comments yet</Text>
                     )}
                 </Stack>
-                {hasComments && <Divider />}
-                <Box p="sm" pt="xs">
-                    {canCreateDashboardComments && (
-                        <CommentForm
-                            userName={
-                                user.data?.firstName + ' ' + user.data?.lastName
-                            }
-                            onSubmit={handleOnSubmit}
-                            isSubmitting={isLoading}
-                        />
-                    )}
-                </Box>
-
                 {resolvedComments.length > 0 && (
                     <>
                         <Divider />
@@ -271,6 +258,19 @@ export const DashboardTileComments: FC<
                         </Box>
                     </>
                 )}
+
+                {(hasComments || resolvedComments.length > 0) && <Divider />}
+                <Box p="sm" pt="xs">
+                    {canCreateDashboardComments && (
+                        <CommentForm
+                            userName={
+                                user.data?.firstName + ' ' + user.data?.lastName
+                            }
+                            onSubmit={handleOnSubmit}
+                            isSubmitting={isLoading}
+                        />
+                    )}
+                </Box>
             </Popover.Dropdown>
 
             <Popover.Target ref={targetRefComments}>
