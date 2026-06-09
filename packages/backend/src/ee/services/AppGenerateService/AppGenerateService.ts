@@ -77,6 +77,11 @@ import type { SpacePermissionService } from '../../../services/SpaceService/Spac
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getAnthropicModel } from '../ai/models/anthropic-claude';
 import { getModelPreset } from '../ai/models/presets';
+import {
+    buildClaudeCodeEnv,
+    claudeCodeAllowedHosts,
+    describeClaudeCodeEnv,
+} from './claudeCodeEnv';
 import { ClaudeStreamProcessor } from './ClaudeStreamProcessor';
 import {
     copyDesignIntoSandbox,
@@ -305,6 +310,18 @@ export class AppGenerateService extends BaseService {
             );
         }
         return key;
+    }
+
+    /**
+     * Resolves the env vars passed to the `claude` CLI in the sandbox: the
+     * Bedrock block (reusing the copilot's BEDROCK_* config) when configured,
+     * otherwise the Anthropic API key. Throws MissingConfigError when neither
+     * is set.
+     */
+    private getClaudeCodeEnv(): Record<string, string> {
+        return buildClaudeCodeEnv(this.lightdashConfig.ai.copilot, () =>
+            this.getAnthropicApiKey(),
+        );
     }
 
     private getE2bApiKey(): string {
@@ -833,7 +850,9 @@ export class AppGenerateService extends BaseService {
             apiKey: e2bApiKey,
             lifecycle: { onTimeout: 'pause' },
             network: {
-                allowOut: ['api.anthropic.com'],
+                allowOut: claudeCodeAllowedHosts(
+                    this.lightdashConfig.ai.copilot,
+                ),
                 denyOut: [ALL_TRAFFIC],
             },
         });
@@ -1373,7 +1392,7 @@ export class AppGenerateService extends BaseService {
         appUuid: string,
         version: number,
         continueSession: boolean,
-        anthropicApiKey: string,
+        claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
     ): Promise<{
         durationMs: number;
@@ -1415,7 +1434,7 @@ export class AppGenerateService extends BaseService {
                     {
                         cwd: '/app',
                         timeoutMs: 55 * 60 * 1000,
-                        envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+                        envs: claudeCodeEnv,
                         onStdout: (chunk) => {
                             for (const event of processor.feedChunk(chunk)) {
                                 sessionEstablished = true;
@@ -1560,7 +1579,7 @@ export class AppGenerateService extends BaseService {
         sandbox: Sandbox,
         appUuid: string,
         version: number,
-        anthropicApiKey: string,
+        claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
     ): Promise<{
         name: string;
@@ -1584,7 +1603,7 @@ export class AppGenerateService extends BaseService {
             appUuid,
             version,
             true, // --continue: Claude remembers what it just built
-            anthropicApiKey,
+            claudeCodeEnv,
             claudeModel,
         );
 
@@ -1705,7 +1724,7 @@ export class AppGenerateService extends BaseService {
         sandbox: Sandbox,
         appUuid: string,
         version: number,
-        anthropicApiKey: string,
+        claudeCodeEnv: Record<string, string>,
         claudeModel: DataAppClaudeModel,
     ): Promise<{
         buildMs: number;
@@ -1792,7 +1811,7 @@ export class AppGenerateService extends BaseService {
                 appUuid,
                 version,
                 true, // --continue: keep conversation context from generation
-                anthropicApiKey,
+                claudeCodeEnv,
                 claudeModel,
             );
             fixGenerationMs += generation.durationMs;
@@ -2028,12 +2047,12 @@ export class AppGenerateService extends BaseService {
             return;
         }
 
-        let anthropicApiKey: string;
+        let claudeCodeEnv: Record<string, string>;
         let e2bApiKey: string;
         let s3Client: S3Client;
         let bucket: string;
         try {
-            anthropicApiKey = this.getAnthropicApiKey();
+            claudeCodeEnv = this.getClaudeCodeEnv();
             e2bApiKey = this.getE2bApiKey();
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {
@@ -2055,7 +2074,7 @@ export class AppGenerateService extends BaseService {
         this.logger.info(
             `App ${appUuid}: pipeline started (version=${version}, status=${currentStatus}, isIteration=${isIteration}, model=${
                 payload.claudeModel ?? DEFAULT_DATA_APP_CLAUDE_MODEL
-            })`,
+            }, llm=${describeClaudeCodeEnv(claudeCodeEnv)})`,
         );
 
         // --- Stage: sandbox ---
@@ -2195,7 +2214,7 @@ export class AppGenerateService extends BaseService {
                 overallStart,
                 currentStatus,
                 wasResumed,
-                anthropicApiKey,
+                claudeCodeEnv,
                 imageIds,
                 chartReferences,
             );
@@ -2214,7 +2233,7 @@ export class AppGenerateService extends BaseService {
         overallStart: number,
         currentStatus: AppVersionStatus,
         wasResumed: boolean,
-        anthropicApiKey: string,
+        claudeCodeEnv: Record<string, string>,
         imageIds: string[] | undefined,
         chartReferences: ChartReference[] | undefined,
     ): Promise<void> {
@@ -2335,7 +2354,7 @@ export class AppGenerateService extends BaseService {
                     appUuid,
                     version,
                     continueSession,
-                    anthropicApiKey,
+                    claudeCodeEnv,
                     claudeModel,
                 );
                 durations.generateMs = generation.durationMs;
@@ -2382,7 +2401,7 @@ export class AppGenerateService extends BaseService {
                     sandbox,
                     appUuid,
                     version,
-                    anthropicApiKey,
+                    claudeCodeEnv,
                     claudeModel,
                 );
                 durations.buildMs = buildResult.buildMs;
@@ -2424,7 +2443,7 @@ export class AppGenerateService extends BaseService {
                     sandbox,
                     appUuid,
                     version,
-                    anthropicApiKey,
+                    claudeCodeEnv,
                     claudeModel,
                 );
                 if (metadata) {
@@ -3704,9 +3723,9 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         appUuid: string,
         sourceVersion: number,
     ): Promise<void> {
-        let anthropicApiKey: string;
+        let claudeCodeEnv: Record<string, string>;
         try {
-            anthropicApiKey = this.getAnthropicApiKey();
+            claudeCodeEnv = this.getClaudeCodeEnv();
         } catch (error) {
             this.logger.warn(
                 `App ${appUuid}: skipping restore FYI — ${getErrorMessage(error)}`,
@@ -3732,7 +3751,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
                 {
                     cwd: '/app',
                     timeoutMs: 60_000,
-                    envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+                    envs: claudeCodeEnv,
                 },
             );
             if (result.exitCode !== 0) {
