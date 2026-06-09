@@ -61,7 +61,7 @@ version: 1
 - **`yField`**: Array of field IDs for the Y axis
 - **`flipAxes`**: Swap X and Y axes for horizontal bar charts (default: `false`)
 - **`showGridX`** / **`showGridY`**: Show grid lines
-- **`stack`**: Stack series together (`true` or stack group name)
+- **`stack`**: Stacking mode for bar/area charts: `"stack"` for normal stacking, `"stack100"` for 100% stacking, `"none"` or omitted for no stacking
 - **`colorByCategory`**: Color each bar by its x-axis category value instead of using a single series color (default: `false`). Use this instead of adding a pivot/group-by dimension just for coloring.
 - **`categoryColorOverrides`**: Map of category value to hex color (e.g., `{"McLaren": "#FF8700"}`). Only applies when `colorByCategory` is `true`.
 
@@ -83,7 +83,7 @@ Optional properties:
 - **`name`**: Display name in legend
 - **`color`**: Hex color code
 - **`yAxisIndex`**: Which Y axis (0 or 1)
-- **`stack`**: Stack group name
+- **`stack`**: ECharts stack group name. For stacked area/bar charts, set this on every stacked series.
 - **`smooth`**: Smooth curves for line/area
 - **`areaStyle`**: Presence indicates area chart
 - **`markLine`**: Reference line configuration
@@ -257,6 +257,7 @@ chartConfig:
           stack: "total"
           type: "line"
     layout:
+      stack: "stack"
       xField: "orders_order_date_month"
       yField:
         - "orders_total_revenue"
@@ -283,6 +284,13 @@ spaceSlug: "sales"
 tableName: "orders"
 version: 1
 ```
+
+For stacked area charts:
+
+- Set the same `series[].stack` value on every area series. `layout.stack: "stack"` keeps Lightdash stack controls in sync, but does not stack series by itself.
+- Use `type: "line"` with `areaStyle: {}`. Do not use `type: "area"`.
+- If splitting one metric by a dimension, add that dimension to `metricQuery.dimensions` and `pivotConfig.columns`, then reference each pivoted series with `encode.yRef.pivotValues`.
+- Only hard-code `pivotValues` for values you know exist. Missing/null combinations can make stacked area charts look broken; use a bar chart or fill missing combinations with 0 when sparse time series data is expected.
 
 ### Scatter Chart
 
@@ -432,7 +440,7 @@ version: 1
    - Area: Emphasizing cumulative totals or composition
    - Scatter: Exploring correlations between variables
 
-2. **Stacking**: Use the same `stack` value for series you want stacked. Only bar and area charts support stacking.
+2. **Stacking**: Use the same `series[].stack` value for series you want stacked. `layout.stack: "stack"` alone does not stack series. Only bar and area charts support stacking.
 
 3. **Dual Y-axis**: Use `yAxisIndex: 0` for left axis, `yAxisIndex: 1` for right axis.
 
