@@ -323,8 +323,67 @@ describe('repoFs limited shell', () => {
         ).resolves.toBe('1 4 14');
     });
 
-    it('reads a file directly with wc -l (no pipe)', async () => {
-        await expect(run('wc -l models/orders.sql')).resolves.toBe('2');
+    it('reads a file directly with wc -l, prefixing the filename', async () => {
+        await expect(run('wc -l models/orders.sql')).resolves.toBe(
+            '2 models/orders.sql',
+        );
+    });
+
+    it('reports per-file counts plus a total for multiple wc -l files', async () => {
+        await expect(
+            run(
+                'wc -l models/staging/stg_orders.sql models/staging/stg_api_error.sql',
+            ),
+        ).resolves.toBe(
+            [
+                '1 models/staging/stg_orders.sql',
+                '1 models/staging/stg_api_error.sql',
+                '2 total',
+            ].join('\n'),
+        );
+    });
+
+    it('gives per-file counts through find | xargs wc -l (the rank-by-size idiom)', async () => {
+        await expect(
+            run('find models/staging -name "*.sql" | xargs wc -l'),
+        ).resolves.toBe(
+            [
+                '1 models/staging/stg_api_error.sql',
+                '1 models/staging/stg_orders.sql',
+                '2 total',
+            ].join('\n'),
+        );
+    });
+
+    it('sorts piped lines lexically in reverse with sort -r', async () => {
+        await expect(
+            run('find models/staging -name "*.sql" | sort -r'),
+        ).resolves.toBe(
+            [
+                'models/staging/stg_orders.sql',
+                'models/staging/stg_api_error.sql',
+            ].join('\n'),
+        );
+    });
+
+    it('ranks files by size with wc -l | sort -rn | head (the canonical "largest model" pipeline)', async () => {
+        // sort -rn puts the grand total first, then the largest real file.
+        await expect(
+            run(
+                'find models -name "*.sql" | xargs wc -l | sort -rn | head -n 2',
+            ),
+        ).resolves.toBe(['4 total', '2 models/orders.sql'].join('\n'));
+    });
+
+    it('sort -u collapses duplicate lines', async () => {
+        // Two staging files have identical contents; cat headers differ, so the
+        // duplicate `select 1 as id` collapses to one while the banners stay.
+        const out = await run(
+            'find models/staging -name "*.sql" | xargs cat | sort -u',
+        );
+        const lines = out.split('\n');
+        expect(lines.filter((l) => l === 'select 1 as id')).toHaveLength(1);
+        expect(lines).toHaveLength(3);
     });
 
     it('runs commands in sequence with &&', async () => {

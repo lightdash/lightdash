@@ -1,8 +1,8 @@
 /**
  * A tiny, read-only, deterministic shell over {@link RepoFs}. It implements just
  * enough of bash to let an agent explore a repo compositionally — `ls`, `cat`,
- * `find` (incl. `-maxdepth`), `grep`, `head`, `wc`, `xargs` — composed with
- * pipes and `&&`, and nothing that can mutate state or escape the repo. Unknown
+ * `find` (incl. `-maxdepth`), `grep`, `head`, `wc`, `sort`, `xargs` — composed
+ * with pipes and `&&`, and nothing that can mutate state or escape the repo. Unknown
  * commands/flags fail loudly (a {@link ShellError} the caller hands back to the
  * model) so the model learns the boundary instead of silently getting wrong
  * output.
@@ -456,39 +456,100 @@ const cmdWc = async (
 ): Promise<string[]> => {
     const { flags, positionals } = parseArgs(tokens, new Set());
 
-    // Piped input wins; otherwise count the file operand(s), like real `wc file`.
+    // Which counts to print, in wc's canonical l→w→m→c order. No flags → lines,
+    // words, bytes (like bare `wc`); with flags → only the requested ones.
+    const hasExplicitFlag = ['-l', '-w', '-c', '-m'].some((f) => flags.has(f));
+    const selectedFlags = hasExplicitFlag
+        ? ['-l', '-w', '-m', '-c'].filter((f) => flags.has(f))
+        : ['-l', '-w', '-c'];
+    const countLine = (lines: string[]): number[] => {
+        const text = lines.join('\n');
+        const values: Record<string, number> = {
+            '-l': lines.length,
+            '-w': text.split(/\s+/).filter(Boolean).length,
+            '-m': [...text].length,
+            '-c': Buffer.byteLength(text, 'utf8'),
+        };
+        return selectedFlags.map((f) => values[f]);
+    };
+
+    // Piped input → a single count line with no filename, like real `wc`.
+    if (stdin !== null) return [countLine(stdin).join(' ')];
+
+    if (positionals.length === 0) {
+        throw new ShellError(
+            'wc: no input (pipe a command in, or pass a file path)',
+        );
+    }
+
+    // File operands → one `<counts> <path>` line per file (plus a `total` line
+    // when there's more than one), matching real `wc`. This is what makes
+    // `find … | xargs wc -l` report per-file sizes the agent can compare/sort,
+    // instead of collapsing everything into a single grand total.
+    const out: string[] = [];
+    const totals = selectedFlags.map(() => 0);
+    for (const path of positionals) {
+        // eslint-disable-next-line no-await-in-loop
+        const content = await repoFs.readFile(path);
+        if (content === null) {
+            throw new ShellError(`wc: ${path}: No such file or directory`);
+        }
+        const values = countLine(toLines(content));
+        values.forEach((v, i) => {
+            totals[i] += v;
+        });
+        out.push(`${values.join(' ')} ${path}`);
+    }
+    if (positionals.length > 1) out.push(`${totals.join(' ')} total`);
+    return out;
+};
+
+const cmdSort = async (
+    repoFs: RepoFs,
+    tokens: string[],
+    stdin: string[] | null,
+): Promise<string[]> => {
+    const { flags, positionals } = parseArgs(tokens, new Set());
+    const numeric = flags.has('-n');
+    const reverse = flags.has('-r');
+    const unique = flags.has('-u');
+
+    // Piped input wins; otherwise sort the file operand(s)' lines.
     let lines: string[];
     if (stdin !== null) {
-        lines = stdin;
+        lines = [...stdin];
     } else if (positionals.length > 0) {
         lines = [];
         for (const path of positionals) {
             // eslint-disable-next-line no-await-in-loop
             const content = await repoFs.readFile(path);
             if (content === null) {
-                throw new ShellError(`wc: ${path}: No such file or directory`);
+                throw new ShellError(
+                    `sort: ${path}: No such file or directory`,
+                );
             }
             lines.push(...toLines(content));
         }
     } else {
         throw new ShellError(
-            'wc: no input (pipe a command in, or pass a file path)',
+            'sort: no input (pipe a command in, or pass a file path)',
         );
     }
 
-    const text = lines.join('\n');
-    const counts: { flag: string; value: number }[] = [
-        { flag: '-l', value: lines.length },
-        { flag: '-w', value: text.split(/\s+/).filter(Boolean).length },
-        { flag: '-m', value: [...text].length },
-        { flag: '-c', value: Buffer.byteLength(text, 'utf8') },
-    ];
-    // No flags → lines, words, bytes (like bare `wc`); with flags → only the
-    // requested counts, kept in wc's canonical l→w→m→c order.
-    const selected = ['-l', '-w', '-c', '-m'].some((f) => flags.has(f))
-        ? counts.filter((c) => flags.has(c.flag))
-        : counts.filter((c) => ['-l', '-w', '-c'].includes(c.flag));
-    return [selected.map((c) => c.value).join(' ')];
+    // Numeric sort keys on each line's leading number, so `wc -l` output like
+    // "115 models/x.sql" orders by the count; a line without one sorts as 0.
+    const numKey = (line: string): number => {
+        const match = line.match(/^\s*(-?\d+(?:\.\d+)?)/);
+        return match ? Number.parseFloat(match[1]) : 0;
+    };
+    const sorted = [...lines].sort((a, b) =>
+        numeric ? numKey(a) - numKey(b) : a.localeCompare(b),
+    );
+    if (reverse) sorted.reverse();
+    // `-u` drops adjacent duplicates (all duplicates, since the list is sorted).
+    return unique
+        ? sorted.filter((line, i) => i === 0 || line !== sorted[i - 1])
+        : sorted;
 };
 
 async function runStage(
@@ -527,6 +588,9 @@ async function runStage(
         case 'wc':
             assertShortFlags(rest, 'lwcm', 'wc');
             return cmdWc(repoFs, rest, stdin);
+        case 'sort':
+            assertShortFlags(rest, 'rnu', 'sort');
+            return cmdSort(repoFs, rest, stdin);
         case 'xargs': {
             if (rest[0]?.startsWith('-')) {
                 throw new ShellError(
@@ -553,7 +617,7 @@ async function runStage(
         }
         default:
             throw new ShellError(
-                `Unsupported command: "${command}". Available: ls, cat, find, grep, head, wc -l, xargs.`,
+                `Unsupported command: "${command}". Available: ls, cat, find, grep, head, wc, sort, xargs.`,
             );
     }
 }
