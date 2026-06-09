@@ -40,6 +40,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    currentUtcWallClock,
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
@@ -3278,9 +3279,13 @@ export class ProjectService extends BaseService {
                     tunnelCredentials,
                 );
             const adapterType = warehouseClient.getAdapterType();
+            // One fixed wall-clock, interpreted by every warehouse the same way,
+            // so the preview is identical regardless of warehouse/server tz.
+            const nowWallClock = currentUtcWallClock();
             const sql = buildDataTimezonePreviewSql(
                 adapterType,
                 effectiveSourceTimezone,
+                nowWallClock,
             );
             const queryTags: RunQueryTags = {
                 organization_uuid: account.organization.organizationUuid,
@@ -3299,6 +3304,7 @@ export class ProjectService extends BaseService {
                 selectedDataTimezone,
                 effectiveSourceTimezone,
                 projectTimezone,
+                nowWallClock,
             });
         } finally {
             await sshTunnel.disconnect();

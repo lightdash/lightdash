@@ -50,65 +50,67 @@ export type DataTimezonePreviewRequest = {
     projectUuid?: string;
 };
 
-// Naive (zone-less) "now" per dialect. Feeds the toUTC conversions, which
-// interpret a naive timestamp as being in a given zone. Full Record for
-// type-safety; only the 7 form-exposed dialects are reachable in practice.
-export const currentNaiveTimestampSql: Record<SupportedDbtAdapter, string> = {
-    [SupportedDbtAdapter.POSTGRES]: 'LOCALTIMESTAMP',
-    [SupportedDbtAdapter.REDSHIFT]: 'LOCALTIMESTAMP',
-    [SupportedDbtAdapter.DUCKDB]: 'LOCALTIMESTAMP',
-    [SupportedDbtAdapter.SNOWFLAKE]:
-        'CAST(CURRENT_TIMESTAMP() AS TIMESTAMP_NTZ)',
-    [SupportedDbtAdapter.DATABRICKS]: 'CAST(CURRENT_TIMESTAMP() AS TIMESTAMP)',
-    [SupportedDbtAdapter.SPARK]: 'CAST(CURRENT_TIMESTAMP() AS TIMESTAMP)',
-    [SupportedDbtAdapter.TRINO]: 'CAST(CURRENT_TIMESTAMP AS timestamp)',
-    [SupportedDbtAdapter.ATHENA]: 'CAST(CURRENT_TIMESTAMP AS timestamp)',
-    // Bare wall-clock string so toDateTime(str, tz) re-parses under the data tz;
-    // now() is an instant, which the toUTC relabel would no-op.
-    [SupportedDbtAdapter.CLICKHOUSE]:
-        "formatDateTime(now(), '%Y-%m-%d %H:%i:%S')",
-    [SupportedDbtAdapter.BIGQUERY]: 'CURRENT_DATETIME()',
+// Wraps one backend-computed wall-clock ('YYYY-MM-DD HH:mm:ss') as a zone-less
+// timestamp literal per dialect. Injecting a fixed literal - instead of each
+// warehouse's now() - makes the preview identical across warehouses and
+// independent of warehouse/server timezone. Fed to toUTC for interpretation.
+const naiveLiteralSql: Record<
+    SupportedDbtAdapter,
+    (wallClock: string) => string
+> = {
+    [SupportedDbtAdapter.POSTGRES]: (w) => `TIMESTAMP '${w}'`,
+    [SupportedDbtAdapter.REDSHIFT]: (w) => `TIMESTAMP '${w}'`,
+    [SupportedDbtAdapter.DUCKDB]: (w) => `TIMESTAMP '${w}'`,
+    [SupportedDbtAdapter.SNOWFLAKE]: (w) => `'${w}'::TIMESTAMP_NTZ`,
+    [SupportedDbtAdapter.DATABRICKS]: (w) => `TIMESTAMP '${w}'`,
+    [SupportedDbtAdapter.SPARK]: (w) => `TIMESTAMP '${w}'`,
+    [SupportedDbtAdapter.TRINO]: (w) => `TIMESTAMP '${w}'`,
+    [SupportedDbtAdapter.ATHENA]: (w) => `TIMESTAMP '${w}'`,
+    [SupportedDbtAdapter.CLICKHOUSE]: (w) => `'${w}'`,
+    [SupportedDbtAdapter.BIGQUERY]: (w) => `DATETIME '${w}'`,
 };
 
-// Tz-aware "now" per dialect (an already-pinned instant). CURRENT_TIMESTAMP
-// works everywhere except ClickHouse, which rejects the bare identifier and
-// spells the live instant as now().
-export const currentAwareTimestampSql: Record<SupportedDbtAdapter, string> = {
-    [SupportedDbtAdapter.POSTGRES]: 'CURRENT_TIMESTAMP',
-    [SupportedDbtAdapter.REDSHIFT]: 'CURRENT_TIMESTAMP',
-    [SupportedDbtAdapter.DUCKDB]: 'CURRENT_TIMESTAMP',
-    [SupportedDbtAdapter.SNOWFLAKE]: 'CURRENT_TIMESTAMP',
-    [SupportedDbtAdapter.DATABRICKS]: 'CURRENT_TIMESTAMP',
-    [SupportedDbtAdapter.SPARK]: 'CURRENT_TIMESTAMP',
-    [SupportedDbtAdapter.TRINO]: 'CURRENT_TIMESTAMP',
-    [SupportedDbtAdapter.ATHENA]: 'CURRENT_TIMESTAMP',
-    [SupportedDbtAdapter.CLICKHOUSE]: 'now()',
-    [SupportedDbtAdapter.BIGQUERY]: 'CURRENT_TIMESTAMP',
-};
+const NAIVE_WALL_CLOCK_FORMAT = 'YYYY-MM-DD HH:mm:ss';
+const NAIVE_WALL_CLOCK_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
 
-// One query returning two instants: a naive "now" disambiguated under the
-// effective source zone (the column-without-a-timezone case), and the live
-// tz-aware "now" whose instant is already pinned (the column-with-a-timezone
-// case, unaffected by the data timezone).
+// The current instant as a bare UTC wall-clock. moment.utc keeps it independent
+// of the backend's local timezone.
+export const currentUtcWallClock = (): string =>
+    moment.utc().format(NAIVE_WALL_CLOCK_FORMAT);
+
+// Interprets one fixed naive wall-clock under the data timezone. The tz-aware
+// ("already an instant") case is computed in Node, so the query is naive-only.
 export const buildDataTimezonePreviewSql = (
     adapterType: SupportedDbtAdapter,
-    effectiveSourceTimezone: string,
+    dataTimezone: string,
+    nowWallClock: string,
 ): string => {
-    if (!isValidTimezone(effectiveSourceTimezone)) {
+    if (!isValidTimezone(dataTimezone)) {
         throw new ParameterError('Invalid data timezone');
     }
-    const naiveNow = currentNaiveTimestampSql[adapterType];
-    const awareNow = currentAwareTimestampSql[adapterType];
+    if (!NAIVE_WALL_CLOCK_RE.test(nowWallClock)) {
+        throw new ParameterError('Invalid timestamp');
+    }
     const { toUTC } = dateTruncTimezoneConversions[adapterType];
-    return (
-        `SELECT ${awareNow} AS aware_instant, ` +
-        `${toUTC(naiveNow, effectiveSourceTimezone)} AS naive_instant`
-    );
+    return `SELECT ${toUTC(
+        naiveLiteralSql[adapterType](nowWallClock),
+        dataTimezone,
+    )} AS naive_instant`;
 };
 
 // Cleaner than the default millisecond format for a human-facing preview.
 const renderInZone = (instant: moment.MomentInput, timezone: string): string =>
     formatTimestamp(instant, TimeFrames.SECOND, false, timezone);
+
+// Snowflake upper-cases unquoted column aliases, so look the column up
+// case-insensitively rather than assuming the literal alias casing.
+const readColumn = (row: Record<string, unknown>, name: string): unknown => {
+    if (name in row) return row[name];
+    const key = Object.keys(row).find(
+        (k) => k.toLowerCase() === name.toLowerCase(),
+    );
+    return key === undefined ? undefined : row[key];
+};
 
 export const buildDataTimezonePreviewResponse = ({
     row,
@@ -116,19 +118,23 @@ export const buildDataTimezonePreviewResponse = ({
     selectedDataTimezone,
     effectiveSourceTimezone,
     projectTimezone,
+    nowWallClock,
 }: {
     row: Record<string, unknown>;
     warehouseType: WarehouseTypes;
     selectedDataTimezone: string;
     effectiveSourceTimezone: string;
     projectTimezone: string;
+    nowWallClock: string;
 }): ApiDataTimezonePreviewResults => {
-    // Drivers return these as Date objects (pg, Snowflake, ...) or strings
+    // Drivers return naive_instant as a Date (pg, Snowflake, ...) or string
     // (Trino, ClickHouse). Pass the raw value to moment; String()-ing a Date
     // first yields a locale string moment.utc parses via its non-ISO fallback,
     // silently shifting the instant by the backend's UTC offset.
-    const naiveInstant = row.naive_instant as moment.MomentInput;
-    const awareInstant = row.aware_instant as moment.MomentInput;
+    const naiveInstant = readColumn(row, 'naive_instant') as moment.MomentInput;
+    // Tz-aware columns are already pinned instants - the current moment read as
+    // UTC. Data-tz-independent, so computed here rather than queried.
+    const awareInstant = moment.utc(nowWallClock, NAIVE_WALL_CLOCK_FORMAT);
 
     return {
         warehouseType,
