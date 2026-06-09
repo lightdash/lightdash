@@ -1,3 +1,12 @@
+# [0.3121.0](https://github.com/lightdash/lightdash/compare/0.3120.1...0.3121.0) (2026-06-09)
+
+
+### Features
+
+* **ai:** build the repoShell dbt-repo VFS on just-bash ([#24079](https://github.com/lightdash/lightdash/issues/24079)) ([db2ced3](https://github.com/lightdash/lightdash/commit/db2ced3104eddb550fe80feeb4356b2c862678f7))
+* interactive preview for the data timezone setting ([#24032](https://github.com/lightdash/lightdash/issues/24032)) ([4507243](https://github.com/lightdash/lightdash/commit/4507243cbf98e5f74188de09c46d6b59d8690aac))
+* **service-accounts:** edit role, scopes, name & projects in place ([#24082](https://github.com/lightdash/lightdash/issues/24082)) ([b103178](https://github.com/lightdash/lightdash/commit/b10317833ed3d045289d2f68c8071f77a94f3fd1))
+
 ## [0.3120.1](https://github.com/lightdash/lightdash/compare/0.3120.0...0.3120.1) (2026-06-09)
 
 
