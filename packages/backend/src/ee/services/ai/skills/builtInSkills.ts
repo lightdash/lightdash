@@ -1,8 +1,9 @@
-import { ParameterError } from '@lightdash/common';
+import { getErrorMessage, ParameterError } from '@lightdash/common';
 import crypto from 'crypto';
 import * as fs from 'fs/promises';
 import matter from 'gray-matter';
 import * as path from 'path';
+import Logger from '../../../../logging/logger';
 import {
     AiAgentSkill,
     AiAgentSkillReference,
@@ -189,11 +190,40 @@ export class BuiltInSkills {
         this.loadedPromise = (async () => {
             try {
                 const skillNames = await this.getSkillNames();
-                const loaded = await Promise.all(
+                // A single malformed or duplicate skill directory must not take
+                // down every skill (and, in the MCP path, the whole server), so
+                // load each independently and skip the ones that fail.
+                const settled = await Promise.allSettled(
                     skillNames.map((skillName) =>
                         this.loadSkillDirectory(skillName),
                     ),
                 );
+
+                const loaded: LoadedBuiltInSkill[] = [];
+                const seenNames = new Set<string>();
+                settled.forEach((result, index) => {
+                    if (result.status === 'rejected') {
+                        Logger.warn(
+                            `Skipping built-in skill "${
+                                skillNames[index]
+                            }": ${getErrorMessage(result.reason)}`,
+                        );
+                        return;
+                    }
+                    // The skill name is the final skill:// path segment, so
+                    // duplicates would mint colliding URIs and break
+                    // registerResource. Keep the first, skip the rest.
+                    const nameKey = result.value.name.toLowerCase();
+                    if (seenNames.has(nameKey)) {
+                        Logger.warn(
+                            `Skipping built-in skill "${skillNames[index]}": duplicate skill name "${result.value.name}"`,
+                        );
+                        return;
+                    }
+                    seenNames.add(nameKey);
+                    loaded.push(result.value);
+                });
+
                 this.loaded = loaded;
                 return loaded;
             } catch (error) {

@@ -2726,7 +2726,7 @@ export class McpService extends BaseService {
 
         // Skill resources load asynchronously; register them directly on the
         // new server so no server swap spans the await.
-        await McpService.setupSkillResourceHandlers(newServer);
+        await this.setupSkillResourceHandlers(newServer);
 
         return newServer;
     }
@@ -2832,58 +2832,68 @@ export class McpService extends BaseService {
         );
     }
 
-    private static async setupSkillResourceHandlers(
+    private async setupSkillResourceHandlers(
         mcpServer: McpServer,
     ): Promise<void> {
-        const resources = await BuiltInSkills.listMcpResources();
+        // Built-in skills are optional context, not core MCP functionality.
+        // This runs per request (createServer is per-request), so a skill load
+        // or registration failure must never reject and 500 the whole endpoint
+        // — log it and serve the server without skill resources.
+        try {
+            const resources = await BuiltInSkills.listMcpResources();
 
-        resources.forEach((resource) => {
-            mcpServer.registerResource(
-                resource.name,
-                resource.uri,
-                {
-                    title: resource.title,
-                    description: resource.description,
-                    mimeType: resource.mimeType,
-                    size: resource.size,
-                },
-                async () => {
-                    const text = await BuiltInSkills.getMcpResourceBody(
-                        resource.uri,
-                    );
-                    if (text === undefined) {
-                        throw new NotFoundError(
-                            `Resource "${resource.uri}" was not found`,
+            resources.forEach((resource) => {
+                mcpServer.registerResource(
+                    resource.name,
+                    resource.uri,
+                    {
+                        title: resource.title,
+                        description: resource.description,
+                        mimeType: resource.mimeType,
+                        size: resource.size,
+                    },
+                    async () => {
+                        const text = await BuiltInSkills.getMcpResourceBody(
+                            resource.uri,
                         );
-                    }
-                    return {
-                        contents: [
-                            {
-                                uri: resource.uri,
-                                mimeType: resource.mimeType,
-                                text,
-                            },
-                        ],
-                    };
-                },
-            );
-        });
+                        if (text === undefined) {
+                            throw new NotFoundError(
+                                `Resource "${resource.uri}" was not found`,
+                            );
+                        }
+                        return {
+                            contents: [
+                                {
+                                    uri: resource.uri,
+                                    mimeType: resource.mimeType,
+                                    text,
+                                },
+                            ],
+                        };
+                    },
+                );
+            });
 
-        // The SDK auto-advertises `resources.listChanged: true` when
-        // registerResource is called, but we never emit list_changed
-        // notifications. We also declare the skills extension so clients can
-        // detect built-in skill support.
-        mcpServer.server.registerCapabilities({
-            resources: { subscribe: false, listChanged: false },
-            // Advertise under both: `extensions` per the final SEP, and
-            // `experimental` for draft-era clients (the de-facto wild form).
-            experimental: {
-                [MCP_SKILLS_EXTENSION_NAME]: {},
-            },
-            extensions: {
-                [MCP_SKILLS_EXTENSION_NAME]: {},
-            },
-        });
+            // The SDK auto-advertises `resources.listChanged: true` when
+            // registerResource is called, but we never emit list_changed
+            // notifications. We also declare the skills extension so clients can
+            // detect built-in skill support.
+            mcpServer.server.registerCapabilities({
+                resources: { subscribe: false, listChanged: false },
+                // Advertise under both: `extensions` per the final SEP, and
+                // `experimental` for draft-era clients (the de-facto wild form).
+                experimental: {
+                    [MCP_SKILLS_EXTENSION_NAME]: {},
+                },
+                extensions: {
+                    [MCP_SKILLS_EXTENSION_NAME]: {},
+                },
+            });
+        } catch (error) {
+            this.logger.warn('Failed to register built-in skill resources', {
+                error,
+            });
+        }
     }
 
     static getAccount(context: McpProtocolContext) {
