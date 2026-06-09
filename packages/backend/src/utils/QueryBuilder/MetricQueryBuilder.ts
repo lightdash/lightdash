@@ -72,6 +72,7 @@ import {
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { compilePostCalculationMetric } from '../../queryCompiler';
+import { reportMalformedFilterValues } from './malformedFilterValueReporter';
 import {
     safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
@@ -1494,6 +1495,8 @@ export class MetricQueryBuilder {
         };
 
         if (!fieldType) {
+            reportMalformedFilterValues(filterRuleWithParamReplacedValues);
+
             const field = compiledMetricQuery.compiledTableCalculations?.find(
                 (tc) =>
                     getItemId(tc) ===
@@ -1589,8 +1592,10 @@ export class MetricQueryBuilder {
             }
         }
 
-        const renderedFilterSql = renderWithErrorHandling(() =>
-            renderFilterRuleSqlFromField(
+        const renderedFilterSql = renderWithErrorHandling(() => {
+            reportMalformedFilterValues(filterRuleWithParamReplacedValues);
+
+            return renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
                 filterField,
                 fieldQuoteChar,
@@ -1604,8 +1609,8 @@ export class MetricQueryBuilder {
                 baseDimensionSql,
                 this.args.useTimezoneAwareDateTrunc,
                 this.columnTimezone,
-            ),
-        );
+            );
+        });
 
         Logger.info('query.case_sensitive_applied', {
             exploreName: explore.name,
