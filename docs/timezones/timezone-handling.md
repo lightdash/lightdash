@@ -29,7 +29,7 @@ Two flags gate timezone behavior:
 | `EnableTimezoneSupport` | `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT`   | Data timezone feature: warehouse UI field, session-TZ setup, and the project-level "filter inputs in project TZ" toggle |
 | `EnableUserTimezones`   | `enable-user-timezones` (flag only)   | UI surface for user-facing timezone pickers: Profile panel picker and Explorer chart-level picker                       |
 
-The project timezone setting itself is always available. Server-side resolution (`resolveQueryTimezone`) honors a user's profile timezone regardless of `EnableUserTimezones` — the flag only gates the input that lets users set it. Both flags can be toggled per-organization (or per-user) via `feature_flag_overrides` in the database, which takes precedence over the env var, so we can roll out gradually without flipping the global switch.
+The project timezone setting itself is always available. Server-side resolution honors a user's profile timezone only when `EnableUserTimezones` is on: each call site resolves the flag and passes it into `getAccountUserTimezone(account, isUserTimezoneEnabled)`, which returns `null` when the flag is off so stored `users.timezone` values fall back to the project timezone. Both flags can be toggled per-organization (or per-user) via `feature_flag_overrides` in the database, which takes precedence over the env var, so we can roll out gradually without flipping the global switch.
 
 ### Data timezone (`dataTimezone`)
 

@@ -110,7 +110,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 **Admin opt-in**: yes — `EnableUserTimezones` defaults off and can be toggled per-org via `feature_flag_overrides`.
 
-**Sharp footgun**: turning the flag off does NOT clear stored `users.timezone` values, and `resolveQueryTimezone` honors them regardless of the flag (only the picker UI is gated). Flagged in [`timezone-review.md` Concern 1](./timezone-review.md#concern-1--feature-flag-entanglement-is-wide-and-underspecified). Fix it before any customer hits "I disabled the feature but it still applies."
+**Flag-off behavior**: turning the flag off does NOT clear stored `users.timezone` values, but they are no longer applied — `getAccountUserTimezone(account, isUserTimezoneEnabled)` returns `null` when `EnableUserTimezones` is off, so resolution falls back to the project timezone for every user. The stored preference is preserved (non-destructive) and re-applies when the flag is turned back on.
 
 ### Scheduled deliveries & embeds — which TZ wins?
 
@@ -386,7 +386,7 @@ So the architectural intent is "support both, default to consistent." **This is 
 | Issue | Severity | Effort | Location |
 |---|---|---|---|
 | ECharts DST shift bug | Correctness | 1d test + 2d fix | `packages/frontend/src/hooks/echarts/timezoneShift.ts` |
-| `EnableUserTimezones=off` doesn't gate stored profile TZs | Correctness | 1d | `resolveQueryTimezone.ts` |
+| ~~`EnableUserTimezones=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
 | Scheduled deliveries TZ interaction undocumented | Docs | 0.5d | `timezone-handling.md` |
 | Per-column wall-clock TZ annotation | Feature | 2d | `translator.ts` + `getColumnTimezone` |
 | BigQuery half-hour offset bare-literal hole | Correctness | 1d | `filtersCompiler.ts` |

@@ -1447,11 +1447,12 @@ export class EmbedService extends BaseService {
 
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
-            metricQueryWithDashboardOverrides,
+        const timezone = resolveQueryTimezone({
+            metricQuery: metricQueryWithDashboardOverrides,
             projectTimezone,
-            null,
-        );
+            userTimezone: null,
+            isUserTimezoneEnabled: false,
+        });
 
         const isTimezoneSupportEnabled =
             await this.projectService.isTimezoneSupportEnabled({
@@ -2080,11 +2081,12 @@ export class EmbedService extends BaseService {
 
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
+        const timezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
-            null,
-        );
+            userTimezone: null,
+            isUserTimezoneEnabled: false,
+        });
 
         const useTimezoneAwareDateTrunc =
             await this.projectService.isTimezoneSupportEnabled({

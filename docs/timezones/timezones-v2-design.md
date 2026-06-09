@@ -42,7 +42,7 @@ Tags combine (e.g., `bug + breaking` for a correctness fix that, shipped without
    ✅ `EnableUserTimezones`.
 
 7. **Disabling the user-TZ feature must actually disable it, not just hide the picker.**
-   ❌ `gap-flag-off-leak` *[bug + breaking]* — Today stored `users.timezone` is still honored when the flag is off — either gate `resolveQueryTimezone` on the flag, or clear stored values on flag-off.
+   ✅ `gap-flag-off-leak` fixed — `getAccountUserTimezone(account, isUserTimezoneEnabled)` returns `null` when `EnableUserTimezones` is off, so stored `users.timezone` values are ignored and resolution falls back to the project timezone. Non-destructive (values are kept, just not applied).
 
 8. **Resolved TZ persists with the query record; downstream paths read it back, never re-resolve.**
    ✅ Stamped onto `metricQuery.timezone` in `executePreparedAsyncQuery`.
