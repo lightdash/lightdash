@@ -1,0 +1,170 @@
+import {
+    FeatureFlags,
+    type CreateWarehouseCredentials,
+} from '@lightdash/common';
+import {
+    Alert,
+    Badge,
+    Button,
+    Divider,
+    Group,
+    Stack,
+    Text,
+} from '@mantine-8/core';
+import { type FC, type ReactNode } from 'react';
+import { useDataTimezonePreviewMutation } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import TimeZonePicker from '../../common/TimeZonePicker';
+import { useFormContext } from '../formContext';
+import { useProjectFormContext } from '../useProjectFormContext';
+
+const PipelineStep: FC<{ n: number; title: string; value: ReactNode }> = ({
+    n,
+    title,
+    value,
+}) => (
+    <Group gap="sm" wrap="nowrap" align="flex-start">
+        <Badge size="sm" circle variant="light">
+            {n}
+        </Badge>
+        <Stack gap={0}>
+            <Text size="xs" fw={600}>
+                {title}
+            </Text>
+            <Text size="xs" ff="monospace">
+                {value}
+            </Text>
+        </Stack>
+    </Group>
+);
+
+const Connector: FC<{ children: ReactNode }> = ({ children }) => (
+    <Text size="xs" c="dimmed" ml="md" pl={4}>
+        ↓ {children}
+    </Text>
+);
+
+const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
+    const form = useFormContext();
+    const { savedProject } = useProjectFormContext();
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
+    );
+    const preview = useDataTimezonePreviewMutation();
+
+    if (!(timezoneSupportFlag?.enabled ?? false)) return null;
+
+    const onPreview = () => {
+        const warehouse = form.values.warehouse;
+        // Edit flow: the stored secrets stay on the server, so send only the
+        // project, the current warehouse type, and the data timezone being
+        // tried (null when the clearable picker is empty).
+        if (savedProject) {
+            preview.mutate({
+                mode: 'edit',
+                projectUuid: savedProject.projectUuid,
+                warehouseType: warehouse.type,
+                dataTimezone: warehouse.dataTimezone ?? null,
+            });
+            return;
+        }
+        // Create flow: send the just-typed credentials. The picker yields null
+        // when cleared; omit it so the unset case previews as the warehouse
+        // default rather than failing validation.
+        const credentials: CreateWarehouseCredentials = warehouse.dataTimezone
+            ? warehouse
+            : {
+                  ...warehouse,
+                  dataTimezone: undefined,
+              };
+        preview.mutate({ mode: 'create', credentials });
+    };
+
+    const result = preview.data;
+
+    return (
+        <Stack gap="xs">
+            <TimeZonePicker
+                size="sm"
+                maw="100%"
+                label="Data timezone"
+                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
+                searchable
+                clearable
+                placeholder="Not set (uses warehouse default)"
+                disabled={disabled}
+                {...form.getInputProps('warehouse.dataTimezone')}
+            />
+            <Button
+                variant="default"
+                size="xs"
+                onClick={onPreview}
+                loading={preview.isLoading}
+                disabled={disabled}
+            >
+                Preview
+            </Button>
+
+            {preview.isError && (
+                <Alert color="red" title="Could not preview">
+                    {preview.error?.error.message ?? 'Connection failed'}
+                </Alert>
+            )}
+
+            {result && (
+                <Stack gap="xs">
+                    <Text size="xs" c="dimmed">
+                        The current moment, step by step
+                    </Text>
+                    {!result.dataTimezoneApplies && (
+                        <Text size="xs" c="dimmed">
+                            No data timezone set, so the warehouse reads the
+                            bare value in its own session timezone. Pick one
+                            above to control it.
+                        </Text>
+                    )}
+                    <PipelineStep
+                        n={1}
+                        title="From the warehouse"
+                        value={`${result.naive.raw}  ·  no timezone`}
+                    />
+                    <Connector>
+                        read as {result.naive.interpretedAs}
+                        {result.dataTimezoneApplies
+                            ? ' (your data timezone)'
+                            : ''}
+                    </Connector>
+                    <PipelineStep
+                        n={2}
+                        title="An exact moment in time"
+                        value={result.naive.readAs}
+                    />
+                    <Connector>
+                        shown in {result.projectTimezone} (your project
+                        timezone)
+                    </Connector>
+                    <PipelineStep
+                        n={3}
+                        title="What viewers see"
+                        value={result.naive.rendered}
+                    />
+                    <Divider my={4} />
+                    <Text size="xs" c="dimmed">
+                        If a column already stores a timezone, step 1 is
+                        skipped: the moment is already exact (
+                        <Text span ff="monospace">
+                            {result.aware.raw} UTC
+                        </Text>
+                        ) and your data timezone is ignored, so viewers see{' '}
+                        <Text span ff="monospace">
+                            {result.aware.rendered}
+                        </Text>
+                        .
+                    </Text>
+                </Stack>
+            )}
+        </Stack>
+    );
+};
+
+export default DataTimezoneField;

@@ -2,7 +2,6 @@ import {
     DuckdbConnectionType,
     DucklakeCatalogType,
     DucklakeDataPathType,
-    FeatureFlags,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -16,12 +15,11 @@ import {
 } from '@mantine/core';
 import { type FC } from 'react';
 import { useToggle } from 'react-use';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import TimeZonePicker from '../../common/TimeZonePicker';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
+import DataTimezoneField from './DataTimezoneField';
 import {
     DuckdbDucklakeDefaultValues,
     DuckdbMotherduckDefaultValues,
@@ -364,10 +362,6 @@ const DuckdbForm: FC<{
 }> = ({ disabled }) => {
     const [isOpen, toggleOpen] = useToggle(false);
     const form = useFormContext();
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
 
     const warehouse = form.values.warehouse;
     const connectionType =
@@ -412,19 +406,7 @@ const DuckdbForm: FC<{
                         disabled={disabled}
                     />
 
-                    {isTimezoneSupportEnabled && (
-                        <TimeZonePicker
-                            size="sm"
-                            maw="100%"
-                            label="Data timezone"
-                            description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
-                            searchable
-                            clearable
-                            placeholder="Not set (uses warehouse default)"
-                            disabled={disabled}
-                            {...form.getInputProps('warehouse.dataTimezone')}
-                        />
-                    )}
+                    <DataTimezoneField disabled={disabled} />
                     <StartOfWeekSelect disabled={disabled} />
                 </Stack>
             </FormSection>

@@ -8,6 +8,7 @@ import {
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
+    ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
@@ -17,6 +18,8 @@ import {
     assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    buildDataTimezonePreviewResponse,
+    buildDataTimezonePreviewSql,
     CacheMetadata,
     calculateCompilationReport,
     calculateExploreWarningReport,
@@ -37,6 +40,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    currentUtcWallClock,
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
@@ -134,6 +138,7 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    RegisteredAccount,
     ReplaceableCustomFields,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
@@ -177,6 +182,7 @@ import {
     WarehouseTypes,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
+    type DataTimezonePreviewRequest,
     type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -3200,6 +3206,111 @@ export class ProjectService extends BaseService {
             throw e;
         }
         return { adapter, sshTunnel };
+    }
+
+    async previewDataTimezone(
+        account: RegisteredAccount,
+        body: DataTimezonePreviewRequest,
+    ): Promise<ApiDataTimezonePreviewResults> {
+        assertIsAccountWithOrg(account);
+        if (
+            !(await this.isTimezoneSupportEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+            }))
+        ) {
+            throw new ForbiddenError('Timezone support is not enabled');
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+
+        // Edit flow sources secrets from storage and overrides only the unsaved
+        // data timezone - the frontend never sends credentials. Create flow uses
+        // the just-typed credentials.
+        let effectiveCredentials: CreateWarehouseCredentials;
+        let projectTimezone = 'UTC';
+        if (body.mode === 'edit') {
+            const stored = await this.projectModel.getWithSensitiveFields(
+                body.projectUuid,
+            );
+            if (auditedAbility.cannot('update', subject('Project', stored))) {
+                throw new ForbiddenError();
+            }
+            // A switched-but-unsaved warehouse type can't be merged with stored
+            // secrets, so ask for a save rather than failing mid-connect.
+            if (
+                !stored.warehouseConnection ||
+                stored.warehouseConnection.type !== body.warehouseType
+            ) {
+                throw new ParameterError(
+                    'Save the warehouse connection before previewing a different warehouse type.',
+                );
+            }
+            effectiveCredentials = {
+                ...stored.warehouseConnection,
+                dataTimezone: body.dataTimezone ?? undefined,
+            };
+            projectTimezone = await this.getQueryTimezoneForProject(
+                body.projectUuid,
+            );
+        } else {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Project', {
+                        organizationUuid: account.organization.organizationUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            effectiveCredentials = body.credentials;
+        }
+
+        // The data timezone is set as the warehouse session timezone (the
+        // client interpolates it raw), so validate it before connecting.
+        const { dataTimezone } = effectiveCredentials;
+        if (dataTimezone && !isValidTimezone(dataTimezone)) {
+            throw new ParameterError('Invalid data timezone');
+        }
+
+        const sshTunnel = new SshTunnel(effectiveCredentials);
+        const tunnelCredentials = await sshTunnel.connect();
+        try {
+            const warehouseClient =
+                this.projectModel.getWarehouseClientFromCredentials(
+                    tunnelCredentials,
+                );
+            const adapterType = warehouseClient.getAdapterType();
+            // A fixed wall-clock, read through the session timezone the client
+            // sets from dataTimezone (the third runQuery arg below).
+            const nowWallClock = currentUtcWallClock();
+            const sql = buildDataTimezonePreviewSql(adapterType, nowWallClock);
+            const queryTags: RunQueryTags = {
+                organization_uuid: account.organization.organizationUuid,
+                user_uuid: account.user.userUuid,
+                query_context: QueryExecutionContext.API,
+            };
+            const { rows } = await warehouseClient.runQuery(
+                sql,
+                queryTags,
+                dataTimezone,
+            );
+            if (rows.length === 0) {
+                throw new UnexpectedServerError(
+                    'Data timezone preview query returned no rows',
+                );
+            }
+            return buildDataTimezonePreviewResponse({
+                row: rows[0],
+                nowWallClock,
+                projectTimezone,
+                dataTimezone,
+            });
+        } finally {
+            await sshTunnel.disconnect();
+        }
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {

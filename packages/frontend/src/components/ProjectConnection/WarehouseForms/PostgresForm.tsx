@@ -1,4 +1,4 @@
-import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
@@ -14,9 +14,7 @@ import {
 import { IconCheck, IconCopy } from '@tabler/icons-react';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
-import TimeZonePicker from '../../common/TimeZonePicker';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -24,6 +22,7 @@ import CertificateFileInput from '../Inputs/CertificateFileInput';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
+import DataTimezoneField from './DataTimezoneField';
 import { PostgresDefaultValues } from './defaultValues';
 import { useCreateSshKeyPair } from './sshHooks';
 
@@ -52,10 +51,6 @@ const PostgresForm: FC<{
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.POSTGRES;
     const form = useFormContext();
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
 
     if (form.values.warehouse?.type !== WarehouseTypes.POSTGRES) {
         throw new Error('This form is only available for Postgres');
@@ -296,21 +291,7 @@ const PostgresForm: FC<{
                             {...form.getInputProps('warehouse.role')}
                         />
 
-                        {isTimezoneSupportEnabled && (
-                            <TimeZonePicker
-                                size="sm"
-                                maw="100%"
-                                label="Data timezone"
-                                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
-                                searchable
-                                clearable
-                                placeholder="Not set (uses warehouse default)"
-                                disabled={disabled}
-                                {...form.getInputProps(
-                                    'warehouse.dataTimezone',
-                                )}
-                            />
-                        )}
+                        <DataTimezoneField disabled={disabled} />
                         <StartOfWeekSelect disabled={disabled} />
 
                         <NumberInput
