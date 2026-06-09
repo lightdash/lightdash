@@ -61,7 +61,7 @@ export class NotificationsModel {
     ) {
         return this.database(NotificationsTableName)
             .where({ notification_id: notificationUuid })
-            .update(updateData);
+            .update({ viewed: updateData.viewed });
     }
 
     private static generateDashboardCommentNotificationMessage({
