@@ -1,11 +1,15 @@
 import {
     ServiceAccountScope,
+    type ProjectMemberRole,
+    type ServiceAccountProjectGrant,
     type ServiceAccountScope as ServiceAccountScopeType,
     type ServiceAccountWithProjectAccessCount,
 } from '@lightdash/common';
 import {
     Anchor,
     Button,
+    Center,
+    Loader,
     Select,
     Stack,
     Text,
@@ -16,7 +20,14 @@ import { IconPencil } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
+import { useProjects } from '../../../hooks/useProjects';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
+import {
+    SYSTEM_PROJECT_ROLE_OPTIONS,
+    type ProjectRoleRow,
+} from './projectRoleOptions';
+import { ServiceAccountProjectRoles } from './ServiceAccountProjectRoles';
+import { useServiceAccountProjectGrants } from './useProjectAccess';
 import { useServiceAccounts } from './useServiceAccounts';
 
 const EDIT_FORM_ID = 'edit-service-account-form';
@@ -50,16 +61,14 @@ const LEGACY_SCOPE_TO_SYSTEM: Partial<
     [ServiceAccountScope.ORG_READ]: ServiceAccountScope.SYSTEM_VIEWER,
 };
 
-// A project-scoped SA carries `system:member` + per-project grants. Editing its
-// org-wide permission would orphan those grants, so we only allow renaming it
-// here; project access is managed separately.
+// A project-scoped SA carries `system:member` + per-project grants. Its mode is
+// fixed: this modal edits the project grants, never an org-wide role.
 const isProjectScoped = (sa: ServiceAccountWithProjectAccessCount) =>
-    sa.projectAccessCount > 0 ||
     sa.scopes.includes(ServiceAccountScope.SYSTEM_MEMBER);
 
-// Resolve the role Select's initial value from the SA's current permission: a
-// custom role wins; otherwise a single org scope (legacy scopes mapped to their
-// system alias). Multi-scope / unmappable SAs start blank, forcing a pick.
+// Resolve the org role Select's initial value: a custom role wins; otherwise a
+// single org scope (legacy scopes mapped to their system alias). Multi-scope /
+// unmappable SAs start blank, forcing a pick.
 const getInitialRoleSelection = (
     sa: ServiceAccountWithProjectAccessCount,
 ): string => {
@@ -73,25 +82,24 @@ const getInitialRoleSelection = (
     return scope === ServiceAccountScope.SYSTEM_MEMBER ? '' : `scope:${scope}`;
 };
 
-interface EditFormState {
-    isLoading: boolean;
-}
+// Parse a tagged role selection (`scope:x` / `role:uuid` / `system:role`) into
+// its kind + value. Mirrors the create modal's submit-time translator.
+const parseTaggedRole = (
+    selection: string,
+): { kind: string; value: string } => {
+    const sepIdx = selection.indexOf(':');
+    return {
+        kind: selection.slice(0, sepIdx),
+        value: selection.slice(sepIdx + 1),
+    };
+};
 
-const EditForm: FC<{
-    serviceAccount: ServiceAccountWithProjectAccessCount;
-    onStateChange: (state: EditFormState) => void;
-    onClose: () => void;
-}> = ({ serviceAccount, onStateChange, onClose }) => {
-    const { updateAccount } = useServiceAccounts();
-    const { mutateAsync, isLoading } = updateAccount;
+// Edit always surfaces the org's custom roles (unlike create, which gates them
+// behind the feature flag) so an SA already bound to a custom role keeps
+// showing that role even if the flag is off.
+const useCustomRoleOptions = () => {
     const { listRoles } = useCustomRoles();
-
-    const projectScoped = isProjectScoped(serviceAccount);
-
-    // Edit always surfaces the org's custom roles (unlike create, which gates
-    // them behind the feature flag) so an SA already bound to a custom role
-    // keeps showing that role even if the flag is off.
-    const customRoleOptions = useMemo(
+    const options = useMemo(
         () =>
             (listRoles.data ?? [])
                 .map((role) => ({
@@ -105,6 +113,26 @@ const EditForm: FC<{
                 ),
         [listRoles.data],
     );
+    return { options, isLoading: listRoles.isLoading };
+};
+
+interface EditFormState {
+    isLoading: boolean;
+    isReady: boolean;
+}
+
+const READY: EditFormState = { isLoading: false, isReady: true };
+
+// Organization-scoped SA: edit name + org role / scopes.
+const OrgEditForm: FC<{
+    serviceAccount: ServiceAccountWithProjectAccessCount;
+    onStateChange: (state: EditFormState) => void;
+    onClose: () => void;
+}> = ({ serviceAccount, onStateChange, onClose }) => {
+    const { updateAccount } = useServiceAccounts();
+    const { mutateAsync, isLoading } = updateAccount;
+    const { options: customRoleOptions, isLoading: rolesLoading } =
+        useCustomRoleOptions();
 
     const roleOptions = useMemo(() => {
         const groups: {
@@ -119,33 +147,22 @@ const EditForm: FC<{
         return groups;
     }, [customRoleOptions]);
 
-    const initialRoleSelection = getInitialRoleSelection(serviceAccount);
-
     const form = useForm({
         initialValues: {
             description: serviceAccount.description,
-            roleSelection: initialRoleSelection,
+            roleSelection: getInitialRoleSelection(serviceAccount),
         },
         validate: {
             roleSelection: (value) =>
-                !projectScoped && value === ''
-                    ? 'Please select a permission set'
-                    : null,
+                value === '' ? 'Please select a permission set' : null,
         },
     });
 
     const handleOnSubmit = form.onSubmit(
         async ({ description, roleSelection }) => {
-            if (projectScoped) {
-                await mutateAsync({ uuid: serviceAccount.uuid, description });
-                onClose();
-                return;
-            }
             // `scope:<service-account-scope>` → { scopes: [<scope>] }
             // `role:<uuid>`                   → { roleUuid: <uuid> }
-            const sepIdx = roleSelection.indexOf(':');
-            const kind = roleSelection.slice(0, sepIdx) as 'scope' | 'role';
-            const value = roleSelection.slice(sepIdx + 1);
+            const { kind, value } = parseTaggedRole(roleSelection);
             const payload =
                 kind === 'scope'
                     ? { scopes: [value as ServiceAccountScopeType] }
@@ -160,7 +177,7 @@ const EditForm: FC<{
     );
 
     useEffect(() => {
-        onStateChange({ isLoading });
+        onStateChange({ isLoading, isReady: true });
     }, [isLoading, onStateChange]);
 
     return (
@@ -173,39 +190,176 @@ const EditForm: FC<{
                     disabled={isLoading}
                     {...form.getInputProps('description')}
                 />
-                {projectScoped ? (
-                    <Text size="xs" c="dimmed">
-                        This is a project-scoped service account. Its project
-                        access can't be edited here — only its name.
-                    </Text>
-                ) : (
-                    <Select
-                        label="Role"
-                        description={
-                            <>
-                                Pick a system role or a custom role you've
-                                created in{' '}
-                                <Anchor
-                                    component={Link}
-                                    to="/generalSettings/customRoles"
-                                    size="xs"
-                                >
-                                    custom roles
-                                </Anchor>
-                                . The token stays the same.
-                            </>
-                        }
-                        placeholder="Select a permission set"
-                        data={roleOptions}
-                        required
-                        searchable
-                        maxDropdownHeight={220}
-                        disabled={isLoading || listRoles.isLoading}
-                        {...form.getInputProps('roleSelection')}
-                    />
-                )}
+                <Select
+                    label="Role"
+                    description={
+                        <>
+                            Pick a system role or a custom role you've created
+                            in{' '}
+                            <Anchor
+                                component={Link}
+                                to="/generalSettings/customRoles"
+                                size="xs"
+                            >
+                                custom roles
+                            </Anchor>
+                            . The token stays the same.
+                        </>
+                    }
+                    placeholder="Select a permission set"
+                    data={roleOptions}
+                    required
+                    searchable
+                    maxDropdownHeight={220}
+                    disabled={isLoading || rolesLoading}
+                    {...form.getInputProps('roleSelection')}
+                />
             </Stack>
         </form>
+    );
+};
+
+// Convert the SA's current grants into the form's tagged project rows.
+const grantsToRows = (grants: ServiceAccountProjectGrant[]): ProjectRoleRow[] =>
+    grants.map((g) =>
+        g.roleUuid
+            ? {
+                  projectUuid: g.projectUuid,
+                  roleSelection: `role:${g.roleUuid}`,
+              }
+            : {
+                  projectUuid: g.projectUuid,
+                  roleSelection: `system:${g.role}`,
+              },
+    );
+
+// Inner project form — mounts only once grants are loaded so `useForm` captures
+// them as initial values (per the no-effect-sync state pattern).
+const ProjectEditFormInner: FC<{
+    serviceAccount: ServiceAccountWithProjectAccessCount;
+    grants: ServiceAccountProjectGrant[];
+    onStateChange: (state: EditFormState) => void;
+    onClose: () => void;
+}> = ({ serviceAccount, grants, onStateChange, onClose }) => {
+    const { updateAccount } = useServiceAccounts();
+    const { mutateAsync, isLoading } = updateAccount;
+    const { data: projects = [] } = useProjects();
+    const { options: customRoleOptions, isLoading: rolesLoading } =
+        useCustomRoleOptions();
+
+    const projectRoleOptions = useMemo(() => {
+        const groups: {
+            group: string;
+            items: { value: string; label: string }[];
+        }[] = [{ group: 'System roles', items: SYSTEM_PROJECT_ROLE_OPTIONS }];
+        if (customRoleOptions.length > 0) {
+            groups.push({ group: 'Custom roles', items: customRoleOptions });
+        }
+        return groups;
+    }, [customRoleOptions]);
+
+    const form = useForm({
+        initialValues: {
+            description: serviceAccount.description,
+            projectRoles: grantsToRows(grants),
+        },
+        validate: {
+            projectRoles: (rows) => {
+                if (rows.length === 0) return 'Add at least one project';
+                if (rows.some((r) => !r.projectUuid))
+                    return 'Pick a project for each row';
+                const uniques = new Set(rows.map((r) => r.projectUuid));
+                if (uniques.size !== rows.length)
+                    return 'Each project can only be added once';
+                return null;
+            },
+        },
+    });
+
+    const handleOnSubmit = form.onSubmit(
+        async ({ description, projectRoles }) => {
+            const projectAccess = projectRoles.map((r) => {
+                const { kind, value } = parseTaggedRole(r.roleSelection);
+                return kind === 'role'
+                    ? { projectUuid: r.projectUuid, roleUuid: value }
+                    : {
+                          projectUuid: r.projectUuid,
+                          role: value as ProjectMemberRole,
+                      };
+            });
+            await mutateAsync({
+                uuid: serviceAccount.uuid,
+                description,
+                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                projectAccess,
+            });
+            onClose();
+        },
+    );
+
+    useEffect(() => {
+        onStateChange({ isLoading, isReady: true });
+    }, [isLoading, onStateChange]);
+
+    return (
+        <form id={EDIT_FORM_ID} onSubmit={handleOnSubmit}>
+            <Stack gap="md">
+                <TextInput
+                    label="Description"
+                    placeholder="What's this service account for?"
+                    required
+                    disabled={isLoading}
+                    {...form.getInputProps('description')}
+                />
+                <ServiceAccountProjectRoles
+                    form={form}
+                    projects={projects}
+                    projectRoleOptions={projectRoleOptions}
+                    rolesLoading={rolesLoading}
+                    disabled={isLoading}
+                />
+            </Stack>
+        </form>
+    );
+};
+
+// Project-scoped SA: fetch its current grants, then render the inner form.
+const ProjectEditForm: FC<{
+    serviceAccount: ServiceAccountWithProjectAccessCount;
+    onStateChange: (state: EditFormState) => void;
+    onClose: () => void;
+}> = ({ serviceAccount, onStateChange, onClose }) => {
+    const grantsQuery = useServiceAccountProjectGrants(serviceAccount.uuid);
+
+    useEffect(() => {
+        if (grantsQuery.isLoading) {
+            onStateChange({ isLoading: false, isReady: false });
+        }
+    }, [grantsQuery.isLoading, onStateChange]);
+
+    if (grantsQuery.isLoading) {
+        return (
+            <Center mih={120}>
+                <Loader size="sm" />
+            </Center>
+        );
+    }
+    if (grantsQuery.isError || !grantsQuery.data) {
+        return (
+            <Text size="sm" c="red">
+                Failed to load this service account's project access.
+            </Text>
+        );
+    }
+
+    return (
+        <ProjectEditFormInner
+            key={serviceAccount.uuid}
+            serviceAccount={serviceAccount}
+            grants={grantsQuery.data}
+            onStateChange={onStateChange}
+            onClose={onClose}
+        />
     );
 };
 
@@ -220,14 +374,16 @@ export const ServiceAccountsEditModal: FC<Props> = ({
     onClose,
     serviceAccount,
 }) => {
-    const [formState, setFormState] = useState<EditFormState>({
-        isLoading: false,
-    });
+    const [formState, setFormState] = useState<EditFormState>(READY);
 
     const handleClose = useCallback(() => {
         onClose();
-        setFormState({ isLoading: false });
+        setFormState(READY);
     }, [onClose]);
+
+    const projectScoped = serviceAccount
+        ? isProjectScoped(serviceAccount)
+        : false;
 
     return (
         <MantineModal
@@ -243,18 +399,28 @@ export const ServiceAccountsEditModal: FC<Props> = ({
                     type="submit"
                     form={EDIT_FORM_ID}
                     loading={formState.isLoading}
+                    disabled={!formState.isReady}
                 >
                     Save changes
                 </Button>
             }
         >
             {serviceAccount ? (
-                <EditForm
-                    key={serviceAccount.uuid}
-                    serviceAccount={serviceAccount}
-                    onStateChange={setFormState}
-                    onClose={handleClose}
-                />
+                projectScoped ? (
+                    <ProjectEditForm
+                        key={serviceAccount.uuid}
+                        serviceAccount={serviceAccount}
+                        onStateChange={setFormState}
+                        onClose={handleClose}
+                    />
+                ) : (
+                    <OrgEditForm
+                        key={serviceAccount.uuid}
+                        serviceAccount={serviceAccount}
+                        onStateChange={setFormState}
+                        onClose={handleClose}
+                    />
+                )
             ) : null}
         </MantineModal>
     );

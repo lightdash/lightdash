@@ -7,6 +7,7 @@ import {
     NotFoundError,
     ParameterError,
     ServiceAccount,
+    ServiceAccountProjectAccessInput,
     ServiceAccountProjectGrant,
     ServiceAccountScope,
     ServiceAccountWithProjectAccessCount,
@@ -65,6 +66,44 @@ export class ServiceAccountService extends BaseService {
         this.projectModel = projectModel;
     }
 
+    // Validates a batch of project-access grants: each must carry exactly one
+    // of `role` (system) or `roleUuid` (custom), and every custom role must
+    // belong to the org. Shared by create and the project-scoped edit path.
+    private async validateProjectAccessGrantsOrThrow(
+        projectAccess: ServiceAccountProjectAccessInput[],
+        organizationUuid: string,
+    ): Promise<void> {
+        // Each grant carries exactly one of `role` / `roleUuid`. The TS union
+        // covers compile-time callers, but request bodies arrive as JSON, so
+        // we double-check at the boundary.
+        for (const grant of projectAccess) {
+            const hasRole = grant.role !== undefined;
+            const hasRoleUuid = grant.roleUuid !== undefined;
+            if (hasRole === hasRoleUuid) {
+                throw new ParameterError(
+                    'Each projectAccess grant must specify exactly one of role or roleUuid',
+                );
+            }
+        }
+        // One bulk query for the whole batch (no per-grant N+1).
+        const customRoleUuids = projectAccess
+            .map((g) => g.roleUuid)
+            .filter((u): u is string => u !== undefined);
+        if (customRoleUuids.length > 0) {
+            const invalid = await this.projectModel.findInvalidCustomRoleUuids(
+                customRoleUuids,
+                organizationUuid,
+            );
+            if (invalid.length > 0) {
+                throw new ParameterError(
+                    `Unknown role uuid(s) for this organization: ${invalid.join(
+                        ', ',
+                    )}`,
+                );
+            }
+        }
+    }
+
     private throwForbiddenErrorOnNoPermission(user: SessionUser) {
         const auditedAbility = this.createAuditedAbility(user);
         if (
@@ -103,39 +142,12 @@ export class ServiceAccountService extends BaseService {
                     'projectAccess can only be set when scopes = [system:member]',
                 );
             }
-            // Each grant carries exactly one of `role` (system) or
-            // `roleUuid` (custom). The TS discriminated union covers
-            // compile-time callers, but request bodies arrive as JSON, so
-            // we double-check at the boundary.
-            for (const grant of projectAccess) {
-                const hasRole = grant.role !== undefined;
-                const hasRoleUuid = grant.roleUuid !== undefined;
-                if (hasRole === hasRoleUuid) {
-                    throw new ParameterError(
-                        'Each projectAccess grant must specify exactly one of role or roleUuid',
-                    );
-                }
-            }
-            // Bulk-validate custom-role grants belong to the SA's org.
-            // Doing this before the SA insert avoids creating an SA that
-            // we'd then have to compensate-delete.
-            const customRoleUuids = projectAccess
-                .map((g) => g.roleUuid)
-                .filter((u): u is string => u !== undefined);
-            if (customRoleUuids.length > 0) {
-                const invalid =
-                    await this.projectModel.findInvalidCustomRoleUuids(
-                        customRoleUuids,
-                        tokenDetails.organizationUuid,
-                    );
-                if (invalid.length > 0) {
-                    throw new ParameterError(
-                        `Unknown role uuid(s) for this organization: ${invalid.join(
-                            ', ',
-                        )}`,
-                    );
-                }
-            }
+            // Validate grant shape + custom roles before the SA insert so we
+            // never create an SA we'd then have to compensate-delete.
+            await this.validateProjectAccessGrantsOrThrow(
+                projectAccess,
+                tokenDetails.organizationUuid,
+            );
         }
 
         try {
@@ -352,24 +364,70 @@ export class ServiceAccountService extends BaseService {
             throw new ForbiddenError("Token doesn't belong to organization");
         }
 
-        // Project-scope invariant: a `system:member` SA derives its access
-        // entirely from project grants, which this endpoint can't edit. So a
-        // permission change is refused on an SA that has grants (it would
-        // orphan them), and `system:member` can't be set here (it would leave
-        // the SA with no abilities and no grants). Mirrors `create`'s rule
-        // that `system:member` is only valid alongside `projectAccess`.
-        const isPermissionChange =
-            (!!update.scopes && update.scopes.length > 0) || !!update.roleUuid;
-        if (isPermissionChange) {
-            const grantCount =
-                (
-                    await this.projectModel.getProjectAccessCountsByServiceAccountUserUuids(
-                        [existingToken.userUuid],
-                    )
-                ).get(existingToken.userUuid) ?? 0;
-            if (grantCount > 0) {
+        // The SA's scope mode is fixed: a `system:member` SA is project-scoped
+        // (access comes from project grants), anything else is org-scoped. Each
+        // mode edits a disjoint set of fields; switching between them is not
+        // supported here (delete + recreate instead).
+        const isProjectScoped = existingToken.scopes.includes(
+            ServiceAccountScope.SYSTEM_MEMBER,
+        );
+
+        let updated: ServiceAccount;
+        if (isProjectScoped) {
+            // Project-scoped: only name + project grants are editable. Reject
+            // any attempt to give it an org role / non-member scopes.
+            if (update.roleUuid) {
                 throw new ParameterError(
-                    "Can't change the permissions of a project-scoped service account. Manage its project access instead.",
+                    "Can't assign an organization role to a project-scoped service account. Edit its project access instead.",
+                );
+            }
+            if (
+                update.scopes &&
+                !(
+                    update.scopes.length === 1 &&
+                    update.scopes[0] === ServiceAccountScope.SYSTEM_MEMBER
+                )
+            ) {
+                throw new ParameterError(
+                    "Can't change the scopes of a project-scoped service account. Edit its project access instead.",
+                );
+            }
+            if (update.projectAccess !== undefined) {
+                if (update.projectAccess.length === 0) {
+                    throw new ParameterError(
+                        'A project-scoped service account must keep at least one project. Delete it instead to remove all access.',
+                    );
+                }
+                await this.validateProjectAccessGrantsOrThrow(
+                    update.projectAccess,
+                    existingToken.organizationUuid,
+                );
+            }
+
+            // Replace grants first, then update the name. Grant replacement is
+            // the step that can fail (bad project / role), so doing it first
+            // means a failure leaves the SA fully unchanged. The scopes stay
+            // system:member and ≥1 grant is enforced, so the forbidden "member
+            // with no projects" state is never persisted. The two writes aren't
+            // wrapped in one transaction (they span two models); the worst case
+            // is a renamed SA whose grants are stale, never a corrupt one.
+            if (update.projectAccess !== undefined) {
+                await this.projectModel.setServiceAccountProjectAccess(
+                    tokenUuid,
+                    update.projectAccess,
+                );
+            }
+            updated = await this.serviceAccountModel.update({
+                serviceAccountUuid: tokenUuid,
+                data: { description: update.description },
+            });
+        } else {
+            // Org-scoped: name + org permission (scopes XOR roleUuid). Project
+            // access doesn't apply, and `system:member` would convert it to a
+            // project-scoped SA with no grants — both rejected.
+            if (update.projectAccess !== undefined) {
+                throw new ParameterError(
+                    'An organization-scoped service account has no project access. Use scopes or roleUuid instead.',
                 );
             }
             if (update.scopes?.includes(ServiceAccountScope.SYSTEM_MEMBER)) {
@@ -377,12 +435,15 @@ export class ServiceAccountService extends BaseService {
                     'system:member is only valid for project-scoped service accounts and cannot be set here',
                 );
             }
+            updated = await this.serviceAccountModel.update({
+                serviceAccountUuid: tokenUuid,
+                data: {
+                    description: update.description,
+                    scopes: update.scopes,
+                    roleUuid: update.roleUuid,
+                },
+            });
         }
-
-        const updated = await this.serviceAccountModel.update({
-            serviceAccountUuid: tokenUuid,
-            data: update,
-        });
 
         // Audit the change without writing any sensitive values (no token,
         // no scope contents) — just the org context, per PROD-8133.

@@ -85,6 +85,11 @@ export const useServiceAccounts = () => {
             }),
         onSuccess: async () => {
             await queryClient.invalidateQueries([CACHE_KEY]);
+            // Project-scoped edits change the grants list; refresh it so a
+            // re-open of the edit modal shows the new project access.
+            await queryClient.invalidateQueries([
+                'service-account-project-grants',
+            ]);
             showToastSuccess({
                 title: `Service account updated`,
             });

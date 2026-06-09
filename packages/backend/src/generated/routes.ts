@@ -459,6 +459,13 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        projectAccess: {
+                            dataType: 'array',
+                            array: {
+                                dataType: 'refAlias',
+                                ref: 'ServiceAccountProjectAccessInput',
+                            },
+                        },
                         roleUuid: {
                             dataType: 'union',
                             subSchemas: [

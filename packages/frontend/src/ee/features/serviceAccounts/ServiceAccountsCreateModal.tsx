@@ -1,15 +1,13 @@
 import {
     CommercialFeatureFlags,
-    ProjectMemberRole,
-    ProjectMemberRoleLabels,
     ServiceAccountScope,
+    type ProjectMemberRole,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Anchor,
     Button,
     CopyButton,
-    Group,
     SegmentedControl,
     Select,
     Stack,
@@ -18,13 +16,7 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
-import {
-    IconCheck,
-    IconCopy,
-    IconKey,
-    IconPlus,
-    IconX,
-} from '@tabler/icons-react';
+import { IconCheck, IconCopy, IconKey } from '@tabler/icons-react';
 import { addDays } from 'date-fns';
 import { useMemo, type FC } from 'react';
 import { Link } from 'react-router';
@@ -35,7 +27,11 @@ import { useProjects } from '../../../hooks/useProjects';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
-import classes from './ServiceAccountsCreateModal.module.css';
+import {
+    SYSTEM_PROJECT_ROLE_OPTIONS,
+    type ProjectRoleRow,
+} from './projectRoleOptions';
+import { ServiceAccountProjectRoles } from './ServiceAccountProjectRoles';
 
 // Organization-mode role options. `Member` is intentionally hidden — it's
 // the backend marker for "Project-scope SA" (see the SegmentedControl
@@ -54,24 +50,6 @@ const SYSTEM_ROLE_OPTIONS: { value: string; label: string }[] = [
     { value: `scope:${ServiceAccountScope.SYSTEM_ADMIN}`, label: 'Admin' },
 ];
 
-// Project-mode role options. Each row's role select offers stock
-// `ProjectMemberRole`s OR any of the org's custom roles (loaded at runtime).
-// Values are tagged so the submit handler can route them into the backend
-// contract: `system:<role>` → `{ projectUuid, role }`, `role:<uuid>` →
-// `{ projectUuid, roleUuid }`. Mirrors the org-mode `scope:` / `role:`
-// convention so the two pickers feel symmetric.
-const SYSTEM_PROJECT_ROLE_OPTIONS = [
-    ProjectMemberRole.VIEWER,
-    ProjectMemberRole.INTERACTIVE_VIEWER,
-    ProjectMemberRole.EDITOR,
-    ProjectMemberRole.DEVELOPER,
-    ProjectMemberRole.ADMIN,
-].map((role) => ({
-    value: `system:${role}`,
-    label: ProjectMemberRoleLabels[role],
-}));
-const DEFAULT_PROJECT_ROLE_SELECTION = `system:${ProjectMemberRole.VIEWER}`;
-
 const expireOptions = [
     { label: 'No expiration', value: '' },
     { label: '7 days', value: '7' },
@@ -83,13 +61,6 @@ const expireOptions = [
 ];
 
 type Scope = 'organization' | 'project';
-
-type ProjectRoleRow = {
-    projectUuid: string;
-    // Tagged selection: `system:<ProjectMemberRole>` or `role:<roleUuid>`.
-    // Parsed at submit time into either { role } or { roleUuid }.
-    roleSelection: string;
-};
 
 type Props = {
     isOpen: boolean;
@@ -205,34 +176,6 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
     const closeModal = () => {
         form.reset();
         onClose();
-    };
-
-    const projectOptions = useMemo(
-        () =>
-            projects.map((p) => ({
-                value: p.projectUuid,
-                label: p.name,
-            })),
-        [projects],
-    );
-
-    // Each row's project picker hides projects already picked in OTHER
-    // rows. The current row's value stays visible so the row renders the
-    // selected label, not a blank.
-    const projectOptionsForRow = (rowIdx: number) => {
-        const taken = new Set(
-            form.values.projectRoles
-                .filter((_, i) => i !== rowIdx)
-                .map((r) => r.projectUuid),
-        );
-        return projectOptions.filter((opt) => !taken.has(opt.value));
-    };
-
-    const addProjectRow = () => {
-        form.insertListItem('projectRoles', {
-            projectUuid: '',
-            roleSelection: DEFAULT_PROJECT_ROLE_SELECTION,
-        } satisfies ProjectRoleRow);
     };
 
     const handleOnSubmit = form.onSubmit(
@@ -374,77 +317,13 @@ export const ServiceAccountsCreateModal: FC<Props> = ({
                                 {...form.getInputProps('roleSelection')}
                             />
                         ) : (
-                            <Stack gap="xs">
-                                <Text size="sm" fw={500}>
-                                    Project access
-                                </Text>
-                                {form.values.projectRoles.length === 0 && (
-                                    <Text size="xs" c="dimmed">
-                                        No projects added yet.
-                                    </Text>
-                                )}
-                                {form.values.projectRoles.map((_, idx) => (
-                                    <Group key={idx} gap="xs" wrap="nowrap">
-                                        <Select
-                                            flex={1}
-                                            placeholder="Pick a project"
-                                            data={projectOptionsForRow(idx)}
-                                            searchable
-                                            disabled={isWorking}
-                                            {...form.getInputProps(
-                                                `projectRoles.${idx}.projectUuid`,
-                                            )}
-                                        />
-                                        <Select
-                                            w={200}
-                                            data={projectRoleOptions}
-                                            searchable
-                                            disabled={
-                                                isWorking || listRoles.isLoading
-                                            }
-                                            {...form.getInputProps(
-                                                `projectRoles.${idx}.roleSelection`,
-                                            )}
-                                        />
-                                        <Tooltip label="Remove">
-                                            <ActionIcon
-                                                variant="subtle"
-                                                color="gray"
-                                                disabled={isWorking}
-                                                onClick={() =>
-                                                    form.removeListItem(
-                                                        'projectRoles',
-                                                        idx,
-                                                    )
-                                                }
-                                            >
-                                                <MantineIcon icon={IconX} />
-                                            </ActionIcon>
-                                        </Tooltip>
-                                    </Group>
-                                ))}
-                                {form.errors.projectRoles && (
-                                    <Text size="xs" c="red">
-                                        {form.errors.projectRoles}
-                                    </Text>
-                                )}
-                                <Button
-                                    leftSection={
-                                        <MantineIcon icon={IconPlus} />
-                                    }
-                                    variant="subtle"
-                                    size="xs"
-                                    disabled={
-                                        isWorking ||
-                                        form.values.projectRoles.length >=
-                                            projects.length
-                                    }
-                                    onClick={addProjectRow}
-                                    className={classes.addProjectButton}
-                                >
-                                    Add project
-                                </Button>
-                            </Stack>
+                            <ServiceAccountProjectRoles
+                                form={form}
+                                projects={projects}
+                                projectRoleOptions={projectRoleOptions}
+                                rolesLoading={listRoles.isLoading}
+                                disabled={isWorking}
+                            />
                         )}
                     </Stack>
                 </form>

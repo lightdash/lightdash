@@ -140,15 +140,23 @@ export type CreateServiceAccount = Pick<
 };
 
 /**
- * In-place edit of a service account's name and Organization-scope permission,
- * without rotating its token. `description` is always applied. The permission
- * is optional: send exactly one of `scopes` (legacy/system preset) or
- * `roleUuid` (custom org role) to change it, or neither to rename only. Sending
- * both is rejected. The token, expiry, and project grants are left untouched.
+ * In-place edit of a service account's name, permissions, and project access,
+ * without rotating its token. `description` is always applied. The rest depends
+ * on the SA's scope mode, which is fixed (no switching between the two):
+ *
+ * - Organization-scoped SA: send one of `scopes` (legacy/system preset) or
+ *   `roleUuid` (custom org role) to change its org permission, or neither to
+ *   rename only. `projectAccess` is rejected.
+ * - Project-scoped SA (`system:member`): send `projectAccess` (≥1 grant) to
+ *   replace its project grants, keeping `scopes = [system:member]`. `roleUuid`
+ *   and any non-member `scopes` are rejected.
+ *
+ * The token and expiry are never touched.
  */
 export type UpdateServiceAccount = Pick<ServiceAccount, 'description'> & {
     scopes?: ServiceAccountScope[];
     roleUuid?: string | null;
+    projectAccess?: ServiceAccountProjectAccessInput[];
 };
 
 export type ApiUpdateServiceAccountRequest = UpdateServiceAccount;

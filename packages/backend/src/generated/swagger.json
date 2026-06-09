@@ -295,6 +295,12 @@
                     },
                     {
                         "properties": {
+                            "projectAccess": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ServiceAccountProjectAccessInput"
+                                },
+                                "type": "array"
+                            },
                             "roleUuid": {
                                 "type": "string",
                                 "nullable": true
@@ -309,7 +315,7 @@
                         "type": "object"
                     }
                 ],
-                "description": "In-place edit of a service account's name and Organization-scope permission,\nwithout rotating its token. `description` is always applied. The permission\nis optional: send exactly one of `scopes` (legacy/system preset) or\n`roleUuid` (custom org role) to change it, or neither to rename only. Sending\nboth is rejected. The token, expiry, and project grants are left untouched."
+                "description": "In-place edit of a service account's name, permissions, and project access,\nwithout rotating its token. `description` is always applied. The rest depends\non the SA's scope mode, which is fixed (no switching between the two):\n\n- Organization-scoped SA: send one of `scopes` (legacy/system preset) or\n  `roleUuid` (custom org role) to change its org permission, or neither to\n  rename only. `projectAccess` is rejected.\n- Project-scoped SA (`system:member`): send `projectAccess` (≥1 grant) to\n  replace its project grants, keeping `scopes = [system:member]`. `roleUuid`\n  and any non-member `scopes` are rejected.\n\nThe token and expiry are never touched."
             },
             "ApiUpdateServiceAccountRequest": {
                 "$ref": "#/components/schemas/UpdateServiceAccount"
