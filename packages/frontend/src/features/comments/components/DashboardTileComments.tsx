@@ -2,6 +2,8 @@ import { NotificationResourceType } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
+    Collapse,
     Divider,
     Indicator,
     Popover,
@@ -9,7 +11,7 @@ import {
     Text,
     type PopoverProps,
 } from '@mantine-8/core';
-import { useScrollIntoView } from '@mantine/hooks';
+import { useDisclosure, useScrollIntoView } from '@mantine/hooks';
 import { IconMessage } from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -19,7 +21,7 @@ import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useGetNotifications } from '../../notifications';
 import { useUpdateNotification } from '../../notifications/hooks/useNotifications';
-import { useCreateComment } from '../hooks/useComments';
+import { useCreateComment, useGetResolvedComments } from '../hooks/useComments';
 import { useScrollToDashboardCommentViaSearchParam } from '../hooks/useScrollToDashboardCommentViaSearchParam';
 import { CommentForm } from './CommentForm';
 import { DashboardCommentAndReplies } from './DashboardCommentAndReplies';
@@ -37,16 +39,27 @@ export const DashboardTileComments: FC<
     const { track } = useTracking();
 
     const [openedComments, setOpenedComments] = useState(opened);
+    const [showResolved, { toggle: toggleShowResolved }] = useDisclosure(false);
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
     const canCreateDashboardComments = useDashboardContext(
         (c) => c.dashboardCommentsCheck?.canCreateDashboardComments,
     );
+    const canViewDashboardComments = useDashboardContext(
+        (c) => c.dashboardCommentsCheck?.canViewDashboardComments,
+    );
     const dashboard = useDashboardContext((c) => c.dashboard);
     const comments = useDashboardContext(
         (c) => c.dashboardComments && c.dashboardComments[dashboardTileUuid],
     );
+
+    const { data: resolvedCommentsByTile } = useGetResolvedComments(
+        dashboardUuid ?? '',
+        projectUuid,
+        !!openedComments && !!canViewDashboardComments && !!dashboardUuid,
+    );
+    const resolvedComments = resolvedCommentsByTile?.[dashboardTileUuid] ?? [];
 
     const targetRefComments = useRef<HTMLDivElement>(null);
 
@@ -210,6 +223,41 @@ export const DashboardTileComments: FC<
                         />
                     )}
                 </Box>
+
+                {resolvedComments.length > 0 && (
+                    <>
+                        <Divider />
+                        <Box p="sm" pt="xs">
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                color="gray"
+                                fz="xs"
+                                onClick={toggleShowResolved}
+                            >
+                                {showResolved ? 'Hide' : 'Show'} resolved (
+                                {resolvedComments.length})
+                            </Button>
+                            <Collapse in={showResolved}>
+                                <Stack gap="xs" mt="xs">
+                                    {resolvedComments.map((resolvedComment) => (
+                                        <DashboardCommentAndReplies
+                                            key={resolvedComment.commentId}
+                                            comment={resolvedComment}
+                                            projectUuid={projectUuid}
+                                            dashboardUuid={dashboardUuid}
+                                            dashboardTileUuid={
+                                                dashboardTileUuid
+                                            }
+                                            targetRef={null}
+                                            isResolved
+                                        />
+                                    ))}
+                                </Stack>
+                            </Collapse>
+                        </Box>
+                    </>
+                )}
             </Popover.Dropdown>
 
             <Popover.Target ref={targetRefComments}>

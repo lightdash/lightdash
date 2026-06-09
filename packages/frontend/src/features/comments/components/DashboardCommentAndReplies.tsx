@@ -4,7 +4,11 @@ import { useDisclosure } from '@mantine/hooks';
 import { useCallback, useState, type FC } from 'react';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
-import { useCreateComment, useRemoveComment } from '../hooks/useComments';
+import {
+    useCreateComment,
+    useRemoveComment,
+    useResolveComment,
+} from '../hooks/useComments';
 import { CommentDetail } from './CommentDetail';
 import { CommentForm } from './CommentForm';
 
@@ -14,6 +18,7 @@ type Props = {
     dashboardTileUuid: string;
     comment: Comment;
     targetRef: React.RefObject<HTMLDivElement | null> | null;
+    isResolved?: boolean;
 };
 
 export const DashboardCommentAndReplies: FC<Props> = ({
@@ -22,10 +27,14 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     dashboardTileUuid,
     dashboardUuid,
     targetRef,
+    isResolved = false,
 }) => {
     const { user } = useApp();
     const canCreateDashboardComments = !!useDashboardContext(
         (c) => c.dashboardCommentsCheck?.canCreateDashboardComments,
+    );
+    const canManageDashboardComments = !!useDashboardContext(
+        (c) => c.dashboardCommentsCheck?.canManageDashboardComments,
     );
 
     const [isRepliesOpen, { toggle: toggleReplies }] = useDisclosure(false);
@@ -36,6 +45,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     const { mutateAsync: createReply, isLoading: isCreatingReply } =
         useCreateComment();
     const { mutateAsync: removeComment } = useRemoveComment();
+    const { mutateAsync: resolveComment } = useResolveComment();
 
     const handleRemove = useCallback(
         async (commentId: string) => {
@@ -45,6 +55,28 @@ export const DashboardCommentAndReplies: FC<Props> = ({
             });
         },
         [dashboardUuid, removeComment],
+    );
+
+    const handleResolve = useCallback(
+        async (commentId: string) => {
+            await resolveComment({
+                dashboardUuid,
+                commentId,
+                resolved: true,
+            });
+        },
+        [dashboardUuid, resolveComment],
+    );
+
+    const handleUnresolve = useCallback(
+        async (commentId: string) => {
+            await resolveComment({
+                dashboardUuid,
+                commentId,
+                resolved: false,
+            });
+        },
+        [dashboardUuid, resolveComment],
     );
 
     const handleReply = useCallback(() => {
@@ -60,11 +92,16 @@ export const DashboardCommentAndReplies: FC<Props> = ({
         <Stack gap="two" ref={targetRef}>
             <CommentDetail
                 comment={comment}
-                canReply={canCreateDashboardComments}
+                canReply={!isResolved && canCreateDashboardComments}
                 onReply={() => handleReply()}
                 // can remove any comment or the comment is created by the current user
                 canRemove={comment.canRemove}
                 onRemove={() => handleRemove(comment.commentId)}
+                // resolving/unresolving the parent applies to the whole thread
+                canResolve={!isResolved && canManageDashboardComments}
+                onResolve={() => handleResolve(comment.commentId)}
+                canUnresolve={isResolved && canManageDashboardComments}
+                onUnresolve={() => handleUnresolve(comment.commentId)}
             />
 
             {comment.replies && comment.replies.length > 0 && (
@@ -100,6 +137,9 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                                     onRemove={() =>
                                         handleRemove(reply.commentId)
                                     }
+                                    // replies are resolved/unresolved together with the parent
+                                    canResolve={false}
+                                    canUnresolve={false}
                                 />
                             ))}
                         </Stack>
@@ -107,7 +147,7 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                 </Box>
             )}
 
-            <Collapse in={!!isReplyingTo} ml="lg">
+            <Collapse in={!isResolved && !!isReplyingTo} ml="lg">
                 <CommentForm
                     userName={user.data?.firstName + ' ' + user.data?.lastName}
                     onSubmit={(

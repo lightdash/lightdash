@@ -15,6 +15,7 @@ import {
     Patch,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -89,6 +90,7 @@ export class CommentsController extends BaseController {
     async getComments(
         @Path() dashboardUuidOrSlug: string,
         @Request() req: express.Request,
+        @Query() resolved?: boolean,
     ): Promise<ApiGetComments> {
         assertRegisteredAccount(req.account);
         const results = await this.services
@@ -96,6 +98,7 @@ export class CommentsController extends BaseController {
             .findCommentsForDashboard(
                 toSessionUser(req.account),
                 dashboardUuidOrSlug,
+                { resolved },
             );
         this.setStatus(200);
         return {
@@ -105,11 +108,12 @@ export class CommentsController extends BaseController {
     }
 
     /**
-     * Resolves a comment on a dashboard
+     * Resolves or unresolves a comment on a dashboard
      * @summary Resolve comment
      * @param req express request
      * @param dashboardUuid the uuid of the dashboard
      * @param commentId the uuid of the comment
+     * @param body whether the comment should be resolved
      */
     @Middlewares([
         allowApiKeyAuthentication,
@@ -123,6 +127,7 @@ export class CommentsController extends BaseController {
         @Path() dashboardUuid: string,
         @Path() commentId: string,
         @Request() req: express.Request,
+        @Body() body: { resolved: boolean },
     ): Promise<ApiResolveComment> {
         assertRegisteredAccount(req.account);
         await this.services
@@ -131,6 +136,7 @@ export class CommentsController extends BaseController {
                 toSessionUser(req.account),
                 dashboardUuid,
                 commentId,
+                body.resolved,
             );
         this.setStatus(200);
         return {

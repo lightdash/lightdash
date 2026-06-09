@@ -1456,7 +1456,11 @@ export type AiWritebackEvent =
     | AiWritebackFailedEvent;
 
 export type CommentsEvent = BaseTrack & {
-    event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
+    event:
+        | 'comment.created'
+        | 'comment.deleted'
+        | 'comment.resolved'
+        | 'comment.unresolved';
     userId: string;
     properties: {
         dashboardTileUuid: string;
