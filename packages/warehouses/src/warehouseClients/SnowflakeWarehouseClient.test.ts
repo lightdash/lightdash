@@ -236,6 +236,26 @@ describe('SnowflakeErrorParsing', () => {
             "You don't have access to the {snowflakeTable} table. Please go to 'analytics_{snowflakeSchema}' in sailpoint and request access",
         );
     });
+
+    it('should convert literal \\n escape sequences into real newlines', () => {
+        process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE =
+            'No access to {snowflakeTable}.\\n1) Step one\\n2) Step two';
+
+        const error = {
+            message:
+                "Object 'DB.MY_SCHEMA.MY_TABLE' does not exist or not authorized.",
+            code: 'COMPILATION',
+            data: { type: 'COMPILATION' },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = warehouse.parseError(error as any);
+
+        expect(result.message).toBe(
+            'No access to MY_TABLE.\n1) Step one\n2) Step two',
+        );
+        expect(result.message).not.toContain('\\n');
+    });
 });
 
 describe('SnowflakeWarehouseClient.parseError - warehouse access errors', () => {
@@ -362,5 +382,25 @@ describe('SnowflakeWarehouseClient.parseError - warehouse access errors', () => 
         const result = warehouse.parseError(error as any);
 
         expect(result.message).toBe('Some other SQL error');
+    });
+
+    it('should convert literal \\n escape sequences into real newlines', () => {
+        process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE =
+            'No access to warehouse {warehouseName}.\\n1) Step one\\n2) Step two';
+
+        const error = {
+            message:
+                "No active warehouse selected in the current session. Select an active warehouse with the 'use warehouse' command",
+            code: 'SESSION_ERROR',
+            data: { type: 'SESSION_ERROR' },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = warehouse.parseError(error as any);
+
+        expect(result.message).toBe(
+            'No access to warehouse TEST_WAREHOUSE.\n1) Step one\n2) Step two',
+        );
+        expect(result.message).not.toContain('\\n');
     });
 });
