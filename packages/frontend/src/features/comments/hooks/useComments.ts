@@ -67,13 +67,15 @@ const getDashboardComments = async ({
     resolved,
 }: Pick<CreateDashboardTileComment, 'dashboardUuid' | 'projectUuid'> & {
     resolved: boolean;
-}) =>
-    lightdashApi<ApiGetComments['results']>({
-        url: `/projects/${projectUuid}/dashboards/${dashboardUuid}/comments?resolved=${resolved}`,
+}) => {
+    const queryParams = new URLSearchParams({ resolved: String(resolved) });
+    return lightdashApi<ApiGetComments['results']>({
+        url: `/projects/${projectUuid}/dashboards/${dashboardUuid}/comments?${queryParams.toString()}`,
         version: 'v2',
         method: 'GET',
         body: undefined,
     });
+};
 
 export const useGetComments = (
     dashboardUuid: string,
@@ -81,7 +83,7 @@ export const useGetComments = (
     enabled: boolean,
 ) =>
     useQuery<ApiGetComments['results'], ApiError>(
-        ['comments', dashboardUuid, projectUuid],
+        ['comments', dashboardUuid, projectUuid, { resolved: false }],
         async () => {
             if (!projectUuid) throw new Error('projectUuid is required');
             return getDashboardComments({
@@ -103,7 +105,7 @@ export const useGetResolvedComments = (
     enabled: boolean,
 ) =>
     useQuery<ApiGetComments['results'], ApiError>(
-        ['comments', dashboardUuid, projectUuid, 'resolved'],
+        ['comments', dashboardUuid, projectUuid, { resolved: true }],
         async () => {
             if (!projectUuid) throw new Error('projectUuid is required');
             return getDashboardComments({
