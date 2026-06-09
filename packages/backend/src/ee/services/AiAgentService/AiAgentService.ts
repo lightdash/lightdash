@@ -5041,7 +5041,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 repoFsPromise = this.aiWritebackService
                     .getRepoReadAccess({ user, projectUuid })
                     .then(
-                        (access) => new RepoFs(createGithubRepoSource(access)),
+                        (access) =>
+                            new RepoFs(
+                                createGithubRepoSource({
+                                    ...access,
+                                    onTiming: (event) => {
+                                        if (event.kind === 'tree') {
+                                            this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
+                                                event.durationMs,
+                                            );
+                                        } else {
+                                            this.prometheusMetrics?.observeRepoFsGithubFileDuration(
+                                                event.durationMs,
+                                                event.outcome,
+                                            );
+                                        }
+                                    },
+                                }),
+                            ),
                     );
             }
             const repoFs = await repoFsPromise;

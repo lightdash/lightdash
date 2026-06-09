@@ -1,6 +1,9 @@
 import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
 import { getFileContent } from '../../../../clients/github/Github';
-import { createGithubRepoSource } from './githubRepoSource';
+import {
+    createGithubRepoSource,
+    type RepoFsTimingCallback,
+} from './githubRepoSource';
 
 jest.mock('../../../../clients/github/Github');
 
@@ -8,12 +11,13 @@ const mockGetFileContent = getFileContent as jest.MockedFunction<
     typeof getFileContent
 >;
 
-const source = () =>
+const source = (onTiming?: RepoFsTimingCallback) =>
     createGithubRepoSource({
         owner: 'acme',
         repo: 'jaffle',
         branch: 'main',
         token: 'tok',
+        onTiming,
     });
 
 describe('githubRepoSource.readFile error handling', () => {
@@ -57,6 +61,43 @@ describe('githubRepoSource.readFile error handling', () => {
         );
         await expect(source().readFile('models/x.sql')).rejects.toThrow(
             'socket hang up',
+        );
+    });
+});
+
+describe('githubRepoSource onTiming (metrics hook)', () => {
+    beforeEach(() => {
+        mockGetFileContent.mockReset();
+    });
+
+    it('reports outcome=found for a successful read', async () => {
+        const onTiming = jest.fn();
+        mockGetFileContent.mockResolvedValue({ content: 'x', sha: 'abc' });
+        await source(onTiming).readFile('models/x.sql');
+        expect(onTiming).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'file', outcome: 'found' }),
+        );
+    });
+
+    it('reports outcome=missing for a NotFoundError', async () => {
+        const onTiming = jest.fn();
+        mockGetFileContent.mockRejectedValue(new NotFoundError('nope'));
+        await source(onTiming).readFile('models/x.sql');
+        expect(onTiming).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'file', outcome: 'missing' }),
+        );
+    });
+
+    it('reports outcome=error for an unexpected failure', async () => {
+        const onTiming = jest.fn();
+        mockGetFileContent.mockRejectedValue(
+            new UnexpectedGitError('API rate limit exceeded'),
+        );
+        await expect(
+            source(onTiming).readFile('models/x.sql'),
+        ).rejects.toThrow();
+        expect(onTiming).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'file', outcome: 'error' }),
         );
     });
 });
