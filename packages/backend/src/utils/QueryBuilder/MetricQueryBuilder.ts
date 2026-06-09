@@ -25,6 +25,7 @@ import {
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
+    getItemMap,
     getMetricsMapFromTables,
     getParsedReference,
     getPopComparisonConfigKey,
@@ -468,6 +469,35 @@ export class MetricQueryBuilder {
             );
         }
         return metric;
+    }
+
+    private getUsedFieldCompilationErrors(): string[] {
+        const { explore, compiledMetricQuery } = this.args;
+        const itemMap = getItemMap(
+            explore,
+            compiledMetricQuery.compiledAdditionalMetrics,
+            compiledMetricQuery.compiledTableCalculations,
+            compiledMetricQuery.compiledCustomDimensions,
+        );
+        const usedFieldIds = new Set<string>([
+            ...compiledMetricQuery.dimensions,
+            ...compiledMetricQuery.metrics,
+            ...compiledMetricQuery.sorts.map((sort) => sort.fieldId),
+            ...getFilterRulesFromGroup(compiledMetricQuery.filters.dimensions)
+                .map((filter) => filter.target.fieldId)
+                .filter((fieldId): fieldId is string => fieldId !== undefined),
+            ...getFilterRulesFromGroup(compiledMetricQuery.filters.metrics)
+                .map((filter) => filter.target.fieldId)
+                .filter((fieldId): fieldId is string => fieldId !== undefined),
+        ]);
+
+        return Array.from(usedFieldIds).flatMap((fieldId) => {
+            const item = itemMap[fieldId];
+            if (item && 'compilationError' in item && item.compilationError) {
+                return (item.compilationError as { message: string }).message;
+            }
+            return [];
+        });
     }
 
     private isFilterOnPopComparisonTimeDimension(
@@ -4110,6 +4140,15 @@ export class MetricQueryBuilder {
     public compileQuery(): CompiledQuery {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
+        const usedFieldCompilationErrors = this.getUsedFieldCompilationErrors();
+
+        if (usedFieldCompilationErrors.length > 0) {
+            if (this.args.continueOnError) {
+                this.compilationErrors.push(...usedFieldCompilationErrors);
+            } else {
+                throw new CompileError(usedFieldCompilationErrors.join('\n'));
+            }
+        }
 
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
