@@ -8346,7 +8346,7 @@ export class ProjectService extends BaseService {
         return enabled;
     }
 
-    async isUserTimezoneEnabled(user: {
+    protected async isUserTimezoneEnabled(user: {
         userUuid: string;
         organizationUuid?: string;
     }): Promise<boolean> {
