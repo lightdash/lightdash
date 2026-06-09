@@ -33,6 +33,17 @@ export type PullRequestWritebackAction = 'opened' | 'updated';
  * - `projectName` is the Lightdash project the run targeted.
  * - `repository` is the GitHub repository (`owner/repo`) the run targeted.
  */
+/**
+ * One action the writeback sandbox took, in a generic shape the chat UI can
+ * group and render as step rows without knowing anything about writeback.
+ * `kind` buckets the action (consecutive same-kind steps are grouped, e.g.
+ * "Read 3 files"); `label` is the file basename or a stage description.
+ */
+export type AiWritebackStep = {
+    kind: 'read' | 'edit' | 'search' | 'compile' | 'stage';
+    label: string;
+};
+
 export type AiWritebackRunResult = {
     output: string;
     exitCode: number;
@@ -40,6 +51,8 @@ export type AiWritebackRunResult = {
     prAction: PullRequestWritebackAction | null;
     projectName: string;
     repository: string;
+    /** Ordered actions the sandbox took, for the chat UI's step rows. */
+    steps: AiWritebackStep[];
 };
 
 export type ApiAiWritebackResponse = ApiSuccess<AiWritebackRunResult>;

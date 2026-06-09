@@ -53,6 +53,7 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
                     projectName,
                     repository,
                     previewDeployConfigured,
+                    steps,
                 } = await proposeWriteback({
                     prompt,
                     prUrl: pastedPrUrl,
@@ -85,6 +86,7 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
                         status: 'success' as const,
                         prUrl: prUrl ?? null,
                         prAction: prAction ?? null,
+                        steps,
                     },
                 };
             } catch (error) {

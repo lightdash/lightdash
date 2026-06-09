@@ -3571,6 +3571,39 @@ Parameters:
                   "const": "success",
                   "type": "string",
                 },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "read",
+                              "edit",
+                              "search",
+                              "compile",
+                              "stage",
+                            ],
+                            "type": "string",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "kind",
+                          "label",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
               },
               "required": [
                 "status",

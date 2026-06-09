@@ -3,6 +3,7 @@ import {
     type AiAgentToolName,
     type AiAgentToolResult,
     type AiMcpServer,
+    type AiWritebackStep,
     isToolName,
 } from '@lightdash/common';
 import {
@@ -21,9 +22,11 @@ import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import bubbleStyles from '../AgentChatAssistantBubble.module.css';
+import { AgentStepGroups } from './AgentStepGroups';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
+import { parseAgentStep } from './parseAgentStep';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
@@ -108,12 +111,10 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'runSavedChart',
 ]);
 
-// Tools that stream coarse step progress ("Starting sandbox", "Cloning
-// project", …) rendered as a single replacing row, instead of per-call rows.
-const TOOLS_WITH_STEP_PROGRESS = new Set<string>([
-    'proposeWriteback',
-    'setupPreviewDeploy',
-]);
+// Tools that stream coarse step progress rendered as a single replacing row.
+// proposeWriteback is intentionally absent: its actions are surfaced as grouped
+// step rows (AgentStepGroups) under the tool call instead of a transient line.
+const TOOLS_WITH_STEP_PROGRESS = new Set<string>(['setupPreviewDeploy']);
 
 const MCP_SUMMARY_ICON_LIMIT = 4;
 
@@ -752,6 +753,24 @@ export const LiveActivityCard: FC<Props> = ({
                 hasPending,
                 stepProgressMessages,
             })}
+            {isLive &&
+                !hasPending &&
+                latest?.toolName === 'proposeWriteback' &&
+                (() => {
+                    // Live grouped step rows for the writeback tool: parse the
+                    // streamed progress strings back into structured steps so
+                    // they render (and group) the same way as the persisted
+                    // steps once the run completes.
+                    const liveSteps = stepProgressMessages
+                        .filter((m) => m.toolName === 'proposeWriteback')
+                        .map((m) => parseAgentStep(m.message));
+                    if (liveSteps.length === 0) return null;
+                    return (
+                        <Box className={styles.liveStepProgress}>
+                            <AgentStepGroups steps={liveSteps} />
+                        </Box>
+                    );
+                })()}
             <Collapse
                 in={showBody}
                 transitionDuration={260}
@@ -848,6 +867,25 @@ export const LiveActivityCard: FC<Props> = ({
                                               )
                                               .find((t) => t && t.length > 0)
                                         : null;
+                                // Adapt the writeback tool's persisted, generic
+                                // step actions into grouped step rows. The
+                                // adaptation lives here (the orchestrator),
+                                // never in the generic row/step components.
+                                const groupSteps =
+                                    group.toolName === 'proposeWriteback'
+                                        ? group.calls.flatMap((tc) => {
+                                              const meta = toolResults?.find(
+                                                  (r) =>
+                                                      r.toolCallId ===
+                                                      tc.toolCallId,
+                                              )?.metadata as
+                                                  | {
+                                                        steps?: AiWritebackStep[];
+                                                    }
+                                                  | undefined;
+                                              return meta?.steps ?? [];
+                                          })
+                                        : [];
                                 return (
                                     <Box
                                         key={group.keyId}
@@ -865,13 +903,20 @@ export const LiveActivityCard: FC<Props> = ({
                                             status="done"
                                             toolResults={toolResults}
                                             mcpServers={mcpServers}
-                                            extraBody={
-                                                groupTrace ? (
+                                            extraBody={(() => {
+                                                if (groupSteps.length > 0) {
+                                                    return (
+                                                        <AgentStepGroups
+                                                            steps={groupSteps}
+                                                        />
+                                                    );
+                                                }
+                                                return groupTrace ? (
                                                     <DiscoverFieldsTrace
                                                         trace={groupTrace}
                                                     />
-                                                ) : undefined
-                                            }
+                                                ) : undefined;
+                                            })()}
                                         />
                                     </Box>
                                 );

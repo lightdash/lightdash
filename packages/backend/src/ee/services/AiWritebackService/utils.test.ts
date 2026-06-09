@@ -7,6 +7,7 @@ import {
     type DbtProjectConfig,
 } from '@lightdash/common';
 import {
+    COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
@@ -18,8 +19,9 @@ import {
     buildGitlabCommitAuthor,
     buildNoreplyEmail,
     buildUserCoAuthorTrailer,
-    describeToolStep,
+    classifyToolStep,
     extractPrMetadata,
+    formatWritebackStep,
     interpretAgentEvent,
     parseGithubConnection,
     parseGitlabConnection,
@@ -397,60 +399,89 @@ describe('interpretAgentEvent', () => {
     );
 });
 
-describe('describeToolStep', () => {
-    it('names the file being edited (basename only)', () => {
+describe('classifyToolStep', () => {
+    it('classifies an edit with the file basename', () => {
         expect(
-            describeToolStep({
+            classifyToolStep({
                 name: 'Edit',
                 input: { file_path: '/home/user/repo/models/fm_parts.yml' },
             }),
-        ).toBe('Editing fm_parts.yml');
+        ).toEqual({ kind: 'edit', label: 'fm_parts.yml' });
         expect(
-            describeToolStep({
+            classifyToolStep({
                 name: 'Write',
                 input: { file_path: 'models/orders.yml' },
             }),
-        ).toBe('Editing orders.yml');
+        ).toEqual({ kind: 'edit', label: 'orders.yml' });
     });
 
-    it('names the file being read', () => {
+    it('classifies a read with the file basename', () => {
         expect(
-            describeToolStep({
+            classifyToolStep({
                 name: 'Read',
                 input: { file_path: 'models/staging/stg_orders.sql' },
             }),
-        ).toBe('Reading stg_orders.sql');
+        ).toEqual({ kind: 'read', label: 'stg_orders.sql' });
     });
 
-    it('describes a search by its pattern', () => {
+    it('classifies a search by its pattern', () => {
         expect(
-            describeToolStep({ name: 'Grep', input: { pattern: 'revenue' } }),
-        ).toBe('Searching for "revenue"');
+            classifyToolStep({ name: 'Grep', input: { pattern: 'revenue' } }),
+        ).toEqual({ kind: 'search', label: 'revenue' });
     });
 
-    it('labels a lightdash compile Bash command', () => {
+    it('classifies a lightdash compile Bash command', () => {
         expect(
-            describeToolStep({
+            classifyToolStep({
                 name: 'Bash',
                 input: { command: 'lightdash compile --project-dir .' },
             }),
-        ).toBe('Compiling project');
+        ).toEqual({ kind: 'compile', label: 'project' });
+    });
+
+    it('classifies the compile wrapper the agent actually invokes', () => {
+        expect(
+            classifyToolStep({
+                name: 'Bash',
+                input: {
+                    command: `${COMPILE_WRAPPER_PATH} --skip-warehouse-catalog`,
+                },
+            }),
+        ).toEqual({ kind: 'compile', label: 'project' });
     });
 
     it('returns null for non-compile Bash and unknown tools', () => {
         expect(
-            describeToolStep({ name: 'Bash', input: { command: 'ls -la' } }),
+            classifyToolStep({ name: 'Bash', input: { command: 'ls -la' } }),
         ).toBeNull();
-        expect(describeToolStep({ name: 'TodoWrite', input: {} })).toBeNull();
+        expect(classifyToolStep({ name: 'TodoWrite', input: {} })).toBeNull();
     });
 
     it('falls back to a generic label when no file is given', () => {
-        expect(describeToolStep({ name: 'Edit', input: {} })).toBe(
-            'Editing files',
+        expect(classifyToolStep({ name: 'Edit', input: {} })).toEqual({
+            kind: 'edit',
+            label: 'files',
+        });
+    });
+});
+
+describe('formatWritebackStep', () => {
+    it('renders a one-line string per step kind', () => {
+        expect(formatWritebackStep({ kind: 'read', label: 'orders.yml' })).toBe(
+            'Reading orders.yml',
         );
-        expect(describeToolStep({ name: 'Read', input: {} })).toBe(
-            'Reading files',
+        expect(
+            formatWritebackStep({ kind: 'edit', label: 'fm_parts.yml' }),
+        ).toBe('Editing fm_parts.yml');
+        expect(formatWritebackStep({ kind: 'search', label: 'revenue' })).toBe(
+            'Searching for "revenue"',
         );
+        expect(formatWritebackStep({ kind: 'compile', label: 'project' })).toBe(
+            'Compiling project',
+        );
+        expect(
+            formatWritebackStep({ kind: 'stage', label: 'Cloning project' }),
+        ).toBe('Cloning project');
     });
 });
 

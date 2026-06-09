@@ -1,9 +1,11 @@
 /**
  * A tiny, read-only, deterministic shell over {@link RepoFs}. It implements just
  * enough of bash to let an agent explore a repo compositionally — `ls`, `cat`,
- * `find`, `grep`, `head`, `wc -l`, chained with pipes — and nothing that can
- * mutate state or escape the repo. Unknown commands/flags fail loudly so the
- * model learns the boundary instead of silently getting wrong output.
+ * `find` (incl. `-maxdepth`), `grep`, `head`, `wc`, `xargs` — composed with
+ * pipes and `&&`, and nothing that can mutate state or escape the repo. Unknown
+ * commands/flags fail loudly (a {@link ShellError} the caller hands back to the
+ * model) so the model learns the boundary instead of silently getting wrong
+ * output.
  */
 import { RepoEntryType, RepoFs } from './RepoFs';
 
@@ -287,6 +289,7 @@ const cmdFind = async (repoFs: RepoFs, tokens: string[]): Promise<string[]> => {
     const nameGlobs: string[] = [];
     const positionals: string[] = [];
     let type: RepoEntryType | undefined;
+    let maxDepth: number | undefined;
     for (let i = 0; i < tokens.length; i += 1) {
         const token = tokens[i];
         if (token === '-name') {
@@ -305,18 +308,31 @@ const cmdFind = async (repoFs: RepoFs, tokens: string[]): Promise<string[]> => {
             }
             type = value === 'f' ? 'file' : 'dir';
             i += 1;
+        } else if (token === '-maxdepth') {
+            const value = tokens[i + 1];
+            const depth =
+                value === undefined ? NaN : Number.parseInt(value, 10);
+            if (!Number.isInteger(depth) || depth < 0) {
+                throw new ShellError(
+                    `find: -maxdepth expects a non-negative integer (got ${
+                        value ?? ''
+                    })`,
+                );
+            }
+            maxDepth = depth;
+            i += 1;
         } else if (token === '-o' || token === '-or') {
             // OR separator between -name predicates; no-op (globs already OR).
         } else if (token.startsWith('-') && token.length > 1) {
             throw new ShellError(
-                `find: unsupported flag ${token} (supported: -name, -type, -o)`,
+                `find: unsupported flag ${token} (supported: -name, -type, -maxdepth, -o)`,
             );
         } else {
             positionals.push(token);
         }
     }
     const base = positionals[0] ?? '';
-    return repoFs.walk(base, { type, nameGlobs });
+    return repoFs.walk(base, { type, nameGlobs, maxDepth });
 };
 
 const cmdGrep = async (
@@ -396,13 +412,14 @@ const cmdGrep = async (
     return output;
 };
 
-const cmdHead = (tokens: string[], stdin: string[] | null): string[] => {
-    if (stdin === null) {
-        throw new ShellError('head: no input (pipe a command into head)');
-    }
+const cmdHead = async (
+    repoFs: RepoFs,
+    tokens: string[],
+    stdin: string[] | null,
+): Promise<string[]> => {
     // Support both `head -n N` and the `head -N` shorthand the model often uses.
     const shorthand = tokens.find((t) => /^-\d+$/.test(t));
-    const { values } = parseArgs(
+    const { values, positionals } = parseArgs(
         tokens.filter((t) => !/^-\d+$/.test(t)),
         new Set(['-n']),
     );
@@ -410,14 +427,68 @@ const cmdHead = (tokens: string[], stdin: string[] | null): string[] => {
     if (values.has('-n')) n = Number.parseInt(values.get('-n')!, 10);
     else if (shorthand) n = Number.parseInt(shorthand.slice(1), 10);
     if (!Number.isFinite(n) || n < 0) throw new ShellError('head: invalid -n');
-    return stdin.slice(0, n);
+
+    // Piped input wins (`… | head`); otherwise read the file operand(s)
+    // directly, like the real `head file…` (multi-file gets `==>` banners).
+    if (stdin !== null) return stdin.slice(0, n);
+    if (positionals.length === 0) {
+        throw new ShellError(
+            'head: no input (pipe a command in, or pass a file path)',
+        );
+    }
+    const out: string[] = [];
+    for (const path of positionals) {
+        // eslint-disable-next-line no-await-in-loop
+        const content = await repoFs.readFile(path);
+        if (content === null) {
+            throw new ShellError(`head: ${path}: No such file or directory`);
+        }
+        if (positionals.length > 1) out.push(`==> ${path} <==`);
+        out.push(...toLines(content).slice(0, n));
+    }
+    return out;
 };
 
-const cmdWc = (tokens: string[], stdin: string[] | null): string[] => {
-    const { flags } = parseArgs(tokens, new Set());
-    if (!flags.has('-l')) throw new ShellError('wc: only -l is supported');
-    if (stdin === null) throw new ShellError('wc: no input (pipe into wc -l)');
-    return [String(stdin.length)];
+const cmdWc = async (
+    repoFs: RepoFs,
+    tokens: string[],
+    stdin: string[] | null,
+): Promise<string[]> => {
+    const { flags, positionals } = parseArgs(tokens, new Set());
+
+    // Piped input wins; otherwise count the file operand(s), like real `wc file`.
+    let lines: string[];
+    if (stdin !== null) {
+        lines = stdin;
+    } else if (positionals.length > 0) {
+        lines = [];
+        for (const path of positionals) {
+            // eslint-disable-next-line no-await-in-loop
+            const content = await repoFs.readFile(path);
+            if (content === null) {
+                throw new ShellError(`wc: ${path}: No such file or directory`);
+            }
+            lines.push(...toLines(content));
+        }
+    } else {
+        throw new ShellError(
+            'wc: no input (pipe a command in, or pass a file path)',
+        );
+    }
+
+    const text = lines.join('\n');
+    const counts: { flag: string; value: number }[] = [
+        { flag: '-l', value: lines.length },
+        { flag: '-w', value: text.split(/\s+/).filter(Boolean).length },
+        { flag: '-m', value: [...text].length },
+        { flag: '-c', value: Buffer.byteLength(text, 'utf8') },
+    ];
+    // No flags → lines, words, bytes (like bare `wc`); with flags → only the
+    // requested counts, kept in wc's canonical l→w→m→c order.
+    const selected = ['-l', '-w', '-c', '-m'].some((f) => flags.has(f))
+        ? counts.filter((c) => flags.has(c.flag))
+        : counts.filter((c) => ['-l', '-w', '-c'].includes(c.flag));
+    return [selected.map((c) => c.value).join(' ')];
 };
 
 async function runStage(
@@ -428,6 +499,13 @@ async function runStage(
     const [command, ...rest] = tokens;
     switch (command) {
         case 'ls':
+            // `ls` takes no flags here; -name/-type are find's — nudge the model
+            // to the right tool instead of a bare "unsupported flag".
+            if (rest.includes('-name') || rest.includes('-type')) {
+                throw new ShellError(
+                    'ls: unsupported flag — to search by name or type use `find <dir> -name "<glob>"` (e.g. `find . -name "*.yml"`)',
+                );
+            }
             assertWordFlags(rest, new Set(), 'ls');
             return cmdLs(repoFs, parseArgs(rest, new Set()).positionals);
         case 'cat':
@@ -436,7 +514,7 @@ async function runStage(
         case 'find':
             assertWordFlags(
                 rest,
-                new Set(['-name', '-type', '-o', '-or']),
+                new Set(['-name', '-type', '-maxdepth', '-o', '-or']),
                 'find',
             );
             return cmdFind(repoFs, rest);
@@ -445,10 +523,10 @@ async function runStage(
             return cmdGrep(repoFs, rest, stdin);
         case 'head':
             assertWordFlags(rest, new Set(['-n']), 'head');
-            return cmdHead(rest, stdin);
+            return cmdHead(repoFs, rest, stdin);
         case 'wc':
-            assertShortFlags(rest, 'l', 'wc');
-            return cmdWc(rest, stdin);
+            assertShortFlags(rest, 'lwcm', 'wc');
+            return cmdWc(repoFs, rest, stdin);
         case 'xargs': {
             if (rest[0]?.startsWith('-')) {
                 throw new ShellError(
@@ -488,14 +566,38 @@ const clamp = (text: string): string => {
 };
 
 /**
- * Execute one read-only shell command line (optionally piped) against the repo.
- * Returns combined stdout. Throws {@link ShellError} for unsupported syntax — the
- * caller surfaces the message to the agent as a normal tool result.
+ * Split a command line on top-level `&&`, honouring quotes so a pattern like
+ * `grep 'a&&b'` stays one segment. A single `&` (background) is left untouched.
  */
-export const runRepoShellCommand = async (
+const splitOnAnd = (input: string): string[] => {
+    const segments: string[] = [];
+    let current = '';
+    let quote: '"' | "'" | null = null;
+    for (let i = 0; i < input.length; i += 1) {
+        const char = input[i];
+        if (quote) {
+            current += char;
+            if (char === quote) quote = null;
+        } else if (char === '"' || char === "'") {
+            quote = char;
+            current += char;
+        } else if (char === '&' && input[i + 1] === '&') {
+            segments.push(current);
+            current = '';
+            i += 1; // consume the second '&'
+        } else {
+            current += char;
+        }
+    }
+    segments.push(current);
+    return segments.map((s) => s.trim()).filter((s) => s.length > 0);
+};
+
+/** Run one pipeline (`a | b | c`), returning its output and leading command. */
+const runPipeline = async (
     repoFs: RepoFs,
     command: string,
-): Promise<string> => {
+): Promise<{ lines: string[]; firstCommand: string | undefined }> => {
     const stages = splitPipeline(command);
     if (stages.length === 0) throw new ShellError('Empty command');
 
@@ -508,14 +610,38 @@ export const runRepoShellCommand = async (
         // eslint-disable-next-line no-await-in-loop
         stdin = await runStage(repoFs, tokens, stdin);
     }
+    return { lines: stdin ?? [], firstCommand };
+};
 
-    const lines = stdin ?? [];
+/**
+ * Execute one read-only shell command line against the repo. Supports pipes
+ * (`a | b`) and `&&` sequencing; returns combined stdout. Throws
+ * {@link ShellError} for unsupported syntax — the caller surfaces the message to
+ * the agent as a normal tool result.
+ */
+export const runRepoShellCommand = async (
+    repoFs: RepoFs,
+    command: string,
+): Promise<string> => {
+    // `&&` runs commands in sequence, stopping at the first failure (like bash):
+    // each side is its own pipeline with fresh stdin and their outputs join.
+    const segments = splitOnAnd(command);
+    if (segments.length === 0) throw new ShellError('Empty command');
+
+    const lines: string[] = [];
+    const firstCommands: string[] = [];
+    for (const segment of segments) {
+        // eslint-disable-next-line no-await-in-loop
+        const result = await runPipeline(repoFs, segment);
+        lines.push(...result.lines);
+        if (result.firstCommand) firstCommands.push(result.firstCommand);
+    }
+
     // Surface a truncated tree so tree-walking commands don't read as exhaustive
     // when GitHub capped the file listing — otherwise find/grep/ls can return
     // silent false negatives on large repos.
     if (
-        firstCommand &&
-        ['find', 'grep', 'ls'].includes(firstCommand) &&
+        firstCommands.some((c) => ['find', 'grep', 'ls'].includes(c)) &&
         (await repoFs.isTruncated())
     ) {
         lines.push(
