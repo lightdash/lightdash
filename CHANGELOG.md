@@ -1,3 +1,10 @@
+## [0.3117.1](https://github.com/lightdash/lightdash/compare/0.3117.0...0.3117.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **scheduler:** only notify delivery failures on the final attempt (PROD-8164) ([#24052](https://github.com/lightdash/lightdash/issues/24052)) ([a82faa0](https://github.com/lightdash/lightdash/commit/a82faa07d14e0c5d071179ed9d03aa73b83a45ad))
+
 # [0.3117.0](https://github.com/lightdash/lightdash/compare/0.3116.0...0.3117.0) (2026-06-09)
 
 
