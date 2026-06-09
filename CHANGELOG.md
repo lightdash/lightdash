@@ -1,3 +1,10 @@
+## [0.3122.2](https://github.com/lightdash/lightdash/compare/0.3122.1...0.3122.2) (2026-06-09)
+
+
+### Bug Fixes
+
+* **ai:** harden repoShell — surface partial-failure stderr, drop symlinks from the VFS tree ([#24093](https://github.com/lightdash/lightdash/issues/24093)) ([acb3924](https://github.com/lightdash/lightdash/commit/acb3924ceb7679a46d93116dc98a95764da0c353))
+
 ## [0.3122.1](https://github.com/lightdash/lightdash/compare/0.3122.0...0.3122.1) (2026-06-09)
 
 
