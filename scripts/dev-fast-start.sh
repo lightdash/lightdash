@@ -87,38 +87,8 @@ if test -d node_modules \
     && test -f packages/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt; then
     echo "SKIP: dependencies already present"
 else
-    command -v sfw >/dev/null 2>&1 || npm i -g sfw >/dev/null 2>&1 || true
-    # Prefer Socket Firewall, but never let a dead sfw upstream hang the install.
-    # sfw is a transparent proxy: when its scanning service is unreachable it does
-    # not error, it blocks pnpm's registry traffic forever. Watch node_modules for
-    # filesystem progress and fall back to a direct install on a stall.
-    run_install() {
-        if command -v sfw >/dev/null 2>&1; then
-            echo "  trying Socket Firewall (sfw) with stall watchdog..."
-            sfw pnpm install &
-            local sfw_pid=$! stall=0
-            while kill -0 "$sfw_pid" 2>/dev/null; do
-                sleep 15
-                if find node_modules -type f -newermt "-20 seconds" 2>/dev/null | head -1 | grep -q .; then
-                    stall=0
-                else
-                    stall=$((stall + 15))
-                fi
-                if [ "$stall" -ge 75 ]; then
-                    echo "WARN: sfw install stalled ${stall}s (Socket Firewall upstream unreachable) — falling back to direct pnpm install"
-                    kill "$sfw_pid" 2>/dev/null || true
-                    pkill -f "sfw pnpm install" 2>/dev/null || true
-                    pkill -f "pnpm-exe.*install" 2>/dev/null || true
-                    sleep 2
-                    break
-                fi
-            done
-            if wait "$sfw_pid" 2>/dev/null; then return 0; fi
-        fi
-        echo "  running direct pnpm install (no Socket Firewall)..."
-        pnpm install
-    }
-    run_install || fail "deps" "pnpm install failed"
+    command -v sfw >/dev/null 2>&1 || npm i -g sfw >/dev/null 2>&1 || fail "deps" "could not install sfw"
+    sfw pnpm install || fail "deps" "sfw pnpm install failed"
     pnpm -F common build && pnpm -F warehouses build && pnpm -F @lightdash/formula build || fail "deps" "package builds failed"
     echo "OK: installed and built"
 fi
