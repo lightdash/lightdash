@@ -70,6 +70,30 @@ describe('buildDataTimezonePreviewResponse', () => {
         expect(res.aware.rendered).toBe('2026-06-08, 14:30:00 (+00:00)');
     });
 
+    it('reads Date-object rows as instants, not via String() (pg/snowflake drivers)', () => {
+        // pg, Snowflake, etc. return Date objects, not ISO strings. String()-ing
+        // a Date before moment.utc parses the locale string via a fallback that
+        // drops the offset, shifting every value by the backend's UTC offset.
+        const res = buildDataTimezonePreviewResponse({
+            row: {
+                naive_instant: new Date('2026-06-08T18:30:00.000Z'),
+                aware_instant: new Date('2026-06-08T14:30:00.000Z'),
+            },
+            warehouseType: WarehouseTypes.POSTGRES,
+            selectedDataTimezone: 'America/New_York',
+            effectiveSourceTimezone: 'America/New_York',
+            projectTimezone: 'UTC',
+        });
+
+        // Identical to the ISO-string row above: the instant is preserved
+        // regardless of the timezone the backend process runs in.
+        expect(res.naive.raw).toBe('2026-06-08, 14:30:00');
+        expect(res.naive.readAs).toBe('2026-06-08, 14:30:00 (-04:00)');
+        expect(res.naive.rendered).toBe('2026-06-08, 18:30:00 (+00:00)');
+        expect(res.aware.raw).toBe('2026-06-08, 14:30:00 (+00:00)');
+        expect(res.aware.rendered).toBe('2026-06-08, 14:30:00 (+00:00)');
+    });
+
     it('flags dataTimezoneApplies=false when the effective zone is UTC', () => {
         const res = buildDataTimezonePreviewResponse({
             row,

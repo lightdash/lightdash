@@ -89,7 +89,7 @@ export const buildDataTimezonePreviewSql = (
 };
 
 // Cleaner than the default millisecond format for a human-facing preview.
-const renderInZone = (instant: string, timezone: string): string =>
+const renderInZone = (instant: moment.MomentInput, timezone: string): string =>
     formatTimestamp(instant, TimeFrames.SECOND, false, timezone);
 
 export const buildDataTimezonePreviewResponse = ({
@@ -105,8 +105,12 @@ export const buildDataTimezonePreviewResponse = ({
     effectiveSourceTimezone: string;
     projectTimezone: string;
 }): ApiDataTimezonePreviewResults => {
-    const naiveInstant = String(row.naive_instant);
-    const awareInstant = String(row.aware_instant);
+    // Drivers return these as Date objects (pg, Snowflake, ...) or strings
+    // (Trino, ClickHouse). Pass the raw value to moment; String()-ing a Date
+    // first yields a locale string moment.utc parses via its non-ISO fallback,
+    // silently shifting the instant by the backend's UTC offset.
+    const naiveInstant = row.naive_instant as moment.MomentInput;
+    const awareInstant = row.aware_instant as moment.MomentInput;
 
     return {
         warehouseType,
