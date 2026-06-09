@@ -1,3 +1,10 @@
+# [0.3116.0](https://github.com/lightdash/lightdash/compare/0.3115.0...0.3116.0) (2026-06-09)
+
+
+### Features
+
+* **ai:** grouped writeback step rows + repoShell error handling & shell support ([#24057](https://github.com/lightdash/lightdash/issues/24057)) ([3fb67f0](https://github.com/lightdash/lightdash/commit/3fb67f081bf4f906d72d851ff9b7b092624483ce))
+
 # [0.3115.0](https://github.com/lightdash/lightdash/compare/0.3114.0...0.3115.0) (2026-06-09)
 
 
