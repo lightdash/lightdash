@@ -3266,7 +3266,9 @@ export class ProjectService extends BaseService {
         }
 
         const selectedDataTimezone = effectiveCredentials.dataTimezone ?? 'UTC';
-        const effectiveSourceTimezone = getColumnTimezone(effectiveCredentials);
+        // The zone naive columns are read as (the session tz), not
+        // getColumnTimezone's post-wrap source which is UTC for Snowflake.
+        const effectiveSourceTimezone = selectedDataTimezone;
 
         const sshTunnel = new SshTunnel(effectiveCredentials);
         const tunnelCredentials = await sshTunnel.connect();

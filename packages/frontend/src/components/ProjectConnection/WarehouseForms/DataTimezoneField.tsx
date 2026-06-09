@@ -1,6 +1,5 @@
 import {
     FeatureFlags,
-    WarehouseTypes,
     type CreateWarehouseCredentials,
 } from '@lightdash/common';
 import {
@@ -73,11 +72,6 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
     };
 
     const result = preview.data;
-    const snowflakeNotApplied = Boolean(
-        result &&
-        !result.dataTimezoneApplies &&
-        result.warehouseType === WarehouseTypes.SNOWFLAKE,
-    );
 
     return (
         <Stack gap="xs">
@@ -121,8 +115,6 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <Connector>
                         read as {result.naive.interpretedAs} (your data
                         timezone)
-                        {snowflakeNotApplied &&
-                            ', but Snowflake stores UTC, so it is not applied'}
                     </Connector>
                     <PipelineStep
                         n={2}

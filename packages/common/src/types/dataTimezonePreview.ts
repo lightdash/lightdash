@@ -33,11 +33,9 @@ export type DataTimezonePreviewAware = {
 export type ApiDataTimezonePreviewResults = {
     warehouseType: WarehouseTypes;
     selectedDataTimezone: string; // what the user picked (or 'UTC' fallback)
-    effectiveSourceTimezone: string; // getColumnTimezone(credentials)
+    effectiveSourceTimezone: string; // zone naive columns are read as
     projectTimezone: string; // 'UTC' in create flow
-    // false when the effective zone is UTC (unset, or Snowflake stores UTC),
-    // i.e. the data timezone does not actually shift naive timestamps.
-    dataTimezoneApplies: boolean;
+    dataTimezoneApplies: boolean; // false when the data timezone is UTC (unset)
     naive: DataTimezonePreviewNaive;
     aware: DataTimezonePreviewAware;
 };
@@ -65,10 +63,8 @@ export const currentNaiveTimestampSql: Record<SupportedDbtAdapter, string> = {
     [SupportedDbtAdapter.SPARK]: 'CAST(CURRENT_TIMESTAMP() AS TIMESTAMP)',
     [SupportedDbtAdapter.TRINO]: 'CAST(CURRENT_TIMESTAMP AS timestamp)',
     [SupportedDbtAdapter.ATHENA]: 'CAST(CURRENT_TIMESTAMP AS timestamp)',
-    // now() is an instant, not zone-less, so the toUTC relabel would be a no-op.
-    // Render it to a bare wall-clock string instead, so toDateTime(str, tz)
-    // re-parses it under the data timezone (ClickHouse's only reinterpretation
-    // point - session_timezone rebases at parse time, never on stored epochs).
+    // Bare wall-clock string so toDateTime(str, tz) re-parses under the data tz;
+    // now() is an instant, which the toUTC relabel would no-op.
     [SupportedDbtAdapter.CLICKHOUSE]:
         "formatDateTime(now(), '%Y-%m-%d %H:%i:%S')",
     [SupportedDbtAdapter.BIGQUERY]: 'CURRENT_DATETIME()',
