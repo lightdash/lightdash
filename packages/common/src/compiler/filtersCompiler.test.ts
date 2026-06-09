@@ -1521,6 +1521,28 @@ describe('Filter SQL', () => {
             ),
         ).toBe('1=1');
     });
+
+    test('should reject nested array filter values before rendering string SQL', () => {
+        expect(() =>
+            renderFilterRuleSql(
+                {
+                    id: 'filter-rule',
+                    target: { fieldId: 'payments_payment_method' },
+                    operator: FilterOperator.EQUALS,
+                    values: [["coupon') OR TRUE --"]],
+                    caseSensitive: true,
+                },
+                DimensionType.STRING,
+                stringFilterDimension,
+                "'",
+                (value) => value.replaceAll("'", "''"),
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+            ),
+        ).toThrow(
+            'Complex objects or arrays are not permitted as filter values',
+        );
+    });
 });
 
 describe('case sensitivity', () => {
