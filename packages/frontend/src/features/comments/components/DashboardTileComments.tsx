@@ -219,7 +219,7 @@ export const DashboardTileComments: FC<
 
                     {resolvedComments.length > 0 && (
                         <Box>
-                            {hasComments && <Divider mb="xs" />}
+                            {hasComments && <Divider mx="-sm" mb="xs" />}
                             <Button
                                 size="compact-xs"
                                 variant="subtle"
