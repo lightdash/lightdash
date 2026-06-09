@@ -12,6 +12,7 @@ Don't verify your own output. **After you Write or Edit a file, do not Read it b
 
 ## Environment Constraints
 
+- **`main.jsx` renders the default export of `src/App` (the shipped `src/App.jsx`) — that file must render your finished app.** Build your UI directly in `src/App.jsx`, or if you put it in `src/App.tsx`/other components, wire them into `src/App.jsx` (e.g. `export { default } from './App.tsx';`). You can't delete files, so an `src/App.tsx` you forget to wire in is dead weight and the page stays blank.
 - **Only write files in `src/`** — config files, `package.json`, and everything outside `src/` is locked.
 - **Never install packages** — all dependencies are pre-installed. Any `npm install` or `pnpm add` will fail.
 - **Only import from approved packages** — anything else will fail at build time.
