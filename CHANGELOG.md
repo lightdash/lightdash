@@ -1,3 +1,10 @@
+## [0.3121.1](https://github.com/lightdash/lightdash/compare/0.3121.0...0.3121.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **export:** include pivot table totals in CSV/XLSX downloads ([#24081](https://github.com/lightdash/lightdash/issues/24081)) ([743110f](https://github.com/lightdash/lightdash/commit/743110fb809b6eb89bf6eed9593c4431c92d0baf))
+
 # [0.3121.0](https://github.com/lightdash/lightdash/compare/0.3120.1...0.3121.0) (2026-06-09)
 
 
