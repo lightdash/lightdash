@@ -64,6 +64,7 @@ export enum NumberSeparator {
     SPACE_PERIOD = 'spacePeriod', // 100 000.00
     PERIOD_COMMA = 'periodComma', // 100.000,00
     NO_SEPARATOR_PERIOD = 'noSeparatorPeriod', // 100000.00
+    APOSTROPHE_PERIOD = 'apostrophePeriod', // 100'000.00
 }
 type CompactConfig = {
     compact: Compact;
@@ -601,6 +602,12 @@ export interface Field {
     // @deprecated Use format expression instead
     round?: number;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
+    /**
+     * Number separator style for grouping/decimal characters. Composes with
+     * `format` (including ECMA-376 expressions) and `formatOptions` — it only
+     * controls the separator characters, not the format shape.
+     */
+    separator?: NumberSeparator;
     /**
      * @deprecated Use groups property instead.
      */

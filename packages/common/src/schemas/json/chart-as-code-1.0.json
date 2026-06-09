@@ -88,6 +88,10 @@
                     "format": "double",
                     "type": "number"
                 },
+                "separator": {
+                    "$ref": "#/$defs/NumberSeparator",
+                    "description": "Number separator style for grouping/decimal characters"
+                },
                 "sql": {
                     "description": "SQL expression (e.g., ${TABLE}.column_name)",
                     "type": "string"
@@ -1974,7 +1978,8 @@
                 "commaPeriod",
                 "spacePeriod",
                 "periodComma",
-                "noSeparatorPeriod"
+                "noSeparatorPeriod",
+                "apostrophePeriod"
             ],
             "type": "string"
         },

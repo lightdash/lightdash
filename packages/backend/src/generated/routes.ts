@@ -2980,6 +2980,7 @@ const models: TsoaRoute.Models = {
             'spacePeriod',
             'periodComma',
             'noSeparatorPeriod',
+            'apostrophePeriod',
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
@@ -3177,6 +3178,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
             },
+            separator: { ref: 'NumberSeparator' },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -3319,6 +3321,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
             },
+            separator: { ref: 'NumberSeparator' },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -3952,6 +3955,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
             },
+            separator: { ref: 'NumberSeparator' },
             table: { dataType: 'string', required: true },
             name: { dataType: 'string', required: true },
             index: { dataType: 'double' },
@@ -6264,6 +6268,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
             },
+            separator: { ref: 'NumberSeparator' },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -7107,6 +7112,7 @@ const models: TsoaRoute.Models = {
                 dataType: 'union',
                 subSchemas: [{ ref: 'Format' }, { dataType: 'string' }],
             },
+            separator: { ref: 'NumberSeparator' },
             groupLabel: { dataType: 'string' },
             groups: { dataType: 'array', array: { dataType: 'string' } },
             urls: {
@@ -12315,6 +12321,7 @@ const models: TsoaRoute.Models = {
                 { dataType: 'enum', enums: ['loadSkill'] },
                 { dataType: 'enum', enums: ['loadProjectContext'] },
                 { dataType: 'enum', enums: ['proposeWriteback'] },
+                { dataType: 'enum', enums: ['repoShell'] },
                 { dataType: 'enum', enums: ['setupPreviewDeploy'] },
                 { dataType: 'enum', enums: ['runQuery'] },
                 { dataType: 'enum', enums: ['runSavedChart'] },
@@ -22702,15 +22709,15 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                pivotColumnsOrder: {
+                    dataType: 'array',
+                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
+                },
                 passthroughDimensions: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'GroupByColumn' },
                 },
                 sortOnlyDimensions: {
-                    dataType: 'array',
-                    array: { dataType: 'refAlias', ref: 'GroupByColumn' },
-                },
-                pivotColumnsOrder: {
                     dataType: 'array',
                     array: { dataType: 'refAlias', ref: 'GroupByColumn' },
                 },

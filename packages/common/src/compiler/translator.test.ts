@@ -1,6 +1,11 @@
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
 import { InlineErrorType, type Explore } from '../types/explore';
-import { DimensionType, FieldType, MetricType } from '../types/field';
+import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    NumberSeparator,
+} from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
 import { warehouseClientMock } from './exploreCompiler.mock';
@@ -286,6 +291,46 @@ describe('additional dimensions in dbt 1.10+ (config.meta structure)', () => {
         );
         expect(result.dimensions.order_date_pt_month.label).toContain(
             'Order Date (PT)',
+        );
+    });
+
+    it('should parse the number separator from dbt meta onto dimensions and metrics', () => {
+        const modelWithSeparators: DbtModelNode & {
+            relation_name: string;
+        } = {
+            ...model,
+            columns: {
+                revenue: {
+                    name: 'revenue',
+                    data_type: DimensionType.NUMBER,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.NUMBER,
+                            separator: NumberSeparator.PERIOD_COMMA,
+                        },
+                        metrics: {
+                            total_revenue: {
+                                type: MetricType.SUM,
+                                separator: NumberSeparator.SPACE_PERIOD,
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            modelWithSeparators,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.revenue.separator).toBe(
+            NumberSeparator.PERIOD_COMMA,
+        );
+        expect(result.metrics.total_revenue.separator).toBe(
+            NumberSeparator.SPACE_PERIOD,
         );
     });
 });

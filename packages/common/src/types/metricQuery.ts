@@ -18,6 +18,7 @@ import {
     type Format,
     type Metric,
     type MetricType,
+    type NumberSeparator,
     type TableCalculation,
 } from './field';
 import { type Filters, type MetricFilterRule } from './filter';
@@ -42,6 +43,8 @@ export interface AdditionalMetric {
     compact?: CompactOrAlias;
     /** Format string (legacy format specification) */
     format?: Format | string; // // Format type is deprecated, use format expression(string) instead
+    /** Number separator style for grouping/decimal characters */
+    separator?: NumberSeparator;
     /** Table name the metric belongs to */
     table: string;
     /** Internal name of the metric */

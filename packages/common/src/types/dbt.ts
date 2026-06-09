@@ -22,6 +22,7 @@ import {
     type Format,
     type Metric,
     type MetricType,
+    type NumberSeparator,
     type Source,
 } from './field';
 import { parseFilters, type RequiredFilter } from './filterGrammar';
@@ -231,6 +232,8 @@ export type DbtColumnLightdashDimension = {
     // @deprecated Use format expression instead
     compact?: CompactOrAlias;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
+    /** Number separator style for grouping/decimal characters */
+    separator?: NumberSeparator;
     /** @deprecated Use groups instead */
     group_label?: string;
     groups?: string[] | string;
@@ -269,6 +272,8 @@ export type DbtColumnLightdashMetric = {
     // @deprecated Use format expression instead
     round?: number;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
+    /** Number separator style for grouping/decimal characters */
+    separator?: NumberSeparator;
     /** @deprecated Use groups instead */
     group_label?: string;
     groups?: string[];
@@ -653,6 +658,7 @@ export const convertModelMetric = ({
         round: metric.round,
         compact: metric.compact,
         format: metric.format,
+        separator: metric.separator,
         groups,
         showUnderlyingValues:
             metric.show_underlying_values ?? defaultShowUnderlyingValues,

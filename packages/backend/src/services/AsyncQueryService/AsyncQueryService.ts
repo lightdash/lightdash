@@ -3175,6 +3175,9 @@ export class AsyncQueryService extends ProjectService {
                                 format: convertCustomFormatToFormatExpression(
                                     formatOptions,
                                 ),
+                                // The format expression can't encode the separator, so carry it
+                                // separately for the render paths (getEffectiveSeparator reads it).
+                                separator: formatOptions.separator,
                             },
                         ];
                     }
