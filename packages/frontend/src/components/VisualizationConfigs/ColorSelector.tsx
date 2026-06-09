@@ -9,9 +9,15 @@ import {
 } from '@mantine-8/core';
 import { clsx } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
-import { type CSSProperties, type FC } from 'react';
+import { useState, type CSSProperties, type FC } from 'react';
 import MantineIcon from '../common/MantineIcon';
 import classes from './ColorSelector.module.css';
+
+const DEFAULT_PICKER_COLOR = '#000000';
+const DEFAULT_PICKER_COLOR_WITH_ALPHA = '#000000ff';
+
+const getPickerColor = (color: string, withAlpha: boolean) =>
+    !withAlpha && color.length === 9 ? color.slice(0, 7) : color;
 
 interface Props {
     color?: string;
@@ -34,9 +40,39 @@ const ColorSelector: FC<Props> = ({
     colorSwatchProps,
     withAlpha = false,
 }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const [draftColor, setDraftColor] = useState<string>();
+
     const isValidHexColor = color && isHexCodeColor(color);
+    const currentInputColor = draftColor ?? color ?? '';
+    const isValidDraftColor = draftColor && isHexCodeColor(draftColor);
+    const isValidInputColor =
+        currentInputColor && isHexCodeColor(currentInputColor);
+    const isValidDefaultColor = isHexCodeColor(defaultColor);
     const isInteractive = Boolean(onColorChange) && !readOnly;
-    const primarySwatchColor = isValidHexColor ? color : defaultColor;
+    const primarySwatchColor =
+        isValidDraftColor && isInteractive
+            ? draftColor
+            : isValidHexColor
+              ? color
+              : defaultColor;
+    const rawPickerColor = isValidDraftColor
+        ? draftColor
+        : isValidHexColor
+          ? color
+          : isValidDefaultColor
+            ? defaultColor
+            : (swatches.find(isHexCodeColor) ??
+              (withAlpha
+                  ? DEFAULT_PICKER_COLOR_WITH_ALPHA
+                  : DEFAULT_PICKER_COLOR));
+    const pickerColor = getPickerColor(rawPickerColor, withAlpha);
+    const colorSwatchStyle =
+        colorSwatchProps?.style &&
+        !Array.isArray(colorSwatchProps.style) &&
+        typeof colorSwatchProps.style === 'object'
+            ? colorSwatchProps.style
+            : {};
     const showGradient = !isInteractive && Boolean(secondaryColor);
     const gradientStyle = showGradient
         ? ({
@@ -45,11 +81,20 @@ const ColorSelector: FC<Props> = ({
         : undefined;
 
     return isInteractive ? (
-        <Popover withinPortal shadow="md" withArrow>
+        <Popover
+            withinPortal
+            shadow="md"
+            withArrow
+            opened={isOpen}
+            onChange={(opened) => {
+                setIsOpen(opened);
+                setDraftColor(opened ? (color ?? '') : undefined);
+            }}
+        >
             <Popover.Target>
                 <ColorSwatch
                     size={20}
-                    color={isValidHexColor ? color : defaultColor}
+                    color={primarySwatchColor}
                     {...colorSwatchProps}
                     className={clsx(
                         classes.swatchInteractive,
@@ -65,15 +110,12 @@ const ColorSelector: FC<Props> = ({
                         format={withAlpha ? 'hexa' : 'hex'}
                         swatches={swatches}
                         swatchesPerRow={8}
-                        value={color ?? defaultColor}
+                        value={pickerColor}
                         onChange={(newColor) => {
                             if (!onColorChange) return;
 
-                            if (withAlpha && newColor.endsWith('ff')) {
-                                onColorChange(newColor.slice(0, 7));
-                            } else {
-                                onColorChange(newColor);
-                            }
+                            setDraftColor(newColor);
+                            onColorChange(newColor);
                         }}
                     />
 
@@ -84,17 +126,19 @@ const ColorSelector: FC<Props> = ({
                             withAlpha ? 'HEXA' : 'HEX'
                         }  color`}
                         error={
-                            color && !isValidHexColor
+                            currentInputColor && !isValidInputColor
                                 ? `Invalid ${withAlpha ? 'HEXA' : 'HEX'} color`
                                 : undefined
                         }
-                        value={(color ?? '').replace('#', '')}
+                        value={currentInputColor.replace('#', '')}
                         onChange={(event) => {
                             const newColor = event.currentTarget.value;
-                            if (onColorChange) {
-                                onColorChange(
-                                    newColor === '' ? newColor : `#${newColor}`,
-                                );
+                            const nextColor =
+                                newColor === '' ? '' : `#${newColor}`;
+                            setDraftColor(nextColor);
+
+                            if (onColorChange && isHexCodeColor(nextColor)) {
+                                onColorChange(nextColor);
                             }
                         }}
                     />
@@ -114,10 +158,7 @@ const ColorSelector: FC<Props> = ({
             }
             style={{
                 ...gradientStyle,
-                ...(typeof colorSwatchProps?.style === 'object' &&
-                colorSwatchProps?.style !== null
-                    ? colorSwatchProps.style
-                    : {}),
+                ...colorSwatchStyle,
             }}
         />
     );
