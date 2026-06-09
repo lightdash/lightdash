@@ -1,3 +1,12 @@
+## [0.3120.1](https://github.com/lightdash/lightdash/compare/0.3120.0...0.3120.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **conditional-formatting:** stack text and cell colors ([#24034](https://github.com/lightdash/lightdash/issues/24034)) ([4f174c5](https://github.com/lightdash/lightdash/commit/4f174c5b755dbc5723a6cb944f8564ad3ec802ba))
+* **conditional-formatting:** tolerate partial hex colors ([#24036](https://github.com/lightdash/lightdash/issues/24036)) ([65f4937](https://github.com/lightdash/lightdash/commit/65f4937f7192c3b5a07f45466edac6612d32dd4e))
+* **data-apps:** fail the build when a generated app renders only the placeholder ([#24078](https://github.com/lightdash/lightdash/issues/24078)) ([0deba45](https://github.com/lightdash/lightdash/commit/0deba4516eb2bea35913ecb178fb695aa0c76ceb)), closes [#24074](https://github.com/lightdash/lightdash/issues/24074)
+
 # [0.3120.0](https://github.com/lightdash/lightdash/compare/0.3119.0...0.3120.0) (2026-06-09)
 
 
