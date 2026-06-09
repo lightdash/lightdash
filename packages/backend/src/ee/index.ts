@@ -463,6 +463,15 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                             ]);
                         return reviewsEnabled && aiWritebackFlag.enabled;
                     },
+                    // Lazy accessor (not the instance) to duplicate the
+                    // upstream project's data apps when a preview is created.
+                    // AppGenerateService depends on ProjectService, so resolving
+                    // it eagerly here would cycle. The EE projectService
+                    // provider overrides the core one, so the thunk must be
+                    // wired here too — otherwise preview app duplication is a
+                    // silent no-op in EE builds.
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                 }),
             instanceConfigurationService: ({
                 models,

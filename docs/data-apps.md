@@ -305,20 +305,41 @@ remap their `savedChartUuid` / `savedSqlUuid`. The orchestration lives in `Promo
   tiles get. Soft-deleted apps behind placeholder tiles are skipped — the tile keeps its original reference and renders
   the existing "app no longer exists" placeholder upstream.
 
-### Preview environments (copy-on-preview — out of scope)
+### Preview environments (copy-on-preview)
 
-Data apps are **not yet duplicated** when a project is copied to a preview environment. The preview-copy step in
-`ProjectModel.duplicateContent` copies `dashboard_tile_data_apps` rows but leaves their `app_uuid` pointing at the source
-project's app rather than creating a fresh `apps` row in the preview, so any data app tile in a preview is a read-through
-window to the source project's app:
+When a project is copied to a preview environment, **every data app is duplicated into the preview** — both standalone
+apps and apps embedded as `DATA_APP` dashboard tiles. The preview gets its own `apps` + `app_versions` rows and its own
+S3 artifacts, so apps render and can be iterated on entirely inside the preview.
 
-- **Preview rendering.** If the user opening the preview has view access to the source app, the tile renders normally.
-  Otherwise the `DashboardDataAppTile` error states show a "Data app not found" / "No access" placeholder and the rest
-  of the dashboard renders fine.
-- **Iterating inside the preview.** Not supported — the preview project has no `apps` row of its own.
+The copy is the mirror image of [promotion](#promotion): promotion snapshots a preview app *up* into production;
+preview duplication snapshots production apps *down* into a fresh preview. It reuses the same per-app primitives
+(`copyVersionS3Prefix`, `buildCopiedResources`, the org-shared design guard) that `duplicateApp` / `promoteApp` use.
 
-Copying `apps` + `app_versions` + S3 artifacts into previews is tracked in
-[PROD-7778 follow-up](https://linear.app/lightdash/issue/PROD-7778/preview-environments-arent-considering-data-apps).
+Orchestration lives in `AppGenerateService.duplicateAppsForPreview`, called once from
+`ProjectService.copyContentOnPreview` right after `ProjectModel.duplicateContent` has copied the rest of the project:
+
+- **What gets copied per app.** The latest ready version's S3 artifacts (`dist.tar` + `source.tar` + assets) are
+  server-side copied into a new v1; name, description, template, design, and chart/dashboard resource refs carry over.
+  No sandbox is created — one spins up lazily on the first iteration. Apps with no ready version are skipped (their tile,
+  if any, keeps its read-through reference). `created_by_user_uuid` is preserved so personal apps stay owned by their
+  original author inside the preview.
+- **Spaces.** `ProjectModel.duplicateContent` now returns the source→preview space-uuid mapping; each app lands in the
+  preview's mirror of its source space (ancestors already created by the content copy). Personal apps
+  (`space_uuid IS NULL`) stay personal.
+- **The round trip — `upstream_app_uuid`.** Each preview copy's `upstream_app_uuid` is set back to the production app it
+  was copied from. That is the same link `promoteApp` writes on first promotion, so iterating on the copy inside the
+  preview and then promoting **updates the original production app** rather than creating a duplicate. Preview
+  duplication and promotion are two halves of one loop.
+- **Tile remap.** `duplicateContent` copies `dashboard_tile_data_apps` rows with `app_uuid` still pointing at the source
+  apps; `AppModel.remapPreviewDashboardTileApps` then repoints the preview's tiles onto the duplicated apps. The update
+  is **scoped to dashboards in the preview project** (via a `dashboard_versions → dashboards → spaces → projects`
+  subquery) — critical, because the source project's tiles carry the same `app_uuid` and must never be touched.
+- **Best-effort.** A per-app failure (S3 or DB) is logged, its orphaned S3 copy cleaned up, and the app skipped — it
+  cannot abort the rest of the copy or block preview creation. The whole step is also non-fatal to the surrounding
+  content copy. Core (non-EE) builds resolve the lazy `getAppGenerateService` accessor to `undefined` and skip
+  duplication entirely.
+
+Tracked in [PROD-7819](https://linear.app/lightdash/issue/PROD-7819/make-it-possible-to-build-data-apps-in-previews-and-promote-them).
 
 ---
 

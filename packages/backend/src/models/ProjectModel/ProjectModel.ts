@@ -2394,7 +2394,9 @@ export class ProjectModel {
         projectUuid: string,
         previewProjectUuid: string,
         spaces: Pick<SpaceSummary, 'uuid'>[],
-    ) {
+    ): Promise<{
+        spaceMapping: { sourceSpaceUuid: string; previewSpaceUuid: string }[];
+    }> {
         Logger.info(
             `Copying content from ${projectUuid} to ${previewProjectUuid}`,
         );
@@ -3469,6 +3471,16 @@ export class ProjectModel {
                 preview_project_uuid: previewProjectUuid,
                 content_mapping: contentMapping,
             });
+
+            // Return the source→preview space mapping so callers (preview data
+            // app duplication) can place copied entities into the mirrored
+            // preview spaces.
+            return {
+                spaceMapping: spaceMapping.map((s) => ({
+                    sourceSpaceUuid: s.uuid,
+                    previewSpaceUuid: s.newUuid,
+                })),
+            };
         });
     }
 
