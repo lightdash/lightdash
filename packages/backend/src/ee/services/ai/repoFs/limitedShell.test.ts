@@ -258,6 +258,27 @@ describe('repoFs limited shell', () => {
         expect(calls).toEqual([]); // never hit the Contents API
     });
 
+    it('surfaces a read failure (e.g. rate limit) instead of treating the file as empty', async () => {
+        // A source that throws on read (simulating a GitHub rate limit) must make
+        // the command error, not silently behave as if the file had no matches.
+        const rateLimitedSource: RepoSource = {
+            label: 'acme/jaffle@main',
+            listAllPaths: async () => ({
+                files: [{ path: 'models/orders.sql', size: 10 }],
+                truncated: false,
+            }),
+            readFile: async () => {
+                throw new Error('API rate limit exceeded');
+            },
+        };
+        await expect(
+            runRepoShellCommand(
+                new RepoFs(rateLimitedSource),
+                'grep -rl select models',
+            ),
+        ).rejects.toThrow('rate limit');
+    });
+
     it('refuses to escape the chroot via .. even on a truncated tree', async () => {
         const reads: string[] = [];
         const truncatedSource: RepoSource = {
