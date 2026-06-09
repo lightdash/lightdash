@@ -32,32 +32,47 @@ const buildCspHeader = (
     config: AppRuntimeConfig,
     frameAncestors: string[],
 ): string => {
-    const { cdnOrigin, cspAllowedOrigins } = config;
+    const { cdnOrigin, cspAllowedOrigins, previewOrigin, lightdashOrigin } =
+        config;
 
-    const extra = cspAllowedOrigins.length
-        ? ` ${cspAllowedOrigins.join(' ')}`
-        : '';
+    // The preview iframe is sandboxed without `allow-same-origin`, so its
+    // document origin is opaque. WebKit/Safari resolves the CSP `'self'`
+    // keyword against that opaque origin — which matches nothing — and blocks
+    // the app's own scripts, styles, and fetches. Chromium/Firefox resolve
+    // `'self'` against the response URL's origin, so they load fine. Listing
+    // the serving origin explicitly alongside `'self'` makes the policy work
+    // in all three. The iframe is served from `previewOrigin` in production
+    // (cross-origin previews) and same-origin (`lightdashOrigin`) in dev.
+    const selfOrigin = previewOrigin || lightdashOrigin;
+
+    // Compose a source list, dropping the null cdnOrigin / empty entries.
+    const sources = (...parts: (string | false | null)[]): string =>
+        ["'self'", selfOrigin, ...parts, cdnOrigin]
+            .filter((s): s is string => Boolean(s))
+            .join(' ');
 
     const directives: string[] = [
         `default-src 'none'`,
-        `script-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `style-src 'self' 'unsafe-inline'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
+        `script-src ${sources()}`,
+        `style-src ${sources("'unsafe-inline'", ...cspAllowedOrigins)}`,
         // Allow same-origin fetch so html-to-image can inline @font-face
         // sources and <img>/background URLs when capturing screenshots.
         // The iframe is sandboxed (`allow-scripts allow-modals`) with an
         // opaque origin, so any fetch it makes is uncredentialed and can't
         // exfiltrate user data — the postMessage bridge remains the only
         // path to the authenticated Lightdash API.
-        `connect-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `img-src 'self' data:${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `font-src 'self'${extra}${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
+        `connect-src ${sources()}`,
+        `img-src ${sources('data:')}`,
+        `font-src ${sources(...cspAllowedOrigins)}`,
         `frame-ancestors ${frameAncestors.join(' ')}`,
         `object-src 'none'`,
-        // Constrain <base> to same origin instead of blocking it outright —
-        // html-to-image serializes the cloned DOM into an SVG <foreignObject>
-        // whose rendering can trip a base-uri check, and a `'none'` policy
-        // there aborts the whole screenshot.
-        `base-uri 'self'`,
+        // Constrain <base> to the serving origin instead of blocking it
+        // outright — html-to-image serializes the cloned DOM into an SVG
+        // <foreignObject> whose rendering can trip a base-uri check, and a
+        // `'none'` policy there aborts the whole screenshot. `'self'` alone
+        // fails under Safari's opaque sandbox origin (see above), so the
+        // explicit origin is listed here too.
+        `base-uri ${sources()}`,
     ];
 
     return directives.join('; ');

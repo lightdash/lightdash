@@ -458,9 +458,19 @@ Preview requests use short-lived JWTs (signed with `LIGHTDASH_SECRET`), not sess
 Each preview response includes a strict CSP header:
 
 - `default-src 'none'` — deny everything by default
-- `script-src 'self'` — only execute scripts from the app's own origin
-- `connect-src 'self'` — allow same-origin `fetch`/`XHR` so html-to-image can inline `@font-face` sources and `<img>`/background URLs during [screenshot capture](#screenshot-capture). The iframe's opaque origin (sandboxed without `allow-same-origin`) means those fetches are uncredentialed, so authenticated API calls still only flow through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request).
+- `script-src 'self' {servingOrigin}` — only execute scripts from the app's own origin
+- `connect-src 'self' {servingOrigin}` — allow same-origin `fetch`/`XHR` so html-to-image can inline `@font-face` sources and `<img>`/background URLs during [screenshot capture](#screenshot-capture). The iframe's opaque origin (sandboxed without `allow-same-origin`) means those fetches are uncredentialed, so authenticated API calls still only flow through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request).
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
+
+> **Why `'self'` isn't enough — the `{servingOrigin}` term.** The iframe is sandboxed
+> *without* `allow-same-origin`, so its document origin is opaque. WebKit/Safari resolves
+> the CSP `'self'` keyword against that opaque origin (which matches nothing) and blocks the
+> app's own scripts, styles, and fetches — the app renders as a blank page. Chromium/Firefox
+> resolve `'self'` against the response URL's origin, so they were unaffected. The fix lists
+> the serving origin explicitly alongside `'self'` on every fetch directive (`script-src`,
+> `style-src`, `connect-src`, `img-src`, `font-src`, `base-uri`). The serving origin is
+> `APP_RUNTIME_PREVIEW_ORIGIN` in production (cross-origin previews) and the same-origin
+> `lightdashOrigin` in dev. See `buildCspHeader` in `appPreviewRouter.ts`.
 
 ---
 
