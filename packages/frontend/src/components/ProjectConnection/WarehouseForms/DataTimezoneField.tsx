@@ -145,7 +145,7 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </Connector>
                     <PipelineStep
                         n={3}
-                        title="What viewers see"
+                        title="What users see"
                         value={result.naive.rendered}
                     />
                     <Divider my={4} />
@@ -155,7 +155,7 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                         <Text span ff="monospace">
                             {result.aware.raw} UTC
                         </Text>
-                        ) and your data timezone is ignored, so viewers see{' '}
+                        ) and your data timezone is ignored, so users see{' '}
                         <Text span ff="monospace">
                             {result.aware.rendered}
                         </Text>
