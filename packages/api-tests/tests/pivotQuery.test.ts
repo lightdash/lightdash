@@ -60,6 +60,19 @@ const getValuesColumnReferences = (results: PivotResults): string[] =>
         (column) => column.referenceField,
     );
 
+const getRawValues = (
+    rows: Record<string, unknown>[],
+    fieldId: string,
+): unknown[] =>
+    rows
+        .map((row) => {
+            const cell = row[fieldId] as
+                | { value?: { raw?: unknown } }
+                | undefined;
+            return cell?.value?.raw ?? cell;
+        })
+        .filter((value) => value !== undefined && value !== null);
+
 describe('Pivot query API', () => {
     const projectUuid = SEED_PROJECT.project_uuid;
     let admin: ApiClient;
@@ -161,5 +174,97 @@ describe('Pivot query API', () => {
 
         expect(results.rows.length).toBeGreaterThan(1);
         expect(getValuesColumnReferences(results)).not.toContain('revenue_rank');
+    });
+
+    it('keeps a self-sorted x-axis table calculation as an index column', async () => {
+        const query = {
+            exploreName: 'orders',
+            dimensions: [
+                'customers_first_name',
+                'customers_last_name',
+                'orders_order_date_week',
+            ],
+            metrics: ['orders_total_order_amount'],
+            filters: {},
+            sorts: [{ fieldId: 'customer_label', descending: false }],
+            limit: 500,
+            tableCalculations: [
+                {
+                    name: 'customer_label',
+                    displayName: 'Customer label',
+                    type: 'string',
+                    sql: "concat(${customers.first_name}, ' ', ${customers.last_name})",
+                },
+            ],
+            additionalMetrics: [],
+            metricOverrides: {},
+        };
+
+        // customer_label is the x-axis sorted by itself, so it stays an index
+        // column (not a sort-only column) and its values appear in the output.
+        const pivotConfiguration = {
+            indexColumn: [
+                { reference: 'customer_label', type: 'category' },
+                { reference: 'customers_first_name', type: 'category' },
+                { reference: 'customers_last_name', type: 'category' },
+            ],
+            groupByColumns: [{ reference: 'orders_order_date_week' }],
+            valuesColumns: [
+                { reference: 'orders_total_order_amount', aggregation: 'any' },
+            ],
+            sortBy: [{ reference: 'customer_label', direction: 'ASC' }],
+        };
+
+        const results = await runPivotQuery(
+            admin,
+            projectUuid,
+            query,
+            pivotConfiguration,
+        );
+
+        const labels = getRawValues(results.rows, 'customer_label');
+        expect(labels.length).toBeGreaterThan(1);
+        expect(new Set(labels).size).toBeGreaterThan(1);
+    });
+
+    it('keeps a self-sorted x-axis metric as an index column', async () => {
+        const query = {
+            exploreName: 'orders',
+            dimensions: ['orders_is_completed'],
+            metrics: ['orders_unique_order_count', 'orders_total_order_amount'],
+            filters: {},
+            sorts: [{ fieldId: 'orders_unique_order_count', descending: true }],
+            limit: 500,
+            tableCalculations: [],
+            additionalMetrics: [],
+            metricOverrides: {},
+        };
+
+        // orders_unique_order_count is the x-axis metric sorted by itself, so it
+        // stays an index column and its values appear in the output.
+        const pivotConfiguration = {
+            indexColumn: {
+                reference: 'orders_unique_order_count',
+                type: 'category',
+            },
+            groupByColumns: [{ reference: 'orders_is_completed' }],
+            valuesColumns: [
+                { reference: 'orders_total_order_amount', aggregation: 'any' },
+            ],
+            sortBy: [
+                { reference: 'orders_unique_order_count', direction: 'DESC' },
+            ],
+        };
+
+        const results = await runPivotQuery(
+            admin,
+            projectUuid,
+            query,
+            pivotConfiguration,
+        );
+
+        expect(
+            getRawValues(results.rows, 'orders_unique_order_count').length,
+        ).toBeGreaterThan(0);
     });
 });
