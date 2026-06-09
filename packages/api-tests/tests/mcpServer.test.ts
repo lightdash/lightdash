@@ -101,4 +101,134 @@ describe('MCP server', () => {
         expect(response.body.id).toBe(4);
         expect(response.body.result).toEqual({});
     });
+
+    it('should advertise the skills extension capability', async () => {
+        const response = await admin.post<
+            McpResponse<{
+                capabilities: {
+                    resources?: { subscribe?: boolean; listChanged?: boolean };
+                    extensions?: Record<string, unknown>;
+                };
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 5,
+                method: 'initialize',
+                params: {
+                    protocolVersion: '2025-03-26',
+                    capabilities: {},
+                    clientInfo: { name: 'test-client', version: '1.0.0' },
+                },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.result.capabilities).toMatchObject({
+            resources: { subscribe: false, listChanged: false },
+            extensions: {
+                'io.modelcontextprotocol/skills': {},
+            },
+        });
+    });
+
+    it('should list built-in skill resources', async () => {
+        const response = await admin.post<
+            McpResponse<{
+                resources: Array<{
+                    uri: string;
+                    name: string;
+                    mimeType?: string;
+                }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 6,
+                method: 'resources/list',
+                params: {},
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        const uris = response.body.result.resources.map((r) => r.uri);
+        expect(uris).toContain('skill://index.json');
+        expect(uris).toContain('skill://developing-in-lightdash/SKILL.md');
+
+        const skillMd = response.body.result.resources.find(
+            (r) => r.uri === 'skill://developing-in-lightdash/SKILL.md',
+        );
+        expect(skillMd?.name).toBe('developing-in-lightdash');
+        expect(skillMd?.mimeType).toBe('text/markdown');
+    });
+
+    it('should read a built-in skill resource', async () => {
+        const response = await admin.post<
+            McpResponse<{
+                contents: Array<{
+                    uri: string;
+                    mimeType?: string;
+                    text: string;
+                }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 7,
+                method: 'resources/read',
+                params: { uri: 'skill://developing-in-lightdash/SKILL.md' },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        expect(response.body.result.contents).toHaveLength(1);
+        expect(response.body.result.contents[0].uri).toBe(
+            'skill://developing-in-lightdash/SKILL.md',
+        );
+        expect(response.body.result.contents[0].text).toContain(
+            '# Developing in Lightdash',
+        );
+    });
+
+    it('should read the skills index resource', async () => {
+        const response = await admin.post<
+            McpResponse<{
+                contents: Array<{
+                    uri: string;
+                    mimeType?: string;
+                    text: string;
+                }>;
+            }>
+        >(
+            '/api/v1/mcp',
+            {
+                jsonrpc: '2.0',
+                id: 8,
+                method: 'resources/read',
+                params: { uri: 'skill://index.json' },
+            },
+            { headers: mcpHeaders },
+        );
+
+        expect(response.status).toBe(200);
+        const content = response.body.result.contents[0];
+        expect(content.mimeType).toBe('application/json');
+
+        const index = JSON.parse(content.text) as {
+            skills: Array<{ name: string; type: string; url: string }>;
+        };
+        expect(index.skills).toContainEqual(
+            expect.objectContaining({
+                name: 'developing-in-lightdash',
+                type: 'skill-md',
+                url: 'skill://developing-in-lightdash/SKILL.md',
+            }),
+        );
+    });
 });

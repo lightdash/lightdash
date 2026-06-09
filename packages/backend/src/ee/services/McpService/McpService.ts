@@ -101,6 +101,7 @@ import {
     getMcpAnalystPromptWithContext,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
+import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
@@ -148,6 +149,9 @@ export enum McpToolName {
     LIST_VERIFIED_CONTENT = 'list_verified_content',
     RUN_AI_WRITEBACK = 'run_ai_writeback',
 }
+
+// Skills-over-MCP extension identifier (SEP-2640).
+const MCP_SKILLS_EXTENSION_NAME = 'io.modelcontextprotocol/skills';
 
 const mcpRunAiWritebackTool = runAiWritebackToolDefinition.for('mcp');
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
@@ -2655,10 +2659,10 @@ export class McpService extends BaseService {
      * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
      * See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
      */
-    public createServer(options?: {
+    public async createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
-    }): McpServer {
+    }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
                 name: 'Lightdash MCP Server',
@@ -2683,7 +2687,9 @@ export class McpService extends BaseService {
             }),
         );
 
-        // Temporarily swap the server to register handlers on the new instance
+        // Temporarily swap the server to register handlers on the new instance.
+        // Kept synchronous so concurrent createServer calls can't observe each
+        // other's swapped this.mcpServer across an await.
         const originalServer = this.mcpServer;
         this.mcpServer = newServer;
         this.setupHandlers({
@@ -2692,7 +2698,60 @@ export class McpService extends BaseService {
         });
         this.mcpServer = originalServer;
 
+        // Skill resources load asynchronously; register them directly on the
+        // new server so no server swap spans the await.
+        await McpService.setupSkillResourceHandlers(newServer);
+
         return newServer;
+    }
+
+    private static async setupSkillResourceHandlers(
+        mcpServer: McpServer,
+    ): Promise<void> {
+        const resources = await BuiltInSkills.listMcpResources();
+
+        resources.forEach((resource) => {
+            mcpServer.registerResource(
+                resource.name,
+                resource.uri,
+                {
+                    title: resource.title,
+                    description: resource.description,
+                    mimeType: resource.mimeType,
+                    size: resource.size,
+                },
+                async () => {
+                    const text = await BuiltInSkills.getMcpResourceBody(
+                        resource.uri,
+                    );
+                    if (text === undefined) {
+                        throw new NotFoundError(
+                            `Resource "${resource.uri}" was not found`,
+                        );
+                    }
+                    return {
+                        contents: [
+                            {
+                                uri: resource.uri,
+                                mimeType: resource.mimeType,
+                                text,
+                            },
+                        ],
+                    };
+                },
+            );
+        });
+
+        // The SDK auto-advertises `resources.listChanged: true` when
+        // registerResource is called, but we never emit list_changed
+        // notifications. We also declare the skills extension so clients can
+        // detect built-in skill support.
+        mcpServer.server.registerCapabilities({
+            resources: { subscribe: false, listChanged: false },
+            extensions: {
+                [MCP_SKILLS_EXTENSION_NAME]: {},
+            },
+        });
     }
 
     static getAccount(context: McpProtocolContext) {
