@@ -10,7 +10,7 @@ import { TimeFrames } from './timeFrames';
 
 // A timestamp column with NO stored timezone (TIMESTAMP WITHOUT TIME ZONE,
 // Snowflake NTZ, BigQuery DATETIME). It has no instant until a zone is
-// assumed — the data timezone IS that assumption, so these columns ARE
+// assumed. The data timezone IS that assumption, so these columns ARE
 // affected by the setting.
 export type DataTimezonePreviewNaive = {
     interpretedAs: string; // the zone Lightdash assumes (effective source zone)
@@ -21,7 +21,7 @@ export type DataTimezonePreviewNaive = {
 
 // A timestamp column that already carries a timezone (timestamptz, Snowflake
 // TZ/LTZ, BigQuery TIMESTAMP). Its instant is already pinned, so the data
-// timezone is ignored — these columns are NOT affected by the setting.
+// timezone is ignored, so these columns are NOT affected by the setting.
 export type DataTimezonePreviewAware = {
     raw: string; // the instant as the warehouse pins it (rendered in UTC)
     rendered: string; // the same instant rendered in the project timezone
@@ -33,7 +33,7 @@ export type ApiDataTimezonePreviewResults = {
     selectedDataTimezone: string; // what the user picked (or 'UTC' fallback)
     effectiveSourceTimezone: string; // getColumnTimezone(credentials)
     projectTimezone: string; // 'UTC' in create flow
-    // false when the effective zone is UTC (unset, or Snowflake stores UTC) —
+    // false when the effective zone is UTC (unset, or Snowflake stores UTC),
     // i.e. the data timezone does not actually shift naive timestamps.
     dataTimezoneApplies: boolean;
     naive: DataTimezonePreviewNaive;

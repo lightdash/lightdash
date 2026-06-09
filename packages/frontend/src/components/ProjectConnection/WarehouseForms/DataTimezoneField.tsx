@@ -58,8 +58,8 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
     const onPreview = () => {
         const warehouse = form.values.warehouse;
         // The clearable TimeZonePicker yields null when unset, but the
-        // credentials type validates dataTimezone as an optional string —
-        // omit it so "no data timezone" previews as the UTC fallback.
+        // credentials type validates dataTimezone as an optional string,
+        // so omit it so "no data timezone" previews as the UTC fallback.
         const credentials: CreateWarehouseCredentials = warehouse.dataTimezone
             ? warehouse
             : ({
@@ -122,7 +122,7 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                         read as {result.naive.interpretedAs} (your data
                         timezone)
                         {snowflakeNotApplied &&
-                            ' — but Snowflake stores UTC, so it is not applied'}
+                            ', but Snowflake stores UTC, so it is not applied'}
                     </Connector>
                     <PipelineStep
                         n={2}
@@ -140,9 +140,9 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                     />
                     <Divider my={4} />
                     <Text size="xs" c="dimmed">
-                        If a column already stores a timezone, step 1 is skipped
-                        — the moment is already exact and your data timezone is
-                        ignored. Viewers see{' '}
+                        If a column already stores a timezone, step 1 is
+                        skipped: the moment is already exact and your data
+                        timezone is ignored. Viewers see{' '}
                         <Text span ff="monospace">
                             {result.aware.rendered}
                         </Text>
