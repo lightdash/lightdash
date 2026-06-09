@@ -1,4 +1,12 @@
-import { isGithubRateLimitError } from './Github';
+import { Octokit } from '@octokit/rest';
+import { getRepoTree, isGithubRateLimitError } from './Github';
+
+jest.mock('@octokit/rest');
+
+const mockGetTree = jest.fn();
+(Octokit as unknown as jest.Mock).mockImplementation(() => ({
+    rest: { git: { getTree: mockGetTree } },
+}));
 
 const octokitError = (
     status: number,
@@ -60,5 +68,45 @@ describe('isGithubRateLimitError', () => {
         expect(isGithubRateLimitError(new Error('socket hang up'))).toBe(false);
         expect(isGithubRateLimitError(null)).toBe(false);
         expect(isGithubRateLimitError(undefined)).toBe(false);
+    });
+});
+
+describe('getRepoTree', () => {
+    beforeEach(() => {
+        mockGetTree.mockReset();
+    });
+
+    const args = { owner: 'acme', repo: 'jaffle', branch: 'main', token: 't' };
+
+    it('excludes symlink blobs (mode 120000) so the Contents API cannot follow them out of scope', async () => {
+        // Security invariant: a symlink blob (mode 120000) must never enter the
+        // VFS index. The GitHub Contents API follows symlinks server-side, so
+        // including one would let a path like `dbt/escape -> ../../secrets`
+        // escape a scoped subPath and return out-of-scope file content.
+        mockGetTree.mockResolvedValue({
+            data: {
+                truncated: false,
+                tree: [
+                    {
+                        path: 'models/orders.sql',
+                        type: 'blob',
+                        mode: '100644',
+                        size: 42,
+                    },
+                    {
+                        path: 'escape',
+                        type: 'blob',
+                        mode: '120000',
+                        size: 20,
+                    },
+                ],
+            },
+        });
+
+        const { files } = await getRepoTree(args);
+        const paths = files.map((f) => f.path);
+
+        expect(paths).toContain('models/orders.sql'); // regular files are unaffected
+        expect(paths).not.toContain('escape'); // the symlink must be excluded
     });
 });

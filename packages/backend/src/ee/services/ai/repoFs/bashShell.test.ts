@@ -190,4 +190,23 @@ describe('runRepoShellCommand (just-bash)', () => {
             expect(out).toContain('GitHub truncated');
         });
     });
+
+    describe('partial failure (stderr must not be swallowed)', () => {
+        it('surfaces the missing-file diagnostic alongside the file that was read', async () => {
+            // Regression: `cat good missing` prints the existing file (stdout)
+            // AND errors on the missing one (stderr, exit 1). Previously stdout
+            // won unconditionally and the diagnostic was dropped, so the agent
+            // saw a partial result as if it were complete. Both must surface.
+            const out = await run('cat dbt_project.yml nope.sql');
+            expect(out).toContain('name: jaffle');
+            expect(out).toContain('nope.sql');
+            expect(out).toContain('No such file');
+        });
+
+        it('does not throw — the partial output is still returned to the agent', async () => {
+            await expect(
+                run('cat dbt_project.yml nope.sql'),
+            ).resolves.toContain('name: jaffle');
+        });
+    });
 });
