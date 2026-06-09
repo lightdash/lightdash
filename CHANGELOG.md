@@ -1,3 +1,10 @@
+# [0.3114.0](https://github.com/lightdash/lightdash/compare/0.3113.1...0.3114.0) (2026-06-09)
+
+
+### Features
+
+* **ai-agents:** add auto route from home search ([#24018](https://github.com/lightdash/lightdash/issues/24018)) ([a0f3e41](https://github.com/lightdash/lightdash/commit/a0f3e414b32ee793a833fa64e52ace3136c1d5da))
+
 ## [0.3113.1](https://github.com/lightdash/lightdash/compare/0.3113.0...0.3113.1) (2026-06-09)
 
 
