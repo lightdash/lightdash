@@ -15,6 +15,17 @@ import {
     mcpToolListExploresArgsSchema,
 } from './mcpToolListExploresArgs';
 import {
+    TOOL_LIST_SKILLS_DESCRIPTION,
+    TOOL_LOAD_SKILL_DESCRIPTION_MCP,
+    TOOL_LOAD_SKILL_RESOURCE_DESCRIPTION,
+    toolListSkillsArgsSchema,
+    toolListSkillsOutputSchema,
+    toolLoadSkillMcpArgsSchema,
+    toolLoadSkillOutputSchemaMcp,
+    toolLoadSkillResourceArgsSchema,
+    toolLoadSkillResourceOutputSchema,
+} from './toolBuiltInSkillArgs';
+import {
     TOOL_CREATE_CONTENT_DESCRIPTION,
     toolCreateContentArgsSchema,
     toolCreateContentOutputSchema,
@@ -667,6 +678,42 @@ export const listExploresToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
+export const listSkillsToolDefinition = defineTool({
+    name: 'listSkills',
+    title: 'List Skills',
+    description: TOOL_LIST_SKILLS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolListSkillsArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolListSkillsOutputSchema,
+    },
+});
+
+export const readSkillToolDefinition = defineTool({
+    name: 'readSkill',
+    title: 'Read Skill',
+    description: TOOL_LOAD_SKILL_DESCRIPTION_MCP,
+    availability: ['mcp'],
+    inputSchema: toolLoadSkillMcpArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolLoadSkillOutputSchemaMcp,
+    },
+});
+
+export const readSkillResourceToolDefinition = defineTool({
+    name: 'readSkillResource',
+    title: 'Read Skill Resource',
+    description: TOOL_LOAD_SKILL_RESOURCE_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolLoadSkillResourceArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolLoadSkillResourceOutputSchema,
+    },
+});
+
 export const mcpListProjectsToolDefinition = defineTool({
     name: 'listProjects',
     title: 'List projects',
@@ -886,6 +933,9 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateTimeSeriesVizConfigToolDefinition,
     getLightdashVersionToolDefinition,
     listExploresToolDefinition,
+    listSkillsToolDefinition,
+    readSkillToolDefinition,
+    readSkillResourceToolDefinition,
     listProjectsToolDefinition,
     mcpListProjectsToolDefinition,
     getProjectInfoToolDefinition,

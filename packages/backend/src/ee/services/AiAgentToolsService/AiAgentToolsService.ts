@@ -54,6 +54,7 @@ import {
 import { wrapSentryTransaction } from '../../../utils';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
+import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
     CreateContentFn,
     DescribeWarehouseTableFn,
@@ -70,6 +71,7 @@ import {
     ListKnowledgeDocumentsFn,
     ListProjectsFn,
     ListWarehouseTablesFn,
+    LoadAgentSkillFn,
     ReadContentFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
@@ -134,9 +136,22 @@ export type AiAgentToolsRuntime = {
     setupPreviewDeploy: SetupPreviewDeployFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
+    loadSkill: LoadAgentSkillFn;
 };
 
+type BuiltInSkillsClient = Pick<
+    typeof BuiltInSkills,
+    | 'getAiAgentSkills'
+    | 'getAiAgentSkill'
+    | 'listSkillToolReferences'
+    | 'readSkillTool'
+    | 'readSkillToolResource'
+    | 'listMcpResources'
+    | 'getMcpResourceBody'
+>;
+
 type AiAgentToolsServiceDependencies = {
+    builtInSkills: BuiltInSkillsClient;
     projectModel: ProjectModel;
     projectService: ProjectService;
     userAttributesModel: UserAttributesModel;
@@ -203,7 +218,41 @@ export class AiAgentToolsService extends BaseService {
 
     private readonly lightdashConfig: AiAgentToolsServiceDependencies['lightdashConfig'];
 
+    private readonly builtInSkills: BuiltInSkillsClient;
+
+    listAgentSkills() {
+        return this.builtInSkills.getAiAgentSkills();
+    }
+
+    loadAgentSkill(name: string) {
+        return this.builtInSkills.getAiAgentSkill(name);
+    }
+
+    listMcpSkills() {
+        return this.builtInSkills.listSkillToolReferences();
+    }
+
+    loadMcpSkill(name: string) {
+        return this.builtInSkills.readSkillTool(name);
+    }
+
+    loadMcpSkillResource(args: { name: string; path: string }) {
+        return this.builtInSkills.readSkillToolResource({
+            name: args.name,
+            resourcePath: args.path,
+        });
+    }
+
+    listMcpSkillResources() {
+        return this.builtInSkills.listMcpResources();
+    }
+
+    getMcpSkillResourceBody(uri: string) {
+        return this.builtInSkills.getMcpResourceBody(uri);
+    }
+
     constructor({
+        builtInSkills,
         projectModel,
         projectService,
         userAttributesModel,
@@ -225,6 +274,7 @@ export class AiAgentToolsService extends BaseService {
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
+        this.builtInSkills = builtInSkills;
         this.projectModel = projectModel;
         this.projectService = projectService;
         this.userAttributesModel = userAttributesModel;
@@ -376,6 +426,7 @@ export class AiAgentToolsService extends BaseService {
             setupPreviewDeploy: () => this.setupPreviewDeploy(context),
             listProjects: () => this.listProjects(context),
             getProjectInfo: () => this.getProjectInfo(context),
+            loadSkill: (name) => this.loadAgentSkill(name),
         };
     }
 

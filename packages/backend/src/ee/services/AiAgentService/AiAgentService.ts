@@ -210,7 +210,6 @@ import { matchesPreset } from '../ai/models/presets';
 import { runRepoShellCommand } from '../ai/repoFs/bashShell';
 import { createGithubRepoSource } from '../ai/repoFs/githubRepoSource';
 import { RepoFs } from '../ai/repoFs/RepoFs';
-import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
@@ -5102,6 +5101,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             repoShell,
             listProjects: toolsRuntime.listProjects,
             getProjectInfo: toolsRuntime.getProjectInfo,
+            loadSkill: toolsRuntime.loadSkill,
         };
     }
 
@@ -5418,7 +5418,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }),
             );
         const availableSkills = canUseContentTools
-            ? await BuiltInSkills.getAiAgentSkills()
+            ? await this.aiAgentToolsService.listAgentSkills()
             : [];
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: prompt.modelConfig?.reasoning,
@@ -5571,7 +5571,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     decision,
                     decidedByUserUuid,
                 ),
-            loadSkill: async (name) => BuiltInSkills.getAiAgentSkill(name),
+            loadSkill: async (name) =>
+                this.aiAgentToolsService.loadAgentSkill(name),
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {

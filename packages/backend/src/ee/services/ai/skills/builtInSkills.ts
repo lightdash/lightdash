@@ -457,7 +457,7 @@ export class BuiltInSkills {
         resourcePath: string;
     }): Promise<
         | {
-              skillName: string;
+              skill: BuiltInSkillToolReference;
               resource: BuiltInSkillToolResource;
               body: string;
           }
@@ -480,6 +480,6 @@ export class BuiltInSkills {
         if (body === undefined) {
             return undefined;
         }
-        return { skillName: skill.name, resource, body };
+        return { skill, resource, body };
     }
 }
