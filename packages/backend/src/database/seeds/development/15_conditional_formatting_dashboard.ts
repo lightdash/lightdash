@@ -25,6 +25,12 @@ type SeedChartSpec = Omit<CreateSavedChart, 'spaceUuid' | 'dashboardUuid'> & {
     key: string;
 };
 
+type SeedModels = {
+    dashboardModel: DashboardModel;
+    savedChartModel: SavedChartModel;
+    spaceModel: SpaceModel;
+};
+
 type RangeValue = number | 'auto';
 
 const DASHBOARD_NAME = 'Conditional Formatting Coverage';
@@ -187,11 +193,10 @@ const createSavedChartTile = ({
     },
 });
 
-const getOrCreateTargetSpaceUuid = async (knex: Knex): Promise<string> => {
-    const spaceModel = new SpaceModel({
-        database: knex,
-    });
-
+const getOrCreateTargetSpaceUuid = async (
+    knex: Knex,
+    spaceModel: SpaceModel,
+): Promise<string> => {
     const existingSpace = await knex('spaces')
         .join('projects', 'spaces.project_id', 'projects.project_id')
         .where('spaces.name', TARGET_SPACE_NAME)
@@ -227,6 +232,19 @@ const getOrCreateTargetSpaceUuid = async (knex: Knex): Promise<string> => {
 
     return space.uuid;
 };
+
+const createSeedModels = (knex: Knex): SeedModels => ({
+    dashboardModel: new DashboardModel({
+        database: knex,
+    }),
+    savedChartModel: new SavedChartModel({
+        database: knex,
+        lightdashConfig,
+    }),
+    spaceModel: new SpaceModel({
+        database: knex,
+    }),
+});
 
 const chartSpecs: SeedChartSpec[] = [
     {
@@ -1011,13 +1029,10 @@ const chartSpecs: SeedChartSpec[] = [
     },
 ];
 
-async function createCharts(knex: Knex): Promise<ChartUuids> {
-    const savedChartModel = new SavedChartModel({
-        database: knex,
-        lightdashConfig,
-    });
-
-    const spaceUuid = await getOrCreateTargetSpaceUuid(knex);
+async function createCharts(
+    savedChartModel: SavedChartModel,
+    spaceUuid: string,
+): Promise<ChartUuids> {
     const createdCharts = await Promise.all(
         chartSpecs.map(async (chart) => {
             const { key, ...chartData } = chart;
@@ -1052,14 +1067,10 @@ async function cleanupExistingSeedContent(knex: Knex): Promise<void> {
 
 async function createDashboard(
     knex: Knex,
+    dashboardModel: DashboardModel,
     chartUuids: ChartUuids,
+    spaceUuid: string,
 ): Promise<void> {
-    const dashboardModel = new DashboardModel({
-        database: knex,
-    });
-
-    const spaceUuid = await getOrCreateTargetSpaceUuid(knex);
-
     const tiles: CreateDashboardChartTile[] = [
         createSavedChartTile({
             savedChartUuid: chartUuids.tableStackedCellAndText,
@@ -1182,7 +1193,11 @@ async function createDashboard(
 }
 
 export async function seed(knex: Knex): Promise<void> {
+    const { dashboardModel, savedChartModel, spaceModel } =
+        createSeedModels(knex);
+    const spaceUuid = await getOrCreateTargetSpaceUuid(knex, spaceModel);
+
     await cleanupExistingSeedContent(knex);
-    const chartUuids = await createCharts(knex);
-    await createDashboard(knex, chartUuids);
+    const chartUuids = await createCharts(savedChartModel, spaceUuid);
+    await createDashboard(knex, dashboardModel, chartUuids, spaceUuid);
 }
