@@ -2935,7 +2935,7 @@ export default class SchedulerTask {
         let account: AccountType | undefined;
         let scheduler: SchedulerAndTargets | undefined;
 
-        let deliveryUrl = this.lightdashConfig.siteUrl;
+        let deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${notification.projectUuid}/scheduledDeliveries?tab=scheduled-deliveries&schedulerUuid=${schedulerUuid}`;
         try {
             if (!this.googleDriveClient.isEnabled) {
                 throw new MissingConfigError(
