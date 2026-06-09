@@ -55,7 +55,6 @@ const ORDERS_FIELDS = {
 const TABLE_CALCULATIONS = {
     avgOrderValuePerOrder: 'avg_order_value_per_order',
     completionGap: 'completion_gap',
-    completionRate: 'completion_rate',
 } as const;
 
 const ORDERS_SQL_FIELDS = {
@@ -412,14 +411,14 @@ const chartSpecs: SeedChartSpec[] = [
                 targetFieldId: ORDERS_FIELDS.uniqueOrderCount,
                 color: '#fbbf24',
                 applyTo: ConditionalFormattingColorApplyTo.CELL,
-                rules: [createValueRule(FilterOperator.IN_BETWEEN, [50, 400])],
+                rules: [createValueRule(FilterOperator.IN_BETWEEN, [10, 34])],
             }),
             createSingleColorConfig({
                 targetFieldId: ORDERS_FIELDS.uniqueOrderCount,
                 color: '#92400e',
                 applyTo: ConditionalFormattingColorApplyTo.TEXT,
                 rules: [
-                    createValueRule(FilterOperator.NOT_IN_BETWEEN, [50, 400]),
+                    createValueRule(FilterOperator.NOT_IN_BETWEEN, [10, 34]),
                 ],
             }),
             createSingleColorConfig({
@@ -427,10 +426,7 @@ const chartSpecs: SeedChartSpec[] = [
                 color: '#14b8a6',
                 applyTo: ConditionalFormattingColorApplyTo.CELL,
                 rules: [
-                    createValueRule(
-                        FilterOperator.GREATER_THAN_OR_EQUAL,
-                        [100],
-                    ),
+                    createValueRule(FilterOperator.GREATER_THAN_OR_EQUAL, [30]),
                 ],
             }),
         ]),
@@ -1029,7 +1025,7 @@ const chartSpecs: SeedChartSpec[] = [
             limit: 500,
             tableCalculations: [
                 {
-                    name: TABLE_CALCULATIONS.completionRate,
+                    name: TABLE_CALCULATIONS.avgOrderValuePerOrder,
                     displayName: 'Average order value',
                     sql: `\${${ORDERS_SQL_FIELDS.totalOrderAmount}} / NULLIF(\${${ORDERS_SQL_FIELDS.uniqueOrderCount}}, 0)`,
                 },
@@ -1039,10 +1035,10 @@ const chartSpecs: SeedChartSpec[] = [
             type: ChartType.BIG_NUMBER,
             config: {
                 label: 'Average order value',
-                selectedField: TABLE_CALCULATIONS.completionRate,
+                selectedField: TABLE_CALCULATIONS.avgOrderValuePerOrder,
                 conditionalFormattings: [
                     createSingleColorConfig({
-                        targetFieldId: TABLE_CALCULATIONS.completionRate,
+                        targetFieldId: TABLE_CALCULATIONS.avgOrderValuePerOrder,
                         color: '#16a34a',
                         darkColor: '#86efac',
                         rules: [
@@ -1053,7 +1049,7 @@ const chartSpecs: SeedChartSpec[] = [
                         ],
                     }),
                     createSingleColorConfig({
-                        targetFieldId: TABLE_CALCULATIONS.completionRate,
+                        targetFieldId: TABLE_CALCULATIONS.avgOrderValuePerOrder,
                         color: '#b91c1c',
                         darkColor: '#fca5a5',
                         rules: [
@@ -1070,7 +1066,7 @@ const chartSpecs: SeedChartSpec[] = [
             columnOrder: [
                 ORDERS_FIELDS.totalOrderAmount,
                 ORDERS_FIELDS.uniqueOrderCount,
-                TABLE_CALCULATIONS.completionRate,
+                TABLE_CALCULATIONS.avgOrderValuePerOrder,
             ],
         },
         pivotConfig: undefined,
