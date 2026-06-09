@@ -88,13 +88,25 @@ describe('buildClaudeCodeEnv', () => {
         expect(env).toEqual({ ANTHROPIC_API_KEY: 'anthropic-key' });
     });
 
-    test('uses the Anthropic key when defaultProvider is bedrock but no Bedrock creds are configured', () => {
-        const env = buildClaudeCodeEnv(
-            { defaultProvider: 'bedrock', providers: {} },
-            () => 'anthropic-key',
-        );
+    test('throws when defaultProvider is bedrock but no Bedrock creds are configured', () => {
+        expect(() =>
+            buildClaudeCodeEnv(
+                { defaultProvider: 'bedrock', providers: {} },
+                () => 'anthropic-key',
+            ),
+        ).toThrow('BEDROCK_API_KEY');
+    });
 
-        expect(env).toEqual({ ANTHROPIC_API_KEY: 'anthropic-key' });
+    test('throws when defaultProvider is bedrock but the region is missing', () => {
+        expect(() =>
+            buildClaudeCodeEnv(
+                {
+                    defaultProvider: 'bedrock',
+                    providers: { bedrock: { apiKey: 'k', region: '' } },
+                },
+                () => 'anthropic-key',
+            ),
+        ).toThrow('BEDROCK_REGION');
     });
 });
 
@@ -167,12 +179,12 @@ describe('claudeCodeAllowedHosts', () => {
         ]);
     });
 
-    test('falls back to api.anthropic.com when Bedrock is selected but unconfigured', () => {
-        expect(
+    test('throws when Bedrock is selected but unconfigured', () => {
+        expect(() =>
             claudeCodeAllowedHosts({
                 defaultProvider: 'bedrock',
                 providers: {},
             }),
-        ).toEqual(['api.anthropic.com']);
+        ).toThrow('BEDROCK_API_KEY');
     });
 });

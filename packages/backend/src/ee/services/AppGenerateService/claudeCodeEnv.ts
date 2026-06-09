@@ -1,3 +1,5 @@
+import { MissingConfigError } from '@lightdash/common';
+
 /**
  * The subset of the Bedrock provider config the `claude` CLI needs: a region
  * plus either a bearer token (API key) or static IAM credentials. This is
@@ -25,6 +27,35 @@ export type ClaudeCodeProviderConfig = {
 };
 
 /**
+ * Resolves the Bedrock config the data-apps pipeline should use:
+ * - not on Bedrock (`AI_DEFAULT_PROVIDER` ≠ bedrock) → null (use the Anthropic API)
+ * - on Bedrock with credentials + region → the config
+ * - on Bedrock but missing credentials or region → throws, rather than silently
+ *   falling back to Anthropic or injecting an undefined region (which fails
+ *   opaquely at runtime). The AI config schema is parsed leniently
+ *   (safeParse → Sentry), so these checks can't be relied on at startup.
+ */
+const resolveBedrockConfig = (
+    copilot: ClaudeCodeProviderConfig,
+): ClaudeCodeBedrockConfig | null => {
+    if (copilot.defaultProvider !== 'bedrock') {
+        return null;
+    }
+    const { bedrock } = copilot.providers;
+    if (!bedrock) {
+        throw new MissingConfigError(
+            'AI_DEFAULT_PROVIDER is set to "bedrock" but no Bedrock credentials are configured. Set BEDROCK_API_KEY, or BEDROCK_ACCESS_KEY_ID and BEDROCK_SECRET_ACCESS_KEY (with BEDROCK_REGION).',
+        );
+    }
+    if (!bedrock.region) {
+        throw new MissingConfigError(
+            'AI_DEFAULT_PROVIDER is set to "bedrock" but BEDROCK_REGION is not set.',
+        );
+    }
+    return bedrock;
+};
+
+/**
  * Builds the environment variables passed to the `claude` CLI inside the E2B
  * sandbox. Data apps follow the same provider switch as the AI copilot: when
  * `AI_DEFAULT_PROVIDER` is `bedrock` they route through Bedrock (bearer token or
@@ -38,10 +69,7 @@ export const buildClaudeCodeEnv = (
     copilot: ClaudeCodeProviderConfig,
     resolveAnthropicApiKey: () => string,
 ): Record<string, string> => {
-    const bedrock =
-        copilot.defaultProvider === 'bedrock'
-            ? copilot.providers.bedrock
-            : undefined;
+    const bedrock = resolveBedrockConfig(copilot);
 
     if (!bedrock) {
         return { ANTHROPIC_API_KEY: resolveAnthropicApiKey() };
@@ -88,10 +116,7 @@ export const describeClaudeCodeEnv = (env: Record<string, string>): string => {
 export const claudeCodeAllowedHosts = (
     copilot: ClaudeCodeProviderConfig,
 ): string[] => {
-    const bedrock =
-        copilot.defaultProvider === 'bedrock'
-            ? copilot.providers.bedrock
-            : undefined;
+    const bedrock = resolveBedrockConfig(copilot);
     if (!bedrock) {
         return ['api.anthropic.com'];
     }
