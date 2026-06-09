@@ -1,3 +1,17 @@
+# [0.3122.0](https://github.com/lightdash/lightdash/compare/0.3121.1...0.3122.0) (2026-06-09)
+
+
+### Bug Fixes
+
+* **data-apps:** surface claude CLI errors and restore generation retry ([#24087](https://github.com/lightdash/lightdash/issues/24087)) ([ceb3f80](https://github.com/lightdash/lightdash/commit/ceb3f80801ebb1dbda685d5adef072001af2d285))
+
+
+### Features
+
+* **common:** consolidate the calendar-value predicate (GLITCH-450) ([#24086](https://github.com/lightdash/lightdash/issues/24086)) ([2eaa14c](https://github.com/lightdash/lightdash/commit/2eaa14c8d609aad7ab9b965c6a01127afddc2a55))
+* **mcp:** expose built-in skills as resources ([#24007](https://github.com/lightdash/lightdash/issues/24007)) ([5c1ee27](https://github.com/lightdash/lightdash/commit/5c1ee270e561cd474c121d873d2b16a53566ab2c))
+* **mcp:** skill fallback tools ([#24008](https://github.com/lightdash/lightdash/issues/24008)) ([b298b95](https://github.com/lightdash/lightdash/commit/b298b958c0726d13cdf6813800fa3fa7bc492376))
+
 ## [0.3121.1](https://github.com/lightdash/lightdash/compare/0.3121.0...0.3121.1) (2026-06-09)
 
 
