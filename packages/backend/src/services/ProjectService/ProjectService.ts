@@ -3732,10 +3732,14 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         const timezone = resolveQueryTimezone(
             metricQuery,
             projectTimezone,
-            getAccountUserTimezone(account),
+            getAccountUserTimezone(account, isUserTimezoneEnabled),
         );
         const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
             userUuid: account.user.id,
@@ -4416,10 +4420,14 @@ export class ProjectService extends BaseService {
 
                 const projectTimezone =
                     await this.getQueryTimezoneForProject(projectUuid);
+                const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                });
                 const resolvedTimezone = resolveQueryTimezone(
                     metricQuery,
                     projectTimezone,
-                    getAccountUserTimezone(account),
+                    getAccountUserTimezone(account, isUserTimezoneEnabled),
                 );
                 const isTimezoneEnabled = await this.isTimezoneSupportEnabled({
                     userUuid: account.user.id,
@@ -4757,10 +4765,16 @@ export class ProjectService extends BaseService {
 
                     const projectTimezone =
                         await this.getQueryTimezoneForProject(projectUuid);
+                    const isUserTimezoneEnabled =
+                        await this.isUserTimezoneEnabled({
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                        });
                     const timezone = resolveQueryTimezone(
                         metricQueryWithLimit,
                         projectTimezone,
-                        getAccountUserTimezone(account),
+                        getAccountUserTimezone(account, isUserTimezoneEnabled),
                     );
                     const useTimezoneAwareDateTrunc =
                         await this.isTimezoneSupportEnabled({
@@ -5362,10 +5376,11 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled(user);
         const timezone = resolveQueryTimezone(
             metricQuery,
             projectTimezone,
-            user.timezone,
+            isUserTimezoneEnabled ? user.timezone : null,
         );
         const useTimezoneAwareDateTrunc =
             await this.isTimezoneSupportEnabled(user);
@@ -8321,6 +8336,18 @@ export class ProjectService extends BaseService {
     }): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            user,
+        });
+
+        return enabled;
+    }
+
+    async isUserTimezoneEnabled(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.EnableUserTimezones,
             user,
         });
 

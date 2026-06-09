@@ -4,11 +4,17 @@ import { type MetricQuery } from '../types/metricQuery';
 import { isValidTimezone } from './scheduler';
 
 /**
- * Returns the account's user-level timezone preference, or null if the
- * account belongs to an anonymous viewer (embeds / JWT) where no profile
- * preference exists.
+ * Returns the account's user-level timezone preference, or null for anonymous
+ * viewers (embeds / JWT) and when EnableUserTimezones is off — disabling the
+ * flag rolls every user back to the project timezone. Callers resolve the flag.
  */
-export function getAccountUserTimezone(account: Account): string | null {
+export function getAccountUserTimezone(
+    account: Account,
+    isUserTimezoneEnabled: boolean,
+): string | null {
+    if (!isUserTimezoneEnabled) {
+        return null;
+    }
     if (account.user.type !== 'registered') {
         return null;
     }

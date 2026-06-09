@@ -3116,6 +3116,10 @@ export class AsyncQueryService extends ProjectService {
             explore,
         );
 
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
         const {
             resolvedTimezone,
             displayTimezone,
@@ -3130,7 +3134,7 @@ export class AsyncQueryService extends ProjectService {
             userTimezone:
                 materializationRole !== undefined
                     ? null
-                    : getAccountUserTimezone(account),
+                    : getAccountUserTimezone(account, isUserTimezoneEnabled),
             metricQuery,
         });
 
