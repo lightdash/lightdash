@@ -1266,6 +1266,23 @@ describe('codegen', () => {
             );
         });
 
+        it('escapes BigQuery backslashes before backticks in default sort columns', () => {
+            expect(
+                compile('=LAG(revenue)', {
+                    dialect: 'bigquery',
+                    columns,
+                    defaultOrderBy: [
+                        {
+                            column: 'custom\\` DESC, (SELECT 1) --_order',
+                            direction: 'DESC',
+                        },
+                    ],
+                }),
+            ).toBe(
+                'LAG(`revenue`) OVER (ORDER BY `custom\\\\\\` DESC, (SELECT 1) --_order` DESC)',
+            );
+        });
+
         it('flows through dialect LAG hooks — Redshift 3-arg COALESCE wrapper still gets the default order', () => {
             // Redshift's generateLagLead rewrites to COALESCE(LAG(a, b), default);
             // the inner LAG should still pick up the default ORDER BY.

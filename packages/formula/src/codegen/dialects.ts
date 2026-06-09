@@ -351,8 +351,10 @@ const BIGQUERY_WEEK_DAY_NAMES: Record<WeekDay, string> = {
 
 const BIGQUERY_CONFIG: DialectConfig = {
     // BigQuery identifiers escape inner backticks with a leading backslash
-    // rather than Spark's doubled-backtick convention.
-    quoteIdentifier: (name) => `\`${name.replace(/`/g, '\\`')}\``,
+    // rather than Spark's doubled-backtick convention. Escape backslashes
+    // first so they cannot consume the escape added before a backtick.
+    quoteIdentifier: (name) =>
+        `\`${name.replace(/\\/g, '\\\\').replace(/`/g, '\\`')}\``,
     generateStringLiteral: backslashEscapedStringLiteral,
     // BigQuery's MOD() requires matching numeric types, so both operands are
     // explicitly cast to NUMERIC.
