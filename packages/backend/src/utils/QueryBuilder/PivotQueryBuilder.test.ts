@@ -1379,6 +1379,41 @@ describe('PivotQueryBuilder', () => {
             expect(result).not.toContain('events;');
         });
 
+        test('Should escape quote characters in pivot references', () => {
+            const pivotConfiguration = {
+                indexColumn: [
+                    {
+                        reference: 'category" DESC --',
+                        type: VizIndexType.CATEGORY,
+                    },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'amount',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: undefined,
+                sortBy: [
+                    {
+                        reference: 'category" DESC --',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                'SELECT * FROM events',
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+
+            const result = builder.toSql();
+
+            expect(result).toContain('"category"" DESC --" ASC');
+            expect(result).not.toContain('"category" DESC --" ASC');
+        });
+
         test('Should handle SQL with multiple trailing semicolons and whitespace', () => {
             const pivotConfiguration = {
                 indexColumn: [{ reference: 'date', type: VizIndexType.TIME }],
