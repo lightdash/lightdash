@@ -1,3 +1,10 @@
+## [0.3122.1](https://github.com/lightdash/lightdash/compare/0.3122.0...0.3122.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **mcp:** isolate built-in skill loading failures ([#24090](https://github.com/lightdash/lightdash/issues/24090)) ([a0995d0](https://github.com/lightdash/lightdash/commit/a0995d03edba5830754c62c86f46e1c690bfad66))
+
 # [0.3122.0](https://github.com/lightdash/lightdash/compare/0.3121.1...0.3122.0) (2026-06-09)
 
 
