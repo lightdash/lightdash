@@ -91,7 +91,7 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
     const [debouncedSearchValue] = useDebouncedValue(debouncedSearch, 300);
 
     // Use infinite query for pagination
-    const { data, fetchNextPage, isError, isFetching, isLoading } =
+    const { data, fetchNextPage, hasNextPage, isError, isFetching, isLoading } =
         useInfiniteOrganizationUsers({
             searchInput: debouncedSearchValue.search,
             includeGroups: isGroupManagementEnabled ? 10000 : undefined,
@@ -369,7 +369,6 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
         enableSorting: false,
         enableRowVirtualization: true,
         enableTopToolbar: true,
-        enableBottomToolbar: false,
         mantinePaperProps: {
             shadow: undefined,
             style: {
@@ -440,6 +439,36 @@ const UsersTable: FC<UsersTableProps> = ({ onInviteClick }) => {
                 canInvite={canInvite}
                 onInviteClick={onInviteClick}
             />
+        ),
+        renderBottomToolbar: () => (
+            <Box
+                p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
+                fz="xs"
+                fw={500}
+                c="ldGray.8"
+                style={{
+                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
+                }}
+            >
+                {isFetching ? (
+                    <Text c="ldGray.8" fz="xs">
+                        Loading more...
+                    </Text>
+                ) : (
+                    <Group gap="two">
+                        <Text fz="xs" c="ldGray.8">
+                            {hasNextPage
+                                ? 'Scroll for more users'
+                                : 'All users loaded'}
+                        </Text>
+                        <Text fz="xs" fw={400} c="ldGray.6">
+                            {hasNextPage
+                                ? `(${totalFetched} of ${totalDBRowCount} loaded)`
+                                : `(${totalFetched})`}
+                        </Text>
+                    </Group>
+                )}
+            </Box>
         ),
         icons: {
             IconArrowsSort: () => (
