@@ -19,6 +19,10 @@ import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
 import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { SchedulerClient } from './SchedulerClient';
+import {
+    resolveSchedulerDeliveryFailureAction,
+    SchedulerDeliveryError,
+} from './SchedulerDeliveryError';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
@@ -338,6 +342,8 @@ export class SchedulerWorker extends SchedulerTask {
                 payload,
                 helpers,
             ) => {
+                const isFinalAttempt =
+                    helpers.job.attempts >= helpers.job.max_attempts;
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
@@ -349,6 +355,7 @@ export class SchedulerWorker extends SchedulerTask {
                                 helpers.job.id,
                                 helpers.job.run_at,
                                 payload,
+                                isFinalAttempt,
                             );
                         },
                     ),
@@ -677,36 +684,69 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [SCHEDULER_TASKS.UPLOAD_GSHEETS]: async (payload, helpers) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        SCHEDULER_TASKS.UPLOAD_GSHEETS,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.uploadGsheets(helpers.job.id, payload);
-                        },
-                    ),
-                    helpers.job,
-                    this.lightdashConfig.scheduler.jobTimeout,
-                    async (job, e) => {
-                        await this.schedulerService.logSchedulerJob({
-                            task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
-                            schedulerUuid: payload.schedulerUuid,
-                            jobId: job.id,
-                            scheduledTime: job.run_at,
-                            jobGroup: payload.jobGroup,
-                            targetType: 'gsheets',
-                            status: SchedulerJobStatus.ERROR,
-                            details: {
-                                error: getErrorMessage(e),
-                                projectUuid: payload.projectUuid,
-                                organizationUuid: payload.organizationUuid,
-                                createdByUserUuid: payload.userUuid,
+                const isFinalAttempt =
+                    helpers.job.attempts >= helpers.job.max_attempts;
+                try {
+                    await tryJobOrTimeout(
+                        SchedulerClient.processJob(
+                            SCHEDULER_TASKS.UPLOAD_GSHEETS,
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                            async () => {
+                                await this.uploadGsheets(
+                                    helpers.job.id,
+                                    payload,
+                                );
                             },
-                        });
-                    },
-                );
+                        ),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await this.schedulerService.logSchedulerJob({
+                                task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
+                                schedulerUuid: payload.schedulerUuid,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                jobGroup: payload.jobGroup,
+                                targetType: 'gsheets',
+                                status: SchedulerJobStatus.ERROR,
+                                details: {
+                                    error: getErrorMessage(e),
+                                    projectUuid: payload.projectUuid,
+                                    organizationUuid: payload.organizationUuid,
+                                    createdByUserUuid: payload.userUuid,
+                                },
+                            });
+                        },
+                    );
+                } catch (e) {
+                    const deliveryError =
+                        e instanceof SchedulerDeliveryError ? e : undefined;
+                    const action = resolveSchedulerDeliveryFailureAction(
+                        deliveryError,
+                        isFinalAttempt,
+                    );
+
+                    if (action.notify && deliveryError) {
+                        await this.notifyGsheetsDeliveryFailure(
+                            deliveryError,
+                            helpers.job.id,
+                        );
+                    }
+
+                    if (action.disable && deliveryError) {
+                        await this.disableGsheetsScheduler(
+                            payload.schedulerUuid,
+                            deliveryError.createdByUserUuid,
+                        );
+                        return; // Swallow so graphile does not retry
+                    }
+
+                    // Re-throw the original error (not the envelope) so graphile
+                    // and Sentry see the real type.
+                    throw deliveryError ? deliveryError.cause : e;
+                }
             },
             [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: async (
                 payload,
