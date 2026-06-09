@@ -1,7 +1,17 @@
 import { type Comment } from '@lightdash/common';
-import { Box, Button, Collapse, Divider, Stack } from '@mantine-8/core';
+import {
+    Badge,
+    Box,
+    Button,
+    Collapse,
+    Divider,
+    Group,
+    Stack,
+} from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
+import { IconCircleCheck } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
+import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
@@ -90,62 +100,79 @@ export const DashboardCommentAndReplies: FC<Props> = ({
 
     return (
         <Stack gap="two" ref={targetRef}>
-            <CommentDetail
-                comment={comment}
-                canReply={!isResolved && canCreateDashboardComments}
-                onReply={() => handleReply()}
-                // can remove any comment or the comment is created by the current user
-                canRemove={comment.canRemove}
-                onRemove={() => handleRemove(comment.commentId)}
-                // resolving/unresolving the parent applies to the whole thread
-                canResolve={!isResolved && canManageDashboardComments}
-                onResolve={() => handleResolve(comment.commentId)}
-                canUnresolve={isResolved && canManageDashboardComments}
-                onUnresolve={() => handleUnresolve(comment.commentId)}
-            />
-
-            {comment.replies && comment.replies.length > 0 && (
-                <Box ml="xl">
-                    <Divider
+            {isResolved && (
+                <Group gap="xs">
+                    <Badge
                         size="xs"
-                        labelPosition="right"
-                        label={
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                fz="xs"
-                                onClick={toggleReplies}
-                            >
-                                {comment.replies.length}{' '}
-                                {comment.replies.length === 1
-                                    ? 'reply'
-                                    : 'replies'}
-                            </Button>
+                        variant="light"
+                        color="gray"
+                        leftSection={
+                            <MantineIcon icon={IconCircleCheck} size={12} />
                         }
-                    />
-
-                    <Collapse in={isRepliesOpen}>
-                        <Stack gap="xs">
-                            {comment.replies.map((reply) => (
-                                <CommentDetail
-                                    key={reply.commentId}
-                                    comment={reply}
-                                    // Can't reply to a reply
-                                    canReply={false}
-                                    // can remove any comment or the comment is created by the current user
-                                    canRemove={reply.canRemove}
-                                    onRemove={() =>
-                                        handleRemove(reply.commentId)
-                                    }
-                                    // replies are resolved/unresolved together with the parent
-                                    canResolve={false}
-                                    canUnresolve={false}
-                                />
-                            ))}
-                        </Stack>
-                    </Collapse>
-                </Box>
+                    >
+                        Resolved
+                    </Badge>
+                </Group>
             )}
+
+            <Stack gap="two" opacity={isResolved ? 0.7 : undefined}>
+                <CommentDetail
+                    comment={comment}
+                    canReply={!isResolved && canCreateDashboardComments}
+                    onReply={() => handleReply()}
+                    // can remove any comment or the comment is created by the current user
+                    canRemove={comment.canRemove}
+                    onRemove={() => handleRemove(comment.commentId)}
+                    // resolving/unresolving the parent applies to the whole thread
+                    canResolve={!isResolved && canManageDashboardComments}
+                    onResolve={() => handleResolve(comment.commentId)}
+                    canUnresolve={isResolved && canManageDashboardComments}
+                    onUnresolve={() => handleUnresolve(comment.commentId)}
+                />
+
+                {comment.replies && comment.replies.length > 0 && (
+                    <Box ml="xl">
+                        <Divider
+                            size="xs"
+                            labelPosition="right"
+                            label={
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    fz="xs"
+                                    onClick={toggleReplies}
+                                >
+                                    {comment.replies.length}{' '}
+                                    {comment.replies.length === 1
+                                        ? 'reply'
+                                        : 'replies'}
+                                </Button>
+                            }
+                        />
+
+                        <Collapse in={isRepliesOpen}>
+                            <Stack gap="xs">
+                                {comment.replies.map((reply) => (
+                                    <CommentDetail
+                                        key={reply.commentId}
+                                        comment={reply}
+                                        // Can't reply to a reply
+                                        canReply={false}
+                                        // can remove any comment or the comment is created by the current user
+                                        canRemove={reply.canRemove}
+                                        onRemove={() =>
+                                            handleRemove(reply.commentId)
+                                        }
+                                        // replies are resolved/unresolved together with the parent
+                                        canResolve={false}
+                                        canUnresolve={false}
+                                    />
+                                ))}
+                            </Stack>
+                        </Collapse>
+                    </Box>
+                )}
+            </Stack>
 
             <Collapse in={!isResolved && !!isReplyingTo} ml="lg">
                 <CommentForm

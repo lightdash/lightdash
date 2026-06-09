@@ -211,14 +211,15 @@ export const DashboardTileComments: FC<
                             }
                         />
                     ))}
-                    {!canCreateDashboardComments && !hasComments && (
-                        <Text fz="xs">No comments yet</Text>
+                    {!hasComments && (
+                        <Text fz="xs" c="dimmed">
+                            No open comments
+                        </Text>
                     )}
-                </Stack>
-                {resolvedComments.length > 0 && (
-                    <>
-                        <Divider />
-                        <Box p="sm" pt="xs">
+
+                    {resolvedComments.length > 0 && (
+                        <Box>
+                            {hasComments && <Divider mb="xs" />}
                             <Button
                                 size="compact-xs"
                                 variant="subtle"
@@ -256,8 +257,8 @@ export const DashboardTileComments: FC<
                                 </Stack>
                             </Collapse>
                         </Box>
-                    </>
-                )}
+                    )}
+                </Stack>
 
                 {(hasComments || resolvedComments.length > 0) && <Divider />}
                 <Box p="sm" pt="xs">
