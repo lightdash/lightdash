@@ -517,6 +517,10 @@ export class AiWritebackService extends BaseService {
                 nextStage: stage,
                 durationMs: now - stageStartedAt,
             });
+            this.prometheusMetrics?.observeAiWritebackStageDuration(
+                failureStage,
+                now - stageStartedAt,
+            );
             failureStage = stage;
             stageStartedAt = now;
             // Stages can opt out of progress reporting by returning null

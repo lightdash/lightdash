@@ -108,6 +108,9 @@ export default class PrometheusMetrics {
     public aiWritebackRunDurationHistogram: prometheus.Histogram<'status'> | null =
         null;
 
+    public aiWritebackStageDurationHistogram: prometheus.Histogram<'stage'> | null =
+        null;
+
     // Pre-aggregate metrics
     public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
 
@@ -448,6 +451,22 @@ export default class PrometheusMetrics {
                         ...rest,
                     },
                 );
+
+                // Per-stage latency budget for a writeback run. The 'agent'
+                // stage is the time the in-sandbox agent spends working on the
+                // problem; the others (install/sandbox/clone/commit/push/
+                // pull_request) account for the surrounding pipeline.
+                this.aiWritebackStageDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_writeback_stage_duration_ms',
+                        help: 'AI writeback per-stage duration in ms (install, sandbox, clone, agent, commit, push, pull_request)',
+                        labelNames: ['stage'],
+                        buckets: [
+                            100, 250, 500, 1000, 2500, 5000, 10000, 30000,
+                            60000, 120000, 240000, 480000, 900000,
+                        ],
+                        ...rest,
+                    });
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
@@ -1124,6 +1143,10 @@ export default class PrometheusMetrics {
         status: 'success' | 'error',
     ) {
         this.aiWritebackRunDurationHistogram?.observe({ status }, durationMs);
+    }
+
+    public observeAiWritebackStageDuration(stage: string, durationMs: number) {
+        this.aiWritebackStageDurationHistogram?.observe({ stage }, durationMs);
     }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {
