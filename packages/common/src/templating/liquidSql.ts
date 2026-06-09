@@ -26,6 +26,27 @@ const LIGHTDASH_LIQUID_PATTERN =
 
 type ParameterValue = string | number | string[] | number[];
 
+const escapeLiquidParameterValue = (
+    value: ParameterValue,
+    escapeString?: (value: string) => string,
+): ParameterValue => {
+    if (!escapeString) {
+        return value;
+    }
+
+    if (typeof value === 'string') {
+        return escapeString(value);
+    }
+
+    if (Array.isArray(value)) {
+        return value.every((item): item is string => typeof item === 'string')
+            ? value.map(escapeString)
+            : value;
+    }
+
+    return value;
+};
+
 /**
  * Query-time field introspection for a single field.
  * Used internally to derive the ld.query.fields/filters arrays.
@@ -53,6 +74,7 @@ export type FieldsContext = Record<string, Record<string, FieldIntrospection>>;
 export const buildLiquidContext = (
     parameterValuesMap: Record<string, ParameterValue>,
     fieldsContext?: FieldsContext,
+    escapeString?: (value: string) => string,
 ): {
     ld: {
         parameters: Record<
@@ -75,7 +97,9 @@ export const buildLiquidContext = (
     > = {};
 
     for (const [key, value] of Object.entries(parameterValuesMap)) {
-        parameters[key] = value;
+        const escapedValue = escapeLiquidParameterValue(value, escapeString);
+
+        parameters[key] = escapedValue;
 
         // For dotted names like "model.grain":
         // - expose as short name ("grain") for backwards compatibility
@@ -84,7 +108,7 @@ export const buildLiquidContext = (
         const parts = key.split('.');
         const shortName = parts[parts.length - 1];
         if (shortName !== key) {
-            parameters[shortName] = value;
+            parameters[shortName] = escapedValue;
 
             const [tableName, paramName] = parts;
             const existing = parameters[tableName];
@@ -93,9 +117,9 @@ export const buildLiquidContext = (
                 typeof existing === 'object' &&
                 !Array.isArray(existing)
             ) {
-                existing[paramName] = value;
+                existing[paramName] = escapedValue;
             } else {
-                parameters[tableName] = { [paramName]: value };
+                parameters[tableName] = { [paramName]: escapedValue };
             }
         }
     }
@@ -153,6 +177,7 @@ export const renderLiquidSql = (
     sql: string,
     parameterValuesMap: Record<string, ParameterValue>,
     fieldsContext?: FieldsContext,
+    escapeString?: (value: string) => string,
 ): string => {
     // Only process SQL that contains Lightdash parameter or field references in Liquid tags.
     // This avoids accidentally processing unrelated {% %} syntax.
@@ -161,7 +186,11 @@ export const renderLiquidSql = (
     }
 
     try {
-        const context = buildLiquidContext(parameterValuesMap, fieldsContext);
+        const context = buildLiquidContext(
+            parameterValuesMap,
+            fieldsContext,
+            escapeString,
+        );
         return liquidSqlEngine.parseAndRenderSync(sql, context);
     } catch {
         // If Liquid parsing fails (e.g., malformed syntax or unrelated {% in SQL),

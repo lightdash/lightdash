@@ -180,6 +180,7 @@ export const safeReplaceParametersWithTypes = ({
         sql,
         parameterValuesMap,
         fieldsContext,
+        sqlBuilder.escapeString.bind(sqlBuilder),
     );
 
     // First, get all parameter references from the original SQL using the standard function
