@@ -268,10 +268,10 @@ const cmdCat = async (
 ): Promise<string[]> => {
     if (positionals.length === 0)
         throw new ShellError('cat: missing file operand');
+    const contents = await repoFs.readFiles(positionals);
     const lines: string[] = [];
     for (const path of positionals) {
-        // eslint-disable-next-line no-await-in-loop
-        const content = await repoFs.readFile(path);
+        const content = contents.get(path) ?? null;
         if (content === null) {
             throw new ShellError(`cat: ${path}: No such file or directory`);
         }
@@ -384,11 +384,11 @@ const cmdGrep = async (
     }
 
     const files = [...fileSet].sort().slice(0, MAX_GREP_FILES);
+    const contents = await repoFs.readFiles(files);
     const output: string[] = [];
     const multiFile = files.length > 1;
     for (const file of files) {
-        // eslint-disable-next-line no-await-in-loop
-        const content = await repoFs.readFile(file);
+        const content = contents.get(file) ?? null;
         if (content !== null) {
             const lines = toLines(content);
             if (listFilesOnly) {
@@ -436,10 +436,10 @@ const cmdHead = async (
             'head: no input (pipe a command in, or pass a file path)',
         );
     }
+    const contents = await repoFs.readFiles(positionals);
     const out: string[] = [];
     for (const path of positionals) {
-        // eslint-disable-next-line no-await-in-loop
-        const content = await repoFs.readFile(path);
+        const content = contents.get(path) ?? null;
         if (content === null) {
             throw new ShellError(`head: ${path}: No such file or directory`);
         }
@@ -486,11 +486,11 @@ const cmdWc = async (
     // when there's more than one), matching real `wc`. This is what makes
     // `find … | xargs wc -l` report per-file sizes the agent can compare/sort,
     // instead of collapsing everything into a single grand total.
+    const contents = await repoFs.readFiles(positionals);
     const out: string[] = [];
     const totals = selectedFlags.map(() => 0);
     for (const path of positionals) {
-        // eslint-disable-next-line no-await-in-loop
-        const content = await repoFs.readFile(path);
+        const content = contents.get(path) ?? null;
         if (content === null) {
             throw new ShellError(`wc: ${path}: No such file or directory`);
         }
@@ -520,9 +520,9 @@ const cmdSort = async (
         lines = [...stdin];
     } else if (positionals.length > 0) {
         lines = [];
+        const contents = await repoFs.readFiles(positionals);
         for (const path of positionals) {
-            // eslint-disable-next-line no-await-in-loop
-            const content = await repoFs.readFile(path);
+            const content = contents.get(path) ?? null;
             if (content === null) {
                 throw new ShellError(
                     `sort: ${path}: No such file or directory`,

@@ -51,11 +51,21 @@ export const globToRegExp = (glob: string): RegExp => {
     return new RegExp(`^${pattern}$`);
 };
 
+// Cap the lazy file-content cache by total bytes so a wide crawl (e.g. a grep
+// across a large repo) can't grow it without bound. Least-recently-used entries
+// are evicted once over the cap; ~32MB is generous for dbt source files.
+const MAX_CACHE_BYTES = 32 * 1024 * 1024;
+
+// GitHub Contents reads are round-trip-bound (~150-200ms each), so a serial
+// crawl of N files costs ~N × that. Reading with bounded concurrency cuts the
+// wall-clock ~10× while capping simultaneous requests (and peak memory).
+const DEFAULT_READ_CONCURRENCY = 10;
+
 type RepoIndex = {
     /** path -> size, for every file (blob) in the repo. */
     files: Map<string, number>;
-    /** directory path ("" = root) -> set of immediate child names. */
-    children: Map<string, Set<{ name: string; type: RepoEntryType }>>;
+    /** directory path ("" = root) -> (immediate child name -> entry type). */
+    children: Map<string, Map<string, RepoEntryType>>;
     sortedPaths: string[];
     truncated: boolean;
 };
@@ -63,12 +73,20 @@ type RepoIndex = {
 export class RepoFs {
     private readonly source: RepoSource;
 
-    private index: RepoIndex | null = null;
+    // Memoised so concurrent reads (see readFiles) share a single tree fetch
+    // rather than each racing their own source.listAllPaths().
+    private indexPromise: Promise<RepoIndex> | null = null;
 
+    // Insertion-ordered LRU of file contents, bounded by cacheBytes/MAX_CACHE_BYTES.
     private readonly fileCache = new Map<string, string | null>();
 
-    constructor(source: RepoSource) {
+    private cacheBytes = 0;
+
+    private readonly maxCacheBytes: number;
+
+    constructor(source: RepoSource, maxCacheBytes: number = MAX_CACHE_BYTES) {
         this.source = source;
+        this.maxCacheBytes = maxCacheBytes;
     }
 
     get label(): string {
@@ -76,27 +94,24 @@ export class RepoFs {
     }
 
     private async ensureIndex(): Promise<RepoIndex> {
-        if (this.index) return this.index;
+        if (!this.indexPromise) this.indexPromise = this.buildIndex();
+        return this.indexPromise;
+    }
 
+    private async buildIndex(): Promise<RepoIndex> {
         const { files, truncated } = await this.source.listAllPaths();
         const fileMap = new Map<string, number>();
-        const children = new Map<
-            string,
-            Set<{ name: string; type: RepoEntryType }>
-        >();
-        const dirSet = new Set<string>();
+        const children = new Map<string, Map<string, RepoEntryType>>();
 
         const addChild = (
             dir: string,
             name: string,
             type: RepoEntryType,
         ): void => {
-            if (!children.has(dir)) children.set(dir, new Set());
-            const set = children.get(dir)!;
-            // Set identity is by reference, so dedupe on name+type manually.
-            if (![...set].some((c) => c.name === name && c.type === type)) {
-                set.add({ name, type });
-            }
+            if (!children.has(dir)) children.set(dir, new Map());
+            // Map keys dedupe by name in O(1) — a path is either a file or a
+            // dir, never both, so the type never conflicts for a given name.
+            children.get(dir)!.set(name, type);
         };
 
         for (const { path, size } of files) {
@@ -111,20 +126,18 @@ export class RepoFs {
                     const dir = prefix;
                     const name = segments[i];
                     addChild(dir, name, 'dir');
-                    dirSet.add(prefix ? `${prefix}/${name}` : name);
                     prefix = prefix ? `${prefix}/${name}` : name;
                 }
                 addChild(dirname(normalized), basename(normalized), 'file');
             }
         }
 
-        this.index = {
+        return {
             files: fileMap,
             children,
             sortedPaths: [...fileMap.keys()].sort(),
             truncated,
         };
-        return this.index;
     }
 
     async isFile(path: string): Promise<boolean> {
@@ -145,12 +158,14 @@ export class RepoFs {
     ): Promise<{ name: string; type: RepoEntryType }[]> {
         const index = await this.ensureIndex();
         const normalized = normalizePath(path);
-        const set = index.children.get(normalized);
-        if (!set) return [];
-        return [...set].sort((a, b) => {
-            if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
-            return a.name.localeCompare(b.name);
-        });
+        const entries = index.children.get(normalized);
+        if (!entries) return [];
+        return [...entries.entries()]
+            .map(([name, type]) => ({ name, type }))
+            .sort((a, b) => {
+                if (a.type !== b.type) return a.type === 'dir' ? -1 : 1;
+                return a.name.localeCompare(b.name);
+            });
     }
 
     async listAll(): Promise<{ paths: string[]; truncated: boolean }> {
@@ -227,16 +242,45 @@ export class RepoFs {
         return results.sort();
     }
 
+    /** LRU read: returns {hit} so a cached `null` (known miss) is distinguished
+     * from an absent entry, and refreshes recency by re-inserting at the end. */
+    private cacheRead(path: string): { hit: boolean; value: string | null } {
+        if (!this.fileCache.has(path)) return { hit: false, value: null };
+        const value = this.fileCache.get(path) ?? null;
+        this.fileCache.delete(path);
+        this.fileCache.set(path, value);
+        return { hit: true, value };
+    }
+
+    /** LRU write: tracks total bytes and evicts the least-recently-used entries
+     * (front of the Map) until back under {@link MAX_CACHE_BYTES}. */
+    private cacheWrite(path: string, value: string | null): void {
+        if (this.fileCache.has(path)) {
+            this.cacheBytes -= this.fileCache.get(path)?.length ?? 0;
+            this.fileCache.delete(path);
+        }
+        this.fileCache.set(path, value);
+        this.cacheBytes += value?.length ?? 0;
+        while (
+            this.cacheBytes > this.maxCacheBytes &&
+            this.fileCache.size > 1
+        ) {
+            const oldest = this.fileCache.keys().next().value as string;
+            if (oldest === path) break; // never evict the entry just written
+            this.cacheBytes -= this.fileCache.get(oldest)?.length ?? 0;
+            this.fileCache.delete(oldest);
+        }
+    }
+
     async readFile(path: string): Promise<string | null> {
         const normalized = normalizePath(path);
-        if (this.fileCache.has(normalized)) {
-            return this.fileCache.get(normalized) ?? null;
-        }
+        const cached = this.cacheRead(normalized);
+        if (cached.hit) return cached.value;
         // Never let a `..` segment escape the sub-path chroot the source enforces
         // by prefixing every read — the index gate below stops it on a complete
         // tree, but the truncated-tree fallback would otherwise resolve it.
         if (normalized.split('/').includes('..')) {
-            this.fileCache.set(normalized, null);
+            this.cacheWrite(normalized, null);
             return null;
         }
         const index = await this.ensureIndex();
@@ -246,11 +290,37 @@ export class RepoFs {
         // capped listing, so ask the source directly (it can fetch an explicit
         // path) instead of falsely reporting "No such file".
         if (!index.files.has(normalized) && !index.truncated) {
-            this.fileCache.set(normalized, null);
+            this.cacheWrite(normalized, null);
             return null;
         }
         const content = await this.source.readFile(normalized);
-        this.fileCache.set(normalized, content);
+        this.cacheWrite(normalized, content);
         return content;
+    }
+
+    /**
+     * Read many files with bounded concurrency, returning a path→content map
+     * (null for missing files). GitHub Contents reads are round-trip-bound, so a
+     * worker pool cuts a multi-file crawl's wall-clock ~10× versus a serial loop
+     * while capping simultaneous requests. Each file still flows through
+     * {@link readFile}, so caching and the chroot guard are unchanged.
+     */
+    async readFiles(
+        paths: string[],
+        concurrency: number = DEFAULT_READ_CONCURRENCY,
+    ): Promise<Map<string, string | null>> {
+        const result = new Map<string, string | null>();
+        let cursor = 0;
+        const worker = async (): Promise<void> => {
+            while (cursor < paths.length) {
+                const path = paths[cursor];
+                cursor += 1;
+                // eslint-disable-next-line no-await-in-loop
+                result.set(path, await this.readFile(path));
+            }
+        };
+        const workers = Math.max(1, Math.min(concurrency, paths.length));
+        await Promise.all(Array.from({ length: workers }, () => worker()));
+        return result;
     }
 }
