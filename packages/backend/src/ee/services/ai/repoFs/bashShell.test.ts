@@ -1,0 +1,140 @@
+import { runRepoShellCommand, ShellError } from './bashShell';
+import { RepoFs, type RepoSource } from './RepoFs';
+
+/** A minimal in-memory RepoSource for exercising the shell end-to-end. */
+const fakeSource = (
+    files: Record<string, string>,
+    truncated = false,
+): RepoSource => ({
+    label: 'owner/repo@main',
+    listAllPaths: async () => ({
+        files: Object.entries(files).map(([path, content]) => ({
+            path,
+            size: content.length,
+        })),
+        truncated,
+    }),
+    readFile: async (path) => files[path] ?? null,
+});
+
+const REPO = {
+    'dbt_project.yml': 'name: jaffle\nversion: 1\n',
+    'models/orders.sql':
+        'select * from {{ ref("stg_orders") }}\njoin payments\n',
+    'models/customers.sql': 'select * from {{ ref("stg_customers") }}\n',
+    'models/schema.yml': 'models:\n  - name: orders\n  - name: customers\n',
+    'models/staging/stg_orders.sql': 'select 1 as order_id\n',
+};
+
+const run = (command: string, files = REPO, truncated = false) =>
+    runRepoShellCommand(new RepoFs(fakeSource(files, truncated)), command);
+
+describe('runRepoShellCommand (just-bash)', () => {
+    describe('reading', () => {
+        it('lists the repo root', async () => {
+            const out = await run('ls');
+            expect(out).toContain('dbt_project.yml');
+            expect(out).toContain('models');
+        });
+
+        it('cats a file', async () => {
+            expect(await run('cat dbt_project.yml')).toBe(
+                'name: jaffle\nversion: 1',
+            );
+        });
+
+        it('finds files by glob', async () => {
+            const out = await run('find . -name "*.sql"');
+            expect(out).toContain('models/orders.sql');
+            expect(out).toContain('models/staging/stg_orders.sql');
+            expect(out).not.toContain('schema.yml');
+        });
+    });
+
+    describe('search + pipelines', () => {
+        it('greps recursively and lists matching files', async () => {
+            const out = await run('grep -rl orders models');
+            expect(out).toContain('models/orders.sql');
+            expect(out).toContain('models/schema.yml');
+        });
+
+        it('pipes find into xargs grep', async () => {
+            const out = await run('find . -name "*.sql" | xargs grep -l ref');
+            expect(out).toContain('models/orders.sql');
+            expect(out).toContain('models/customers.sql');
+        });
+
+        it('ranks files by line count', async () => {
+            // `wc -l` emits a grand `total` line; exclude it to rank real files.
+            const out = await run(
+                'find models -name "*.sql" | xargs wc -l | grep -v total | sort -rn | head -1',
+            );
+            expect(out).toContain('models/orders.sql');
+        });
+
+        it('returns (no output) when grep matches nothing', async () => {
+            expect(await run('grep -r nonexistent_token models')).toBe(
+                '(no output)',
+            );
+        });
+    });
+
+    describe('expanded command surface (the whole point)', () => {
+        it('supports sed', async () => {
+            expect(await run('cat dbt_project.yml | sed -n 1p')).toBe(
+                'name: jaffle',
+            );
+        });
+
+        it('supports awk', async () => {
+            const out = await run(
+                `grep -rh name models/schema.yml | awk '{print $NF}'`,
+            );
+            expect(out).toContain('orders');
+            expect(out).toContain('customers');
+        });
+
+        it('supports cut + sort -u and || sequencing', async () => {
+            const out = await run('echo b; echo a; echo a');
+            expect(out).toBe('b\na\na');
+            expect(await run('printf "a\\nb\\na\\n" | sort -u')).toBe('a\nb');
+        });
+
+        it('honours 2>/dev/null without /dev/null in the VFS', async () => {
+            // The old shell stripped this token; just-bash special-cases it.
+            const out = await run('cat dbt_project.yml 2>/dev/null');
+            expect(out).toContain('name: jaffle');
+        });
+    });
+
+    describe('read-only + error model', () => {
+        it('is read-only: writes fail, repo unchanged', async () => {
+            await expect(run('echo hi > models/orders.sql')).rejects.toThrow();
+            // original content still intact on a fresh read
+            expect(await run('cat models/orders.sql')).toContain('payments');
+        });
+
+        it('rejects an unknown command as a ShellError', async () => {
+            await expect(run('killall everything')).rejects.toBeInstanceOf(
+                ShellError,
+            );
+        });
+
+        it('does not register mutating commands', async () => {
+            await expect(run('rm dbt_project.yml')).rejects.toBeInstanceOf(
+                ShellError,
+            );
+        });
+
+        it('reports a missing file', async () => {
+            await expect(run('cat nope.sql')).rejects.toBeInstanceOf(
+                ShellError,
+            );
+        });
+
+        it('appends a truncation note for find on a large repo', async () => {
+            const out = await run('find . -name "*.sql"', REPO, true);
+            expect(out).toContain('GitHub truncated');
+        });
+    });
+});

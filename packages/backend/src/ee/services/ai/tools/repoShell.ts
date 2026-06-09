@@ -1,6 +1,6 @@
 import { repoShellToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
-import { ShellError } from '../repoFs/limitedShell';
+import { ShellError } from '../repoFs/bashShell';
 import type { RepoShellFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
