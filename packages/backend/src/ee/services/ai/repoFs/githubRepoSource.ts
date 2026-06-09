@@ -1,3 +1,4 @@
+import { getErrorMessage, NotFoundError } from '@lightdash/common';
 import { getFileContent, getRepoTree } from '../../../../clients/github/Github';
 import Logger from '../../../../logging/logger';
 import { RepoSource } from './RepoFs';
@@ -87,17 +88,36 @@ export const createGithubRepoSource = ({
                     },
                 );
                 return content;
-            } catch {
+            } catch (error) {
                 const durationMs = Date.now() - start;
-                Logger.debug(
-                    `[repoShell] github file miss in ${durationMs}ms: ${prefix}${path}`,
+                // getFileContent throws NotFoundError for a genuine 404 — and
+                // also for too-large/binary files (no inline content) — which the
+                // RepoSource contract represents as `null` (absent).
+                if (error instanceof NotFoundError) {
+                    Logger.debug(
+                        `[repoShell] github file miss in ${durationMs}ms: ${prefix}${path}`,
+                        {
+                            event: 'ai.repofs.github.file_miss',
+                            path: `${prefix}${path}`,
+                            durationMs,
+                        },
+                    );
+                    return null;
+                }
+                // Anything else (rate limit, network, 5xx) is NOT "file absent".
+                // Returning null here would make grep/cat silently behave as if
+                // the file were empty — wrong results with no signal. Surface it.
+                Logger.warn(
+                    `[repoShell] github file read failed in ${durationMs}ms: ${prefix}${path} — ${getErrorMessage(
+                        error,
+                    )}`,
                     {
-                        event: 'ai.repofs.github.file_miss',
+                        event: 'ai.repofs.github.file_error',
                         path: `${prefix}${path}`,
                         durationMs,
                     },
                 );
-                return null;
+                throw error;
             }
         },
     };
