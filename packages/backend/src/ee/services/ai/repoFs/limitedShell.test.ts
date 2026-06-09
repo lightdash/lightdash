@@ -168,10 +168,18 @@ describe('repoFs limited shell', () => {
         ).rejects.toThrow('unsupported flag -v');
     });
 
-    it('rejects unsupported find flags loudly (-maxdepth)', async () => {
+    it('limits recursion with find -maxdepth', async () => {
+        // -maxdepth 1 keeps immediate children of models/ but not the deeper
+        // staging/*.sql files.
         await expect(
             run('find models -maxdepth 1 -name "*.sql"'),
-        ).rejects.toThrow('unsupported flag -maxdepth');
+        ).resolves.toBe('models/orders.sql');
+    });
+
+    it('rejects unsupported find flags loudly (-size)', async () => {
+        await expect(run('find models -size +1k')).rejects.toThrow(
+            'unsupported flag -size',
+        );
     });
 
     it('rejects unsupported ls flags loudly (-R)', async () => {
@@ -283,6 +291,67 @@ describe('repoFs limited shell', () => {
         await expect(run('grep -rn ref models > /dev/null')).resolves.toBe(
             "models/orders.sql:1:select * from {{ ref('stg_orders') }}",
         );
+    });
+
+    it('reads a file directly with head (no pipe)', async () => {
+        await expect(run('head -n 1 models/orders.sql')).resolves.toBe(
+            "select * from {{ ref('stg_orders') }}",
+        );
+    });
+
+    it('errors clearly when head targets a missing file', async () => {
+        await expect(run('head models/missing.sql')).rejects.toThrow(
+            'No such file or directory',
+        );
+    });
+
+    it('counts words with wc -w over piped input', async () => {
+        await expect(
+            run('cat models/staging/stg_orders.sql | wc -w'),
+        ).resolves.toBe('4');
+    });
+
+    it('counts chars with wc -m', async () => {
+        await expect(
+            run('cat models/staging/stg_orders.sql | wc -m'),
+        ).resolves.toBe('14');
+    });
+
+    it('bare wc prints lines, words and bytes', async () => {
+        await expect(
+            run('cat models/staging/stg_orders.sql | wc'),
+        ).resolves.toBe('1 4 14');
+    });
+
+    it('reads a file directly with wc -l (no pipe)', async () => {
+        await expect(run('wc -l models/orders.sql')).resolves.toBe('2');
+    });
+
+    it('runs commands in sequence with &&', async () => {
+        await expect(run('ls models && ls models/staging')).resolves.toBe(
+            [
+                'staging/',
+                'orders.sql',
+                'stg_api_error.sql',
+                'stg_orders.sql',
+            ].join('\n'),
+        );
+    });
+
+    it('short-circuits && on the first failure', async () => {
+        await expect(run('cat models/missing.sql && ls')).rejects.toThrow(
+            'No such file or directory',
+        );
+    });
+
+    it('does not split && inside a quoted pattern', async () => {
+        await expect(run('grep -n "a&&b" models/orders.sql')).resolves.toBe(
+            '(no output)',
+        );
+    });
+
+    it('points ls -name at find', async () => {
+        await expect(run('ls -name "*.sql"')).rejects.toThrow('find');
     });
 
     it('rejects unsupported commands', async () => {

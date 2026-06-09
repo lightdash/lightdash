@@ -170,7 +170,11 @@ export class RepoFs {
      */
     async walk(
         base: string,
-        opts: { type?: RepoEntryType; nameGlobs?: string[] } = {},
+        opts: {
+            type?: RepoEntryType;
+            nameGlobs?: string[];
+            maxDepth?: number;
+        } = {},
     ): Promise<string[]> {
         const index = await this.ensureIndex();
         const normalized = normalizePath(base);
@@ -184,13 +188,22 @@ export class RepoFs {
             nameRes.length === 0 ||
             nameRes.some((re) => re.test(basename(path)));
 
+        // find's `-maxdepth N` counts path segments below the base; N=1 keeps
+        // only immediate children. `undefined` means unbounded (the default).
+        const baseSegments =
+            normalized === '' ? 0 : normalized.split('/').length;
+        const withinDepth = (path: string): boolean =>
+            opts.maxDepth === undefined ||
+            path.split('/').length - baseSegments <= opts.maxDepth;
+
         if (opts.type !== 'dir') {
             for (const path of index.sortedPaths) {
                 if (
                     (normalized === '' ||
                         path === normalized ||
                         path.startsWith(prefix)) &&
-                    matches(path)
+                    matches(path) &&
+                    withinDepth(path)
                 ) {
                     results.push(path);
                 }
@@ -205,7 +218,8 @@ export class RepoFs {
                     (normalized === '' ||
                         dir === normalized ||
                         dir.startsWith(prefix));
-                if (underBase && matches(dir)) dirs.add(dir);
+                if (underBase && matches(dir) && withinDepth(dir))
+                    dirs.add(dir);
             }
             results.push(...dirs);
         }
