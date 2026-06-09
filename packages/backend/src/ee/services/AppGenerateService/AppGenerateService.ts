@@ -1676,9 +1676,11 @@ export class AppGenerateService extends BaseService {
     private static readonly MAX_BUILD_FIX_ATTEMPTS = 2;
 
     /**
-     * Run `pnpm build` and, on failure, feed the build output back to Claude
-     * so it can fix the compilation errors. Retries up to
-     * MAX_BUILD_FIX_ATTEMPTS times before giving up and throwing.
+     * Run `pnpm build` and feed any failure back to Claude to fix. A failure is
+     * either a non-zero compile (the build output is fed back) or a clean
+     * compile that still renders the placeholder (see {@link detectBlankApp}) —
+     * both are silent ways to ship a broken app, so both drive the fix loop.
+     * Retries up to MAX_BUILD_FIX_ATTEMPTS times before giving up and throwing.
      */
     private async runBuildWithAutoFix(
         sandbox: Sandbox,
@@ -1698,8 +1700,17 @@ export class AppGenerateService extends BaseService {
         let lastResult = await this.runBuild(sandbox, appUuid);
         buildMs += lastResult.durationMs;
 
+        // A clean compile isn't enough: an app that builds but renders only the
+        // placeholder (e.g. the entry component was never authored) is a silent
+        // blank-page failure. Treat it like a build error and feed it back into
+        // the same fix loop.
+        let blankAppProblem =
+            lastResult.exitCode === 0
+                ? await this.detectBlankApp(sandbox, appUuid)
+                : null;
+
         while (
-            lastResult.exitCode !== 0 &&
+            (lastResult.exitCode !== 0 || blankAppProblem !== null) &&
             fixAttempts < AppGenerateService.MAX_BUILD_FIX_ATTEMPTS
         ) {
             // Each iteration depends on the previous one: Claude's fix must
@@ -1708,15 +1719,21 @@ export class AppGenerateService extends BaseService {
             /* eslint-disable no-await-in-loop */
             fixAttempts += 1;
 
+            const isBuildError = lastResult.exitCode !== 0;
+
             this.logger.info(
-                `App ${appUuid}: build failed (exit ${lastResult.exitCode}), asking Claude to fix (attempt ${fixAttempts}/${AppGenerateService.MAX_BUILD_FIX_ATTEMPTS})`,
+                `App ${appUuid}: ${
+                    isBuildError
+                        ? `build failed (exit ${lastResult.exitCode})`
+                        : 'app renders the placeholder'
+                }, asking Claude to fix (attempt ${fixAttempts}/${AppGenerateService.MAX_BUILD_FIX_ATTEMPTS})`,
             );
 
             try {
                 await this.appModel.updateStatusMessage(
                     appUuid,
                     version,
-                    'Fixing build errors',
+                    isBuildError ? 'Fixing build errors' : 'Fixing blank app',
                 );
             } catch (e) {
                 this.logger.warn(
@@ -1724,16 +1741,24 @@ export class AppGenerateService extends BaseService {
                 );
             }
 
-            const errorOutput = AppGenerateService.truncateEnd(
-                `${lastResult.stderr}\n${lastResult.stdout}`.trim(),
-                8000,
-            );
-            const fixPrompt =
-                `The code you just produced failed to build with \`pnpm build\`. ` +
-                `Analyze the build output below, identify the compilation errors, ` +
-                `and fix the code so it builds cleanly. Do not ask questions — ` +
-                `apply the fix directly.\n\n` +
-                `Build output:\n${errorOutput}`;
+            let fixPrompt: string;
+            if (isBuildError) {
+                const errorOutput = AppGenerateService.truncateEnd(
+                    `${lastResult.stderr}\n${lastResult.stdout}`.trim(),
+                    8000,
+                );
+                fixPrompt =
+                    `The code you just produced failed to build with \`pnpm build\`. ` +
+                    `Analyze the build output below, identify the compilation errors, ` +
+                    `and fix the code so it builds cleanly. Do not ask questions — ` +
+                    `apply the fix directly.\n\n` +
+                    `Build output:\n${errorOutput}`;
+            } else {
+                fixPrompt =
+                    `The code you just produced compiles, but it ships a blank page. ` +
+                    `${blankAppProblem ?? ''} ` +
+                    `Do not ask questions — apply the fix directly.`;
+            }
             // Remove the previous prompt file first — after the Claude CLI
             // ran, it may be owned by a different user and writing would
             // fail with EPERM. Same reason as in writeCatalogAndPrompt.
@@ -1767,12 +1792,22 @@ export class AppGenerateService extends BaseService {
 
             lastResult = await this.runBuild(sandbox, appUuid);
             buildMs += lastResult.durationMs;
+            blankAppProblem =
+                lastResult.exitCode === 0
+                    ? await this.detectBlankApp(sandbox, appUuid)
+                    : null;
             /* eslint-enable no-await-in-loop */
         }
 
         if (lastResult.exitCode !== 0) {
             throw new Error(
                 `Build failed after ${fixAttempts} auto-fix attempt(s) (exit ${lastResult.exitCode}): ${lastResult.stderr}`,
+            );
+        }
+
+        if (blankAppProblem !== null) {
+            throw new Error(
+                `App still renders the placeholder after ${fixAttempts} auto-fix attempt(s): ${blankAppProblem}`,
             );
         }
 
@@ -1783,6 +1818,60 @@ export class AppGenerateService extends BaseService {
         }
 
         return { buildMs, fixAttempts, fixGenerationMs };
+    }
+
+    // Heading text rendered by the shipped src/App.jsx stub. The blank-app
+    // guard greps the built bundle for it — keep in sync with the template
+    // stub. The "Placeholder" suffix makes a coincidental match in a real
+    // generated app effectively impossible.
+    private static readonly PLACEHOLDER_MARKER =
+        'Lightdash Data App Placeholder';
+
+    /**
+     * Detect an app that compiled cleanly but still renders the shipped
+     * placeholder — a silent blank-page failure the build exit code can't
+     * catch (e.g. Claude wrote its app into src/App.tsx but `main.jsx` still
+     * resolves `./App` to the untouched src/App.jsx stub). Returns a
+     * human-readable problem description (fed back to Claude as a fix prompt)
+     * or null when the app looks authored.
+     *
+     * The signal is the built bundle: if `dist/assets` still contains the
+     * placeholder marker text, the stub was rendered, so the entry was never
+     * replaced. The marker is the stub heading compiled into JS (not the static
+     * `dist/index.html`), and its "Placeholder" suffix makes a real generated
+     * app effectively impossible to match. This fires for any blank caused by
+     * the stub surviving — orphaned entry, unwired component — regardless of
+     * which files Claude touched.
+     *
+     * Never throws: a guard that can't run must not block an otherwise-good
+     * build, so any error resolves to null (treat as authored).
+     */
+    private async detectBlankApp(
+        sandbox: Sandbox,
+        appUuid: string,
+    ): Promise<string | null> {
+        try {
+            const grepResult = await sandbox.commands.run(
+                `grep -rl '${AppGenerateService.PLACEHOLDER_MARKER}' /app/dist/assets 2>/dev/null || true`,
+                { timeoutMs: 10_000 },
+            );
+            if (grepResult.stdout.trim().length === 0) {
+                return null;
+            }
+
+            return (
+                `\`main.jsx\` renders the default export of \`src/App\` (the shipped ` +
+                `\`src/App.jsx\`), and that file still renders the placeholder. Make it ` +
+                `show your app — put your UI directly in \`src/App.jsx\`, or re-export your ` +
+                `root from there (e.g. \`export { default } from './App.tsx';\`). You can't ` +
+                `delete files, so wiring src/App.jsx to your work is the fix.`
+            );
+        } catch (e) {
+            this.logger.warn(
+                `App ${appUuid}: blank-app guard failed to run, skipping: ${getErrorMessage(e)}`,
+            );
+            return null;
+        }
     }
 
     private async packageArtifacts(
