@@ -757,6 +757,34 @@ describe('getCategoryDateAxisConfig', () => {
                     '2024-03-01T00:00:00Z',
                 ]);
             });
+
+            // Complement of the above: TIMESTAMP-base dims are bucketed
+            // instants, so they DO shift with the resolved timezone.
+            test('TIMESTAMP-base dim honors resolvedTimezone and snaps in project tz', () => {
+                const tz = 'America/Los_Angeles';
+                const months: Array<[number, number]> = [
+                    [2024, 4],
+                    [2024, 5],
+                    [2024, 6],
+                ];
+                const tsBaseField = {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    name: 'created_at_month',
+                    table: 'orders',
+                } as unknown as Dimension;
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    tsBaseField,
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
         });
 
         describe('YEAR', () => {

@@ -37,6 +37,7 @@ import {
     getValueLabelStyle,
     hashFieldReference,
     hasValidFormatExpression,
+    isCalendarValueDimension,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -1534,12 +1535,11 @@ export const getCategoryDateAxisConfig = (
     );
     const boundaryGap = hasBarSeries;
 
-    // DATE-base intervals are raw calendar values — snap in UTC to match.
-    const isDateBaseInterval =
-        isDimension(axisField) &&
-        axisField.timeIntervalBaseDimensionType === DimensionType.DATE;
+    // Calendar values (wall-clock dates) are raw — snap in UTC to match.
     const tz =
-        isDateBaseInterval || !resolvedTimezone ? 'UTC' : resolvedTimezone;
+        isCalendarValueDimension(axisField) || !resolvedTimezone
+            ? 'UTC'
+            : resolvedTimezone;
     // Skip dayjs.tz for UTC: .add() chains drift sub-ms vs fresh .tz() objects
     // and break .isBefore at the boundary.
     const inTz = (v: string | number) =>
