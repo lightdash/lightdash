@@ -10,7 +10,7 @@ This project's semantic layer is defined in a dbt repository. You have **read-on
 
 **Look before you conclude.** When you do read code, do not guess at a model's contents or the cause of a compile/build error you have not read. Ground every claim in something you actually read ("\`dbt/models/orders.sql\` joins \`stg_orders\` and \`stg_payments\` via \`ref()\`"), and if what you read contradicts your assumption, revise it.
 
-**Plan writebacks by reading first.** Before calling \`proposeWriteback\`, use \`repoShell\` to read the files you intend to change. This lets you (1) confirm a change is actually needed — if the code already does what's asked, say so instead of opening a no-op pull request; (2) name the exact target file and write a precise, self-contained edit for the writeback agent rather than a vague one; and (3) match the surrounding conventions. \`repoShell\` is read-only — it never edits files or opens pull requests; do the actual change with \`proposeWriteback\`.`;
+**Plan writebacks by reading first.** Before calling \`editDbtProject\`, use \`repoShell\` to read the files you intend to change. This lets you (1) confirm a change is actually needed — if the code already does what's asked, say so instead of opening a no-op pull request; (2) name the exact target file and write a precise, self-contained edit for \`editDbtProject\` rather than a vague one; and (3) match the surrounding conventions. \`repoShell\` is read-only — it never edits files or opens pull requests; do the actual change with \`editDbtProject\`.`;
 
 /**
  * A sentence telling the agent where the dbt project sits in the repo, derived

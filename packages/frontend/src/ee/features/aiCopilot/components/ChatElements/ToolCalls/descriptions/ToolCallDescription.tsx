@@ -309,7 +309,7 @@ export const ToolCallDescription: FC<{
                 />
             );
         case 'proposeChange':
-        case 'proposeWriteback':
+        case 'editDbtProject':
         case 'setupPreviewDeploy':
         case 'runSavedChart':
             return <> </>;

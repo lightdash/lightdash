@@ -374,7 +374,7 @@ export type LoadAgentSkillFn = (
     name: string,
 ) => Promise<AiAgentSkill | undefined>;
 
-export type ProposeWritebackFn = (args: {
+export type EditDbtProjectFn = (args: {
     prompt: string | null;
     prUrl: string | null;
     fromActiveChangeset: boolean;

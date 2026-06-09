@@ -1,4 +1,4 @@
-import { type ToolProposeWritebackOutput } from '@lightdash/common';
+import { type ToolEditDbtProjectOutput } from '@lightdash/common';
 import {
     Box,
     Button,
@@ -29,16 +29,16 @@ import {
     isPreviewWaitTimedOut,
     usePullRequestPreview,
 } from '../../../hooks/usePullRequestPreview';
-import styles from './AiProposeWritebackToolCall.module.css';
+import styles from './AiEditDbtProjectToolCall.module.css';
 
 type Props = {
-    metadata: ToolProposeWritebackOutput['metadata'];
+    metadata: ToolEditDbtProjectOutput['metadata'];
     projectUuid: string;
     /** When the write-back PR was opened — anchors the ~10 min preview wait. */
     prCreatedAt: string;
     /**
      * True when this card belongs to a `setupPreviewDeploy` PR (one that adds
-     * the preview-deploy workflow) rather than a data-change `proposeWriteback`
+     * the preview-deploy workflow) rather than a data-change `editDbtProject`
      * PR. A setup PR never produces a preview of itself, so the preview
      * affordance is suppressed for it.
      */
@@ -105,13 +105,13 @@ const InstallAppButton: FC<{
 );
 
 /**
- * Inline card rendered after a `proposeWriteback` tool call lands. The
- * agent's textual reply intentionally omits the URL (the proposeWriteback
+ * Inline card rendered after a `editDbtProject` tool call lands. The
+ * agent's textual reply intentionally omits the URL (the editDbtProject
  * tool result instructs it to) on the expectation that this card surfaces
  * it instead — matching the Slack experience where the user's mention gets
  * a green-tick reaction plus the PR link in the agent message body.
  */
-export const AiProposeWritebackToolCall: FC<Props> = ({
+export const AiEditDbtProjectToolCall: FC<Props> = ({
     metadata,
     projectUuid,
     prCreatedAt,

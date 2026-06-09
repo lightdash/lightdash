@@ -3,7 +3,7 @@ import { ForbiddenError, PullRequestProvider } from '@lightdash/common';
 /**
  * Thrown when a writeback cannot proceed because the project has no usable Git
  * connection — either the organization has not installed the GitHub/GitLab app,
- * or the project's dbt connection is not a GitHub/GitLab type. The `proposeWriteback`
+ * or the project's dbt connection is not a GitHub/GitLab type. The `editDbtProject`
  * tool catches this specifically (via `instanceof`) and tags its result metadata
  * with a provider-specific `errorCode`, so the chat UI can render an actionable
  * "install the app" state instead of a generic failure.

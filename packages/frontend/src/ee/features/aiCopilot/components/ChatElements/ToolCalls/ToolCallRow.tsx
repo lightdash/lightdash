@@ -44,7 +44,7 @@ const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
     'loadSkill',
     'loadProjectContext',
     'proposeChange',
-    'proposeWriteback',
+    'editDbtProject',
     'runSavedChart',
 ]);
 

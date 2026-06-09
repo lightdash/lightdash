@@ -123,7 +123,7 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Starting sandbox...',
-                toolName: 'proposeWriteback',
+                toolName: 'editDbtProject',
             }),
         );
         const afterSecond = aiAgentThreadStreamSlice.reducer(
@@ -131,12 +131,12 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Cloning project...',
-                toolName: 'proposeWriteback',
+                toolName: 'editDbtProject',
             }),
         );
         expect(afterSecond['thread-1']?.stepProgressMessages).toEqual([
-            { message: 'Starting sandbox...', toolName: 'proposeWriteback' },
-            { message: 'Cloning project...', toolName: 'proposeWriteback' },
+            { message: 'Starting sandbox...', toolName: 'editDbtProject' },
+            { message: 'Cloning project...', toolName: 'editDbtProject' },
         ]);
     });
 
@@ -180,7 +180,7 @@ describe('aiAgentThreadStreamSlice', () => {
             }),
         );
         for (const event of [
-            { message: 'Discovering models', toolName: 'proposeWriteback' },
+            { message: 'Discovering models', toolName: 'editDbtProject' },
             { message: 'Discovering models', toolName: 'findExplores' },
         ]) {
             state = aiAgentThreadStreamSlice.reducer(
@@ -189,7 +189,7 @@ describe('aiAgentThreadStreamSlice', () => {
             );
         }
         expect(state['thread-1']?.stepProgressMessages).toEqual([
-            { message: 'Discovering models', toolName: 'proposeWriteback' },
+            { message: 'Discovering models', toolName: 'editDbtProject' },
             { message: 'Discovering models', toolName: 'findExplores' },
         ]);
     });
@@ -237,7 +237,7 @@ describe('aiAgentThreadStreamSlice', () => {
             appendStepProgress({
                 threadUuid: 'thread-1',
                 message: 'Committing changes',
-                toolName: 'proposeWriteback',
+                toolName: 'editDbtProject',
             }),
         );
         const afterText = aiAgentThreadStreamSlice.reducer(
@@ -248,7 +248,7 @@ describe('aiAgentThreadStreamSlice', () => {
             }),
         );
         expect(afterText['thread-1']?.stepProgressMessages).toEqual([
-            { message: 'Committing changes', toolName: 'proposeWriteback' },
+            { message: 'Committing changes', toolName: 'editDbtProject' },
         ]);
     });
 
