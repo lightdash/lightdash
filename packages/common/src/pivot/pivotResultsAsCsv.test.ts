@@ -141,6 +141,41 @@ describe('pivotResultsAsCsv', () => {
         });
     });
 
+    it('appends a column totals footer row when columnTotals is enabled', () => {
+        const baseParams = {
+            pivotConfig: PIVOT_CONFIG,
+            rows: SQL_PIVOTED_ROWS,
+            itemMap: buildItemsMap(),
+            customLabels: undefined,
+            onlyRaw: false,
+            pivotDetails: SQL_PIVOT_DETAILS,
+        };
+        const withoutTotals = pivotResultsAsCsv(baseParams);
+
+        const withTotals = pivotResultsAsCsv({
+            ...baseParams,
+            pivotConfig: { ...PIVOT_CONFIG, columnTotals: true },
+            warehouseColumnTotals: {
+                payments_total_revenue_any_bank_transfer: 806.18,
+                payments_total_revenue_any_coupon: 258.64,
+                payments_total_revenue_any_credit_card: 1452.16,
+                payments_total_revenue_any_gift_card: 536.89,
+            },
+        });
+
+        // Exactly one extra row (the column totals footer)
+        expect(withTotals.length).toBe(withoutTotals.length + 1);
+
+        const footer = withTotals[withTotals.length - 1];
+        // Footer width matches the body rows
+        expect(footer.length).toBe(withTotals[withTotals.length - 2].length);
+        // "Total" label in the index column, then the per-column totals
+        expect(footer[0]).toBe('Total');
+        expect(footer).toContain('806.18');
+        expect(footer).toContain('258.64');
+        expect(footer).toContain('536.89');
+    });
+
     describe('passthrough dimension filtering (PROD-7873)', () => {
         // SQL-pivot path: when a hidden dim is carried through SQL as
         // `passthroughDimensions` so its values can be referenced by

@@ -9,6 +9,8 @@ import {
     applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildWarehouseColumnTotals,
+    buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CompiledDimension,
@@ -34,6 +36,7 @@ import {
     formatRawRows,
     formatRawValue,
     formatRow,
+    formatRows,
     getAccountUserTimezone,
     getAvailableFilterFieldIds,
     getColumnTimezone,
@@ -101,6 +104,7 @@ import {
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type PivotRowTotalsByIndex,
     type PivotValuesColumn,
     type Project,
     type QueryHistory,
@@ -1215,6 +1219,91 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    /**
+     * Pivot totals are exclusively warehouse-computed — the export renderer has
+     * no client-side fallback, so without this they come out blank. Mirrors the
+     * UI: re-run the source query collapsed across the pivot (`calculate-total`)
+     * and key the results so the pivot worker can match each rendered cell. A
+     * failed totals query (e.g. source can't be totalled) never fails the
+     * export — that total is simply left blank, as it is in the UI.
+     */
+    private async getExportWarehouseTotals({
+        account,
+        projectUuid,
+        sourceQueryUuid,
+        pivotConfig,
+        pivotDetails,
+    }: {
+        account: Account;
+        projectUuid: string;
+        sourceQueryUuid: string;
+        pivotConfig: PivotConfig;
+        pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
+    }): Promise<{
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
+    }> {
+        let warehouseColumnTotals: Record<string, number> | undefined;
+        let warehouseRowTotals: PivotRowTotalsByIndex | undefined;
+
+        if (pivotConfig.columnTotals) {
+            try {
+                const { rows, fields } =
+                    await this.executeCalculateTotalAndGetResults({
+                        account,
+                        projectUuid,
+                        queryUuid: sourceQueryUuid,
+                        kind: 'columnTotal',
+                    });
+                warehouseColumnTotals = buildWarehouseColumnTotals(
+                    formatRows(rows, fields),
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to compute column totals for pivot export',
+                    {
+                        projectUuid,
+                        sourceQueryUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+
+        const { indexColumn } = pivotDetails;
+        const indexFieldIds = indexColumn
+            ? (Array.isArray(indexColumn) ? indexColumn : [indexColumn]).map(
+                  (col) => col.reference,
+              )
+            : [];
+        if (pivotConfig.rowTotals && indexFieldIds.length > 0) {
+            try {
+                const { rows, fields } =
+                    await this.executeCalculateTotalAndGetResults({
+                        account,
+                        projectUuid,
+                        queryUuid: sourceQueryUuid,
+                        kind: 'rowTotal',
+                    });
+                warehouseRowTotals = buildWarehouseRowTotals(
+                    formatRows(rows, fields),
+                    indexFieldIds,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to compute row totals for pivot export',
+                    {
+                        projectUuid,
+                        sourceQueryUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+
+        return { warehouseRowTotals, warehouseColumnTotals };
+    }
+
     private async downloadAsyncQueryResults({
         account,
         projectUuid,
@@ -1376,6 +1465,24 @@ export class AsyncQueryService extends ProjectService {
                   }
                 : undefined;
 
+        // Warehouse-computed totals for the pivot export — without these the
+        // renderer leaves total cells blank (no client-side fallback).
+        const { warehouseRowTotals, warehouseColumnTotals } =
+            downloadPivotConfig &&
+            pivotDetails &&
+            (downloadPivotConfig.rowTotals || downloadPivotConfig.columnTotals)
+                ? await this.getExportWarehouseTotals({
+                      account,
+                      projectUuid,
+                      sourceQueryUuid: queryUuid,
+                      pivotConfig: downloadPivotConfig,
+                      pivotDetails,
+                  })
+                : {
+                      warehouseRowTotals: undefined,
+                      warehouseColumnTotals: undefined,
+                  };
+
         switch (type) {
             case DownloadFileType.CSV:
                 // Check if this is a pivot table download
@@ -1391,6 +1498,8 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         storageClient: resultsStorageClient,
                         pivotDetails,
+                        warehouseRowTotals,
+                        warehouseColumnTotals,
                         options: {
                             onlyRaw,
                             showTableNames,
@@ -1456,6 +1565,8 @@ export class AsyncQueryService extends ProjectService {
                                   )
                               ).csvCellsLimit,
                               pivotDetails,
+                              warehouseRowTotals,
+                              warehouseColumnTotals,
                               options: {
                                   onlyRaw,
                                   showTableNames,
@@ -5956,6 +6067,52 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             queryUuid,
+            cacheMetadata,
+            fields,
+        });
+    }
+
+    /**
+     * Execute a calculate-total query (row/column totals) derived from a source
+     * query and wait for all results. Mirrors `executeMetricQueryAndGetResults`
+     * but starts from `executeAsyncCalculateTotalFromQueryHistory`.
+     */
+    private async executeCalculateTotalAndGetResults(
+        args: {
+            account: Account;
+            projectUuid: string;
+            queryUuid: string;
+            kind: CalculateTotalKind;
+            subtotalDimensions?: string[];
+            invalidateCache?: boolean;
+        },
+        pollingOptions?: PollingOptions,
+    ): Promise<{
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+    }> {
+        const { account, projectUuid } = args;
+
+        const {
+            queryUuid: totalsQueryUuid,
+            cacheMetadata,
+            fields,
+        } = await this.executeAsyncCalculateTotalFromQueryHistory(args);
+
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid: totalsQueryUuid,
+            ...pollingOptions,
+        });
+
+        return this.getReadyQueryResults({
+            account,
+            projectUuid,
+            queryUuid: totalsQueryUuid,
             cacheMetadata,
             fields,
         });
