@@ -172,6 +172,55 @@ export const getLastCommit = async ({
     return response.data[0];
 };
 
+/**
+ * True when a thrown octokit error is a rate-limit response. GitHub signals it
+ * two ways: a primary limit (403 with `x-ratelimit-remaining: 0`) and a
+ * secondary/burst limit (429, or 403 carrying a `retry-after` header, or a
+ * "rate limit" message). Checked at the throw site because callers wrap the
+ * error into UnexpectedGitError (dropping status + headers) downstream.
+ */
+export const isGithubRateLimitError = (error: unknown): boolean => {
+    const status = (error as { status?: number } | null)?.status;
+    const responseHeaders =
+        (error as { response?: { headers?: Record<string, string> } } | null)
+            ?.response?.headers ?? {};
+    const remaining = responseHeaders['x-ratelimit-remaining'];
+    const retryAfter = responseHeaders['retry-after'];
+    return (
+        status === 429 ||
+        (status === 403 && (remaining === '0' || retryAfter !== undefined)) ||
+        /rate limit/i.test(getErrorMessage(error))
+    );
+};
+
+/**
+ * Log a rate-limit response loudly (with the reset/retry hints) so throttling is
+ * never silent — several callers swallow or wrap the underlying error. No-op for
+ * non-rate-limit errors. `context` identifies the call site (e.g. the path).
+ */
+const logGithubRateLimit = (error: unknown, context: string): void => {
+    if (!isGithubRateLimitError(error)) return;
+    const responseHeaders =
+        (error as { response?: { headers?: Record<string, string> } } | null)
+            ?.response?.headers ?? {};
+    const status = (error as { status?: number } | null)?.status;
+    Logger.warn(
+        `[github] rate limit hit (${context}): status=${
+            status ?? '?'
+        } remaining=${responseHeaders['x-ratelimit-remaining'] ?? '?'} retryAfter=${
+            responseHeaders['retry-after'] ?? '?'
+        } reset=${responseHeaders['x-ratelimit-reset'] ?? '?'}`,
+        {
+            event: 'github.rate_limit',
+            context,
+            status,
+            remaining: responseHeaders['x-ratelimit-remaining'],
+            retryAfter: responseHeaders['retry-after'],
+            reset: responseHeaders['x-ratelimit-reset'],
+        },
+    );
+};
+
 export const getFileContent = async ({
     fileName,
     owner,
@@ -218,6 +267,7 @@ export const getFileContent = async ({
         ) {
             throw new NotFoundError(`file ${fileName} not found in Github`);
         }
+        logGithubRateLimit(error, `getContent ${fileName}`);
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
@@ -277,6 +327,7 @@ export const getRepoTree = async ({
                 `repo ${owner}/${repo} (ref ${branch}) not found in Github`,
             );
         }
+        logGithubRateLimit(error, `getTree ${owner}/${repo}@${branch}`);
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
