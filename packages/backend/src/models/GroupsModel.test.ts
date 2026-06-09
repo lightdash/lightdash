@@ -44,4 +44,33 @@ describe('GroupsModel', () => {
         expect(query.sql).toContain('set "role" = $1 where');
         expect(query.bindings).not.toContain('attacker-project-uuid');
     });
+
+    it('preserves null role_uuid when unsetting custom project access role', async () => {
+        tracker.on.update(ProjectGroupAccessTableName).responseOnce([
+            {
+                project_id: 1,
+                project_uuid: 'project-uuid',
+                group_uuid: 'group-uuid',
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: null,
+            },
+        ]);
+
+        await model.updateProjectAccess(
+            {
+                projectUuid: 'project-uuid',
+                groupUuid: 'group-uuid',
+            },
+            {
+                role: ProjectMemberRole.VIEWER,
+                role_uuid: null,
+            },
+        );
+
+        const [query] = tracker.history.update;
+        expect(query.sql).toContain(ProjectGroupAccessTableName);
+        expect(query.sql).toContain('set "role" = $1, "role_uuid" = $2 where');
+        expect(query.bindings).toContain(ProjectMemberRole.VIEWER);
+        expect(query.bindings).toContain(null);
+    });
 });
