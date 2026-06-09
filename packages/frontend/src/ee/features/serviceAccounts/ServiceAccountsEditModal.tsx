@@ -302,7 +302,7 @@ const EditForm: FC<{
                                 >
                                     custom roles
                                 </Anchor>
-                                . The token stays the same.
+                                .
                             </>
                         }
                         placeholder="Select a permission set"
@@ -392,7 +392,6 @@ export const ServiceAccountsEditModal: FC<Props> = ({
             onClose={handleClose}
             title="Edit service account"
             icon={IconPencil}
-            size="md"
             cancelLabel="Cancel"
             cancelDisabled={formState.isLoading}
             actions={
