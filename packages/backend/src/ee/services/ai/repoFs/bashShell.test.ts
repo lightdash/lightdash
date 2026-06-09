@@ -105,6 +105,32 @@ describe('runRepoShellCommand (just-bash)', () => {
             const out = await run('cat dbt_project.yml 2>/dev/null');
             expect(out).toContain('name: jaffle');
         });
+
+        it('reads a source that defers via a macrotask (network I/O)', async () => {
+            // Regression: just-bash defense-in-depth blocks setTimeout/setImmediate
+            // /Proxy during script execution. Our real source does async GitHub
+            // I/O DURING that window, so with defense-in-depth enabled every read
+            // threw SecurityViolationError. This source defers via setTimeout to
+            // mimic that; it must still read cleanly (defense-in-depth is off).
+            const deferringSource: RepoSource = {
+                label: 'owner/repo@main',
+                listAllPaths: async () => ({
+                    files: [{ path: 'models/x.sql', size: 10 }],
+                    truncated: false,
+                }),
+                readFile: async (path) => {
+                    await new Promise((resolve) => {
+                        setTimeout(resolve, 0);
+                    });
+                    return path === 'models/x.sql' ? 'select 1\n' : null;
+                },
+            };
+            const out = await runRepoShellCommand(
+                new RepoFs(deferringSource),
+                'cat models/x.sql',
+            );
+            expect(out).toBe('select 1');
+        });
     });
 
     describe('read-only + error model', () => {
@@ -124,6 +150,21 @@ describe('runRepoShellCommand (just-bash)', () => {
             await expect(run('rm dbt_project.yml')).rejects.toBeInstanceOf(
                 ShellError,
             );
+        });
+
+        it('does not register code-execution or network commands', async () => {
+            // python3 / js-exec / node / curl are arbitrary-code-execution and
+            // network surfaces; they must stay unavailable (flags off + not in
+            // the allowlist).
+            for (const cmd of [
+                'python3 --version',
+                'node -e "1"',
+                'js-exec "1"',
+                'curl https://example.com',
+            ]) {
+                // eslint-disable-next-line no-await-in-loop
+                await expect(run(cmd)).rejects.toBeInstanceOf(ShellError);
+            }
         });
 
         it('reports a missing file', async () => {

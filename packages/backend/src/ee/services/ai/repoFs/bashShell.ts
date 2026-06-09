@@ -138,6 +138,18 @@ export const runRepoShellCommand = async (
         cwd: '/',
         commands: READ_ONLY_COMMANDS,
         executionLimits: { maxOutputSize: MAX_INTERNAL_OUTPUT },
+        // Defense-in-depth wraps ALL command execution and monkey-patches Node
+        // globals (setImmediate, setTimeout, the Proxy constructor, eval,
+        // Function, …) to throw unconditionally while a script runs. It's a
+        // secondary guard against escapes from the js-exec/python sandboxes —
+        // js-exec is the only code that itself constructs a Proxy — and we enable
+        // neither, so it protects nothing for us. But our IFileSystem does real
+        // async GitHub I/O whose Octokit/Node internals call those blocked
+        // globals, so every command that reads a file (cat, grep, awk, sed, …)
+        // throws SecurityViolationError mid-read. Our real guarantees are primary
+        // anyway: read-only-by-construction (writes throw EROFS) and the command
+        // allowlist (no network/python/js). Turning it off is safe and necessary.
+        defenseInDepth: false,
     });
 
     const controller = new AbortController();
