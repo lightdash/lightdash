@@ -4963,6 +4963,14 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        dataZoomItemCount: { dataType: 'double' },
+                        dataZoomAnchor: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'enum', enums: ['start'] },
+                                { dataType: 'enum', enums: ['end'] },
+                            ],
+                        },
                         enableDataZoom: { dataType: 'boolean' },
                         sortType: { ref: 'XAxisSortType' },
                     },

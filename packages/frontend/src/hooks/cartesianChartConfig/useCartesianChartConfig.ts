@@ -527,6 +527,24 @@ const useCartesianChartConfig = ({
             };
         });
     }, []);
+    const setDataZoomAnchor = useCallback((dataZoomAnchor: 'start' | 'end') => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, dataZoomAnchor }, ...axes],
+            };
+        });
+    }, []);
+    const setDataZoomItemCount = useCallback((dataZoomItemCount: number) => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, dataZoomItemCount }, ...axes],
+            };
+        });
+    }, []);
     const addSingleSeries = useCallback((yField: string) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -1294,6 +1312,8 @@ const useCartesianChartConfig = ({
         setXAxisSort,
         setXAxisLabelRotation,
         setScrollableChart,
+        setDataZoomAnchor,
+        setDataZoomItemCount,
         updateSeries,
         referenceLines,
         setReferenceLines,

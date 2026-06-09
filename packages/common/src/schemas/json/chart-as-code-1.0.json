@@ -3222,6 +3222,16 @@
                 },
                 {
                     "properties": {
+                        "dataZoomAnchor": {
+                            "description": "Where the initial data-zoom window anchors when data zoom is enabled",
+                            "enum": ["start", "end"],
+                            "type": "string"
+                        },
+                        "dataZoomItemCount": {
+                            "description": "Number of items visible at once in the data-zoom window",
+                            "format": "double",
+                            "type": "number"
+                        },
                         "enableDataZoom": {
                             "description": "Enable data zoom slider for this axis",
                             "type": "boolean"
