@@ -12,7 +12,11 @@ import {
     type PopoverProps,
 } from '@mantine-8/core';
 import { useDisclosure, useScrollIntoView } from '@mantine/hooks';
-import { IconMessage } from '@tabler/icons-react';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconMessage,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
@@ -234,6 +238,15 @@ export const DashboardTileComments: FC<
                                 color="gray"
                                 fz="xs"
                                 onClick={toggleShowResolved}
+                                rightSection={
+                                    <MantineIcon
+                                        icon={
+                                            showResolved
+                                                ? IconChevronUp
+                                                : IconChevronDown
+                                        }
+                                    />
+                                }
                             >
                                 {showResolved ? 'Hide' : 'Show'} resolved (
                                 {resolvedComments.length})
