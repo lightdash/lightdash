@@ -1,3 +1,16 @@
+# [0.3113.0](https://github.com/lightdash/lightdash/compare/0.3112.0...0.3113.0) (2026-06-09)
+
+
+### Bug Fixes
+
+* restrict update attributes ([#24044](https://github.com/lightdash/lightdash/issues/24044)) ([d88170f](https://github.com/lightdash/lightdash/commit/d88170fd52d879980c9f1a495b5b6c295f5907a9))
+
+
+### Features
+
+* **backend:** deprecation logging, deadlines, headers & Sentry for endpoints ([#24022](https://github.com/lightdash/lightdash/issues/24022)) ([c84e526](https://github.com/lightdash/lightdash/commit/c84e5260e487265095013fbd90db17309c27bb7f))
+* full-row conditional formatting based on a single column's value ([#23807](https://github.com/lightdash/lightdash/issues/23807)) ([4211727](https://github.com/lightdash/lightdash/commit/42117279cf1809dd8ad36db8cd6ffe52c844dca0))
+
 # [0.3112.0](https://github.com/lightdash/lightdash/compare/0.3111.1...0.3112.0) (2026-06-09)
 
 
