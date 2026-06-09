@@ -4,6 +4,7 @@ import {
     type ServiceAccountProjectGrant,
     type ServiceAccountScope as ServiceAccountScopeType,
     type ServiceAccountWithProjectAccessCount,
+    type UpdateServiceAccount,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -18,7 +19,7 @@ import {
 } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
+import { useCallback, useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineModal from '../../../components/common/MantineModal';
 import { useProjects } from '../../../hooks/useProjects';
@@ -132,23 +133,16 @@ const useCustomRoleOptions = () => {
     return { options, isLoading: listRoles.isLoading };
 };
 
-interface EditFormState {
-    isLoading: boolean;
-    isReady: boolean;
-}
-
-const READY: EditFormState = { isLoading: false, isReady: true };
-
 // Unified edit form — mounts only once grants are loaded so `useForm` captures
-// them as initial values (per the no-effect-sync state pattern).
+// them as initial values (per the no-effect-sync state pattern). The mutation
+// and its loading state live in the parent, which derives them at render time
+// (no effects); this form just builds the payload and calls `onSubmit`.
 const EditForm: FC<{
     serviceAccount: ServiceAccountWithProjectAccessCount;
     grants: ServiceAccountProjectGrant[];
-    onStateChange: (state: EditFormState) => void;
-    onClose: () => void;
-}> = ({ serviceAccount, grants, onStateChange, onClose }) => {
-    const { updateAccount } = useServiceAccounts();
-    const { mutateAsync, isLoading } = updateAccount;
+    isSubmitting: boolean;
+    onSubmit: (payload: UpdateServiceAccount) => void;
+}> = ({ serviceAccount, grants, isSubmitting, onSubmit }) => {
     const { data: projects = [] } = useProjects();
     const { options: customRoleOptions, isLoading: rolesLoading } =
         useCustomRoleOptions();
@@ -207,10 +201,9 @@ const EditForm: FC<{
     });
 
     const handleOnSubmit = form.onSubmit(
-        async ({ description, scope, roleSelection, projectRoles }) => {
+        ({ description, scope, roleSelection, projectRoles }) => {
             if (scope === 'project') {
-                await mutateAsync({
-                    uuid: serviceAccount.uuid,
+                onSubmit({
                     description,
                     scopes: [ServiceAccountScope.SYSTEM_MEMBER],
                     projectAccess: projectRoles.map((r) => {
@@ -225,29 +218,20 @@ const EditForm: FC<{
                               };
                     }),
                 });
-                onClose();
                 return;
             }
             // Organization scope:
             //   scope:<service-account-scope> → { scopes: [<scope>] }
             //   role:<uuid>                   → { roleUuid: <uuid> }
             const { kind, value } = parseTaggedRole(roleSelection);
-            const payload =
-                kind === 'scope'
-                    ? { scopes: [value as ServiceAccountScopeType] }
-                    : { roleUuid: value };
-            await mutateAsync({
-                uuid: serviceAccount.uuid,
+            onSubmit({
                 description,
-                ...payload,
+                ...(kind === 'scope'
+                    ? { scopes: [value as ServiceAccountScopeType] }
+                    : { roleUuid: value }),
             });
-            onClose();
         },
     );
-
-    useEffect(() => {
-        onStateChange({ isLoading, isReady: true });
-    }, [isLoading, onStateChange]);
 
     // Switching scope mode is destructive — warn before save.
     const switchWarning =
@@ -264,7 +248,7 @@ const EditForm: FC<{
                     label="Description"
                     placeholder="What's this service account for?"
                     required
-                    disabled={isLoading}
+                    disabled={isSubmitting}
                     {...form.getInputProps('description')}
                 />
 
@@ -274,7 +258,7 @@ const EditForm: FC<{
                     </Text>
                     <SegmentedControl
                         fullWidth
-                        disabled={isLoading}
+                        disabled={isSubmitting}
                         data={[
                             { label: 'Organization', value: 'organization' },
                             { label: 'Project', value: 'project' },
@@ -310,7 +294,7 @@ const EditForm: FC<{
                         required
                         searchable
                         maxDropdownHeight={220}
-                        disabled={isLoading || rolesLoading}
+                        disabled={isSubmitting || rolesLoading}
                         {...form.getInputProps('roleSelection')}
                     />
                 ) : (
@@ -319,7 +303,7 @@ const EditForm: FC<{
                         projects={projects}
                         projectRoleOptions={projectRoleOptions}
                         rolesLoading={rolesLoading}
-                        disabled={isLoading}
+                        disabled={isSubmitting}
                     />
                 )}
             </Stack>
@@ -333,85 +317,80 @@ type Props = {
     serviceAccount: ServiceAccountWithProjectAccessCount | undefined;
 };
 
-// Fetches the SA's current grants up front so the form prefills project access
-// (and is ready if the user switches into Project mode), then mounts the form.
-const EditModalBody: FC<{
-    serviceAccount: ServiceAccountWithProjectAccessCount;
-    onStateChange: (state: EditFormState) => void;
-    onClose: () => void;
-}> = ({ serviceAccount, onStateChange, onClose }) => {
-    const grantsQuery = useServiceAccountProjectGrants(serviceAccount.uuid);
-
-    useEffect(() => {
-        if (grantsQuery.isLoading) {
-            onStateChange({ isLoading: false, isReady: false });
-        }
-    }, [grantsQuery.isLoading, onStateChange]);
-
-    if (grantsQuery.isLoading) {
-        return (
-            <Center mih={120}>
-                <Loader size="sm" />
-            </Center>
-        );
-    }
-    if (grantsQuery.isError || !grantsQuery.data) {
-        return (
-            <Text size="sm" c="red">
-                Failed to load this service account's project access.
-            </Text>
-        );
-    }
-
-    return (
-        <EditForm
-            serviceAccount={serviceAccount}
-            grants={grantsQuery.data}
-            onStateChange={onStateChange}
-            onClose={onClose}
-        />
-    );
-};
-
 export const ServiceAccountsEditModal: FC<Props> = ({
     isOpen,
     onClose,
     serviceAccount,
 }) => {
-    const [formState, setFormState] = useState<EditFormState>(READY);
+    const { updateAccount } = useServiceAccounts();
+    // Grants are fetched at the modal level so loading/ready state is derived
+    // here at render time (no effects) and the form prefills project access.
+    const grantsQuery = useServiceAccountProjectGrants(
+        serviceAccount?.uuid ?? '',
+    );
+    const isSubmitting = updateAccount.isLoading;
+    const grantsReady = !grantsQuery.isLoading && !!grantsQuery.data;
 
-    const handleClose = useCallback(() => {
-        onClose();
-        setFormState(READY);
-    }, [onClose]);
+    const handleSubmit = useCallback(
+        (payload: UpdateServiceAccount) => {
+            if (!serviceAccount) return;
+            // `mutate` (not `mutateAsync`): success closes the modal, failure
+            // surfaces the hook's onError toast and keeps it open.
+            updateAccount.mutate(
+                { uuid: serviceAccount.uuid, ...payload },
+                { onSuccess: () => onClose() },
+            );
+        },
+        [serviceAccount, updateAccount, onClose],
+    );
+
+    const renderBody = () => {
+        if (!serviceAccount) return null;
+        if (grantsQuery.isLoading) {
+            return (
+                <Center mih={120}>
+                    <Loader size="sm" />
+                </Center>
+            );
+        }
+        if (grantsQuery.isError || !grantsQuery.data) {
+            return (
+                <Text size="sm" c="red">
+                    Failed to load this service account's project access.
+                </Text>
+            );
+        }
+        return (
+            <EditForm
+                key={serviceAccount.uuid}
+                serviceAccount={serviceAccount}
+                grants={grantsQuery.data}
+                isSubmitting={isSubmitting}
+                onSubmit={handleSubmit}
+            />
+        );
+    };
 
     return (
         <MantineModal
             opened={isOpen}
-            onClose={handleClose}
+            onClose={onClose}
             title="Edit service account"
             icon={IconPencil}
             cancelLabel="Cancel"
-            cancelDisabled={formState.isLoading}
+            cancelDisabled={isSubmitting}
             actions={
                 <Button
                     type="submit"
                     form={EDIT_FORM_ID}
-                    loading={formState.isLoading}
-                    disabled={!formState.isReady}
+                    loading={isSubmitting}
+                    disabled={!grantsReady}
                 >
                     Save changes
                 </Button>
             }
         >
-            {serviceAccount ? (
-                <EditModalBody
-                    key={serviceAccount.uuid}
-                    serviceAccount={serviceAccount}
-                    onStateChange={setFormState}
-                    onClose={handleClose}
-                />
-            ) : null}
+            {renderBody()}
         </MantineModal>
     );
 };
