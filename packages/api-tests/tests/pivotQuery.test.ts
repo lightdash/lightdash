@@ -5,6 +5,8 @@ import { login } from '../helpers/auth';
 
 const apiUrl = '/api/v2';
 
+const fieldReference = (fieldId: string) => `\${${fieldId}}`;
+
 type PivotResults = {
     status: string;
     columns?: Record<string, unknown>;
@@ -34,7 +36,8 @@ async function runPivotQuery(
     expect(executeResp.status).toBe(200);
     const { queryUuid } = executeResp.body.results;
 
-    for (let i = 0; i < 30; i += 1) {
+    // Up to 60s (300 × 200ms) to tolerate slow CI / cold caches.
+    for (let i = 0; i < 300; i += 1) {
         const resp = await client.get<Body<PivotResults>>(
             `${apiUrl}/projects/${projectUuid}/query/${queryUuid}?page=1&pageSize=500`,
         );
@@ -144,7 +147,9 @@ describe('Pivot query API', () => {
                     name: 'revenue_rank',
                     displayName: 'Revenue rank',
                     type: 'number',
-                    sql: 'rank() over (order by ${orders.total_order_amount} desc)',
+                    sql: `rank() over (order by ${fieldReference(
+                        'orders.total_order_amount',
+                    )} desc)`,
                 },
             ],
             additionalMetrics: [],
@@ -193,7 +198,9 @@ describe('Pivot query API', () => {
                     name: 'customer_label',
                     displayName: 'Customer label',
                     type: 'string',
-                    sql: "concat(${customers.first_name}, ' ', ${customers.last_name})",
+                    sql: `concat(${fieldReference(
+                        'customers.first_name',
+                    )}, ' ', ${fieldReference('customers.last_name')})`,
                 },
             ],
             additionalMetrics: [],
