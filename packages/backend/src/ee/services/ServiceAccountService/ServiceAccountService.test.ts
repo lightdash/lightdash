@@ -44,10 +44,16 @@ const buildMocks = (): Mocks => ({
     serviceAccountModel: {
         create: jest.fn(),
         delete: jest.fn().mockResolvedValue(undefined),
+        getTokenbyUuid: jest.fn(),
+        update: jest.fn(),
     } as AnyType,
     projectModel: {
         createServiceAccountProjectAccess: jest.fn(),
         findInvalidCustomRoleUuids: jest.fn().mockResolvedValue([]),
+        getProjectAccessCountsByServiceAccountUserUuids: jest
+            .fn()
+            .mockResolvedValue(new Map<string, number>()),
+        setServiceAccountProjectAccess: jest.fn().mockResolvedValue(undefined),
     } as AnyType,
     analytics: { track: jest.fn() } as AnyType,
     commercialFeatureFlagModel: {} as AnyType,
@@ -309,5 +315,338 @@ describe('ServiceAccountService.create with projectAccess', () => {
             ).rejects.toBeInstanceOf(ForbiddenError);
             expect(mocks.serviceAccountModel.create).not.toHaveBeenCalled();
         });
+    });
+});
+
+describe('ServiceAccountService.update', () => {
+    const nobodyUser = (): SessionUser => {
+        const builder = new AbilityBuilder<MemberAbility>(Ability);
+        return {
+            userUuid: 'nobody',
+            organizationUuid: ORG,
+            ability: builder.build(),
+        } as AnyType;
+    };
+
+    it('rejects non-org-admin before any model call', async () => {
+        const mocks = buildMocks();
+        const service = buildService(mocks);
+        await expect(
+            service.update({
+                user: nobodyUser(),
+                tokenUuid: 'sa-1',
+                update: { description: 'new name' },
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(mocks.serviceAccountModel.getTokenbyUuid).not.toHaveBeenCalled();
+        expect(mocks.serviceAccountModel.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['empty', ''],
+        ['whitespace', '   '],
+    ])(
+        'rejects %s description before touching the model',
+        async (_label, description) => {
+            const mocks = buildMocks();
+            const service = buildService(mocks);
+            await expect(
+                service.update({
+                    user: adminUser(),
+                    tokenUuid: 'sa-1',
+                    update: { description },
+                }),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(mocks.serviceAccountModel.update).not.toHaveBeenCalled();
+        },
+    );
+
+    it('throws NotFound when the SA does not exist', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(undefined);
+        const service = buildService(mocks);
+        await expect(
+            service.update({
+                user: adminUser(),
+                tokenUuid: 'sa-missing',
+                update: { description: 'new name' },
+            }),
+        ).rejects.toBeInstanceOf(NotFoundError);
+        expect(mocks.serviceAccountModel.update).not.toHaveBeenCalled();
+    });
+
+    it('throws Forbidden when the SA belongs to another org', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue({
+            uuid: 'sa-1',
+            organizationUuid: 'other-org',
+        } as AnyType);
+        const service = buildService(mocks);
+        await expect(
+            service.update({
+                user: adminUser(),
+                tokenUuid: 'sa-1',
+                update: { description: 'new name' },
+            }),
+        ).rejects.toBeInstanceOf(ForbiddenError);
+        expect(mocks.serviceAccountModel.update).not.toHaveBeenCalled();
+    });
+
+    // An org-scoped SA carries a non-member scope; a project-scoped SA carries
+    // system:member. The two helpers build the matching getTokenbyUuid mock.
+    const orgScopedToken = (overrides: AnyType = {}) => ({
+        uuid: 'sa-1',
+        organizationUuid: ORG,
+        userUuid: 'sa-user-1',
+        scopes: [ServiceAccountScope.SYSTEM_VIEWER],
+        ...overrides,
+    });
+    const projectScopedToken = (overrides: AnyType = {}) => ({
+        uuid: 'sa-1',
+        organizationUuid: ORG,
+        userUuid: 'sa-user-1',
+        scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+        ...overrides,
+    });
+
+    it('updates an org-scoped SA then tracks analytics without sensitive values', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            orgScopedToken() as AnyType,
+        );
+        mocks.serviceAccountModel.update.mockResolvedValue({
+            uuid: 'sa-1',
+            description: 'new name',
+        } as AnyType);
+        const service = buildService(mocks);
+
+        const result = await service.update({
+            user: adminUser(),
+            tokenUuid: 'sa-1',
+            update: {
+                description: 'new name',
+                scopes: [ServiceAccountScope.SYSTEM_ADMIN],
+            },
+        });
+
+        expect(result).toEqual({ uuid: 'sa-1', description: 'new name' });
+        expect(mocks.serviceAccountModel.update).toHaveBeenCalledWith({
+            serviceAccountUuid: 'sa-1',
+            data: {
+                description: 'new name',
+                scopes: [ServiceAccountScope.SYSTEM_ADMIN],
+                roleUuid: undefined,
+            },
+        });
+        expect(
+            mocks.projectModel.setServiceAccountProjectAccess,
+        ).not.toHaveBeenCalled();
+        expect(mocks.analytics.track).toHaveBeenCalledTimes(1);
+        const tracked = mocks.analytics.track.mock.calls[0][0];
+        expect(tracked.event).toBe('scim_access_token.updated');
+        expect(tracked.properties).toEqual({ organizationId: ORG });
+    });
+
+    it('switches an org-scoped SA to project-scoped (sets grants + member scope)', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            orgScopedToken() as AnyType,
+        );
+        mocks.serviceAccountModel.update.mockResolvedValue({
+            uuid: 'sa-1',
+            description: 'switched',
+        } as AnyType);
+        const service = buildService(mocks);
+
+        await service.update({
+            user: adminUser(),
+            tokenUuid: 'sa-1',
+            update: {
+                description: 'switched',
+                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                projectAccess: [
+                    { projectUuid: PROJ_A, role: ProjectMemberRole.VIEWER },
+                ],
+            },
+        });
+
+        // Grants applied first, then scopes flipped to system:member.
+        expect(
+            mocks.projectModel.setServiceAccountProjectAccess,
+        ).toHaveBeenCalledWith('sa-1', [
+            { projectUuid: PROJ_A, role: ProjectMemberRole.VIEWER },
+        ]);
+        expect(mocks.serviceAccountModel.update).toHaveBeenCalledWith({
+            serviceAccountUuid: 'sa-1',
+            data: {
+                description: 'switched',
+                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+            },
+        });
+    });
+
+    it('rejects system:member with no project access', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            orgScopedToken() as AnyType,
+        );
+        const service = buildService(mocks);
+
+        await expect(
+            service.update({
+                user: adminUser(),
+                tokenUuid: 'sa-1',
+                update: {
+                    description: 'name',
+                    scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                },
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mocks.serviceAccountModel.update).not.toHaveBeenCalled();
+    });
+
+    it('replaces project grants on a project-scoped SA', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            projectScopedToken() as AnyType,
+        );
+        mocks.serviceAccountModel.update.mockResolvedValue({
+            uuid: 'sa-1',
+            description: 'renamed',
+        } as AnyType);
+        const service = buildService(mocks);
+
+        await service.update({
+            user: adminUser(),
+            tokenUuid: 'sa-1',
+            update: {
+                description: 'renamed',
+                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                projectAccess: [
+                    { projectUuid: PROJ_A, role: ProjectMemberRole.EDITOR },
+                    { projectUuid: PROJ_B, roleUuid: CUSTOM_ROLE },
+                ],
+            },
+        });
+
+        // Name + member scope set via the SA model, grants replaced wholesale
+        // via the project model.
+        expect(mocks.serviceAccountModel.update).toHaveBeenCalledWith({
+            serviceAccountUuid: 'sa-1',
+            data: {
+                description: 'renamed',
+                scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+            },
+        });
+        expect(
+            mocks.projectModel.setServiceAccountProjectAccess,
+        ).toHaveBeenCalledWith('sa-1', [
+            { projectUuid: PROJ_A, role: ProjectMemberRole.EDITOR },
+            { projectUuid: PROJ_B, roleUuid: CUSTOM_ROLE },
+        ]);
+        expect(mocks.analytics.track).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects emptying all project access on a project-scoped SA', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            projectScopedToken() as AnyType,
+        );
+        const service = buildService(mocks);
+
+        await expect(
+            service.update({
+                user: adminUser(),
+                tokenUuid: 'sa-1',
+                update: { description: 'name', projectAccess: [] },
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(
+            mocks.projectModel.setServiceAccountProjectAccess,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('switches a project-scoped SA to org-scoped (sets role + clears grants)', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            projectScopedToken() as AnyType,
+        );
+        mocks.serviceAccountModel.update.mockResolvedValue({
+            uuid: 'sa-1',
+            description: 'switched',
+        } as AnyType);
+        const service = buildService(mocks);
+
+        await service.update({
+            user: adminUser(),
+            tokenUuid: 'sa-1',
+            update: {
+                description: 'switched',
+                scopes: [ServiceAccountScope.SYSTEM_ADMIN],
+            },
+        });
+
+        // Org permission set first, then project grants cleared.
+        expect(mocks.serviceAccountModel.update).toHaveBeenCalledWith({
+            serviceAccountUuid: 'sa-1',
+            data: {
+                description: 'switched',
+                scopes: [ServiceAccountScope.SYSTEM_ADMIN],
+                roleUuid: undefined,
+            },
+        });
+        expect(
+            mocks.projectModel.setServiceAccountProjectAccess,
+        ).toHaveBeenCalledWith('sa-1', []);
+    });
+
+    it('rejects both project access and an org role in the same edit', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            projectScopedToken() as AnyType,
+        );
+        const service = buildService(mocks);
+
+        await expect(
+            service.update({
+                user: adminUser(),
+                tokenUuid: 'sa-1',
+                update: {
+                    description: 'name',
+                    roleUuid: CUSTOM_ROLE,
+                    projectAccess: [
+                        { projectUuid: PROJ_A, role: ProjectMemberRole.VIEWER },
+                    ],
+                },
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mocks.serviceAccountModel.update).not.toHaveBeenCalled();
+    });
+
+    it('allows a rename-only edit of a project-scoped SA (grants untouched)', async () => {
+        const mocks = buildMocks();
+        mocks.serviceAccountModel.getTokenbyUuid.mockResolvedValue(
+            projectScopedToken() as AnyType,
+        );
+        mocks.serviceAccountModel.update.mockResolvedValue({
+            uuid: 'sa-1',
+            description: 'renamed',
+        } as AnyType);
+        const service = buildService(mocks);
+
+        await service.update({
+            user: adminUser(),
+            tokenUuid: 'sa-1',
+            update: { description: 'renamed' },
+        });
+
+        expect(mocks.serviceAccountModel.update).toHaveBeenCalledWith({
+            serviceAccountUuid: 'sa-1',
+            data: { description: 'renamed' },
+        });
+        // No projectAccess in the payload → grants left as-is.
+        expect(
+            mocks.projectModel.setServiceAccountProjectAccess,
+        ).not.toHaveBeenCalled();
     });
 });

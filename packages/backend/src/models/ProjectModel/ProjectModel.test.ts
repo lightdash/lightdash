@@ -10,6 +10,9 @@ import {
     ExploreType,
     FieldType,
     MetricType,
+    NotFoundError,
+    ParameterError,
+    ProjectMemberRole,
     SpaceMemberRole,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -19,6 +22,7 @@ import { FunctionQueryMatcher } from 'knex-mock-client/types/mock-client';
 import isEqual from 'lodash/isEqual';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { ProjectGroupAccessTableName } from '../../database/entities/projectGroupAccess';
+import { ProjectMembershipsTableName } from '../../database/entities/projectMemberships';
 import {
     CachedExploresTableName,
     CachedExploreTableName,
@@ -28,6 +32,7 @@ import {
     SpaceTableName,
     SpaceUserAccessTableName,
 } from '../../database/entities/spaces';
+import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import { ChangesetModel } from '../ChangesetModel';
 import { ProjectModel } from './ProjectModel';
 import {
@@ -548,6 +553,100 @@ describe('ProjectModel', () => {
                     role: 'editor',
                 },
             ]);
+        });
+    });
+
+    describe('setServiceAccountProjectAccess', () => {
+        const matchSql =
+            (table: string) =>
+            ({ sql }: RawQuery) =>
+                sql.includes(table);
+        const SA_UUID = 'sa-1';
+
+        test('throws NotFound when the service account does not exist', async () => {
+            tracker.on.select(matchSql(ServiceAccountsTableName)).response([]);
+            await expect(
+                model.setServiceAccountProjectAccess(SA_UUID, [
+                    { projectUuid: 'p-1', role: ProjectMemberRole.VIEWER },
+                ]),
+            ).rejects.toBeInstanceOf(NotFoundError);
+            expect(tracker.history.delete).toHaveLength(0);
+        });
+
+        test('rejects duplicate projects before any write', async () => {
+            tracker.on
+                .select(matchSql(ServiceAccountsTableName))
+                .response([{ user_id: 1, organization_uuid: 'org-1' }]);
+            await expect(
+                model.setServiceAccountProjectAccess(SA_UUID, [
+                    { projectUuid: 'p-1', role: ProjectMemberRole.VIEWER },
+                    { projectUuid: 'p-1', role: ProjectMemberRole.EDITOR },
+                ]),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(tracker.history.delete).toHaveLength(0);
+        });
+
+        test('throws NotFound when a project does not exist', async () => {
+            tracker.on
+                .select(matchSql(ServiceAccountsTableName))
+                .response([{ user_id: 1, organization_uuid: 'org-1' }]);
+            tracker.on.select(matchSql(ProjectTableName)).response([]);
+            await expect(
+                model.setServiceAccountProjectAccess(SA_UUID, [
+                    {
+                        projectUuid: 'p-missing',
+                        role: ProjectMemberRole.VIEWER,
+                    },
+                ]),
+            ).rejects.toBeInstanceOf(NotFoundError);
+            expect(tracker.history.delete).toHaveLength(0);
+        });
+
+        test('rejects a project from a different organization', async () => {
+            tracker.on
+                .select(matchSql(ServiceAccountsTableName))
+                .response([{ user_id: 1, organization_uuid: 'org-1' }]);
+            tracker.on
+                .select(matchSql(ProjectTableName))
+                .response([
+                    { project_uuid: 'p-1', project_id: 10, org_uuid: 'org-2' },
+                ]);
+            await expect(
+                model.setServiceAccountProjectAccess(SA_UUID, [
+                    { projectUuid: 'p-1', role: ProjectMemberRole.VIEWER },
+                ]),
+            ).rejects.toBeInstanceOf(ParameterError);
+            expect(tracker.history.delete).toHaveLength(0);
+        });
+
+        test('replaces grants: deletes existing then inserts, with a Viewer placeholder for custom roles', async () => {
+            tracker.on
+                .select(matchSql(ServiceAccountsTableName))
+                .response([{ user_id: 1, organization_uuid: 'org-1' }]);
+            tracker.on.select(matchSql(ProjectTableName)).response([
+                { project_uuid: 'p-1', project_id: 10, org_uuid: 'org-1' },
+                { project_uuid: 'p-2', project_id: 20, org_uuid: 'org-1' },
+            ]);
+            tracker.on
+                .delete(matchSql(ProjectMembershipsTableName))
+                .response([]);
+            tracker.on
+                .insert(matchSql(ProjectMembershipsTableName))
+                .response([]);
+
+            await model.setServiceAccountProjectAccess(SA_UUID, [
+                { projectUuid: 'p-1', role: ProjectMemberRole.EDITOR },
+                { projectUuid: 'p-2', roleUuid: 'custom-role-1' },
+            ]);
+
+            expect(tracker.history.delete).toHaveLength(1);
+            expect(tracker.history.insert).toHaveLength(1);
+            const { bindings } = tracker.history.insert[0];
+            // System grant keeps its role; custom-role grant gets the Viewer
+            // placeholder plus the role_uuid.
+            expect(bindings).toContain(ProjectMemberRole.EDITOR);
+            expect(bindings).toContain(ProjectMemberRole.VIEWER);
+            expect(bindings).toContain('custom-role-1');
         });
     });
 });

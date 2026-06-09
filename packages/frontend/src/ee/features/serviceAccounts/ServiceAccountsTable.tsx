@@ -32,6 +32,7 @@ import {
     IconDots,
     IconFilter,
     IconInfoCircle,
+    IconPencil,
     IconRefresh,
     IconSearch,
     IconShieldLock,
@@ -51,6 +52,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import { ProjectsHoverCard } from './ProjectsHoverCard';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
+import { ServiceAccountsEditModal } from './ServiceAccountsEditModal';
 import { ServiceAccountsRotateModal } from './ServiceAccountsRotateModal';
 import classes from './ServiceAccountsToolbar.module.css';
 import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
@@ -153,6 +155,8 @@ export const ServiceAccountsTable: FC<Props> = ({
     const [opened, { open, close }] = useDisclosure(false);
     const [rotateOpened, { open: openRotate, close: closeRotate }] =
         useDisclosure(false);
+    const [editOpened, { open: openEdit, close: closeEdit }] =
+        useDisclosure(false);
 
     const [search, setSearch] = useState('');
     const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
@@ -212,6 +216,9 @@ export const ServiceAccountsTable: FC<Props> = ({
     const [serviceAccountToRotate, setServiceAccountToRotate] = useState<
         ServiceAccount | undefined
     >();
+    const [serviceAccountToEdit, setServiceAccountToEdit] = useState<
+        ServiceAccountWithProjectAccessCount | undefined
+    >();
 
     const handleOpenDelete = useCallback(
         (sa: ServiceAccount) => {
@@ -244,6 +251,19 @@ export const ServiceAccountsTable: FC<Props> = ({
         setServiceAccountToRotate(undefined);
         closeRotate();
     }, [closeRotate]);
+
+    const handleOpenEdit = useCallback(
+        (sa: ServiceAccountWithProjectAccessCount) => {
+            setServiceAccountToEdit(sa);
+            openEdit();
+        },
+        [openEdit],
+    );
+
+    const handleCloseEdit = useCallback(() => {
+        setServiceAccountToEdit(undefined);
+        closeEdit();
+    }, [closeEdit]);
 
     const columns: ContentTableColumnDef<ServiceAccountWithProjectAccessCount>[] =
         useMemo(
@@ -576,6 +596,14 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     </ActionIcon>
                                 </Menu.Target>
                                 <Menu.Dropdown>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconPencil} />
+                                        }
+                                        onClick={() => handleOpenEdit(sa)}
+                                    >
+                                        Edit
+                                    </Menu.Item>
                                     {sa.roleUuid && (
                                         <Menu.Item
                                             component={Link}
@@ -619,7 +647,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     },
                 },
             ],
-            [rolesByUuid, handleOpenRotate, handleOpenDelete],
+            [rolesByUuid, handleOpenEdit, handleOpenRotate, handleOpenDelete],
         );
 
     const handleStatusFilterChange = useCallback((value: string) => {
@@ -897,6 +925,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                 isOpen={rotateOpened}
                 onClose={handleCloseRotate}
                 serviceAccount={serviceAccountToRotate}
+            />
+
+            <ServiceAccountsEditModal
+                isOpen={editOpened}
+                onClose={handleCloseEdit}
+                serviceAccount={serviceAccountToEdit}
             />
         </>
     );
