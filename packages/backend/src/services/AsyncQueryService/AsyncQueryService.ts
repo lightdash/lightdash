@@ -2705,11 +2705,16 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone = projectUuid
             ? await this.getQueryTimezoneForProject(projectUuid)
             : 'UTC';
-        const resolvedTimezone = resolveQueryTimezone(
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+            userUuid,
+            organizationUuid,
+        });
+        const resolvedTimezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
             userTimezone,
-        );
+            isUserTimezoneEnabled,
+        });
         const enabled = await this.isTimezoneSupportEnabled({
             userUuid,
             organizationUuid,
@@ -3116,10 +3121,6 @@ export class AsyncQueryService extends ProjectService {
             explore,
         );
 
-        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
-            userUuid: account.user.id,
-            organizationUuid: account.organization.organizationUuid,
-        });
         const {
             resolvedTimezone,
             displayTimezone,
@@ -3134,7 +3135,7 @@ export class AsyncQueryService extends ProjectService {
             userTimezone:
                 materializationRole !== undefined
                     ? null
-                    : getAccountUserTimezone(account, isUserTimezoneEnabled),
+                    : getAccountUserTimezone(account),
             metricQuery,
         });
 
