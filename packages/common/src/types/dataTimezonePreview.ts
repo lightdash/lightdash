@@ -1,26 +1,21 @@
 import moment from 'moment-timezone';
 import { formatTimestamp } from '../utils/formatting';
-import { isValidTimezone } from '../utils/scheduler';
-import { dateTruncTimezoneConversions } from '../utils/timeFrames';
 import { SupportedDbtAdapter } from './dbt';
 import { ParameterError } from './errors';
 import { type CreateWarehouseCredentials } from './projects';
 import { TimeFrames } from './timeFrames';
 
-// A timestamp column with NO stored timezone (TIMESTAMP WITHOUT TIME ZONE,
-// Snowflake NTZ, BigQuery DATETIME). It has no instant until a zone is
-// assumed. The data timezone IS that assumption, so these columns ARE
-// affected by the setting.
+// A timestamp column with no stored timezone (NTZ): the data timezone is the
+// assumption that turns it into an instant, so these columns ARE affected.
 export type DataTimezonePreviewNaive = {
-    interpretedAs: string; // the zone Lightdash assumes (effective source zone)
+    interpretedAs: string; // the session zone the warehouse read it in
     raw: string; // the bare wall-clock the warehouse holds, no zone attached
-    readAs: string; // same wall-clock with the assumed zone attached
+    readAs: string; // same wall-clock with the session zone attached
     rendered: string; // the resulting instant rendered in the project timezone
 };
 
-// A timestamp column that already carries a timezone (timestamptz, Snowflake
-// TZ/LTZ, BigQuery TIMESTAMP). Its instant is already pinned, so the data
-// timezone is ignored, so these columns are NOT affected by the setting.
+// A timestamp column that already carries a timezone: its instant is pinned, so
+// the data timezone is ignored and these columns are NOT affected.
 export type DataTimezonePreviewAware = {
     raw: string; // the instant as the warehouse pins it (rendered in UTC)
     rendered: string; // the same instant rendered in the project timezone
@@ -29,8 +24,8 @@ export type DataTimezonePreviewAware = {
 // The `results` payload of the API response.
 export type ApiDataTimezonePreviewResults = {
     projectTimezone: string; // zone viewers see ('UTC' in the create flow)
-    dataTimezoneApplies: boolean; // false when the source zone is UTC (a no-op)
-    naive: DataTimezonePreviewNaive; // .interpretedAs carries the source zone
+    dataTimezoneApplies: boolean; // true when a data timezone is explicitly set
+    naive: DataTimezonePreviewNaive; // .interpretedAs carries the session zone
     aware: DataTimezonePreviewAware;
 };
 
@@ -44,51 +39,58 @@ export type DataTimezonePreviewRequest = {
     projectUuid?: string;
 };
 
-// Wraps one backend-computed wall-clock ('YYYY-MM-DD HH:mm:ss') as a zone-less
-// timestamp literal per dialect. Injecting a fixed literal - instead of each
-// warehouse's now() - makes the preview identical across warehouses and
-// independent of warehouse/server timezone. Fed to toUTC for interpretation.
-const naiveLiteralSql: Record<
+// Reads a bare literal through the session timezone (set by the client from the
+// data timezone) and returns it as a UTC 'YYYY-MM-DD HH:mm:ss' string - the same
+// path real queries use to interpret NTZ columns. The string form parses back
+// unambiguously regardless of driver Date handling.
+const sessionUtcStringSql: Record<
     SupportedDbtAdapter,
     (wallClock: string) => string
 > = {
-    [SupportedDbtAdapter.POSTGRES]: (w) => `TIMESTAMP '${w}'`,
-    [SupportedDbtAdapter.REDSHIFT]: (w) => `TIMESTAMP '${w}'`,
-    [SupportedDbtAdapter.DUCKDB]: (w) => `TIMESTAMP '${w}'`,
-    [SupportedDbtAdapter.SNOWFLAKE]: (w) => `'${w}'::TIMESTAMP_NTZ`,
-    [SupportedDbtAdapter.DATABRICKS]: (w) => `TIMESTAMP '${w}'`,
-    [SupportedDbtAdapter.SPARK]: (w) => `TIMESTAMP '${w}'`,
-    [SupportedDbtAdapter.TRINO]: (w) => `TIMESTAMP '${w}'`,
-    [SupportedDbtAdapter.ATHENA]: (w) => `TIMESTAMP '${w}'`,
-    [SupportedDbtAdapter.CLICKHOUSE]: (w) => `'${w}'`,
-    [SupportedDbtAdapter.BIGQUERY]: (w) => `DATETIME '${w}'`,
+    [SupportedDbtAdapter.POSTGRES]: (w) =>
+        `to_char((TIMESTAMP '${w}')::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`,
+    [SupportedDbtAdapter.REDSHIFT]: (w) =>
+        `to_char((TIMESTAMP '${w}')::timestamptz AT TIME ZONE 'UTC', 'YYYY-MM-DD HH24:MI:SS')`,
+    [SupportedDbtAdapter.DUCKDB]: (w) =>
+        `strftime((TIMESTAMP '${w}')::TIMESTAMPTZ AT TIME ZONE 'UTC', '%Y-%m-%d %H:%M:%S')`,
+    [SupportedDbtAdapter.SNOWFLAKE]: (w) =>
+        `TO_CHAR(CONVERT_TIMEZONE('UTC', '${w}'::TIMESTAMP_NTZ), 'YYYY-MM-DD HH24:MI:SS')`,
+    [SupportedDbtAdapter.DATABRICKS]: (w) =>
+        `date_format(to_utc_timestamp('${w}', current_timezone()), 'yyyy-MM-dd HH:mm:ss')`,
+    [SupportedDbtAdapter.SPARK]: (w) =>
+        `date_format(to_utc_timestamp('${w}', current_timezone()), 'yyyy-MM-dd HH:mm:ss')`,
+    [SupportedDbtAdapter.TRINO]: (w) =>
+        `format_datetime(CAST(TIMESTAMP '${w}' AS timestamp with time zone) AT TIME ZONE 'UTC', 'yyyy-MM-dd HH:mm:ss')`,
+    [SupportedDbtAdapter.ATHENA]: (w) =>
+        `format_datetime(CAST(TIMESTAMP '${w}' AS timestamp with time zone) AT TIME ZONE 'UTC', 'yyyy-MM-dd HH:mm:ss')`,
+    [SupportedDbtAdapter.CLICKHOUSE]: (w) =>
+        `toString(toTimeZone(toDateTime('${w}'), 'UTC'))`,
+    // BigQuery has no session-timezone plumbing (its data tz UI is hidden), so
+    // the bare value is effectively UTC.
+    [SupportedDbtAdapter.BIGQUERY]: (w) =>
+        `FORMAT_TIMESTAMP('%Y-%m-%d %H:%M:%S', TIMESTAMP('${w}', 'UTC'), 'UTC')`,
 };
 
 const NAIVE_WALL_CLOCK_FORMAT = 'YYYY-MM-DD HH:mm:ss';
 const NAIVE_WALL_CLOCK_RE = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/;
+const RENDER_FORMAT = 'YYYY-MM-DD, HH:mm:ss';
 
 // The current instant as a bare UTC wall-clock. moment.utc keeps it independent
 // of the backend's local timezone.
 export const currentUtcWallClock = (): string =>
     moment.utc().format(NAIVE_WALL_CLOCK_FORMAT);
 
-// Interprets one fixed naive wall-clock under the data timezone. The tz-aware
-// ("already an instant") case is computed in Node, so the query is naive-only.
+// The query carries no zone of its own; the session (set by the client) does
+// the interpreting.
 export const buildDataTimezonePreviewSql = (
     adapterType: SupportedDbtAdapter,
-    dataTimezone: string,
     nowWallClock: string,
 ): string => {
-    if (!isValidTimezone(dataTimezone)) {
-        throw new ParameterError('Invalid data timezone');
-    }
     if (!NAIVE_WALL_CLOCK_RE.test(nowWallClock)) {
         throw new ParameterError('Invalid timestamp');
     }
-    const { toUTC } = dateTruncTimezoneConversions[adapterType];
-    return `SELECT ${toUTC(
-        naiveLiteralSql[adapterType](nowWallClock),
-        dataTimezone,
+    return `SELECT ${sessionUtcStringSql[adapterType](
+        nowWallClock,
     )} AS naive_instant`;
 };
 
@@ -96,9 +98,19 @@ export const buildDataTimezonePreviewSql = (
 const renderInZone = (instant: moment.MomentInput, timezone: string): string =>
     formatTimestamp(instant, TimeFrames.SECOND, false, timezone);
 
-// A bare wall-clock with no offset - the "no timezone yet" step.
-const renderWallClock = (instant: moment.MomentInput, zone: string): string =>
-    moment.utc(instant).tz(zone).format('YYYY-MM-DD, HH:mm:ss');
+// Renders an instant at a fixed offset, for when we know the offset the
+// warehouse used but not its zone name.
+const renderAtOffset = (
+    instant: moment.MomentInput,
+    offsetMinutes: number,
+): string =>
+    moment.utc(instant).utcOffset(offsetMinutes).format(`${RENDER_FORMAT} (Z)`);
+
+// Labels a zone by its offset when we only know the offset, not the name.
+const offsetLabel = (offsetMinutes: number): string =>
+    offsetMinutes === 0
+        ? 'UTC'
+        : `UTC${moment.utc().utcOffset(offsetMinutes).format('Z')}`;
 
 // Snowflake upper-cases unquoted column aliases, so look the column up
 // case-insensitively rather than assuming the literal alias casing.
@@ -112,31 +124,46 @@ const readColumn = (row: Record<string, unknown>, name: string): unknown => {
 
 export const buildDataTimezonePreviewResponse = ({
     row,
-    sourceTimezone,
-    projectTimezone,
     nowWallClock,
+    projectTimezone,
+    dataTimezone,
 }: {
     row: Record<string, unknown>;
-    sourceTimezone: string;
-    projectTimezone: string;
     nowWallClock: string;
+    projectTimezone: string;
+    dataTimezone: string | undefined;
 }): ApiDataTimezonePreviewResults => {
-    // Drivers return naive_instant as a Date (pg, Snowflake, ...) or string
-    // (Trino, ClickHouse). Pass the raw value to moment; String()-ing a Date
-    // first yields a locale string moment.utc parses via its non-ISO fallback,
-    // silently shifting the instant by the backend's UTC offset.
-    const naiveInstant = readColumn(row, 'naive_instant') as moment.MomentInput;
-    // Tz-aware columns are already pinned instants - the current moment read as
-    // UTC. Data-tz-independent, so computed here rather than queried.
+    // The instant the warehouse parsed the bare literal into (returned as UTC).
+    const naiveInstant = moment.utc(
+        readColumn(row, 'naive_instant') as moment.MomentInput,
+        NAIVE_WALL_CLOCK_FORMAT,
+    );
+    // The gap between what we sent and what came back is the offset the warehouse
+    // actually used - the source of truth, since some warehouses ignore the
+    // session and read UTC anyway.
+    const sentAsUtc = moment.utc(nowWallClock, NAIVE_WALL_CLOCK_FORMAT);
+    const sessionOffsetMinutes = sentAsUtc.diff(naiveInstant, 'minutes');
+
+    // Only label the step with the zone name if the warehouse actually used it.
+    const honored =
+        dataTimezone !== undefined &&
+        moment
+            .tz(nowWallClock, NAIVE_WALL_CLOCK_FORMAT, dataTimezone)
+            .utcOffset() === sessionOffsetMinutes;
+
+    // Tz-aware columns are already pinned instants, so compute in Node, not SQL.
     const awareInstant = moment.utc(nowWallClock, NAIVE_WALL_CLOCK_FORMAT);
 
     return {
         projectTimezone,
-        dataTimezoneApplies: sourceTimezone !== 'UTC',
+        dataTimezoneApplies: dataTimezone !== undefined,
         naive: {
-            interpretedAs: sourceTimezone,
-            raw: renderWallClock(naiveInstant, sourceTimezone),
-            readAs: renderInZone(naiveInstant, sourceTimezone),
+            interpretedAs:
+                honored && dataTimezone
+                    ? dataTimezone
+                    : offsetLabel(sessionOffsetMinutes),
+            raw: sentAsUtc.format(RENDER_FORMAT),
+            readAs: renderAtOffset(naiveInstant, sessionOffsetMinutes),
             rendered: renderInZone(naiveInstant, projectTimezone),
         },
         aware: {

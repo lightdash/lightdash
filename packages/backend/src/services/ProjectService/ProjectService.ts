@@ -3236,10 +3236,8 @@ export class ProjectService extends BaseService {
             if (auditedAbility.cannot('update', subject('Project', stored))) {
                 throw new ForbiddenError();
             }
-            // Edit flow sources secrets from storage; the frontend never sends
-            // them. A type mismatch (warehouse type switched but not saved)
-            // can't be merged, so ask for a save rather than failing on the
-            // resulting incomplete credentials.
+            // A switched-but-unsaved warehouse type can't be merged with stored
+            // secrets, so ask for a save rather than failing mid-connect.
             if (
                 !stored.warehouseConnection ||
                 stored.warehouseConnection.type !== credentials.type
@@ -3266,10 +3264,12 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // The zone naive columns are read as: the data timezone, or UTC when
-        // unset. (Not getColumnTimezone's post-wrap source, which is UTC for
-        // Snowflake.)
-        const sourceTimezone = effectiveCredentials.dataTimezone ?? 'UTC';
+        // The data timezone is set as the warehouse session timezone (the
+        // client interpolates it raw), so validate it before connecting.
+        const { dataTimezone } = effectiveCredentials;
+        if (dataTimezone && !isValidTimezone(dataTimezone)) {
+            throw new ParameterError('Invalid data timezone');
+        }
 
         const sshTunnel = new SshTunnel(effectiveCredentials);
         const tunnelCredentials = await sshTunnel.connect();
@@ -3279,20 +3279,20 @@ export class ProjectService extends BaseService {
                     tunnelCredentials,
                 );
             const adapterType = warehouseClient.getAdapterType();
-            // One fixed wall-clock, interpreted by every warehouse the same way,
-            // so the preview is identical regardless of warehouse/server tz.
+            // A fixed wall-clock, read through the session timezone the client
+            // sets from dataTimezone (the third runQuery arg below).
             const nowWallClock = currentUtcWallClock();
-            const sql = buildDataTimezonePreviewSql(
-                adapterType,
-                sourceTimezone,
-                nowWallClock,
-            );
+            const sql = buildDataTimezonePreviewSql(adapterType, nowWallClock);
             const queryTags: RunQueryTags = {
                 organization_uuid: account.organization.organizationUuid,
                 user_uuid: account.user.userUuid,
                 query_context: QueryExecutionContext.API,
             };
-            const { rows } = await warehouseClient.runQuery(sql, queryTags);
+            const { rows } = await warehouseClient.runQuery(
+                sql,
+                queryTags,
+                dataTimezone,
+            );
             if (rows.length === 0) {
                 throw new UnexpectedServerError(
                     'Data timezone preview query returned no rows',
@@ -3300,9 +3300,9 @@ export class ProjectService extends BaseService {
             }
             return buildDataTimezonePreviewResponse({
                 row: rows[0],
-                sourceTimezone,
-                projectTimezone,
                 nowWallClock,
+                projectTimezone,
+                dataTimezone,
             });
         } finally {
             await sshTunnel.disconnect();

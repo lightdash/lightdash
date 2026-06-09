@@ -56,9 +56,8 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
 
     const onPreview = () => {
         const warehouse = form.values.warehouse;
-        // The clearable TimeZonePicker yields null when unset, but the
-        // credentials type validates dataTimezone as an optional string,
-        // so omit it so "no data timezone" previews as the UTC fallback.
+        // The picker yields null when cleared; omit it so the unset case
+        // previews as the warehouse default rather than failing validation.
         const credentials: CreateWarehouseCredentials = warehouse.dataTimezone
             ? warehouse
             : {
@@ -109,9 +108,9 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                     </Text>
                     {!result.dataTimezoneApplies && (
                         <Text size="xs" c="dimmed">
-                            No data timezone set, so it is read as UTC and steps
-                            1 and 2 match. Pick one above to change how the bare
-                            timestamp is interpreted.
+                            No data timezone set, so the warehouse reads the
+                            bare value in its own session timezone. Pick one
+                            above to control it.
                         </Text>
                     )}
                     <PipelineStep
@@ -120,8 +119,10 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                         value={`${result.naive.raw}  ·  no timezone`}
                     />
                     <Connector>
-                        read as {result.naive.interpretedAs} (your data
-                        timezone)
+                        read as {result.naive.interpretedAs}
+                        {result.dataTimezoneApplies
+                            ? ' (your data timezone)'
+                            : ''}
                     </Connector>
                     <PipelineStep
                         n={2}

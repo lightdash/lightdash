@@ -2268,7 +2268,7 @@ describe('ProjectService', () => {
                 getAdapterType: () => SupportedDbtAdapter.POSTGRES,
                 runQuery: jest.fn(async () => ({
                     fields: {},
-                    rows: [{ naive_instant: '2026-06-08T18:30:00.000Z' }],
+                    rows: [{ naive_instant: '2026-06-08 18:30:00' }],
                 })),
             });
 
