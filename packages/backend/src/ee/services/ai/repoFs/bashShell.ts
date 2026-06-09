@@ -180,12 +180,19 @@ export const runRepoShellCommand = async (
     // Real output wins regardless of exit code — a `grep` with matches exits 0,
     // a `grep` with none exits 1 with empty output (not an error).
     if (stdout.length > 0) {
-        const note =
+        const truncationNote =
             ['find', 'grep', 'rg', 'ls'].includes(leadingCommand(command)) &&
             (await repoFs.isTruncated())
                 ? '\n… note: this repository is large and GitHub truncated its file listing, so find/grep/ls results may be incomplete — narrow to a subdirectory.'
                 : '';
-        return clamp(stdout + note);
+        // A non-zero exit alongside real output is a partial failure — e.g.
+        // `cat good.sql missing.sql` prints the first file but errors on the
+        // second. Surface the stderr diagnostic so the agent sees what failed
+        // instead of treating the partial result as complete. Clamp the stdout
+        // first so the error note is never the part that gets truncated away.
+        const errorNote =
+            result.exitCode !== 0 && stderr.length > 0 ? `\n${stderr}` : '';
+        return clamp(stdout) + errorNote + truncationNote;
     }
 
     // No stdout: a non-zero exit with a diagnostic is an expected agent mistake
