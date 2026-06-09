@@ -13,6 +13,8 @@ import {
     DashboardTileTypes,
     DashboardVersionedFields,
     ExploreType,
+    ExportContentPayload,
+    ExportContentRequest,
     ForbiddenError,
     generateSlug,
     getSchedulerResourceTypeAndId,
@@ -30,8 +32,10 @@ import {
     ParameterError,
     PossibleAbilities,
     RegisteredAccount,
+    SCHEDULER_TASKS,
     SchedulerAndTargets,
     SchedulerFormat,
+    SchedulerResourceType,
     SchedulerRun,
     SchedulerRunStatus,
     SessionUser,
@@ -154,6 +158,88 @@ export class DashboardService
     spacePermissionService: SpacePermissionService;
 
     contentVerificationModel: ContentVerificationModel;
+
+    async scheduleExportContent(
+        user: SessionUser,
+        dashboardUuid: string,
+        data: ExportContentRequest,
+    ) {
+        const dashboard =
+            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+
+        if (
+            ![
+                SchedulerFormat.IMAGE,
+                SchedulerFormat.CSV,
+                SchedulerFormat.XLSX,
+            ].includes(data.format)
+        ) {
+            throw new ParameterError('Unsupported export format');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (data.format === SchedulerFormat.IMAGE) {
+            const { inheritsFromOrgOrProject, access } =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    dashboard.spaceUuid,
+                );
+
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('Dashboard', {
+                        organizationUuid: dashboard.organizationUuid,
+                        projectUuid: dashboard.projectUuid,
+                        inheritsFromOrgOrProject,
+                        access,
+                        metadata: {
+                            dashboardUuid: dashboard.uuid,
+                            dashboardName: dashboard.name,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        } else if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ExportCsv', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const payload: ExportContentPayload = {
+            resourceType: SchedulerResourceType.DASHBOARD,
+            resourceUuid: dashboardUuid,
+            format: data.format,
+            options: data.options ?? {},
+            dashboardFilters: data.dashboardFilters,
+            dateZoomGranularity: data.dateZoomGranularity,
+            customViewportWidth: data.customViewportWidth,
+            selectedTabs: data.selectedTabs ?? null,
+            organizationUuid: dashboard.organizationUuid,
+            projectUuid: dashboard.projectUuid,
+            userUuid: user.userUuid,
+            schedulerUuid: undefined,
+        };
+
+        const { jobId } = await this.schedulerClient.scheduleTask(
+            SCHEDULER_TASKS.EXPORT_CONTENT,
+            payload,
+        );
+
+        return { jobId };
+    }
 
     constructor({
         lightdashConfig,

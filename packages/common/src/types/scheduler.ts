@@ -752,6 +752,31 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
     dateZoomGranularity?: DateGranularity | string;
 };
 
+export type ExportContentFormat =
+    | SchedulerFormat.IMAGE
+    | SchedulerFormat.CSV
+    | SchedulerFormat.XLSX;
+
+export type ExportContentPayload = TraceTaskBase & {
+    resourceType: SchedulerResourceType.DASHBOARD | SchedulerResourceType.CHART;
+    resourceUuid: string;
+    format: ExportContentFormat;
+    options: SchedulerCsvOptions | SchedulerImageOptions;
+    dashboardFilters?: DashboardFilters;
+    dateZoomGranularity?: DateGranularity | string;
+    customViewportWidth?: number;
+    selectedTabs?: string[] | null;
+};
+
+export type ExportContentRequest = {
+    format: ExportContentFormat;
+    options?: SchedulerCsvOptions | SchedulerImageOptions;
+    dashboardFilters?: DashboardFilters;
+    dateZoomGranularity?: DateGranularity | string;
+    customViewportWidth?: number;
+    selectedTabs?: string[] | null;
+};
+
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {
     queryUuid: string;
     type?: DownloadFileType;
