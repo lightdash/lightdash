@@ -1,3 +1,15 @@
+# [0.3118.0](https://github.com/lightdash/lightdash/compare/0.3117.1...0.3118.0) (2026-06-09)
+
+
+### Bug Fixes
+
+* **apps:** allow data app preview assets under Safari's opaque iframe origin ([#24064](https://github.com/lightdash/lightdash/issues/24064)) ([a506076](https://github.com/lightdash/lightdash/commit/a506076c1b31f92beb7ed787bd863407620071a5)), closes [#24062](https://github.com/lightdash/lightdash/issues/24062)
+
+
+### Features
+
+* **ai:** per-file wc counts + sort command in repoShell ([#24061](https://github.com/lightdash/lightdash/issues/24061)) ([0986cb0](https://github.com/lightdash/lightdash/commit/0986cb0b8a1dc91b1eb691ce0a9d30396287969a))
+
 ## [0.3117.1](https://github.com/lightdash/lightdash/compare/0.3117.0...0.3117.1) (2026-06-09)
 
 
