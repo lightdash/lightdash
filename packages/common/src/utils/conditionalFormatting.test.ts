@@ -4,6 +4,7 @@ import { FilterOperator } from '../types/filter';
 import {
     createConditionalFormattingConfigWithSingleColor,
     createConditionalFormattingRuleWithValues,
+    getConditionalFormattingConfig,
     getPivotRowContextKey,
     getRowConditionalFormattingColor,
     hasMatchingConditionalRules,
@@ -172,6 +173,52 @@ describe('hasMatchingConditionalRules', () => {
 
             expect(result).toBe(true);
         });
+    });
+});
+
+describe('getConditionalFormattingConfig', () => {
+    it('selects the last matching rule for a specific apply target', () => {
+        const cellConfig =
+            createConditionalFormattingConfigWithSingleColor('#00ff00');
+        cellConfig.rules[0].operator = FilterOperator.GREATER_THAN_OR_EQUAL;
+        cellConfig.rules[0].values = [0];
+
+        const textConfig =
+            createConditionalFormattingConfigWithSingleColor('#ff0000');
+        textConfig.applyTo = ConditionalFormattingColorApplyTo.TEXT;
+        textConfig.rules[0].operator = FilterOperator.LESS_THAN_OR_EQUAL;
+        textConfig.rules[0].values = [10];
+
+        const conditionalFormattings = [cellConfig, textConfig];
+
+        expect(
+            getConditionalFormattingConfig({
+                field: mockNumericField,
+                value: 5,
+                minMaxMap: {},
+                conditionalFormattings,
+                applyTo: ConditionalFormattingColorApplyTo.CELL,
+            }),
+        ).toBe(cellConfig);
+
+        expect(
+            getConditionalFormattingConfig({
+                field: mockNumericField,
+                value: 5,
+                minMaxMap: {},
+                conditionalFormattings,
+                applyTo: ConditionalFormattingColorApplyTo.TEXT,
+            }),
+        ).toBe(textConfig);
+
+        expect(
+            getConditionalFormattingConfig({
+                field: mockNumericField,
+                value: 5,
+                minMaxMap: {},
+                conditionalFormattings,
+            }),
+        ).toBe(textConfig);
     });
 });
 

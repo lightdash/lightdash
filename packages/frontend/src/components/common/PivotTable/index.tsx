@@ -13,7 +13,9 @@ import {
     isHexCodeColor,
     isNumericItem,
     type ColumnProperties,
+    type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMax,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
     type ItemsMap,
@@ -1003,6 +1005,20 @@ const PivotTable: FC<PivotTableProps> = ({
         },
         [buildRowFieldsFromHeaderInfo, mergeHiddenContextValues],
     );
+    const getEffectiveColorFromRange = useCallback(
+        (
+            val: number,
+            colorRange: ConditionalFormattingColorRange,
+            minMaxRange: ConditionalFormattingMinMax,
+        ) => {
+            const effectiveColorRange =
+                colorScheme === 'dark'
+                    ? transformColorsForDarkMode(colorRange)
+                    : colorRange;
+            return getColorFromRange(val, effectiveColorRange, minMaxRange);
+        },
+        [colorScheme],
+    );
 
     const paddingTop = useMemo(() => {
         return virtualRows.length > 0 ? virtualRows?.[0]?.start || 0 : 0;
@@ -1712,59 +1728,79 @@ const PivotTable: FC<PivotTableProps> = ({
                                           currentHeaderInfo,
                                       );
 
-                                const conditionalFormattingConfig =
+                                const cellConditionalFormattingConfig =
                                     getConditionalFormattingConfig({
                                         field: item,
                                         value: value?.raw,
                                         minMaxMap,
                                         conditionalFormattings,
                                         rowFields: rowFieldsForCell,
+                                        applyTo:
+                                            ConditionalFormattingColorApplyTo.CELL,
+                                    });
+                                const textConditionalFormattingConfig =
+                                    getConditionalFormattingConfig({
+                                        field: item,
+                                        value: value?.raw,
+                                        minMaxMap,
+                                        conditionalFormattings,
+                                        rowFields: rowFieldsForCell,
+                                        applyTo:
+                                            ConditionalFormattingColorApplyTo.TEXT,
                                     });
 
-                                const conditionalFormattingResult =
+                                const cellConditionalFormattingResult =
                                     getConditionalFormattingColor({
                                         field: item,
                                         value: value?.raw,
-                                        config: conditionalFormattingConfig,
+                                        config: cellConditionalFormattingConfig,
                                         minMaxMap,
-                                        getColorFromRange: (
-                                            val,
-                                            colorRange,
-                                            minMaxRange,
-                                        ) => {
-                                            const effectiveColorRange =
-                                                colorScheme === 'dark'
-                                                    ? transformColorsForDarkMode(
-                                                          colorRange,
-                                                      )
-                                                    : colorRange;
-                                            return getColorFromRange(
-                                                val,
-                                                effectiveColorRange,
-                                                minMaxRange,
-                                            );
-                                        },
+                                        getColorFromRange:
+                                            getEffectiveColorFromRange,
                                     });
-
-                                const applyToText =
-                                    conditionalFormattingResult?.applyTo ===
-                                    ConditionalFormattingColorApplyTo.TEXT;
+                                const textConditionalFormattingResult =
+                                    getConditionalFormattingColor({
+                                        field: item,
+                                        value: value?.raw,
+                                        config: textConditionalFormattingConfig,
+                                        minMaxMap,
+                                        getColorFromRange:
+                                            getEffectiveColorFromRange,
+                                    });
 
                                 const conditionalFormatting = (() => {
                                     const tooltipContent =
-                                        getConditionalFormattingDescription(
-                                            item,
-                                            conditionalFormattingConfig,
-                                            rowFieldsForCell,
-                                            getConditionalRuleLabelFromItem,
-                                        );
+                                        [
+                                            getConditionalFormattingDescription(
+                                                item,
+                                                cellConditionalFormattingConfig,
+                                                rowFieldsForCell,
+                                                getConditionalRuleLabelFromItem,
+                                            ),
+                                            getConditionalFormattingDescription(
+                                                item,
+                                                textConditionalFormattingConfig,
+                                                rowFieldsForCell,
+                                                getConditionalRuleLabelFromItem,
+                                            ),
+                                        ]
+                                            .filter(
+                                                (
+                                                    description,
+                                                    index,
+                                                    descriptions,
+                                                ) =>
+                                                    description &&
+                                                    descriptions.indexOf(
+                                                        description,
+                                                    ) === index,
+                                            )
+                                            .join('; ') || undefined;
 
                                     // No cell-level result → fall back to the row fill (if any).
                                     if (
-                                        !conditionalFormattingResult ||
-                                        !isHexCodeColor(
-                                            conditionalFormattingResult.color,
-                                        )
+                                        !cellConditionalFormattingResult &&
+                                        !textConditionalFormattingResult
                                     ) {
                                         return rowBackgroundColor
                                             ? {
@@ -1778,24 +1814,35 @@ const PivotTable: FC<PivotTableProps> = ({
                                             : undefined;
                                     }
 
-                                    // Cell-level result present: cell wins. Keep the row fill as the background
-                                    // under a TEXT rule so the row stays continuous; a CELL rule overrides bg.
-                                    return applyToText
-                                        ? {
-                                              tooltipContent,
-                                              color: conditionalFormattingResult.color,
-                                              backgroundColor:
-                                                  rowBackgroundColor ??
-                                                  undefined,
-                                          }
-                                        : {
-                                              tooltipContent,
-                                              color: readableColor(
-                                                  conditionalFormattingResult.color,
-                                              ),
-                                              backgroundColor:
-                                                  conditionalFormattingResult.color,
-                                          };
+                                    const backgroundColor =
+                                        cellConditionalFormattingResult &&
+                                        isHexCodeColor(
+                                            cellConditionalFormattingResult.color,
+                                        )
+                                            ? cellConditionalFormattingResult.color
+                                            : rowBackgroundColor;
+                                    let color: string | undefined;
+                                    if (
+                                        textConditionalFormattingResult &&
+                                        isHexCodeColor(
+                                            textConditionalFormattingResult.color,
+                                        )
+                                    ) {
+                                        color =
+                                            textConditionalFormattingResult.color;
+                                    } else if (backgroundColor) {
+                                        color = readableColor(backgroundColor);
+                                    }
+
+                                    if (!color && !backgroundColor) {
+                                        return undefined;
+                                    }
+
+                                    return {
+                                        tooltipContent,
+                                        color,
+                                        backgroundColor,
+                                    };
                                 })();
 
                                 // Font color is set by conditionalFormatting above
