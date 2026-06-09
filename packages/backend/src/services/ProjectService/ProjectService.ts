@@ -3251,7 +3251,7 @@ export class ProjectService extends BaseService {
             effectiveCredentials = {
                 ...stored.warehouseConnection,
                 dataTimezone: credentials.dataTimezone,
-            } as CreateWarehouseCredentials;
+            };
             projectTimezone =
                 await this.getQueryTimezoneForProject(projectUuid);
         } else if (
@@ -3293,10 +3293,7 @@ export class ProjectService extends BaseService {
                 );
             }
             return buildDataTimezonePreviewResponse({
-                row: rows[0] as {
-                    aware_instant: unknown;
-                    naive_instant: unknown;
-                },
+                row: rows[0],
                 warehouseType: effectiveCredentials.type,
                 selectedDataTimezone,
                 effectiveSourceTimezone,

@@ -83,11 +83,6 @@ export const buildDataTimezonePreviewSql = (
     );
 };
 
-type RawPreviewRow = {
-    aware_instant: unknown;
-    naive_instant: unknown;
-};
-
 // Cleaner than the default millisecond format for a human-facing preview.
 const renderInZone = (instant: string, timezone: string): string =>
     formatTimestamp(instant, TimeFrames.SECOND, false, timezone);
@@ -99,7 +94,7 @@ export const buildDataTimezonePreviewResponse = ({
     effectiveSourceTimezone,
     projectTimezone,
 }: {
-    row: RawPreviewRow;
+    row: Record<string, unknown>;
     warehouseType: WarehouseTypes;
     selectedDataTimezone: string;
     effectiveSourceTimezone: string;

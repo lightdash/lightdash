@@ -62,10 +62,10 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
         // so omit it so "no data timezone" previews as the UTC fallback.
         const credentials: CreateWarehouseCredentials = warehouse.dataTimezone
             ? warehouse
-            : ({
+            : {
                   ...warehouse,
                   dataTimezone: undefined,
-              } as CreateWarehouseCredentials);
+              };
         preview.mutate({
             credentials,
             projectUuid: savedProject?.projectUuid,
