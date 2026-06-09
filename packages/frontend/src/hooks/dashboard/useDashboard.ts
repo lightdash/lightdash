@@ -11,7 +11,10 @@ import {
     type DashboardTile,
     type DashboardVersion,
     type DateGranularity,
+    type ExportContentFormat,
     type SavedChartsInfoForDashboardAvailableFilters,
+    type SchedulerCsvOptions,
+    type SchedulerImageOptions,
     type UpdateDashboard,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -273,19 +276,31 @@ export const useExportDashboard = () => {
     );
 };
 
-const exportCsvDashboard = async (
+const exportDashboardContent = async (
     id: string,
-    filters: DashboardFilters,
-    dateZoomGranularity: DateGranularity | string | undefined,
-    selectedTabs: string[] | null,
+    data: {
+        format: ExportContentFormat;
+        options?: SchedulerCsvOptions | SchedulerImageOptions;
+        dashboardFilters?: DashboardFilters;
+        dateZoomGranularity?: DateGranularity | string;
+        customViewportWidth?: number;
+        selectedTabs?: string[] | null;
+    },
 ) =>
     lightdashApi<ApiJobScheduledResponse['results']>({
-        url: `/dashboards/${id}/exportCsv`,
+        url: `/dashboards/${id}/exports`,
+        version: 'v2',
         method: 'POST',
-        body: JSON.stringify({ filters, dateZoomGranularity, selectedTabs }),
+        body: JSON.stringify(data),
     });
 
-export const useExportCsvDashboard = () => {
+type DashboardContentExportDetails = {
+    url?: string;
+    fileType?: string;
+    numFailures?: number;
+};
+
+export const useExportDashboardContent = () => {
     const {
         showToastSuccess,
         showToastError,
@@ -299,20 +314,25 @@ export const useExportCsvDashboard = () => {
         ApiError,
         {
             dashboard: Dashboard;
-            filters: DashboardFilters;
-            dateZoomGranularity: DateGranularity | string | undefined;
-            selectedTabs: string[] | null;
+            format: ExportContentFormat;
+            options?: SchedulerCsvOptions | SchedulerImageOptions;
+            dashboardFilters?: DashboardFilters;
+            dateZoomGranularity?: DateGranularity | string;
+            customViewportWidth?: number;
+            selectedTabs?: string[] | null;
         }
     >(
         (data) =>
-            exportCsvDashboard(
-                data.dashboard.uuid,
-                data.filters,
-                data.dateZoomGranularity,
-                data.selectedTabs,
-            ),
+            exportDashboardContent(data.dashboard.uuid, {
+                format: data.format,
+                options: data.options,
+                dashboardFilters: data.dashboardFilters,
+                dateZoomGranularity: data.dateZoomGranularity,
+                customViewportWidth: data.customViewportWidth,
+                selectedTabs: data.selectedTabs,
+            }),
         {
-            mutationKey: ['export_csv_dashboard'],
+            mutationKey: ['export_dashboard_content'],
             onMutate: (data) => {
                 showToastInfo({
                     key: 'dashboard_export_toast',
@@ -322,9 +342,11 @@ export const useExportCsvDashboard = () => {
                 });
             },
             onSuccess: async (job, data) => {
-                // Wait until validation is complete
                 pollJobStatus(job.jobId)
-                    .then(async (details) => {
+                    .then((rawDetails) => {
+                        const details =
+                            rawDetails as DashboardContentExportDetails | null;
+
                         if (details?.url) {
                             const link = document.createElement('a');
                             link.href = details.url;
@@ -332,11 +354,11 @@ export const useExportCsvDashboard = () => {
                                 'download',
                                 `${data.dashboard.name}-${formatDate(
                                     Date.now(),
-                                )}`,
+                                )}.${details.fileType ?? data.format}`,
                             );
                             document.body.appendChild(link);
                             link.click();
-                            link.remove(); // Remove the link from the DOM
+                            link.remove();
 
                             const numFailures = Number(
                                 details.numFailures ?? 0,
