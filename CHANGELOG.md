@@ -1,3 +1,11 @@
+## [0.3111.1](https://github.com/lightdash/lightdash/compare/0.3111.0...0.3111.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* escape liquid parameter values ([#24045](https://github.com/lightdash/lightdash/issues/24045)) ([246ee0b](https://github.com/lightdash/lightdash/commit/246ee0b981f4f9a40ab5a4ea2feb4b8eeb1807c1)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* validate field search limit ([#24026](https://github.com/lightdash/lightdash/issues/24026)) ([85d74de](https://github.com/lightdash/lightdash/commit/85d74decdd1927bcfaaea7fb982ef8053636270a)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.3111.0](https://github.com/lightdash/lightdash/compare/0.3110.5...0.3111.0) (2026-06-08)
 
 
