@@ -554,7 +554,7 @@ const chartSpecs: SeedChartSpec[] = [
                     createCompareTargetRule(
                         FilterOperator.LESS_THAN_OR_EQUAL,
                         ORDERS_FIELDS.totalOrderAmount,
-                        [30000],
+                        [75],
                     ),
                 ],
             }),
@@ -566,7 +566,7 @@ const chartSpecs: SeedChartSpec[] = [
                     createCompareTargetRule(
                         FilterOperator.GREATER_THAN,
                         ORDERS_FIELDS.totalOrderAmount,
-                        [30000],
+                        [200],
                     ),
                 ],
             }),
