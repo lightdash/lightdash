@@ -1,3 +1,11 @@
+# [0.3119.0](https://github.com/lightdash/lightdash/compare/0.3118.2...0.3119.0) (2026-06-09)
+
+
+### Features
+
+* **data-apps:** duplicate data apps into preview environments ([#24024](https://github.com/lightdash/lightdash/issues/24024)) ([2a884b6](https://github.com/lightdash/lightdash/commit/2a884b6c9734a9d9be531fd81f8e98ab2a2afe1c))
+* **github:** detect, log, and surface API rate limits ([#24068](https://github.com/lightdash/lightdash/issues/24068)) ([dead894](https://github.com/lightdash/lightdash/commit/dead8943a4efd40a136338e65088defa6628f8e9))
+
 ## [0.3118.2](https://github.com/lightdash/lightdash/compare/0.3118.1...0.3118.2) (2026-06-09)
 
 
