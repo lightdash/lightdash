@@ -120,6 +120,7 @@ export enum ConditionalFormattingComparisonType {
 export enum ConditionalFormattingColorApplyTo {
     CELL = 'cell',
     TEXT = 'text',
+    ROW = 'row',
 }
 
 export type ConditionalRuleLabel = {

@@ -1,9 +1,11 @@
+import { ConditionalFormattingColorApplyTo } from '../types/conditionalFormatting';
 import { DimensionType, FieldType } from '../types/field';
 import { FilterOperator } from '../types/filter';
 import {
     createConditionalFormattingConfigWithSingleColor,
     createConditionalFormattingRuleWithValues,
     getPivotRowContextKey,
+    getRowConditionalFormattingColor,
     hasMatchingConditionalRules,
 } from './conditionalFormatting';
 
@@ -196,5 +198,110 @@ describe('getPivotRowContextKey', () => {
         expect(getPivotRowContextKey({ dim_a: null })).toEqual(
             getPivotRowContextKey({ dim_a: undefined }),
         );
+    });
+});
+
+describe('getRowConditionalFormattingColor', () => {
+    // Reuse the same numeric field fixture used by hasMatchingConditionalRules tests
+    const triggerField = {
+        name: 'status',
+        table: 'orders',
+        type: DimensionType.NUMBER,
+        fieldType: FieldType.DIMENSION,
+        sql: 'status',
+        tableLabel: 'Orders',
+        label: 'Status',
+        hidden: false,
+    };
+    const fieldId = 'orders_status';
+    const target = { fieldId };
+
+    const makeMatchingConfig = (color: string) => {
+        const config = createConditionalFormattingConfigWithSingleColor(
+            color,
+            target,
+        );
+        const rule = createConditionalFormattingRuleWithValues();
+        rule.operator = FilterOperator.EQUALS;
+        rule.values = [42];
+        config.rules = [rule];
+        config.applyTo = ConditionalFormattingColorApplyTo.ROW;
+        return config;
+    };
+
+    const rowFields = {
+        [fieldId]: { field: triggerField, value: 42 },
+    };
+
+    it('returns the configured color when trigger field matches', () => {
+        const config = makeMatchingConfig('#ff0000');
+        const result = getRowConditionalFormattingColor({
+            conditionalFormattings: [config],
+            rowFields,
+            minMaxMap: {},
+        });
+        expect(result).toBe('#ff0000');
+    });
+
+    it('returns null when trigger field value does not match', () => {
+        const config = makeMatchingConfig('#ff0000');
+        const nonMatchingRowFields = {
+            [fieldId]: { field: triggerField, value: 99 },
+        };
+        const result = getRowConditionalFormattingColor({
+            conditionalFormattings: [config],
+            rowFields: nonMatchingRowFields,
+            minMaxMap: {},
+        });
+        expect(result).toBeNull();
+    });
+
+    it('ignores configs with applyTo: CELL even when rule would match', () => {
+        const config = makeMatchingConfig('#00ff00');
+        config.applyTo = ConditionalFormattingColorApplyTo.CELL;
+        const result = getRowConditionalFormattingColor({
+            conditionalFormattings: [config],
+            rowFields,
+            minMaxMap: {},
+        });
+        expect(result).toBeNull();
+    });
+
+    it('returns null when config target is null', () => {
+        const config = createConditionalFormattingConfigWithSingleColor(
+            '#0000ff',
+            null,
+        );
+        const rule = createConditionalFormattingRuleWithValues();
+        rule.operator = FilterOperator.EQUALS;
+        rule.values = [42];
+        config.rules = [rule];
+        config.applyTo = ConditionalFormattingColorApplyTo.ROW;
+        const result = getRowConditionalFormattingColor({
+            conditionalFormattings: [config],
+            rowFields,
+            minMaxMap: {},
+        });
+        expect(result).toBeNull();
+    });
+
+    it('returns null when conditionalFormattings is undefined', () => {
+        const result = getRowConditionalFormattingColor({
+            conditionalFormattings: undefined,
+            rowFields,
+            minMaxMap: {},
+        });
+        expect(result).toBeNull();
+    });
+
+    it('returns color of first matching ROW config when multiple exist', () => {
+        const first = makeMatchingConfig('#aaaaaa');
+        const second = makeMatchingConfig('#bbbbbb');
+        const result = getRowConditionalFormattingColor({
+            conditionalFormattings: [first, second],
+            rowFields,
+            minMaxMap: {},
+        });
+        expect(result).toBe('#aaaaaa');
     });
 });

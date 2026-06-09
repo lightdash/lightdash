@@ -529,7 +529,7 @@
             "type": "string"
         },
         "ConditionalFormattingColorApplyTo": {
-            "enum": ["cell", "text"],
+            "enum": ["cell", "text", "row"],
             "type": "string"
         },
         "ConditionalFormattingColorRange": {

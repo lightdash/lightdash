@@ -475,6 +475,19 @@ export const ConditionalFormattingItem: FC<Props> = ({
                                         value: ConditionalFormattingColorApplyTo.TEXT,
                                         label: 'Text',
                                     },
+                                    // Row fill only applies to single-color rules;
+                                    // color-range (gradient) rules ignore ROW, so
+                                    // don't offer a dead option for them.
+                                    ...(isConditionalFormattingConfigWithSingleColor(
+                                        config,
+                                    )
+                                        ? [
+                                              {
+                                                  value: ConditionalFormattingColorApplyTo.ROW,
+                                                  label: 'Row',
+                                              },
+                                          ]
+                                        : []),
                                 ]}
                                 value={
                                     config.applyTo ??
