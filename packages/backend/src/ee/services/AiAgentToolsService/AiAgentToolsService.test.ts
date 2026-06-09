@@ -75,6 +75,15 @@ const makeService = ({
     searchFieldUniqueValues?: jest.Mock;
 } = {}) =>
     new AiAgentToolsService({
+        builtInSkills: {
+            getAiAgentSkills: jest.fn(),
+            getAiAgentSkill: jest.fn(),
+            listSkillToolReferences: jest.fn(),
+            readSkillTool: jest.fn(),
+            readSkillToolResource: jest.fn(),
+            listMcpResources: jest.fn(),
+            getMcpResourceBody: jest.fn(),
+        },
         lightdashConfig: {
             siteUrl: 'https://lightdash.example',
             ai: { copilot: { maxQueryLimit: 500 } },

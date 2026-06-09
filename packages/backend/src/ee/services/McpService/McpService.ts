@@ -29,6 +29,7 @@ import {
     ItemsMap,
     listAgentsToolDefinition,
     listExploresToolDefinition,
+    listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
     MCP_QUERY_POLL_INTERVAL_MS,
     MCP_QUERY_SYNC_WAIT_MS,
@@ -40,6 +41,8 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    readSkillResourceToolDefinition,
+    readSkillToolDefinition,
     renderChartToolDefinition,
     runAiWritebackToolDefinition,
     runQueryToolDefinition,
@@ -101,7 +104,6 @@ import {
     getMcpAnalystPromptWithContext,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
-import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
@@ -156,27 +158,6 @@ export enum McpToolName {
 // Skills-over-MCP extension identifier (SEP-2640).
 const MCP_SKILLS_EXTENSION_NAME = 'io.modelcontextprotocol/skills';
 
-const listSkillsToolSchema = z.object({});
-const readSkillToolSchema = z.object({
-    name: z
-        .string()
-        .describe(
-            'Skill name from list_skills, for example developing-in-lightdash',
-        ),
-});
-const readSkillResourceToolSchema = z.object({
-    name: z
-        .string()
-        .describe(
-            'Skill name from list_skills, for example developing-in-lightdash',
-        ),
-    path: z
-        .string()
-        .describe(
-            'Resource path from list_skills, for example resources/dashboard-reference.md',
-        ),
-});
-
 const mcpRunAiWritebackTool = runAiWritebackToolDefinition.for('mcp');
 const mcpGetLightdashVersionTool = getLightdashVersionToolDefinition.for('mcp');
 const mcpListExploresTool = listExploresToolDefinition.for('mcp');
@@ -196,6 +177,9 @@ const mcpSearchFieldValuesTool = searchFieldValuesToolDefinition.for('mcp');
 const mcpRunSqlTool = runSqlToolDefinition.for('mcp');
 const mcpGetQueryResultTool = getQueryResultToolDefinition.for('mcp');
 const mcpListVerifiedContentTool = listVerifiedContentToolDefinition.for('mcp');
+const mcpListSkillsTool = listSkillsToolDefinition.for('mcp');
+const mcpReadSkillTool = readSkillToolDefinition.for('mcp');
+const mcpReadSkillResourceTool = readSkillResourceToolDefinition.for('mcp');
 
 type McpServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -2733,45 +2717,46 @@ export class McpService extends BaseService {
 
     private registerSkillToolHandlers(): void {
         this.mcpServer.registerTool(
-            McpToolName.LIST_SKILLS,
+            mcpListSkillsTool.name,
             {
-                title: 'List Skills',
-                description:
-                    'List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.',
-                inputSchema: this.getMcpCompatibleSchema(listSkillsToolSchema),
-                annotations: { readOnlyHint: true },
+                title: mcpListSkillsTool.title,
+                description: mcpListSkillsTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpListSkillsTool.inputSchema,
+                ),
+                outputSchema: mcpListSkillsTool.outputSchema.shape,
+                annotations: mcpListSkillsTool.annotations,
             },
             async (_args, extra) => {
                 const ctx = getMcpContext(extra);
                 this.trackToolCall(ctx, McpToolName.LIST_SKILLS);
 
-                const skills = await BuiltInSkills.listSkillToolReferences();
-                return {
-                    content: [
-                        {
-                            type: 'text' as const,
-                            text: JSON.stringify({ skills }, null, 2),
-                        },
-                    ],
-                    structuredContent: { skills },
-                };
+                const skills = await this.aiAgentToolsService.listMcpSkills();
+                return mcpListSkillsTool.result.structured(
+                    JSON.stringify({ skills }, null, 2),
+                    { skills },
+                );
             },
         );
 
         this.mcpServer.registerTool(
-            McpToolName.READ_SKILL,
+            mcpReadSkillTool.name,
             {
-                title: 'Read Skill',
-                description:
-                    'Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.',
-                inputSchema: this.getMcpCompatibleSchema(readSkillToolSchema),
-                annotations: { readOnlyHint: true },
+                title: mcpReadSkillTool.title,
+                description: mcpReadSkillTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpReadSkillTool.inputSchema,
+                ),
+                outputSchema: mcpReadSkillTool.outputSchema.shape,
+                annotations: mcpReadSkillTool.annotations,
             },
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
                 this.trackToolCall(ctx, McpToolName.READ_SKILL);
 
-                const result = await BuiltInSkills.readSkillTool(args.name);
+                const result = await this.aiAgentToolsService.loadMcpSkill(
+                    args.name,
+                );
                 if (!result) {
                     throw new NotFoundError(
                         `Skill "${args.name}" was not found`,
@@ -2779,55 +2764,41 @@ export class McpService extends BaseService {
                 }
                 const { skill, body } = result;
 
-                return {
-                    content: [{ type: 'text' as const, text: body }],
-                    structuredContent: {
-                        skill: {
-                            name: skill.name,
-                            uri: skill.uri,
-                            title: skill.title,
-                            description: skill.description,
-                            mimeType: skill.mimeType,
-                            size: skill.size,
-                            digest: skill.digest,
-                        },
-                    },
-                };
+                return mcpReadSkillTool.result.structured(body, {
+                    skill,
+                    body,
+                });
             },
         );
 
         this.mcpServer.registerTool(
-            McpToolName.READ_SKILL_RESOURCE,
+            mcpReadSkillResourceTool.name,
             {
-                title: 'Read Skill Resource',
-                description:
-                    'Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.',
+                title: mcpReadSkillResourceTool.title,
+                description: mcpReadSkillResourceTool.description,
                 inputSchema: this.getMcpCompatibleSchema(
-                    readSkillResourceToolSchema,
+                    mcpReadSkillResourceTool.inputSchema,
                 ),
-                annotations: { readOnlyHint: true },
+                outputSchema: mcpReadSkillResourceTool.outputSchema.shape,
+                annotations: mcpReadSkillResourceTool.annotations,
             },
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
                 this.trackToolCall(ctx, McpToolName.READ_SKILL_RESOURCE);
 
-                const result = await BuiltInSkills.readSkillToolResource({
-                    name: args.name,
-                    resourcePath: args.path,
-                });
+                const result =
+                    await this.aiAgentToolsService.loadMcpSkillResource(args);
                 if (!result) {
                     throw new NotFoundError(
                         `Skill resource "${args.path}" was not found for skill "${args.name}"`,
                     );
                 }
 
-                return {
-                    content: [{ type: 'text' as const, text: result.body }],
-                    structuredContent: {
-                        skill: { name: result.skillName },
-                        resource: result.resource,
-                    },
-                };
+                return mcpReadSkillResourceTool.result.structured(result.body, {
+                    skill: result.skill,
+                    resource: result.resource,
+                    body: result.body,
+                });
             },
         );
     }
@@ -2840,7 +2811,8 @@ export class McpService extends BaseService {
         // or registration failure must never reject and 500 the whole endpoint
         // — log it and serve the server without skill resources.
         try {
-            const resources = await BuiltInSkills.listMcpResources();
+            const resources =
+                await this.aiAgentToolsService.listMcpSkillResources();
 
             resources.forEach((resource) => {
                 mcpServer.registerResource(
@@ -2853,9 +2825,10 @@ export class McpService extends BaseService {
                         size: resource.size,
                     },
                     async () => {
-                        const text = await BuiltInSkills.getMcpResourceBody(
-                            resource.uri,
-                        );
+                        const text =
+                            await this.aiAgentToolsService.getMcpSkillResourceBody(
+                                resource.uri,
+                            );
                         if (text === undefined) {
                             throw new NotFoundError(
                                 `Resource "${resource.uri}" was not found`,

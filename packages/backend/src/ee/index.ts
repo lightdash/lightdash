@@ -41,6 +41,7 @@ import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExplores
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { BuiltInSkills } from './services/ai/skills/builtInSkills';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
@@ -197,6 +198,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 }),
             aiAgentToolsService: ({ models, repository, context }) =>
                 new AiAgentToolsService({
+                    builtInSkills: BuiltInSkills,
                     lightdashConfig: context.lightdashConfig,
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),

@@ -7375,6 +7375,99 @@ Notes:
         "type": "object",
       },
       "name": "list_skills",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "skills": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "type": "string",
+                },
+                "digest": {
+                  "type": "string",
+                },
+                "mimeType": {
+                  "type": "string",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "resources": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "type": "string",
+                      },
+                      "digest": {
+                        "type": "string",
+                      },
+                      "mimeType": {
+                        "type": "string",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "path": {
+                        "type": "string",
+                      },
+                      "size": {
+                        "type": "number",
+                      },
+                      "title": {
+                        "type": "string",
+                      },
+                      "uri": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "path",
+                      "uri",
+                      "name",
+                      "title",
+                      "description",
+                      "mimeType",
+                      "size",
+                      "digest",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "size": {
+                  "type": "number",
+                },
+                "title": {
+                  "type": "string",
+                },
+                "uri": {
+                  "type": "string",
+                },
+              },
+              "required": [
+                "name",
+                "uri",
+                "title",
+                "description",
+                "mimeType",
+                "size",
+                "digest",
+                "resources",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "skills",
+        ],
+        "type": "object",
+      },
       "title": "List Skills",
     },
     {
@@ -7395,6 +7488,100 @@ Notes:
         "type": "object",
       },
       "name": "read_skill",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string",
+          },
+          "skill": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "string",
+              },
+              "digest": {
+                "type": "string",
+              },
+              "mimeType": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+              "resources": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                    },
+                    "digest": {
+                      "type": "string",
+                    },
+                    "mimeType": {
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "path": {
+                      "type": "string",
+                    },
+                    "size": {
+                      "type": "number",
+                    },
+                    "title": {
+                      "type": "string",
+                    },
+                    "uri": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "path",
+                    "uri",
+                    "name",
+                    "title",
+                    "description",
+                    "mimeType",
+                    "size",
+                    "digest",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "size": {
+                "type": "number",
+              },
+              "title": {
+                "type": "string",
+              },
+              "uri": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "uri",
+              "title",
+              "description",
+              "mimeType",
+              "size",
+              "digest",
+              "resources",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "skill",
+          "body",
+        ],
+        "type": "object",
+      },
       "title": "Read Skill",
     },
     {
@@ -7420,6 +7607,104 @@ Notes:
         "type": "object",
       },
       "name": "read_skill_resource",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string",
+          },
+          "resource": {
+            "$ref": "#/properties/skill/properties/resources/items",
+          },
+          "skill": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "string",
+              },
+              "digest": {
+                "type": "string",
+              },
+              "mimeType": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+              "resources": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                    },
+                    "digest": {
+                      "type": "string",
+                    },
+                    "mimeType": {
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "path": {
+                      "type": "string",
+                    },
+                    "size": {
+                      "type": "number",
+                    },
+                    "title": {
+                      "type": "string",
+                    },
+                    "uri": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "path",
+                    "uri",
+                    "name",
+                    "title",
+                    "description",
+                    "mimeType",
+                    "size",
+                    "digest",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "size": {
+                "type": "number",
+              },
+              "title": {
+                "type": "string",
+              },
+              "uri": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "uri",
+              "title",
+              "description",
+              "mimeType",
+              "size",
+              "digest",
+              "resources",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "skill",
+          "resource",
+          "body",
+        ],
+        "type": "object",
+      },
       "title": "Read Skill Resource",
     },
     {
@@ -7515,6 +7800,9 @@ exports[`MCP tool contracts matches the shared MCP tool definition names snapsho
   "render_chart",
   "get_lightdash_version",
   "list_explores",
+  "list_skills",
+  "read_skill",
+  "read_skill_resource",
   "list_projects",
   "set_project",
   "get_current_project",
