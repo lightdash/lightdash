@@ -182,6 +182,7 @@ import {
     WarehouseTypes,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
+    type DataTimezonePreviewRequest,
     type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -3209,10 +3210,7 @@ export class ProjectService extends BaseService {
 
     async previewDataTimezone(
         account: RegisteredAccount,
-        {
-            credentials,
-            projectUuid,
-        }: { credentials: CreateWarehouseCredentials; projectUuid?: string },
+        body: DataTimezonePreviewRequest,
     ): Promise<ApiDataTimezonePreviewResults> {
         assertIsAccountWithOrg(account);
         if (
@@ -3226,13 +3224,15 @@ export class ProjectService extends BaseService {
 
         const auditedAbility = this.createAuditedAbility(account);
 
-        // Edit flow: source secrets from storage, apply only the unsaved
-        // dataTimezone override. Create flow: use the just-typed credentials.
-        let effectiveCredentials: CreateWarehouseCredentials = credentials;
+        // Edit flow sources secrets from storage and overrides only the unsaved
+        // data timezone - the frontend never sends credentials. Create flow uses
+        // the just-typed credentials.
+        let effectiveCredentials: CreateWarehouseCredentials;
         let projectTimezone = 'UTC';
-        if (projectUuid) {
-            const stored =
-                await this.projectModel.getWithSensitiveFields(projectUuid);
+        if (body.mode === 'edit') {
+            const stored = await this.projectModel.getWithSensitiveFields(
+                body.projectUuid,
+            );
             if (auditedAbility.cannot('update', subject('Project', stored))) {
                 throw new ForbiddenError();
             }
@@ -3240,7 +3240,7 @@ export class ProjectService extends BaseService {
             // secrets, so ask for a save rather than failing mid-connect.
             if (
                 !stored.warehouseConnection ||
-                stored.warehouseConnection.type !== credentials.type
+                stored.warehouseConnection.type !== body.warehouseType
             ) {
                 throw new ParameterError(
                     'Save the warehouse connection before previewing a different warehouse type.',
@@ -3248,20 +3248,24 @@ export class ProjectService extends BaseService {
             }
             effectiveCredentials = {
                 ...stored.warehouseConnection,
-                dataTimezone: credentials.dataTimezone,
+                dataTimezone: body.dataTimezone ?? undefined,
             };
-            projectTimezone =
-                await this.getQueryTimezoneForProject(projectUuid);
-        } else if (
-            auditedAbility.cannot(
-                'create',
-                subject('Project', {
-                    organizationUuid: account.organization.organizationUuid,
-                    type: ProjectType.DEFAULT,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
+            projectTimezone = await this.getQueryTimezoneForProject(
+                body.projectUuid,
+            );
+        } else {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Project', {
+                        organizationUuid: account.organization.organizationUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            effectiveCredentials = body.credentials;
         }
 
         // The data timezone is set as the warehouse session timezone (the

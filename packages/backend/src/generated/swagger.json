@@ -27495,16 +27495,48 @@
                 "type": "object"
             },
             "DataTimezonePreviewRequest": {
-                "properties": {
-                    "projectUuid": {
-                        "type": "string"
+                "anyOf": [
+                    {
+                        "properties": {
+                            "credentials": {
+                                "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                            },
+                            "mode": {
+                                "type": "string",
+                                "enum": ["create"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credentials", "mode"],
+                        "type": "object"
                     },
-                    "credentials": {
-                        "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                    {
+                        "properties": {
+                            "dataTimezone": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "warehouseType": {
+                                "$ref": "#/components/schemas/WarehouseTypes"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            },
+                            "mode": {
+                                "type": "string",
+                                "enum": ["edit"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "dataTimezone",
+                            "warehouseType",
+                            "projectUuid",
+                            "mode"
+                        ],
+                        "type": "object"
                     }
-                },
-                "required": ["credentials"],
-                "type": "object"
+                ]
             },
             "UpdateProjectMember": {
                 "properties": {

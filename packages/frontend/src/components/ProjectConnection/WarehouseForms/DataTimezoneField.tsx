@@ -56,18 +56,28 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
 
     const onPreview = () => {
         const warehouse = form.values.warehouse;
-        // The picker yields null when cleared; omit it so the unset case
-        // previews as the warehouse default rather than failing validation.
+        // Edit flow: the stored secrets stay on the server, so send only the
+        // project, the current warehouse type, and the data timezone being
+        // tried (null when the clearable picker is empty).
+        if (savedProject) {
+            preview.mutate({
+                mode: 'edit',
+                projectUuid: savedProject.projectUuid,
+                warehouseType: warehouse.type,
+                dataTimezone: warehouse.dataTimezone ?? null,
+            });
+            return;
+        }
+        // Create flow: send the just-typed credentials. The picker yields null
+        // when cleared; omit it so the unset case previews as the warehouse
+        // default rather than failing validation.
         const credentials: CreateWarehouseCredentials = warehouse.dataTimezone
             ? warehouse
             : {
                   ...warehouse,
                   dataTimezone: undefined,
               };
-        preview.mutate({
-            credentials,
-            projectUuid: savedProject?.projectUuid,
-        });
+        preview.mutate({ mode: 'create', credentials });
     };
 
     const result = preview.data;

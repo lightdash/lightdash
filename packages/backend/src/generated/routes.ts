@@ -26663,14 +26663,46 @@ const models: TsoaRoute.Models = {
     DataTimezonePreviewRequest: {
         dataType: 'refAlias',
         type: {
-            dataType: 'nestedObjectLiteral',
-            nestedProperties: {
-                projectUuid: { dataType: 'string' },
-                credentials: {
-                    ref: 'CreateWarehouseCredentials',
-                    required: true,
+            dataType: 'union',
+            subSchemas: [
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        credentials: {
+                            ref: 'CreateWarehouseCredentials',
+                            required: true,
+                        },
+                        mode: {
+                            dataType: 'enum',
+                            enums: ['create'],
+                            required: true,
+                        },
+                    },
                 },
-            },
+                {
+                    dataType: 'nestedObjectLiteral',
+                    nestedProperties: {
+                        dataTimezone: {
+                            dataType: 'union',
+                            subSchemas: [
+                                { dataType: 'string' },
+                                { dataType: 'enum', enums: [null] },
+                            ],
+                            required: true,
+                        },
+                        warehouseType: {
+                            ref: 'WarehouseTypes',
+                            required: true,
+                        },
+                        projectUuid: { dataType: 'string', required: true },
+                        mode: {
+                            dataType: 'enum',
+                            enums: ['edit'],
+                            required: true,
+                        },
+                    },
+                },
+            ],
             validators: {},
         },
     },

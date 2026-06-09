@@ -2,7 +2,10 @@ import moment from 'moment-timezone';
 import { formatTimestamp } from '../utils/formatting';
 import { SupportedDbtAdapter } from './dbt';
 import { ParameterError } from './errors';
-import { type CreateWarehouseCredentials } from './projects';
+import {
+    type CreateWarehouseCredentials,
+    type WarehouseTypes,
+} from './projects';
 import { TimeFrames } from './timeFrames';
 
 // A timestamp column with no stored timezone (NTZ): the data timezone is the
@@ -34,10 +37,22 @@ export type ApiDataTimezonePreview = {
     results: ApiDataTimezonePreviewResults;
 };
 
-export type DataTimezonePreviewRequest = {
-    credentials: CreateWarehouseCredentials;
-    projectUuid?: string;
-};
+// The two preview flows carry different inputs. Create types every credential
+// fresh, so it sends them. Edit reuses the stored connection's secrets and only
+// overrides the unsaved data timezone, so it sends no credentials at all - just
+// the project, the warehouse type (to reject a type switched but not yet saved),
+// and the data timezone being tried (null when cleared).
+export type DataTimezonePreviewRequest =
+    | {
+          mode: 'create';
+          credentials: CreateWarehouseCredentials;
+      }
+    | {
+          mode: 'edit';
+          projectUuid: string;
+          warehouseType: WarehouseTypes;
+          dataTimezone: string | null;
+      };
 
 // Reads a bare literal through the session timezone (set by the client from the
 // data timezone) and returns it as a UTC 'YYYY-MM-DD HH:mm:ss' string - the same

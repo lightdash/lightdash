@@ -2245,7 +2245,10 @@ describe('ProjectService', () => {
 
         it('throws ForbiddenError when timezone support is disabled', async () => {
             await expect(
-                service.previewDataTimezone(previewAccount, { credentials }),
+                service.previewDataTimezone(previewAccount, {
+                    mode: 'create',
+                    credentials,
+                }),
             ).rejects.toThrowError(ForbiddenError);
         });
 
@@ -2273,8 +2276,10 @@ describe('ProjectService', () => {
             });
 
             const result = await service.previewDataTimezone(previewAccount, {
-                credentials,
+                mode: 'edit',
                 projectUuid: 'projectUuid',
+                warehouseType: WarehouseTypes.POSTGRES,
+                dataTimezone: 'America/New_York',
             });
 
             expect(result.projectTimezone).toBe('UTC');
@@ -2302,8 +2307,10 @@ describe('ProjectService', () => {
 
             await expect(
                 service.previewDataTimezone(previewAccount, {
-                    credentials,
+                    mode: 'edit',
                     projectUuid: 'projectUuid',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    dataTimezone: 'America/New_York',
                 }),
             ).rejects.toThrowError(ParameterError);
         });
@@ -2324,8 +2331,10 @@ describe('ProjectService', () => {
 
             await expect(
                 service.previewDataTimezone(noAccessAccount, {
-                    credentials,
+                    mode: 'edit',
                     projectUuid: 'projectUuid',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    dataTimezone: 'America/New_York',
                 }),
             ).rejects.toThrowError(ForbiddenError);
         });
@@ -2337,7 +2346,10 @@ describe('ProjectService', () => {
             ).mockResolvedValueOnce(true);
 
             await expect(
-                service.previewDataTimezone(noAccessAccount, { credentials }),
+                service.previewDataTimezone(noAccessAccount, {
+                    mode: 'create',
+                    credentials,
+                }),
             ).rejects.toThrowError(ForbiddenError);
         });
     });
