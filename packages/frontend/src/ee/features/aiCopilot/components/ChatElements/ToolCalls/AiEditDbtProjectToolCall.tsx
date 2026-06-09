@@ -247,11 +247,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     }
 
     const summary = summarisePrUrl(metadata.prUrl);
-    // Older tool-call rows predate `prAction`; treat a missing value as 'opened'.
-    const title =
-        metadata.prAction === 'updated'
-            ? 'Pull request updated'
-            : 'Pull request opened';
+    const title = 'Edited semantic layer';
 
     return (
         <Paper withBorder p="sm" radius="md" className={styles.card}>
