@@ -30,6 +30,15 @@ describe('buildDataTimezonePreviewSql', () => {
         expect(sql).toContain('AS naive_instant');
     });
 
+    it('uses now() for the aware now on clickhouse, which rejects CURRENT_TIMESTAMP', () => {
+        const sql = buildDataTimezonePreviewSql(
+            SupportedDbtAdapter.CLICKHOUSE,
+            'America/New_York',
+        );
+        expect(sql).toContain('SELECT now() AS aware_instant');
+        expect(sql).not.toContain('CURRENT_TIMESTAMP');
+    });
+
     it('rejects a non-IANA timezone before building SQL', () => {
         expect(() =>
             buildDataTimezonePreviewSql(

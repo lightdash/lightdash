@@ -69,6 +69,22 @@ export const currentNaiveTimestampSql: Record<SupportedDbtAdapter, string> = {
     [SupportedDbtAdapter.BIGQUERY]: 'CURRENT_DATETIME()',
 };
 
+// Tz-aware "now" per dialect (an already-pinned instant). CURRENT_TIMESTAMP
+// works everywhere except ClickHouse, which rejects the bare identifier and
+// spells the live instant as now().
+export const currentAwareTimestampSql: Record<SupportedDbtAdapter, string> = {
+    [SupportedDbtAdapter.POSTGRES]: 'CURRENT_TIMESTAMP',
+    [SupportedDbtAdapter.REDSHIFT]: 'CURRENT_TIMESTAMP',
+    [SupportedDbtAdapter.DUCKDB]: 'CURRENT_TIMESTAMP',
+    [SupportedDbtAdapter.SNOWFLAKE]: 'CURRENT_TIMESTAMP',
+    [SupportedDbtAdapter.DATABRICKS]: 'CURRENT_TIMESTAMP',
+    [SupportedDbtAdapter.SPARK]: 'CURRENT_TIMESTAMP',
+    [SupportedDbtAdapter.TRINO]: 'CURRENT_TIMESTAMP',
+    [SupportedDbtAdapter.ATHENA]: 'CURRENT_TIMESTAMP',
+    [SupportedDbtAdapter.CLICKHOUSE]: 'now()',
+    [SupportedDbtAdapter.BIGQUERY]: 'CURRENT_TIMESTAMP',
+};
+
 // One query returning two instants: a naive "now" disambiguated under the
 // effective source zone (the column-without-a-timezone case), and the live
 // tz-aware "now" whose instant is already pinned (the column-with-a-timezone
@@ -81,9 +97,10 @@ export const buildDataTimezonePreviewSql = (
         throw new ParameterError('Invalid data timezone');
     }
     const naiveNow = currentNaiveTimestampSql[adapterType];
+    const awareNow = currentAwareTimestampSql[adapterType];
     const { toUTC } = dateTruncTimezoneConversions[adapterType];
     return (
-        `SELECT CURRENT_TIMESTAMP AS aware_instant, ` +
+        `SELECT ${awareNow} AS aware_instant, ` +
         `${toUTC(naiveNow, effectiveSourceTimezone)} AS naive_instant`
     );
 };
