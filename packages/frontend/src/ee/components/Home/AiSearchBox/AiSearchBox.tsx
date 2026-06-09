@@ -1,4 +1,3 @@
-import { type AiAgentSummary } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
@@ -16,7 +15,7 @@ import {
     IconSettings,
     IconSparkles,
 } from '@tabler/icons-react';
-import { useEffect, useState, type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { Link, useNavigate } from 'react-router';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -44,8 +43,6 @@ type Props = {
     projectUuid: string;
 };
 
-type SelectedAgent = AiAgentSummary | 'auto';
-
 const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const navigate = useNavigate();
 
@@ -62,7 +59,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         isLoading: isLoadingUserAgentPreferences,
     } = useGetUserAgentPreferences(projectUuid);
     const aiRouterConfigQuery = useAiRouterConfig();
-    const [selectedAgent, setSelectedAgent] = useState<SelectedAgent>();
+    const [selectedAgentUuid, setSelectedAgentUuid] = useState<string>();
     const { setPendingPrompt } = usePendingPrompt();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
@@ -78,36 +75,14 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const validDefaultAgent = agents?.find(
         (agent) => agent.uuid === userAgentPreferences?.defaultAgentUuid,
     );
-    const preferredSelection: SelectedAgent | undefined =
+    const preferredSelection =
         validDefaultAgent ?? (showAutoOption ? 'auto' : agents?.[0]);
+
+    const selectedAgent =
+        selectedAgentUuid === AI_ROUTING_AUTO_VALUE && showAutoOption
+            ? 'auto'
+            : agents?.find((agent) => agent.uuid === selectedAgentUuid);
     const activeSelection = selectedAgent ?? preferredSelection;
-
-    useEffect(() => {
-        if (!agents || agents.length === 0) return;
-        if (isLoadingUserAgentPreferences) return;
-        if (aiRouterConfigQuery.isLoading) return;
-
-        setSelectedAgent((currentSelection) => {
-            if (currentSelection === 'auto') {
-                return showAutoOption ? currentSelection : preferredSelection;
-            }
-
-            if (
-                currentSelection &&
-                agents.some((agent) => agent.uuid === currentSelection.uuid)
-            ) {
-                return currentSelection;
-            }
-
-            return preferredSelection;
-        });
-    }, [
-        agents,
-        aiRouterConfigQuery.isLoading,
-        isLoadingUserAgentPreferences,
-        preferredSelection,
-        showAutoOption,
-    ]);
 
     const form = useForm({
         initialValues: {
@@ -120,6 +95,8 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
 
     const handleSubmit = form.onSubmit(async (values) => {
         const prompt = values.prompt.trim();
+
+        if (!prompt) return;
 
         if (activeSelection === 'auto') {
             setPendingPrompt(prompt);
@@ -152,14 +129,13 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const onSelect = (agentUuid: string) => {
         if (!agents) return;
         if (agentUuid === AI_ROUTING_AUTO_VALUE && showAutoOption) {
-            setSelectedAgent('auto');
+            setSelectedAgentUuid(AI_ROUTING_AUTO_VALUE);
             return;
         }
 
-        setSelectedAgent(
-            (currentSelection) =>
-                agents.find((a) => a.uuid === agentUuid) ?? currentSelection,
-        );
+        if (agents.some((agent) => agent.uuid === agentUuid)) {
+            setSelectedAgentUuid(agentUuid);
+        }
     };
 
     if (

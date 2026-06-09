@@ -22,7 +22,7 @@ import {
     IconInfoCircle,
     IconSettings,
 } from '@tabler/icons-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -123,6 +123,7 @@ const AgentsRouterPage = () => {
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
 
     const [phase, setPhase] = useState<Phase>({ kind: 'idle' });
+    const consumedAutoSubmitKeyRef = useRef<string | undefined>(undefined);
 
     const agentsByUuid = useMemo(() => {
         const m = new Map<string, AiAgentSummary>();
@@ -253,13 +254,16 @@ const AgentsRouterPage = () => {
         ],
     );
 
-    useEffect(() => {
-        const autoSubmitPrompt =
-            typeof location.state?.autoSubmitPrompt === 'string'
-                ? location.state.autoSubmitPrompt.trim()
-                : '';
+    const autoSubmitPrompt =
+        typeof location.state?.autoSubmitPrompt === 'string'
+            ? location.state.autoSubmitPrompt.trim()
+            : '';
 
+    useEffect(() => {
         if (!autoSubmitPrompt || phase.kind !== 'idle') return;
+        if (consumedAutoSubmitKeyRef.current === location.key) return;
+
+        consumedAutoSubmitKeyRef.current = location.key;
 
         void navigate(
             { pathname: location.pathname, search: location.search },
@@ -270,10 +274,11 @@ const AgentsRouterPage = () => {
             toolHints: [],
         });
     }, [
+        autoSubmitPrompt,
         handleSubmit,
+        location.key,
         location.pathname,
         location.search,
-        location.state,
         navigate,
         phase.kind,
     ]);
@@ -461,9 +466,7 @@ const AgentsRouterPage = () => {
                                                 onClick={() =>
                                                     confirmPick(c.agentUuid)
                                                 }
-                                                className={`${
-                                                    classes.candidateButton
-                                                } ${
+                                                className={`${classes.candidateButton} ${
                                                     isRecommended
                                                         ? classes.recommended
                                                         : ''
