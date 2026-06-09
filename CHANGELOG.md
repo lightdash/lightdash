@@ -1,3 +1,15 @@
+## [0.3118.2](https://github.com/lightdash/lightdash/compare/0.3118.1...0.3118.2) (2026-06-09)
+
+
+### Bug Fixes
+
+* surface partial field compilation errors ([#23992](https://github.com/lightdash/lightdash/issues/23992)) ([11d83ae](https://github.com/lightdash/lightdash/commit/11d83aed8e625e788c0aa5557e03e6ce78d9e73d)), closes [#23673](https://github.com/lightdash/lightdash/issues/23673)
+
+
+### Performance Improvements
+
+* **ai:** parallel repoShell reads + LRU cache; grep --include ([#24066](https://github.com/lightdash/lightdash/issues/24066)) ([8f1c8f0](https://github.com/lightdash/lightdash/commit/8f1c8f0d9e0de68a5633db5820689b8b4cd1548a))
+
 ## [0.3118.1](https://github.com/lightdash/lightdash/compare/0.3118.0...0.3118.1) (2026-06-09)
 
 
