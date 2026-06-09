@@ -1,3 +1,16 @@
+# [0.3117.0](https://github.com/lightdash/lightdash/compare/0.3116.0...0.3117.0) (2026-06-09)
+
+
+### Bug Fixes
+
+* bigquery identifier handling ([#24053](https://github.com/lightdash/lightdash/issues/24053)) ([8f1c9d8](https://github.com/lightdash/lightdash/commit/8f1c9d8e54f43bbe4ac5b66c624db5a7d6122204))
+* show user management table result status ([#24056](https://github.com/lightdash/lightdash/issues/24056)) ([4c2584e](https://github.com/lightdash/lightdash/commit/4c2584e9b831f40d95b3cd54bb9033325bfc3409)), closes [#23675](https://github.com/lightdash/lightdash/issues/23675)
+
+
+### Features
+
+* **omnibar:** surface settings pages in global search ([#24058](https://github.com/lightdash/lightdash/issues/24058)) ([fb2e6d0](https://github.com/lightdash/lightdash/commit/fb2e6d065275f060bd1c1cf68a81b69443da203b))
+
 # [0.3116.0](https://github.com/lightdash/lightdash/compare/0.3115.0...0.3116.0) (2026-06-09)
 
 
