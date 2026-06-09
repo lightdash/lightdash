@@ -72,7 +72,7 @@ const makeWritebackEvidence = (
 ): AiAgentReviewClassifierTurnCandidate['supportingEvidence'][number] => ({
     source: 'tool_trace',
     toolCallId: 'writeback-tool-call-1',
-    toolName: 'proposeWriteback',
+    toolName: 'editDbtProject',
     parentToolCallId: null,
     createdAt: NOW,
     relevanceScore: 95,

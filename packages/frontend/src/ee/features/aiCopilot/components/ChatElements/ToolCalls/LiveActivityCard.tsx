@@ -71,7 +71,7 @@ type Props = {
     pendingContent?: React.ReactNode;
     /**
      * In-flight status events emitted across the stream (e.g. "Starting
-     * sandbox", "Cloning project", "Committing changes" for proposeWriteback).
+     * sandbox", "Cloning project", "Committing changes" for editDbtProject).
      * Each carries the tool it belongs to so the inline row can be scoped to
      * the active tool — a concurrently running tool's progress (e.g. a
      * `findFields` query fired alongside the writeback) must not surface under
@@ -106,13 +106,13 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'loadSkill',
     'loadProjectContext',
     'proposeChange',
-    'proposeWriteback',
+    'editDbtProject',
     'setupPreviewDeploy',
     'runSavedChart',
 ]);
 
 // Tools that stream coarse step progress rendered as a single replacing row.
-// proposeWriteback is intentionally absent: its actions are surfaced as grouped
+// editDbtProject is intentionally absent: its actions are surfaced as grouped
 // step rows (AgentStepGroups) under the tool call instead of a transient line.
 const TOOLS_WITH_STEP_PROGRESS = new Set<string>(['setupPreviewDeploy']);
 
@@ -501,7 +501,7 @@ const getDiscoverFieldsTraceFromCall = (
  *
  * Returns null when there's nothing to render (the tool hasn't fired any
  * progress events, an SQL approval is pending, or we're not actively
- * streaming). Today only proposeWriteback emits progress strings that
+ * streaming). Today only editDbtProject emits progress strings that
  * warrant this treatment; other tools either run instantly or share the
  * single "Running your query…" string that the parent bubble shows via
  * TypingDots instead.
@@ -755,14 +755,14 @@ export const LiveActivityCard: FC<Props> = ({
             })}
             {isLive &&
                 !hasPending &&
-                latest?.toolName === 'proposeWriteback' &&
+                latest?.toolName === 'editDbtProject' &&
                 (() => {
                     // Live grouped step rows for the writeback tool: parse the
                     // streamed progress strings back into structured steps so
                     // they render (and group) the same way as the persisted
                     // steps once the run completes.
                     const liveSteps = stepProgressMessages
-                        .filter((m) => m.toolName === 'proposeWriteback')
+                        .filter((m) => m.toolName === 'editDbtProject')
                         .map((m) => parseAgentStep(m.message));
                     if (liveSteps.length === 0) return null;
                     return (
@@ -872,7 +872,7 @@ export const LiveActivityCard: FC<Props> = ({
                                 // adaptation lives here (the orchestrator),
                                 // never in the generic row/step components.
                                 const groupSteps =
-                                    group.toolName === 'proposeWriteback'
+                                    group.toolName === 'editDbtProject'
                                         ? group.calls.flatMap((tc) => {
                                               const meta = toolResults?.find(
                                                   (r) =>

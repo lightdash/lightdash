@@ -3506,7 +3506,7 @@ Parameters:
     },
   },
   {
-    "description": "Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those). The writeback agent runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request. The call is synchronous and can take several minutes. If the user pastes a link to an existing pull request and asks to iterate on it, pass that link as prUrl so the change updates that PR instead of opening a duplicate.",
+    "description": "Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those). This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request. The call is synchronous and can take several minutes. Treat the result as your own work when you report it to the user. If the user pastes a link to an existing pull request and asks to iterate on it, pass that link as prUrl so the change updates that PR instead of opening a duplicate.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -3523,7 +3523,7 @@ Parameters:
           ],
         },
         "prompt": {
-          "description": "A focused, self-contained natural-language instruction for the writeback agent describing exactly which files in the dbt project to change and how. The writeback agent does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries. Pass null only when fromActiveChangeset is true, in which case this is ignored.",
+          "description": "A focused, self-contained natural-language instruction describing exactly which files in the dbt project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries. Pass null only when fromActiveChangeset is true, in which case this is ignored.",
           "type": [
             "string",
             "null",
@@ -3537,7 +3537,7 @@ Parameters:
       ],
       "type": "object",
     },
-    "name": "proposeWriteback",
+    "name": "editDbtProject",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -3654,7 +3654,7 @@ Parameters:
     },
   },
   {
-    "description": "Open a pull request that sets up Lightdash preview-project deploys for this project via GitHub Actions. Call this whenever the user wants to add Lightdash preview deploys — EITHER when they accept the offer surfaced by proposeWriteback, OR when they ask directly (e.g. "set up preview deploys", "add the Lightdash preview GitHub Action", "deploy a preview project for each PR"). A prior writeback or offer is NOT required. It adds the canonical Lightdash preview workflow (a temporary preview project per pull request, torn down when the PR closes) on its own pull request. The target repository and dbt sub-folder are resolved server-side; this tool takes no arguments. The run is synchronous and can take a few minutes.",
+    "description": "Open a pull request that sets up Lightdash preview-project deploys for this project via GitHub Actions. Call this whenever the user wants to add Lightdash preview deploys — EITHER when they accept the offer surfaced by editDbtProject, OR when they ask directly (e.g. "set up preview deploys", "add the Lightdash preview GitHub Action", "deploy a preview project for each PR"). A prior writeback or offer is NOT required. It adds the canonical Lightdash preview workflow (a temporary preview project per pull request, torn down when the PR closes) on its own pull request. The target repository and dbt sub-folder are resolved server-side; this tool takes no arguments. The run is synchronous and can take a few minutes.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -3715,7 +3715,7 @@ Parameters:
     },
   },
   {
-    "description": "Read-only access to this project's dbt repository source code via a real bash shell restricted to a read-only command set. Use this to INSPECT the actual files before answering questions about the dbt project, diagnosing a build/compile error, or proposing a change — do not guess at file contents or the cause of an error you have not read. This is read-only: anything that writes, deletes, runs the network, or executes scripts is unavailable and will error (use proposeWriteback for changes). Available commands include file reading (\`ls\`, \`cat <path...>\` — pass MULTIPLE paths to read them in one call, \`head\`, \`tail\`, \`find\`, \`tree\`, \`wc\`, \`stat\`), search (\`grep\`/\`egrep\` with \`-r\`/\`-i\`/\`-n\`/\`-E\`/\`-l\` and \`--include=GLOB\`, \`rg\`), and text processing (\`sed\`, \`awk\`, \`cut\`, \`sort\`, \`uniq\`, \`tr\`, \`jq\`, \`diff\`, \`xargs\`). Full bash syntax works: pipes, \`&&\`/\`||\`, quoting, globs, and \`2>/dev/null\`. Prefer one command that does the job over many small ones: read several files with a single \`cat a b c\`, and locate files with one scoped command (e.g. \`find . -name "*.yml" | xargs grep -l orders\`) rather than repeatedly re-listing. Examples: \`find models -name "*.sql" | head -n 20\`, \`grep -rln "stg_api_error" models\`, \`cat models/orders.sql | grep ref\`, \`find models -name "*.sql" | xargs wc -l | sort -rn | head\`. Paths are relative to the dbt project root, which may itself be a subdirectory of the repository — so the dbt files are at the top level (e.g. \`ls models\`, \`cat dbt_project.yml\`); explore from there rather than assuming a repo-root layout.",
+    "description": "Read-only access to this project's dbt repository source code via a real bash shell restricted to a read-only command set. Use this to INSPECT the actual files before answering questions about the dbt project, diagnosing a build/compile error, or proposing a change — do not guess at file contents or the cause of an error you have not read. This is read-only: anything that writes, deletes, runs the network, or executes scripts is unavailable and will error (use editDbtProject for changes). Available commands include file reading (\`ls\`, \`cat <path...>\` — pass MULTIPLE paths to read them in one call, \`head\`, \`tail\`, \`find\`, \`tree\`, \`wc\`, \`stat\`), search (\`grep\`/\`egrep\` with \`-r\`/\`-i\`/\`-n\`/\`-E\`/\`-l\` and \`--include=GLOB\`, \`rg\`), and text processing (\`sed\`, \`awk\`, \`cut\`, \`sort\`, \`uniq\`, \`tr\`, \`jq\`, \`diff\`, \`xargs\`). Full bash syntax works: pipes, \`&&\`/\`||\`, quoting, globs, and \`2>/dev/null\`. Prefer one command that does the job over many small ones: read several files with a single \`cat a b c\`, and locate files with one scoped command (e.g. \`find . -name "*.yml" | xargs grep -l orders\`) rather than repeatedly re-listing. Examples: \`find models -name "*.sql" | head -n 20\`, \`grep -rln "stg_api_error" models\`, \`cat models/orders.sql | grep ref\`, \`find models -name "*.sql" | xargs wc -l | sort -rn | head\`. Paths are relative to the dbt project root, which may itself be a subdirectory of the repository — so the dbt files are at the top level (e.g. \`ls models\`, \`cat dbt_project.yml\`); explore from there rather than assuming a repo-root layout.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -6547,7 +6547,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "loadSkill",
   "loadProjectContext",
   "proposeChange",
-  "proposeWriteback",
+  "editDbtProject",
   "repoShell",
   "setupPreviewDeploy",
   "runSavedChart",

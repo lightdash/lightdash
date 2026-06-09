@@ -1,15 +1,15 @@
 import {
-    proposeWritebackToolDefinition,
+    editDbtProjectToolDefinition,
     PullRequestProvider,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import { WritebackGitNotConnectedError } from '../../AiWritebackService/errors';
-import type { ProposeWritebackFn } from '../types/aiAgentDependencies';
+import type { EditDbtProjectFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
 type Dependencies = {
-    proposeWriteback: ProposeWritebackFn;
+    editDbtProject: EditDbtProjectFn;
 };
 
 type WritebackErrorCode =
@@ -35,9 +35,9 @@ const classifyWritebackError = (error: unknown): WritebackErrorCode => {
     return 'unknown';
 };
 
-const toolDefinition = proposeWritebackToolDefinition.for('agent');
+const toolDefinition = editDbtProjectToolDefinition.for('agent');
 
-export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
+export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
     tool({
         ...toolDefinition,
         execute: async ({
@@ -54,7 +54,7 @@ export const getProposeWriteback = ({ proposeWriteback }: Dependencies) =>
                     repository,
                     previewDeployConfigured,
                     steps,
-                } = await proposeWriteback({
+                } = await editDbtProject({
                     prompt,
                     prUrl: pastedPrUrl,
                     fromActiveChangeset,

@@ -56,6 +56,11 @@ import {
     toolEditContentOutputSchema,
 } from './toolEditContentArgs';
 import {
+    TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
+    toolEditDbtProjectArgsSchema,
+    toolEditDbtProjectOutputSchema,
+} from './toolEditDbtProjectArgs';
+import {
     TOOL_FIND_CHARTS_DESCRIPTION,
     toolFindChartsArgsSchema,
     toolFindChartsOutputSchema,
@@ -149,11 +154,6 @@ import {
     toolProposeChangeArgsSchema,
     toolProposeChangeOutputSchema,
 } from './toolProposeChangeArgs';
-import {
-    TOOL_PROPOSE_WRITEBACK_DESCRIPTION,
-    toolProposeWritebackArgsSchema,
-    toolProposeWritebackOutputSchema,
-} from './toolProposeWritebackArgs';
 import {
     mcpGetQueryResultStructuredOutputSchema,
     mcpRenderChartStructuredOutputSchema,
@@ -535,13 +535,13 @@ export const proposeChangeToolDefinition = defineTool({
     agent: { outputSchema: toolProposeChangeOutputSchema },
 });
 
-export const proposeWritebackToolDefinition = defineTool({
-    name: 'proposeWriteback',
+export const editDbtProjectToolDefinition = defineTool({
+    name: 'editDbtProject',
     title: 'Propose writeback',
-    description: TOOL_PROPOSE_WRITEBACK_DESCRIPTION,
+    description: TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
     availability: ['agent'],
-    inputSchema: toolProposeWritebackArgsSchema,
-    agent: { outputSchema: toolProposeWritebackOutputSchema },
+    inputSchema: toolEditDbtProjectArgsSchema,
+    agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 
 export const repoShellToolDefinition = defineTool({
@@ -836,7 +836,7 @@ type AgentToolDefinitionsByName = {
     loadSkill: typeof loadSkillToolDefinition;
     loadProjectContext: typeof loadProjectContextToolDefinition;
     proposeChange: typeof proposeChangeToolDefinition;
-    proposeWriteback: typeof proposeWritebackToolDefinition;
+    editDbtProject: typeof editDbtProjectToolDefinition;
     repoShell: typeof repoShellToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
@@ -876,7 +876,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadSkill: loadSkillToolDefinition,
     loadProjectContext: loadProjectContextToolDefinition,
     proposeChange: proposeChangeToolDefinition,
-    proposeWriteback: proposeWritebackToolDefinition,
+    editDbtProject: editDbtProjectToolDefinition,
     repoShell: repoShellToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
@@ -918,7 +918,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadSkillToolDefinition,
     loadProjectContextToolDefinition,
     proposeChangeToolDefinition,
-    proposeWritebackToolDefinition,
+    editDbtProjectToolDefinition,
     repoShellToolDefinition,
     setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,

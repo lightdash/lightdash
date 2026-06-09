@@ -3,6 +3,7 @@ import {
     type ToolDescribeWarehouseTableOutput,
     type ToolDiscoverFieldsOutput,
     type ToolEditContentOutput,
+    type ToolEditDbtProjectOutput,
     type ToolFindChartsOutput,
     type ToolFindContentOutput,
     type ToolFindDashboardsOutput,
@@ -16,7 +17,6 @@ import {
     type ToolListWarehouseTablesOutput,
     type ToolLoadSkillOutput,
     type ToolProposeChangeOutput,
-    type ToolProposeWritebackOutput,
     type ToolReadContentOutput,
     type ToolRunQueryOutput,
     type ToolRunSavedChartOutput,
@@ -55,7 +55,7 @@ export type AgentToolOutput =
     | ToolListWarehouseTablesOutput
     | ToolLoadSkillOutput
     | ToolProposeChangeOutput
-    | ToolProposeWritebackOutput
+    | ToolEditDbtProjectOutput
     | ToolReadContentOutput
     | ToolRunQueryOutput
     | ToolRunSavedChartOutput

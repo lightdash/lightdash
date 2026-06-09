@@ -8,7 +8,7 @@ export * from './toolGenerateUuidsArgs';
 export * from './toolLoadProjectContextArgs';
 export * from './toolLoadSkillArgs';
 export * from './toolMcpQueryResultDescription';
-export * from './toolProposeWritebackArgs';
+export * from './toolEditDbtProjectArgs';
 export * from './toolRepoShellArgs';
 export * from './toolSetupPreviewDeployArgs';
 export * from './toolReadContentArgs';

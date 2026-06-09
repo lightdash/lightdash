@@ -17,6 +17,7 @@ import {
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
     EditContentFn,
+    EditDbtProjectFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -32,7 +33,6 @@ import {
     ListProjectsFn,
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
-    ProposeWritebackFn,
     ReadContentFn,
     RecordSqlApprovalFn,
     RepoShellFn,
@@ -159,7 +159,7 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    proposeWriteback: ProposeWritebackFn;
+    editDbtProject: EditDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     repoShell: RepoShellFn;
     listProjects: ListProjectsFn;

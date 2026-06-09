@@ -213,8 +213,8 @@ import { RepoFs } from '../ai/repoFs/RepoFs';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
+    EditDbtProjectFn,
     GetPromptFn,
-    ProposeWritebackFn,
     RepoShellFn,
     SendFileFn,
     SendSlackBlocksFn,
@@ -231,12 +231,12 @@ import {
     getAgentSelectionBlocks,
     getArtifactBlocks,
     getDeepLinkBlocks,
+    getEditDbtProjectBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
     getProjectSelectionBlocks,
     getProposeChangeBlocks,
-    getProposeWritebackBlocks,
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
@@ -350,7 +350,7 @@ const REFUSAL_RE =
  * The built-in "system" agent used as a fallback when an organization has no
  * configured agents (gated behind the AiSlackSystemAgentFallback feature
  * flag). It answers data questions with the normal query/find tools, and —
- * because the run path attaches the `proposeWriteback` tool whenever
+ * because the run path attaches the `editDbtProject` tool whenever
  * AiWriteback is enabled — it routes dbt/semantic-layer change requests to
  * the AI writeback flow.
  */
@@ -359,7 +359,7 @@ const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help t
 
 If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
-If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way. If the user asks to write back or open a pull request from their changeset(s), call proposeWriteback with fromActiveChangeset set to true and prompt set to null — the server builds the change instructions from the project's active changeset.
+If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way. If the user asks to write back or open a pull request from their changeset(s), call editDbtProject with fromActiveChangeset set to true and prompt set to null — the server builds the change instructions from the project's active changeset.
 
 If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
 
@@ -4889,27 +4889,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         };
 
-        const proposeWriteback: ProposeWritebackFn = async (args) => {
+        const editDbtProject: EditDbtProjectFn = async (args) => {
             // Stream coarse progress back to the user so they can see what
             // the writeback is doing (Starting sandbox → Cloning project →
             // Discovering models → Editing models → Compiling project →
             // Committing → …). For Slack this overwrites the pinned
             // "Thinking…" message; for web it surfaces as a transient
             // `data-step-progress` chunk on the SSE stream. Tagged with the
-            // `proposeWriteback` tool name so the web client only renders
+            // `editDbtProject` tool name so the web client only renders
             // these under the writeback header — never a concurrently running
             // tool's progress. Fire-and-forget — a Slack rate limit, deleted
             // message, or dropped SSE client must never take down the
             // writeback itself.
             const writebackProgressCallback = (message: string) => {
-                void updateProgress(message, 'proposeWriteback').catch(
-                    (err) => {
-                        Logger.debug(
-                            `Failed to update progress for writeback (${message}):`,
-                            err,
-                        );
-                    },
-                );
+                void updateProgress(message, 'editDbtProject').catch((err) => {
+                    Logger.debug(
+                        `Failed to update progress for writeback (${message}):`,
+                        err,
+                    );
+                });
             };
 
             // When the user asks to write back their changeset, build the
@@ -4940,7 +4938,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             }
 
             const result = await wrapSentryTransaction(
-                'AiAgent.proposeWriteback',
+                'AiAgent.editDbtProject',
                 {},
                 () =>
                     this.aiWritebackService.run({
@@ -4976,7 +4974,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // Resolve the repo's preview-deploy CI status once (best-effort,
             // gated by the ai-preview-deploy-setup flag). It drives two things:
             // the deterministic "offer to set it up" instruction the
-            // proposeWriteback tool relays when it's not configured, and the
+            // editDbtProject tool relays when it's not configured, and the
             // Slack preview-URL poll below when it is. Owned by the sibling
             // PreviewDeploySetupService — writeback no longer detects this
             // itself. Never fails the writeback result.
@@ -5096,7 +5094,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             searchFieldValues: toolsRuntime.searchFieldValues,
-            proposeWriteback,
+            editDbtProject,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
             repoShell,
             listProjects: toolsRuntime.listProjects,
@@ -5217,7 +5215,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             searchFieldValues,
-            proposeWriteback,
+            editDbtProject,
             setupPreviewDeploy,
             repoShell,
             listProjects,
@@ -5346,7 +5344,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
         if (aiWritebackEnabled && !hasTrustedPromptUserIdentity) {
             this.logger.info(
-                `Disabling proposeWriteback for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
             aiWritebackEnabled = false;
         }
@@ -5511,7 +5509,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             searchFieldValues,
-            proposeWriteback,
+            editDbtProject,
             setupPreviewDeploy,
             repoShell,
             listProjects,
@@ -5623,7 +5621,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
 
                 // Forward step-progress events from tools (`updateProgress`,
-                // `proposeWriteback`) to the client. `transient: true` so
+                // `editDbtProject`) to the client. `transient: true` so
                 // they don't get persisted as part of the message; they're
                 // ephemeral status updates the bubble surfaces as the
                 // active step under the running tool group until the next
@@ -6137,7 +6135,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             this.lightdashConfig.siteUrl,
             toolResults,
         );
-        const proposeWritebackBlocks = getProposeWritebackBlocks(toolResults);
+        const editDbtProjectBlocks = getEditDbtProjectBlocks(toolResults);
         const historyBlocks = agent
             ? getDeepLinkBlocks(
                   agent.uuid,
@@ -6173,7 +6171,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...getMarkdownBlocks(response),
             ...exploreBlocks,
             ...proposeChangeBlocks,
-            ...proposeWritebackBlocks,
+            ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
             ...feedbackBlocks,

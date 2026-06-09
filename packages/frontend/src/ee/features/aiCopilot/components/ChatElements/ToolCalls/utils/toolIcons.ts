@@ -55,7 +55,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             loadSkill: IconBook2,
             loadProjectContext: IconVocabulary,
             proposeChange: IconPencil,
-            proposeWriteback: IconPencil,
+            editDbtProject: IconPencil,
             repoShell: IconTerminal2,
             generateVisualization: IconTable,
             setupPreviewDeploy: IconPlugConnected,

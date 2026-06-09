@@ -15,6 +15,7 @@ import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getCreateContent } from '../tools/createContent';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getEditContent } from '../tools/editContent';
+import { getEditDbtProject } from '../tools/editDbtProject';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGenerateHashes } from '../tools/generateHashes';
@@ -30,7 +31,6 @@ import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
-import { getProposeWriteback } from '../tools/proposeWriteback';
 import { getReadContent } from '../tools/readContent';
 import { getRepoShell } from '../tools/repoShell';
 import { getRunContentQuery } from '../tools/runContentQuery';
@@ -271,9 +271,9 @@ const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
-    const proposeWriteback = args.enableAiWriteback
-        ? getProposeWriteback({
-              proposeWriteback: dependencies.proposeWriteback,
+    const editDbtProject = args.enableAiWriteback
+        ? getEditDbtProject({
+              editDbtProject: dependencies.editDbtProject,
           })
         : null;
 
@@ -363,7 +363,7 @@ const getAgentTools = (
         generateHashes,
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
-        ...(proposeWriteback ? { proposeWriteback } : {}),
+        ...(editDbtProject ? { editDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(repoShell ? { repoShell } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),

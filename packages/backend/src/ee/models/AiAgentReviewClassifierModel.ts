@@ -182,7 +182,7 @@ type ToolCallEvidenceRow = {
 };
 
 const TOOL_NAME_PRIORITY = new Map<string, number>([
-    ['proposeWriteback', 95],
+    ['editDbtProject', 95],
     ['propose_writeback', 95],
     ['runAiWriteback', 95],
     ['run_ai_writeback', 95],

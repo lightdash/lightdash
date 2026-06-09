@@ -1,19 +1,19 @@
 import { z } from 'zod';
 
-export const TOOL_PROPOSE_WRITEBACK_DESCRIPTION = [
+export const TOOL_EDIT_DBT_PROJECT_DESCRIPTION = [
     'Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project.',
     'Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata.',
     'Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those).',
-    'The writeback agent runs in an isolated sandbox, edits the repo, runs `lightdash compile`, and opens a pull request. The call is synchronous and can take several minutes.',
+    'This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, runs `lightdash compile`, and opens a pull request. The call is synchronous and can take several minutes. Treat the result as your own work when you report it to the user.',
     'If the user pastes a link to an existing pull request and asks to iterate on it, pass that link as prUrl so the change updates that PR instead of opening a duplicate.',
 ].join(' ');
 
-export const toolProposeWritebackArgsSchema = z.object({
+export const toolEditDbtProjectArgsSchema = z.object({
     prompt: z
         .string()
         .nullable()
         .describe(
-            'A focused, self-contained natural-language instruction for the writeback agent describing exactly which files in the dbt project to change and how. The writeback agent does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries. Pass null only when fromActiveChangeset is true, in which case this is ignored.',
+            'A focused, self-contained natural-language instruction describing exactly which files in the dbt project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries. Pass null only when fromActiveChangeset is true, in which case this is ignored.',
         ),
     prUrl: z
         .string()
@@ -28,7 +28,7 @@ export const toolProposeWritebackArgsSchema = z.object({
         ),
 });
 
-export const toolProposeWritebackOutputSchema = z.object({
+export const toolEditDbtProjectOutputSchema = z.object({
     result: z.string(),
     metadata: z.discriminatedUnion('status', [
         z.object({
@@ -75,35 +75,35 @@ export const toolProposeWritebackOutputSchema = z.object({
     ]),
 });
 
-export type ToolProposeWritebackArgs = z.infer<
-    typeof toolProposeWritebackArgsSchema
+export type ToolEditDbtProjectArgs = z.infer<
+    typeof toolEditDbtProjectArgsSchema
 >;
 
-export type ToolProposeWritebackOutput = z.infer<
-    typeof toolProposeWritebackOutputSchema
+export type ToolEditDbtProjectOutput = z.infer<
+    typeof toolEditDbtProjectOutputSchema
 >;
 
-type ToolProposeWritebackResultLike = {
+type ToolEditDbtProjectResultLike = {
     toolType: string;
     toolName: string;
     metadata:
-        | ToolProposeWritebackOutput['metadata']
+        | ToolEditDbtProjectOutput['metadata']
         | Record<string, unknown>
         | null;
 };
 
-type ToolProposeWritebackResult = ToolProposeWritebackResultLike & {
+type ToolEditDbtProjectResult = ToolEditDbtProjectResultLike & {
     toolType: 'built-in';
-    toolName: 'proposeWriteback';
-    metadata: ToolProposeWritebackOutput['metadata'];
+    toolName: 'editDbtProject';
+    metadata: ToolEditDbtProjectOutput['metadata'];
 };
 
-export const isToolProposeWritebackResult = <
-    T extends ToolProposeWritebackResultLike,
+export const isToolEditDbtProjectResult = <
+    T extends ToolEditDbtProjectResultLike,
 >(
     result: T,
-): result is T & ToolProposeWritebackResult =>
+): result is T & ToolEditDbtProjectResult =>
     result.toolType === 'built-in' &&
-    result.toolName === 'proposeWriteback' &&
-    toolProposeWritebackOutputSchema.shape.metadata.safeParse(result.metadata)
+    result.toolName === 'editDbtProject' &&
+    toolEditDbtProjectOutputSchema.shape.metadata.safeParse(result.metadata)
         .success;

@@ -5,8 +5,8 @@ import {
     AiArtifact,
     FollowUpTools,
     followUpToolsText,
+    isToolEditDbtProjectResult,
     isToolProposeChangeResult,
-    isToolProposeWritebackResult,
     parseVizConfig,
     SlackPrompt,
     type Explore,
@@ -241,7 +241,7 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runSql',
     'runSavedChart',
     'generateDashboard',
-    'proposeWriteback',
+    'editDbtProject',
 ]);
 
 // One compact footer: small "How did I do?" header + a single row with
@@ -470,7 +470,7 @@ export function getProposeChangeBlocks(
     ];
 }
 
-export function getProposeWritebackBlocks(
+export function getEditDbtProjectBlocks(
     toolResults?: AiAgentToolResult[],
 ): (Block | KnownBlock)[] {
     if (!toolResults || toolResults.length === 0) {
@@ -478,7 +478,7 @@ export function getProposeWritebackBlocks(
     }
 
     const prUrls = toolResults
-        .filter(isToolProposeWritebackResult)
+        .filter(isToolEditDbtProjectResult)
         .map((result) =>
             result.metadata.status === 'success' ? result.metadata.prUrl : null,
         )

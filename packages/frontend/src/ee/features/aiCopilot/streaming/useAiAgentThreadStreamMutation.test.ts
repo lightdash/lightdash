@@ -101,11 +101,11 @@ describe('getStepProgressFromChunk', () => {
                 type: 'data-step-progress',
                 data: {
                     message: 'Cloning project',
-                    toolName: 'proposeWriteback',
+                    toolName: 'editDbtProject',
                 },
                 transient: true,
             }),
-        ).toEqual({ message: 'Cloning project', toolName: 'proposeWriteback' });
+        ).toEqual({ message: 'Cloning project', toolName: 'editDbtProject' });
     });
 
     it('parses progress data chunks without a tool name (toolName null)', () => {

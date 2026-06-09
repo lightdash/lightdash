@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const TOOL_REPO_SHELL_DESCRIPTION = [
     "Read-only access to this project's dbt repository source code via a real bash shell restricted to a read-only command set.",
     'Use this to INSPECT the actual files before answering questions about the dbt project, diagnosing a build/compile error, or proposing a change — do not guess at file contents or the cause of an error you have not read.',
-    'This is read-only: anything that writes, deletes, runs the network, or executes scripts is unavailable and will error (use proposeWriteback for changes).',
+    'This is read-only: anything that writes, deletes, runs the network, or executes scripts is unavailable and will error (use editDbtProject for changes).',
     'Available commands include file reading (`ls`, `cat <path...>` — pass MULTIPLE paths to read them in one call, `head`, `tail`, `find`, `tree`, `wc`, `stat`), search (`grep`/`egrep` with `-r`/`-i`/`-n`/`-E`/`-l` and `--include=GLOB`, `rg`), and text processing (`sed`, `awk`, `cut`, `sort`, `uniq`, `tr`, `jq`, `diff`, `xargs`).',
     'Full bash syntax works: pipes, `&&`/`||`, quoting, globs, and `2>/dev/null`.',
     'Prefer one command that does the job over many small ones: read several files with a single `cat a b c`, and locate files with one scoped command (e.g. `find . -name "*.yml" | xargs grep -l orders`) rather than repeatedly re-listing.',
