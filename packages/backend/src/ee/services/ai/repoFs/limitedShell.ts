@@ -7,7 +7,7 @@
  * model) so the model learns the boundary instead of silently getting wrong
  * output.
  */
-import { RepoEntryType, RepoFs } from './RepoFs';
+import { globToRegExp, RepoEntryType, RepoFs } from './RepoFs';
 
 const MAX_OUTPUT_CHARS = 60_000;
 const MAX_GREP_FILES = 1_500;
@@ -145,21 +145,26 @@ const assertShortFlags = (
     allowed: string,
     command: string,
 ): void => {
+    const supported =
+        allowed
+            .split('')
+            .map((c) => `-${c}`)
+            .join(', ') || 'none';
     for (const token of tokens) {
-        if (
-            token.startsWith('-') &&
-            token.length > 1 &&
-            !/^-\d+$/.test(token)
-        ) {
+        const isFlag =
+            token.startsWith('-') && token.length > 1 && !/^-\d+$/.test(token);
+        if (isFlag && token.startsWith('--')) {
+            // A `--word` flag is never a cluster of single-letter flags — report
+            // it whole rather than slicing it into a garbled `--` message.
+            throw new ShellError(
+                `${command}: unsupported flag ${token} (supported: ${supported})`,
+            );
+        }
+        if (isFlag) {
             for (const ch of token.slice(1)) {
                 if (!allowed.includes(ch)) {
                     throw new ShellError(
-                        `${command}: unsupported flag -${ch} (supported: ${
-                            allowed
-                                .split('')
-                                .map((c) => `-${c}`)
-                                .join(', ') || 'none'
-                        })`,
+                        `${command}: unsupported flag -${ch} (supported: ${supported})`,
                     );
                 }
             }
@@ -268,10 +273,10 @@ const cmdCat = async (
 ): Promise<string[]> => {
     if (positionals.length === 0)
         throw new ShellError('cat: missing file operand');
+    const contents = await repoFs.readFiles(positionals);
     const lines: string[] = [];
     for (const path of positionals) {
-        // eslint-disable-next-line no-await-in-loop
-        const content = await repoFs.readFile(path);
+        const content = contents.get(path) ?? null;
         if (content === null) {
             throw new ShellError(`cat: ${path}: No such file or directory`);
         }
@@ -335,12 +340,31 @@ const cmdFind = async (repoFs: RepoFs, tokens: string[]): Promise<string[]> => {
     return repoFs.walk(base, { type, nameGlobs, maxDepth });
 };
 
+const grepBasename = (path: string): string =>
+    path.slice(path.lastIndexOf('/') + 1);
+
 const cmdGrep = async (
     repoFs: RepoFs,
     tokens: string[],
     stdin: string[] | null,
 ): Promise<string[]> => {
-    const { flags, positionals } = parseArgs(tokens, new Set());
+    // Pull GNU `--include=<glob>` (restrict a recursive search to files whose
+    // name matches the glob) out before short-flag parsing, which only knows
+    // clustered single-letter flags. Repeated `--include`s are OR-ed.
+    const includeGlobs: string[] = [];
+    const rest: string[] = [];
+    for (const token of tokens) {
+        const include = token.match(/^--include=(.+)$/);
+        if (include) includeGlobs.push(include[1]);
+        else rest.push(token);
+    }
+    assertShortFlags(rest, 'rRinEl', 'grep');
+    const includeRes = includeGlobs.map(globToRegExp);
+    const matchesInclude = (path: string): boolean =>
+        includeRes.length === 0 ||
+        includeRes.some((re) => re.test(grepBasename(path)));
+
+    const { flags, positionals } = parseArgs(rest, new Set());
     const recursive = flags.has('-r') || flags.has('-R');
     const ignoreCase = flags.has('-i');
     const showLineNo = flags.has('-n');
@@ -374,7 +398,9 @@ const cmdGrep = async (
         if (await repoFs.isDir(path)) {
             // eslint-disable-next-line no-await-in-loop
             const found = await repoFs.walk(path, { type: 'file' });
-            found.forEach((f) => fileSet.add(f));
+            // `--include` filters recursive matches by filename (like GNU grep);
+            // explicitly named files below are always read.
+            found.filter(matchesInclude).forEach((f) => fileSet.add(f));
             // eslint-disable-next-line no-await-in-loop
         } else if (await repoFs.isFile(path)) {
             fileSet.add(path);
@@ -384,11 +410,11 @@ const cmdGrep = async (
     }
 
     const files = [...fileSet].sort().slice(0, MAX_GREP_FILES);
+    const contents = await repoFs.readFiles(files);
     const output: string[] = [];
     const multiFile = files.length > 1;
     for (const file of files) {
-        // eslint-disable-next-line no-await-in-loop
-        const content = await repoFs.readFile(file);
+        const content = contents.get(file) ?? null;
         if (content !== null) {
             const lines = toLines(content);
             if (listFilesOnly) {
@@ -436,10 +462,10 @@ const cmdHead = async (
             'head: no input (pipe a command in, or pass a file path)',
         );
     }
+    const contents = await repoFs.readFiles(positionals);
     const out: string[] = [];
     for (const path of positionals) {
-        // eslint-disable-next-line no-await-in-loop
-        const content = await repoFs.readFile(path);
+        const content = contents.get(path) ?? null;
         if (content === null) {
             throw new ShellError(`head: ${path}: No such file or directory`);
         }
@@ -486,11 +512,11 @@ const cmdWc = async (
     // when there's more than one), matching real `wc`. This is what makes
     // `find … | xargs wc -l` report per-file sizes the agent can compare/sort,
     // instead of collapsing everything into a single grand total.
+    const contents = await repoFs.readFiles(positionals);
     const out: string[] = [];
     const totals = selectedFlags.map(() => 0);
     for (const path of positionals) {
-        // eslint-disable-next-line no-await-in-loop
-        const content = await repoFs.readFile(path);
+        const content = contents.get(path) ?? null;
         if (content === null) {
             throw new ShellError(`wc: ${path}: No such file or directory`);
         }
@@ -520,9 +546,9 @@ const cmdSort = async (
         lines = [...stdin];
     } else if (positionals.length > 0) {
         lines = [];
+        const contents = await repoFs.readFiles(positionals);
         for (const path of positionals) {
-            // eslint-disable-next-line no-await-in-loop
-            const content = await repoFs.readFile(path);
+            const content = contents.get(path) ?? null;
             if (content === null) {
                 throw new ShellError(
                     `sort: ${path}: No such file or directory`,
@@ -580,7 +606,8 @@ async function runStage(
             );
             return cmdFind(repoFs, rest);
         case 'grep':
-            assertShortFlags(rest, 'rRinEl', 'grep');
+            // `--include` is stripped + validated inside cmdGrep (assertShortFlags
+            // there) since it's a long flag, not a clustered short one.
             return cmdGrep(repoFs, rest, stdin);
         case 'head':
             assertWordFlags(rest, new Set(['-n']), 'head');

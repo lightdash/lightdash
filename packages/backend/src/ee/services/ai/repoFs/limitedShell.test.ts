@@ -168,6 +168,33 @@ describe('repoFs limited shell', () => {
         ).rejects.toThrow('unsupported flag -v');
     });
 
+    it('scopes a recursive grep with --include (by filename glob)', async () => {
+        // All three .sql files contain "select"; --include="orders.sql" keeps
+        // only the file whose basename matches, not stg_orders.sql.
+        await expect(
+            run('grep -rl "select" models --include="orders.sql"'),
+        ).resolves.toBe('models/orders.sql');
+    });
+
+    it('OR-s repeated --include globs', async () => {
+        await expect(
+            run(
+                'grep -rl "id" models --include="stg_orders.sql" --include="stg_api_error.sql"',
+            ),
+        ).resolves.toBe(
+            [
+                'models/staging/stg_api_error.sql',
+                'models/staging/stg_orders.sql',
+            ].join('\n'),
+        );
+    });
+
+    it('reports an unsupported long flag cleanly (not a garbled --)', async () => {
+        await expect(run('grep --color id models/orders.sql')).rejects.toThrow(
+            'unsupported flag --color',
+        );
+    });
+
     it('limits recursion with find -maxdepth', async () => {
         // -maxdepth 1 keeps immediate children of models/ but not the deeper
         // staging/*.sql files.
