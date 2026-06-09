@@ -273,6 +273,24 @@ type AiThreadSummaryRow = Pick<
         agent_image_url: string | null;
     };
 
+// Tool names persisted before a tool was renamed. Normalised at the read
+// boundary so historical rows parse as the current tool name and everything
+// downstream (API, frontend, rebuilt model history) only ever sees current
+// names. Only safe when the rename changed the name alone — the stored args
+// and result/metadata shapes must match the current tool's schemas.
+const LEGACY_TOOL_NAME_ALIASES: Record<string, ToolName> = {
+    proposeWriteback: 'editDbtProject',
+};
+
+const normalizeToolName = (toolName: string): string =>
+    LEGACY_TOOL_NAME_ALIASES[toolName] ?? toolName;
+
+// Rows whose tool name is neither a current/legacy built-in nor an MCP tool
+// (e.g. a tool removed without an alias) are dropped by the read paths rather
+// than failing the whole thread read.
+const isParseableToolName = (toolName: string): boolean =>
+    isAiAgentToolName(normalizeToolName(toolName));
+
 export class AiAgentModel {
     private database: Knex;
 
@@ -3095,7 +3113,7 @@ export class AiAgentModel {
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
                 toolCalls: toolCalls
-                    .filter((tc) => isAiAgentToolName(tc.tool_name))
+                    .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
                 toolResults,
                 reasoning,
@@ -3822,7 +3840,7 @@ export class AiAgentModel {
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
                     toolCalls: toolCalls
-                        .filter((tc) => isAiAgentToolName(tc.tool_name))
+                        .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
                     toolResults,
                     reasoning,
@@ -4870,7 +4888,9 @@ export class AiAgentModel {
     private parseToolCall(
         row: DbAiAgentToolCall | DbAiAgentToolCallWithMcpServer,
     ): AiAgentToolCall {
-        const parsedToolName = ToolNameSchema.safeParse(row.tool_name);
+        const parsedToolName = ToolNameSchema.safeParse(
+            normalizeToolName(row.tool_name),
+        );
 
         if (parsedToolName.success) {
             return {
@@ -4904,7 +4924,9 @@ export class AiAgentModel {
 
     // eslint-disable-next-line class-methods-use-this
     private parseToolResult(row: DbAiAgentToolResult): AiAgentToolResult {
-        const parsedToolName = ToolNameSchema.safeParse(row.tool_name);
+        const parsedToolName = ToolNameSchema.safeParse(
+            normalizeToolName(row.tool_name),
+        );
 
         if (!parsedToolName.success) {
             if (isAiAgentMcpToolName(row.tool_name)) {
@@ -4988,7 +5010,10 @@ export class AiAgentModel {
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
 
         return rows
-            .filter((row) => row.result !== null)
+            .filter(
+                (row) =>
+                    row.result !== null && isParseableToolName(row.tool_name),
+            )
             .map((row) => {
                 const toolCall = this.parseToolCall(row);
 
@@ -5169,7 +5194,9 @@ export class AiAgentModel {
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
 
-        return rows.map(this.parseToolResult);
+        return rows
+            .filter((row) => isParseableToolName(row.tool_name))
+            .map((row) => this.parseToolResult(row));
     }
 
     async createToolResults(
