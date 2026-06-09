@@ -141,15 +141,16 @@ export type CreateServiceAccount = Pick<
 
 /**
  * In-place edit of a service account's name, permissions, and project access,
- * without rotating its token. `description` is always applied. The rest depends
- * on the SA's scope mode, which is fixed (no switching between the two):
+ * without rotating its token. `description` is always applied. The rest is
+ * target-shaped — the payload describes what the SA should become, and the SA
+ * can move between scope modes:
  *
- * - Organization-scoped SA: send one of `scopes` (legacy/system preset) or
- *   `roleUuid` (custom org role) to change its org permission, or neither to
- *   rename only. `projectAccess` is rejected.
- * - Project-scoped SA (`system:member`): send `projectAccess` (≥1 grant) to
- *   replace its project grants, keeping `scopes = [system:member]`. `roleUuid`
- *   and any non-member `scopes` are rejected.
+ * - `projectAccess` (or `scopes = [system:member]`) → project-scoped: replace
+ *   its project grants (≥1 required), keeping `scopes = [system:member]`.
+ *   Sending an org `roleUuid` / non-member `scopes` alongside is rejected.
+ * - org `scopes` (preset) or `roleUuid` (custom role) → organization-scoped:
+ *   set the org permission and drop any project grants.
+ * - neither → rename only, preserving the current mode and permission.
  *
  * The token and expiry are never touched.
  */

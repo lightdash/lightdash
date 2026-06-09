@@ -365,7 +365,6 @@ const EditModalBody: FC<{
 
     return (
         <EditForm
-            key={serviceAccount.uuid}
             serviceAccount={serviceAccount}
             grants={grantsQuery.data}
             onStateChange={onStateChange}

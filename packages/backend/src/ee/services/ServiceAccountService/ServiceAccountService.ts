@@ -390,6 +390,11 @@ export class ServiceAccountService extends BaseService {
         const hasOrgScopes =
             !!update.scopes && update.scopes.length > 0 && !scopesAreMember;
         const hasOrgPermission = hasOrgScopes || !!update.roleUuid;
+        // Project grants are written when targeting project mode (replace) or
+        // when switching an org permission onto a previously project-scoped SA
+        // (clear). Used for the audit entry below.
+        const projectAccessChanged =
+            targetIsProject || (hasOrgPermission && wasProjectScoped);
 
         let updated: ServiceAccount;
         if (targetIsProject) {
@@ -493,7 +498,7 @@ export class ServiceAccountService extends BaseService {
                                 scopes: updated.scopes,
                                 roleUuid: updated.roleUuid,
                             },
-                            projectAccessChanged: targetIsProject,
+                            projectAccessChanged,
                         },
                     },
                     {},
