@@ -65,7 +65,12 @@ export const currentNaiveTimestampSql: Record<SupportedDbtAdapter, string> = {
     [SupportedDbtAdapter.SPARK]: 'CAST(CURRENT_TIMESTAMP() AS TIMESTAMP)',
     [SupportedDbtAdapter.TRINO]: 'CAST(CURRENT_TIMESTAMP AS timestamp)',
     [SupportedDbtAdapter.ATHENA]: 'CAST(CURRENT_TIMESTAMP AS timestamp)',
-    [SupportedDbtAdapter.CLICKHOUSE]: 'now()',
+    // now() is an instant, not zone-less, so the toUTC relabel would be a no-op.
+    // Render it to a bare wall-clock string instead, so toDateTime(str, tz)
+    // re-parses it under the data timezone (ClickHouse's only reinterpretation
+    // point - session_timezone rebases at parse time, never on stored epochs).
+    [SupportedDbtAdapter.CLICKHOUSE]:
+        "formatDateTime(now(), '%Y-%m-%d %H:%i:%S')",
     [SupportedDbtAdapter.BIGQUERY]: 'CURRENT_DATETIME()',
 };
 

@@ -39,6 +39,18 @@ describe('buildDataTimezonePreviewSql', () => {
         expect(sql).not.toContain('CURRENT_TIMESTAMP');
     });
 
+    it('re-parses a bare wall-clock under the data timezone on clickhouse', () => {
+        const sql = buildDataTimezonePreviewSql(
+            SupportedDbtAdapter.CLICKHOUSE,
+            'America/New_York',
+        );
+        // now() is an instant; the naive demo must render it to a zone-less
+        // string and re-parse under the data tz, else the toUTC is a no-op.
+        expect(sql).toContain(
+            "toDateTime(formatDateTime(now(), '%Y-%m-%d %H:%i:%S'), 'America/New_York')",
+        );
+    });
+
     it('rejects a non-IANA timezone before building SQL', () => {
         expect(() =>
             buildDataTimezonePreviewSql(
