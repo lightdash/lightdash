@@ -1,3 +1,16 @@
+# [0.3120.0](https://github.com/lightdash/lightdash/compare/0.3119.0...0.3120.0) (2026-06-09)
+
+
+### Bug Fixes
+
+* **backend:** resolve rollback migration files locally before GitHub ([#24070](https://github.com/lightdash/lightdash/issues/24070)) ([780b7e7](https://github.com/lightdash/lightdash/commit/780b7e78ae8eb1eb32375bf8394eafa8559b1dd0))
+* gate user timezone resolution on EnableUserTimezones flag ([#24055](https://github.com/lightdash/lightdash/issues/24055)) ([34336ef](https://github.com/lightdash/lightdash/commit/34336ef11ad7c10c6a1e416879c37a69dd9b331f))
+
+
+### Features
+
+* **ai:** Prometheus histograms for repoShell + writeback latency ([#24069](https://github.com/lightdash/lightdash/issues/24069)) ([0385283](https://github.com/lightdash/lightdash/commit/0385283897f7f67d5188a0ddc49b701dd335e4bc))
+
 # [0.3119.0](https://github.com/lightdash/lightdash/compare/0.3118.2...0.3119.0) (2026-06-09)
 
 
