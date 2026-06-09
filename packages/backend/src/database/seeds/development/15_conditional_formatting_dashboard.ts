@@ -69,7 +69,7 @@ This dashboard is a development seed for manual QA across the conditional format
 
 - Tables: stacked cell + text colors, string operators, null operators, ranges, compare-target, compare-target-to-values, and table calculation targets
 - Pivots: the same rule set with metrics as rows both on and off, plus multi-dimension pivot context
-- Cartesian charts: single-color conditional formatting on supported single-bar-series charts, including compare-target and last-match precedence
+- Cartesian charts: single-color conditional formatting on supported single-bar-series charts, including thresholds and last-match precedence
 - Big numbers: single-color text rendering for metric and table calculation targets
 
 Notes:
@@ -802,9 +802,9 @@ const chartSpecs: SeedChartSpec[] = [
     },
     {
         key: 'cartesianCompareTargetBar',
-        name: '[CF Coverage] Cartesian: compare target bar',
+        name: '[CF Coverage] Cartesian: precedence bar',
         description:
-            'Cartesian coverage for compare-target rules and last-match precedence on the supported single-bar-series path.',
+            'Cartesian coverage for overlapping threshold rules and last-match precedence on the supported single-bar-series path.',
         tableName: 'orders',
         metricQuery: {
             exploreName: 'orders',
@@ -850,10 +850,7 @@ const chartSpecs: SeedChartSpec[] = [
                         targetFieldId: ORDERS_FIELDS.totalCompletedOrderAmount,
                         color: '#f59e0b',
                         rules: [
-                            createCompareTargetRule(
-                                FilterOperator.LESS_THAN,
-                                ORDERS_FIELDS.totalOrderAmount,
-                            ),
+                            createValueRule(FilterOperator.GREATER_THAN, [0]),
                         ],
                     }),
                     createSingleColorConfig({
