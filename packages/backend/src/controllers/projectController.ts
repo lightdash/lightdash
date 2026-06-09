@@ -302,7 +302,7 @@ export class ProjectController extends BaseController {
         this.setStatus(200);
         const results = await this.services
             .getProjectService()
-            .previewDataTimezone(toSessionUser(req.account), body);
+            .previewDataTimezone(req.account, body);
         return {
             status: 'ok',
             results,

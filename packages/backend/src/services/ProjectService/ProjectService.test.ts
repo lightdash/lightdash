@@ -17,6 +17,7 @@ import {
     type CreateWarehouseCredentials,
     type Explore,
     type PossibleAbilities,
+    type RegisteredAccount,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -2218,12 +2219,14 @@ describe('ProjectService', () => {
     });
 
     describe('previewDataTimezone', () => {
-        const timezoneUser: SessionUser = {
-            ...user,
-            organizationUuid: 'organizationUuid',
-            organizationName: 'organizationName',
-            organizationCreatedAt: new Date(),
-        };
+        const previewAccount = developerAccount as RegisteredAccount;
+        const noAccessAccount = {
+            ...developerAccount,
+            user: {
+                ...developerAccount.user,
+                ability: new Ability<PossibleAbilities>([]),
+            },
+        } as RegisteredAccount;
         const credentials = {
             type: WarehouseTypes.POSTGRES,
             dataTimezone: 'America/New_York',
@@ -2231,7 +2234,7 @@ describe('ProjectService', () => {
 
         it('throws ForbiddenError when timezone support is disabled', async () => {
             await expect(
-                service.previewDataTimezone(timezoneUser, { credentials }),
+                service.previewDataTimezone(previewAccount, { credentials }),
             ).rejects.toThrowError(ForbiddenError);
         });
 
@@ -2263,7 +2266,7 @@ describe('ProjectService', () => {
                 })),
             });
 
-            const result = await service.previewDataTimezone(timezoneUser, {
+            const result = await service.previewDataTimezone(previewAccount, {
                 credentials,
                 projectUuid: 'projectUuid',
             });
@@ -2293,11 +2296,44 @@ describe('ProjectService', () => {
             });
 
             await expect(
-                service.previewDataTimezone(timezoneUser, {
+                service.previewDataTimezone(previewAccount, {
                     credentials,
                     projectUuid: 'projectUuid',
                 }),
             ).rejects.toThrowError(ParameterError);
+        });
+
+        it('throws ForbiddenError when the user cannot update the project (edit flow)', async () => {
+            jest.spyOn(
+                service,
+                'isTimezoneSupportEnabled',
+            ).mockResolvedValueOnce(true);
+            (
+                projectModel.getWithSensitiveFields as jest.Mock
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    type: WarehouseTypes.POSTGRES,
+                } as CreateWarehouseCredentials,
+            });
+
+            await expect(
+                service.previewDataTimezone(noAccessAccount, {
+                    credentials,
+                    projectUuid: 'projectUuid',
+                }),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        it('throws ForbiddenError when the user cannot create projects (create flow)', async () => {
+            jest.spyOn(
+                service,
+                'isTimezoneSupportEnabled',
+            ).mockResolvedValueOnce(true);
+
+            await expect(
+                service.previewDataTimezone(noAccessAccount, { credentials }),
+            ).rejects.toThrowError(ForbiddenError);
         });
     });
 });

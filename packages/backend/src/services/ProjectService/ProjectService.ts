@@ -137,6 +137,7 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    RegisteredAccount,
     ReplaceableCustomFields,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
@@ -3206,25 +3207,23 @@ export class ProjectService extends BaseService {
     }
 
     async previewDataTimezone(
-        user: SessionUser,
+        account: RegisteredAccount,
         {
             credentials,
             projectUuid,
         }: { credentials: CreateWarehouseCredentials; projectUuid?: string },
     ): Promise<ApiDataTimezonePreviewResults> {
-        if (!isUserWithOrg(user)) {
-            throw new ForbiddenError('User is not part of an organization');
-        }
+        assertIsAccountWithOrg(account);
         if (
             !(await this.isTimezoneSupportEnabled({
-                userUuid: user.userUuid,
-                organizationUuid: user.organizationUuid,
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
             }))
         ) {
             throw new ForbiddenError('Timezone support is not enabled');
         }
 
-        const auditedAbility = this.createAuditedAbility(user);
+        const auditedAbility = this.createAuditedAbility(account);
 
         // Edit flow: source secrets from storage, apply only the unsaved
         // dataTimezone override. Create flow: use the just-typed credentials.
@@ -3258,7 +3257,7 @@ export class ProjectService extends BaseService {
             auditedAbility.cannot(
                 'create',
                 subject('Project', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid,
                     type: ProjectType.DEFAULT,
                 }),
             )
@@ -3282,8 +3281,8 @@ export class ProjectService extends BaseService {
                 effectiveSourceTimezone,
             );
             const queryTags: RunQueryTags = {
-                organization_uuid: user.organizationUuid,
-                user_uuid: user.userUuid,
+                organization_uuid: account.organization.organizationUuid,
+                user_uuid: account.user.userUuid,
                 query_context: QueryExecutionContext.API,
             };
             const { rows } = await warehouseClient.runQuery(sql, queryTags);
