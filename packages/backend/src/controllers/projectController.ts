@@ -82,6 +82,7 @@ import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -143,7 +144,11 @@ export class ProjectController extends BaseController {
      * @param req express request
      * @param excludeChartsSavedInDashboard Whether to exclude charts that are saved in dashboards
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2024-12-09')),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/chart-summaries')
     @Deprecated()
@@ -288,6 +293,10 @@ export class ProjectController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage:
+                'Use ProjectRolesController.UpdateProjectUserRoleAssignment instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Patch('{projectUuid}/access/{userUuid}')
@@ -324,6 +333,10 @@ export class ProjectController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage:
+                'Use ProjectRolesController.DeleteProjectUserRoleAssignment instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('{projectUuid}/access/{userUuid}')
@@ -384,6 +397,10 @@ export class ProjectController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-02-17'), {
+            suffixMessage:
+                'Use /api/v1/projects/<project id>/sqlRunner/run instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/sqlQuery')
@@ -413,7 +430,14 @@ export class ProjectController extends BaseController {
      * @param body The metric query to calculate totals for
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-05-29'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead, which computes totals from a previously-executed async query.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/calculate-total')
     @OperationId('CalculateTotalFromQuery')
@@ -437,7 +461,14 @@ export class ProjectController extends BaseController {
      * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
      * @summary Calculate subtotals from query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-04'), {
+            suffixMessage:
+                "Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.",
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/calculate-subtotals')
     @OperationId('CalculateSubtotalsFromQuery')

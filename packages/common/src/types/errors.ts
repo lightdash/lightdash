@@ -510,6 +510,20 @@ export class NotImplementedError extends LightdashError {
         });
     }
 }
+export class DeprecatedRouteError extends LightdashError {
+    constructor(
+        message = 'Deprecated route called past its removal deadline',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'DeprecatedRouteError',
+            statusCode: 410,
+            data,
+        });
+    }
+}
+
 export const getErrorMessage = (e: unknown) => {
     if (e instanceof Error && e.message) return e.message;
     return `Unknown ${typeof e} error`;

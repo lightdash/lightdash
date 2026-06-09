@@ -51,6 +51,7 @@ import { toSessionUser } from '../auth/account';
 import { CatalogSearchContext } from '../models/CatalogModel/CatalogModel';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -827,7 +828,14 @@ export class CatalogController extends BaseController {
      * @summary Get metrics tree
      * @deprecated Use POST /metrics/tree instead for large metric lists
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-02-05'), {
+            suffixMessage:
+                'Use POST /metrics/tree instead for large metric lists.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/metrics/tree')
     @OperationId('getMetricsTreeLegacy')
@@ -858,7 +866,14 @@ export class CatalogController extends BaseController {
      * @summary Get metrics tree
      * @deprecated Superseded by saved metrics trees (`/metrics/trees/{uuidOrSlug}`).
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-04-28'), {
+            suffixMessage:
+                'Superseded by saved metrics trees (`/metrics/trees/{uuidOrSlug}`).',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/metrics/tree')
     @OperationId('getMetricsTree')
@@ -893,6 +908,10 @@ export class CatalogController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2026-04-28'), {
+            suffixMessage:
+                'Edges are now persisted via the saved metrics tree update endpoint (`PATCH /metrics/trees/{uuid}`).',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/metrics/tree/edges')
@@ -927,6 +946,10 @@ export class CatalogController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2026-04-28'), {
+            suffixMessage:
+                'Edges are now persisted via the saved metrics tree update endpoint (`PATCH /metrics/trees/{uuid}`).',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Delete(
