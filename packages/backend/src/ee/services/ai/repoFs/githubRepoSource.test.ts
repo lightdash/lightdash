@@ -1,5 +1,5 @@
 import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
-import { getFileContent } from '../../../../clients/github/Github';
+import { getFileContent, getRepoTree } from '../../../../clients/github/Github';
 import {
     createGithubRepoSource,
     type RepoFsTimingCallback,
@@ -10,6 +10,8 @@ jest.mock('../../../../clients/github/Github');
 const mockGetFileContent = getFileContent as jest.MockedFunction<
     typeof getFileContent
 >;
+
+const mockGetRepoTree = getRepoTree as jest.MockedFunction<typeof getRepoTree>;
 
 const source = (onTiming?: RepoFsTimingCallback) =>
     createGithubRepoSource({
@@ -98,6 +100,26 @@ describe('githubRepoSource onTiming (metrics hook)', () => {
         ).rejects.toThrow();
         expect(onTiming).toHaveBeenCalledWith(
             expect.objectContaining({ kind: 'file', outcome: 'error' }),
+        );
+    });
+
+    it('reports tree outcome=success for a listed repo', async () => {
+        const onTiming = jest.fn();
+        mockGetRepoTree.mockResolvedValue({ files: [], truncated: false });
+        await source(onTiming).listAllPaths();
+        expect(onTiming).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'tree', outcome: 'success' }),
+        );
+    });
+
+    it('reports tree outcome=error and re-throws on a failed tree fetch', async () => {
+        const onTiming = jest.fn();
+        mockGetRepoTree.mockRejectedValue(
+            new UnexpectedGitError('API rate limit exceeded'),
+        );
+        await expect(source(onTiming).listAllPaths()).rejects.toThrow();
+        expect(onTiming).toHaveBeenCalledWith(
+            expect.objectContaining({ kind: 'tree', outcome: 'error' }),
         );
     });
 });

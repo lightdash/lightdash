@@ -98,6 +98,12 @@ export default class PrometheusMetrics {
     public repoFsGithubFileDurationHistogram: prometheus.Histogram<'outcome'> | null =
         null;
 
+    // repoShell GitHub API request volume, segmented by org/app installation so
+    // GitHub rate-limit consumption (per-installation budget) can be monitored.
+    public repoFsGithubRequestCounter: prometheus.Counter<
+        'organization_uuid' | 'installation_id' | 'kind' | 'outcome'
+    > | null = null;
+
     // AI writeback (E2B sandbox) latency
     public aiWritebackSandboxCreateDurationHistogram: prometheus.Histogram | null =
         null;
@@ -414,6 +420,18 @@ export default class PrometheusMetrics {
                         buckets: githubRequestBuckets,
                         ...rest,
                     });
+
+                this.repoFsGithubRequestCounter = new prometheus.Counter({
+                    name: 'ai_repofs_github_requests_total',
+                    help: 'Total repoShell (AI repo virtual filesystem) requests to the GitHub API, segmented by organization and app installation, to monitor rate-limit consumption',
+                    labelNames: [
+                        'organization_uuid',
+                        'installation_id',
+                        'kind',
+                        'outcome',
+                    ],
+                    ...rest,
+                });
 
                 // AI writeback (E2B sandbox) latency
                 this.aiWritebackSandboxCreateDurationHistogram =
@@ -1122,6 +1140,20 @@ export default class PrometheusMetrics {
             { outcome },
             durationMs,
         );
+    }
+
+    public incrementRepoFsGithubRequest(args: {
+        organizationUuid: string;
+        installationId: string;
+        kind: 'tree' | 'file';
+        outcome: string;
+    }) {
+        this.repoFsGithubRequestCounter?.inc({
+            organization_uuid: args.organizationUuid,
+            installation_id: args.installationId,
+            kind: args.kind,
+            outcome: args.outcome,
+        });
     }
 
     public observeAiWritebackSandboxCreateDuration(durationMs: number) {
