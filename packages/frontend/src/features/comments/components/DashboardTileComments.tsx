@@ -2,6 +2,8 @@ import { NotificationResourceType } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
+    Button,
+    Collapse,
     Divider,
     Indicator,
     Popover,
@@ -9,8 +11,12 @@ import {
     Text,
     type PopoverProps,
 } from '@mantine-8/core';
-import { useScrollIntoView } from '@mantine/hooks';
-import { IconMessage } from '@tabler/icons-react';
+import { useDisclosure, useScrollIntoView } from '@mantine/hooks';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconMessage,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, useRef, useState, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useApp from '../../../providers/App/useApp';
@@ -37,6 +43,7 @@ export const DashboardTileComments: FC<
     const { track } = useTracking();
 
     const [openedComments, setOpenedComments] = useState(opened);
+    const [showResolved, { toggle: toggleShowResolved }] = useDisclosure(false);
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
     const dashboardUuid = useDashboardContext((c) => c.dashboard?.uuid);
@@ -56,14 +63,7 @@ export const DashboardTileComments: FC<
         projectUuid,
         !!openedComments && !!canViewDashboardComments && !!dashboardUuid,
     );
-    const allComments = useMemo(() => {
-        const resolved = resolvedCommentsByTile?.[dashboardTileUuid] ?? [];
-        return [...(comments ?? []), ...resolved].sort(
-            (a, b) =>
-                new Date(a.createdAt).getTime() -
-                new Date(b.createdAt).getTime(),
-        );
-    }, [comments, resolvedCommentsByTile, dashboardTileUuid]);
+    const resolvedComments = resolvedCommentsByTile?.[dashboardTileUuid] ?? [];
 
     const targetRefComments = useRef<HTMLDivElement>(null);
 
@@ -169,6 +169,8 @@ export const DashboardTileComments: FC<
         return null;
     }
 
+    const hasComments = comments && comments.length > 0;
+
     return (
         <Popover
             withArrow
@@ -196,30 +198,69 @@ export const DashboardTileComments: FC<
                         overflowY: 'auto',
                     }}
                 >
-                    {allComments.map((comment, index) => (
+                    {comments?.map((comment, index) => (
                         <DashboardCommentAndReplies
                             key={comment.commentId}
                             comment={comment}
-                            isResolved={comment.resolved}
                             projectUuid={projectUuid}
                             dashboardUuid={dashboardUuid}
                             dashboardTileUuid={dashboardTileUuid}
                             targetRef={
                                 // Assign the target ref to the last comment
-                                index === allComments.length - 1
-                                    ? targetRef
-                                    : null
+                                index === comments.length - 1 ? targetRef : null
                             }
                         />
                     ))}
-                    {allComments.length === 0 && (
+                    {!hasComments && (
                         <Text fz="xs" c="dimmed">
-                            No comments yet
+                            No open comments
                         </Text>
+                    )}
+
+                    {resolvedComments.length > 0 && (
+                        <Box>
+                            {hasComments && <Divider mx="-sm" mb="xs" />}
+                            <Button
+                                size="compact-xs"
+                                variant="subtle"
+                                color="gray"
+                                fz="xs"
+                                onClick={toggleShowResolved}
+                                rightSection={
+                                    <MantineIcon
+                                        icon={
+                                            showResolved
+                                                ? IconChevronUp
+                                                : IconChevronDown
+                                        }
+                                    />
+                                }
+                            >
+                                {showResolved ? 'Hide' : 'Show'} resolved (
+                                {resolvedComments.length})
+                            </Button>
+                            <Collapse in={showResolved}>
+                                <Stack gap="xs" mt="xs">
+                                    {resolvedComments.map((resolvedComment) => (
+                                        <DashboardCommentAndReplies
+                                            key={resolvedComment.commentId}
+                                            comment={resolvedComment}
+                                            projectUuid={projectUuid}
+                                            dashboardUuid={dashboardUuid}
+                                            dashboardTileUuid={
+                                                dashboardTileUuid
+                                            }
+                                            targetRef={null}
+                                            isResolved
+                                        />
+                                    ))}
+                                </Stack>
+                            </Collapse>
+                        </Box>
                     )}
                 </Stack>
 
-                {allComments.length > 0 && <Divider />}
+                {(hasComments || resolvedComments.length > 0) && <Divider />}
                 <Box p="sm" pt="xs">
                     {canCreateDashboardComments && (
                         <CommentForm

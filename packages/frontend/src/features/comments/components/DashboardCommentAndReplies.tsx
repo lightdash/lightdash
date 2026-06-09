@@ -1,18 +1,7 @@
 import { type Comment } from '@lightdash/common';
-import {
-    Badge,
-    Box,
-    Button,
-    Collapse,
-    Divider,
-    Stack,
-    Text,
-} from '@mantine-8/core';
+import { Box, Button, Collapse, Divider, Stack } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
-import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
-import MantineIcon from '../../../components/common/MantineIcon';
-import { PolymorphicGroupButton } from '../../../components/common/PolymorphicGroupButton';
 import useApp from '../../../providers/App/useApp';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
@@ -49,7 +38,6 @@ export const DashboardCommentAndReplies: FC<Props> = ({
     );
 
     const [isRepliesOpen, { toggle: toggleReplies }] = useDisclosure(false);
-    const [isThreadOpen, { toggle: toggleThread }] = useDisclosure(false);
     const [isReplyingTo, setIsReplyingTo] = useState<string | undefined>(
         undefined,
     );
@@ -100,8 +88,8 @@ export const DashboardCommentAndReplies: FC<Props> = ({
         }
     }, [isRepliesOpen, comment.commentId, toggleReplies]);
 
-    const thread = (
-        <>
+    return (
+        <Stack gap="two" ref={targetRef}>
             <CommentDetail
                 comment={comment}
                 canReply={!isResolved && canCreateDashboardComments}
@@ -185,47 +173,6 @@ export const DashboardCommentAndReplies: FC<Props> = ({
                     mode="reply"
                 />
             </Collapse>
-        </>
-    );
-
-    // Resolved threads render collapsed in the list (GitHub-style) and expand inline.
-    if (isResolved) {
-        return (
-            <Stack gap="two" ref={targetRef}>
-                <PolymorphicGroupButton
-                    component="button"
-                    type="button"
-                    gap="xs"
-                    wrap="nowrap"
-                    w="100%"
-                    onClick={toggleThread}
-                >
-                    <MantineIcon
-                        icon={isThreadOpen ? IconChevronDown : IconChevronRight}
-                        color="ldGray.6"
-                    />
-                    <Box flex={1} miw={0}>
-                        <Text fz="xs" c="dimmed" lineClamp={1} ta="left">
-                            {comment.text}
-                        </Text>
-                    </Box>
-                    <Badge size="xs" variant="light" color="gray">
-                        Resolved
-                    </Badge>
-                </PolymorphicGroupButton>
-
-                <Collapse in={isThreadOpen}>
-                    <Stack gap="two" mt="two">
-                        {thread}
-                    </Stack>
-                </Collapse>
-            </Stack>
-        );
-    }
-
-    return (
-        <Stack gap="two" ref={targetRef}>
-            {thread}
         </Stack>
     );
 };
