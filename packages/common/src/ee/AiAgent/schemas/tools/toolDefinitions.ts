@@ -537,7 +537,7 @@ export const proposeChangeToolDefinition = defineTool({
 
 export const editDbtProjectToolDefinition = defineTool({
     name: 'editDbtProject',
-    title: 'Propose writeback',
+    title: 'Edit dbt project',
     description: TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
     availability: ['agent'],
     inputSchema: toolEditDbtProjectArgsSchema,
