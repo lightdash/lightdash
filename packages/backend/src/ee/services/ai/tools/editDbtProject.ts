@@ -69,7 +69,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                 const prVerb = prAction === 'updated' ? 'Updated' : 'Opened';
                 const base = prUrl
                     ? `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${output}`
-                    : `The writeback agent ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
+                    : `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
 
                 // Deterministic offer: when the repo has no Lightdash
                 // preview-deploy GitHub Actions, instruct the assistant to
