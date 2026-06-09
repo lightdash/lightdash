@@ -165,8 +165,11 @@ import {
     toolRunMetricQueryOutputSchema,
 } from './toolRunMetricQueryArgs';
 import {
+    TOOL_GENERATE_VISUALIZATION_DESCRIPTION,
     TOOL_RENDER_CHART_DESCRIPTION,
     TOOL_RUN_QUERY_DESCRIPTION,
+    toolGenerateVisualizationArgsSchema,
+    toolGenerateVisualizationArgsSchemaTransformed,
     toolRenderChartArgsSchema,
     toolRenderChartArgsSchemaTransformed,
     toolRunQueryArgsSchema,
@@ -287,10 +290,10 @@ export const searchFieldValuesToolDefinition = defineTool({
 export const generateVisualizationToolDefinition = defineTool({
     name: 'generateVisualization',
     title: 'Generate visualization',
-    description: TOOL_RUN_QUERY_DESCRIPTION,
+    description: TOOL_GENERATE_VISUALIZATION_DESCRIPTION,
     availability: ['agent'],
-    inputSchema: toolRunQueryArgsSchema,
-    inputSchemaTransformed: toolRunQueryArgsSchemaTransformed,
+    inputSchema: toolGenerateVisualizationArgsSchema,
+    inputSchemaTransformed: toolGenerateVisualizationArgsSchemaTransformed,
     agent: { outputSchema: toolRunQueryOutputSchema },
 });
 

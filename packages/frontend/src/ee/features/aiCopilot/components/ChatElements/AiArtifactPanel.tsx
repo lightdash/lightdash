@@ -2,6 +2,7 @@ import {
     AiResultType,
     getGroupByDimensions,
     getWebAiChartConfig,
+    isChartAsCodeArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
@@ -99,6 +100,9 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
 
         const vizConfig = useMemo(() => {
             if (!isFloatingChart || !artifactData?.chartConfig) return null;
+            if (isChartAsCodeArtifactConfig(artifactData.chartConfig)) {
+                return artifactData.chartConfig;
+            }
             return parseVizConfig(artifactData.chartConfig);
         }, [isFloatingChart, artifactData?.chartConfig]);
 
@@ -132,7 +136,8 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             if (
                 !queryExecutionHandle.data ||
                 !artifactData?.chartConfig ||
-                !queryExecutionHandle.data.query.metricQuery
+                !queryExecutionHandle.data.query.metricQuery ||
+                isChartAsCodeArtifactConfig(artifactData.chartConfig)
             ) {
                 return null;
             }

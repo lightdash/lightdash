@@ -1,3 +1,4 @@
+import type { ChartAsCode } from '../../types/coder';
 import type { Filters } from '../../types/filter';
 import type { AdditionalMetric, MetricQuery } from '../../types/metricQuery';
 import type {
@@ -49,7 +50,7 @@ export type AiAgentVizConfig =
       }
     | {
           type: 'query_result';
-          config: ToolRunQueryArgs;
+          config: ToolRunQueryArgs | ChartAsCode;
       };
 
 export const AGENT_SUGGESTION_TOOLS = [

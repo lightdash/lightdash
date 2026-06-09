@@ -38,6 +38,10 @@ export function populateCustomMetricSQL(
         return metric;
     }
 
+    if ('sql' in metric && typeof metric.sql === 'string') {
+        return metric;
+    }
+
     const exploreFields = getFields(explore);
 
     // Find the dimension field to get its SQL

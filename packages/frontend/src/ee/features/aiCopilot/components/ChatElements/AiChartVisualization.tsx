@@ -1,4 +1,5 @@
 import {
+    isChartAsCodeArtifactConfig,
     parseVizConfig,
     type AiAgentChartTypeOption,
     type AiAgentMessageAssistant,
@@ -54,6 +55,9 @@ export const AiChartVisualization: FC<Props> = ({
 
     const vizConfig = useMemo(() => {
         if (!artifactData?.chartConfig) return null;
+        if (isChartAsCodeArtifactConfig(artifactData.chartConfig)) {
+            return artifactData.chartConfig;
+        }
         return parseVizConfig(artifactData.chartConfig);
     }, [artifactData?.chartConfig]);
 

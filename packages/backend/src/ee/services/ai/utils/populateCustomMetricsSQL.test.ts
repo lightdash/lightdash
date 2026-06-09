@@ -33,6 +33,23 @@ describe('populateCustomMetricsSQL', () => {
         expect(result).toEqual([]);
     });
 
+    it('preserves chart-as-code additional metrics that already include SQL', () => {
+        const additionalMetric: AdditionalMetric = {
+            table: 'orders',
+            name: 'average_order_amount',
+            label: 'Average order amount',
+            type: MetricType.AVERAGE,
+            sql: '${TABLE}.amount',
+        };
+
+        const result = populateCustomMetricsSQL(
+            [additionalMetric],
+            mockOrdersExplore,
+        );
+
+        expect(result).toEqual([additionalMetric]);
+    });
+
     it('builds a PoP additional metric for a real base metric', () => {
         const pc: PeriodComparisonCustomMetric = {
             kind: 'periodComparison',

@@ -210,6 +210,7 @@ const getAgentTools = (
         getPrompt: dependencies.getPrompt,
         sendFile: dependencies.sendFile,
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
+        validateContent: dependencies.validateContent,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
     });

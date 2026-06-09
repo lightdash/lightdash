@@ -299,7 +299,10 @@ const tryBuildDiscriminatedChartConfig = (
             return null;
         }
 
-        transformedMembers.push(typedMember);
+        transformedMembers.push({
+            ...typedMember,
+            additionalProperties: false,
+        });
     }
 
     return {
@@ -389,6 +392,24 @@ const maybeOverlayDiscriminatedChartConfig = (
     return root;
 };
 
+const overlayStrictChartConfigDefs = (
+    defs: Record<string, JsonObject>,
+): Record<string, JsonObject> => {
+    const nextDefs = { ...defs };
+
+    ['ColumnProperties', 'TableChart'].forEach((schemaName) => {
+        const schema = nextDefs[schemaName];
+        if (schema) {
+            nextDefs[schemaName] = {
+                ...schema,
+                additionalProperties: false,
+            };
+        }
+    });
+
+    return nextDefs;
+};
+
 const recoverNestedDescriptions = (
     schema: JsonObject,
     components: Record<string, JsonObject>,
@@ -476,14 +497,16 @@ export const buildChartAsCodeSchema = (swagger: SwaggerDoc): JsonObject => {
         }
     }
 
-    const defs = [...visited]
-        .sort((left, right) => left.localeCompare(right))
-        .reduce<Record<string, JsonObject>>((acc, schemaName) => {
-            acc[schemaName] = convertOpenApiToDraft07(
-                components[schemaName],
-            ) as JsonObject;
-            return acc;
-        }, {});
+    const defs = overlayStrictChartConfigDefs(
+        [...visited]
+            .sort((left, right) => left.localeCompare(right))
+            .reduce<Record<string, JsonObject>>((acc, schemaName) => {
+                acc[schemaName] = convertOpenApiToDraft07(
+                    components[schemaName],
+                ) as JsonObject;
+                return acc;
+            }, {}),
+    );
 
     const rootWithDescriptions = recoverNestedDescriptions(
         rootSchema,

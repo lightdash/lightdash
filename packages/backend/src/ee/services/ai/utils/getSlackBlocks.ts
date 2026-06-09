@@ -5,6 +5,8 @@ import {
     AiArtifact,
     FollowUpTools,
     followUpToolsText,
+    getChartAsCodeMetricQuery,
+    isChartAsCodeArtifactConfig,
     isToolProposeChangeResult,
     isToolProposeWritebackResult,
     parseVizConfig,
@@ -311,15 +313,17 @@ export async function getArtifactBlocks(
         return [];
     }
 
-    const vizConfig = parseVizConfig(chartArtifact.chartConfig, maxQueryLimit);
-    if (!vizConfig) {
+    const metricQuery = isChartAsCodeArtifactConfig(chartArtifact.chartConfig)
+        ? getChartAsCodeMetricQuery(chartArtifact.chartConfig, maxQueryLimit)
+        : parseVizConfig(chartArtifact.chartConfig, maxQueryLimit)?.metricQuery;
+    if (!metricQuery) {
         throw new Error('Failed to parse viz config');
     }
 
     // Get explore to populate SQL for additional metrics
-    const explore = await getExplore(vizConfig.metricQuery.exploreName);
+    const explore = await getExplore(metricQuery.exploreName);
     const additionalMetricsWithSql = populateCustomMetricsSQL(
-        vizConfig.metricQuery.additionalMetrics,
+        metricQuery.additionalMetrics,
         explore,
     );
 
@@ -327,20 +331,20 @@ export async function getArtifactBlocks(
     const additionalMetricFieldIds = additionalMetricsWithSql.map(
         (m) => `${m.table}_${m.name}`,
     );
-    const tableCalculationNames = vizConfig.metricQuery.tableCalculations.map(
+    const tableCalculationNames = metricQuery.tableCalculations.map(
         (tc) => tc.name,
     );
     const columnOrder = [
-        ...vizConfig.metricQuery.dimensions,
-        ...vizConfig.metricQuery.metrics,
+        ...metricQuery.dimensions,
+        ...metricQuery.metrics,
         ...additionalMetricFieldIds,
         ...tableCalculationNames,
     ];
 
     const configState = {
-        tableName: vizConfig.metricQuery.exploreName,
+        tableName: metricQuery.exploreName,
         metricQuery: {
-            ...vizConfig.metricQuery,
+            ...metricQuery,
             additionalMetrics: additionalMetricsWithSql,
         },
         tableConfig: {
@@ -362,7 +366,7 @@ export async function getArtifactBlocks(
         },
     };
 
-    const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
+    const path = `/projects/${slackPrompt.projectUuid}/tables/${metricQuery.exploreName}`;
     const params = `?create_saved_chart_version=${encodeURIComponent(
         JSON.stringify(configState),
     )}`;

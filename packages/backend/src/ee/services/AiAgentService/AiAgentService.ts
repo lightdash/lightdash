@@ -51,6 +51,7 @@ import {
     FeatureFlags,
     followUpToolsText,
     ForbiddenError,
+    getChartAsCodeMetricQuery,
     getErrorMessage,
     getGroupByDimensions,
     getItemId,
@@ -58,6 +59,7 @@ import {
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
+    isChartAsCodeArtifactConfig,
     isGitProjectType,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
@@ -85,6 +87,7 @@ import {
     validateAgentSuggestion,
     type AgentSuggestionTool,
     type AiPromptContextInput,
+    type ChartAsCode,
     type SessionUser,
     type SuggestionValidationCatalog,
     type TransformedCustomMetric,
@@ -1272,7 +1275,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
-        vizConfig: AiAgentVizConfig['config'],
+        vizConfig: Exclude<AiAgentVizConfig['config'], ChartAsCode>,
         customMetrics?: TransformedCustomMetric[] | null,
     ) {
         const explore = await this.getExplore(
@@ -1335,6 +1338,61 @@ export class AiAgentService extends BaseService {
         );
 
         return asyncQuery;
+    }
+
+    private async executeAsyncChartAsCodeMetricQuery(
+        user: SessionUser,
+        projectUuid: string,
+        chartAsCode: ChartAsCode,
+    ) {
+        const metricQuery = getChartAsCodeMetricQuery(
+            chartAsCode,
+            this.lightdashConfig.ai.copilot.maxQueryLimit,
+        );
+        const explore = await this.getExplore(
+            user,
+            projectUuid,
+            null,
+            metricQuery.exploreName,
+        );
+
+        validateSelectedFieldsExistence(
+            explore,
+            [...metricQuery.dimensions, ...metricQuery.metrics],
+            metricQuery.additionalMetrics,
+        );
+
+        const populatedCustomMetrics = populateCustomMetricsSQL(
+            metricQuery.additionalMetrics,
+            explore,
+        );
+        const metricQueryWithCustomMetrics = {
+            ...metricQuery,
+            additionalMetrics: populatedCustomMetrics,
+        };
+        const fields = getItemMap(
+            explore,
+            populatedCustomMetrics,
+            metricQuery.tableCalculations,
+        );
+        const pivotConfiguration = chartAsCode.pivotConfig?.columns?.length
+            ? derivePivotConfigurationFromChart(
+                  {
+                      chartConfig: chartAsCode.chartConfig,
+                      pivotConfig: chartAsCode.pivotConfig,
+                  },
+                  metricQueryWithCustomMetrics,
+                  fields,
+              )
+            : undefined;
+
+        return this.asyncQueryService.executeAsyncMetricQuery({
+            account: fromSession(user),
+            projectUuid,
+            metricQuery: metricQueryWithCustomMetrics,
+            context: QueryExecutionContext.AI,
+            pivotConfiguration,
+        });
     }
 
     public async getAgent(
@@ -3597,6 +3655,42 @@ export class AiAgentService extends BaseService {
             throw new ParameterError(
                 'Chart config not found for this artifact',
             );
+        }
+
+        if (isChartAsCodeArtifactConfig(artifact.chartConfig)) {
+            const query = await this.executeAsyncChartAsCodeMetricQuery(
+                user,
+                projectUuid,
+                artifact.chartConfig,
+            );
+
+            const metadata = {
+                title: artifact.title ?? artifact.chartConfig.name ?? null,
+                description:
+                    artifact.description ??
+                    artifact.chartConfig.description ??
+                    null,
+            } satisfies AiVizMetadata;
+
+            this.analytics.track({
+                event: 'ai_agent.artifact_viz_query',
+                userId: user.userUuid,
+                properties: {
+                    projectId: projectUuid,
+                    organizationId: organizationUuid,
+                    agentId: agent.uuid,
+                    agentName: agent.name,
+                    artifactId: artifactUuid,
+                    artifactVersionId: versionUuid,
+                    vizType: AiResultType.QUERY_RESULT,
+                },
+            });
+
+            return {
+                type: AiResultType.QUERY_RESULT,
+                query,
+                metadata,
+            };
         }
 
         const parsedVizConfig = parseVizConfig(

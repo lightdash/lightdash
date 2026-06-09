@@ -15,6 +15,7 @@ import type {
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '../..';
+import type { ChartAsCode } from '../../types/coder';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import {
     type AiPromptContext,
@@ -31,6 +32,7 @@ export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
 export * from './aiAgentReviewClassifierTypes';
+export * from './chartAsCodeArtifact';
 export * from './documentTypes';
 export * from './filterExploreByTags';
 export * from './followUpTools';
@@ -638,6 +640,7 @@ export type AiArtifact = {
     description: string | null;
     // We store raw tool calls
     chartConfig:
+        | ChartAsCode
         | ToolTableVizArgs
         | ToolTimeSeriesArgs
         | ToolVerticalBarArgs

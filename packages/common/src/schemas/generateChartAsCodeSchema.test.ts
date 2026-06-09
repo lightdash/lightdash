@@ -160,6 +160,9 @@ describe('generateChartAsCodeSchema', () => {
             propertyName: 'type',
         });
         expect(typedChartConfig.oneOf).toHaveLength(1);
+        expect(typedChartConfig.oneOf[0]).toMatchObject({
+            additionalProperties: false,
+        });
         expect(typedChartConfig.oneOf[0].properties.type).toEqual({
             const: 'big_number',
         });
