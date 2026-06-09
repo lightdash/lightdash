@@ -7,6 +7,7 @@ import {
     generateSlug,
     SEED_ORG_1_ADMIN,
     SEED_PROJECT,
+    type ColumnProperties,
     type ConditionalFormattingConfig,
     type ConditionalFormattingWithFilterOperator,
     type CreateDashboardChartTile,
@@ -33,11 +34,12 @@ type SeedModels = {
 
 type RangeValue = number | 'auto';
 
-const DASHBOARD_NAME = 'Conditional Formatting Coverage';
+const DASHBOARD_NAME = '[CF Coverage] Dashboard';
 const DASHBOARD_SLUG = generateSlug(DASHBOARD_NAME);
 const HARDCODED_DASHBOARD_UUID = '0859089e-7c1c-4fd2-b44a-29f4a0c7f4e8';
 const CHART_NAME_PREFIX = '[CF Coverage]';
-const TARGET_SPACE_NAME = '[Test app features]';
+const ROOT_SPACE_NAME = '[Test app features]';
+const TARGET_SPACE_NAME = '[Conditional Formatting]';
 
 const ORDERS_FIELDS = {
     orderDateMonth: 'orders_order_date_month',
@@ -153,6 +155,7 @@ const createRangeConfig = ({
 const createTableChartConfig = (
     conditionalFormattings: ConditionalFormattingConfig[],
     metricsAsRows = false,
+    columns: Record<string, ColumnProperties> = {},
 ) => ({
     type: ChartType.TABLE as const,
     config: {
@@ -164,7 +167,7 @@ const createTableChartConfig = (
         showSubtotals: false,
         metricsAsRows,
         conditionalFormattings,
-        columns: {},
+        columns,
     },
 });
 
@@ -193,22 +196,7 @@ const createSavedChartTile = ({
     },
 });
 
-const getOrCreateTargetSpaceUuid = async (
-    knex: Knex,
-    spaceModel: SpaceModel,
-): Promise<string> => {
-    const existingSpace = await knex('spaces')
-        .join('projects', 'spaces.project_id', 'projects.project_id')
-        .where('spaces.name', TARGET_SPACE_NAME)
-        .where('projects.project_uuid', SEED_PROJECT.project_uuid)
-        .whereNull('spaces.parent_space_uuid')
-        .whereNull('spaces.deleted_at')
-        .first('spaces.space_uuid');
-
-    if (existingSpace?.space_uuid) {
-        return existingSpace.space_uuid;
-    }
-
+const getSeedUserId = async (knex: Knex): Promise<number> => {
     const [user] = await knex('users').where(
         'user_uuid',
         SEED_ORG_1_ADMIN.user_uuid,
@@ -218,19 +206,71 @@ const getOrCreateTargetSpaceUuid = async (
         throw new Error(`User ${SEED_ORG_1_ADMIN.user_uuid} not found`);
     }
 
+    return user.user_id;
+};
+
+const getOrCreateSpaceByName = async (
+    knex: Knex,
+    spaceModel: SpaceModel,
+    spaceName: string,
+    userId: number,
+    parentSpaceUuid: string | null = null,
+): Promise<string> => {
+    const existingSpace = await knex('spaces')
+        .join('projects', 'spaces.project_id', 'projects.project_id')
+        .where('spaces.name', spaceName)
+        .where('projects.project_uuid', SEED_PROJECT.project_uuid)
+        .whereNull('spaces.deleted_at')
+        .modify((queryBuilder) => {
+            if (parentSpaceUuid) {
+                void queryBuilder.where(
+                    'spaces.parent_space_uuid',
+                    parentSpaceUuid,
+                );
+            } else {
+                void queryBuilder.whereNull('spaces.parent_space_uuid');
+            }
+        })
+        .first('spaces.space_uuid');
+
+    if (existingSpace?.space_uuid) {
+        return existingSpace.space_uuid;
+    }
+
     const space = await spaceModel.createSpace(
         {
-            name: TARGET_SPACE_NAME,
+            name: spaceName,
             inheritParentPermissions: true,
-            parentSpaceUuid: null,
+            parentSpaceUuid,
         },
         {
             projectUuid: SEED_PROJECT.project_uuid,
-            userId: user.user_id,
+            userId,
         },
     );
 
     return space.uuid;
+};
+
+const getOrCreateTargetSpaceUuid = async (
+    knex: Knex,
+    spaceModel: SpaceModel,
+): Promise<string> => {
+    const userId = await getSeedUserId(knex);
+    const rootSpaceUuid = await getOrCreateSpaceByName(
+        knex,
+        spaceModel,
+        ROOT_SPACE_NAME,
+        userId,
+    );
+
+    return getOrCreateSpaceByName(
+        knex,
+        spaceModel,
+        TARGET_SPACE_NAME,
+        userId,
+        rootSpaceUuid,
+    );
 };
 
 const createSeedModels = (knex: Knex): SeedModels => ({
@@ -418,6 +458,7 @@ const chartSpecs: SeedChartSpec[] = [
             metrics: [
                 ORDERS_FIELDS.uniqueOrderCount,
                 ORDERS_FIELDS.totalOrderAmount,
+                ORDERS_FIELDS.totalCompletedOrderAmount,
             ],
             filters: {},
             sorts: [
@@ -435,34 +476,42 @@ const chartSpecs: SeedChartSpec[] = [
                 },
             ],
         },
-        chartConfig: createTableChartConfig([
-            createSingleColorConfig({
-                targetFieldId: ORDERS_FIELDS.promoCode,
-                color: '#6b7280',
-                applyTo: ConditionalFormattingColorApplyTo.TEXT,
-                rules: [createValueRule(FilterOperator.NULL)],
-            }),
-            createSingleColorConfig({
-                targetFieldId: ORDERS_FIELDS.promoCode,
-                color: '#059669',
-                applyTo: ConditionalFormattingColorApplyTo.TEXT,
-                rules: [createValueRule(FilterOperator.NOT_NULL)],
-            }),
-            createSingleColorConfig({
-                targetFieldId: TABLE_CALCULATIONS.completionGap,
-                color: '#fecaca',
-                applyTo: ConditionalFormattingColorApplyTo.CELL,
-                rules: [
-                    createValueRule(FilterOperator.LESS_THAN_OR_EQUAL, [0]),
-                ],
-            }),
-            createSingleColorConfig({
-                targetFieldId: TABLE_CALCULATIONS.completionGap,
-                color: '#991b1b',
-                applyTo: ConditionalFormattingColorApplyTo.TEXT,
-                rules: [createValueRule(FilterOperator.GREATER_THAN, [0])],
-            }),
-        ]),
+        chartConfig: createTableChartConfig(
+            [
+                createSingleColorConfig({
+                    targetFieldId: ORDERS_FIELDS.promoCode,
+                    color: '#6b7280',
+                    applyTo: ConditionalFormattingColorApplyTo.TEXT,
+                    rules: [createValueRule(FilterOperator.NULL)],
+                }),
+                createSingleColorConfig({
+                    targetFieldId: ORDERS_FIELDS.promoCode,
+                    color: '#059669',
+                    applyTo: ConditionalFormattingColorApplyTo.TEXT,
+                    rules: [createValueRule(FilterOperator.NOT_NULL)],
+                }),
+                createSingleColorConfig({
+                    targetFieldId: TABLE_CALCULATIONS.completionGap,
+                    color: '#fecaca',
+                    applyTo: ConditionalFormattingColorApplyTo.CELL,
+                    rules: [
+                        createValueRule(FilterOperator.LESS_THAN_OR_EQUAL, [0]),
+                    ],
+                }),
+                createSingleColorConfig({
+                    targetFieldId: TABLE_CALCULATIONS.completionGap,
+                    color: '#991b1b',
+                    applyTo: ConditionalFormattingColorApplyTo.TEXT,
+                    rules: [createValueRule(FilterOperator.GREATER_THAN, [0])],
+                }),
+            ],
+            false,
+            {
+                [ORDERS_FIELDS.totalCompletedOrderAmount]: {
+                    visible: false,
+                },
+            },
+        ),
         tableConfig: {
             columnOrder: [
                 ORDERS_FIELDS.promoCode,
