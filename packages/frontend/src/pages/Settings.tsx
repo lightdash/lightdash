@@ -10,11 +10,12 @@ import {
     Title,
     Tooltip,
 } from '@mantine-8/core';
+import { useDebouncedValue } from '@mantine-8/hooks';
 import {
     IconLayoutSidebarLeftCollapse,
     IconLayoutSidebarLeftExpand,
 } from '@tabler/icons-react';
-import { useState, useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import {
     matchPath,
     Navigate,
@@ -28,6 +29,9 @@ import Page from '../components/common/Page/Page';
 import PageBreadcrumbs from '../components/common/PageBreadcrumbs';
 import { SettingsGridCard } from '../components/common/Settings/SettingsCard';
 import PageSpinner from '../components/PageSpinner';
+import ProjectSettings from '../components/Settings/ProjectSettings';
+import SettingsNavigation from '../components/Settings/SettingsNavigation';
+import SettingsSearchInput from '../components/Settings/SettingsSearchInput';
 import AccessTokensPanel from '../components/UserSettings/AccessTokensPanel';
 import AllowedDomainsPanel from '../components/UserSettings/AllowedDomainsPanel';
 import AppearanceSettingsPanel from '../components/UserSettings/AppearanceSettingsPanel';
@@ -71,17 +75,35 @@ import { CustomRoleCreate } from '../ee/pages/customRoles/CustomRoleCreate';
 import { CustomRoleEdit } from '../ee/pages/customRoles/CustomRoleEdit';
 import { CustomRoles } from '../ee/pages/customRoles/CustomRoles';
 import DesignListPage from '../features/organizationDesigns/components/DesignListPage';
+import { filterSettingsNavigation } from '../hooks/settings/filterSettingsNavigation';
 import { useSettingsContext } from '../hooks/settings/useSettingsContext';
 import { useSettingsNavigation } from '../hooks/settings/useSettingsNavigation';
 import { TrackPage } from '../providers/Tracking/TrackingProvider';
 import { PageName } from '../types/Events';
-import ProjectSettings from './ProjectSettings';
 import classes from './Settings.module.css';
-import SettingsNavigation from './SettingsNavigation';
 
 const Settings: FC = () => {
     const context = useSettingsContext();
     const sections = useSettingsNavigation(context);
+
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const [search, setSearch] = useState('');
+    const [debouncedSearch] = useDebouncedValue(search, 200);
+
+    const filteredSections = useMemo(
+        () => filterSettingsNavigation(sections, debouncedSearch),
+        [sections, debouncedSearch],
+    );
+
+    const location = useLocation();
+    // Reset the search on navigation so each visit starts unfiltered; done
+    // during render rather than an effect, which would lag the route change.
+    const [prevPathname, setPrevPathname] = useState(location.pathname);
+    if (prevPathname !== location.pathname) {
+        setPrevPathname(location.pathname);
+        setSearch('');
+    }
+
     const {
         user,
         health,
@@ -109,8 +131,6 @@ const Settings: FC = () => {
         isProjectLoading,
         projectError,
     } = context;
-
-    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
     const routes = useMemo<RouteObject[]>(() => {
         const allowedRoutes: RouteObject[] = [
@@ -593,7 +613,6 @@ const Settings: FC = () => {
     ]);
     const routeElements = useRoutes(routes);
 
-    const location = useLocation();
     const isFixedContent = useMemo(() => {
         return (
             !matchPath(
@@ -781,13 +800,33 @@ const Settings: FC = () => {
                             </ActionIcon>
                         </Tooltip>
                     </Group>
+                    <SettingsSearchInput value={search} onChange={setSearch} />
                     <ScrollArea
                         type="scroll"
                         scrollbarSize={8}
                         scrollHideDelay={800}
                         className={classes.sidebarScroll}
                     >
-                        <SettingsNavigation sections={sections} />
+                        {filteredSections.length > 0 ? (
+                            <SettingsNavigation
+                                sections={filteredSections}
+                                searchQuery={debouncedSearch}
+                            />
+                        ) : (
+                            <Stack gap="xs" align="center" py="xl" px="md">
+                                <Text fz="sm" c="ldGray.6" ta="center">
+                                    No settings match “{debouncedSearch.trim()}”
+                                </Text>
+                                <Anchor
+                                    component="button"
+                                    type="button"
+                                    fz="xs"
+                                    onClick={() => setSearch('')}
+                                >
+                                    Clear search
+                                </Anchor>
+                            </Stack>
+                        )}
                     </ScrollArea>
                 </Stack>
             }

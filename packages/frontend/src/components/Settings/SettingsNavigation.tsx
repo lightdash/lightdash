@@ -1,28 +1,40 @@
-import { Box, Stack, Text, Title } from '@mantine-8/core';
+import { Box, Highlight, Stack, Text, Title } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
-import MantineIcon from '../components/common/MantineIcon';
-import RouterNavLink from '../components/common/RouterNavLink';
 import {
     type SettingsNavigationItem,
     type SettingsNavigationSection,
-} from '../hooks/settings/types';
+} from '../../hooks/settings/types';
+import MantineIcon from '../common/MantineIcon';
+import RouterNavLink from '../common/RouterNavLink';
 
 type SettingsNavigationProps = {
     sections: SettingsNavigationSection[];
+    searchQuery: string;
 };
 
-const SettingsNavigation: FC<SettingsNavigationProps> = ({ sections }) => {
+const SettingsNavigation: FC<SettingsNavigationProps> = ({
+    sections,
+    searchQuery,
+}) => {
     const location = useLocation();
+    const isFiltering = searchQuery.trim().length > 0;
 
     const renderItem = (item: SettingsNavigationItem) => {
         const leftSection = <MantineIcon icon={item.icon} />;
+        const label = isFiltering ? (
+            <Highlight span inherit highlight={searchQuery}>
+                {item.label}
+            </Highlight>
+        ) : (
+            item.label
+        );
 
         if (item.children.length === 0) {
             return (
                 <RouterNavLink
                     key={item.to}
-                    label={item.label}
+                    label={label}
                     to={item.to}
                     exact={item.exact}
                     onClick={item.onClick}
@@ -34,12 +46,14 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({ sections }) => {
         return (
             <RouterNavLink
                 key={item.to}
-                label={item.label}
+                label={label}
                 to={item.to}
                 exact={item.exact}
                 onClick={item.onClick}
                 leftSection={leftSection}
-                defaultOpened={location.pathname.includes(item.to)}
+                defaultOpened={
+                    isFiltering || location.pathname.includes(item.to)
+                }
             >
                 {item.children.map(renderItem)}
             </RouterNavLink>
@@ -47,7 +61,9 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({ sections }) => {
     };
 
     return (
-        <Stack gap="lg">
+        // Remount when filtering toggles: NavLink reads `defaultOpened` only on
+        // mount, so this is what expands matching groups as you search.
+        <Stack key={isFiltering ? 'filtered' : 'all'} gap="lg">
             {sections.map((section) => (
                 <Box key={section.id}>
                     <Box mb="xs">
