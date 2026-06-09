@@ -5,9 +5,8 @@
  * `ls`/`find` resolve with zero network calls; file contents are fetched lazily
  * on `cat`/`grep` and cached. All write operations are absent by construction.
  *
- * See the #engineering discussion of Mintlify's ChromaFs — this is the same
- * "intercept commands, translate to backing-store reads" idea, scoped to a dbt
- * repo and backed by the GitHub Git Trees + Contents APIs.
+ * It's the "intercept commands, translate to backing-store reads" idea, scoped to
+ * a dbt repo and backed by the GitHub Git Trees + Contents APIs.
  */
 
 export type RepoEntryType = 'file' | 'dir';
@@ -177,6 +176,23 @@ export class RepoFs {
     async isTruncated(): Promise<boolean> {
         const index = await this.ensureIndex();
         return index.truncated;
+    }
+
+    /**
+     * Type + size of a path from the in-memory index, or null if absent. Size is
+     * the blob size for files and 0 for directories; reads no file content. Lets
+     * the {@link RepoFileSystem} adapter answer `stat`/`exists` without a fetch.
+     */
+    async statEntry(
+        path: string,
+    ): Promise<{ type: RepoEntryType; size: number } | null> {
+        const index = await this.ensureIndex();
+        const normalized = normalizePath(path);
+        if (normalized === '') return { type: 'dir', size: 0 };
+        const size = index.files.get(normalized);
+        if (size !== undefined) return { type: 'file', size };
+        if (index.children.has(normalized)) return { type: 'dir', size: 0 };
+        return null;
     }
 
     /**

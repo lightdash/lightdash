@@ -207,8 +207,8 @@ import {
     getModel,
 } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
+import { runRepoShellCommand } from '../ai/repoFs/bashShell';
 import { createGithubRepoSource } from '../ai/repoFs/githubRepoSource';
-import { runRepoShellCommand } from '../ai/repoFs/limitedShell';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import { BuiltInSkills } from '../ai/skills/builtInSkills';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';

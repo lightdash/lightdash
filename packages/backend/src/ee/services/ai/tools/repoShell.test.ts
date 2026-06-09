@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/node';
-import { ShellError } from '../repoFs/limitedShell';
+import { ShellError } from '../repoFs/bashShell';
 import { getRepoShell } from './repoShell';
 
 jest.mock('@sentry/node', () => ({
