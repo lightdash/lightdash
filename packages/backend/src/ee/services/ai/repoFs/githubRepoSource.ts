@@ -1,4 +1,5 @@
 import { getFileContent, getRepoTree } from '../../../../clients/github/Github';
+import Logger from '../../../../logging/logger';
 import { RepoSource } from './RepoFs';
 
 /**
@@ -31,12 +32,27 @@ export const createGithubRepoSource = ({
     return {
         label: `${owner}/${repo}@${branch}${root ? `/${root}` : ''}`,
         listAllPaths: async () => {
+            const start = Date.now();
             const { files, truncated } = await getRepoTree({
                 owner,
                 repo,
                 branch,
                 token,
             });
+            const durationMs = Date.now() - start;
+            Logger.info(
+                `[repoShell] github tree fetched in ${durationMs}ms (${
+                    files.length
+                } files${truncated ? ', truncated' : ''})`,
+                {
+                    event: 'ai.repofs.github.tree',
+                    repo: `${owner}/${repo}`,
+                    branch,
+                    fileCount: files.length,
+                    truncated,
+                    durationMs,
+                },
+            );
             if (!root) return { files, truncated };
             const scoped = files
                 .filter((f) => f.path.startsWith(prefix))
@@ -47,6 +63,7 @@ export const createGithubRepoSource = ({
             return { files: scoped, truncated };
         },
         readFile: async (path) => {
+            const start = Date.now();
             try {
                 const { content } = await getFileContent({
                     fileName: `${prefix}${path}`,
@@ -55,8 +72,31 @@ export const createGithubRepoSource = ({
                     branch,
                     token,
                 });
+                // Per-file at debug — a single grep can read many files, so this
+                // would be noisy at info; the tree fetch (one per run) is info.
+                const durationMs = Date.now() - start;
+                Logger.debug(
+                    `[repoShell] github file fetched in ${durationMs}ms (${
+                        content?.length ?? 0
+                    }b): ${prefix}${path}`,
+                    {
+                        event: 'ai.repofs.github.file',
+                        path: `${prefix}${path}`,
+                        bytes: content?.length ?? 0,
+                        durationMs,
+                    },
+                );
                 return content;
             } catch {
+                const durationMs = Date.now() - start;
+                Logger.debug(
+                    `[repoShell] github file miss in ${durationMs}ms: ${prefix}${path}`,
+                    {
+                        event: 'ai.repofs.github.file_miss',
+                        path: `${prefix}${path}`,
+                        durationMs,
+                    },
+                );
                 return null;
             }
         },
