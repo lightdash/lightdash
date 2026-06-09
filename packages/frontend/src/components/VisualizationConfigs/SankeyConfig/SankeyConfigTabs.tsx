@@ -6,6 +6,7 @@ import {
     type CustomDimension,
     type Dimension,
     type Metric,
+    type SankeyNodeLayout,
     type TableCalculation,
 } from '@lightdash/common';
 import {
@@ -13,6 +14,7 @@ import {
     SegmentedControl,
     Stack,
     Tabs,
+    Text,
     useMantineColorScheme,
 } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
@@ -90,7 +92,14 @@ export const ConfigTabs: FC = memo(() => {
         onNodeAlignChange,
         orient,
         onOrientChange,
+        nodeLayout,
+        onNodeLayoutChange,
+        data,
     } = visualizationConfig.chartConfig;
+
+    // Merging needs an acyclic graph, so cyclic data falls back to multi-step
+    const effectiveLayout: SankeyNodeLayout =
+        nodeLayout === 'merged' && data.hasCycle ? 'multi-step' : nodeLayout;
 
     return (
         <MantineProvider inherit theme={themeOverride}>
@@ -240,6 +249,36 @@ export const ConfigTabs: FC = memo(() => {
                                         )
                                     }
                                 />
+                            </Config.Section>
+                        </Config>
+                        <Config>
+                            <Config.Section>
+                                <Config.Heading>Node layout</Config.Heading>
+                                <SegmentedControl
+                                    value={effectiveLayout}
+                                    data={[
+                                        {
+                                            value: 'multi-step',
+                                            label: 'Multi-step',
+                                        },
+                                        {
+                                            value: 'merged',
+                                            label: 'Merged',
+                                            disabled: data.hasCycle,
+                                        },
+                                    ]}
+                                    onChange={(value) =>
+                                        onNodeLayoutChange(
+                                            value as SankeyNodeLayout,
+                                        )
+                                    }
+                                />
+                                {data.hasCycle && (
+                                    <Text size="xs" c="dimmed" mt="xs">
+                                        Merging isn't available for flows that
+                                        loop back on themselves.
+                                    </Text>
+                                )}
                             </Config.Section>
                         </Config>
                     </Stack>
