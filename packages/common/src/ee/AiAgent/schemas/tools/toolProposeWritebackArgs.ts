@@ -38,6 +38,24 @@ export const toolProposeWritebackOutputSchema = z.object({
             // rendered from rows written before this field existed must still
             // parse. Absent/null is treated as 'opened' by the renderer.
             prAction: z.enum(['opened', 'updated']).nullish(),
+            // Ordered actions the sandbox took, surfaced as persistent step
+            // rows under the writeback tool call. Generic shape (kind + label)
+            // so the chat UI can group/render them without writeback knowledge.
+            // Nullish for back-compat with rows persisted before this existed.
+            steps: z
+                .array(
+                    z.object({
+                        kind: z.enum([
+                            'read',
+                            'edit',
+                            'search',
+                            'compile',
+                            'stage',
+                        ]),
+                        label: z.string(),
+                    }),
+                )
+                .nullish(),
         }),
         z.object({
             status: z.literal('error'),

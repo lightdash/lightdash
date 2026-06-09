@@ -11,6 +11,7 @@ import {
     PullRequestSource,
     WarehouseTypes,
     type AiWritebackRunResult,
+    type AiWritebackStep,
     type PullRequestWritebackAction,
     type SessionUser,
 } from '@lightdash/common';
@@ -73,8 +74,9 @@ import type {
     WarehouseSkillKey,
 } from './types';
 import {
-    describeToolStep,
+    classifyToolStep,
     extractPrMetadata,
+    formatWritebackStep,
     interpretAgentEvent,
     parseGithubConnection,
     parsePullNumber,
@@ -442,6 +444,10 @@ export class AiWritebackService extends BaseService {
         } = args;
         const runStartedAt = performance.now();
 
+        // Ordered, structured log of every step (stages + per-file actions),
+        // persisted as the writeback step rows so the post-reload view matches
+        // what was shown live. Consecutive duplicates are suppressed.
+        const stepLog: AiWritebackStep[] = [];
         // Wrap the optional onProgress in a try/catch so a misbehaving caller
         // (e.g. a Slack `chat.update` 429 that wasn't caught upstream) can
         // never take down the writeback run itself. Progress is best-effort.
@@ -454,6 +460,15 @@ export class AiWritebackService extends BaseService {
                     `AiWriteback: onProgress threw — ignoring: ${getErrorMessage(error)}`,
                 );
             }
+        };
+        // Record one structured step: dedup against the previous, persist it,
+        // and stream its one-line form for live progress (Slack/web).
+        const recordStep = (step: AiWritebackStep): void => {
+            const text = formatWritebackStep(step);
+            const last = stepLog[stepLog.length - 1];
+            if (last && formatWritebackStep(last) === text) return;
+            stepLog.push(step);
+            reportProgress(text);
         };
 
         const turn = await this.prepareTurn({
@@ -497,7 +512,7 @@ export class AiWritebackService extends BaseService {
             // the parent tool's heading or otherwise add no signal.
             const progressText = progressTextForStage(stage);
             if (progressText !== null) {
-                reportProgress(progressText);
+                recordStep({ kind: 'stage', label: progressText });
             }
         };
 
@@ -563,7 +578,7 @@ export class AiWritebackService extends BaseService {
                 prompt,
                 isResume: turn.isResume,
                 source,
-                reportProgress,
+                recordStep,
                 skillKey,
                 warehouseType: turn.warehouseType,
             });
@@ -618,6 +633,7 @@ export class AiWritebackService extends BaseService {
                     prAction: crashPrUrl ? 'updated' : null,
                     projectName: turn.projectName,
                     repository,
+                    steps: stepLog,
                 };
             }
 
@@ -664,6 +680,7 @@ export class AiWritebackService extends BaseService {
                 prAction: getPrAction(applied),
                 projectName: turn.projectName,
                 repository,
+                steps: stepLog,
             };
         } catch (error) {
             this.logger.error('AI writeback run failed', {
@@ -1006,7 +1023,7 @@ export class AiWritebackService extends BaseService {
         prompt,
         isResume,
         source,
-        reportProgress,
+        recordStep,
         skillKey,
         warehouseType,
     }: {
@@ -1015,7 +1032,7 @@ export class AiWritebackService extends BaseService {
         prompt: string;
         isResume: boolean;
         source: AiWritebackSource;
-        reportProgress: (message: string) => void;
+        recordStep: (step: AiWritebackStep) => void;
         skillKey: WarehouseSkillKey | null;
         warehouseType: WarehouseTypes | null;
     }): Promise<{ stdout: string; exitCode: number }> {
@@ -1064,9 +1081,6 @@ export class AiWritebackService extends BaseService {
         let buffer = '';
         let assistantText = '';
         const toolCounts: Record<string, number> = {};
-        // Last per-file step surfaced, to suppress consecutive duplicates (e.g.
-        // the agent reading the same file twice in a row).
-        let lastStep: string | null = null;
 
         let stderrTail = '';
         const appendStderrTail = (chunk: string) => {
@@ -1123,10 +1137,9 @@ export class AiWritebackService extends BaseService {
                 // Surface the actual file the agent is touching ("Editing
                 // fm_parts.yml", "Reading orders.yml") rather than a generic
                 // phase, deduped so a repeated step doesn't spam the UI.
-                const step = describeToolStep(toolCall);
-                if (step && step !== lastStep) {
-                    lastStep = step;
-                    reportProgress(step);
+                const step = classifyToolStep(toolCall);
+                if (step) {
+                    recordStep(step);
                 }
             }
             if (interpreted.text !== null) assistantText = interpreted.text;

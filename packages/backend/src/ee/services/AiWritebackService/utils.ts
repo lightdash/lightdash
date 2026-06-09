@@ -3,10 +3,12 @@ import {
     DbtProjectType,
     ParameterError,
     PullRequestProvider,
+    type AiWritebackStep,
     type DbtProjectConfig,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import {
+    COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
@@ -364,16 +366,16 @@ const toolStepBasename = (path: string): string => {
 };
 
 /**
- * A human, per-file progress line for one in-sandbox agent tool call —
- * "Reading orders.yml", "Editing fm_parts.yml", "Compiling project" — so the
- * writeback's live sub-steps show the actual files it touches instead of a
- * generic phase ("Editing models"). Returns null for tool calls not worth
- * surfacing (e.g. non-compile Bash). Mirrors the repoShell tool-step style.
+ * Classify one in-sandbox agent tool call into a generic {@link AiWritebackStep}
+ * — a `kind` bucket (read/edit/search/compile) plus a `label` (file basename or
+ * search pattern). Returns null for calls not worth surfacing (e.g. non-compile
+ * Bash). The chat UI groups consecutive same-kind steps and renders them; the
+ * shape is intentionally generic so the UI never needs writeback knowledge.
  */
-export const describeToolStep = ({
+export const classifyToolStep = ({
     name,
     input,
-}: AgentToolCall): string | null => {
+}: AgentToolCall): AiWritebackStep | null => {
     const fields =
         input && typeof input === 'object'
             ? (input as Record<string, unknown>)
@@ -385,21 +387,51 @@ export const describeToolStep = ({
     switch (name) {
         case 'Edit':
         case 'Write':
-            return file ? `Editing ${file}` : 'Editing files';
+            return { kind: 'edit', label: file ?? 'files' };
         case 'Read':
-            return file ? `Reading ${file}` : 'Reading files';
+            return { kind: 'read', label: file ?? 'files' };
         case 'Glob':
         case 'Grep':
-            return typeof fields.pattern === 'string'
-                ? `Searching for "${fields.pattern}"`
-                : 'Searching files';
+            return {
+                kind: 'search',
+                label:
+                    typeof fields.pattern === 'string'
+                        ? fields.pattern
+                        : 'files',
+            };
         case 'Bash':
+            // The agent compiles via the allowlisted wrapper, not `lightdash
+            // compile` directly — match both so the (slow) compile surfaces a
+            // step instead of a frozen gap before the commit stage.
             return typeof fields.command === 'string' &&
-                fields.command.includes('lightdash compile')
-                ? 'Compiling project'
+                (fields.command.includes(COMPILE_WRAPPER_PATH) ||
+                    fields.command.includes('lightdash compile'))
+                ? { kind: 'compile', label: 'project' }
                 : null;
         default:
             return null;
+    }
+};
+
+/**
+ * One-line string for a step — used for the live progress stream (Slack's
+ * pinned message, the web step stream) and as a dedup key. The persisted,
+ * groupable form is the structured {@link AiWritebackStep} itself.
+ */
+export const formatWritebackStep = (step: AiWritebackStep): string => {
+    switch (step.kind) {
+        case 'read':
+            return `Reading ${step.label}`;
+        case 'edit':
+            return `Editing ${step.label}`;
+        case 'search':
+            return `Searching for "${step.label}"`;
+        case 'compile':
+            return 'Compiling project';
+        case 'stage':
+            return step.label;
+        default:
+            return step.label;
     }
 };
 
