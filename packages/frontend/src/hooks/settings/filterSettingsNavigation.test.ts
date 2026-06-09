@@ -1,6 +1,9 @@
 import { IconSearch } from '@tabler/icons-react';
 import { describe, expect, it } from 'vitest';
-import { filterSettingsNavigation } from './filterSettingsNavigation';
+import {
+    filterSettingsNavigation,
+    searchSettingsNavigationItemsWithPath,
+} from './filterSettingsNavigation';
 import {
     type SettingsNavigationItem,
     type SettingsNavigationSection,
@@ -138,5 +141,67 @@ describe('filterSettingsNavigation', () => {
 
     it('returns an empty array when nothing matches', () => {
         expect(filterSettingsNavigation(sections, 'zzz')).toEqual([]);
+    });
+});
+
+describe('searchSettingsNavigationItemsWithPath', () => {
+    it('returns an empty array for an empty or whitespace query', () => {
+        expect(searchSettingsNavigationItemsWithPath(sections, '')).toEqual([]);
+        expect(searchSettingsNavigationItemsWithPath(sections, '   ')).toEqual(
+            [],
+        );
+    });
+
+    it('materializes a top-level item path as its section title', () => {
+        const result = searchSettingsNavigationItemsWithPath(
+            sections,
+            'profile',
+        );
+        expect(result.map((r) => r.item.label)).toEqual(['Profile']);
+        expect(result[0].path).toEqual(['Your settings']);
+    });
+
+    it('materializes a nested item path with its section and ancestors', () => {
+        const result = searchSettingsNavigationItemsWithPath(
+            sections,
+            'threads',
+        );
+        const threads = result.find((r) => r.item.label === 'Threads');
+        expect(threads?.path).toEqual(['Organization settings', 'Ask AI']);
+    });
+
+    it('surfaces nested children when an ancestor label matches', () => {
+        const result = searchSettingsNavigationItemsWithPath(
+            sections,
+            'ask ai',
+        );
+        const general = result.find((r) => r.item.label === 'General');
+        expect(general).toBeDefined();
+        expect(general?.path).toEqual(['Organization settings', 'Ask AI']);
+    });
+
+    it('matches every item in a section by its title', () => {
+        const result = searchSettingsNavigationItemsWithPath(
+            sections,
+            'organization',
+        );
+        const labels = result.map((r) => r.item.label);
+        expect(labels).toEqual(
+            expect.arrayContaining([
+                'Single Sign-On',
+                'User attributes',
+                'Ask AI',
+                'General',
+                'Threads',
+                'Agents',
+            ]),
+        );
+        expect(labels).not.toContain('Profile');
+    });
+
+    it('returns an empty array when nothing matches', () => {
+        expect(searchSettingsNavigationItemsWithPath(sections, 'zzz')).toEqual(
+            [],
+        );
     });
 });

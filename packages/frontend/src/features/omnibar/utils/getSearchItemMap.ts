@@ -46,7 +46,6 @@ export const getSearchItemMap = (
 
     const savedCharts = results.savedCharts.map<SearchItem>((item) => ({
         type: SearchItemType.CHART,
-        icon: 'chart',
         title: item.name,
         description: item.description,
         item: item,
@@ -58,7 +57,6 @@ export const getSearchItemMap = (
 
     const sqlCharts = results.sqlCharts.map<SearchItem>((item) => ({
         type: SearchItemType.SQL_CHART,
-        icon: 'chart',
         title: item.name,
         description: item.description || undefined,
         item: item,
