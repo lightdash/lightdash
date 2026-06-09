@@ -184,6 +184,27 @@ describe('JwtUtil', () => {
             expect(decoded.user).toBeUndefined();
         });
 
+        it('should strip unknown properties from valid tokens', () => {
+            const token = encodeLightdashJwt(
+                {
+                    ...mockJwtData,
+                    extraTopLevel: 'remove-me',
+                    content: {
+                        ...mockJwtData.content,
+                        extraContent: 'remove-me',
+                    },
+                } as unknown as CreateEmbedJwt,
+                encodedSecret,
+                '1h',
+            );
+
+            const decoded = decodeLightdashJwt(token, encodedSecret);
+
+            expect(decoded).not.toHaveProperty('extraTopLevel');
+            expect(decoded.content).not.toHaveProperty('extraContent');
+            expect(mockErrorLogger).not.toHaveBeenCalled();
+        });
+
         it('should handle malformed encoded secret', () => {
             const token = encodeLightdashJwt(mockJwtData, encodedSecret, '1h');
             const malformedSecret = 'malformed-secret';

@@ -46,22 +46,17 @@ const dashboardAbilities: EmbeddedAbilityBuilder = ({
         projectUuid: embed.projectUuid,
     });
 
-    can('view', 'Project', {
-        organizationUuid: organization.organizationUuid,
-        projectUuid: embed.projectUuid,
-    });
-
-    // Data app tiles require an explicit opt-in on the JWT — same trust
-    // model as canExplore. Off by default, the data app tile renders as a
-    // "not authorized" placeholder. With the flag set, the customer is
-    // accepting that the embed user can run the data app's metric queries
-    // (arbitrary against any explore in the project, still filtered at
-    // query time by the JWT's user attributes via getFilteredExplore).
+    // Data app tiles require an explicit opt-in on the JWT.
     if (
         embedUser.content.type === 'dashboard' &&
         embedUser.content.canViewDataApps
     ) {
         can('view', 'Explore', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+        });
+
+        can('view', 'Project', {
             organizationUuid: organization.organizationUuid,
             projectUuid: embed.projectUuid,
         });
@@ -137,6 +132,11 @@ const exploreAbilities: EmbeddedAbilityBuilder = ({
 
     if (canExplore) {
         can('view', 'Explore', {
+            organizationUuid: organization.organizationUuid,
+            projectUuid: embed.projectUuid,
+        });
+
+        can('view', 'Project', {
             organizationUuid: organization.organizationUuid,
             projectUuid: embed.projectUuid,
         });

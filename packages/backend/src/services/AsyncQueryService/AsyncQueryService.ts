@@ -4594,26 +4594,27 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 savedChartUuid,
             );
-        } else {
-            const ctx = await this.spacePermissionService.getSpaceAccessContext(
-                account.user.id,
-                space.uuid,
-            );
+            return;
+        }
 
-            if (
-                auditedAbility.cannot(
-                    'view',
-                    subject('SavedChart', {
-                        organizationUuid: space.organizationUuid,
-                        projectUuid,
-                        inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
-                        access: ctx.access,
-                        metadata: { savedChartUuid },
-                    }),
-                )
-            ) {
-                throw new ForbiddenError();
-            }
+        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            account.user.id,
+            space.uuid,
+        );
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: space.organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                    access: ctx.access,
+                    metadata: { savedChartUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
         }
 
         if (

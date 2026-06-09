@@ -162,7 +162,11 @@ describe('Embed Dashboard JWT API', () => {
         }
 
         // Creates a fresh JWT each time, so it always uses the current embed secret
-        async function freshDashboardJwt(): Promise<string> {
+        async function freshDashboardJwt(
+            contentOverrides: Partial<
+                Extract<CreateEmbedJwt['content'], { type: 'dashboard' }>
+            > = {},
+        ): Promise<string> {
             // Ensure embed config still includes our dashboard
             const configResp = await getEmbedConfig(admin);
             const config = configResp.body.results;
@@ -188,6 +192,7 @@ describe('Embed Dashboard JWT API', () => {
                     canViewUnderlyingData: true,
                     canDateZoom: true,
                     projectUuid: SEED_PROJECT.project_uuid,
+                    ...contentOverrides,
                 },
                 expiresIn: '24h',
             });
@@ -201,49 +206,61 @@ describe('Embed Dashboard JWT API', () => {
         });
 
         describe('Explore Access (Regression Tests)', () => {
-            // Dashboard JWTs need access to explore endpoints because a dashboard
-            // can contain multiple charts from different explores.
-
-            it('should allow dashboard JWT to access getAllExploresSummary', async () => {
+            it('should not allow dashboard JWT to access generic explore list by default', async () => {
                 const client = embedClient();
                 const resp = await client.get<Body<unknown[]>>(
                     `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores?projectUuid=${SEED_PROJECT.project_uuid}&filtered=true`,
-                    { headers: embedHeaders(dashboardJwtToken) },
+                    {
+                        headers: embedHeaders(dashboardJwtToken),
+                        failOnStatusCode: false,
+                    },
                 );
-                // Should succeed - dashboard JWTs need explore list
-                expect(resp.status).toBe(200);
-                expect(resp.body.status).toBe('ok');
-                expect(Array.isArray(resp.body.results)).toBe(true);
+                expect(resp.status).toBe(403);
             });
 
-            it('should allow dashboard JWT to access getExplore for any explore', async () => {
+            it('should not allow dashboard JWT to access generic explore schemas by default', async () => {
                 const client = embedClient();
                 const exploreName = 'orders';
                 const resp = await client.get<
                     Body<{ name: string; tables: unknown }>
                 >(
                     `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores/${exploreName}?projectUuid=${SEED_PROJECT.project_uuid}`,
-                    { headers: embedHeaders(dashboardJwtToken) },
+                    {
+                        headers: embedHeaders(dashboardJwtToken),
+                        failOnStatusCode: false,
+                    },
                 );
-                // Should succeed - dashboard JWTs need explore schemas
-                expect(resp.status).toBe(200);
-                expect(resp.body.status).toBe('ok');
-                expect(resp.body.results).toHaveProperty('name');
-                expect(resp.body.results).toHaveProperty('tables');
+                expect(resp.status).toBe(403);
             });
 
-            it('should allow dashboard JWT to access getTablesConfiguration', async () => {
+            it('should not allow dashboard JWT to access tables configuration by default', async () => {
                 const client = embedClient();
                 const resp = await client.get<
                     Body<{ tableSelection: unknown }>
                 >(
                     `/api/v1/projects/${SEED_PROJECT.project_uuid}/tablesConfiguration?projectUuid=${SEED_PROJECT.project_uuid}`,
-                    { headers: embedHeaders(dashboardJwtToken) },
+                    {
+                        headers: embedHeaders(dashboardJwtToken),
+                        failOnStatusCode: false,
+                    },
                 );
-                // Should succeed - dashboard JWTs may need table config
+                expect(resp.status).toBe(403);
+            });
+
+            it('should allow generic explore metadata when canExplore is enabled', async () => {
+                const client = embedClient();
+                const exploreJwtToken = await freshDashboardJwt({
+                    canExplore: true,
+                });
+
+                const resp = await client.get<Body<unknown[]>>(
+                    `/api/v1/projects/${SEED_PROJECT.project_uuid}/explores?projectUuid=${SEED_PROJECT.project_uuid}&filtered=true`,
+                    { headers: embedHeaders(exploreJwtToken) },
+                );
+
                 expect(resp.status).toBe(200);
                 expect(resp.body.status).toBe('ok');
-                expect(resp.body.results).toHaveProperty('tableSelection');
+                expect(Array.isArray(resp.body.results)).toBe(true);
             });
         });
 

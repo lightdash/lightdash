@@ -3,7 +3,6 @@ import {
     CreateEmbedJwt,
     EmbedJwtSchema,
     ForbiddenError,
-    getErrorMessage,
     isDashboardUuidContent,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -50,11 +49,10 @@ export function decodeLightdashJwt(
                 : Buffer.from(encodedSecret),
         );
         const decodedToken = verify(token, secret) as CreateEmbedJwt;
+        const validationResult = EmbedJwtSchema.safeParse(decodedToken);
 
         // Alert if the token is not in the expected format so we can inform the org before enforcing validation
-        try {
-            EmbedJwtSchema.parse(decodedToken);
-        } catch (e) {
+        if (!validationResult.success) {
             let errorIdentifier = 'unknown';
             if (decodedToken?.content) {
                 if (isDashboardUuidContent(decodedToken.content)) {
@@ -64,24 +62,18 @@ export function decodeLightdashJwt(
                 }
             }
             // FIXME: This is legacy behavior where we simply log Zod schema validation errors.
-            if (e instanceof z.ZodError) {
-                const zodErrors = e.issues
-                    .map((issue) => issue.message)
-                    .join(', ');
+            const zodErrors = validationResult.error.issues
+                .map((issue) => issue.message)
+                .join(', ');
 
-                Logger.error(
-                    `Token schema validation error: ${errorIdentifier}: ${zodErrors}`,
-                );
-            } else {
-                Logger.error(
-                    `Invalid embed token ${errorIdentifier}: ${getErrorMessage(
-                        e,
-                    )}`,
-                );
-            }
-            Sentry.captureException(e);
+            Logger.error(
+                `Token schema validation error: ${errorIdentifier}: ${zodErrors}`,
+            );
+            Sentry.captureException(validationResult.error);
+            return decodedToken;
         }
-        return decodedToken;
+
+        return validationResult.data as CreateEmbedJwt;
     } catch (e) {
         if (e instanceof TokenExpiredError) {
             throw new ForbiddenError('Your embed token has expired.');

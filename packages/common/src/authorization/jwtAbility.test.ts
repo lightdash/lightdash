@@ -120,6 +120,21 @@ describe('Embedded dashboard abilities', () => {
             ).toBe(false);
         });
 
+        it('should not allow project-wide access by default', () => {
+            const embedUser = createEmbedJwt();
+            const ability = defineAbilityForEmbedUser(embedUser, dashboardUuid);
+
+            expect(
+                ability.can(
+                    'view',
+                    subject('Project', {
+                        organizationUuid: organization.organizationUuid,
+                        projectUuid,
+                    }),
+                ),
+            ).toBe(false);
+        });
+
         it('should handle missing optional properties gracefully', () => {
             const embedUser: CreateEmbedJwt = {
                 content: {
@@ -707,7 +722,7 @@ describe('Embedded dashboard abilities', () => {
                         projectUuid,
                     }),
                 ),
-            ).toBe(true);
+            ).toBe(false);
         });
 
         it('should not allow viewing Explore domains when canExplore is undefined', () => {
@@ -733,7 +748,7 @@ describe('Embedded dashboard abilities', () => {
                         projectUuid,
                     }),
                 ),
-            ).toBe(true);
+            ).toBe(false);
         });
 
         it('should not allow viewing Explore domains for different projects', () => {
