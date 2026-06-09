@@ -3,6 +3,7 @@ import {
     buildDataTimezonePreviewSql,
 } from './dataTimezonePreview';
 import { SupportedDbtAdapter } from './dbt';
+import { ParameterError } from './errors';
 import { WarehouseTypes } from './projects';
 
 describe('buildDataTimezonePreviewSql', () => {
@@ -27,6 +28,15 @@ describe('buildDataTimezonePreviewSql', () => {
             "CONVERT_TIMEZONE('Europe/London', 'UTC', CAST(CURRENT_TIMESTAMP() AS TIMESTAMP_NTZ))",
         );
         expect(sql).toContain('AS naive_instant');
+    });
+
+    it('rejects a non-IANA timezone before building SQL', () => {
+        expect(() =>
+            buildDataTimezonePreviewSql(
+                SupportedDbtAdapter.POSTGRES,
+                "x'; DROP TABLE users; --",
+            ),
+        ).toThrow(ParameterError);
     });
 });
 

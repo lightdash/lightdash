@@ -1,7 +1,9 @@
 import moment from 'moment-timezone';
 import { formatTimestamp } from '../utils/formatting';
+import { isValidTimezone } from '../utils/scheduler';
 import { dateTruncTimezoneConversions } from '../utils/timeFrames';
 import { SupportedDbtAdapter } from './dbt';
+import { ParameterError } from './errors';
 import {
     type CreateWarehouseCredentials,
     type WarehouseTypes,
@@ -75,6 +77,9 @@ export const buildDataTimezonePreviewSql = (
     adapterType: SupportedDbtAdapter,
     effectiveSourceTimezone: string,
 ): string => {
+    if (!isValidTimezone(effectiveSourceTimezone)) {
+        throw new ParameterError('Invalid data timezone');
+    }
     const naiveNow = currentNaiveTimestampSql[adapterType];
     const { toUTC } = dateTruncTimezoneConversions[adapterType];
     return (
