@@ -1,3 +1,10 @@
+## [0.3118.1](https://github.com/lightdash/lightdash/compare/0.3118.0...0.3118.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* **scheduler:** deep-link gsheets failure alerts to the sync's run history ([#24065](https://github.com/lightdash/lightdash/issues/24065)) ([7569cbb](https://github.com/lightdash/lightdash/commit/7569cbb3fbaf66802a4e47c888b266f85727fb27))
+
 # [0.3118.0](https://github.com/lightdash/lightdash/compare/0.3117.1...0.3118.0) (2026-06-09)
 
 
