@@ -3236,15 +3236,22 @@ export class ProjectService extends BaseService {
             if (auditedAbility.cannot('update', subject('Project', stored))) {
                 throw new ForbiddenError();
             }
+            // Edit flow sources secrets from storage; the frontend never sends
+            // them. A type mismatch (warehouse type switched but not saved)
+            // can't be merged, so ask for a save rather than failing on the
+            // resulting incomplete credentials.
             if (
-                stored.warehouseConnection &&
-                stored.warehouseConnection.type === credentials.type
+                !stored.warehouseConnection ||
+                stored.warehouseConnection.type !== credentials.type
             ) {
-                effectiveCredentials = {
-                    ...stored.warehouseConnection,
-                    dataTimezone: credentials.dataTimezone,
-                } as CreateWarehouseCredentials;
+                throw new ParameterError(
+                    'Save the warehouse connection before previewing a different warehouse type.',
+                );
             }
+            effectiveCredentials = {
+                ...stored.warehouseConnection,
+                dataTimezone: credentials.dataTimezone,
+            } as CreateWarehouseCredentials;
             projectTimezone =
                 await this.getQueryTimezoneForProject(projectUuid);
         } else if (

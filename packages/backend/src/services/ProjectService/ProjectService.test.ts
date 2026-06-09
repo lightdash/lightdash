@@ -2241,6 +2241,14 @@ describe('ProjectService', () => {
                 'isTimezoneSupportEnabled',
             ).mockResolvedValueOnce(true);
             (
+                projectModel.getWithSensitiveFields as jest.Mock
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    type: WarehouseTypes.POSTGRES,
+                } as CreateWarehouseCredentials,
+            });
+            (
                 projectModel.getWarehouseClientFromCredentials as jest.Mock
             ).mockReturnValueOnce({
                 getAdapterType: () => SupportedDbtAdapter.POSTGRES,
@@ -2268,6 +2276,28 @@ describe('ProjectService', () => {
             expect(result.naive.rendered).toBe('2026-06-08, 18:30:00 (+00:00)');
             expect(result.aware.raw).toBe('2026-06-08, 14:30:00 (+00:00)');
             expect(result.aware.rendered).toBe('2026-06-08, 14:30:00 (+00:00)');
+        });
+
+        it('rejects an edit preview when the warehouse type was switched but not saved', async () => {
+            jest.spyOn(
+                service,
+                'isTimezoneSupportEnabled',
+            ).mockResolvedValueOnce(true);
+            (
+                projectModel.getWithSensitiveFields as jest.Mock
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                } as CreateWarehouseCredentials,
+            });
+
+            await expect(
+                service.previewDataTimezone(timezoneUser, {
+                    credentials,
+                    projectUuid: 'projectUuid',
+                }),
+            ).rejects.toThrowError(ParameterError);
         });
     });
 });
