@@ -269,6 +269,7 @@ export enum SearchItemType {
     FIELD = 'field',
     PAGE = 'page',
     DATA_APP = 'data_app',
+    SETTINGS = 'settings',
 }
 
 export function getSearchItemTypeFromResultKey(
