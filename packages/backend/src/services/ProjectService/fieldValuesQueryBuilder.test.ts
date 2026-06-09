@@ -180,6 +180,21 @@ describe('getFieldValuesMetricQuery', () => {
         ).rejects.toThrow(ParameterError);
     });
 
+    test('throws ParameterError when limit contains SQL tokens at runtime', async () => {
+        await expect(
+            getFieldValuesMetricQuery({
+                projectUuid: 'project-uuid',
+                table: 'a',
+                initialFieldId: 'a_dim1',
+                search: '',
+                limit: '1 OFFSET 1',
+                maxLimit: 5000,
+                filters: undefined,
+                exploreResolver: mockExploreResolver,
+            }),
+        ).rejects.toThrow('Query limit must be a non-negative integer');
+    });
+
     test('throws ParameterError when table is empty string', async () => {
         await expect(
             getFieldValuesMetricQuery({
