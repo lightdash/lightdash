@@ -72,6 +72,69 @@ export const buildPivotRowTotalKey = (
             .map(([fieldId, raw]) => [fieldId, normalizePivotMatchRaw(raw)]),
     );
 
+// Coerce a warehouse cell's raw value to a finite number, or null. Numeric
+// strings are accepted (some warehouses return decimals as strings); null,
+// undefined, empty and non-numeric values are rejected.
+const toFiniteNumber = (raw: unknown): number | null => {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : null;
+};
+
+/**
+ * Flatten the single wide totals row from a `calculate-total`
+ * (`kind: 'columnTotal'`) response into the `warehouseColumnTotals` map keyed by
+ * pivot SQL column name. Non-numeric cells are dropped — the lookup only uses
+ * numbers. Shared by the frontend hook and the backend export path so both
+ * produce identical column totals.
+ */
+export const buildWarehouseColumnTotals = (
+    rows: ResultRow[],
+): Record<string, number> => {
+    const firstRow = rows[0];
+    if (!firstRow) return {};
+    const totals: Record<string, number> = {};
+    for (const [key, cell] of Object.entries(firstRow)) {
+        const numeric = toFiniteNumber(cell?.value?.raw);
+        if (numeric !== null) {
+            totals[key] = numeric;
+        }
+    }
+    return totals;
+};
+
+/**
+ * Build the `warehouseRowTotals` map from a `calculate-total`
+ * (`kind: 'rowTotal'`) response — one flat row per index-value combination, each
+ * keyed by its index-dimension values (`buildPivotRowTotalKey`) → metric fieldId
+ * → numeric total. `indexFieldIds` must match the index dims the pivot worker
+ * uses so the keys align. Shared by the frontend hook and the backend export
+ * path.
+ */
+export const buildWarehouseRowTotals = (
+    rows: ResultRow[],
+    indexFieldIds: string[],
+): PivotRowTotalsByIndex => {
+    const indexFieldIdSet = new Set(indexFieldIds);
+    const map: PivotRowTotalsByIndex = {};
+    for (const row of rows) {
+        const key = buildPivotRowTotalKey(
+            indexFieldIds.map((fieldId) => [fieldId, row[fieldId]?.value?.raw]),
+        );
+        const metricTotals: Record<string, number> = {};
+        for (const [fieldId, cell] of Object.entries(row)) {
+            if (!indexFieldIdSet.has(fieldId)) {
+                const numeric = toFiniteNumber(cell?.value?.raw);
+                if (numeric !== null) {
+                    metricTotals[fieldId] = numeric;
+                }
+            }
+        }
+        map[key] = metricTotals;
+    }
+    return map;
+};
+
 // Backend `.formatted` strings don't resolve ${ld.parameters.*} placeholders
 // (parameters live on the client). For flat tables, useColumns re-formats per
 // cell. The pivot path stores backend values verbatim, so we do the same
@@ -1334,6 +1397,10 @@ type PivotResultsParams = {
     // When true, shiftable temporal cells (header + body, both modes) emit
     // the wall-clock format spreadsheet apps auto-detect as a date.
     formatTemporalsForSpreadsheet?: boolean;
+    // Warehouse-computed totals (from `calculate-total`). Without them the
+    // pivot worker leaves total cells blank — there is no client-side fallback.
+    warehouseRowTotals?: PivotRowTotalsByIndex;
+    warehouseColumnTotals?: Record<string, number>;
 };
 
 export const pivotResultsAsData = ({
@@ -1346,6 +1413,8 @@ export const pivotResultsAsData = ({
     pivotDetails,
     timezone,
     formatTemporalsForSpreadsheet = false,
+    warehouseRowTotals,
+    warehouseColumnTotals,
 }: PivotResultsParams): PivotResultsData => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
@@ -1360,6 +1429,8 @@ export const pivotResultsAsData = ({
         pivotDetails,
         pivotConfig,
         groupedSubtotals: undefined,
+        warehouseRowTotals,
+        warehouseColumnTotals,
     });
 
     const formatField = onlyRaw ? 'raw' : 'formatted';

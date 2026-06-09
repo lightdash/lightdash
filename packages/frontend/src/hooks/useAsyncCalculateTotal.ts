@@ -1,5 +1,6 @@
 import {
-    buildPivotRowTotalKey,
+    buildWarehouseColumnTotals,
+    buildWarehouseRowTotals,
     getSubtotalKey,
     QueryHistoryStatus,
     type ApiError,
@@ -91,15 +92,9 @@ const fetchTotals = async (
         throw new Error('Unexpected query status while polling totals');
     }
 
-    const firstRow = query.rows[0];
-    if (!firstRow) return {};
-
-    // Flatten ResultRow cells (`{ value: { raw } }`) back to `{ key: raw }`.
-    const flat: Record<string, unknown> = {};
-    for (const [key, cell] of Object.entries(firstRow)) {
-        flat[key] = cell?.value?.raw;
-    }
-    return flat as AsyncTotalsMap;
+    // Polling endpoint defaults to page=1, so the READY response already
+    // contains the single totals row — no separate stream fetch needed.
+    return buildWarehouseColumnTotals(query.rows);
 };
 
 export const useAsyncCalculateTotal = ({
@@ -170,23 +165,7 @@ const fetchRowTotals = async (
 
     const rows = await fetchAllResultRows(projectUuid, queryUuid);
 
-    const indexFieldIdSet = new Set(indexFieldIds);
-    const map: PivotRowTotalsByIndex = {};
-    for (const row of rows) {
-        const key = buildPivotRowTotalKey(
-            indexFieldIds.map((fieldId) => [fieldId, row[fieldId]?.value.raw]),
-        );
-        const metricTotals: Record<string, number> = {};
-        for (const [fieldId, cell] of Object.entries(row)) {
-            if (indexFieldIdSet.has(fieldId)) continue;
-            const numeric = Number(cell?.value.raw);
-            if (Number.isFinite(numeric)) {
-                metricTotals[fieldId] = numeric;
-            }
-        }
-        map[key] = metricTotals;
-    }
-    return map;
+    return buildWarehouseRowTotals(rows, indexFieldIds);
 };
 
 export const useAsyncCalculateRowTotal = ({
