@@ -1,0 +1,29 @@
+.scrollContainer {
+    height: 100%;
+    overflow: auto;
+}
+
+/* Breathing room below the last item so a short or fully-scrolled tree reads
+   as ended rather than being clipped by the viewport. */
+.scrollContainer::after {
+    content: '';
+    display: block;
+    height: 40px;
+}
+
+/* Spacer sized to the virtualizer's total height (set inline); positions the
+   absolutely-placed tree items. */
+.sizer {
+    position: relative;
+    width: 100%;
+}
+
+.item {
+    top: 0;
+    left: 0;
+    width: 100%;
+}
+
+.item[data-sticky-header] {
+    z-index: 1;
+}

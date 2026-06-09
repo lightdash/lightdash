@@ -3,6 +3,7 @@ import type { Range } from '@tanstack/react-virtual';
 import { defaultRangeExtractor, useVirtualizer } from '@tanstack/react-virtual';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
 import type { FlattenedTreeData } from './types';
+import classes from './VirtualizedTreeList.module.css';
 import VirtualTreeItem from './VirtualTreeItem';
 
 interface VirtualizedTreeListProps {
@@ -105,17 +106,11 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
             <div
                 ref={parentRef}
                 data-testid="virtualized-tree-scroll-container"
-                style={{
-                    height: '100%',
-                    overflow: 'auto',
-                }}
+                className={classes.scrollContainer}
             >
                 <div
-                    style={{
-                        height: `${virtualizer.getTotalSize()}px`,
-                        width: '100%',
-                        position: 'relative',
-                    }}
+                    className={classes.sizer}
+                    style={{ height: `${virtualizer.getTotalSize()}px` }}
                 >
                     {virtualItems.map((virtualItem) => {
                         const item = items[virtualItem.index];
@@ -128,24 +123,16 @@ const VirtualizedTreeListComponent: FC<VirtualizedTreeListProps> = ({
                             <div
                                 key={item.id}
                                 data-index={virtualItem.index}
-                                style={{
-                                    ...(isStickyItem
-                                        ? {
-                                              zIndex: 1,
-                                          }
-                                        : {}),
-                                    ...(isActiveStickyItem
-                                        ? {
-                                              position: 'sticky',
-                                          }
+                                data-sticky-header={isStickyItem || undefined}
+                                className={classes.item}
+                                style={
+                                    isActiveStickyItem
+                                        ? { position: 'sticky' }
                                         : {
                                               position: 'absolute',
                                               transform: `translateY(${virtualItem.start}px)`,
-                                          }),
-                                    top: 0,
-                                    left: 0,
-                                    width: '100%',
-                                }}
+                                          }
+                                }
                             >
                                 <VirtualTreeItem
                                     item={item}
