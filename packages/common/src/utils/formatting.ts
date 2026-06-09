@@ -232,6 +232,23 @@ export const shouldShiftItemTimezone = (item: Item | undefined): boolean => {
     );
 };
 
+// A calendar value is a bare wall-clock date (year/month/day, no instant) that
+// must never be timezone-shifted or anchored. True for plain DATE columns,
+// DATE-base truncations and DATE metrics; false for any TIMESTAMP (including
+// `skipTimezoneConversion` ones — those are TZ-immune but still real instants)
+// and for a DATE truncated from a TIMESTAMP base, which is a bucketed instant
+// that still anchors and shifts.
+export const isCalendarValueDimension = (
+    item: Item | AdditionalMetric | undefined,
+): boolean => {
+    if (!isField(item)) return false;
+    if (item.type !== DimensionType.DATE) return false;
+    return !(
+        isDimension(item) &&
+        item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
+    );
+};
+
 // Renders a temporal cell as the wall-clock string Excel and Google Sheets
 // auto-detect as a date. TIMESTAMP → `YYYY-MM-DD HH:mm:ss.SSS`, DATE →
 // `YYYY-MM-DD`. Shifts into the project tz when the item is timezone-
@@ -1069,15 +1086,12 @@ export function formatItemValue(
                 case DimensionType.DATE:
                 case MetricType.DATE:
                 case TableCalculationType.DATE: {
-                    // Truncated dimensions whose base column is DATE have no
-                    // time component — applying a display timezone would
-                    // shift the calendar day (off-by-one in negative offsets).
-                    const dateTimezone =
-                        isDimension(item) &&
-                        item.timeIntervalBaseDimensionType ===
-                            DimensionType.DATE
-                            ? undefined
-                            : effectiveTimezone;
+                    // Calendar values (wall-clock dates) have no time component
+                    // — applying a display timezone would shift the calendar
+                    // day (off-by-one in negative offsets).
+                    const dateTimezone = isCalendarValueDimension(item)
+                        ? undefined
+                        : effectiveTimezone;
                     return isMomentInput(value)
                         ? formatDate(
                               value,

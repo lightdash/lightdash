@@ -10,6 +10,7 @@ import {
     NumberSeparator,
     type CustomFormat,
     type Dimension,
+    type Metric,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
 import {
@@ -25,6 +26,7 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
+    isCalendarValueDimension,
     isMomentInput,
     shouldShiftItemTimezone,
     toIsoWithProjectOffset,
@@ -730,6 +732,84 @@ describe('Formatting', () => {
         });
     });
 
+    describe('isCalendarValueDimension', () => {
+        const dateBaseColumn: Dimension = {
+            ...dimension,
+            type: DimensionType.DATE,
+        };
+        const dateOverDateDay: Dimension = {
+            ...dimension,
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.DAY,
+            timeIntervalBaseDimensionType: DimensionType.DATE,
+        };
+        const dateOverDateWeek: Dimension = {
+            ...dimension,
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.WEEK,
+            timeIntervalBaseDimensionType: DimensionType.DATE,
+        };
+        const dateOverTimestampDay: Dimension = {
+            ...dimension,
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.DAY,
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        };
+        const timestampRaw: Dimension = {
+            ...dimension,
+            type: DimensionType.TIMESTAMP,
+        };
+        const timestampHour: Dimension = {
+            ...dimension,
+            type: DimensionType.TIMESTAMP,
+            timeInterval: TimeFrames.HOUR,
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+        };
+        const dateMetric: Metric = {
+            ...metric,
+            type: MetricType.DATE,
+        };
+
+        test('treats wall-clock DATE values as calendar values', () => {
+            // plain DATE column (no interval, base undefined)
+            expect(isCalendarValueDimension(dateBaseColumn)).toBe(true);
+            // DATE truncated from a DATE base — any grain
+            expect(isCalendarValueDimension(dateOverDateDay)).toBe(true);
+            expect(isCalendarValueDimension(dateOverDateWeek)).toBe(true);
+            // A date-typed metric (MetricType.DATE) — not a Dimension, still calendar
+            expect(isCalendarValueDimension(dateMetric)).toBe(true);
+        });
+
+        test('treats real instants as non-calendar values', () => {
+            // DATE truncated from a TIMESTAMP base is a bucketed instant
+            expect(isCalendarValueDimension(dateOverTimestampDay)).toBe(false);
+            // plain + sub-day TIMESTAMP
+            expect(isCalendarValueDimension(timestampRaw)).toBe(false);
+            expect(isCalendarValueDimension(timestampHour)).toBe(false);
+        });
+
+        test('skipTimezoneConversion does not make a TIMESTAMP a calendar value', () => {
+            // The trap: convert_timezone:false is TZ-immune but still an instant.
+            const timestampRawOptOut: Dimension = {
+                ...timestampRaw,
+                skipTimezoneConversion: true,
+            };
+            // A DATE stays a calendar value regardless of the marker
+            const dateOptOut: Dimension = {
+                ...dateOverDateDay,
+                skipTimezoneConversion: true,
+            };
+            expect(isCalendarValueDimension(timestampRawOptOut)).toBe(false);
+            expect(isCalendarValueDimension(dateOptOut)).toBe(true);
+        });
+
+        test('non-temporal items and undefined are not calendar values', () => {
+            expect(isCalendarValueDimension(undefined)).toBe(false);
+            expect(isCalendarValueDimension(dimension)).toBe(false); // STRING
+            expect(isCalendarValueDimension(metric)).toBe(false); // COUNT
+        });
+    });
+
     describe('formatItemValue', () => {
         test('formatItemValue should return the right format when field is undefined', () => {
             expect(formatItemValue(undefined, undefined)).toEqual('-');
@@ -827,6 +907,31 @@ describe('Formatting', () => {
                     'Pacific/Pago_Pago',
                 ),
             ).toEqual('2026-03-02');
+        });
+
+        test('formatItemValue DATE ignores display timezone for plain DATE columns and DATE metrics', () => {
+            const value = new Date('2026-03-03T00:00:00.000Z');
+            // Plain DATE column (no interval, base undefined) is a calendar
+            // value — a negative-offset zone must NOT roll the day back.
+            expect(
+                formatItemValue(
+                    { ...dimension, type: DimensionType.DATE },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-03');
+            // A date-typed metric (MetricType.DATE) is likewise a calendar value.
+            expect(
+                formatItemValue(
+                    { ...metric, type: MetricType.DATE },
+                    value,
+                    false,
+                    undefined,
+                    'Pacific/Pago_Pago',
+                ),
+            ).toEqual('2026-03-03');
         });
 
         test('formatItemValue ignores display timezone when skipTimezoneConversion is set', () => {
@@ -2042,8 +2147,9 @@ describe('Formatting', () => {
                 ).toContain('(-11:00)');
             });
 
-            test('DATE DAY shifts into project TZ (positive offset canary)', () => {
-                // Tokyo midnight Jan 14 = UTC Jan 13 15:00
+            test('DATE DAY over TIMESTAMP base shifts into project TZ (positive offset canary)', () => {
+                // A day-grain truncation of a TIMESTAMP column is a midnight
+                // instant, so it still shifts. Tokyo midnight Jan 14 = UTC Jan 13 15:00
                 const value = new Date('2024-01-13T15:00:00.000Z');
                 expect(
                     formatItemValue(
@@ -2051,6 +2157,8 @@ describe('Formatting', () => {
                             ...dimension,
                             type: DimensionType.DATE,
                             timeInterval: TimeFrames.DAY,
+                            timeIntervalBaseDimensionType:
+                                DimensionType.TIMESTAMP,
                         },
                         value,
                         false,
