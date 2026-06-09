@@ -1,16 +1,15 @@
 import { Box, Highlight, Stack, Text, Title } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
-import MantineIcon from '../components/common/MantineIcon';
-import RouterNavLink from '../components/common/RouterNavLink';
 import {
     type SettingsNavigationItem,
     type SettingsNavigationSection,
-} from '../hooks/settings/types';
+} from '../../hooks/settings/types';
+import MantineIcon from '../common/MantineIcon';
+import RouterNavLink from '../common/RouterNavLink';
 
 type SettingsNavigationProps = {
     sections: SettingsNavigationSection[];
-    /** Active search query; highlights matches and opens nested groups. */
     searchQuery: string;
 };
 
@@ -45,10 +44,8 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
         }
 
         return (
-            // Remount on filter toggle so defaultOpened re-evaluates and the
-            // group springs open to reveal matching children.
             <RouterNavLink
-                key={`${item.to}:${isFiltering}`}
+                key={item.to}
                 label={label}
                 to={item.to}
                 exact={item.exact}
@@ -64,7 +61,9 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
     };
 
     return (
-        <Stack gap="lg">
+        // Remount when filtering toggles: NavLink reads `defaultOpened` only on
+        // mount, so this is what expands matching groups as you search.
+        <Stack key={isFiltering ? 'filtered' : 'all'} gap="lg">
             {sections.map((section) => (
                 <Box key={section.id}>
                     <Box mb="xs">
