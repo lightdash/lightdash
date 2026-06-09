@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as https from 'https';
 import knex from 'knex';
 import * as path from 'path';
+import { transform } from 'sucrase';
 import knexConfig from './knexfile';
 
 // Determine the environment
@@ -16,7 +17,19 @@ const GITHUB_CONFIG = {
     baseUrl: 'https://raw.githubusercontent.com',
 };
 
-// Temporary directory for downloaded files
+// Compiled migration directories that ship inside the image (relative to this file).
+const LOCAL_MIGRATION_DIRS = [
+    path.join(__dirname, 'database', 'migrations'),
+    path.join(__dirname, 'ee', 'database', 'migrations'),
+];
+
+// Source migration directories on GitHub, used as a fallback for missing files.
+const GITHUB_MIGRATION_BASE_PATHS = [
+    'packages/backend/src/database/migrations',
+    'packages/backend/src/ee/database/migrations',
+];
+
+// Temporary directory for resolved files
 const MIGRATIONS_TEMP_DIR = path.join(__dirname, '..', '..', 'temp_migrations');
 
 /**
@@ -43,42 +56,49 @@ function httpsGet(url: string): Promise<string> {
 }
 
 /**
- * Download a migration file from GitHub
- * Tries both regular and EE migration paths automatically
+ * Resolve a migration file into the temp directory so its `down` can run.
+ * Local disk first (EE files that ship in the image but are dropped from the
+ * knexfile when the license key is removed); otherwise download the `.ts` source
+ * from GitHub and transpile it (files absent after an image version downgrade).
  */
-async function downloadMigrationFile(
+export async function resolveMigrationFile(
     migrationName: string,
-    isEE: boolean = false,
 ): Promise<string> {
-    // Define both possible base paths
-    const basePaths = [
-        'packages/backend/src/database/migrations',
-        'packages/backend/src/ee/database/migrations',
-    ];
-
-    const regularBasePath = basePaths[isEE ? 1 : 0];
-    const regularUrl = `${GITHUB_CONFIG.baseUrl}/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/refs/heads/${GITHUB_CONFIG.branch}/${regularBasePath}/${migrationName}`;
-    console.log(`📥 Downloading from ${regularUrl}`);
-    try {
-        const content = await httpsGet(regularUrl);
-
-        // Ensure temp directory exists
-        if (!fs.existsSync(MIGRATIONS_TEMP_DIR)) {
-            fs.mkdirSync(MIGRATIONS_TEMP_DIR, { recursive: true });
-        }
-
-        const localPath = path.join(MIGRATIONS_TEMP_DIR, migrationName);
-        fs.writeFileSync(localPath, content);
-
-        return localPath;
-    } catch (error) {
-        if (!isEE) {
-            // Try EE migrations directory if regular path fails
-            console.log(`📥 Not found. Trying EE migrations directory...`);
-            return downloadMigrationFile(migrationName, true);
-        }
-        throw error;
+    if (!fs.existsSync(MIGRATIONS_TEMP_DIR)) {
+        fs.mkdirSync(MIGRATIONS_TEMP_DIR, { recursive: true });
     }
+    const tempPath = path.join(MIGRATIONS_TEMP_DIR, migrationName);
+
+    for (const dir of LOCAL_MIGRATION_DIRS) {
+        const localPath = path.join(dir, migrationName);
+        if (fs.existsSync(localPath)) {
+            console.log(`📂 Using local migration ${migrationName}`);
+            fs.copyFileSync(localPath, tempPath);
+            return tempPath;
+        }
+    }
+
+    const tsName = migrationName.replace(/\.js$/, '.ts');
+    for (const basePath of GITHUB_MIGRATION_BASE_PATHS) {
+        const url = `${GITHUB_CONFIG.baseUrl}/${GITHUB_CONFIG.owner}/${GITHUB_CONFIG.repo}/refs/heads/${GITHUB_CONFIG.branch}/${basePath}/${tsName}`;
+        try {
+            /* eslint-disable no-await-in-loop */
+            const source = await httpsGet(url);
+            /* eslint-enable no-await-in-loop */
+            console.log(`🌐 Transpiling downloaded ${tsName}`);
+            const { code } = transform(source, {
+                transforms: ['typescript', 'imports'],
+            });
+            fs.writeFileSync(tempPath, code);
+            return tempPath;
+        } catch {
+            // Try the next base path
+        }
+    }
+
+    throw new Error(
+        `Migration ${migrationName} not found in the local image or on GitHub (${tsName})`,
+    );
 }
 
 function cleanup() {
@@ -143,23 +163,23 @@ async function main(): Promise<void> {
                 const migrationName = migrationsToRollback[i];
                 try {
                     console.log(
-                        `📥 Downloading ${migrationName} (${i + 1}/${
+                        `🔎 Resolving ${migrationName} (${i + 1}/${
                             migrationsToRollback.length
                         })`,
                     );
                     /* eslint-disable no-await-in-loop */
-                    const downloadedFile =
-                        await downloadMigrationFile(migrationName);
+                    const resolvedFile =
+                        await resolveMigrationFile(migrationName);
                     /* eslint-enable no-await-in-loop */
-                    downloadResults.push(downloadedFile);
+                    downloadResults.push(resolvedFile);
                 } catch (error) {
                     const errorMessage =
                         error instanceof Error ? error.message : String(error);
                     console.error(
-                        `❌ Failed to download ${migrationName}: ${errorMessage}`,
+                        `❌ Failed to resolve ${migrationName}: ${errorMessage}`,
                     );
                     throw new Error(
-                        `Failed to download ${migrationName}: ${errorMessage}`,
+                        `Failed to resolve ${migrationName}: ${errorMessage}`,
                     );
                 }
             }

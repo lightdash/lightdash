@@ -173,7 +173,7 @@ pnpm -F backend migrate-or-rollback-database
 #### What it does
 
 1. **Checks Migration Status**: Analyzes current database migration state
-2. **Handles Missing Files**: Downloads missing migration files from GitHub if needed
+2. **Handles Missing Files**: Resolves missing migration files from the local image first, falling back to downloading and transpiling the TypeScript source from GitHub
 3. **Executes Operations**: Runs migrations forward or rollbacks as required
 4. **Cleanup**: Removes temporary downloaded files
 
