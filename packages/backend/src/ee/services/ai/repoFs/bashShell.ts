@@ -15,6 +15,7 @@
  * the dead-end turns the old hand-rolled subset produced on every unsupported
  * construct.
  */
+import { getErrorMessage } from '@lightdash/common';
 import { Bash, type CommandName } from 'just-bash';
 import { RepoFileSystem } from './repoFileSystem';
 import type { RepoFs } from './RepoFs';
@@ -157,6 +158,18 @@ export const runRepoShellCommand = async (
     let result;
     try {
         result = await bash.exec(command, { signal: controller.signal });
+    } catch (error) {
+        // just-bash models its own errors (parse, limits, …) as exit codes but
+        // rethrows anything else — including the `EROFS`/`ENOENT`/`ENOTDIR`/
+        // `EINVAL` our read-only filesystem throws when the agent attempts a
+        // write/redirect (`cmd > file`), reads a missing file through an
+        // unguarded path, or readlinks a non-symlink. Those are expected agent
+        // mistakes, not faults, so surface them as ShellError (no Sentry).
+        const code = (error as { code?: string } | null)?.code;
+        if (code && ['EROFS', 'ENOENT', 'ENOTDIR', 'EINVAL'].includes(code)) {
+            throw new ShellError(getErrorMessage(error));
+        }
+        throw error;
     } finally {
         clearTimeout(timer);
     }

@@ -140,6 +140,18 @@ describe('runRepoShellCommand (just-bash)', () => {
             expect(await run('cat models/orders.sql')).toContain('payments');
         });
 
+        it('classifies a redirect-write (EROFS) as a ShellError, not a fault', async () => {
+            // The filesystem throws EROFS to enforce read-only; just-bash rethrows
+            // it. It must surface as a ShellError so the tool layer does NOT page
+            // Sentry for an expected agent mistake (`cmd > file` is a common habit).
+            await expect(
+                run('echo HACKED > dbt_project.yml'),
+            ).rejects.toBeInstanceOf(ShellError);
+            await expect(
+                run('echo more >> models/orders.sql'),
+            ).rejects.toBeInstanceOf(ShellError);
+        });
+
         it('rejects an unknown command as a ShellError', async () => {
             await expect(run('killall everything')).rejects.toBeInstanceOf(
                 ShellError,
