@@ -1405,73 +1405,89 @@ export class AppGenerateService extends BaseService {
             let responseText: string | null = null;
             let sessionEstablished = false;
 
-            const result = await sandbox.commands.run(
-                `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
-                    `--model ${claudeModel} ` +
-                    `--verbose --output-format stream-json --include-partial-messages ` +
-                    `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
-                    `--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
-                {
-                    cwd: '/app',
-                    timeoutMs: 55 * 60 * 1000,
-                    envs: { ANTHROPIC_API_KEY: anthropicApiKey },
-                    onStdout: (chunk) => {
-                        for (const event of processor.feedChunk(chunk)) {
-                            sessionEstablished = true;
-                            switch (event.kind) {
-                                case 'thinking_started':
-                                    this.logger.info(
-                                        `App ${appUuid}: claude turn #${event.turn}: thinking`,
-                                    );
-                                    this.updateAppStatus(
-                                        appUuid,
-                                        version,
-                                        'Thinking',
-                                    );
-                                    break;
-                                case 'thinking_snippet':
-                                    this.updateAppStatus(
-                                        appUuid,
-                                        version,
-                                        event.snippet,
-                                    );
-                                    break;
-                                case 'tool_use': {
-                                    this.logger.info(
-                                        `App ${appUuid}: claude tool #${event.index}: ${event.description}`,
-                                    );
-                                    // description can be comma-separated
-                                    // (e.g. "Write foo.tsx, Read bar.tsx") —
-                                    // use only the first tool for the status.
-                                    const firstTool =
-                                        event.description.split(', ')[0];
-                                    this.updateAppStatus(
-                                        appUuid,
-                                        version,
-                                        AppGenerateService.toolDescriptionToStatusMessage(
-                                            firstTool,
-                                        ),
-                                    );
-                                    break;
+            const result = await sandbox.commands
+                .run(
+                    `cat /tmp/prompt.txt | claude ${sessionFlags} ` +
+                        `--model ${claudeModel} ` +
+                        `--verbose --output-format stream-json --include-partial-messages ` +
+                        `--allowedTools "Read(//app/**),Read(//tmp/dbt-repo/**),Read(//tmp/images/**),Read(//tmp/metric-queries/**),Write(//app/src/**),Edit(//app/src/**),Glob(//app/**),Glob(//tmp/dbt-repo/**),Glob(//tmp/metric-queries/**),Grep(//app/**),Grep(//tmp/dbt-repo/**)" ` +
+                        `--append-system-prompt-file ${AppGenerateService.EFFECTIVE_SKILL_PATH}`,
+                    {
+                        cwd: '/app',
+                        timeoutMs: 55 * 60 * 1000,
+                        envs: { ANTHROPIC_API_KEY: anthropicApiKey },
+                        onStdout: (chunk) => {
+                            for (const event of processor.feedChunk(chunk)) {
+                                sessionEstablished = true;
+                                switch (event.kind) {
+                                    case 'thinking_started':
+                                        this.logger.info(
+                                            `App ${appUuid}: claude turn #${event.turn}: thinking`,
+                                        );
+                                        this.updateAppStatus(
+                                            appUuid,
+                                            version,
+                                            'Thinking',
+                                        );
+                                        break;
+                                    case 'thinking_snippet':
+                                        this.updateAppStatus(
+                                            appUuid,
+                                            version,
+                                            event.snippet,
+                                        );
+                                        break;
+                                    case 'tool_use': {
+                                        this.logger.info(
+                                            `App ${appUuid}: claude tool #${event.index}: ${event.description}`,
+                                        );
+                                        // description can be comma-separated
+                                        // (e.g. "Write foo.tsx, Read bar.tsx") —
+                                        // use only the first tool for the status.
+                                        const firstTool =
+                                            event.description.split(', ')[0];
+                                        this.updateAppStatus(
+                                            appUuid,
+                                            version,
+                                            AppGenerateService.toolDescriptionToStatusMessage(
+                                                firstTool,
+                                            ),
+                                        );
+                                        break;
+                                    }
+                                    case 'result_text':
+                                        responseText = event.text;
+                                        break;
+                                    default:
+                                        assertUnreachable(
+                                            event,
+                                            'Unhandled Claude stream event',
+                                        );
                                 }
-                                case 'result_text':
-                                    responseText = event.text;
-                                    break;
-                                default:
-                                    assertUnreachable(
-                                        event,
-                                        'Unhandled Claude stream event',
-                                    );
                             }
-                        }
+                        },
+                        onStderr: (chunk) => {
+                            this.logger.debug(
+                                `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
+                            );
+                        },
                     },
-                    onStderr: (chunk) => {
-                        this.logger.debug(
-                            `App ${appUuid}: claude stderr: ${chunk.trimEnd()}`,
-                        );
-                    },
-                },
-            );
+                )
+                .catch((err: unknown) => {
+                    // E2B's `commands.run` throws `CommandExitError` on a non-zero
+                    // exit (no opt-out), so convert it to a result here — mirroring
+                    // the build path. Otherwise a failed claude run propagates as an
+                    // opaque "exit status 1" with the real error swallowed, and the
+                    // stderr-logging + retry below never run.
+                    if (!(err instanceof CommandExitError)) {
+                        throw err;
+                    }
+                    return {
+                        exitCode: err.exitCode,
+                        stdout: err.stdout,
+                        stderr: err.stderr,
+                    };
+                });
             const toolCallCount = processor.totalToolCalls;
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
@@ -1489,6 +1505,9 @@ export class AppGenerateService extends BaseService {
 
             this.logger.debug(
                 `App ${appUuid}: Claude stderr (tail): ${AppGenerateService.truncateEnd(result.stderr, 4000)}`,
+            );
+            this.logger.debug(
+                `App ${appUuid}: Claude stdout (tail): ${AppGenerateService.truncateEnd(result.stdout, 4000)}`,
             );
 
             if (attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS) {
