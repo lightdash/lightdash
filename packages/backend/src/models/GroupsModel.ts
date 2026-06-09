@@ -628,8 +628,15 @@ export class GroupsModel {
         }: Pick<ProjectGroupAccess, 'groupUuid' | 'projectUuid'>,
         updateAttributes: UpdateDBProjectGroupAccess,
     ): Promise<DBProjectGroupAccess> {
+        const updateFields: UpdateDBProjectGroupAccess = {
+            role: updateAttributes.role,
+            ...(updateAttributes.role_uuid !== undefined
+                ? { role_uuid: updateAttributes.role_uuid }
+                : {}),
+        };
+
         const query = this.database(ProjectGroupAccessTableName)
-            .update(updateAttributes)
+            .update(updateFields)
             .where('project_uuid', projectUuid)
             .andWhere('group_uuid', groupUuid)
             .returning('*');
