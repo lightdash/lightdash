@@ -304,7 +304,11 @@ export class RepoFs {
         // the file genuinely doesn't exist — skip the wasted Contents API call.
         // When it's truncated, the file may exist despite being absent from the
         // capped listing, so ask the source directly (it can fetch an explicit
-        // path) instead of falsely reporting "No such file".
+        // path) instead of falsely reporting "No such file". Caveat: symlinks
+        // are stripped from the tree (see getRepoTree) so a complete listing
+        // can't resolve one, but this truncated read-through bypasses the index
+        // and could still follow a symlink in a >100k-entry repo — a narrow
+        // residual we accept rather than break reads of files the cap omitted.
         if (!index.files.has(normalized) && !index.truncated) {
             this.cacheWrite(normalized, null);
             return null;

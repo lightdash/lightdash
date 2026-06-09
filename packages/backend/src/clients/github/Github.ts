@@ -311,7 +311,17 @@ export const getRepoTree = async ({
             headers,
         });
         const files = response.data.tree
-            .filter((entry) => entry.type === 'blob' && Boolean(entry.path))
+            // Symlinks are blobs with mode 120000. The Contents API follows an
+            // in-repo symlink server-side and returns the *target's* content, so
+            // a symlink committed inside a scoped dbt subPath would let a read
+            // escape that scope. Exclude them — the repo VFS exposes real files
+            // only (and reports isSymbolicLink: false everywhere).
+            .filter(
+                (entry) =>
+                    entry.type === 'blob' &&
+                    entry.mode !== '120000' &&
+                    Boolean(entry.path),
+            )
             .map((entry) => ({
                 path: entry.path as string,
                 size: entry.size ?? 0,
