@@ -1,30 +1,43 @@
-import { type Dashboard } from '@lightdash/common';
+import {
+    SchedulerFormat,
+    type Dashboard,
+    type SchedulerCsvOptions,
+} from '@lightdash/common';
 import {
     Button,
     Checkbox,
+    Collapse,
     Group,
     Input,
     MultiSelect,
+    NumberInput,
+    Radio,
     SegmentedControl,
     Stack,
     Text,
     Tooltip,
 } from '@mantine-8/core';
 import {
+    IconChevronDown,
+    IconChevronUp,
     IconCsv,
     IconFileExport,
+    IconFileTypeXls,
     IconHelpCircle,
     IconLayoutDashboard,
     IconScreenshot,
+    IconSettings,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
+import { Limit, Values } from '../../../features/scheduler/components/types';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../features/scheduler/constants';
 import {
-    useExportCsvDashboard,
+    useExportDashboardContent,
     useExportDashboard,
 } from '../../../hooks/dashboard/useDashboard';
+import useHealth from '../../../hooks/health/useHealth';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
@@ -44,32 +57,40 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     gridWidth,
     dashboard,
 }) => {
-    const [exportType, setExportType] = useState<'image' | 'csv'>('image');
+    const [exportType, setExportType] = useState<
+        SchedulerFormat.IMAGE | SchedulerFormat.CSV | SchedulerFormat.XLSX
+    >(SchedulerFormat.IMAGE);
     const location = useLocation();
-
-    // CSV export state
-    const exportCsvDashboardMutation = useExportCsvDashboard();
+    const health = useHealth();
+    const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardContext((c) => c.allFilters);
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
     );
 
-    // Image export state
     const [previews, setPreviews] = useState<Record<string, string>>({});
     const [previewChoice, setPreviewChoice] = useState<
         (typeof CUSTOM_WIDTH_OPTIONS)[number]['value'] | undefined
     >(CUSTOM_WIDTH_OPTIONS[1].value);
     const exportDashboardMutation = useExportDashboard();
 
+    const [showFormatting, setShowFormatting] = useState(false);
+    const [formatted, setFormatted] = useState<Values>(Values.FORMATTED);
+    const [limit, setLimit] = useState<Limit>(Limit.TABLE);
+    const [customLimit, setCustomLimit] = useState(1);
+    const [exportPivotedData, setExportPivotedData] = useState(true);
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 0;
-
     const [allTabsSelected, setAllTabsSelected] = useState(true);
     const [selectedTabs, setSelectedTabs] = useState<string[]>(
         dashboard?.tabs?.map((tab) => tab.uuid) || [],
     );
 
-    // Check if the selected tabs have tiles so we can disable the export button if not
+    const exportSelectedTabs =
+        isDashboardTabsAvailable && !allTabsSelected && selectedTabs.length > 0
+            ? selectedTabs
+            : null;
+
     const hasTilesInSelectedTabs = useCallback(() => {
         if (allTabsSelected) {
             return dashboard.tiles.length > 0;
@@ -79,7 +100,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         );
     }, [allTabsSelected, dashboard.tiles, selectedTabs]);
 
-    // Helper function to create consistent cache keys
     const getPreviewKey = useCallback(
         (width: string) => {
             return `${width}-${selectedTabs.join('-')}`;
@@ -87,33 +107,51 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         [selectedTabs],
     );
 
-    // Get the current preview based on the key
     const currentPreview = previewChoice
         ? previews[getPreviewKey(previewChoice)]
         : undefined;
 
-    const handleCsvExport = useCallback(() => {
-        exportCsvDashboardMutation.mutate({
+    const getCsvOptions = useCallback(
+        (): SchedulerCsvOptions => ({
+            formatted: formatted === Values.FORMATTED,
+            limit: limit === Limit.CUSTOM ? customLimit : limit,
+            asAttachment: false,
+            exportPivotedData,
+        }),
+        [customLimit, exportPivotedData, formatted, limit],
+    );
+
+    const handleAsyncExport = useCallback(() => {
+        exportDashboardContentMutation.mutate({
             dashboard,
-            filters: dashboardFilters,
-            dateZoomGranularity: dateZoomGranularity,
-            selectedTabs:
-                isDashboardTabsAvailable &&
-                !allTabsSelected &&
-                selectedTabs.length > 0
-                    ? selectedTabs
-                    : null,
+            format: exportType,
+            options:
+                exportType === SchedulerFormat.IMAGE ? {} : getCsvOptions(),
+            dashboardFilters:
+                exportType === SchedulerFormat.IMAGE
+                    ? undefined
+                    : dashboardFilters,
+            dateZoomGranularity:
+                exportType === SchedulerFormat.IMAGE
+                    ? undefined
+                    : dateZoomGranularity,
+            customViewportWidth:
+                exportType === SchedulerFormat.IMAGE && previewChoice
+                    ? parseInt(previewChoice)
+                    : undefined,
+            selectedTabs: exportSelectedTabs,
         });
         onClose();
     }, [
-        exportCsvDashboardMutation,
         dashboard,
         dashboardFilters,
         dateZoomGranularity,
-        isDashboardTabsAvailable,
-        allTabsSelected,
-        selectedTabs,
+        exportDashboardContentMutation,
+        exportSelectedTabs,
+        exportType,
+        getCsvOptions,
         onClose,
+        previewChoice,
     ]);
 
     const handleImageExport = useCallback(() => {
@@ -128,23 +166,16 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             dashboard,
             gridWidth: undefined,
             queryFilters: `?${queryParams.toString()}`,
-            selectedTabs:
-                isDashboardTabsAvailable &&
-                !allTabsSelected &&
-                selectedTabs.length > 0
-                    ? selectedTabs
-                    : null,
+            selectedTabs: exportSelectedTabs,
         });
     }, [
+        dashboard,
+        exportDashboardMutation,
+        exportSelectedTabs,
+        getPreviewKey,
+        location.search,
         previewChoice,
         previews,
-        getPreviewKey,
-        exportDashboardMutation,
-        location.search,
-        dashboard,
-        isDashboardTabsAvailable,
-        allTabsSelected,
-        selectedTabs,
     ]);
 
     const handlePreviewClick = useCallback(async () => {
@@ -155,15 +186,9 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             gridWidth: previewChoice ? parseInt(previewChoice) : undefined,
             queryFilters: `?${queryParams.toString()}`,
             isPreview: true,
-            selectedTabs:
-                isDashboardTabsAvailable &&
-                !allTabsSelected &&
-                selectedTabs.length > 0
-                    ? selectedTabs
-                    : null,
+            selectedTabs: exportSelectedTabs,
         });
 
-        // Store the preview with the proper key
         if (previewChoice) {
             const key = getPreviewKey(previewChoice);
             setPreviews((prev) => ({
@@ -172,24 +197,37 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             }));
         }
     }, [
-        location.search,
-        exportDashboardMutation,
         dashboard,
-        previewChoice,
-        isDashboardTabsAvailable,
-        allTabsSelected,
-        selectedTabs,
+        exportDashboardMutation,
+        exportSelectedTabs,
         getPreviewKey,
+        location.search,
+        previewChoice,
     ]);
 
     const renderActions = () => {
-        if (exportType === 'csv') {
+        if (exportType === SchedulerFormat.CSV) {
             return (
                 <Button
-                    onClick={handleCsvExport}
+                    loading={exportDashboardContentMutation.isLoading}
+                    onClick={handleAsyncExport}
+                    disabled={limit === Limit.CUSTOM && customLimit < 1}
                     leftSection={<MantineIcon icon={IconCsv} />}
                 >
                     Export CSV
+                </Button>
+            );
+        }
+
+        if (exportType === SchedulerFormat.XLSX) {
+            return (
+                <Button
+                    loading={exportDashboardContentMutation.isLoading}
+                    onClick={handleAsyncExport}
+                    disabled={limit === Limit.CUSTOM && customLimit < 1}
+                    leftSection={<MantineIcon icon={IconFileTypeXls} />}
+                >
+                    Export XLSX
                 </Button>
             );
         }
@@ -224,36 +262,171 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     <Input.Label>Export format</Input.Label>
                     <SegmentedControl
                         data={[
-                            { label: 'Image', value: 'image' },
-                            { label: '.csv', value: 'csv' },
+                            { label: 'Image', value: SchedulerFormat.IMAGE },
+                            { label: '.csv', value: SchedulerFormat.CSV },
+                            { label: '.xlsx', value: SchedulerFormat.XLSX },
                         ]}
                         w="min-content"
                         radius="md"
                         value={exportType}
                         onChange={(value) =>
-                            setExportType(value as 'image' | 'csv')
+                            setExportType(
+                                value as
+                                    | SchedulerFormat.IMAGE
+                                    | SchedulerFormat.CSV
+                                    | SchedulerFormat.XLSX,
+                            )
                         }
                     />
-                    {exportType === 'csv' && (
+                    {exportType !== SchedulerFormat.IMAGE && (
                         <Text fs="italic" fz="sm" c="dimmed">
-                            All charts from all tabs will be exported as tables
-                            in a ZIP file.
+                            Charts from the selected tabs will be exported as
+                            tables in a ZIP file.
                         </Text>
                     )}
                 </Stack>
 
-                {exportType === 'csv' && (
-                    <>
+                {exportType !== SchedulerFormat.IMAGE && (
+                    <Stack gap="xs">
                         {!!dateZoomGranularity && (
                             <Callout
                                 title="Date zoom is enabled"
                                 variant="info"
                             >
-                                Your CSV export will include data for the
-                                selected date zoom granularity.
+                                Your export will include data for the selected
+                                date zoom granularity.
                             </Callout>
                         )}
-                    </>
+                        <Button
+                            variant="subtle"
+                            size="compact-sm"
+                            style={{ alignSelf: 'start' }}
+                            leftSection={<MantineIcon icon={IconSettings} />}
+                            rightSection={
+                                <MantineIcon
+                                    icon={
+                                        showFormatting
+                                            ? IconChevronUp
+                                            : IconChevronDown
+                                    }
+                                />
+                            }
+                            onClick={() => setShowFormatting((old) => !old)}
+                        >
+                            Formatting options
+                        </Button>
+                        <Collapse in={showFormatting} pl="md">
+                            <Group align="start" gap="xxl">
+                                <Radio.Group
+                                    label="Values"
+                                    value={formatted}
+                                    onChange={(value) =>
+                                        setFormatted(value as Values)
+                                    }
+                                >
+                                    <Stack gap="xxs" pt="xs">
+                                        <Radio
+                                            label="Formatted"
+                                            value={Values.FORMATTED}
+                                        />
+                                        <Radio label="Raw" value={Values.RAW} />
+                                    </Stack>
+                                </Radio.Group>
+                                <Stack gap="xs">
+                                    <Radio.Group
+                                        label="Limit"
+                                        value={limit}
+                                        onChange={(value) =>
+                                            setLimit(value as Limit)
+                                        }
+                                    >
+                                        <Stack gap="xxs" pt="xs">
+                                            <Radio
+                                                label="Results in Table"
+                                                value={Limit.TABLE}
+                                            />
+                                            <Radio
+                                                label="All Results"
+                                                value={Limit.ALL}
+                                            />
+                                            <Radio
+                                                label="Custom..."
+                                                value={Limit.CUSTOM}
+                                            />
+                                        </Stack>
+                                    </Radio.Group>
+                                    {limit === Limit.CUSTOM && (
+                                        <NumberInput
+                                            w={150}
+                                            min={1}
+                                            required
+                                            value={customLimit}
+                                            onChange={(value) =>
+                                                setCustomLimit(
+                                                    Number(value) || 1,
+                                                )
+                                            }
+                                        />
+                                    )}
+
+                                    {(limit === Limit.ALL ||
+                                        limit === Limit.CUSTOM) && (
+                                        <i>
+                                            Results are limited to{' '}
+                                            {Number(
+                                                health.data?.query
+                                                    .csvCellsLimit || 100000,
+                                            ).toLocaleString()}{' '}
+                                            cells for each file
+                                        </i>
+                                    )}
+                                </Stack>
+                                <Radio.Group
+                                    label={
+                                        <>
+                                            Layout
+                                            <Tooltip
+                                                withinPortal
+                                                maw={300}
+                                                multiline
+                                                label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query."
+                                                position="top"
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                    size="md"
+                                                    display="inline"
+                                                    color="gray"
+                                                    style={{
+                                                        marginLeft: '4px',
+                                                        marginBottom: '-4px',
+                                                    }}
+                                                />
+                                            </Tooltip>
+                                        </>
+                                    }
+                                    value={
+                                        exportPivotedData
+                                            ? 'pivoted'
+                                            : 'unpivoted'
+                                    }
+                                    onChange={(value) =>
+                                        setExportPivotedData(
+                                            value === 'pivoted',
+                                        )
+                                    }
+                                >
+                                    <Stack gap="xxs" pt="xs">
+                                        <Radio
+                                            label="Grouped"
+                                            value="pivoted"
+                                        />
+                                        <Radio label="Flat" value="unpivoted" />
+                                    </Stack>
+                                </Radio.Group>
+                            </Group>
+                        </Collapse>
+                    </Stack>
                 )}
 
                 {isDashboardTabsAvailable && dashboard.tabs.length > 1 && (
@@ -262,7 +435,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                             <Group gap="xs">
                                 Tabs
                                 <Tooltip
-                                    withinPortal={true}
+                                    withinPortal
                                     maw={400}
                                     variant="xs"
                                     multiline
@@ -329,7 +502,7 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     </Stack>
                 )}
 
-                {exportType === 'image' && (
+                {exportType === SchedulerFormat.IMAGE && (
                     <Stack gap="xs">
                         <PreviewAndCustomizeScreenshot
                             containerWidth={gridWidth}
