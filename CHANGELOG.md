@@ -1,3 +1,10 @@
+# [0.3123.0](https://github.com/lightdash/lightdash/compare/0.3122.2...0.3123.0) (2026-06-09)
+
+
+### Features
+
+* **ai-writeback:** add per-stage duration Prometheus histogram ([#24094](https://github.com/lightdash/lightdash/issues/24094)) ([d27814a](https://github.com/lightdash/lightdash/commit/d27814af7853df8c34dbe9b5f7b1fc67179da53c))
+
 ## [0.3122.2](https://github.com/lightdash/lightdash/compare/0.3122.1...0.3122.2) (2026-06-09)
 
 
