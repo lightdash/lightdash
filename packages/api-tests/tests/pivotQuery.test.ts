@@ -166,7 +166,9 @@ describe('Pivot query API', () => {
             valuesColumns: [
                 { reference: 'orders_total_order_amount', aggregation: 'any' },
             ],
-            sortOnlyColumns: [{ reference: 'revenue_rank', aggregation: 'any' }],
+            sortOnlyColumns: [
+                { reference: 'revenue_rank', aggregation: 'any' },
+            ],
             sortBy: [{ reference: 'revenue_rank', direction: 'ASC' }],
         };
 
@@ -178,7 +180,9 @@ describe('Pivot query API', () => {
         );
 
         expect(results.rows.length).toBeGreaterThan(1);
-        expect(getValuesColumnReferences(results)).not.toContain('revenue_rank');
+        expect(getValuesColumnReferences(results)).not.toContain(
+            'revenue_rank',
+        );
     });
 
     it('keeps a self-sorted x-axis table calculation as an index column', async () => {
