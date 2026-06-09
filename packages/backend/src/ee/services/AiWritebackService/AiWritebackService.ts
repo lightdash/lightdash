@@ -28,6 +28,7 @@ import type { GithubAppInstallationsModel } from '../../../models/GithubAppInsta
 import type { GitlabAppInstallationsModel } from '../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
+import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
 import type {
     AiWritebackThreadModel,
@@ -110,6 +111,7 @@ type AiWritebackServiceDeps = {
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
     pullRequestsModel: PullRequestsModel;
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 export class AiWritebackService extends BaseService {
@@ -125,6 +127,8 @@ export class AiWritebackService extends BaseService {
 
     private readonly pullRequestsModel: PullRequestsModel;
 
+    private readonly prometheusMetrics?: PrometheusMetrics;
+
     private readonly githubProvider: GithubProvider;
 
     private readonly gitlabProvider: GitlabProvider;
@@ -138,6 +142,7 @@ export class AiWritebackService extends BaseService {
         gitlabAppInstallationsModel,
         aiWritebackThreadModel,
         pullRequestsModel,
+        prometheusMetrics,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -146,6 +151,7 @@ export class AiWritebackService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.pullRequestsModel = pullRequestsModel;
+        this.prometheusMetrics = prometheusMetrics;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
             logger: this.logger,
@@ -317,6 +323,9 @@ export class AiWritebackService extends BaseService {
             template: templateRef,
             durationMs,
         });
+        this.prometheusMetrics?.observeAiWritebackSandboxCreateDuration(
+            durationMs,
+        );
         return { sandbox, durationMs };
     }
 
@@ -362,6 +371,9 @@ export class AiWritebackService extends BaseService {
             projectUuid,
             durationMs,
         });
+        this.prometheusMetrics?.observeAiWritebackSandboxCreateDuration(
+            durationMs,
+        );
         return { sandbox, durationMs };
     }
 
@@ -672,6 +684,10 @@ export class AiWritebackService extends BaseService {
                 warehouseType: turn.warehouseType,
                 totalDurationMs: Math.round(performance.now() - runStartedAt),
             });
+            this.prometheusMetrics?.observeAiWritebackRunDuration(
+                performance.now() - runStartedAt,
+                'success',
+            );
 
             return {
                 output: sanitizedStdout,
@@ -694,6 +710,10 @@ export class AiWritebackService extends BaseService {
                 warehouseType: turn.warehouseType,
                 totalDurationMs: Math.round(performance.now() - runStartedAt),
             });
+            this.prometheusMetrics?.observeAiWritebackRunDuration(
+                performance.now() - runStartedAt,
+                'error',
+            );
             Sentry.captureException(error, {
                 tags: {
                     errorType: 'AiWritebackRunFailed',
@@ -1302,6 +1322,12 @@ export class AiWritebackService extends BaseService {
                         compileFailures,
                     },
                 );
+                runs.forEach((run) => {
+                    this.prometheusMetrics?.observeAiWritebackCompileDuration(
+                        run.ms,
+                        run.exitCode === 0 ? 'success' : 'error',
+                    );
+                });
             }
         } catch (error) {
             this.logger.debug(

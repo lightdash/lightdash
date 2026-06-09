@@ -91,6 +91,23 @@ export default class PrometheusMetrics {
 
     public aiAgentTTFTHistogram: prometheus.Histogram | null = null;
 
+    // repoShell (read-only repo VFS) GitHub API latency
+    public repoFsGithubTreeDurationHistogram: prometheus.Histogram | null =
+        null;
+
+    public repoFsGithubFileDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    // AI writeback (E2B sandbox) latency
+    public aiWritebackSandboxCreateDurationHistogram: prometheus.Histogram | null =
+        null;
+
+    public aiWritebackCompileDurationHistogram: prometheus.Histogram<'status'> | null =
+        null;
+
+    public aiWritebackRunDurationHistogram: prometheus.Histogram<'status'> | null =
+        null;
+
     // Pre-aggregate metrics
     public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
 
@@ -372,6 +389,65 @@ export default class PrometheusMetrics {
                     ],
                     ...rest,
                 });
+
+                // repoShell GitHub API latency (per-request round-trips)
+                const githubRequestBuckets = [
+                    25, 50, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000,
+                    10000,
+                ];
+                this.repoFsGithubTreeDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_repofs_github_tree_duration_ms',
+                        help: 'repoShell GitHub Git Trees fetch (repo file listing) duration in ms',
+                        buckets: githubRequestBuckets,
+                        ...rest,
+                    });
+
+                this.repoFsGithubFileDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_repofs_github_file_duration_ms',
+                        help: 'repoShell GitHub Contents fetch (per file) duration in ms',
+                        labelNames: ['outcome'],
+                        buckets: githubRequestBuckets,
+                        ...rest,
+                    });
+
+                // AI writeback (E2B sandbox) latency
+                this.aiWritebackSandboxCreateDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_writeback_sandbox_create_duration_ms',
+                        help: 'AI writeback E2B sandbox creation duration in ms',
+                        buckets: [
+                            250, 500, 1000, 2500, 5000, 10000, 20000, 30000,
+                            60000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiWritebackCompileDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_writeback_compile_duration_ms',
+                        help: 'AI writeback `lightdash compile` (in sandbox) duration in ms',
+                        labelNames: ['status'],
+                        buckets: [
+                            1000, 2500, 5000, 10000, 20000, 30000, 45000, 60000,
+                            90000, 120000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiWritebackRunDurationHistogram = new prometheus.Histogram(
+                    {
+                        name: 'ai_writeback_run_duration_ms',
+                        help: 'AI writeback end-to-end run duration in ms',
+                        labelNames: ['status'],
+                        buckets: [
+                            5000, 10000, 30000, 60000, 120000, 180000, 240000,
+                            300000, 480000, 600000, 900000,
+                        ],
+                        ...rest,
+                    },
+                );
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
@@ -1014,6 +1090,41 @@ export default class PrometheusMetrics {
             );
         }
     };
+
+    public observeRepoFsGithubTreeDuration(durationMs: number) {
+        this.repoFsGithubTreeDurationHistogram?.observe(durationMs);
+    }
+
+    public observeRepoFsGithubFileDuration(
+        durationMs: number,
+        outcome: 'found' | 'missing' | 'error',
+    ) {
+        this.repoFsGithubFileDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public observeAiWritebackSandboxCreateDuration(durationMs: number) {
+        this.aiWritebackSandboxCreateDurationHistogram?.observe(durationMs);
+    }
+
+    public observeAiWritebackCompileDuration(
+        durationMs: number,
+        status: 'success' | 'error',
+    ) {
+        this.aiWritebackCompileDurationHistogram?.observe(
+            { status },
+            durationMs,
+        );
+    }
+
+    public observeAiWritebackRunDuration(
+        durationMs: number,
+        status: 'success' | 'error',
+    ) {
+        this.aiWritebackRunDurationHistogram?.observe({ status }, durationMs);
+    }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {
         if (!this.config.enabled || !this.config.eventMetricsEnabled) {

@@ -4,6 +4,20 @@ import Logger from '../../../../logging/logger';
 import { RepoSource } from './RepoFs';
 
 /**
+ * Latency signal for each backing GitHub call, so a caller (e.g. the agent
+ * service) can record metrics without coupling this layer to Prometheus.
+ */
+export type RepoFsTimingEvent =
+    | { kind: 'tree'; durationMs: number }
+    | {
+          kind: 'file';
+          durationMs: number;
+          outcome: 'found' | 'missing' | 'error';
+      };
+
+export type RepoFsTimingCallback = (event: RepoFsTimingEvent) => void;
+
+/**
  * A read-only {@link RepoSource} backed by the GitHub API (Git Trees + Contents)
  * using an App installation token — no clone, no sandbox. `readFile` returns
  * null for missing/binary/over-1MB files (the Contents API limit) so the shell
@@ -13,6 +27,8 @@ import { RepoSource } from './RepoFs';
  * presented relative to it and files outside it are not listed or readable, so
  * the VFS can't expose secrets/CI/other apps elsewhere in the repo. `.` (or
  * empty) means the dbt project is the repo root — no scoping.
+ *
+ * `onTiming` (optional) receives the duration of each GitHub call for metrics.
  */
 export const createGithubRepoSource = ({
     owner,
@@ -20,12 +36,14 @@ export const createGithubRepoSource = ({
     branch,
     token,
     subPath = '.',
+    onTiming,
 }: {
     owner: string;
     repo: string;
     branch: string;
     token: string;
     subPath?: string;
+    onTiming?: RepoFsTimingCallback;
 }): RepoSource => {
     const root =
         subPath === '.' || subPath === '' ? '' : subPath.replace(/\/+$/, '');
@@ -54,6 +72,7 @@ export const createGithubRepoSource = ({
                     durationMs,
                 },
             );
+            onTiming?.({ kind: 'tree', durationMs });
             if (!root) return { files, truncated };
             const scoped = files
                 .filter((f) => f.path.startsWith(prefix))
@@ -87,6 +106,7 @@ export const createGithubRepoSource = ({
                         durationMs,
                     },
                 );
+                onTiming?.({ kind: 'file', durationMs, outcome: 'found' });
                 return content;
             } catch (error) {
                 const durationMs = Date.now() - start;
@@ -102,6 +122,11 @@ export const createGithubRepoSource = ({
                             durationMs,
                         },
                     );
+                    onTiming?.({
+                        kind: 'file',
+                        durationMs,
+                        outcome: 'missing',
+                    });
                     return null;
                 }
                 // Anything else (rate limit, network, 5xx) is NOT "file absent".
@@ -117,6 +142,7 @@ export const createGithubRepoSource = ({
                         durationMs,
                     },
                 );
+                onTiming?.({ kind: 'file', durationMs, outcome: 'error' });
                 throw error;
             }
         },
