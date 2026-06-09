@@ -1,3 +1,10 @@
+## [0.3113.1](https://github.com/lightdash/lightdash/compare/0.3113.0...0.3113.1) (2026-06-09)
+
+
+### Bug Fixes
+
+* render newlines in custom warehouse permission error messages ([#24029](https://github.com/lightdash/lightdash/issues/24029)) ([113498c](https://github.com/lightdash/lightdash/commit/113498c6d1280d8d2b94301ab6c6c39e2977d352))
+
 # [0.3113.0](https://github.com/lightdash/lightdash/compare/0.3112.0...0.3113.0) (2026-06-09)
 
 
