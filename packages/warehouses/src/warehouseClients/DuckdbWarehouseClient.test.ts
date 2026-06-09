@@ -411,6 +411,40 @@ describe('DuckdbWarehouseClient', () => {
         expect(secretSql).toContain('USE_SSL false');
     });
 
+    it('should scope DuckDB S3 secrets when configured', async () => {
+        const runMock = jest.fn();
+        const streamMock = jest.fn(async () =>
+            getMockStreamResult([[{ val: 1 }]], [DUCKDB_TYPE_IDS.INTEGER]),
+        );
+
+        createInstanceMock.mockResolvedValue(
+            createMockConnection(streamMock, runMock),
+        );
+
+        const client = DuckdbWarehouseClient.createForPreAggregate({
+            type: 'duckdb_s3',
+            s3Config: {
+                endpoint: 'localhost:9000',
+                region: 'us-east-1',
+                forcePathStyle: true,
+                useSsl: false,
+                scope: 's3://preagg-bucket/pre-aggregates/org-1/project-1/',
+            },
+        });
+
+        await client.runQuery('SELECT 1 AS val');
+
+        const secretSql = runMock.mock.calls
+            .map(([sql]) => sql as string)
+            .find((sql) =>
+                sql.includes('CREATE OR REPLACE SECRET __lightdash_s3'),
+            );
+
+        expect(secretSql).toContain(
+            "SCOPE 's3://preagg-bucket/pre-aggregates/org-1/project-1/'",
+        );
+    });
+
     it('should treat instanceCacheKey as the shared instance identity', async () => {
         const runMock = jest.fn();
         const streamMock = jest.fn(async () =>

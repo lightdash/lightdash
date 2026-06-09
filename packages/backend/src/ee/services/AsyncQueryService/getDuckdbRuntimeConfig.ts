@@ -7,7 +7,49 @@ export type DuckdbRuntimeConfig = {
     secretKey?: string;
     forcePathStyle: boolean;
     useSsl: boolean;
+    scope?: string;
 };
+
+export const getPreAggregateStoragePrefix = ({
+    organizationUuid,
+    projectUuid,
+}: {
+    organizationUuid: string;
+    projectUuid: string;
+}): string => `pre-aggregates/${organizationUuid}/${projectUuid}/`;
+
+export const getPreAggregateStorageScope = ({
+    bucket,
+    organizationUuid,
+    projectUuid,
+}: {
+    bucket: string;
+    organizationUuid: string;
+    projectUuid: string;
+}): string =>
+    `s3://${bucket}/${getPreAggregateStoragePrefix({
+        organizationUuid,
+        projectUuid,
+    })}`;
+
+export const isPreAggregateUriInScope = ({
+    uri,
+    bucket,
+    organizationUuid,
+    projectUuid,
+}: {
+    uri: string;
+    bucket: string;
+    organizationUuid: string;
+    projectUuid: string;
+}): boolean =>
+    uri.startsWith(
+        getPreAggregateStorageScope({
+            bucket,
+            organizationUuid,
+            projectUuid,
+        }),
+    );
 
 const parseDuckdbS3Endpoint = (
     endpoint: string,
@@ -37,6 +79,9 @@ const parseDuckdbS3Endpoint = (
 
 export const getDuckdbRuntimeConfig = (
     s3Config: LightdashConfig['preAggregates']['s3'],
+    options?: {
+        scope?: string;
+    },
 ): DuckdbRuntimeConfig | undefined => {
     if (!s3Config) {
         return undefined;
@@ -51,5 +96,6 @@ export const getDuckdbRuntimeConfig = (
         secretKey: s3Config.secretKey,
         forcePathStyle: s3Config.forcePathStyle === true,
         useSsl,
+        scope: options?.scope,
     };
 };

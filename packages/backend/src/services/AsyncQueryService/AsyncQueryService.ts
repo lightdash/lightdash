@@ -123,7 +123,11 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
-import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
+import {
+    getDuckdbRuntimeConfig,
+    getPreAggregateStoragePrefix,
+    getPreAggregateStorageScope,
+} from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
 import { getSchedulerContext } from '../../logging/winston';
@@ -1992,6 +1996,7 @@ export class AsyncQueryService extends ProjectService {
     }
 
     private async resolveAsyncQueryExecutionPlan({
+        organizationUuid,
         projectUuid,
         warehouseQuery,
         metricQuery,
@@ -2008,6 +2013,7 @@ export class AsyncQueryService extends ProjectService {
         queryUuid,
         useTimezoneAwareDateTrunc,
     }: {
+        organizationUuid: string;
         projectUuid: string;
         warehouseQuery: string;
         metricQuery: MetricQuery;
@@ -2033,6 +2039,7 @@ export class AsyncQueryService extends ProjectService {
         }
 
         const resolution = await this.preAggregateStrategy.resolveExecution({
+            organizationUuid,
             projectUuid,
             queryUuid,
             warehouseQuery,
@@ -2102,8 +2109,33 @@ export class AsyncQueryService extends ProjectService {
         displayTimezone,
     }: RunAsyncPreAggregateQueryArgs) {
         try {
+            const preAggregateBucket =
+                this.lightdashConfig.preAggregates.s3?.bucket;
+            const expectedScope = preAggregateBucket
+                ? getPreAggregateStorageScope({
+                      bucket: preAggregateBucket,
+                      organizationUuid,
+                      projectUuid,
+                  })
+                : undefined;
+            const referencesPreAggregateScopedStorage =
+                preAggregateQuery.includes('/pre-aggregates/');
+
+            if (
+                referencesPreAggregateScopedStorage &&
+                (!expectedScope || !preAggregateQuery.includes(expectedScope))
+            ) {
+                throw new ForbiddenError(
+                    'Pre-aggregate query references storage outside the allowed scope',
+                );
+            }
+
             const duckDbWarehouseClient =
-                this.preAggregateStrategy.createExecutionWarehouseClient();
+                this.preAggregateStrategy.createExecutionWarehouseClient(
+                    referencesPreAggregateScopedStorage
+                        ? expectedScope
+                        : undefined,
+                );
 
             await this.runAsyncWarehouseQuery({
                 userUuid,
@@ -2370,21 +2402,38 @@ export class AsyncQueryService extends ProjectService {
                 queryTags.query_context ===
                     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
 
-            const fileName = QueryHistoryModel.createUniqueResultsFileName(
+            const baseFileName = QueryHistoryModel.createUniqueResultsFileName(
                 cacheKey,
                 {
                     sqlSafe: isParquetMaterialization,
                 },
             );
+            const isPreAggregateMaterialization =
+                queryTags.query_context ===
+                QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION;
+            const fileName = isPreAggregateMaterialization
+                ? `${getPreAggregateStoragePrefix({
+                      organizationUuid,
+                      projectUuid,
+                  })}${baseFileName}`
+                : baseFileName;
             const resultsStorageClient = this.getResultsStorageClientForContext(
                 queryTags.query_context,
             );
 
             if (isParquetMaterialization) {
+                const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
+                const scope = bucket
+                    ? getPreAggregateStorageScope({
+                          bucket,
+                          organizationUuid,
+                          projectUuid,
+                      })
+                    : undefined;
                 const s3Config = getDuckdbRuntimeConfig(
                     this.lightdashConfig.preAggregates.s3,
+                    { scope },
                 );
-                const bucket = this.lightdashConfig.preAggregates.s3?.bucket;
                 if (!s3Config || !bucket) {
                     throw new Error(
                         'Missing S3 configuration for stream-to-parquet',
@@ -3518,6 +3567,7 @@ export class AsyncQueryService extends ProjectService {
                     const resolveStart = Date.now();
                     const executionPlan =
                         await this.resolveAsyncQueryExecutionPlan({
+                            organizationUuid,
                             projectUuid,
                             warehouseQuery: query,
                             metricQuery,

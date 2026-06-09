@@ -27,6 +27,7 @@ import type { S3CacheClient } from '../../clients/Aws/S3CacheClient';
 import EmailClient from '../../clients/EmailClient/EmailClient';
 import type { FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import type { INatsClient } from '../../clients/NatsClient';
+import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import type { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import type { LightdashConfig } from '../../config/parseConfig';
@@ -128,6 +129,16 @@ jest.mock('@lightdash/warehouses', () => ({
     ...jest.requireActual('@lightdash/warehouses'),
     SshTunnel: jest.fn(() => mockSshTunnel),
 }));
+
+jest.mock(
+    '../../clients/ResultsFileStorageClients/LocalParquetUploadStream',
+    () => ({
+        createLocalParquetUploadStream: jest.fn(() => ({
+            write: jest.fn(),
+            close: jest.fn(),
+        })),
+    }),
+);
 
 const projectModel = {
     getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
@@ -2414,6 +2425,75 @@ describe('AsyncQueryService', () => {
                 }),
             );
         });
+
+        test('scopes pre-aggregate materialization result files by org and project', async () => {
+            const mockProjectModel = {
+                ...projectModel,
+                getWarehouseCredentialsForProject: jest.fn(() =>
+                    Promise.resolve(warehouseClientMock.credentials),
+                ),
+                getWarehouseClientFromCredentials: jest.fn(() => ({
+                    ...warehouseClientMock,
+                    runQuery: jest.fn(async () => resultsWith1Row),
+                })),
+            };
+
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                projectModel: mockProjectModel as unknown as ProjectModel,
+            });
+            const mockStorageClient =
+                service.resultsStorageClient as unknown as {
+                    createUploadStream: jest.Mock;
+                };
+            mockStorageClient.createUploadStream = jest.fn(() => ({
+                write: jest.fn(),
+                close: jest.fn(),
+            }));
+            service.queryHistoryModel.update = jest.fn();
+
+            await service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isRegisteredUser: true,
+                projectUuid,
+                query: 'SELECT * FROM test_table',
+                fieldsMap: {},
+                queryTags: {
+                    query_context:
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'test-query-uuid',
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+
+            expect(mockStorageClient.createUploadStream).toHaveBeenCalledWith(
+                expect.stringMatching(
+                    new RegExp(
+                        `^pre-aggregates/${sessionAccount.organization.organizationUuid}/${projectUuid}/.*\\.jsonl$`,
+                    ),
+                ),
+                expect.objectContaining({
+                    contentType: 'application/jsonl',
+                }),
+            );
+            expect(service.queryHistoryModel.update).toHaveBeenCalledWith(
+                'test-query-uuid',
+                projectUuid,
+                expect.objectContaining({
+                    results_file_name: expect.stringMatching(
+                        new RegExp(
+                            `^pre-aggregates/${sessionAccount.organization.organizationUuid}/${projectUuid}/`,
+                        ),
+                    ),
+                }),
+                expect.any(Object),
+            );
+        });
     });
 
     describe('runAsyncWarehouseQuery', () => {
@@ -2633,6 +2713,64 @@ describe('AsyncQueryService', () => {
                     results_file_name: expect.any(String),
                 }),
                 expect.any(Object), // session account
+            );
+        });
+
+        test('scopes DuckDB S3 access for parquet pre-aggregate materialization uploads', async () => {
+            const mockProjectModel = {
+                ...projectModel,
+                getWarehouseCredentialsForProject: jest.fn(() =>
+                    Promise.resolve(warehouseClientMock.credentials),
+                ),
+                getWarehouseClientFromCredentials: jest.fn(() => ({
+                    ...warehouseClientMock,
+                    runQuery: jest.fn(async () => resultsWith1Row),
+                })),
+            };
+
+            const service = getMockedAsyncQueryService(
+                {
+                    ...lightdashConfigMock,
+                    preAggregates: {
+                        ...lightdashConfigMock.preAggregates,
+                        parquetEnabled: true,
+                    },
+                },
+                {
+                    projectModel: mockProjectModel as unknown as ProjectModel,
+                },
+            );
+            service.queryHistoryModel.update = jest.fn();
+
+            await service.runAsyncWarehouseQuery({
+                userUuid: sessionAccount.user.id,
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                isRegisteredUser: true,
+                projectUuid,
+                query: 'SELECT * FROM test_table',
+                fieldsMap: {},
+                queryTags: {
+                    query_context:
+                        QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION,
+                },
+                warehouseCredentialsOverrides: undefined,
+                queryUuid: 'test-query-uuid',
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: undefined,
+                originalColumns: undefined,
+                queryCreatedAt: new Date(),
+                displayTimezone: null,
+            });
+
+            expect(createLocalParquetUploadStream).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    parquetS3Uri: expect.stringMatching(
+                        /^s3:\/\/mock_preagg_bucket\/pre-aggregates\/organizationUuid\/project uuid\/.+\.parquet$/,
+                    ),
+                    s3Config: expect.objectContaining({
+                        scope: 's3://mock_preagg_bucket/pre-aggregates/organizationUuid/project uuid/',
+                    }),
+                }),
             );
         });
     });
