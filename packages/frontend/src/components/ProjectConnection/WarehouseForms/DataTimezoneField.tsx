@@ -107,6 +107,13 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <Text size="xs" c="dimmed">
                         The current moment, step by step
                     </Text>
+                    {!result.dataTimezoneApplies && (
+                        <Text size="xs" c="dimmed">
+                            No data timezone set, so it is read as UTC and steps
+                            1 and 2 match. Pick one above to change how the bare
+                            timestamp is interpreted.
+                        </Text>
+                    )}
                     <PipelineStep
                         n={1}
                         title="From the warehouse"
@@ -133,8 +140,11 @@ const DataTimezoneField: FC<{ disabled: boolean }> = ({ disabled }) => {
                     <Divider my={4} />
                     <Text size="xs" c="dimmed">
                         If a column already stores a timezone, step 1 is
-                        skipped: the moment is already exact and your data
-                        timezone is ignored. Viewers see{' '}
+                        skipped: the moment is already exact (
+                        <Text span ff="monospace">
+                            {result.aware.raw} UTC
+                        </Text>
+                        ) and your data timezone is ignored, so viewers see{' '}
                         <Text span ff="monospace">
                             {result.aware.rendered}
                         </Text>

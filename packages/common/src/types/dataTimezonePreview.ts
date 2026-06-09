@@ -4,10 +4,7 @@ import { isValidTimezone } from '../utils/scheduler';
 import { dateTruncTimezoneConversions } from '../utils/timeFrames';
 import { SupportedDbtAdapter } from './dbt';
 import { ParameterError } from './errors';
-import {
-    type CreateWarehouseCredentials,
-    type WarehouseTypes,
-} from './projects';
+import { type CreateWarehouseCredentials } from './projects';
 import { TimeFrames } from './timeFrames';
 
 // A timestamp column with NO stored timezone (TIMESTAMP WITHOUT TIME ZONE,
@@ -31,12 +28,9 @@ export type DataTimezonePreviewAware = {
 
 // The `results` payload of the API response.
 export type ApiDataTimezonePreviewResults = {
-    warehouseType: WarehouseTypes;
-    selectedDataTimezone: string; // what the user picked (or 'UTC' fallback)
-    effectiveSourceTimezone: string; // zone naive columns are read as
-    projectTimezone: string; // 'UTC' in create flow
-    dataTimezoneApplies: boolean; // false when the data timezone is UTC (unset)
-    naive: DataTimezonePreviewNaive;
+    projectTimezone: string; // zone viewers see ('UTC' in the create flow)
+    dataTimezoneApplies: boolean; // false when the source zone is UTC (a no-op)
+    naive: DataTimezonePreviewNaive; // .interpretedAs carries the source zone
     aware: DataTimezonePreviewAware;
 };
 
@@ -102,6 +96,10 @@ export const buildDataTimezonePreviewSql = (
 const renderInZone = (instant: moment.MomentInput, timezone: string): string =>
     formatTimestamp(instant, TimeFrames.SECOND, false, timezone);
 
+// A bare wall-clock with no offset - the "no timezone yet" step.
+const renderWallClock = (instant: moment.MomentInput, zone: string): string =>
+    moment.utc(instant).tz(zone).format('YYYY-MM-DD, HH:mm:ss');
+
 // Snowflake upper-cases unquoted column aliases, so look the column up
 // case-insensitively rather than assuming the literal alias casing.
 const readColumn = (row: Record<string, unknown>, name: string): unknown => {
@@ -114,16 +112,12 @@ const readColumn = (row: Record<string, unknown>, name: string): unknown => {
 
 export const buildDataTimezonePreviewResponse = ({
     row,
-    warehouseType,
-    selectedDataTimezone,
-    effectiveSourceTimezone,
+    sourceTimezone,
     projectTimezone,
     nowWallClock,
 }: {
     row: Record<string, unknown>;
-    warehouseType: WarehouseTypes;
-    selectedDataTimezone: string;
-    effectiveSourceTimezone: string;
+    sourceTimezone: string;
     projectTimezone: string;
     nowWallClock: string;
 }): ApiDataTimezonePreviewResults => {
@@ -137,19 +131,12 @@ export const buildDataTimezonePreviewResponse = ({
     const awareInstant = moment.utc(nowWallClock, NAIVE_WALL_CLOCK_FORMAT);
 
     return {
-        warehouseType,
-        selectedDataTimezone,
-        effectiveSourceTimezone,
         projectTimezone,
-        dataTimezoneApplies: effectiveSourceTimezone !== 'UTC',
+        dataTimezoneApplies: sourceTimezone !== 'UTC',
         naive: {
-            interpretedAs: effectiveSourceTimezone,
-            // bare wall-clock the warehouse holds, with no offset attached
-            raw: moment
-                .utc(naiveInstant)
-                .tz(effectiveSourceTimezone)
-                .format('YYYY-MM-DD, HH:mm:ss'),
-            readAs: renderInZone(naiveInstant, effectiveSourceTimezone),
+            interpretedAs: sourceTimezone,
+            raw: renderWallClock(naiveInstant, sourceTimezone),
+            readAs: renderInZone(naiveInstant, sourceTimezone),
             rendered: renderInZone(naiveInstant, projectTimezone),
         },
         aware: {

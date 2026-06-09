@@ -27470,25 +27470,13 @@
                     },
                     "projectTimezone": {
                         "type": "string"
-                    },
-                    "effectiveSourceTimezone": {
-                        "type": "string"
-                    },
-                    "selectedDataTimezone": {
-                        "type": "string"
-                    },
-                    "warehouseType": {
-                        "$ref": "#/components/schemas/WarehouseTypes"
                     }
                 },
                 "required": [
                     "aware",
                     "naive",
                     "dataTimezoneApplies",
-                    "projectTimezone",
-                    "effectiveSourceTimezone",
-                    "selectedDataTimezone",
-                    "warehouseType"
+                    "projectTimezone"
                 ],
                 "type": "object"
             },

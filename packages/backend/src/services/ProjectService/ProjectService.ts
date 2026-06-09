@@ -3266,10 +3266,10 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const selectedDataTimezone = effectiveCredentials.dataTimezone ?? 'UTC';
-        // The zone naive columns are read as (the session tz), not
-        // getColumnTimezone's post-wrap source which is UTC for Snowflake.
-        const effectiveSourceTimezone = selectedDataTimezone;
+        // The zone naive columns are read as: the data timezone, or UTC when
+        // unset. (Not getColumnTimezone's post-wrap source, which is UTC for
+        // Snowflake.)
+        const sourceTimezone = effectiveCredentials.dataTimezone ?? 'UTC';
 
         const sshTunnel = new SshTunnel(effectiveCredentials);
         const tunnelCredentials = await sshTunnel.connect();
@@ -3284,7 +3284,7 @@ export class ProjectService extends BaseService {
             const nowWallClock = currentUtcWallClock();
             const sql = buildDataTimezonePreviewSql(
                 adapterType,
-                effectiveSourceTimezone,
+                sourceTimezone,
                 nowWallClock,
             );
             const queryTags: RunQueryTags = {
@@ -3300,9 +3300,7 @@ export class ProjectService extends BaseService {
             }
             return buildDataTimezonePreviewResponse({
                 row: rows[0],
-                warehouseType: effectiveCredentials.type,
-                selectedDataTimezone,
-                effectiveSourceTimezone,
+                sourceTimezone,
                 projectTimezone,
                 nowWallClock,
             });

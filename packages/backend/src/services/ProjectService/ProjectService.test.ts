@@ -2232,6 +2232,17 @@ describe('ProjectService', () => {
             dataTimezone: 'America/New_York',
         } as CreateWarehouseCredentials;
 
+        // The aware case derives from currentUtcWallClock(); pin the clock so
+        // the rendered instants are deterministic.
+        beforeEach(() => {
+            jest.useFakeTimers().setSystemTime(
+                new Date('2026-06-08T14:30:00.000Z'),
+            );
+        });
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
         it('throws ForbiddenError when timezone support is disabled', async () => {
             await expect(
                 service.previewDataTimezone(previewAccount, { credentials }),
@@ -2257,12 +2268,7 @@ describe('ProjectService', () => {
                 getAdapterType: () => SupportedDbtAdapter.POSTGRES,
                 runQuery: jest.fn(async () => ({
                     fields: {},
-                    rows: [
-                        {
-                            aware_instant: '2026-06-08T14:30:00.000Z',
-                            naive_instant: '2026-06-08T18:30:00.000Z',
-                        },
-                    ],
+                    rows: [{ naive_instant: '2026-06-08T18:30:00.000Z' }],
                 })),
             });
 
@@ -2271,7 +2277,6 @@ describe('ProjectService', () => {
                 projectUuid: 'projectUuid',
             });
 
-            expect(result.effectiveSourceTimezone).toBe('America/New_York');
             expect(result.projectTimezone).toBe('UTC');
             expect(result.dataTimezoneApplies).toBe(true);
             expect(result.naive.interpretedAs).toBe('America/New_York');

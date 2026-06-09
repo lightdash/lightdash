@@ -4,7 +4,6 @@ import {
 } from './dataTimezonePreview';
 import { SupportedDbtAdapter } from './dbt';
 import { ParameterError } from './errors';
-import { WarehouseTypes } from './projects';
 
 const NOW = '2026-06-08 14:30:00';
 
@@ -92,9 +91,7 @@ describe('buildDataTimezonePreviewResponse', () => {
     it('splits the preview into an affected naive group and an unaffected aware group', () => {
         const res = buildDataTimezonePreviewResponse({
             row,
-            warehouseType: WarehouseTypes.POSTGRES,
-            selectedDataTimezone: 'America/New_York',
-            effectiveSourceTimezone: 'America/New_York',
+            sourceTimezone: 'America/New_York',
             projectTimezone: 'UTC',
             nowWallClock: NOW,
         });
@@ -118,9 +115,7 @@ describe('buildDataTimezonePreviewResponse', () => {
         // drops the offset, shifting every value by the backend's UTC offset.
         const res = buildDataTimezonePreviewResponse({
             row: { naive_instant: new Date('2026-06-08T18:30:00.000Z') },
-            warehouseType: WarehouseTypes.POSTGRES,
-            selectedDataTimezone: 'America/New_York',
-            effectiveSourceTimezone: 'America/New_York',
+            sourceTimezone: 'America/New_York',
             projectTimezone: 'UTC',
             nowWallClock: NOW,
         });
@@ -137,9 +132,7 @@ describe('buildDataTimezonePreviewResponse', () => {
     it('reads the column case-insensitively (snowflake upper-cases aliases)', () => {
         const res = buildDataTimezonePreviewResponse({
             row: { NAIVE_INSTANT: '2026-06-08T18:30:00.000Z' },
-            warehouseType: WarehouseTypes.SNOWFLAKE,
-            selectedDataTimezone: 'America/New_York',
-            effectiveSourceTimezone: 'America/New_York',
+            sourceTimezone: 'America/New_York',
             projectTimezone: 'UTC',
             nowWallClock: NOW,
         });
@@ -152,9 +145,7 @@ describe('buildDataTimezonePreviewResponse', () => {
     it('flags dataTimezoneApplies=false when the effective zone is UTC', () => {
         const res = buildDataTimezonePreviewResponse({
             row,
-            warehouseType: WarehouseTypes.SNOWFLAKE,
-            selectedDataTimezone: 'America/New_York',
-            effectiveSourceTimezone: 'UTC',
+            sourceTimezone: 'UTC',
             projectTimezone: 'UTC',
             nowWallClock: NOW,
         });
