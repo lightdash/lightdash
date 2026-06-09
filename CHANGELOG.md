@@ -1,3 +1,10 @@
+# [0.3124.0](https://github.com/lightdash/lightdash/compare/0.3123.0...0.3124.0) (2026-06-09)
+
+
+### Features
+
+* **ai:** rename proposeWriteback tool to editDbtProject and reframe as first-person ([#24095](https://github.com/lightdash/lightdash/issues/24095)) ([c9c6fcd](https://github.com/lightdash/lightdash/commit/c9c6fcd6d6231e62110ebde2ccbc33f0f60e1e93))
+
 # [0.3123.0](https://github.com/lightdash/lightdash/compare/0.3122.2...0.3123.0) (2026-06-09)
 
 
