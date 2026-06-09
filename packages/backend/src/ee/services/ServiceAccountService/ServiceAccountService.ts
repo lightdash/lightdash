@@ -18,6 +18,9 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
+import { createAuditLogEvent } from '../../../logging/auditLog';
+import { createActorFromUser } from '../../../logging/caslAuditWrapper';
+import { logAuditEvent } from '../../../logging/winston';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../../services/BaseService';
 import {
@@ -367,74 +370,75 @@ export class ServiceAccountService extends BaseService {
         // The SA's scope mode is fixed: a `system:member` SA is project-scoped
         // (access comes from project grants), anything else is org-scoped. Each
         // mode edits a disjoint set of fields; switching between them is not
-        // supported here (delete + recreate instead).
-        const isProjectScoped = existingToken.scopes.includes(
+        // supported (delete + recreate instead).
+        const wasProjectScoped = existingToken.scopes.includes(
             ServiceAccountScope.SYSTEM_MEMBER,
         );
 
-        let updated: ServiceAccount;
-        if (isProjectScoped) {
-            // Project-scoped: only name + project grants are editable. Reject
-            // any attempt to give it an org role / non-member scopes.
-            if (update.roleUuid) {
-                throw new ParameterError(
-                    "Can't assign an organization role to a project-scoped service account. Edit its project access instead.",
-                );
-            }
-            if (
-                update.scopes &&
-                !(
-                    update.scopes.length === 1 &&
-                    update.scopes[0] === ServiceAccountScope.SYSTEM_MEMBER
-                )
-            ) {
-                throw new ParameterError(
-                    "Can't change the scopes of a project-scoped service account. Edit its project access instead.",
-                );
-            }
-            if (update.projectAccess !== undefined) {
-                if (update.projectAccess.length === 0) {
-                    throw new ParameterError(
-                        'A project-scoped service account must keep at least one project. Delete it instead to remove all access.',
-                    );
-                }
-                await this.validateProjectAccessGrantsOrThrow(
-                    update.projectAccess,
-                    existingToken.organizationUuid,
-                );
-            }
+        // The request describes the SA's target shape:
+        //  - `projectAccess` present  → project-scoped (system:member + grants)
+        //  - org `scopes` / `roleUuid` → organization-scoped
+        //  - neither                  → rename only, preserve the current mode
+        const scopesAreMember =
+            !!update.scopes &&
+            update.scopes.length === 1 &&
+            update.scopes[0] === ServiceAccountScope.SYSTEM_MEMBER;
+        // `system:member` always means project-scoped — even without
+        // `projectAccess` it routes here, where the ≥1-grant check rejects it.
+        const targetIsProject =
+            update.projectAccess !== undefined || scopesAreMember;
+        const hasOrgScopes =
+            !!update.scopes && update.scopes.length > 0 && !scopesAreMember;
+        const hasOrgPermission = hasOrgScopes || !!update.roleUuid;
 
-            // Replace grants first, then update the name. Grant replacement is
-            // the step that can fail (bad project / role), so doing it first
-            // means a failure leaves the SA fully unchanged. The scopes stay
-            // system:member and ≥1 grant is enforced, so the forbidden "member
-            // with no projects" state is never persisted. The two writes aren't
-            // wrapped in one transaction (they span two models); the worst case
-            // is a renamed SA whose grants are stale, never a corrupt one.
-            if (update.projectAccess !== undefined) {
-                await this.projectModel.setServiceAccountProjectAccess(
-                    tokenUuid,
-                    update.projectAccess,
+        let updated: ServiceAccount;
+        if (targetIsProject) {
+            // Edit a project-scoped SA's grants, or switch an org-scoped SA to
+            // project-scoped. Either way the result is system:member + grants.
+            if (hasOrgPermission) {
+                throw new ParameterError(
+                    'Provide either project access or an organization role, not both',
                 );
             }
+            if (update.scopes && !scopesAreMember) {
+                throw new ParameterError(
+                    'A project-scoped service account must use scopes = [system:member]',
+                );
+            }
+            const grants = update.projectAccess ?? [];
+            if (grants.length === 0) {
+                throw new ParameterError(
+                    'A project-scoped service account must have at least one project. Delete it instead to remove all access.',
+                );
+            }
+            await this.validateProjectAccessGrantsOrThrow(
+                grants,
+                existingToken.organizationUuid,
+            );
+
+            // Replace grants first, then flip scopes to system:member. Grant
+            // replacement is the step that can fail, so doing it first means a
+            // failure leaves the SA unchanged. Because ≥1 grant exists before
+            // scopes become member, the forbidden "member with no projects"
+            // state is never persisted. The two writes span two models (not one
+            // transaction); the worst case is a renamed SA whose scopes lag its
+            // grants, never a corrupt one.
+            await this.projectModel.setServiceAccountProjectAccess(
+                tokenUuid,
+                grants,
+            );
             updated = await this.serviceAccountModel.update({
                 serviceAccountUuid: tokenUuid,
-                data: { description: update.description },
+                data: {
+                    description: update.description,
+                    scopes: [ServiceAccountScope.SYSTEM_MEMBER],
+                },
             });
-        } else {
-            // Org-scoped: name + org permission (scopes XOR roleUuid). Project
-            // access doesn't apply, and `system:member` would convert it to a
-            // project-scoped SA with no grants — both rejected.
-            if (update.projectAccess !== undefined) {
-                throw new ParameterError(
-                    'An organization-scoped service account has no project access. Use scopes or roleUuid instead.',
-                );
-            }
-            if (update.scopes?.includes(ServiceAccountScope.SYSTEM_MEMBER)) {
-                throw new ParameterError(
-                    'system:member is only valid for project-scoped service accounts and cannot be set here',
-                );
-            }
+        } else if (hasOrgPermission) {
+            // Edit an org-scoped SA's role, or switch a project-scoped SA to
+            // organization-scoped. Set the org permission first (so it's no
+            // longer member), then drop any project grants — order that never
+            // leaves a "member with no projects" SA.
             updated = await this.serviceAccountModel.update({
                 serviceAccountUuid: tokenUuid,
                 data: {
@@ -443,10 +447,21 @@ export class ServiceAccountService extends BaseService {
                     roleUuid: update.roleUuid,
                 },
             });
+            if (wasProjectScoped) {
+                await this.projectModel.setServiceAccountProjectAccess(
+                    tokenUuid,
+                    [],
+                );
+            }
+        } else {
+            // Rename only — preserve the current scope mode and permission.
+            updated = await this.serviceAccountModel.update({
+                serviceAccountUuid: tokenUuid,
+                data: { description: update.description },
+            });
         }
 
-        // Audit the change without writing any sensitive values (no token,
-        // no scope contents) — just the org context, per PROD-8133.
+        // Product analytics (org context only, no sensitive values).
         this.analytics.track<ScimAccessTokenEvent>({
             event: 'scim_access_token.updated',
             userId: user.userUuid,
@@ -454,6 +469,50 @@ export class ServiceAccountService extends BaseService {
                 organizationId: existingToken.organizationUuid,
             },
         });
+
+        // Structured audit-log entry: record the before/after of the
+        // non-sensitive fields (name, scopes, role) so the change is
+        // attributable. The token is never included.
+        try {
+            logAuditEvent(
+                createAuditLogEvent(
+                    createActorFromUser(user),
+                    'update',
+                    {
+                        type: 'ServiceAccount',
+                        organizationUuid: existingToken.organizationUuid,
+                        metadata: {
+                            serviceAccountUuid: tokenUuid,
+                            before: {
+                                description: existingToken.description,
+                                scopes: existingToken.scopes,
+                                roleUuid: existingToken.roleUuid,
+                            },
+                            after: {
+                                description: updated.description,
+                                scopes: updated.scopes,
+                                roleUuid: updated.roleUuid,
+                            },
+                            projectAccessChanged: targetIsProject,
+                        },
+                    },
+                    {},
+                    'allowed',
+                ),
+            );
+        } catch (auditError) {
+            this.logger.warn(
+                'Failed to log service account update audit event',
+                {
+                    serviceAccountUuid: tokenUuid,
+                    error:
+                        auditError instanceof Error
+                            ? auditError.message
+                            : String(auditError),
+                },
+            );
+        }
+
         return updated;
     }
 
