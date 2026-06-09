@@ -1503,7 +1503,75 @@ export const pivotResultsAsData = ({
         return [...noIndexPrefix, ...cells];
     });
 
-    return { headers, dataRows, fieldIds, hasIndex };
+    // Column totals render as footer row(s) below the data — mirroring the
+    // pivot table UI. Each row is [index labels, per-column totals, blank row
+    // total cells], matching the header/data column order. Only present when
+    // column totals are enabled (and therefore the table has an index).
+    const columnTotalRows: PivotResultsDataCell[][] = (
+        pivotedResults.columnTotals ?? []
+    ).map((totalRow, totalRowIndex) => {
+        const totalFieldsRow =
+            pivotedResults.columnTotalFields?.[totalRowIndex] ?? [];
+        const lastTotalField = last(totalFieldsRow);
+        const lastHeaderRow = last(pivotedResults.headerValues) ?? [];
+
+        const labelCells: PivotResultsDataCell[] = totalFieldsRow.map(
+            (totalField) => {
+                const label = totalField
+                    ? `Total${
+                          totalField.fieldId
+                              ? ` ${getFieldLabel(totalField.fieldId)}`
+                              : ''
+                      }`
+                    : '';
+                return { raw: label, formatted: label, fieldId: '' };
+            },
+        );
+
+        const dataCells: PivotResultsDataCell[] = totalRow.map(
+            (total, colIndex) => {
+                if (total === null || total === undefined) {
+                    return {
+                        raw: '',
+                        formatted: undefinedCharacter,
+                        fieldId: '',
+                    };
+                }
+                // The total's metric is the per-row metric (metricsAsRows) or
+                // the data column's metric (metricsAsColumns).
+                const headerCell = lastHeaderRow[colIndex];
+                let fieldId: string | undefined;
+                if (pivotConfig.metricsAsRows) {
+                    fieldId = lastTotalField?.fieldId;
+                } else if (headerCell && 'fieldId' in headerCell) {
+                    fieldId = headerCell.fieldId;
+                }
+                const field = fieldId ? itemMap[fieldId] : undefined;
+                const formatted = onlyRaw
+                    ? String(total)
+                    : formatItemValue(field, total, false);
+                return { raw: total, formatted, fieldId: fieldId ?? '' };
+            },
+        );
+
+        const rowTotalCells: PivotResultsDataCell[] =
+            pivotConfig.rowTotals && pivotedResults.rowTotalFields?.[0]
+                ? pivotedResults.rowTotalFields[0].map(() => ({
+                      raw: '',
+                      formatted: '',
+                      fieldId: '',
+                  }))
+                : [];
+
+        return [...labelCells, ...dataCells, ...rowTotalCells];
+    });
+
+    return {
+        headers,
+        dataRows: [...dataRows, ...columnTotalRows],
+        fieldIds,
+        hasIndex,
+    };
 };
 
 export const pivotResultsAsCsv = (params: PivotResultsParams) => {
