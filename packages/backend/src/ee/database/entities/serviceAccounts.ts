@@ -40,6 +40,13 @@ type DbRotateServiceAccount = {
     expires_at: Date;
 };
 
+// In-place edit of name + permission scopes. The token, expiry, and project
+// grants are never touched here (see `ServiceAccountModel.update`).
+export type DbUpdateServiceAccount = {
+    description?: string;
+    scopes?: string[];
+};
+
 type DbUpdateUsedDatePersonalAccessToken = {
     last_used_at: Date;
 };
@@ -53,6 +60,7 @@ export type ServiceAccountTable = Knex.CompositeTableType<
     DbServiceAccounts,
     DbCreateServiceAccount,
     | DbRotateServiceAccount
+    | DbUpdateServiceAccount
     | DbUpdateUsedDatePersonalAccessToken
     | DbBackfillServiceAccountUserUuid
 >;

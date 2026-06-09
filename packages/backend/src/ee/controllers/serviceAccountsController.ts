@@ -2,6 +2,7 @@ import {
     ApiCreateServiceAccountRequest,
     ApiErrorPayload,
     ApiServiceAccountProjectGrantsResponse,
+    ApiUpdateServiceAccountRequest,
     assertRegisteredAccount,
     AuthTokenPrefix,
     ServiceAccount,
@@ -144,6 +145,39 @@ export class ServiceAccountsController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Update a service account's name and permissions in place by UUID,
+     * without rotating its token.
+     * @summary Update service account
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Patch('/{tokenUuid}')
+    @OperationId('UpdateServiceAccount')
+    async updateServiceAccount(
+        @Path() tokenUuid: string,
+        @Request() req: express.Request,
+        @Body() body: ApiUpdateServiceAccountRequest,
+    ): Promise<{
+        status: 'ok';
+        results: ServiceAccount;
+    }> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getServiceAccountService().update({
+                user: toSessionUser(req.account),
+                tokenUuid,
+                update: body,
+            }),
         };
     }
 

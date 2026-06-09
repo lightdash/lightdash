@@ -138,3 +138,17 @@ export type CreateServiceAccount = Pick<
     roleUuid?: string | null;
     projectAccess?: ServiceAccountProjectAccessInput[];
 };
+
+/**
+ * In-place edit of a service account's name and Organization-scope permission,
+ * without rotating its token. `description` is always applied. The permission
+ * is optional: send exactly one of `scopes` (legacy/system preset) or
+ * `roleUuid` (custom org role) to change it, or neither to rename only. Sending
+ * both is rejected. The token, expiry, and project grants are left untouched.
+ */
+export type UpdateServiceAccount = Pick<ServiceAccount, 'description'> & {
+    scopes?: ServiceAccountScope[];
+    roleUuid?: string | null;
+};
+
+export type ApiUpdateServiceAccountRequest = UpdateServiceAccount;

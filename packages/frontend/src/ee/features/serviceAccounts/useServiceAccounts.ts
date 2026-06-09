@@ -2,6 +2,7 @@ import {
     type ApiError,
     type ServiceAccount,
     type ServiceAccountWithProjectAccessCount,
+    type UpdateServiceAccount,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -71,6 +72,31 @@ export const useServiceAccounts = () => {
         },
     });
 
+    const updateAccount = useMutation<
+        ServiceAccount,
+        ApiError,
+        { uuid: string } & UpdateServiceAccount
+    >({
+        mutationFn: ({ uuid, ...body }) =>
+            lightdashApi<ServiceAccount>({
+                method: 'PATCH',
+                url: `/service-accounts/${uuid}`,
+                body: JSON.stringify(body),
+            }),
+        onSuccess: async () => {
+            await queryClient.invalidateQueries([CACHE_KEY]);
+            showToastSuccess({
+                title: `Service account updated`,
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: `Failed to update service account`,
+                apiError: error,
+            });
+        },
+    });
+
     const rotateAccount = useMutation<
         CreateServiceAccountResult,
         ApiError,
@@ -101,8 +127,15 @@ export const useServiceAccounts = () => {
         return {
             listAccounts,
             createAccount,
+            updateAccount,
             deleteAccount,
             rotateAccount,
         };
-    }, [listAccounts, createAccount, deleteAccount, rotateAccount]);
+    }, [
+        listAccounts,
+        createAccount,
+        updateAccount,
+        deleteAccount,
+        rotateAccount,
+    ]);
 };

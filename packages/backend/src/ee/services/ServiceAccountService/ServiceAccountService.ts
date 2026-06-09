@@ -13,6 +13,7 @@ import {
     ServiceAccountWithToken,
     SessionUser,
     UnexpectedDatabaseError,
+    UpdateServiceAccount,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -324,6 +325,75 @@ export class ServiceAccountService extends BaseService {
             },
         });
         return newToken;
+    }
+
+    async update({
+        user,
+        tokenUuid,
+        update,
+    }: {
+        user: SessionUser;
+        tokenUuid: string;
+        update: UpdateServiceAccount;
+    }): Promise<ServiceAccount> {
+        this.throwForbiddenErrorOnNoPermission(user);
+
+        if (!update.description || update.description.trim() === '') {
+            throw new ParameterError('Description is required');
+        }
+
+        // Existence + cross-org guard before any write, mirroring delete/rotate.
+        const existingToken =
+            await this.serviceAccountModel.getTokenbyUuid(tokenUuid);
+        if (!existingToken) {
+            throw new NotFoundError(`Token with UUID ${tokenUuid} not found`);
+        }
+        if (existingToken.organizationUuid !== user.organizationUuid) {
+            throw new ForbiddenError("Token doesn't belong to organization");
+        }
+
+        // Project-scope invariant: a `system:member` SA derives its access
+        // entirely from project grants, which this endpoint can't edit. So a
+        // permission change is refused on an SA that has grants (it would
+        // orphan them), and `system:member` can't be set here (it would leave
+        // the SA with no abilities and no grants). Mirrors `create`'s rule
+        // that `system:member` is only valid alongside `projectAccess`.
+        const isPermissionChange =
+            (!!update.scopes && update.scopes.length > 0) || !!update.roleUuid;
+        if (isPermissionChange) {
+            const grantCount =
+                (
+                    await this.projectModel.getProjectAccessCountsByServiceAccountUserUuids(
+                        [existingToken.userUuid],
+                    )
+                ).get(existingToken.userUuid) ?? 0;
+            if (grantCount > 0) {
+                throw new ParameterError(
+                    "Can't change the permissions of a project-scoped service account. Manage its project access instead.",
+                );
+            }
+            if (update.scopes?.includes(ServiceAccountScope.SYSTEM_MEMBER)) {
+                throw new ParameterError(
+                    'system:member is only valid for project-scoped service accounts and cannot be set here',
+                );
+            }
+        }
+
+        const updated = await this.serviceAccountModel.update({
+            serviceAccountUuid: tokenUuid,
+            data: update,
+        });
+
+        // Audit the change without writing any sensitive values (no token,
+        // no scope contents) — just the org context, per PROD-8133.
+        this.analytics.track<ScimAccessTokenEvent>({
+            event: 'scim_access_token.updated',
+            userId: user.userUuid,
+            properties: {
+                organizationId: existingToken.organizationUuid,
+            },
+        });
+        return updated;
     }
 
     async get({
