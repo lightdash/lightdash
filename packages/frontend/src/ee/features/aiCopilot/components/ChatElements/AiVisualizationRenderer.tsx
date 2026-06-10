@@ -7,6 +7,7 @@ import {
     type AiAgentChartTypeOption,
     type AiArtifactChartConfig,
     type ApiAiAgentThreadMessageVizQuery,
+    type ChartAsCode,
     type ChartConfig,
     type EChartsSeries,
 } from '@lightdash/common';
@@ -150,9 +151,11 @@ export const AiVisualizationRenderer: FC<Props> = ({
         selectedChartType,
     ]);
 
-    const chartAsCodeConfig =
-        webAiChartConfig?.type === AiResultType.QUERY_RESULT
-            ? webAiChartConfig.chartAsCode
+    const chartAsCodeConfig: ChartAsCode | null =
+        webAiChartConfig &&
+        webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+        'chartAsCode' in webAiChartConfig
+            ? (webAiChartConfig.chartAsCode as ChartAsCode | null)
             : null;
 
     const visualizationChartConfig = webAiChartConfig?.echartsConfig;
