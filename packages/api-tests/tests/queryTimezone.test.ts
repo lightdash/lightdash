@@ -40,9 +40,24 @@ import {
 let admin: ApiClient;
 
 const DIMENSION_KEY = 'timezone_test_event_timestamp_day';
+const HOUR_DIMENSION_KEY = 'timezone_test_event_timestamp_hour';
 const METRIC_KEY = 'timezone_test_count';
 const DIMENSIONS = [DIMENSION_KEY];
 const METRICS = [METRIC_KEY];
+
+const HOUR_EQUALS_FILTER = (instant: string) => ({
+    dimensions: {
+        id: 'tz-test',
+        and: [
+            {
+                id: 'tz-hour-eq',
+                target: { fieldId: HOUR_DIMENSION_KEY },
+                operator: 'equals',
+                values: [instant],
+            },
+        ],
+    },
+});
 
 const EQUALS_FILTER = (day: string) => ({
     dimensions: {
@@ -356,6 +371,67 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
                 filters: GREATER_THAN_FILTER('2024-01-15'),
             });
             expect(getTotalCount(rows, METRIC_KEY)).toBe(5);
+        });
+    });
+
+    // Hour grain exposes the fractional minutes: an equals on the fractional
+    // bucket is 1 only when the partial offset is applied, 0 if dropped/rounded.
+
+    describe('fractional-offset zones — sub-day buckets', () => {
+        it('Asia/Kathmandu (+05:45): groups into 10 hourly buckets', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Asia/Kathmandu',
+            });
+            expect(rows).toHaveLength(10);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(10);
+        });
+
+        it('Asia/Kathmandu (+05:45): bucket aligns to :15, not :00 or :30', async () => {
+            const aligned = await runTimezoneTestQuery(admin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Asia/Kathmandu',
+                filters: HOUR_EQUALS_FILTER('2024-01-15T07:15:00.000Z'),
+            });
+            expect(getTotalCount(aligned, METRIC_KEY)).toBe(1);
+
+            const wholeHour = await runTimezoneTestQuery(admin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Asia/Kathmandu',
+                filters: HOUR_EQUALS_FILTER('2024-01-15T07:30:00.000Z'),
+            });
+            expect(getTotalCount(wholeHour, METRIC_KEY)).toBe(0);
+        });
+
+        it('Pacific/Marquesas (-09:30): groups into 10 hourly buckets', async () => {
+            const rows = await runTimezoneTestQuery(admin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Pacific/Marquesas',
+            });
+            expect(rows).toHaveLength(10);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(10);
+        });
+
+        it('Pacific/Marquesas (-09:30): bucket aligns to :30, not :00', async () => {
+            const aligned = await runTimezoneTestQuery(admin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Pacific/Marquesas',
+                filters: HOUR_EQUALS_FILTER('2024-01-15T07:30:00.000Z'),
+            });
+            expect(getTotalCount(aligned, METRIC_KEY)).toBe(1);
+
+            const wholeHour = await runTimezoneTestQuery(admin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Pacific/Marquesas',
+                filters: HOUR_EQUALS_FILTER('2024-01-15T08:00:00.000Z'),
+            });
+            expect(getTotalCount(wholeHour, METRIC_KEY)).toBe(0);
         });
     });
 
