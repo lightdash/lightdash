@@ -276,6 +276,7 @@ export const DashboardTileComments: FC<
 
             <Popover.Target ref={targetRefComments}>
                 <Indicator
+                    inline
                     label={comments && comments.length}
                     size={12}
                     disabled={!showIndicator}
@@ -290,7 +291,7 @@ export const DashboardTileComments: FC<
                 >
                     <ActionIcon
                         size="sm"
-                        variant="light"
+                        variant="subtle"
                         color="gray"
                         onClick={() => {
                             if (openedComments) {

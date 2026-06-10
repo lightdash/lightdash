@@ -3,8 +3,8 @@ import {
     type CacheMetadata,
     type QueryResultsPerformance,
 } from '@lightdash/common';
-import { Divider, Stack } from '@mantine-8/core';
-import { ActionIcon, HoverCard } from '@mantine/core';
+import { ActionIcon, Divider, Stack } from '@mantine-8/core';
+import { HoverCard } from '@mantine/core';
 import {
     IconClock,
     IconClockBolt,
@@ -104,7 +104,7 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
                 </Stack>
             </HoverCard.Dropdown>
             <HoverCard.Target>
-                <ActionIcon size="sm">
+                <ActionIcon size="sm" variant="subtle" color="gray">
                     <MantineIcon
                         icon={
                             cacheMetadata.preAggregate?.hit
