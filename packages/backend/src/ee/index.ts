@@ -4,8 +4,11 @@ import { AppArguments } from '../App';
 import {
     createBranch,
     createPullRequest,
+    createPullRequestComment,
     createSignedCommitOnBranch,
     getBranchHeadSha,
+    getInstallationToken,
+    getPullRequest,
     getRepoDefaultBranch,
     getRepoWorkflowFiles,
 } from '../clients/github/Github';
@@ -52,6 +55,7 @@ import { AiOrganizationSettingsService } from './services/AiOrganizationSettings
 import { AiRouterService } from './services/AiRouterService/AiRouterService';
 import { AiService } from './services/AiService/AiService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
+import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
@@ -139,6 +143,19 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         getBranchHeadSha,
                         getRepoDefaultBranch,
                         getRepoWorkflowFiles,
+                    },
+                }),
+            writebackPreviewService: ({ context, models, repository }) =>
+                new WritebackPreviewService({
+                    lightdashConfig: context.lightdashConfig,
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
+                    githubClient: {
+                        createPullRequestComment,
+                        getInstallationToken,
+                        getPullRequest,
                     },
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
@@ -273,6 +290,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    writebackPreviewService:
+                        repository.getWritebackPreviewService<WritebackPreviewService>(),
                     previewDeploySetupService:
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     githubAppInstallationsModel:
@@ -304,6 +323,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     userModel: models.getUserModel(),
                     lightdashConfig: context.lightdashConfig,
+                    writebackPreviewService:
+                        repository.getWritebackPreviewService<WritebackPreviewService>(),
                 }),
             aiRouterService: ({ models, repository, context }) =>
                 new AiRouterService({

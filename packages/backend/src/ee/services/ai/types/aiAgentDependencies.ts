@@ -379,7 +379,11 @@ export type EditDbtProjectFn = (args: {
     prUrl: string | null;
     fromActiveChangeset: boolean;
 }) => Promise<
-    AiWritebackRunResult & { previewDeployConfigured: boolean | null }
+    AiWritebackRunResult & {
+        previewDeployConfigured: boolean | null;
+        /** Server-side preview built from the PR's head branch; null when unsupported or failed. */
+        previewUrl: string | null;
+    }
 >;
 
 export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;

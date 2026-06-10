@@ -780,6 +780,38 @@ export const getPullRequest = async ({
     }
 };
 
+export const createPullRequestComment = async ({
+    owner,
+    repo,
+    pullNumber,
+    body,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    body: string;
+    installationId?: string;
+    token?: string;
+}) => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: pullNumber,
+            body,
+            headers,
+        });
+
+        return response.data;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 /**
  * Return the bodies of every issue comment on a pull request (PRs are issues in
  * the GitHub API). Used to discover the Lightdash preview-environment URL that

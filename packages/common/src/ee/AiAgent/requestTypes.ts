@@ -161,15 +161,6 @@ export type SlackPromptJobPayload = TraceTaskBase & {
     slackPromptUuid: string;
 };
 
-export type PollWritebackPreviewJobPayload = TraceTaskBase & {
-    /** The AI prompt that triggered the write-back; resolves the Slack message. */
-    promptUuid: string;
-    /** The opened pull request URL whose comments we poll for a preview URL. */
-    prUrl: string;
-    /** Epoch ms when polling first started — bounds the ~10 min wait window. */
-    startedAt: number;
-};
-
 export type AiAgentEvalRunJobPayload = TraceTaskBase & {
     evalRunResultUuid: string;
     evalRunUuid: string;
