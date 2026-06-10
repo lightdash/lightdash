@@ -33,6 +33,7 @@ import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { OKTA_LOGO } from '../../common/ThirdPartySignInButton/ssoProviderLogos';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
 import SsoMethodDomainsField from './SsoMethodDomainsField';
+import SsoMissingDomainsWarning from './SsoMissingDomainsWarning';
 
 type FormValues = {
     oauth2Issuer: string;
@@ -115,22 +116,26 @@ const OktaSsoPanel: FC = () => {
     ]);
 
     const handleSubmit = form.onSubmit((values) => {
-        upsert.mutate({
-            oauth2Issuer: values.oauth2Issuer.trim(),
-            oktaDomain: values.oktaDomain.trim(),
-            oauth2ClientId: values.oauth2ClientId.trim(),
-            authorizationServerId: values.authorizationServerId.trim() || null,
-            extraScopes: values.extraScopes.trim() || null,
-            enabled: values.enabled,
-            overrideEmailDomains: values.overrideEmailDomains,
-            emailDomains: values.emailDomains.map((d) =>
-                d.trim().toLowerCase(),
-            ),
-            allowPassword: values.allowPassword,
-            ...(values.oauth2ClientSecret.trim().length > 0
-                ? { oauth2ClientSecret: values.oauth2ClientSecret.trim() }
-                : {}),
-        });
+        upsert.mutate(
+            {
+                oauth2Issuer: values.oauth2Issuer.trim(),
+                oktaDomain: values.oktaDomain.trim(),
+                oauth2ClientId: values.oauth2ClientId.trim(),
+                authorizationServerId:
+                    values.authorizationServerId.trim() || null,
+                extraScopes: values.extraScopes.trim() || null,
+                enabled: values.enabled,
+                overrideEmailDomains: values.overrideEmailDomains,
+                emailDomains: values.emailDomains.map((d) =>
+                    d.trim().toLowerCase(),
+                ),
+                allowPassword: values.allowPassword,
+                ...(values.oauth2ClientSecret.trim().length > 0
+                    ? { oauth2ClientSecret: values.oauth2ClientSecret.trim() }
+                    : {}),
+            },
+            { onSuccess: () => toggleOpen(false) },
+        );
     });
 
     // The Enabled toggle persists immediately (secret omitted = preserved), so
@@ -226,6 +231,10 @@ const OktaSsoPanel: FC = () => {
                                 Set up Okta
                             </Button>
                         )
+                    )}
+
+                    {isConfigured && form.values.enabled && !isOpen && (
+                        <SsoMissingDomainsWarning providerLabel="Okta" />
                     )}
 
                     <FormSection isOpen={isOpen} name="okta-configuration">

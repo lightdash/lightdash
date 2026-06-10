@@ -55,8 +55,8 @@ const SsoMethodDomainsField: FC<Props> = ({
                             `Only users whose email domain matches one of these will see ${providerLabel}.`
                         ) : (
                             <Text span size="xs">
-                                Verify a domain in {verifiedDomainsLink} before
-                                you can route it to {providerLabel}.
+                                {providerLabel} cannot be used until you verify
+                                a domain in {verifiedDomainsLink}.
                             </Text>
                         )
                     }
@@ -81,9 +81,9 @@ const SsoMethodDomainsField: FC<Props> = ({
                         </>
                     ) : (
                         <Text span size="sm" c="dimmed">
-                            No verified domains yet. Verify a domain in{' '}
-                            {verifiedDomainsLink} to route it to {providerLabel}
-                            .
+                            {providerLabel} cannot be used yet. Verify a domain
+                            in {verifiedDomainsLink} before users can sign in
+                            with this provider.
                         </Text>
                     )}
                 </Text>
