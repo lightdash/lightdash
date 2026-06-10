@@ -1,6 +1,7 @@
 import { Button, Drawer, Group, Stack, Text } from '@mantine-8/core';
 import { IconRoute } from '@tabler/icons-react';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import { GuidedTour } from '../../../../../../components/common/GuidedTour';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
@@ -17,10 +18,29 @@ import drawerClasses from './ThreadPreviewDrawer.module.css';
 
 export const AiReviewsSettingsPage = () => {
     const { data: settings } = useAiOrganizationSettings();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [selectedReviewItem, setSelectedReviewItem] =
         useState<AiAgentAdminReviewItemPreviewTarget | null>(null);
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+    const reviewItemFromSearchParams = useMemo(() => {
+        const projectUuid = searchParams.get('reviewProjectUuid');
+        const agentUuid = searchParams.get('reviewAgentUuid');
+        const threadUuid = searchParams.get('reviewThreadUuid');
+        const reviewItemUuid = searchParams.get('reviewItemUuid');
+
+        if (!projectUuid || !agentUuid || !threadUuid || !reviewItemUuid) {
+            return null;
+        }
+
+        return {
+            projectUuid,
+            agentUuid,
+            threadUuid,
+            reviewItemUuid,
+        };
+    }, [searchParams]);
 
     // While the tour is running, the table always shows sample rows so it
     // highlights the same findings every time. Closing it flips to real data.
@@ -30,16 +50,49 @@ export const AiReviewsSettingsPage = () => {
         closeTour,
     } = useGuidedTour({ storageKey: 'ld.aiReviews.tour.v1' });
 
+    useEffect(() => {
+        if (!reviewItemFromSearchParams) {
+            return;
+        }
+
+        setSelectedReviewItem(reviewItemFromSearchParams);
+        setIsSidebarOpen(true);
+    }, [reviewItemFromSearchParams]);
+
+    const updateReviewSearchParams = (
+        reviewItem: AiAgentAdminReviewItemPreviewTarget | null,
+    ) => {
+        const nextParams = new URLSearchParams(searchParams);
+
+        nextParams.delete('reviewProjectUuid');
+        nextParams.delete('reviewAgentUuid');
+        nextParams.delete('reviewThreadUuid');
+        nextParams.delete('reviewItemUuid');
+
+        if (reviewItem) {
+            nextParams.set('reviewProjectUuid', reviewItem.projectUuid);
+            nextParams.set('reviewAgentUuid', reviewItem.agentUuid);
+            nextParams.set('reviewThreadUuid', reviewItem.threadUuid);
+            if (reviewItem.reviewItemUuid) {
+                nextParams.set('reviewItemUuid', reviewItem.reviewItemUuid);
+            }
+        }
+
+        setSearchParams(nextParams, { replace: true });
+    };
+
     const handleReviewItemSelect = (
         reviewItem: AiAgentAdminReviewItemPreviewTarget,
     ): void => {
         setSelectedReviewItem(reviewItem);
         setIsSidebarOpen(true);
+        updateReviewSearchParams(reviewItem);
     };
 
     const handleCloseSidebar = () => {
         setIsSidebarOpen(false);
         setSelectedReviewItem(null);
+        updateReviewSearchParams(null);
     };
 
     return (
@@ -114,6 +167,9 @@ export const AiReviewsSettingsPage = () => {
                         projectUuid={selectedReviewItem.projectUuid}
                         agentUuid={selectedReviewItem.agentUuid}
                         threadUuid={selectedReviewItem.threadUuid}
+                        selectedReviewItemUuid={
+                            selectedReviewItem.reviewItemUuid ?? undefined
+                        }
                         isOpen={isSidebarOpen}
                         onClose={handleCloseSidebar}
                         showAddToEvalsButton
