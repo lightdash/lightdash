@@ -1789,7 +1789,7 @@ export const parseConfig = (): LightdashConfig => {
         'LIGHTDASH_CORS_ALLOWED_DOMAINS',
     );
     const iframeEmbeddingEnabled = iframeAllowedDomains.length > 0;
-    const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED === 'true';
+    const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED !== 'false';
     const secureCookies = process.env.SECURE_COOKIES === 'true';
     const useSecureBrowser = process.env.USE_SECURE_BROWSER === 'true';
     const browserProtocol = useSecureBrowser ? 'wss' : 'ws';

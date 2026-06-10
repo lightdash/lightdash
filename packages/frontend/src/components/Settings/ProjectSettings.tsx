@@ -1,4 +1,4 @@
-import { Stack } from '@mantine-8/core';
+import { Anchor, Stack, Text, Title } from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { Navigate, useParams, useRoutes, type RouteObject } from 'react-router';
 import SettingsEmbed from '../../ee/features/embed/SettingsEmbed';
@@ -10,6 +10,7 @@ import useApp from '../../providers/App/useApp';
 import { DocumentTitle } from '../common/DocumentTitle';
 import ErrorState from '../common/ErrorState';
 import PageBreadcrumbs from '../common/PageBreadcrumbs';
+import { SettingsGridCard } from '../common/Settings/SettingsCard';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
 import CompilationHistory from '../CompilationHistory';
 import { DataOps } from '../DataOps';
@@ -27,6 +28,7 @@ import SettingsQueryTimezone from '../SettingsQueryTimezone';
 import SettingsScheduler from '../SettingsScheduler';
 import SettingsUsageAnalytics from '../SettingsUsageAnalytics';
 import { SettingsValidator } from '../SettingsValidator';
+import CorsSettingsPanel from '../UserSettings/CorsSettingsPanel';
 import VerifiedContentPanel from '../VerifiedContent/VerifiedContentPanel';
 
 const ProjectSettings: FC = () => {
@@ -34,7 +36,7 @@ const ProjectSettings: FC = () => {
         projectUuid: string;
     }>();
 
-    const { health } = useApp();
+    const { health, user } = useApp();
     const { isInitialLoading, data: project, error } = useProject(projectUuid);
 
     const isSoftDeleteEnabled = health.data?.softDelete?.enabled ?? false;
@@ -165,8 +167,48 @@ const ProjectSettings: FC = () => {
                 path: '/embed', // commercial route
                 element: <SettingsEmbed projectUuid={projectUuid} />,
             },
+            ...(user.data?.ability.can('manage', 'Organization')
+                ? [
+                      {
+                          path: '/embed/cors',
+                          element: (
+                              <Stack gap="xl">
+                                  <SettingsGridCard>
+                                      <Stack gap="xs">
+                                          <Title order={4}>CORS</Title>
+                                          <Text c="ldGray.6" fz="xs">
+                                              CORS controls which external
+                                              browser origins can call the
+                                              Lightdash API. Add exact origins
+                                              like https://app.example.com or
+                                              wildcard subdomains like
+                                              *.example.com. Use regex only for
+                                              advanced patterns.
+                                          </Text>
+                                          <Text c="ldGray.6" fz="xs">
+                                              This is commonly needed for
+                                              embedding Lightdash in another
+                                              application.{' '}
+                                              <Anchor
+                                                  inherit
+                                                  href="https://docs.lightdash.com/guides/embedding/how-to-embed-content#cors"
+                                                  target="_blank"
+                                                  rel="noreferrer"
+                                              >
+                                                  Read the embedding docs
+                                              </Anchor>
+                                              .
+                                          </Text>
+                                      </Stack>
+                                      <CorsSettingsPanel />
+                                  </SettingsGridCard>
+                              </Stack>
+                          ),
+                      },
+                  ]
+                : []),
         ];
-    }, [projectUuid, isSoftDeleteEnabled, isGitProject]);
+    }, [projectUuid, isSoftDeleteEnabled, isGitProject, user.data?.ability]);
     const routesElements = useRoutes(routes);
 
     if (error) {

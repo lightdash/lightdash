@@ -38,6 +38,7 @@ import {
     IconUsers,
     IconUserShield,
     IconVariable,
+    IconWorldCog,
     IconWorldCheck,
 } from '@tabler/icons-react';
 import { useMemo } from 'react';
@@ -628,13 +629,34 @@ export const useSettingsNavigation = (
                 ) &&
                 isEmbeddingEnabled
             ) {
+                const embedChildren: SettingsNavigationItem[] = [
+                    {
+                        label: 'General',
+                        to: `${base}/embed`,
+                        icon: IconBrowser,
+                        keywords: ['embed', 'iframe', 'public'],
+                        children: [],
+                        exact: true,
+                    },
+                ];
+
+                if (ability?.can('manage', 'Organization')) {
+                    embedChildren.push({
+                        label: 'CORS',
+                        to: `${base}/embed/cors`,
+                        icon: IconWorldCog,
+                        keywords: ['cors', 'origins', 'domains', 'embed'],
+                        children: [],
+                        exact: true,
+                    });
+                }
+
                 projectItems.push({
                     label: 'Embed configuration',
                     to: `${base}/embed`,
                     icon: IconBrowser,
                     keywords: ['embed', 'iframe', 'public'],
-                    children: [],
-                    exact: true,
+                    children: embedChildren,
                 });
             }
 

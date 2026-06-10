@@ -1,0 +1,8 @@
+### Test cors 
+// 1. Save new allowed origin on settings/embed/cors 
+// 2. Run this request from a different origin 
+// 3. Confirm it appears the domain under `Access-Control-Allow-Origin` header in the response
+GET http://localhost:3000/api/v1/health
+Content-Type: application/json
+Origin: https://example.com
+

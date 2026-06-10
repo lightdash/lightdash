@@ -28,6 +28,8 @@ export type DbOrganizationSettings = {
     // (LIGHTDASH_QUERY_MAX_LIMIT / LIGHTDASH_CSV_CELLS_LIMIT).
     query_limit: number | null;
     csv_cells_limit: number | null;
+    // Per-org CORS entries. NULL/absent resolves to no org domains.
+    cors_allowed_domains: string[] | null;
     created_at: Date;
     updated_at: Date;
 };
