@@ -129,6 +129,7 @@ import {
     type ApiPullRequestsResponse,
     type GitBranch,
     type GitFileOrDirectory,
+    type GithubUserCredential,
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
@@ -997,6 +998,7 @@ type ApiResults =
     | ProjectCiStatus
     | ApiGitFileContent
     | GitIntegrationConfiguration
+    | GithubUserCredential
     | GitBranch
     | GitBranch[]
     | GitFileOrDirectory

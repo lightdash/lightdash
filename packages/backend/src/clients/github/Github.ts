@@ -40,6 +40,48 @@ export const getGithubApp = () => {
     return githubApp;
 };
 
+/** Build the GitHub OAuth authorize URL for linking a user's personal GitHub
+ * account (user-to-server token). Uses the same GitHub App OAuth client as the
+ * installation flow, so no extra app registration is needed. Without
+ * GITHUB_OAUTH_REDIRECT_URI, GitHub redirects to the app's first configured
+ * callback URL — set the env var (and register the URL on the app) when the
+ * instance is served somewhere else, e.g. a non-default local dev port. */
+export const getGithubUserAuthorizeUrl = (state: string): string => {
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    if (!clientId) {
+        throw new Error('Github integration not configured');
+    }
+    const url = new URL('https://github.com/login/oauth/authorize');
+    url.searchParams.set('client_id', clientId);
+    url.searchParams.set('state', state);
+    const redirectUri = process.env.GITHUB_OAUTH_REDIRECT_URI;
+    if (redirectUri) {
+        url.searchParams.set('redirect_uri', redirectUri);
+    }
+    return url.href;
+};
+
+/** Check whether a user OAuth token can access a repo. A user-to-server token
+ * is scoped to (repos the user can access) ∩ (repos the app is installed on),
+ * so this can be false even when the app installation has access. */
+export const userTokenHasRepoAccess = async (
+    token: string,
+    owner: string,
+    repo: string,
+): Promise<boolean> => {
+    const octokit = new OctokitRest();
+    try {
+        await octokit.rest.repos.get({
+            owner,
+            repo,
+            headers: { authorization: `Bearer ${token}` },
+        });
+        return true;
+    } catch {
+        return false;
+    }
+};
+
 export const getOctokitRestForUser = (
     authToken: string,
 ): { octokit: OctokitRest; headers: { authorization: string } } => {

@@ -39,6 +39,7 @@ import DefaultProjectPanel from '../components/UserSettings/DefaultProjectPanel'
 import { DeleteOrganizationPanel } from '../components/UserSettings/DeleteOrganizationPanel';
 import ExportingPanel from '../components/UserSettings/ExportingPanel';
 import GithubSettingsPanel from '../components/UserSettings/GithubSettingsPanel';
+import GithubUserSettingsPanel from '../components/UserSettings/GithubUserSettingsPanel';
 import GitlabSettingsPanel from '../components/UserSettings/GitlabSettingsPanel';
 import ImpersonationPanel from '../components/UserSettings/ImpersonationPanel';
 import { LeaveOrganizationPanel } from '../components/UserSettings/LeaveOrganizationPanel';
@@ -146,6 +147,7 @@ const Settings: FC = () => {
                             <Title order={4}>Profile settings</Title>
                             <ProfilePanel />
                         </SettingsGridCard>
+                        {health?.hasGithub && <GithubUserSettingsPanel />}
                         {isLeaveOrganizationEnabled && (
                             <SettingsGridCard>
                                 <Box>

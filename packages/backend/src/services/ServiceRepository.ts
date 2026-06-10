@@ -432,6 +432,7 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    githubAppService: this.getGithubAppService(),
                     pullRequestsModel: this.models.getPullRequestsModel(),
                     analytics: this.context.lightdashAnalytics,
                 }),
@@ -458,9 +459,12 @@ export class ServiceRepository
                 new GithubAppService({
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    gitUserCredentialsModel:
+                        this.models.getGitUserCredentialsModel(),
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

@@ -1743,6 +1743,19 @@ export type GithubInstallEvent = BaseTrack & {
     };
 };
 
+export type GithubUserLinkEvent = BaseTrack & {
+    event:
+        | 'github_user_link.started'
+        | 'github_user_link.completed'
+        | 'github_user_link.error'
+        | 'github_user_link.revoked';
+    userId: string;
+    properties: {
+        organizationId: string;
+        error?: string; // only for error
+    };
+};
+
 export type WriteBackEvent = BaseTrack & {
     event: 'write_back.created' | 'write_back.previewed';
     userId: string;
@@ -2395,6 +2408,7 @@ type TypedEvent =
     | ManagedAgentEvent
     | VirtualViewEvent
     | GithubInstallEvent
+    | GithubUserLinkEvent
     | WriteBackEvent
     | WriteBackErrorEvent
     | SourceCodeEvent

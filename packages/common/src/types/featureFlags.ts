@@ -243,6 +243,15 @@ export enum FeatureFlags {
     GithubMcpOneClick = 'github-mcp-one-click',
 
     /**
+     * Let users link their personal GitHub account (user-to-server OAuth
+     * token) so write-back commits and pull requests are authored as them
+     * instead of the Lightdash GitHub App bot. Off by default while the
+     * link/unlink UX and token lifecycle are validated; when off, write-backs
+     * keep today's bot identity.
+     */
+    GithubUserCredentials = 'github-user-credentials',
+
+    /**
      * Give the AI agent a read-only virtual filesystem over the project's dbt
      * repo (`repoShell` tool): a limited shell (ls/cat/find/grep/head) backed by
      * the GitHub API — no E2B sandbox/clone. Lets the agent inspect source
