@@ -87,6 +87,7 @@ describe('SpacePermissionService', () => {
                         spaceUuid: 'root-space',
                         role: 'editor' as ProjectMemberRole,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                        hasCustomRoleWithSpaceAccess: false,
                     },
                 ],
             });
@@ -160,6 +161,7 @@ describe('SpacePermissionService', () => {
                         spaceUuid: 'private-space',
                         role: 'viewer' as ProjectMemberRole,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                        hasCustomRoleWithSpaceAccess: false,
                     },
                 ],
             });
@@ -213,6 +215,7 @@ describe('SpacePermissionService', () => {
                         spaceUuid: 'private-space',
                         role: 'admin' as ProjectMemberRole,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                        hasCustomRoleWithSpaceAccess: false,
                     },
                 ],
             });
@@ -363,6 +366,7 @@ describe('SpacePermissionService', () => {
                         spaceUuid: 'root-space',
                         role: 'editor' as ProjectMemberRole,
                         from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                        hasCustomRoleWithSpaceAccess: false,
                     },
                 ],
             });

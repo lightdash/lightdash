@@ -1,5 +1,6 @@
 import {
     AbilityAction,
+    ForbiddenError,
     OrganizationMemberRole,
     ProjectMemberRole,
     SpaceMemberRole,
