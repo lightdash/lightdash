@@ -9,7 +9,13 @@ import {
 } from '@mantine-8/core';
 import { clsx } from '@mantine/core';
 import { IconHash } from '@tabler/icons-react';
-import { useState, type CSSProperties, type FC } from 'react';
+import {
+    useCallback,
+    useState,
+    type CSSProperties,
+    type FC,
+    type KeyboardEvent,
+} from 'react';
 import MantineIcon from '../common/MantineIcon';
 import classes from './ColorSelector.module.css';
 
@@ -79,6 +85,18 @@ const ColorSelector: FC<Props> = ({
               '--cs-gradient': `linear-gradient(135deg, ${primarySwatchColor} 0%, ${primarySwatchColor} 50%, ${secondaryColor} 50%, ${secondaryColor} 100%)`,
           } as CSSProperties)
         : undefined;
+    const handleSwatchClick = useCallback(() => {
+        setIsOpen((opened) => !opened);
+    }, []);
+    const handleSwatchKeyDown = useCallback(
+        (event: KeyboardEvent<HTMLDivElement>) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+
+            event.preventDefault();
+            setIsOpen((opened) => !opened);
+        },
+        [],
+    );
 
     return isInteractive ? (
         <Popover
@@ -96,6 +114,11 @@ const ColorSelector: FC<Props> = ({
                     size={20}
                     color={primarySwatchColor}
                     {...colorSwatchProps}
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Select color"
+                    onClick={handleSwatchClick}
+                    onKeyDown={handleSwatchKeyDown}
                     className={clsx(
                         classes.swatchInteractive,
                         colorSwatchProps?.className,
