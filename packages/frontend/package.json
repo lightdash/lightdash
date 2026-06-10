@@ -148,8 +148,10 @@
         "zod": "3.25.55"
     },
     "devDependencies": {
+        "@babel/core": "7.29.7",
         "@chromatic-com/storybook": "5.1.1",
         "@mantine/styles": "6.0.21",
+        "@rolldown/plugin-babel": "0.2.3",
         "@rollup/plugin-commonjs": "29.0.2",
         "@rollup/plugin-json": "6.1.0",
         "@rollup/plugin-node-resolve": "16.0.3",
@@ -179,6 +181,7 @@
         "@types/uuid": "8.3.4",
         "@typescript/native-preview": "7.0.0-dev.20260527.2",
         "@vitejs/plugin-react": "6.0.1",
+        "babel-plugin-react-compiler": "1.0.0",
         "csstype": "3.2.3",
         "eslint-plugin-jest-dom": "5.1.0",
         "isomorphic-fetch": "3.0.0",

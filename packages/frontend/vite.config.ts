@@ -1,5 +1,6 @@
+import babelPlugin from '@rolldown/plugin-babel';
 import { sentryVitePlugin } from '@sentry/vite-plugin';
-import reactPlugin from '@vitejs/plugin-react';
+import reactPlugin, { reactCompilerPreset } from '@vitejs/plugin-react';
 import * as path from 'path';
 import { compression } from 'vite-plugin-compression2';
 import monacoEditorPlugin from 'vite-plugin-monaco-editor';
@@ -25,6 +26,9 @@ export default defineConfig({
         }),
         svgrPlugin(),
         reactPlugin(),
+        babelPlugin({
+            presets: [reactCompilerPreset()],
+        }),
         monacoEditorPlugin({
             forceBuildCDN: true,
             languageWorkers: ['editorWorkerService', 'json', 'html'],
