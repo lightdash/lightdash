@@ -11,6 +11,7 @@ import {
     type Dashboard,
     type Field,
     type Metric,
+    type SchedulerCsvOptions,
     type TableCalculation,
 } from '@lightdash/common';
 import {
@@ -423,6 +424,61 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                             </Button>
                             <Collapse in={showFormatting} pl="md">
                                 <Group align="start" gap="xxl">
+                                    {form.values.format ===
+                                        SchedulerFormat.XLSX && (
+                                        <Radio.Group
+                                            label={
+                                                <>
+                                                    XLSX output
+                                                    <Tooltip
+                                                        withinPortal
+                                                        maw={300}
+                                                        multiline
+                                                        label="Separate files puts each dashboard tile in its own XLSX file inside a ZIP. Single workbook puts each tile on its own sheet in one XLSX file."
+                                                        position="top"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconHelpCircle
+                                                            }
+                                                            size="md"
+                                                            display="inline"
+                                                            color="gray"
+                                                            style={{
+                                                                marginLeft:
+                                                                    '4px',
+                                                                marginBottom:
+                                                                    '-4px',
+                                                            }}
+                                                        />
+                                                    </Tooltip>
+                                                </>
+                                            }
+                                            value={
+                                                form.values.options
+                                                    .xlsxFileLayout
+                                            }
+                                            onChange={(value) =>
+                                                form.setFieldValue(
+                                                    'options.xlsxFileLayout',
+                                                    value as NonNullable<
+                                                        SchedulerCsvOptions['xlsxFileLayout']
+                                                    >,
+                                                )
+                                            }
+                                        >
+                                            <Stack gap="xxs" pt="xs">
+                                                <Radio
+                                                    label="Separate files (ZIP)"
+                                                    value="zip"
+                                                />
+                                                <Radio
+                                                    label="Single workbook"
+                                                    value="workbook"
+                                                />
+                                            </Stack>
+                                        </Radio.Group>
+                                    )}
                                     <Radio.Group
                                         label="Values"
                                         {...form.getInputProps(

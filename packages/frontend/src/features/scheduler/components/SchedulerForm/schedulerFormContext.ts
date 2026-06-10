@@ -34,6 +34,7 @@ export interface SchedulerFormValues {
         withPdf: boolean;
         asAttachment: boolean;
         exportPivotedData: boolean;
+        xlsxFileLayout: NonNullable<SchedulerCsvOptions['xlsxFileLayout']>;
     };
     emailTargets: string[];
     slackTargets: string[];
@@ -70,6 +71,7 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
         withPdf: false,
         asAttachment: false,
         exportPivotedData: true,
+        xlsxFileLayout: 'zip',
     },
     emailTargets: [],
     slackTargets: [],
@@ -139,6 +141,7 @@ export const getFormValuesFromScheduler = (
         }
         formOptions.asAttachment = options.asAttachment || false;
         formOptions.exportPivotedData = options.exportPivotedData !== false;
+        formOptions.xlsxFileLayout = options.xlsxFileLayout ?? 'zip';
     } else if (isSchedulerImageOptions(options)) {
         formOptions.withPdf = options.withPdf || false;
     }
@@ -202,6 +205,10 @@ export const transformFormValues = (
                     ? values.options.asAttachment
                     : false,
             exportPivotedData: values.options.exportPivotedData,
+            xlsxFileLayout:
+                values.format === SchedulerFormat.XLSX
+                    ? values.options.xlsxFileLayout
+                    : undefined,
         } satisfies SchedulerCsvOptions;
     } else if (values.format === SchedulerFormat.IMAGE) {
         options = {
