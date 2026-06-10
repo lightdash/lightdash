@@ -36,6 +36,8 @@ export type {
     TableCalculation,
     Transport,
     UnitOfTime,
+    UnderlyingDataOptions,
+    UnderlyingDataResult,
 } from './types';
 
 export type {

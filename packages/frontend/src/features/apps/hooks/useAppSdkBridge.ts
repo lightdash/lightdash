@@ -64,6 +64,11 @@ const ALLOWED_ROUTES: Array<{ method: string; pattern: RegExp }> = [
         method: 'POST',
         pattern: /^\/api\/v2\/projects\/[^/]+\/query\/metric-query$/,
     },
+    // Run underlying-data queries for SDK result rows
+    {
+        method: 'POST',
+        pattern: /^\/api\/v2\/projects\/[^/]+\/query\/underlying-data$/,
+    },
     // Poll for query results
     {
         method: 'GET',
