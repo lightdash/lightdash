@@ -144,6 +144,7 @@ export const createSpaceAccessContext = ({
                   userUuid,
                   role: effectiveRole,
                   hasDirectAccess,
+                  hasCustomProjectRoleWithSpaceAccess: false,
                   inheritedFrom: hasDirectAccess ? undefined : 'project',
                   projectRole: projectRole ?? undefined,
                   inheritedRole: organizationRole,

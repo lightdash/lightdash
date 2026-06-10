@@ -2645,6 +2645,9 @@
                     "hasDirectAccess": {
                         "type": "boolean"
                     },
+                    "hasCustomProjectRoleWithSpaceAccess": {
+                        "type": "boolean"
+                    },
                     "role": {
                         "$ref": "#/components/schemas/SpaceMemberRole"
                     },
@@ -2652,7 +2655,12 @@
                         "type": "string"
                     }
                 },
-                "required": ["hasDirectAccess", "role", "userUuid"],
+                "required": [
+                    "hasDirectAccess",
+                    "hasCustomProjectRoleWithSpaceAccess",
+                    "role",
+                    "userUuid"
+                ],
                 "type": "object"
             },
             "DateGranularity": {

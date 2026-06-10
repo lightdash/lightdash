@@ -7,6 +7,7 @@ import {
     ProjectSpaceAccess,
     ProjectSpaceAccessOrigin,
     SpaceAccessUserMetadata,
+    type ScopeName,
     type SpaceGroup,
     type SpaceInheritanceChain,
 } from '@lightdash/common';
@@ -19,6 +20,7 @@ import { OrganizationTableName } from '../database/entities/organizations';
 import { ProjectGroupAccessTableName } from '../database/entities/projectGroupAccess';
 import { ProjectMembershipsTableName } from '../database/entities/projectMemberships';
 import { ProjectTableName } from '../database/entities/projects';
+import { ScopedRolesTableName } from '../database/entities/roles';
 import {
     SpaceGroupAccessTableName,
     SpaceTableName,
@@ -27,8 +29,35 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { wrapSentryTransaction } from '../utils';
 
+const CUSTOM_ROLE_SPACE_ACCESS_SCOPES = [
+    'manage:Dashboard',
+    'manage:Dashboard@space',
+    'manage:SavedChart',
+    'manage:SavedChart@space',
+    'manage:SemanticViewer',
+    'manage:SemanticViewer@space',
+    'manage:DataApp',
+    'manage:DataApp@space',
+    'manage:Space',
+    'manage:Space@assigned',
+] satisfies ScopeName[];
+
 export class SpacePermissionModel {
     constructor(private readonly database: Knex) {}
+
+    private hasCustomRoleWithSpaceAccess(roleUuidColumn: string): Knex.Raw {
+        return this.database.raw(
+            `EXISTS (
+                SELECT 1
+                FROM ${ScopedRolesTableName}
+                WHERE ${ScopedRolesTableName}.role_uuid = ${roleUuidColumn}
+                AND ${ScopedRolesTableName}.scope_name IN (${CUSTOM_ROLE_SPACE_ACCESS_SCOPES.map(
+                    () => '?',
+                ).join(', ')})
+            )`,
+            CUSTOM_ROLE_SPACE_ACCESS_SCOPES,
+        );
+    }
 
     /**
      * Gets direct space access for a list of spaces
@@ -225,6 +254,10 @@ export class SpacePermissionModel {
                             userUuid: `${UserTableName}.user_uuid`,
                             spaceUuid: `${SpaceTableName}.space_uuid`,
                             role: `${ProjectMembershipsTableName}.role`,
+                            hasCustomRoleWithSpaceAccess:
+                                this.hasCustomRoleWithSpaceAccess(
+                                    `${ProjectMembershipsTableName}.role_uuid`,
+                                ),
                             from: this.database.raw(
                                 `'${ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP}'`,
                             ),
@@ -259,6 +292,10 @@ export class SpacePermissionModel {
                                     userUuid: `${UserTableName}.user_uuid`,
                                     spaceUuid: `${SpaceTableName}.space_uuid`,
                                     role: `${ProjectGroupAccessTableName}.role`,
+                                    hasCustomRoleWithSpaceAccess:
+                                        this.hasCustomRoleWithSpaceAccess(
+                                            `${ProjectGroupAccessTableName}.role_uuid`,
+                                        ),
                                     from: this.database.raw(
                                         `'${ProjectSpaceAccessOrigin.GROUP_MEMBERSHIP}'`,
                                     ),

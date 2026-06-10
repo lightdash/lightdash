@@ -87,7 +87,8 @@ export const UserAccessList: FC<UserAccessListProps> = ({
             {paginatedList[page - 1]?.map((sharedUser) => {
                 const needsPromotion =
                     sharedUser.projectRole === ProjectMemberRole.VIEWER &&
-                    sharedUser.role !== SpaceMemberRole.VIEWER;
+                    sharedUser.role !== SpaceMemberRole.VIEWER &&
+                    !sharedUser.hasCustomProjectRoleWithSpaceAccess;
                 const isSessionUser =
                     sharedUser.userUuid === sessionUser?.userUuid;
 
@@ -162,7 +163,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                             <Tooltip
                                 disabled={!needsPromotion}
                                 withinPortal
-                                label="User needs to be promoted to interactive viewer to have this space access"
+                                label="User needs to be promoted to interactive viewer or granted equivalent custom role permissions to have this space access"
                                 maw={350}
                                 multiline
                             >
