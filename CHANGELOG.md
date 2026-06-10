@@ -1,3 +1,10 @@
+## [0.3126.1](https://github.com/lightdash/lightdash/compare/0.3126.0...0.3126.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* series color picker ([#24120](https://github.com/lightdash/lightdash/issues/24120)) ([e010bdb](https://github.com/lightdash/lightdash/commit/e010bdbeb8fb17372e4f1656c26a9128d00b223e)), closes [#24116](https://github.com/lightdash/lightdash/issues/24116)
+
 # [0.3126.0](https://github.com/lightdash/lightdash/compare/0.3125.2...0.3126.0) (2026-06-10)
 
 
