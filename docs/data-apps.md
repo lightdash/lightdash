@@ -689,11 +689,12 @@ notification via `useBuildNotification`.
 
 ## Infrastructure Dependencies
 
-| Service           | Purpose                                           | Config                                        |
-| ----------------- | ------------------------------------------------- | --------------------------------------------- |
-| **E2B**           | Serverless sandbox for code generation and builds | `E2B_API_KEY`                                 |
-| **S3 / MinIO**    | Stores built artifacts and source tarballs        | `S3_REGION`, `S3_ENDPOINT`, `S3_BUCKET`, etc. |
-| **Anthropic API** | Powers Claude Code inside the sandbox             | `ANTHROPIC_API_KEY`                           |
+| Service                          | Purpose                                                                  | Config                                              |
+| -------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------- |
+| **E2B**                          | Serverless sandbox for code generation and builds                        | `E2B_API_KEY`                                       |
+| **S3 / MinIO**                   | Stores built artifacts and source tarballs                               | `S3_REGION`, `S3_ENDPOINT`, `S3_BUCKET`, etc.       |
+| **Anthropic API** *(default)*    | Powers Claude Code inside the sandbox                                    | `ANTHROPIC_API_KEY`                                 |
+| **AWS Bedrock** *(alternative)*  | Routes Claude Code through Bedrock instead of the Anthropic API          | See [LLM provider](#llm-provider-anthropic-vs-bedrock) |
 
 ### Configuration (`AppRuntimeConfig`)
 
@@ -706,6 +707,22 @@ APP_RUNTIME_LIGHTDASH_ORIGIN=https://app.example   # Origin for CORS/CSP (defaul
 APP_RUNTIME_CDN_ORIGIN=https://cdn.example.com     # Optional CDN for CSP
 APP_RUNTIME_PREVIEW_ORIGIN=https://preview.example # Optional Separate domain for preview serving
 ```
+
+### LLM provider (Anthropic vs Bedrock)
+
+The `claude` CLI inside the E2B sandbox routes through either the Anthropic API or AWS Bedrock, following the same `AI_DEFAULT_PROVIDER` switch the AI copilot uses (`lightdashConfig.ai.copilot`). Claude Code itself only supports these two providers — any value other than `bedrock` falls back to the Anthropic API.
+
+| Mode                                         | Sandbox env vars                                                                                                                                                                                                                                          | Firewall allowlist                                                                                |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Anthropic** *(default)*                    | `ANTHROPIC_API_KEY`                                                                                                                                                                                                                                       | `api.anthropic.com`                                                                                |
+| **Bedrock — bearer token** (`apiKey` set)    | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_BEARER_TOKEN_BEDROCK`                                                                                                                                                                                     | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com`                         |
+| **Bedrock — IAM** (`accessKeyId` set)        | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN`                                                                                                                                     | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com`                         |
+
+Bedrock mode reuses the AI copilot's existing `BEDROCK_*` configuration (`lightdashConfig.ai.copilot.providers.bedrock`) — no separate data-apps credentials.
+
+Validation is fail-loud: when `AI_DEFAULT_PROVIDER=bedrock` but credentials or region are missing, `resolveBedrockConfig` throws `MissingConfigError` rather than silently falling back to Anthropic or injecting an undefined region (the AI config schema is parsed leniently via safeParse, so startup validation can't be relied on here). The pipeline-start log line includes `llm=...` via `describeClaudeCodeEnv` — a non-secret summary of provider + auth method + region for ops visibility, never the credential values.
+
+All of this lives in `packages/backend/src/ee/services/AppGenerateService/claudeCodeEnv.ts` (`buildClaudeCodeEnv`, `claudeCodeAllowedHosts`, `describeClaudeCodeEnv`). The E2B sandbox firewall denies all egress except the allowlist returned by `claudeCodeAllowedHosts`, so changing provider also changes which hosts the sandbox can reach.
 
 ### Template versioning
 
@@ -730,6 +747,7 @@ S3 credentials are configured through the existing `S3_*` environment variables 
 | File                                                                        | Purpose                                        |
 | --------------------------------------------------------------------------- | ---------------------------------------------- |
 | `packages/backend/src/ee/services/AppGenerateService/AppGenerateService.ts` | Core pipeline: sandbox, Claude, build, S3, DB  |
+| `packages/backend/src/ee/services/AppGenerateService/claudeCodeEnv.ts`      | Builds the `claude` CLI env + firewall allowlist for the Anthropic / Bedrock provider switch |
 | `packages/backend/src/ee/controllers/appGenerateController.ts`              | TSOA REST controllers                          |
 | `packages/backend/src/models/AppModel.ts`                                   | Data access layer for apps and versions        |
 | `packages/backend/src/routers/appPreviewRouter.ts`                          | Express router serving built artifacts from S3 |
