@@ -402,6 +402,7 @@ export const AgentChatInput = ({
     );
 
     const hasValue = value.trim().length > 0;
+    const showMinimalPlaceholder = isMinimalMode && !hasValue;
     const showDisabledBanner = disabled && disabledReason;
     const isThreadInput = Boolean(threadUuid);
     const showSqlModeControl = Boolean(onSqlModeChange && !disabled);
@@ -537,6 +538,15 @@ export const AgentChatInput = ({
                         >
                             <RichTextEditor.Content />
                         </RichTextEditor>
+
+                        {showMinimalPlaceholder && (
+                            <Text
+                                aria-hidden
+                                className={styles.minimalPlaceholder}
+                            >
+                                {placeholder}
+                            </Text>
+                        )}
 
                         <ActionIcon
                             right={12}
