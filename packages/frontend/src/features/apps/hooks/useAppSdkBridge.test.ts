@@ -56,6 +56,17 @@ function mockFetchOk(json: Record<string, unknown>) {
     } as Response);
 }
 
+function mockFetchNonOk(json: Record<string, unknown>, status = 500) {
+    (fetch as Mock).mockResolvedValueOnce({
+        json: async () => json,
+        status,
+    } as Response);
+}
+
+function mockFetchReject(err: Error) {
+    (fetch as Mock).mockRejectedValueOnce(err);
+}
+
 function postMetricQuery() {
     dispatchFetchMessage({
         type: 'lightdash:sdk:fetch',
@@ -170,6 +181,65 @@ describe('useAppSdkBridge', () => {
             queryUuid: QUERY_UUID,
             error: 'Warehouse timeout',
         });
+    });
+
+    it('emits a terminal error event when the metric-query POST returns a non-ok payload', async () => {
+        // Without this, the pending event's id stays in MinimalApp's in-flight
+        // set forever, isReady never flips true, and the screenshot indicator
+        // never mounts — so the headless browser hits the 60s timeout.
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        mockFetchNonOk({
+            status: 'error',
+            error: { message: 'Internal server error' },
+        });
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+        expect(events[0]).toMatchObject({ id: POST_ID, status: 'pending' });
+        expect(events[1]).toMatchObject({
+            id: POST_ID,
+            status: 'error',
+            queryUuid: null,
+            error: 'Internal server error',
+        });
+    });
+
+    it('emits a terminal error event when the metric-query POST fetch throws', async () => {
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        mockFetchReject(new Error('Network unreachable'));
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+        expect(events[0]).toMatchObject({ id: POST_ID, status: 'pending' });
+        expect(events[1]).toMatchObject({
+            id: POST_ID,
+            status: 'error',
+            queryUuid: null,
+            error: 'Network unreachable',
+        });
+    });
+
+    it('MinimalApp-style in-flight set drains to zero when the POST fails', async () => {
+        // The bug this guards: a failed POST left its pending id stuck in the
+        // set, blocking the screenshot indicator from ever mounting on any
+        // run where a query errored. Mirrors the success-path drain test
+        // below.
+        const activeIds = new Set<string>();
+        renderBridge((event) => {
+            const inFlight =
+                event.status === 'pending' || event.status === 'running';
+            if (inFlight) activeIds.add(event.id);
+            else activeIds.delete(event.id);
+        });
+
+        mockFetchReject(new Error('boom'));
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(activeIds.size).toBe(0));
     });
 
     it('MinimalApp-style in-flight set drains to zero after a query completes', async () => {
