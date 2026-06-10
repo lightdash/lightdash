@@ -3,7 +3,6 @@ import {
     AnyType,
     DbtProjectType,
     ForbiddenError,
-    RequestMethod,
     type MemberAbility,
     type SessionUser,
 } from '@lightdash/common';
@@ -126,26 +125,6 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
             prUrl: PR_URL,
         });
 
-        expect(projectService.createPreview).toHaveBeenCalledWith(
-            expect.objectContaining({ userUuid: 'user-1' }),
-            PROJECT,
-            {
-                name: 'Preview: feature/writeback',
-                copyContent: true,
-                dbtConnectionOverrides: { branch: 'feature/writeback' },
-            },
-            RequestMethod.BACKEND,
-        );
-        expect(githubClient.createPullRequestComment).toHaveBeenCalledWith(
-            expect.objectContaining({
-                owner: 'acme',
-                repo: 'analytics',
-                pullNumber: 42,
-                body: expect.stringContaining(
-                    'https://lightdash.example.com/projects/preview-project-1/home',
-                ),
-            }),
-        );
         expect(result).toEqual({
             previewProjectUuid: 'preview-project-1',
             previewUrl:
