@@ -35,6 +35,7 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -243,10 +244,20 @@ export class OrganizationController extends BaseController {
      * @summary Get organization member by UUID
      * @param req express request
      * @param userUuid the uuid of the user
+     *
+     * @deprecated Use the GET /api/v1/org/users list endpoint instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use the GET /api/v1/org/users list endpoint instead.',
+        }),
+    ])
     @Get('/users/{userUuid}')
     @OperationId('GetOrganizationMemberByUuid')
+    @Deprecated()
     async getOrganizationMemberByUuid(
         @Request() req: express.Request,
         @Path() userUuid: UUID,

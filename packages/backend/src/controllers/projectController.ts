@@ -627,11 +627,20 @@ export class ProjectController extends BaseController {
     /**
      * Get all custom metrics in a project
      * @summary List custom metrics
+     *
+     * @deprecated No replacement, this endpoint will be removed
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage: 'No replacement, this endpoint will be removed.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/custom-metrics')
     @OperationId('getCustomMetrics')
+    @Deprecated()
     async getCustomMetrics(
         @Path() projectUuid: string,
         @Request() req: express.Request,
