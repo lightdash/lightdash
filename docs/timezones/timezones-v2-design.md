@@ -107,7 +107,7 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
     ⚠️ `gap-echarts-dst` *[bug]* — Server SQL is correct; the ECharts shift is computed once per row and breaks at DST boundaries — fix or replace.
 
 20. **Half-hour and 45-min timezones work end-to-end (India, Nepal, Eucla).**
-    ⚠️ `gap-fractional-offset-tz` *[bug + breaking]* — Should work in the moment/dayjs path; BigQuery + ClickHouse bare-literal path drops the offset — needs test coverage.
+    ✅ `gap-fractional-offset-tz` — Not a bug: the bare literal on BigQuery/ClickHouse is already a UTC instant (`formatTimestampAsUTCNoOffset`), so the offset is baked in, not dropped, and fractional boundaries are correct. Picker zones added + BigQuery/Postgres api-test coverage (GLITCH-453).
 
 21. **NULL timestamps are excluded from relative filters by standard SQL semantics.**
     ✅ Implicit; no change.

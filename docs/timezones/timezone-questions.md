@@ -306,14 +306,14 @@ The internal doc does not mention DST. Flagged in [`timezone-review.md` section 
 
 ### Half-hour / 45-minute timezones (India, Nepal, Australia)?
 
-**Should work, but untested.** Our code path is dayjs/moment-tz on the Node side and warehouse-native on the SQL side. Both libraries handle half-hour zones natively (`Asia/Kolkata` is +05:30, `Asia/Kathmandu` is +05:45, `Australia/Eucla` is +08:45).
+**Verified working (GLITCH-453).** Our code path is dayjs/moment-tz on the Node side and warehouse-native on the SQL side. Both libraries handle half-hour zones natively (`Asia/Kolkata` is +05:30, `Asia/Kathmandu` is +05:45, `Australia/Eucla` is +08:45).
 
 **Risk surfaces:**
 - The ECharts shift math (`getTimezoneOffsetMs(rawMs, timezone)` → millisecond addition) — should be fine because dayjs returns minute-level offsets in milliseconds. Worth a smoke test.
 - Excel serialization (`toExcelWallClockDate`) — works on the wall-clock components, so half-hour offsets land correctly.
-- Filter literal formatting — `+05:30` suffix is valid in standard SQL TIMESTAMP literals on Postgres, Snowflake, Redshift, Databricks. **BigQuery's bare-literal path (no offset, `timezone-handling.md:208`) drops the offset entirely** — for a project in `Asia/Kolkata` with a BigQuery DATETIME filter, the boundary literal will be the local wall-clock time interpreted as session-TZ, which may or may not be IST depending on warehouse configuration.
+- Filter literal formatting — `+05:30` suffix is valid in standard SQL TIMESTAMP literals on Postgres, Snowflake, Redshift, Databricks. On BigQuery/ClickHouse the literal is bare (no offset, `timezone-handling.md:208`), but `formatTimestampAsUTCNoOffset` has already converted it to the UTC instant, so the offset is baked in, not dropped — the fractional boundary is correct. (The separate DATETIME/NTZ no-session-TZ limitation applies to non-UTC *stored* data, not to filter boundaries.)
 
-**Recommendation**: add `Asia/Kolkata` to whatever timezone test matrix exists, if any.
+**Coverage**: `Asia/Kathmandu` (+05:45) and `Pacific/Marquesas` (-09:30) sub-day buckets are asserted in `packages/api-tests/tests/queryTimezone.test.ts` on both Postgres and BigQuery.
 
 ### Historical TZ changes (Samoa 2011, Russia bunch)?
 
@@ -402,10 +402,10 @@ So the architectural intent is "support both, default to consistent." **This is 
 | ~~`EnableUserTimezones=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
 | Scheduled deliveries TZ interaction undocumented | Docs | 0.5d | `timezone-handling.md` |
 | Per-column wall-clock TZ annotation | Feature | 2d | `translator.ts` + `getColumnTimezone` |
-| BigQuery half-hour offset bare-literal hole | Correctness | 1d | `filtersCompiler.ts` |
+| ~~BigQuery half-hour offset bare-literal hole~~ ✅ not a bug (literal is a pre-converted UTC instant) | Correctness | 1d | `filtersCompiler.ts` |
 | Pre-agg TZ-frozen-after-project-TZ-change behavior | Correctness | 1d test | materialization path |
 | `${ldQueryTimezone}` SQL templating | Feature | 1w | `MetricQueryBuilder.ts` |
 | Customer-facing "how Lightdash handles TZ" doc | Docs | 2d | new file in docs site |
 | SQL Runner output is raw UTC ISO by design; conversion is user-driven via `${ldQueryTimezone}`. In-SQL `CONVERT_TIMEZONE` only shows once cast to string | Feature | v3 | GLITCH-462 (`${ldQueryTimezone}` var) |
-| Half-hour TZ test coverage | Testing | 0.5d | test matrix |
+| ~~Half-hour TZ test coverage~~ ✅ added (Postgres + BigQuery) | Testing | 0.5d | `queryTimezone.test.ts` |
 | moment-timezone version pinning policy | Hygiene | 0.5d | `package.json` |
