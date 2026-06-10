@@ -241,6 +241,7 @@ export const lightdashConfigMock: LightdashConfig = {
                     embeddingModelName: 'text-embedding-3-small',
                     zeroDataRetention: false,
                     customHeaders: {},
+                    supportsStreaming: true,
                 },
             },
             verifiedAnswerSimilarityThreshold: 0.6,

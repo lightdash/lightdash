@@ -463,6 +463,62 @@ test('Should parse AI provider custom headers from env', () => {
     });
 });
 
+describe('AI provider supportsStreaming', () => {
+    beforeEach(() => {
+        process.env.OPENAI_API_KEY = 'test-openai-key';
+        process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+        process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+        process.env.AZURE_AI_API_KEY = 'test-azure-key';
+        process.env.AZURE_AI_ENDPOINT = 'https://example.openai.azure.com';
+        process.env.AZURE_AI_API_VERSION = '2026-01-01';
+        process.env.AZURE_AI_DEPLOYMENT_NAME = 'gpt-5';
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'eu-west-1';
+    });
+
+    test('defaults to true when env vars are unset', () => {
+        expect(parseConfig().ai.copilot.providers).toMatchObject({
+            openai: { supportsStreaming: true },
+            anthropic: { supportsStreaming: true },
+            openrouter: { supportsStreaming: true },
+            azure: { supportsStreaming: true },
+            bedrock: { supportsStreaming: true },
+        });
+    });
+
+    test('stays true when env vars are explicitly "true"', () => {
+        process.env.OPENAI_SUPPORTS_STREAMING = 'true';
+        process.env.ANTHROPIC_SUPPORTS_STREAMING = 'true';
+        process.env.OPENROUTER_SUPPORTS_STREAMING = 'true';
+        process.env.AZURE_AI_SUPPORTS_STREAMING = 'true';
+        process.env.BEDROCK_SUPPORTS_STREAMING = 'true';
+
+        expect(parseConfig().ai.copilot.providers).toMatchObject({
+            openai: { supportsStreaming: true },
+            anthropic: { supportsStreaming: true },
+            openrouter: { supportsStreaming: true },
+            azure: { supportsStreaming: true },
+            bedrock: { supportsStreaming: true },
+        });
+    });
+
+    test('is false only when env vars are the literal "false"', () => {
+        process.env.OPENAI_SUPPORTS_STREAMING = 'false';
+        process.env.ANTHROPIC_SUPPORTS_STREAMING = 'false';
+        process.env.OPENROUTER_SUPPORTS_STREAMING = 'false';
+        process.env.AZURE_AI_SUPPORTS_STREAMING = 'false';
+        process.env.BEDROCK_SUPPORTS_STREAMING = 'false';
+
+        expect(parseConfig().ai.copilot.providers).toMatchObject({
+            openai: { supportsStreaming: false },
+            anthropic: { supportsStreaming: false },
+            openrouter: { supportsStreaming: false },
+            azure: { supportsStreaming: false },
+            bedrock: { supportsStreaming: false },
+        });
+    });
+});
+
 // test parseOrganizationMemberRoleArray
 describe('parseOrganizationMemberRoleArray', () => {
     beforeEach(() => {
