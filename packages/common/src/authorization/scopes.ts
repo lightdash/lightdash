@@ -487,11 +487,32 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
-        name: 'manage:ContentAsCode',
-        description: 'Manage content as code features',
+        name: 'view:ContentAsCode',
+        description: 'Download content as code',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:ContentAsCode',
+        description: 'Download and upload content as code',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:ContentAsCode@self',
+        description:
+            'Upload content as code to preview projects created by the user',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: (context) => [
+            {
+                projectUuid: context.projectUuid,
+                createdByUserUuid: context.userUuid || false,
+                type: ProjectType.PREVIEW,
+            },
+        ],
     },
     {
         name: 'manage:PersonalAccessToken',
@@ -651,6 +672,20 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:AiAgentDocument',
+        description: 'View AI agent documents',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:AiAgentDocument',
+        description: 'Upload and manage AI agent documents',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'view:AiAgentThread',
         description: 'View all AI agent conversation threads',
         isEnterprise: true,
@@ -749,6 +784,24 @@ const scopes: Scope[] = [
                 createdByUserUuid: context.userUuid || false,
             },
         ],
+    },
+
+    // Organization Design Assets (shared CSS/fonts/images/instructions
+    // injected into every data app generated in the org). Org-scoped
+    // resource — view is available to all members, manage to org admins.
+    {
+        name: 'view:OrganizationDesign',
+        description: 'View organization design assets',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:OrganizationDesign',
+        description: 'Create, edit, and delete organization design assets',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
     },
 
     // Spotlight Scopes

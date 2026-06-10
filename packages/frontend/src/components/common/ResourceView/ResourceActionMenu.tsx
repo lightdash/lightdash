@@ -24,9 +24,11 @@ import {
     IconTrash,
     IconUsers,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
-import { useLocation, useParams } from 'react-router';
+import { type FC, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router';
 import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { PromoteAppModal } from '../../../features/apps/components/PromoteAppModal';
+import { useDuplicateApp } from '../../../features/apps/hooks/useDuplicateApp';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
     usePromoteChartDiffMutation,
@@ -78,8 +80,11 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
 }) => {
     const { user } = useApp();
     const location = useLocation();
+    const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const { data: project } = useProject(projectUuid);
+    const [isPromoteAppOpen, setIsPromoteAppOpen] = useState(false);
+    const { mutate: duplicateApp } = useDuplicateApp();
     const organizationUuid = user.data?.organizationUuid;
     const { data: spaces = [] } = useSpaceSummaries(projectUuid, true, {});
     const isPinned = !!item.data.pinnedListUuid;
@@ -322,12 +327,44 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                             </Menu.Item>
 
                             {item.type === ResourceViewItemType.CHART ||
-                            item.type === ResourceViewItemType.DASHBOARD ? (
+                            item.type === ResourceViewItemType.DASHBOARD ||
+                            item.type === ResourceViewItemType.DATA_APP ? (
                                 <Menu.Item
                                     component="button"
                                     role="menuitem"
-                                    leftSection={<IconCopy size={18} />}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconCopy}
+                                            size={18}
+                                        />
+                                    }
                                     onClick={() => {
+                                        // Data apps are duplicated synchronously
+                                        // with a direct mutation; charts and
+                                        // dashboards open a modal that lets the
+                                        // user pick a name/space first.
+                                        if (
+                                            item.type ===
+                                            ResourceViewItemType.DATA_APP
+                                        ) {
+                                            if (!projectUuid) return;
+                                            duplicateApp(
+                                                {
+                                                    projectUuid,
+                                                    appUuid: item.data.uuid,
+                                                },
+                                                {
+                                                    onSuccess: ({
+                                                        appUuid: newAppUuid,
+                                                    }) => {
+                                                        void navigate(
+                                                            `/projects/${projectUuid}/apps/${newAppUuid}`,
+                                                        );
+                                                    },
+                                                },
+                                            );
+                                            return;
+                                        }
                                         onAction({
                                             type: ResourceViewItemAction.DUPLICATE,
                                             item,
@@ -406,6 +443,21 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                                             </Menu.Item>
                                         </div>
                                     </Tooltip>
+                                )}
+                            {item.type === ResourceViewItemType.DATA_APP &&
+                                project?.upstreamProjectUuid !== undefined && (
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconDatabaseExport}
+                                            />
+                                        }
+                                        onClick={() =>
+                                            setIsPromoteAppOpen(true)
+                                        }
+                                    >
+                                        Promote data app
+                                    </Menu.Item>
                                 )}
 
                             {user.data?.ability.can(
@@ -587,6 +639,16 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
                     }}
                 ></PromotionConfirmDialog>
             )}
+            {isPromoteAppOpen &&
+                projectUuid &&
+                item.type === ResourceViewItemType.DATA_APP && (
+                    <PromoteAppModal
+                        projectUuid={projectUuid}
+                        appUuid={item.data.uuid}
+                        opened
+                        onClose={() => setIsPromoteAppOpen(false)}
+                    />
+                )}
         </>
     );
 };

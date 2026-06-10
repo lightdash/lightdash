@@ -1,45 +1,110 @@
-import { Explore, WarehouseTypes } from '@lightdash/common';
+import {
+    AiAgentDocumentStructuredSummary,
+    AiAgentDocumentSummary,
+    Explore,
+    WarehouseTypes,
+} from '@lightdash/common';
 import { SystemModelMessage } from 'ai';
 import moment from 'moment';
+import { AiAgentSkillReference } from '../skills/types';
+import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
+import { AI_WRITEBACK_SECTION } from './systemV2AiWriteback';
+import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
+import { REPO_FS_SECTION, repoFsRootHint } from './systemV2RepoFs';
 import { getRunSqlSection } from './systemV2RunSql';
-import { SELF_IMPROVEMENT_SECTION } from './systemV2SelfImprovement';
+import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
+import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
-import { SYSTEM_PROMPT_TEMPLATE_LEGACY } from './systemV2TemplateLegacy';
 
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
+    availableSkills?: AiAgentSkillReference[];
+    knowledgeDocuments?: AiAgentDocumentSummary[];
+    hasProjectContext?: boolean;
     instructions?: string;
     agentName?: string;
     date?: string;
     enableDataAccess?: boolean;
-    enableSelfImprovement?: boolean;
+    enableSearchSemanticLayer?: boolean;
+    enableAiWriteback?: boolean;
+    enableRepoFs?: boolean;
+    repoFsRoot?: string | null;
+    enableContentTools?: boolean;
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
     warehouseSchema?: string | null;
-    useDiscoverFieldsSubagent?: boolean;
 }): SystemModelMessage => {
     const {
         instructions,
         agentName = 'Lightdash AI Analyst',
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
-        enableSelfImprovement = false,
+        enableSearchSemanticLayer = false,
+        enableAiWriteback = false,
+        enableRepoFs = false,
+        repoFsRoot = null,
+        enableContentTools = false,
         canRunSql = false,
         warehouseType = null,
         warehouseSchema = null,
-        useDiscoverFieldsSubagent = false,
     } = args;
 
     const crossExploreJoinRule = canRunSql
-        ? '  - You cannot mix fields from different explores in a single runQuery call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.'
+        ? '  - You cannot mix fields from different explores in a single generateVisualization call. When the user needs data combined across explores that are not joined in the semantic layer, use the runSql tool to write raw SQL across those tables.'
         : '  - You can not mix fields from different explores.';
 
     const customSqlLimitation = canRunSql
         ? ''
         : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
+
+    const renderKnowledgeDocument = (doc: AiAgentDocumentSummary): string => {
+        const { summary } = doc;
+        const children: string[] = [
+            xmlBuilder('description', null, summary.description),
+        ];
+        if (summary.definedTerms.length > 0) {
+            children.push(
+                xmlBuilder('defines', null, summary.definedTerms.join(', ')),
+            );
+        }
+        if (summary.relatedExploreNames.length > 0) {
+            children.push(
+                xmlBuilder(
+                    'applies_to_explores',
+                    null,
+                    summary.relatedExploreNames.join(', '),
+                ),
+            );
+        }
+        if (summary.useWhen) {
+            children.push(xmlBuilder('use_when', null, summary.useWhen));
+        }
+        if (summary.warning) {
+            children.push(xmlBuilder('warning', null, summary.warning));
+        }
+        return xmlBuilder(
+            'knowledge_document',
+            {
+                uuid: doc.uuid,
+                name: doc.name,
+                relevance: summary.relevance,
+            },
+            ...children,
+        );
+    };
+
+    const knowledgeDocuments = args.knowledgeDocuments ?? [];
+    const knowledgeDocumentsContent =
+        knowledgeDocuments.length === 0
+            ? 'No knowledge documents have been curated for this agent.'
+            : knowledgeDocuments.map(renderKnowledgeDocument).join('\n');
+
+    const projectContextContent = args.hasProjectContext
+        ? 'This project has curated business context (acronyms, definitions, rules). Call the `loadProjectContext` tool BEFORE findExplores/findFields/discoverFields — it can change which explore, field, or filter value you should use. Treat it as authoritative over your own assumptions.'
+        : 'No project context has been configured for this project.';
 
     const AVAILABLE_EXPLORES_INLINE_LIMIT = 15;
     let availableExploresContent: string;
@@ -56,19 +121,21 @@ export const getSystemPromptV2 = (args: {
         availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use findExplores to discover the relevant one for each request.`;
     }
 
-    // SYSTEM_PROMPT_TEMPLATE describes the `discoverFields` subagent path,
-    // with the ambiguity check delegated to the subagent's own system
-    // prompt. SYSTEM_PROMPT_TEMPLATE_LEGACY is a verbatim snapshot of
-    // `systemV2Template.ts` as it stood on main before the subagent landed —
-    // keeps the flag-OFF path byte-equivalent to today's behaviour.
-    const template = useDiscoverFieldsSubagent
-        ? SYSTEM_PROMPT_TEMPLATE
-        : SYSTEM_PROMPT_TEMPLATE_LEGACY;
-
-    const content = template
+    const content = SYSTEM_PROMPT_TEMPLATE.replace(
+        '{{self_improvement_section}}',
+        '',
+    )
         .replace(
-            '{{self_improvement_section}}',
-            enableSelfImprovement ? SELF_IMPROVEMENT_SECTION : '',
+            '{{ai_writeback_section}}',
+            enableAiWriteback ? AI_WRITEBACK_SECTION : '',
+        )
+        .replace(
+            '{{repo_fs_section}}',
+            enableRepoFs ? REPO_FS_SECTION + repoFsRootHint(repoFsRoot) : '',
+        )
+        .replace(
+            '{{search_semantic_layer_section}}',
+            enableSearchSemanticLayer ? SEARCH_SEMANTIC_LAYER_SECTION : '',
         )
         .replace(
             '{{data_access_section}}',
@@ -80,6 +147,10 @@ export const getSystemPromptV2 = (args: {
             '{{run_sql_section}}',
             canRunSql ? getRunSqlSection(warehouseType, warehouseSchema) : '',
         )
+        .replace(
+            '{{content_tools_section}}',
+            enableContentTools ? CONTENT_TOOLS_SECTION : '',
+        )
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)
         .replace('{{agent_name}}', agentName)
@@ -88,11 +159,15 @@ export const getSystemPromptV2 = (args: {
             instructions ? `Special instructions: ${instructions}` : '',
         )
         .replace('{{date}}', date)
-        .replace('{{available_explores}}', availableExploresContent);
+        .replace('{{available_explores}}', availableExploresContent)
+        .replace('{{knowledge_documents}}', knowledgeDocumentsContent)
+        .replace('{{project_context}}', projectContextContent);
+
+    const skillsSection = renderAvailableSkills(args.availableSkills ?? []);
 
     return {
         role: 'system',
-        content,
+        content: skillsSection ? `${content}\n\n${skillsSection}` : content,
         providerOptions: {
             anthropic: { cacheControl: { type: 'ephemeral' } },
         },

@@ -5,6 +5,7 @@ import {
     ExploreError,
     LightdashProjectConfig,
     ParameterError,
+    type ProjectContextEntry,
     type RunQueryTags,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
@@ -60,5 +61,10 @@ export class DbtNoneCredentialsProjectAdapter implements ProjectAdapter {
         return {
             spotlight: DEFAULT_SPOTLIGHT_CONFIG,
         };
+    }
+
+    // eslint-disable-next-line class-methods-use-this
+    public async getProjectContext(): Promise<ProjectContextEntry[]> {
+        return [];
     }
 }

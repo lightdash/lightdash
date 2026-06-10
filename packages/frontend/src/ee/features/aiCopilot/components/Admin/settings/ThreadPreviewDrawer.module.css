@@ -1,0 +1,9 @@
+.inner {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}
+
+.overlay {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}

@@ -13,6 +13,36 @@ type SlugTables =
     | typeof DashboardsTableName
     | typeof SpaceTableName;
 
+// Advisory-lock namespace for content-as-code / promotion slug creation.
+// Namespace 1 is already used by cached explores (ProjectModel), so use 2 here
+// to avoid clashing with that lock space.
+const CONTENT_AS_CODE_SLUG_LOCK_NAMESPACE = 2;
+
+/**
+ * Take a transaction-scoped Postgres advisory lock keyed on (projectUuid, slug).
+ *
+ * Content-as-code (and promotion) force the exact slug from the YAML/source when
+ * creating charts and dashboards, bypassing the unique-slug generation. The
+ * create-vs-update decision in CoderService is a non-atomic find-then-create, so
+ * two concurrent uploads of the same slug could both decide to create and insert
+ * duplicate slugs (PROD-7883) — there is no DB unique constraint to catch it.
+ *
+ * Holding this lock around the find-then-create makes that decision atomic: a
+ * second caller with the same key blocks until the first transaction commits, by
+ * which point the first row is visible and the second can dedupe instead of
+ * inserting a duplicate. The lock is released automatically when `trx` ends.
+ */
+export const acquireProjectSlugLock = async (
+    trx: Knex,
+    projectUuid: string,
+    slug: string,
+): Promise<void> => {
+    await trx.raw('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+        CONTENT_AS_CODE_SLUG_LOCK_NAMESPACE,
+        `${projectUuid}:${slug}`,
+    ]);
+};
+
 export const generateUniqueSlug = async (
     trx: Knex,
     tableName: SlugTables,

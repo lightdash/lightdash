@@ -175,7 +175,13 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'AiAgent', {
             organizationUuid,
         });
+        can('view', 'AiAgentDocument', {
+            organizationUuid,
+        });
         can('create', 'AiAgentThread', {
+            organizationUuid,
+        });
+        can('view', 'OrganizationDesign', {
             organizationUuid,
         });
     },
@@ -305,11 +311,17 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'AiAgent', {
             organizationUuid,
         });
+        can('manage', 'AiAgentDocument', {
+            organizationUuid,
+        });
         can('manage', 'AiAgentThread', {
             organizationUuid,
             //  userUuid: userUuid,
         });
         can('manage', 'DataApp', {
+            organizationUuid,
+        });
+        can('manage', 'OrganizationDesign', {
             organizationUuid,
         });
         can('manage', 'Dashboard', {

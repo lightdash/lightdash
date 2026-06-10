@@ -5,9 +5,11 @@ import {
     PossibleAbilities,
     PromotionAction,
     SessionUser,
+    type PromotionChanges,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -22,13 +24,16 @@ import {
     existingUpstreamSqlChart,
     missingUpstreamChart,
     missingUpstreamDashboard,
+    promotedAppUuid,
     promotedChart,
     promotedChartWithinDashboard,
     promotedDashboard,
     promotedDashboardWithChartWithinDashboard,
+    promotedDashboardWithDataAppTile,
     promotedDashboardWithNewPrivateSpace,
     promotedDashboardWithSqlTile,
     promotedSqlChart,
+    upstreamAppUuid,
     upstreamFullSpace,
     upstreamSpace,
     user,
@@ -41,6 +46,9 @@ const projectModel = {
 };
 
 const savedChartModel = {
+    getSummary: jest.fn(async () => ({
+        projectUuid: promotedChart.projectUuid,
+    })),
     get: jest.fn(async () => promotedChart.chart),
     find: jest.fn(async () => [existingUpstreamChart.chart]),
     create: jest.fn(async () => existingUpstreamChart.chart),
@@ -91,6 +99,21 @@ const spacePermissionService = {
     })),
     getGroupAccess: jest.fn(async () => upstreamFullSpace.groupsAccess),
 };
+
+const userWithAbilities = (
+    rules: ConstructorParameters<typeof Ability<PossibleAbilities>>[0],
+): SessionUser => ({
+    ...user,
+    role: OrganizationMemberRole.DEVELOPER,
+    ability: new Ability<PossibleAbilities>(rules),
+});
+
+const userWithPromotePermissions = userWithAbilities([
+    { subject: 'Dashboard', action: ['promote', 'manage'] },
+    { subject: 'SavedChart', action: ['promote', 'manage'] },
+    { subject: 'Space', action: ['create', 'manage'] },
+]);
+
 describe('PromoteService chart changes', () => {
     const service = new PromoteService({
         lightdashConfig: lightdashConfigMock,
@@ -1229,7 +1252,7 @@ describe('PromoteService promoting and mutating changes', () => {
         );
 
         const changes = await service.getPromoteDashboardDiff(
-            user,
+            userWithPromotePermissions,
             dashboardWithOnlySqlTile.uuid,
         );
 
@@ -1248,6 +1271,74 @@ describe('PromoteService promoting and mutating changes', () => {
                 },
             },
         ]);
+    });
+
+    test('getPromoteChartDiff rejects users without chart promote permissions', async () => {
+        const userWithoutPromotePermissions = userWithAbilities([
+            { subject: 'Project', action: ['view'] },
+        ]);
+
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamChart.space,
+        ]);
+
+        await expect(
+            service.getPromoteChartDiff(
+                userWithoutPromotePermissions,
+                promotedChart.chart.uuid,
+            ),
+        ).rejects.toThrow(
+            /you don't have access to edit this chart in the origin project/,
+        );
+    });
+
+    test('getPromoteSqlChartDiff rejects users without SQL chart promote permissions', async () => {
+        const userWithoutPromotePermissions = userWithAbilities([
+            { subject: 'Project', action: ['view'] },
+        ]);
+
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamSqlChart.space,
+        ]);
+
+        await expect(
+            service.getPromoteSqlChartDiff(
+                userWithoutPromotePermissions,
+                promotedSqlChart.project.projectUuid,
+                promotedSqlChart.savedSqlUuid,
+            ),
+        ).rejects.toThrow(
+            /you don't have access to edit this SQL chart in the origin project/,
+        );
+    });
+
+    test('getPromoteDashboardDiff rejects users without dashboard promote permissions', async () => {
+        const userWithoutPromotePermissions = userWithAbilities([
+            { subject: 'Project', action: ['view'] },
+        ]);
+        const dashboardWithoutTiles = {
+            ...promotedDashboard.dashboard,
+            tiles: [],
+        };
+
+        (dashboardModel.getByIdOrSlug as jest.Mock).mockImplementationOnce(
+            async () => dashboardWithoutTiles,
+        );
+        (dashboardModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamDashboard.dashboard,
+        ]);
+        (spaceModel.find as jest.Mock).mockImplementationOnce(async () => [
+            existingUpstreamDashboard.space,
+        ]);
+
+        await expect(
+            service.getPromoteDashboardDiff(
+                userWithoutPromotePermissions,
+                dashboardWithoutTiles.uuid,
+            ),
+        ).rejects.toThrow(
+            /You do not have the right access permissions on the origin space and dashboard/,
+        );
     });
 });
 
@@ -1329,5 +1420,140 @@ describe('PromoteService permission checks', () => {
                 missingUpstreamDashboard,
             ),
         ).not.toThrow();
+    });
+});
+
+describe('PromoteService data app promotion', () => {
+    const appGenerateService = {
+        promoteAppsForDashboard: jest.fn(async () => [
+            { sourceAppUuid: promotedAppUuid, upstreamAppUuid },
+        ]),
+    };
+
+    const baseArgs = {
+        lightdashConfig: lightdashConfigMock,
+        analytics: analyticsMock,
+        projectModel: projectModel as unknown as ProjectModel,
+        savedChartModel: savedChartModel as unknown as SavedChartModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
+        spaceModel: spaceModel as unknown as SpaceModel,
+        dashboardModel: dashboardModel as unknown as DashboardModel,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
+    };
+
+    const serviceWithApps = new PromoteService({
+        ...baseArgs,
+        getAppGenerateService: () =>
+            appGenerateService as unknown as AppGenerateService,
+    });
+
+    const serviceWithoutApps = new PromoteService(baseArgs);
+
+    const dataAppChanges = (): PromotionChanges => ({
+        spaces: [],
+        charts: [],
+        dashboards: [
+            {
+                action: PromotionAction.CREATE,
+                data: {
+                    ...promotedDashboardWithDataAppTile.dashboard,
+                    spaceSlug: promotedDashboard.space.slug,
+                    spacePath: promotedDashboard.space.path,
+                },
+            },
+        ],
+    });
+
+    afterEach(() => {
+        jest.clearAllMocks();
+    });
+
+    test('promotes referenced apps and remaps the DATA_APP tile appUuid', async () => {
+        const newChanges = await serviceWithApps.upsertDataApps(
+            user,
+            dataAppChanges(),
+            promotedDashboard.projectUuid,
+        );
+
+        expect(
+            appGenerateService.promoteAppsForDashboard,
+        ).toHaveBeenCalledTimes(1);
+        expect(appGenerateService.promoteAppsForDashboard).toHaveBeenCalledWith(
+            user,
+            promotedDashboard.projectUuid,
+            [promotedAppUuid],
+        );
+
+        const dataAppTile = newChanges.dashboards[0].data.tiles.find(
+            (tile) => tile.type === DashboardTileTypes.DATA_APP,
+        );
+        expect(
+            dataAppTile?.type === DashboardTileTypes.DATA_APP
+                ? dataAppTile.properties.appUuid
+                : undefined,
+        ).toBe(upstreamAppUuid);
+        expect(
+            dataAppTile?.type === DashboardTileTypes.DATA_APP
+                ? dataAppTile.properties.appDeletedAt
+                : undefined,
+        ).toBeNull();
+    });
+
+    test('leaves the tile untouched when the referenced app was skipped (soft-deleted)', async () => {
+        appGenerateService.promoteAppsForDashboard.mockResolvedValueOnce([]);
+
+        const newChanges = await serviceWithApps.upsertDataApps(
+            user,
+            dataAppChanges(),
+            promotedDashboard.projectUuid,
+        );
+
+        const dataAppTile = newChanges.dashboards[0].data.tiles.find(
+            (tile) => tile.type === DashboardTileTypes.DATA_APP,
+        );
+        expect(
+            dataAppTile?.type === DashboardTileTypes.DATA_APP
+                ? dataAppTile.properties.appUuid
+                : undefined,
+        ).toBe(promotedAppUuid);
+    });
+
+    test('returns changes unchanged and skips the app service when there are no DATA_APP tiles', async () => {
+        const changesWithoutApps: PromotionChanges = {
+            spaces: [],
+            charts: [],
+            dashboards: [
+                {
+                    action: PromotionAction.CREATE,
+                    data: {
+                        ...promotedDashboard.dashboard,
+                        spaceSlug: promotedDashboard.space.slug,
+                        spacePath: promotedDashboard.space.path,
+                    },
+                },
+            ],
+        };
+
+        const newChanges = await serviceWithApps.upsertDataApps(
+            user,
+            changesWithoutApps,
+            promotedDashboard.projectUuid,
+        );
+
+        expect(newChanges).toEqual(changesWithoutApps);
+        expect(
+            appGenerateService.promoteAppsForDashboard,
+        ).not.toHaveBeenCalled();
+    });
+
+    test('throws when a DATA_APP tile is promoted without the EE app service', async () => {
+        await expect(
+            serviceWithoutApps.upsertDataApps(
+                user,
+                dataAppChanges(),
+                promotedDashboard.projectUuid,
+            ),
+        ).rejects.toThrow(/Data apps are not available/);
     });
 });

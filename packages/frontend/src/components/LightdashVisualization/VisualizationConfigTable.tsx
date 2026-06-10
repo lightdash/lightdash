@@ -8,15 +8,11 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
     resultsData,
     columnOrder,
     validPivotDimensions,
-    pivotTableMaxColumnLimit,
     initialChartConfig,
     onChartConfigChange,
     children,
-    savedChartUuid,
-    dashboardFilters,
     invalidateCache,
     parameters,
-    dateZoom,
 }) => {
     const tableConfig = useTableConfig(
         initialChartConfig,
@@ -24,12 +20,8 @@ const VisualizationTableConfig: FC<VisualizationTableConfigProps> = ({
         itemsMap,
         columnOrder,
         validPivotDimensions,
-        pivotTableMaxColumnLimit,
-        savedChartUuid,
-        dashboardFilters,
         invalidateCache,
         parameters,
-        dateZoom,
     );
 
     useEffect(() => {

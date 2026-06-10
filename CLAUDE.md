@@ -81,8 +81,12 @@ pnpm -F common lint
 pnpm -F backend lint
 pnpm -F frontend lint
 pnpm -F common typecheck
+pnpm -F common typecheck:fast # common is heavy; use this faster typecheck there
 pnpm -F backend typecheck
+pnpm -F backend typecheck:fast
 pnpm -F frontend typecheck
+pnpm -F frontend typecheck:fast
+pnpm -F warehouses typecheck:fast
 ```
 
 **Testing:**
@@ -183,6 +187,7 @@ pnpm -F backend rollback-last
 -   CASL abilities are **additive** - org-level permissions cannot be revoked by project-level custom roles
 -   If a permission should be restrictable via custom roles, do NOT add it to org-level developer/editor abilities
 -   The parity test (`roleToScopeParity.test.ts`) ensures `projectMemberAbility.ts` and `roleToScopeMapping.ts` stay in sync
+-   **Changing the scope vocabulary (rename / split / merge / remove) requires a Knex migration against `scoped_roles`** — custom roles persist scope names as strings and do not auto-update. See the `ld-permissions` skill for the migration checklist and patterns.
 
 ## TypeScript Project References
 
@@ -242,6 +247,7 @@ The canonical source of truth for field types is `packages/common/src/types/fiel
     -   API design patterns where omission has semantic meaning
     -   Configuration objects with sensible defaults
 -   **Always wrap `JSON.parse` in try/catch**: Parse errors crash the app. On failure, considering showing a warning toast or falling back to a sensible default.
+-   **Keep code comments minimal**: 1–2 lines at most, only when the code isn't self-explanatory. No long explanatory blocks, no ticket references (PROD-XXXX, #issue) in comments.
 
 ## TypeScript Utilities
 

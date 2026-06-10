@@ -99,7 +99,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
 
     const {
         data: explore,
-        isFetching,
+        isInitialLoading,
         status,
         error,
     } = useExplore(activeTableName);
@@ -173,7 +173,7 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
         return items;
     }, [onBack, explore]);
 
-    if (isFetching) {
+    if (isInitialLoading) {
         return <LoadingSkeleton />;
     }
 

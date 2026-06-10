@@ -8,6 +8,7 @@ import {
     selectColumnOrder,
     selectCustomDimensions,
     selectIsEditMode,
+    selectParameters,
     selectTableCalculations,
     selectTableName,
     useExplorerDispatch,
@@ -16,6 +17,7 @@ import {
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useIsHidePivotDimsEnabled } from '../../../hooks/useIsHidePivotDimsEnabled';
 import type {
     useGetReadyQueryResults,
     useInfiniteQueryResults,
@@ -72,6 +74,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     const additionalMetrics = useExplorerSelector(selectAdditionalMetrics);
     const tableCalculations = useExplorerSelector(selectTableCalculations);
     const customDimensions = useExplorerSelector(selectCustomDimensions);
+    const parameters = useExplorerSelector(selectParameters);
 
     // Get chart config for column properties
     const chartConfig = useExplorerSelector(selectChartConfig);
@@ -99,18 +102,14 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
             : undefined;
 
     // Check if grouped view is available
-    const {
-        isSqlPivotEnabled,
-        hasPivotColumns: hasPivotConfig,
-        canShowGroupedResults,
-    } = useGroupedResultsAvailability();
+    const { hasPivotColumns: hasPivotConfig, canShowGroupedResults } =
+        useGroupedResultsAvailability();
 
     const resultsData = useMemo(() => {
         const hasUnpivotedQuery = !!unpivotedQuery?.data?.queryUuid;
 
         // Check if we need unpivoted data (regardless of whether it's ready)
-        const needsUnpivotedData =
-            isSqlPivotEnabled && hasPivotConfig && unpivotedEnabled;
+        const needsUnpivotedData = hasPivotConfig && unpivotedEnabled;
 
         // Only use unpivoted data when it's ready
         const shouldUseUnpivotedData = needsUnpivotedData && hasUnpivotedQuery;
@@ -120,6 +119,21 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         // The main query has a different row structure (pivoted) that would cause
         // the first column to show "-" because the pivot dimension key is missing.
         if (needsUnpivotedData && !hasUnpivotedQuery) {
+            // If the create-query call itself failed (e.g. table calculation
+            // references an unknown field), neither query will ever produce a
+            // queryUuid. Surface the error instead of waiting forever.
+            const createQueryError = query.error ?? unpivotedQuery.error;
+            if (createQueryError) {
+                return {
+                    rows: [],
+                    totalResults: undefined,
+                    isFetchingRows: false,
+                    fetchMoreRows: () => {},
+                    status: 'error' as const,
+                    apiError: createQueryError,
+                    queryStatus: unpivotedQueryResults.queryStatus,
+                };
+            }
             return {
                 rows: [],
                 totalResults: undefined,
@@ -158,7 +172,6 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
         return result;
     }, [
-        isSqlPivotEnabled,
         unpivotedQuery,
         hasPivotConfig,
         unpivotedEnabled,
@@ -260,6 +273,41 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         [itemsMap, columnProperties],
     );
 
+    // Hidden field IDs from chart config, split by kind. Dims drop out of
+    // pivot headers / row index; metrics drop out of data columns. Both ship
+    // to the pivot reducer worker so the user's "Hide column" toggle takes
+    // effect without waiting for a new query.
+    //
+    // PROD-2108 flag gate: unflagged users keep the pre-existing behavior
+    // (no dim filtering) so an existing chart with a stray `visible: false`
+    // on a dim doesn't suddenly start hiding columns.
+    const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
+    const queryDimensions = query.data?.metricQuery?.dimensions;
+    const { hiddenDimensionFieldIds, hiddenMetricFieldIds } = useMemo(() => {
+        if (!columnProperties || !isHidePivotDimsEnabled) {
+            return {
+                hiddenDimensionFieldIds: undefined,
+                hiddenMetricFieldIds: undefined,
+            };
+        }
+        const dimensionSet = new Set(queryDimensions ?? []);
+        const hiddenDims: string[] = [];
+        const hiddenMets: string[] = [];
+        for (const [fieldId, props] of Object.entries(columnProperties)) {
+            if (props.visible === false) {
+                if (dimensionSet.has(fieldId)) {
+                    hiddenDims.push(fieldId);
+                } else {
+                    hiddenMets.push(fieldId);
+                }
+            }
+        }
+        return {
+            hiddenDimensionFieldIds: hiddenDims,
+            hiddenMetricFieldIds: hiddenMets,
+        };
+    }, [columnProperties, queryDimensions, isHidePivotDimsEnabled]);
+
     // Convert pivoted query results to PivotData format for PivotTable
     // Only process when user is actually viewing grouped results
     const pivotTableQuery = usePivotTableData({
@@ -270,6 +318,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         getField,
         getFieldLabel,
         columnLimit,
+        parameters,
+        hiddenDimensionFieldIds,
+        hiddenMetricFieldIds,
     });
 
     const cellContextMenu = useCallback(
@@ -344,6 +395,18 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
 
     // Render grouped view content
     const renderGroupedView = () => {
+        // Surface query errors (e.g. table calculation references an unknown
+        // field) before any loading checks, so the user isn't stuck on a
+        // spinner when the query will never produce results.
+        if (groupedResultsData?.apiError) {
+            return (
+                <Text c="red" ta="center">
+                    {groupedResultsData.apiError.error?.message ||
+                        'Error loading grouped results'}
+                </Text>
+            );
+        }
+
         if (pivotTableQuery.isLoading || groupedResultsData?.isFetchingRows) {
             return (
                 <Box
@@ -382,6 +445,7 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
                 getField={getField}
                 showSubtotals={false}
                 isMinimal={false}
+                parameters={parameters}
             />
         );
     };

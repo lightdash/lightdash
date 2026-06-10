@@ -78,6 +78,7 @@ export * from './pivot/utils';
 export { default as chartAsCodeSchema } from './schemas/json/chart-as-code-1.0.json';
 export { default as dashboardAsCodeSchema } from './schemas/json/dashboard-as-code-1.0.json';
 export { default as lightdashDbtYamlSchema } from './schemas/json/lightdash-dbt-2.0.json';
+export { default as lightdashProjectContextSchema } from './schemas/json/lightdash-project-context-1.0.json';
 export { default as lightdashProjectConfigSchema } from './schemas/json/lightdash-project-config-1.0.json';
 export { default as modelAsCodeSchema } from './schemas/json/model-as-code-1.0.json';
 export * from './templating/liquidSql';
@@ -107,6 +108,7 @@ export * from './types/conditionalFormatting';
 export * from './types/content';
 export * from './types/contentVerification';
 export * from './types/dashboard';
+export * from './types/dataTimezonePreview';
 export * from './types/dbt';
 export * from './types/downloadFile';
 export * from './types/email';
@@ -115,7 +117,9 @@ export * from './types/explore';
 export * from './types/favorites';
 export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
+export * from './types/previewExpirationProjectSettings';
 export * from './types/field';
+export * from './types/ci';
 export * from './types/fieldMatch';
 export * from './types/filter';
 export * from './types/funnel';
@@ -132,7 +136,10 @@ export * from './types/notifications';
 export * from './types/oauth';
 export * from './types/openIdIdentity';
 export * from './types/organization';
+export * from './types/organizationAccess';
+export * from './types/organizationDomainVerification';
 export * from './types/organizationMemberProfile';
+export * from './types/organizationSettings';
 export * from './types/organizationSso';
 export * from './types/organizationWarehouseCredentials';
 export * from './types/paginateResults';
@@ -142,11 +149,109 @@ export * from './types/personalAccessToken';
 export * from './types/pinning';
 export * from './types/pivot';
 export * from './types/preAggregate';
+export * from './types/projectCiStatus';
 export * from './types/projectCompileLogs';
 export * from './types/projectGroupAccess';
 export * from './types/projectMemberProfile';
 export * from './types/projectMemberRole';
-export * from './types/projects';
+export {
+    AthenaAuthenticationType,
+    BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
+    DbtProjectType,
+    DbtVersionOptionLatest,
+    DefaultSupportedDbtVersion,
+    DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
+    getColumnTimezone,
+    getDbtEnvironmentVariableKeyError,
+    getInvalidDbtEnvironmentVariableKeys,
+    getLatestSupportDbtVersion,
+    isDbtVersion110OrHigher,
+    isGitProjectType,
+    isSafeDbtEnvironmentVariableKey,
+    LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
+    maybeOverrideDbtConnection,
+    maybeOverrideWarehouseConnection,
+    mergeWarehouseCredentials,
+    normalizeWarehouseCredentials,
+    ProjectType,
+    sensitiveCredentialsFieldNames,
+    SnowflakeAuthenticationType,
+    stripDucklakeNestedSensitive,
+    SupportedDbtVersions,
+    WarehouseTypes,
+} from './types/projects';
+export type {
+    ApiGetProjectGroupAccesses,
+    ApiProjectResponse,
+    AthenaCredentials,
+    BigqueryCredentials,
+    ClickhouseCredentials,
+    CreateAthenaCredentials,
+    CreateBigqueryCredentials,
+    CreateClickhouseCredentials,
+    CreateDatabricksCredentials,
+    CreateDuckdbCredentials,
+    CreateDuckdbDucklakeCredentials,
+    CreateDuckdbMotherduckCredentials,
+    CreateDucklakeCatalog,
+    CreateDucklakeCatalogDuckdb,
+    CreateDucklakeCatalogPostgres,
+    CreateDucklakeCatalogSqlite,
+    CreateDucklakeDataPath,
+    CreateDucklakeDataPathAzure,
+    CreateDucklakeDataPathGcs,
+    CreateDucklakeDataPathLocal,
+    CreateDucklakeDataPathS3,
+    CreatePostgresCredentials,
+    CreatePostgresLikeCredentials,
+    CreateRedshiftCredentials,
+    CreateSnowflakeCredentials,
+    CreateTrinoCredentials,
+    CreateWarehouseCredentials,
+    DatabricksCredentials,
+    DbtAzureDevOpsProjectConfig,
+    DbtBitBucketProjectConfig,
+    DbtCloudIDEProjectConfig,
+    DbtGithubProjectConfig,
+    DbtGitlabProjectConfig,
+    DbtLocalProjectConfig,
+    DbtManifestProjectConfig,
+    DbtNoneProjectConfig,
+    DbtProjectCompilerBase,
+    DbtProjectConfig,
+    DbtProjectConfigBase,
+    DbtProjectEnvironmentVariable,
+    DbtVersionOption,
+    DuckdbCredentials,
+    DuckdbDucklakeCredentials,
+    DuckdbMotherduckCredentials,
+    DucklakeCatalog,
+    DucklakeCatalogDuckdb,
+    DucklakeCatalogPostgres,
+    DucklakeCatalogSqlite,
+    DucklakeDataPath,
+    DucklakeDataPathAzure,
+    DucklakeDataPathGcs,
+    DucklakeDataPathLocal,
+    DucklakeDataPathS3,
+    IdContentMapping,
+    PostgresCredentials,
+    PreviewContentMapping,
+    Project,
+    ProjectSummary,
+    RedshiftCredentials,
+    SensitiveCredentialsFieldNames,
+    SnowflakeCredentials,
+    SshTunnelConfiguration,
+    SslConfiguration,
+    TrinoCredentials,
+    UpdateQueryTimezoneSettings,
+    UpdateSchedulerSettings,
+    WarehouseCredentials,
+} from './types/projects';
 export * from './types/promotion';
 export * from './types/queryHistory';
 export * from './types/rename';
@@ -211,6 +316,7 @@ export * from './utils/metricsExplorer';
 export * from './utils/normalizeCellRawForFilter';
 export * from './utils/oauth';
 export * from './utils/organization';
+export * from './utils/previewDeployWorkflow';
 export * from './utils/projectMemberRole';
 export * from './utils/promises';
 export * from './utils/sanitizeHtml';

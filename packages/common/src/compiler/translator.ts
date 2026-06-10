@@ -96,6 +96,7 @@ const convertTimezone = (
         case SupportedDbtAdapter.DUCKDB:
             return timestampSql;
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
             return timestampSql;
         // Athena uses Trino SQL, timestamps return in server timezone
         case SupportedDbtAdapter.TRINO:
@@ -203,6 +204,7 @@ const convertDimension = (
         format: meta.dimension?.format,
         round: meta.dimension?.round,
         compact: meta.dimension?.compact,
+        separator: meta.dimension?.separator,
         requiredAttributes: meta.dimension?.required_attributes,
         anyAttributes: meta.dimension?.any_attributes,
         colors: meta.dimension?.colors,
@@ -432,6 +434,7 @@ const convertDbtMetricToLightdashMetric = (
         round: metric.meta?.round,
         compact: metric.meta?.compact,
         format: metric.meta?.format,
+        separator: metric.meta?.separator,
         groups,
         percentile: metric.meta?.percentile,
         showUnderlyingValues: metric.meta?.show_underlying_values,

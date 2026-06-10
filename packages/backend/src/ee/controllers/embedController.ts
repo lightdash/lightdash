@@ -6,6 +6,8 @@ import {
     ApiCalculateTotalResponse,
     ApiErrorPayload,
     ApiExecuteAsyncDashboardChartQueryResults,
+    ApiExecuteAsyncDashboardSqlChartQueryResults,
+    ApiSqlChart,
     ApiSuccessEmpty,
     assertEmbeddedAuth,
     assertSessionAuth,
@@ -23,8 +25,10 @@ import {
     DecodedEmbed,
     EmbedUrl,
     ExecuteAsyncDashboardChartRequestParams,
+    ExecuteAsyncDashboardSqlChartRequestParams,
     Explore,
     FieldValueSearchResult,
+    ForbiddenError,
     GetEmbedDashboardRequest,
     Item,
     MetricQueryResponse,
@@ -53,9 +57,11 @@ import {
 import express from 'express';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
+import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import { EmbedService } from '../services/EmbedService/EmbedService';
 
 export type ApiEmbedDashboardResponse = {
@@ -350,6 +356,86 @@ export class EmbedController extends BaseController {
     }
 
     @SuccessResponse('200', 'Success')
+    @Get('/sql-chart-tile/{tileUuid}')
+    @OperationId('getEmbedDashboardSqlChartTile')
+    async getEmbedDashboardSqlChartTile(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() tileUuid: string,
+    ): Promise<ApiSqlChart> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        const results = await this.getEmbedService().getDashboardSqlChartTile({
+            account: req.account,
+            projectUuid,
+            tileUuid,
+        });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Post('/query/dashboard-sql-chart')
+    @OperationId('executeAsyncDashboardSqlChartTileQuery')
+    async executeAsyncDashboardSqlChartTileQuery(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body()
+        body: {
+            tileUuid: string;
+        } & Pick<
+            ExecuteAsyncDashboardSqlChartRequestParams,
+            | 'dashboardFilters'
+            | 'dashboardSorts'
+            | 'invalidateCache'
+            | 'parameters'
+            | 'limit'
+        >,
+    ): Promise<{
+        status: 'ok';
+        results: ApiExecuteAsyncDashboardSqlChartQueryResults;
+    }> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        const results =
+            await this.getEmbedService().executeAsyncDashboardSqlChartTileQuery(
+                {
+                    account: req.account,
+                    projectUuid,
+                    tileUuid: body.tileUuid,
+                    dashboardFilters: body.dashboardFilters,
+                    dashboardSorts: body.dashboardSorts,
+                    invalidateCache: body.invalidateCache,
+                    parameters: body.parameters,
+                    limit: body.limit,
+                },
+            );
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Calculate totals from an embedded saved chart.
+     * @summary Calculate totals for embed saved chart
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.
+     */
+    @Middlewares([
+        getDeprecatedRouteMiddleware(new Date('2026-05-29'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.',
+        }),
+    ])
+    @SuccessResponse('200', 'Success')
     @Post('/chart/:savedChartUuid/calculate-total')
     @OperationId('embedCalculateTotalFromSavedChart')
     async embedCalculateTotalFromSavedChart(
@@ -380,6 +466,16 @@ export class EmbedController extends BaseController {
         };
     }
 
+    /**
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
+     * @summary Calculate subtotals for embed chart
+     */
+    @Middlewares([
+        getDeprecatedRouteMiddleware(new Date('2026-06-04'), {
+            suffixMessage:
+                "Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.",
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/chart/:savedChartUuid/calculate-subtotals')
     @OperationId('embedCalculateSubtotalsFromSavedChart')
@@ -422,7 +518,14 @@ export class EmbedController extends BaseController {
      * Calculate totals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
      * @summary Calculate totals for embed query
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.
      */
+    @Middlewares([
+        getDeprecatedRouteMiddleware(new Date('2026-05-29'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/calculate-total')
     @OperationId('embedCalculateTotalFromQuery')
@@ -448,8 +551,15 @@ export class EmbedController extends BaseController {
     /**
      * Calculate subtotals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
      * @summary Calculate subtotals for embed query
      */
+    @Middlewares([
+        getDeprecatedRouteMiddleware(new Date('2026-06-04'), {
+            suffixMessage:
+                "Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.",
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/calculate-subtotals')
     @OperationId('embedCalculateSubtotalsFromQuery')
@@ -509,6 +619,106 @@ export class EmbedController extends BaseController {
             tableName,
             fieldId,
         });
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Synthesized user info for the embed JWT. Used by data app tiles to
+     * answer the SDK's `client.auth.getUser()` call without ever forwarding
+     * a request to the session-only `/api/v1/user` endpoint.
+     * @summary Get embed user info
+     */
+    @SuccessResponse('200', 'Success')
+    @Get('/user-info')
+    @OperationId('getEmbedUserInfo')
+    async getEmbedUserInfo(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<{
+        status: 'ok';
+        results: {
+            userUuid: string;
+            firstName: string;
+            lastName: string;
+            email: string;
+            role: string;
+            organizationUuid: string;
+            userAttributes: Record<string, string>;
+        };
+    }> {
+        this.setStatus(200);
+        assertEmbeddedAuth(req.account);
+        const { account } = req;
+
+        // Path projectUuid is authoritative on the URL but the JWT is the
+        // trust source — fail loudly on mismatch instead of silently serving
+        // the JWT's project.
+        if (projectUuid !== account.embed.projectUuid) {
+            throw new ForbiddenError(
+                'Project mismatch between URL and embed token',
+            );
+        }
+
+        // SDK's `getUser()` expects flat `string` values per attribute. The
+        // embed attribute store is `string[]` (an attribute can have multiple
+        // values). Take the first — the same compromise as how the embed
+        // explore filter consumes these today.
+        const userAttributes = Object.fromEntries(
+            Object.entries(account.access.controls?.userAttributes ?? {}).map(
+                ([key, values]) => [key, values[0] ?? ''],
+            ),
+        );
+
+        return {
+            status: 'ok',
+            results: {
+                userUuid: account.user.id,
+                firstName: '',
+                lastName: '',
+                email: account.user.email ?? '',
+                role: 'embed',
+                organizationUuid:
+                    account.embed.organization.organizationUuid ?? '',
+                userAttributes,
+            },
+        };
+    }
+
+    /**
+     * Resolve the latest ready version of a data app and mint a short-lived
+     * preview token for it. The token authorizes the iframe to load the
+     * built app bundle from `/api/apps/{appUuid}/versions/{version}/`.
+     * The app must be referenced by a tile on a dashboard in the embed's
+     * allowlist (or `allowAllDashboards` must be set).
+     * @summary Get embed data app preview token
+     */
+    @SuccessResponse('200', 'Success')
+    @Get('/apps/{appUuid}/preview-token')
+    @OperationId('getEmbedAppPreviewToken')
+    async getEmbedAppPreviewToken(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<{
+        status: 'ok';
+        results: { token: string; version: number };
+    }> {
+        this.setStatus(200);
+        assertEmbeddedAuth(req.account);
+
+        if (projectUuid !== req.account.embed.projectUuid) {
+            throw new ForbiddenError(
+                'Project mismatch between URL and embed token',
+            );
+        }
+
+        const results = await this.services
+            .getAppGenerateService<AppGenerateService>()
+            .getEmbedAppPreviewToken(req.account, appUuid);
+
         return {
             status: 'ok',
             results,

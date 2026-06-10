@@ -42,6 +42,10 @@ export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBui
         return defaultNullSafeEqualSql(left, right);
     }
 
+    getNullSafeEqualJoinSql(left: string, right: string): string {
+        return defaultNullSafeEqualSql(left, right);
+    }
+
     getMetricSql(sql: string, metric: Metric): string {
         return getDefaultMetricSql(sql, metric.type);
     }

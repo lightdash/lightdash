@@ -457,7 +457,7 @@ export function oauthConfig(baseUrl: string) {
             'client_secret_basic',
             'client_secret_post',
         ],
-        code_challenge_methods_supported: ['S256', 'plain'],
+        code_challenge_methods_supported: ['S256'],
         scopes_supported: [
             OAuthScope.READ,
             OAuthScope.WRITE,

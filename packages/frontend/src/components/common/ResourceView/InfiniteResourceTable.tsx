@@ -38,14 +38,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_TableOptions,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useDeferredValue,
     useEffect,
@@ -64,6 +56,14 @@ import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFla
 import { useSpaceSummaries } from '../../../hooks/useSpaces';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useApp from '../../../providers/App/useApp';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
+    type ContentTableOptions,
+    type ContentTableVirtualizer,
+} from '../ContentTable';
 import MantineIcon from '../MantineIcon';
 import TransferItemsModal from '../TransferItemsModal/TransferItemsModal';
 import AdminContentViewFilter from './AdminContentViewFilter';
@@ -82,7 +82,7 @@ import {
     type ResourceViewItemActionState,
 } from './types';
 
-type ResourceView2Props = Partial<MRT_TableOptions<ResourceViewItem>> & {
+type ResourceView2Props = Partial<ContentTableOptions<ResourceViewItem>> & {
     filters: Pick<ContentArgs, 'spaceUuids' | 'contentTypes'> & {
         projectUuid: string;
     };
@@ -103,7 +103,7 @@ const InfiniteResourceTable = ({
     columnVisibility,
     adminContentView = false,
     initialAdminContentViewValue = 'shared',
-    ...mrtProps
+    ...contentTableProps
 }: ResourceView2Props) => {
     const [selectedAdminContentType, setSelectedAdminContentType] = useState<
         'all' | 'shared'
@@ -144,7 +144,7 @@ const InfiniteResourceTable = ({
         }),
     );
 
-    const ResourceColumns: MRT_ColumnDef<ResourceViewItem>[] = [
+    const ResourceColumns: ContentTableColumnDef<ResourceViewItem>[] = [
         {
             accessorKey: ColumnVisibility.NAME,
             header: capitalize(ColumnVisibility.NAME),
@@ -269,13 +269,14 @@ const InfiniteResourceTable = ({
             },
         },
     ];
-    const initialSorting: MRT_SortingState = [
+    const initialSorting: ContentTableSortingState = [
         {
             id: ContentSortByColumns.LAST_UPDATED_AT,
             desc: true,
         },
     ];
-    const [sorting, setSorting] = useState<MRT_SortingState>(initialSorting);
+    const [sorting, setSorting] =
+        useState<ContentTableSortingState>(initialSorting);
     const [search, setSearch] = useState<string | undefined>(undefined);
     const [selectedContentType, setSelectedContentType] = useState<
         ContentType | undefined
@@ -284,7 +285,9 @@ const InfiniteResourceTable = ({
     const deferredSearch = useDeferredValue(search);
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
     const sortBy:
         | {
               sortBy: ContentSortByColumns;
@@ -406,7 +409,7 @@ const InfiniteResourceTable = ({
         [columnVisibility],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns: ResourceColumns,
         data: tableData,
         enableColumnResizing: true,
@@ -535,31 +538,8 @@ const InfiniteResourceTable = ({
         mantineTableBodyRowProps: ({ row }) => {
             const isTableSelectionActive =
                 table.getIsSomeRowsSelected() || table.getIsAllRowsSelected();
-            const isSelected = row.getIsSelected();
 
             return {
-                sx: {
-                    cursor: 'pointer',
-                    'td:first-of-type > div > .explore-button-container': {
-                        visibility: 'hidden',
-                        opacity: 0,
-                    },
-                    '&:hover': {
-                        td: isSelected
-                            ? {}
-                            : {
-                                  backgroundColor: theme.colors.ldGray[0],
-                                  transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                              },
-
-                        'td:first-of-type > div > .explore-button-container': {
-                            visibility: 'visible',
-                            opacity: 1,
-                            transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        },
-                    },
-                },
-
                 onClick: () => {
                     if (isTableSelectionActive) {
                         row.toggleSelected();
@@ -788,12 +768,12 @@ const InfiniteResourceTable = ({
             columnVisibility: defaultColumnVisibility,
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 40 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
         displayColumnDefOptions: {
-            'mrt-row-actions': {
+            'content-table-row-actions': {
                 header: '',
             },
-            'mrt-row-select': {
+            'content-table-row-select': {
                 size: 20,
                 minSize: 20,
                 maxSize: 20,
@@ -803,7 +783,7 @@ const InfiniteResourceTable = ({
         enableFilterMatchHighlighting: true,
         enableEditing: true,
         editDisplayMode: 'cell',
-        ...mrtProps,
+        ...contentTableProps,
         mantineSelectCheckboxProps: {
             size: 'sm',
         },
@@ -880,7 +860,7 @@ const InfiniteResourceTable = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
             <ResourceActionHandlers action={action} onAction={handleAction} />
 
             {isTransferItemsModalOpen && (

@@ -6,7 +6,7 @@ import {
     Text,
     TextInput,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { useDebouncedState } from '@mantine/hooks';
 import {
     IconEye,
@@ -16,6 +16,10 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import {
+    getRowDims,
+    isFieldSubtotalGroupingLevel,
+} from '../../../utils/pivotSubtotalGrouping';
 import MantineIcon from '../../common/MantineIcon';
 import {
     isTableVisualizationConfig,
@@ -69,13 +73,21 @@ type ColumnConfigurationProps = {
      * When provided, the freeze toggle controls all listed fieldIds together.
      */
     syncFreezeWith?: string[];
+
+    /**
+     * When true, allow hiding even when the field is a pivot dimension.
+     * Used by the hide-pivot-dimensions feature (flag-gated externally).
+     */
+    allowHidePivotDimension?: boolean;
 };
 
 const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     fieldId,
     syncFreezeWith,
+    allowHidePivotDimension = false,
 }) => {
-    const { pivotDimensions, visualizationConfig } = useVisualizationContext();
+    const { pivotDimensions, visualizationConfig, resultsData } =
+        useVisualizationContext();
 
     const [isShowTooltipVisible, setShowTooltipVisible] = useState(false);
     const [isFreezeTooltipVisible, setFreezeTooltipVisible] = useState(false);
@@ -93,7 +105,20 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     const field = getField(fieldId);
     const columnWidth = columnProperties[fieldId]?.width;
     const isPivotingDimension = pivotDimensions?.includes(fieldId);
-    const disableHidingDimensions = !!(pivotDimensions && isDimension(field));
+    const disableHidingDimensions =
+        !!(pivotDimensions && isDimension(field)) && !allowHidePivotDimension;
+
+    // When allowHidePivotDimension is true, compute the subtotal-grouping
+    // guard: hiding is forbidden for non-leaf row-index dims when subtotals
+    // are enabled (hiding them would corrupt the subtotal grouping).
+    const showSubtotals =
+        isTableVisualizationConfig(visualizationConfig) &&
+        (visualizationConfig.chartConfig.showSubtotals ?? false);
+    const dimensions = resultsData?.metricQuery?.dimensions ?? [];
+    const rowDims = getRowDims(dimensions, pivotDimensions);
+    const isSubtotalGroupingLevel =
+        allowHidePivotDimension &&
+        isFieldSubtotalGroupingLevel(fieldId, rowDims, showSubtotals);
 
     // Pivoted dimensions become column headers and can't be frozen.
     const shouldShowFreezeToggle = !isPivotingDimension;
@@ -116,12 +141,8 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
     };
 
     return (
-        <Group spacing="xs" noWrap style={{ flexGrow: 1 }}>
-            <Box
-                style={{
-                    flexGrow: 1,
-                }}
-            >
+        <Group gap="xs" wrap="nowrap" style={{ flexGrow: 1 }}>
+            <Box style={{ flexGrow: 1 }}>
                 <ColumnConfigurationInput
                     fieldId={fieldId}
                     chartConfig={visualizationConfig.chartConfig}
@@ -134,8 +155,8 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                 opened={isShowTooltipVisible}
                 withinPortal
                 label={
-                    isPivotingDimension
-                        ? 'Cannot hide dimensions when pivoting'
+                    isSubtotalGroupingLevel
+                        ? "Cannot hide while it's a subtotal grouping level"
                         : disableHidingDimensions
                           ? 'Cannot hide dimensions when pivoting'
                           : isColumnVisible(fieldId)
@@ -149,8 +170,7 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                 >
                     <ActionIcon
                         disabled={
-                            disableHidingDimensions ||
-                            pivotDimensions?.includes(fieldId)
+                            disableHidingDimensions || isSubtotalGroupingLevel
                         }
                         variant="light"
                         onClick={() => {
@@ -162,7 +182,10 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                             // but for now work around it by managing the tooltip
                             // and closing it when the button is clicked.
                             setShowTooltipVisible(false);
-                            if (!disableHidingDimensions) {
+                            if (
+                                !disableHidingDimensions &&
+                                !isSubtotalGroupingLevel
+                            ) {
                                 updateColumnProperty(fieldId, {
                                     visible: !isColumnVisible(fieldId),
                                 });
@@ -216,8 +239,8 @@ const ColumnConfiguration: FC<ColumnConfigurationProps> = ({
                     label="Reset column width to auto"
                 >
                     <Group
-                        spacing={2}
-                        noWrap
+                        gap={2}
+                        wrap="nowrap"
                         className={styles.widthBadge}
                         bg="ldGray.1"
                         px={4}

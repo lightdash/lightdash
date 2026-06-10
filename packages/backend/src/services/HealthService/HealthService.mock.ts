@@ -77,7 +77,9 @@ export const BaseResponse: HealthState = {
     },
     query: {
         csvCellsLimit: 100000,
+        csvMaxLimit: 5000000,
         maxLimit: 5000,
+        queryMaxLimit: 5000,
         maxPageSize: 2500,
         defaultLimit: 500,
         retryQueryOnTransientErrors: true,
@@ -85,9 +87,6 @@ export const BaseResponse: HealthState = {
     dashboard: {
         maxTilesPerTab: 50,
         maxTabsPerDashboard: 20,
-        versionHistory: {
-            daysLimit: 0,
-        },
         disableSentryTracking: false,
     },
     rudder: {

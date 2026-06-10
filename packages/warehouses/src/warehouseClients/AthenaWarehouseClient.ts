@@ -39,6 +39,7 @@ export enum AthenaTypes {
     INTEGER = 'integer',
     BIGINT = 'bigint',
     REAL = 'real',
+    FLOAT = 'float',
     DOUBLE = 'double',
     DECIMAL = 'decimal',
     VARCHAR = 'varchar',
@@ -57,7 +58,7 @@ export enum AthenaTypes {
     UUID = 'uuid',
 }
 
-const convertDataTypeToDimensionType = (
+export const convertDataTypeToDimensionType = (
     type: AthenaTypes | string,
 ): DimensionType => {
     const normalizedType = type.toLowerCase().replace(/\(\d+(,\s*\d+)?\)/, '');
@@ -69,6 +70,7 @@ const convertDataTypeToDimensionType = (
         case AthenaTypes.INTEGER:
         case AthenaTypes.BIGINT:
         case AthenaTypes.REAL:
+        case AthenaTypes.FLOAT:
         case AthenaTypes.DOUBLE:
         case AthenaTypes.DECIMAL:
             return DimensionType.NUMBER;
@@ -375,6 +377,7 @@ export class AthenaWarehouseClient extends WarehouseBaseClient<CreateAthenaCrede
             case AthenaTypes.BIGINT:
                 return parseInt(value, 10);
             case AthenaTypes.REAL:
+            case AthenaTypes.FLOAT:
             case AthenaTypes.DOUBLE:
             case AthenaTypes.DECIMAL:
                 return parseFloat(value);

@@ -19,6 +19,7 @@ import {
     IconLayoutDashboard,
     IconLayoutNavbarInactive,
     IconRectangle,
+    IconSettings,
     IconTable,
     IconUser,
     IconX,
@@ -52,6 +53,8 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
             return IconCodeCircle;
         case SearchItemType.DATA_APP:
             return IconAppWindow;
+        case SearchItemType.SETTINGS:
+            return IconSettings;
         default:
             return assertUnreachable(
                 itemType,

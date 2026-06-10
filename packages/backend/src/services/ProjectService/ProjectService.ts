@@ -8,6 +8,7 @@ import {
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
+    ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
@@ -17,6 +18,8 @@ import {
     assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    buildDataTimezonePreviewResponse,
+    buildDataTimezonePreviewSql,
     CacheMetadata,
     calculateCompilationReport,
     calculateExploreWarningReport,
@@ -37,6 +40,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    currentUtcWallClock,
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
@@ -48,6 +52,7 @@ import {
     DbtExposure,
     DbtExposureType,
     DbtManifestVersion,
+    DbtProjectConfig,
     DbtProjectEnvironmentVariable,
     DbtProjectType,
     DbtRawModelNode,
@@ -55,6 +60,7 @@ import {
     DefaultSupportedDbtVersion,
     DimensionType,
     DownloadFileType,
+    DuckdbConnectionType,
     Explore,
     ExploreError,
     ExploreType,
@@ -69,6 +75,7 @@ import {
     getAvailableParametersFromTables,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
+    getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
     getFields,
@@ -124,12 +131,14 @@ import {
     preAggregateUtils,
     Project,
     ProjectCatalog,
+    ProjectContextEntry,
     ProjectDefaults,
     ProjectGroupAccess,
     ProjectMemberProfile,
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    RegisteredAccount,
     ReplaceableCustomFields,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
@@ -173,6 +182,7 @@ import {
     WarehouseTypes,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
+    type DataTimezonePreviewRequest,
     type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -213,6 +223,7 @@ import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preA
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
@@ -229,6 +240,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -263,6 +275,7 @@ import { applyLimitToSqlQuery } from '../../utils/QueryBuilder/utils';
 import { SubtotalsCalculator } from '../../utils/SubtotalsCalculator';
 import { AdminNotificationService } from '../AdminNotificationService/AdminNotificationService';
 import { BaseService } from '../BaseService';
+import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     doesExploreMatchRequiredAttributes,
@@ -317,6 +330,23 @@ export type ProjectServiceArguments = {
     spacePermissionService: SpacePermissionService;
     natsClient?: INatsClient;
     contentVerificationModel?: ContentVerificationModel;
+    organizationSettingsModel: OrganizationSettingsModel;
+    projectContextModel?: {
+        replaceEntriesForProject(
+            projectUuid: string,
+            entries: ProjectContextEntry[],
+        ): Promise<void>;
+    };
+    isProjectContextEnabled?: (args: {
+        user: Pick<SessionUser, 'userUuid'> &
+            Partial<Pick<SessionUser, 'organizationName'>>;
+        organizationUuid: string;
+    }) => Promise<boolean>;
+    // Lazily resolves the EE data-app service so preview creation can duplicate
+    // the upstream project's data apps. A thunk — not the instance — because
+    // AppGenerateService depends on ProjectService, so eager injection would
+    // create a construction cycle. Resolves undefined in core (non-EE) builds.
+    getAppGenerateService?: () => AppGenerateService | undefined;
 };
 
 export class ProjectService extends BaseService {
@@ -390,6 +420,23 @@ export class ProjectService extends BaseService {
 
     contentVerificationModel: ContentVerificationModel | undefined;
 
+    organizationSettingsModel: OrganizationSettingsModel;
+
+    projectContextModel:
+        | {
+              replaceEntriesForProject(
+                  projectUuid: string,
+                  entries: ProjectContextEntry[],
+              ): Promise<void>;
+          }
+        | undefined;
+
+    isProjectContextEnabled:
+        | ProjectServiceArguments['isProjectContextEnabled']
+        | undefined;
+
+    getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -425,6 +472,10 @@ export class ProjectService extends BaseService {
         adminNotificationService,
         spacePermissionService,
         contentVerificationModel,
+        organizationSettingsModel,
+        projectContextModel,
+        isProjectContextEnabled,
+        getAppGenerateService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -463,6 +514,10 @@ export class ProjectService extends BaseService {
         this.adminNotificationService = adminNotificationService;
         this.spacePermissionService = spacePermissionService;
         this.contentVerificationModel = contentVerificationModel;
+        this.organizationSettingsModel = organizationSettingsModel;
+        this.projectContextModel = projectContextModel;
+        this.isProjectContextEnabled = isProjectContextEnabled;
+        this.getAppGenerateService = getAppGenerateService;
     }
 
     static getMetricQueryExecutionProperties({
@@ -659,6 +714,11 @@ export class ProjectService extends BaseService {
                                 upstreamProjectUuid:
                                     upstreamProject.projectUuid,
                                 type: ProjectType.PREVIEW,
+                                metadata: {
+                                    upstreamProjectUuid:
+                                        upstreamProject.projectUuid,
+                                    upstreamProjectName: upstreamProject.name,
+                                },
                             }),
                         )
                     ) {
@@ -1360,9 +1420,44 @@ export class ProjectService extends BaseService {
                 };
             }
             case WarehouseTypes.DUCKDB: {
+                if (
+                    credentials.connectionType ===
+                    DuckdbConnectionType.MOTHERDUCK
+                ) {
+                    return {
+                        ...credentials,
+                        token: '',
+                    };
+                }
+                const { catalog, dataPath } = credentials;
+                const clearedCatalog =
+                    catalog.type === 'postgres'
+                        ? { ...catalog, user: '', password: '' }
+                        : catalog;
+                let clearedDataPath: typeof dataPath = dataPath;
+                if (dataPath.type === 's3') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        accessKeyId: '',
+                        secretAccessKey: '',
+                    };
+                } else if (dataPath.type === 'gcs') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        hmacKeyId: '',
+                        hmacSecret: '',
+                    };
+                } else if (dataPath.type === 'azure') {
+                    clearedDataPath = {
+                        ...dataPath,
+                        connectionString: '',
+                        accountKey: '',
+                    };
+                }
                 return {
                     ...credentials,
-                    token: '',
+                    catalog: clearedCatalog,
+                    dataPath: clearedDataPath,
                 };
             }
 
@@ -1489,7 +1584,9 @@ export class ProjectService extends BaseService {
                         'Please authenticate to access Databricks',
                     );
                 }
-                throw new NotFoundError('User warehouse credentials not found');
+                throw new MissingWarehouseCredentialsError(
+                    "You don't have warehouse credentials set up for this project. Add them under 'User settings' → 'My warehouse connections', or refresh the page to sign in again.",
+                );
             } else if (!organizationWarehouseCredentialsUuid) {
                 // No user credentials, no org credentials, refresh project credentials
                 this.logger.debug(
@@ -2035,6 +2132,9 @@ export class ProjectService extends BaseService {
         await this.validateProjectCreationPermissions(user, data);
 
         const newProjectData = data;
+        ProjectService.validateDbtEnvironmentVariables(
+            newProjectData.dbtConnection,
+        );
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
@@ -2090,8 +2190,9 @@ export class ProjectService extends BaseService {
                 user.userUuid,
                 user.organizationUuid,
                 createProject,
-                ProjectService.getPreviewExpiresAt(
+                await this.getPreviewExpiresAt(
                     createProject.type,
+                    createProject.upstreamProjectUuid,
                     createProject.expiresInHours,
                 ),
             );
@@ -2257,6 +2358,7 @@ export class ProjectService extends BaseService {
         }
 
         await this.validateProjectCreationPermissions(user, data);
+        ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
 
         let encryptedData: string;
         try {
@@ -2296,18 +2398,34 @@ export class ProjectService extends BaseService {
         return { jobUuid: job.jobUuid };
     }
 
-    static PREVIEW_PROJECT_TTL_DAYS = 30;
+    static PREVIEW_PROJECT_FALLBACK_TTL_HOURS = 720;
 
-    static getPreviewExpiresAt(
+    async getPreviewExpiresAt(
         type: ProjectType,
+        upstreamProjectUuid: string | undefined,
         expiresInHours?: number,
-    ): Date | null {
+    ): Promise<Date | null> {
         if (type !== ProjectType.PREVIEW) return null;
-        const now = new Date();
-        const ttlMs = expiresInHours
-            ? Number(expiresInHours) * 60 * 60 * 1000
-            : ProjectService.PREVIEW_PROJECT_TTL_DAYS * 24 * 60 * 60 * 1000;
-        return new Date(now.getTime() + ttlMs);
+
+        let defaultHours = ProjectService.PREVIEW_PROJECT_FALLBACK_TTL_HOURS;
+        let maxHours: number | null = null;
+        if (upstreamProjectUuid) {
+            const settings =
+                await this.projectModel.getPreviewExpirationSettings(
+                    upstreamProjectUuid,
+                );
+            defaultHours = settings.defaultPreviewExpirationHours;
+            maxHours = settings.maxPreviewExpirationHours;
+        }
+
+        const requestedHours = expiresInHours
+            ? Number(expiresInHours)
+            : defaultHours;
+        const clampedHours =
+            maxHours !== null
+                ? Math.min(requestedHours, maxHours)
+                : requestedHours;
+        return new Date(Date.now() + clampedHours * 60 * 60 * 1000);
     }
 
     static getAnalyticProperties(
@@ -2365,7 +2483,7 @@ export class ProjectService extends BaseService {
                 async () => this.testProjectAdapter(createProject, user),
             );
 
-            const { explores, lightdashProjectConfig } =
+            const { explores, lightdashProjectConfig, projectContext } =
                 await this.jobModel.tryJobStep(
                     jobUuid,
                     JobStepType.COMPILING,
@@ -2374,17 +2492,28 @@ export class ProjectService extends BaseService {
                             // There's no project yet, so we don't track
                             const trackingParams = undefined;
 
-                            return {
-                                explores: await adapter.compileAllExplores(
+                            const compiledExplores =
+                                await adapter.compileAllExplores(
                                     trackingParams,
                                     false, // loadSources
                                     this.lightdashConfig.partialCompilation
                                         .enabled,
-                                ),
-                                lightdashProjectConfig:
-                                    await adapter.getLightdashProjectConfig(
-                                        trackingParams,
-                                    ),
+                                );
+                            const compiledProjectConfig =
+                                await adapter.getLightdashProjectConfig(
+                                    trackingParams,
+                                );
+                            const compiledProjectContext =
+                                await this.getProjectContextFromAdapter({
+                                    adapter,
+                                    user,
+                                    organizationUuid: user.organizationUuid,
+                                });
+
+                            return {
+                                explores: compiledExplores,
+                                lightdashProjectConfig: compiledProjectConfig,
+                                projectContext: compiledProjectContext,
                             };
                         } finally {
                             await adapter.destroy();
@@ -2401,8 +2530,9 @@ export class ProjectService extends BaseService {
                         user.userUuid,
                         user.organizationUuid,
                         createProject,
-                        ProjectService.getPreviewExpiresAt(
+                        await this.getPreviewExpiresAt(
                             createProject.type,
+                            createProject.upstreamProjectUuid,
                             createProject.expiresInHours,
                         ),
                     );
@@ -2435,6 +2565,10 @@ export class ProjectService extends BaseService {
                     await this.projectModel.setTableGroups(
                         newProjectUuid,
                         lightdashProjectConfig.table_groups,
+                    );
+                    await this.replaceProjectContext(
+                        newProjectUuid,
+                        projectContext,
                     );
                     await this.saveExploresToCacheAndIndexCatalog({
                         userUuid: user.userUuid,
@@ -2505,6 +2639,10 @@ export class ProjectService extends BaseService {
                     organizationUuid: project.organizationUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
+                    metadata: {
+                        createdByUserUuid: project.createdByUserUuid,
+                        type: project.type,
+                    },
                 }),
             )
         ) {
@@ -2547,6 +2685,31 @@ export class ProjectService extends BaseService {
     /* When editing a project, most fields are optional
     but if the user switches from one authentication type to another,
     we need to validate the secrets are present */
+    static validateDbtEnvironmentVariables(dbtConnection: DbtProjectConfig) {
+        if (!('environment' in dbtConnection) || !dbtConnection.environment) {
+            return;
+        }
+
+        const keys = new Set<string>();
+        dbtConnection.environment.forEach(({ key }) => {
+            const error = getDbtEnvironmentVariableKeyError(key);
+            if (error) {
+                throw new ParameterError(error);
+            }
+
+            if (key.length === 0) {
+                return;
+            }
+
+            if (keys.has(key)) {
+                throw new ParameterError(
+                    `Environment variable "${key}" is duplicated`,
+                );
+            }
+            keys.add(key);
+        });
+    }
+
     validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.BIGQUERY:
@@ -2656,6 +2819,9 @@ export class ProjectService extends BaseService {
         );
 
         this.validateConfigSecrets(updatedProject);
+        ProjectService.validateDbtEnvironmentVariables(
+            updatedProject.dbtConnection,
+        );
 
         await this.projectModel.update(projectUuid, updatedProject);
 
@@ -2898,6 +3064,12 @@ export class ProjectService extends BaseService {
                                 await adapter.getLightdashProjectConfig(
                                     trackingParams,
                                 );
+                            const projectContext =
+                                await this.getProjectContextFromAdapter({
+                                    adapter,
+                                    user,
+                                    organizationUuid: user.organizationUuid,
+                                });
                             timings.getConfig.end = performance.now();
 
                             timings.yaml.start = performance.now();
@@ -2924,6 +3096,10 @@ export class ProjectService extends BaseService {
                             await this.projectModel.setTableGroups(
                                 projectUuid,
                                 lightdashProjectConfig.table_groups,
+                            );
+                            await this.replaceProjectContext(
+                                projectUuid,
+                                projectContext,
                             );
                             timings.parameters.end = performance.now();
                             timings.cacheExplores.start = performance.now();
@@ -3032,6 +3208,111 @@ export class ProjectService extends BaseService {
         return { adapter, sshTunnel };
     }
 
+    async previewDataTimezone(
+        account: RegisteredAccount,
+        body: DataTimezonePreviewRequest,
+    ): Promise<ApiDataTimezonePreviewResults> {
+        assertIsAccountWithOrg(account);
+        if (
+            !(await this.isTimezoneSupportEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+            }))
+        ) {
+            throw new ForbiddenError('Timezone support is not enabled');
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+
+        // Edit flow sources secrets from storage and overrides only the unsaved
+        // data timezone - the frontend never sends credentials. Create flow uses
+        // the just-typed credentials.
+        let effectiveCredentials: CreateWarehouseCredentials;
+        let projectTimezone = 'UTC';
+        if (body.mode === 'edit') {
+            const stored = await this.projectModel.getWithSensitiveFields(
+                body.projectUuid,
+            );
+            if (auditedAbility.cannot('update', subject('Project', stored))) {
+                throw new ForbiddenError();
+            }
+            // A switched-but-unsaved warehouse type can't be merged with stored
+            // secrets, so ask for a save rather than failing mid-connect.
+            if (
+                !stored.warehouseConnection ||
+                stored.warehouseConnection.type !== body.warehouseType
+            ) {
+                throw new ParameterError(
+                    'Save the warehouse connection before previewing a different warehouse type.',
+                );
+            }
+            effectiveCredentials = {
+                ...stored.warehouseConnection,
+                dataTimezone: body.dataTimezone ?? undefined,
+            };
+            projectTimezone = await this.getQueryTimezoneForProject(
+                body.projectUuid,
+            );
+        } else {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Project', {
+                        organizationUuid: account.organization.organizationUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            effectiveCredentials = body.credentials;
+        }
+
+        // The data timezone is set as the warehouse session timezone (the
+        // client interpolates it raw), so validate it before connecting.
+        const { dataTimezone } = effectiveCredentials;
+        if (dataTimezone && !isValidTimezone(dataTimezone)) {
+            throw new ParameterError('Invalid data timezone');
+        }
+
+        const sshTunnel = new SshTunnel(effectiveCredentials);
+        const tunnelCredentials = await sshTunnel.connect();
+        try {
+            const warehouseClient =
+                this.projectModel.getWarehouseClientFromCredentials(
+                    tunnelCredentials,
+                );
+            const adapterType = warehouseClient.getAdapterType();
+            // A fixed wall-clock, read through the session timezone the client
+            // sets from dataTimezone (the third runQuery arg below).
+            const nowWallClock = currentUtcWallClock();
+            const sql = buildDataTimezonePreviewSql(adapterType, nowWallClock);
+            const queryTags: RunQueryTags = {
+                organization_uuid: account.organization.organizationUuid,
+                user_uuid: account.user.userUuid,
+                query_context: QueryExecutionContext.API,
+            };
+            const { rows } = await warehouseClient.runQuery(
+                sql,
+                queryTags,
+                dataTimezone,
+            );
+            if (rows.length === 0) {
+                throw new UnexpectedServerError(
+                    'Data timezone preview query returned no rows',
+                );
+            }
+            return buildDataTimezonePreviewResponse({
+                row: rows[0],
+                nowWallClock,
+                projectTimezone,
+                dataTimezone,
+            });
+        } finally {
+            await sshTunnel.disconnect();
+        }
+    }
+
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
         const project =
             await this.projectModel.getWithSensitiveFields(projectUuid);
@@ -3045,6 +3326,10 @@ export class ProjectService extends BaseService {
                     organizationUuid: project.organizationUuid,
                     projectUuid: project.projectUuid,
                     createdByUserUuid: project.createdByUserUuid,
+                    metadata: {
+                        createdByUserUuid: project.createdByUserUuid,
+                        type: project.type,
+                    },
                 }),
             )
         ) {
@@ -3568,11 +3853,16 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
+        const timezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
-            getAccountUserTimezone(account),
-        );
+            userTimezone: getAccountUserTimezone(account),
+            isUserTimezoneEnabled,
+        });
         const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
             userUuid: account.user.id,
             organizationUuid: account.organization.organizationUuid,
@@ -3639,7 +3929,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3717,7 +4011,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3827,7 +4125,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('UnderlyingData', { organizationUuid, projectUuid }),
+                subject('UnderlyingData', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -3907,6 +4209,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { chartUuid, versionUuid },
                 }),
             )
         ) {
@@ -4006,6 +4309,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { chartUuid, dashboardUuid },
                 }),
             )
         ) {
@@ -4238,11 +4542,16 @@ export class ProjectService extends BaseService {
 
                 const projectTimezone =
                     await this.getQueryTimezoneForProject(projectUuid);
-                const resolvedTimezone = resolveQueryTimezone(
+                const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                });
+                const resolvedTimezone = resolveQueryTimezone({
                     metricQuery,
                     projectTimezone,
-                    getAccountUserTimezone(account),
-                );
+                    userTimezone: getAccountUserTimezone(account),
+                    isUserTimezoneEnabled,
+                });
                 const isTimezoneEnabled = await this.isTimezoneSupportEnabled({
                     userUuid: account.user.id,
                     organizationUuid: account.organization.organizationUuid,
@@ -4516,17 +4825,25 @@ export class ProjectService extends BaseService {
                             subject('Project', {
                                 organizationUuid,
                                 projectUuid,
+                                metadata: { chartUuid, exploreName },
                             }),
                         )
                     ) {
                         throw new ForbiddenError();
                     }
 
+                    const { maxLimit, csvCellsLimit } =
+                        await resolveOrganizationExportLimits(
+                            this.organizationSettingsModel,
+                            this.lightdashConfig.query,
+                            organizationUuid,
+                        );
+
                     const metricQueryWithLimit = applyMetricQueryLimit(
                         metricQuery,
                         csvLimit,
-                        this.lightdashConfig.query?.csvCellsLimit,
-                        this.lightdashConfig.query?.maxLimit,
+                        csvCellsLimit,
+                        maxLimit,
                     );
 
                     const explore =
@@ -4571,11 +4888,18 @@ export class ProjectService extends BaseService {
 
                     const projectTimezone =
                         await this.getQueryTimezoneForProject(projectUuid);
-                    const timezone = resolveQueryTimezone(
-                        metricQueryWithLimit,
+                    const isUserTimezoneEnabled =
+                        await this.isUserTimezoneEnabled({
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                        });
+                    const timezone = resolveQueryTimezone({
+                        metricQuery: metricQueryWithLimit,
                         projectTimezone,
-                        getAccountUserTimezone(account),
-                    );
+                        userTimezone: getAccountUserTimezone(account),
+                        isUserTimezoneEnabled,
+                    });
                     const useTimezoneAwareDateTrunc =
                         await this.isTimezoneSupportEnabled({
                             userUuid: account.user.id,
@@ -4746,10 +5070,16 @@ export class ProjectService extends BaseService {
             query_context: QueryExecutionContext.SQL_RUNNER,
         };
 
+        const { maxLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            organizationUuid,
+        );
+
         // enforce limit for current SQL queries as it may crash server. We are working on a new SQL runner that supports streaming
         const cteWithLimit = applyLimitToSqlQuery({
             sqlQuery: sql,
-            limit: this.lightdashConfig.query.maxLimit,
+            limit: maxLimit,
         });
 
         const results = await warehouseClient.runQuery(cteWithLimit, queryTags);
@@ -5040,7 +5370,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { fileId },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -5071,16 +5405,23 @@ export class ProjectService extends BaseService {
         table: string;
         initialFieldId: string;
         search: string;
-        limit: number;
+        limit: unknown;
         filters: AndFilterGroup | undefined;
     }) {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const { maxLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            organizationUuid,
+        );
         return getFieldValuesMetricQuery({
             projectUuid,
             table,
             initialFieldId,
             search,
             limit,
-            maxLimit: this.lightdashConfig.query.maxLimit,
+            maxLimit,
             filters,
             exploreResolver: this.projectModel,
         });
@@ -5092,7 +5433,7 @@ export class ProjectService extends BaseService {
         table: string,
         initialFieldId: string,
         search: string,
-        limit: number,
+        limit: unknown,
         filters: AndFilterGroup | undefined,
         forceRefresh: boolean = false,
         parameters?: ParametersValuesMap,
@@ -5159,11 +5500,13 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled(user);
+        const timezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
-            user.timezone,
-        );
+            userTimezone: user.timezone,
+            isUserTimezoneEnabled,
+        });
         const useTimezoneAwareDateTrunc =
             await this.isTimezoneSupportEnabled(user);
 
@@ -5251,7 +5594,7 @@ export class ProjectService extends BaseService {
                 fieldId: getItemId(field),
                 searchCharCount: search.length,
                 resultsCount: resultsArray.length,
-                searchLimit: limit,
+                searchLimit: metricQuery.limit,
             },
         });
 
@@ -5263,6 +5606,42 @@ export class ProjectService extends BaseService {
         };
     }
 
+    private async getProjectContextFromAdapter({
+        adapter,
+        user,
+        organizationUuid,
+    }: {
+        adapter: ProjectAdapter;
+        user: Pick<SessionUser, 'userUuid'> &
+            Partial<Pick<SessionUser, 'organizationName'>>;
+        organizationUuid: string;
+    }): Promise<ProjectContextEntry[] | undefined> {
+        if (!this.projectContextModel) {
+            return undefined;
+        }
+
+        const enabled = this.isProjectContextEnabled
+            ? await this.isProjectContextEnabled({ user, organizationUuid })
+            : false;
+        if (!enabled) {
+            return undefined;
+        }
+        return adapter.getProjectContext();
+    }
+
+    private async replaceProjectContext(
+        projectUuid: string,
+        entries: ProjectContextEntry[] | undefined,
+    ): Promise<void> {
+        if (!this.projectContextModel || entries === undefined) {
+            return;
+        }
+        await this.projectContextModel.replaceEntriesForProject(
+            projectUuid,
+            entries,
+        );
+    }
+
     private async refreshTablesAndProjectConfig(
         user: Pick<SessionUser, 'userUuid'>,
         projectUuid: string,
@@ -5270,6 +5649,7 @@ export class ProjectService extends BaseService {
     ): Promise<{
         explores: (Explore | ExploreError)[];
         lightdashProjectConfig: LightdashProjectConfig;
+        projectContext: ProjectContextEntry[] | undefined;
     }> {
         // Checks that project exists
         const project = await this.projectModel.get(projectUuid);
@@ -5422,8 +5802,13 @@ export class ProjectService extends BaseService {
 
             const lightdashProjectConfig =
                 await adapter.getLightdashProjectConfig(trackingParams);
+            const projectContext = await this.getProjectContextFromAdapter({
+                adapter,
+                user,
+                organizationUuid: project.organizationUuid,
+            });
 
-            return { explores, lightdashProjectConfig };
+            return { explores, lightdashProjectConfig, projectContext };
         } catch (e) {
             if (!(e instanceof LightdashError)) {
                 Sentry.captureException(e);
@@ -5472,6 +5857,7 @@ export class ProjectService extends BaseService {
                     subject('Project', {
                         organizationUuid,
                         projectUuid: job.projectUuid,
+                        metadata: { jobUuid },
                     }),
                 )
             ) {
@@ -5634,6 +6020,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         requestMethod: RequestMethod,
         skipPermissionCheck: boolean = false,
+        validateAfterCompile: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -5677,6 +6064,7 @@ export class ProjectService extends BaseService {
             requestMethod,
             jobUuid: job.jobUuid,
             isPreview: type === ProjectType.PREVIEW,
+            validateAfterCompile,
             userUuid: user.userUuid,
         });
 
@@ -5743,12 +6131,15 @@ export class ProjectService extends BaseService {
                     job.jobUuid,
                     JobStepType.COMPILING,
                     async () => {
-                        const { explores, lightdashProjectConfig } =
-                            await this.refreshTablesAndProjectConfig(
-                                user,
-                                projectUuid,
-                                requestMethod,
-                            );
+                        const {
+                            explores,
+                            lightdashProjectConfig,
+                            projectContext,
+                        } = await this.refreshTablesAndProjectConfig(
+                            user,
+                            projectUuid,
+                            requestMethod,
+                        );
 
                         timings.yaml.start = performance.now();
                         await this.replaceYamlTags(
@@ -5774,6 +6165,10 @@ export class ProjectService extends BaseService {
                         await this.projectModel.setTableGroups(
                             projectUuid,
                             lightdashProjectConfig.table_groups,
+                        );
+                        await this.replaceProjectContext(
+                            projectUuid,
+                            projectContext,
                         );
                         timings.parameters.end = performance.now();
                         timings.cacheExplores.start = performance.now();
@@ -5990,7 +6385,9 @@ export class ProjectService extends BaseService {
                 }
                 if (isExploreError(explore)) {
                     throw new NotFoundError(
-                        `Explore "${exploreName}" has an error.`,
+                        `Explore "${exploreName}" has an error: ${explore.errors
+                            .map((error) => error.message)
+                            .join(', ')}`,
                     );
                 }
                 if (includeUnfilteredTables) {
@@ -6035,6 +6432,7 @@ export class ProjectService extends BaseService {
                         subject('Project', {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
+                            metadata: { exploreNames },
                         }),
                     ) &&
                     auditedAbility.cannot(
@@ -6043,6 +6441,7 @@ export class ProjectService extends BaseService {
                             organizationUuid: project.organizationUuid,
                             projectUuid,
                             exploreNames,
+                            metadata: { exploreNames },
                         }),
                     );
 
@@ -6164,7 +6563,10 @@ export class ProjectService extends BaseService {
             case WarehouseTypes.ATHENA:
                 return credentials.database; // Athena uses database as catalog name
             case WarehouseTypes.DUCKDB:
-                return credentials.database;
+                return credentials.connectionType ===
+                    DuckdbConnectionType.DUCKLAKE
+                    ? (credentials.catalogAlias ?? 'ducklake')
+                    : credentials.database;
             default:
                 return assertUnreachable(credentials, 'Unknown warehouse type');
         }
@@ -6287,7 +6689,16 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'manage',
-                subject('SqlRunner', { organizationUuid, projectUuid }),
+                subject('SqlRunner', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        tableName,
+                        schemaName,
+                        databaseName,
+                        queryContext,
+                    },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -6397,6 +6808,85 @@ export class ProjectService extends BaseService {
             },
         });
         return this.projectModel.getTablesConfiguration(projectUuid);
+    }
+
+    async getProjectPreviewExpirationSettings(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<{
+        projectUuid: string;
+        defaultPreviewExpirationHours: number;
+        maxPreviewExpirationHours: number;
+    }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const settings =
+            await this.projectModel.getPreviewExpirationSettings(projectUuid);
+        return { projectUuid, ...settings };
+    }
+
+    async updateProjectPreviewExpirationSettings(
+        user: SessionUser,
+        projectUuid: string,
+        settings: {
+            defaultPreviewExpirationHours: number;
+            maxPreviewExpirationHours: number;
+        },
+    ): Promise<{
+        projectUuid: string;
+        defaultPreviewExpirationHours: number;
+        maxPreviewExpirationHours: number;
+    }> {
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const { defaultPreviewExpirationHours, maxPreviewExpirationHours } =
+            settings;
+        if (
+            !Number.isInteger(defaultPreviewExpirationHours) ||
+            !Number.isInteger(maxPreviewExpirationHours)
+        ) {
+            throw new ParameterError(
+                'Preview expiration hours must be whole numbers',
+            );
+        }
+        if (
+            defaultPreviewExpirationHours < 1 ||
+            maxPreviewExpirationHours < 1
+        ) {
+            throw new ParameterError(
+                'Preview expiration hours must be at least 1',
+            );
+        }
+        if (defaultPreviewExpirationHours > maxPreviewExpirationHours) {
+            throw new ParameterError(
+                'Default preview expiration cannot exceed the maximum',
+            );
+        }
+        await this.projectModel.updatePreviewExpirationSettings(projectUuid, {
+            defaultPreviewExpirationHours,
+            maxPreviewExpirationHours,
+        });
+        const persisted =
+            await this.projectModel.getPreviewExpirationSettings(projectUuid);
+        return { projectUuid, ...persisted };
     }
 
     async getAvailableFiltersForSavedQuery(
@@ -6673,6 +7163,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { userUuid },
                 }),
             )
         ) {
@@ -6727,6 +7218,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { role: data.role },
                 }),
             )
         ) {
@@ -6768,6 +7260,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { userUuid, role: data.role },
                 }),
             )
         ) {
@@ -6841,7 +7334,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { colorPaletteUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -6880,7 +7377,15 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: {
+                        spaceUuid: context.spaceUuid,
+                        dashboardUuid: context.dashboardUuid,
+                        chartUuid: context.chartUuid,
+                    },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -6908,6 +7413,7 @@ export class ProjectService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { userUuid },
                 }),
             )
         ) {
@@ -7014,7 +7520,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { exploreName },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7265,6 +7775,7 @@ export class ProjectService extends BaseService {
                 manifest?: string;
             };
             warehouseConnectionOverrides?: { schema?: string };
+            validateAfterCompile?: boolean;
         },
         context: RequestMethod,
     ): Promise<ApiCreatePreviewResults> {
@@ -7310,6 +7821,7 @@ export class ProjectService extends BaseService {
             previewProject.project.projectUuid,
             context,
             true, // Skip permission check
+            data.validateAfterCompile ?? false,
         );
         return {
             projectUuid: previewProject.project.projectUuid,
@@ -7393,11 +7905,34 @@ export class ProjectService extends BaseService {
             async () => {
                 const spaces = await this.spaceModel.find({ projectUuid }); // Get all spaces in the project
 
-                await this.projectModel.duplicateContent(
-                    projectUuid,
-                    previewProjectUuid,
-                    spaces,
-                );
+                const { spaceMapping } =
+                    await this.projectModel.duplicateContent(
+                        projectUuid,
+                        previewProjectUuid,
+                        spaces,
+                    );
+
+                // Duplicate the upstream project's data apps into the preview
+                // and remap the copied dashboard tiles onto them. EE-only —
+                // resolves undefined in core builds. Best-effort: a failure
+                // here must not undo the content copy that already committed,
+                // so swallow and log rather than propagate.
+                const appGenerateService = this.getAppGenerateService?.();
+                if (appGenerateService) {
+                    try {
+                        await appGenerateService.duplicateAppsForPreview(
+                            projectUuid,
+                            previewProjectUuid,
+                            spaceMapping,
+                        );
+                    } catch (e) {
+                        this.logger.error(
+                            `Failed to duplicate data apps from ${projectUuid} to preview ${previewProjectUuid}: ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
+                    }
+                }
             },
         );
     }
@@ -7596,7 +8131,15 @@ export class ProjectService extends BaseService {
         }
         const project = await this.projectModel.getSummary(projectUuid);
         const auditedAbility = this.createAuditedAbility(user);
-        if (auditedAbility.cannot('view', subject('Project', project))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    ...project,
+                    metadata: { userWarehouseCredentialsUuid },
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         await this.userWarehouseCredentialsModel.upsertUserCredentialsPreference(
@@ -7663,7 +8206,11 @@ export class ProjectService extends BaseService {
         if (
             auditedAbility.cannot(
                 'create',
-                subject('VirtualView', { organizationUuid, projectUuid }),
+                subject('VirtualView', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { name: payload.name },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -7947,6 +8494,18 @@ export class ProjectService extends BaseService {
         return enabled;
     }
 
+    protected async isUserTimezoneEnabled(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.EnableUserTimezones,
+            user,
+        });
+
+        return enabled;
+    }
+
     async getQueryTimezoneForProject(projectUuid: string): Promise<string> {
         const projectTimezone =
             await this.projectModel.getQueryTimezone(projectUuid);
@@ -7971,6 +8530,7 @@ export class ProjectService extends BaseService {
                 subject('Tags', {
                     projectUuid,
                     organizationUuid,
+                    metadata: { name },
                 }),
             )
         ) {
@@ -8017,6 +8577,7 @@ export class ProjectService extends BaseService {
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
+                    metadata: { tagUuid },
                 }),
             )
         ) {
@@ -8048,6 +8609,7 @@ export class ProjectService extends BaseService {
                 subject('Tags', {
                     projectUuid: tag.projectUuid,
                     organizationUuid,
+                    metadata: { tagUuid },
                 }),
             )
         ) {
@@ -8096,6 +8658,39 @@ export class ProjectService extends BaseService {
         return this.projectModel.getTableGroups(projectUuid);
     }
 
+    async replaceProjectTableGroups({
+        user,
+        projectUuid,
+        tableGroups,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        tableGroups: Record<string, GroupType>;
+    }) {
+        const { organizationUuid, type, createdByUserUuid } =
+            await this.projectModel.getWithSensitiveFields(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid,
+                    type,
+                    createdByUserUuid,
+                    metadata: { createdByUserUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                `User does not have permission to update project table groups`,
+            );
+        }
+
+        await this.projectModel.setTableGroups(projectUuid, tableGroups);
+    }
+
     async replaceProjectParameters({
         user,
         projectUuid,
@@ -8117,6 +8712,7 @@ export class ProjectService extends BaseService {
                     organizationUuid,
                     type,
                     createdByUserUuid,
+                    metadata: { createdByUserUuid },
                 }),
             )
         ) {
@@ -8152,6 +8748,7 @@ export class ProjectService extends BaseService {
                     organizationUuid,
                     type,
                     createdByUserUuid,
+                    metadata: { createdByUserUuid },
                 }),
             )
         ) {

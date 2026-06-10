@@ -17,6 +17,7 @@ import type {
     CustomDimension,
     Filter,
     InternalFilterDefinition,
+    ParametersValuesMap,
     QueryDefinition,
     Sort,
     TableCalculation,
@@ -32,6 +33,7 @@ type BuilderState = {
     additionalMetrics: AdditionalMetric[];
     customDimensions: CustomDimension[];
     limit: number;
+    parameters: ParametersValuesMap;
     label: string | undefined;
 };
 
@@ -65,6 +67,7 @@ export class QueryBuilder {
                 additionalMetrics: [],
                 customDimensions: [],
                 limit: 500,
+                parameters: {},
                 label: undefined,
             };
         } else {
@@ -165,6 +168,19 @@ export class QueryBuilder {
         });
     }
 
+    /**
+     * Set Lightdash parameter values (`${lightdash.parameters.X}` substitutions).
+     * Merges with any values from prior `.parameters()` calls — later keys win.
+     *
+     * Parameters must be declared in `lightdash.yml` / model YAML and referenced
+     * via `${lightdash.parameters.X}` in SQL.
+     */
+    parameters(map: ParametersValuesMap): QueryBuilder {
+        return this._clone({
+            parameters: { ...this._state.parameters, ...map },
+        });
+    }
+
     /** Set the maximum number of rows to return (default: 500) */
     limit(n: number): QueryBuilder {
         return this._clone({ limit: n });
@@ -182,6 +198,9 @@ export class QueryBuilder {
             additionalMetrics: this._state.additionalMetrics,
             customDimensions: this._state.customDimensions,
             limit: this._state.limit,
+            ...(Object.keys(this._state.parameters).length > 0
+                ? { parameters: this._state.parameters }
+                : {}),
             ...(this._state.label ? { label: this._state.label } : {}),
         };
     }

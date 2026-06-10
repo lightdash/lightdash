@@ -1139,6 +1139,7 @@ export class CatalogService<
                 subject('Tags', {
                     projectUuid,
                     organizationUuid,
+                    metadata: { catalogSearchUuid, icon },
                 }),
             )
         ) {
@@ -1324,6 +1325,7 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
+                    metadata: { metricUuids },
                 }),
             )
         ) {
@@ -1414,6 +1416,12 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
+                    metadata: {
+                        sourceCatalogSearchUuid:
+                            edgePayload.sourceCatalogSearchUuid,
+                        targetCatalogSearchUuid:
+                            edgePayload.targetCatalogSearchUuid,
+                    },
                 }),
             )
         ) {
@@ -1698,6 +1706,12 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
+                    metadata: {
+                        sourceCatalogSearchUuid:
+                            edgePayload.sourceCatalogSearchUuid,
+                        targetCatalogSearchUuid:
+                            edgePayload.targetCatalogSearchUuid,
+                    },
                 }),
             )
         ) {
@@ -1835,6 +1849,11 @@ export class CatalogService<
                 subject('MetricsTree', {
                     projectUuid,
                     organizationUuid,
+                    metadata: {
+                        name: payload.name,
+                        slug: payload.slug,
+                        source: payload.source,
+                    },
                 }),
             )
         ) {

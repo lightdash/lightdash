@@ -1,4 +1,3 @@
-import type { MCPClient } from '@ai-sdk/mcp';
 import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -7,29 +6,44 @@ import {
     stepCountIs,
     streamText,
     StreamTextResult,
+    type ModelMessage,
     type Output,
     type ToolSet,
 } from 'ai';
 import Logger from '../../../../logging/logger';
-import { createHttpMcpClient } from '../AiAgentMcpRuntimeClient';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import { getCreateContent } from '../tools/createContent';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
+import { getEditContent } from '../tools/editContent';
+import { getEditDbtProject } from '../tools/editDbtProject';
 import { getFindContent } from '../tools/findContent';
-import { getFindExplores } from '../tools/findExplores';
-import { getFindFields } from '../tools/findFields';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
+import { getGenerateHashes } from '../tools/generateHashes';
+import { getGenerateUuids } from '../tools/generateUuids';
+import { getGenerateVisualization } from '../tools/generateVisualization';
 import { getGetDashboardCharts } from '../tools/getDashboardCharts';
+import { getGetKnowledgeDocumentContent } from '../tools/getKnowledgeDocumentContent';
+import { getGetProjectInfo } from '../tools/getProjectInfo';
 import { getImproveContext } from '../tools/improveContext';
+import { getListContent } from '../tools/listContent';
+import { getListKnowledgeDocuments } from '../tools/listKnowledgeDocuments';
+import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
-import { getProposeChange } from '../tools/proposeChange';
-import { getRunQuery } from '../tools/runQuery';
+import { getLoadProjectContext } from '../tools/loadProjectContext';
+import { getLoadSkill } from '../tools/loadSkill';
+import { getReadContent } from '../tools/readContent';
+import { getRepoShell } from '../tools/repoShell';
+import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
+import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
+import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
     AiStreamAgentResponseArgs,
+    UnavailableMcpServer,
 } from '../types/aiAgent';
 import { AgentContext } from '../utils/AgentContext';
 import {
@@ -37,7 +51,7 @@ import {
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
 import { getDiscoverFields } from './discoverFields/tool';
-import { getAgentTelemetryConfig } from './telemetry';
+import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -48,8 +62,33 @@ const createAiAgentLogger =
 
 const STEP_CAP = 40;
 
-type AgentToolSetup = {
+const withToolHints = (
+    messageHistory: ModelMessage[],
+    toolHints: string[],
+): ModelMessage[] => {
+    if (toolHints.length === 0) return messageHistory;
+    const hint = `\n\n(User hinted at using: ${toolHints.join(', ')})`;
+    const lastUserIndex = messageHistory.findLastIndex(
+        (m) => m.role === 'user',
+    );
+    if (lastUserIndex === -1) return messageHistory;
+    const lastUser = messageHistory[lastUserIndex];
+    if (lastUser.role !== 'user') return messageHistory;
+    const updatedContent =
+        typeof lastUser.content === 'string'
+            ? `${lastUser.content}${hint}`
+            : [...lastUser.content, { type: 'text' as const, text: hint }];
+    return [
+        ...messageHistory.slice(0, lastUserIndex),
+        { ...lastUser, content: updatedContent } as ModelMessage,
+        ...messageHistory.slice(lastUserIndex + 1),
+    ];
+};
+
+export type AgentMcpToolSetup = {
     tools: ToolSet;
+    mcpToolNameToServerUuid: Record<string, string>;
+    unavailableMcpServers: UnavailableMcpServer[];
     closeMcpClients: () => Promise<void>;
 };
 
@@ -90,80 +129,70 @@ export const defaultAgentOptions = {
     maxRetries: 6, // Increased for Bedrock rate limits
 };
 
-const sanitizeMcpToolKeyPart = (value: string) => {
-    const sanitized = value
-        .replace(/[^a-zA-Z0-9_]+/g, '_')
-        .replace(/_+/g, '_')
-        .replace(/^_+/, '')
-        .replace(/_+$/, '');
-    return sanitized.length > 0 ? sanitized.toLowerCase() : 'tool';
-};
-
-const getAgentTools = async (
+const getAgentTools = (
     args: AiAgentArgs,
     dependencies: AiAgentDependencies,
     availableExplores: Explore[],
-): Promise<AgentToolSetup> => {
+    mcpToolSetup: AgentMcpToolSetup,
+): ToolSet => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
         'Agent Tools',
         `Getting agent tools for agent: ${args.agentSettings.name}`,
     );
 
-    // Gated by FeatureFlags.AiDiscoverFieldsSubagent.
-    // When the flag is ON: register `discoverFields` (the subagent) and omit
-    // `findExplores`/`findFields` from the parent toolset entirely.
-    // When OFF: keep the legacy `findExplores` + `findFields` pair and omit
-    // `discoverFields`. The legacy tools' implementations are also what the
-    // subagent uses internally, so they always exist as factories.
-    const discoverFields = args.useDiscoverFieldsSubagent
-        ? getDiscoverFields(
-              {
-                  model: args.model,
-                  callOptions: args.callOptions,
-                  providerOptions: args.providerOptions,
-                  availableExplores,
-                  findExploresFieldSearchSize: args.findExploresFieldSearchSize,
-                  findFieldsPageSize: args.findFieldsPageSize,
-                  promptUuid: args.promptUuid,
-                  telemetry: {
-                      agentSettings: args.agentSettings,
-                      threadUuid: args.threadUuid,
-                      promptUuid: args.promptUuid,
-                      telemetryEnabled: args.telemetryEnabled,
-                  },
-              },
-              {
-                  findExplores: dependencies.findExplores,
-                  findFields: dependencies.findFields,
-                  getExplore: dependencies.getExplore,
-                  updateProgress: dependencies.updateProgress,
-                  storeToolCall: dependencies.storeToolCall,
-                  storeToolResults: dependencies.storeToolResults,
-              },
-          )
-        : null;
-
-    const findExplores = args.useDiscoverFieldsSubagent
-        ? null
-        : getFindExplores({
-              fieldSearchSize: args.findExploresFieldSearchSize,
-              findExplores: dependencies.findExplores,
-              updateProgress: dependencies.updateProgress,
-          });
-
-    const findFields = args.useDiscoverFieldsSubagent
-        ? null
-        : getFindFields({
-              getExplore: dependencies.getExplore,
-              findFields: dependencies.findFields,
-              updateProgress: dependencies.updateProgress,
-              pageSize: args.findFieldsPageSize,
-          });
+    const discoverFields = getDiscoverFields(
+        {
+            model: args.model,
+            callOptions: args.callOptions,
+            providerOptions: args.providerOptions,
+            availableExplores,
+            findExploresFieldSearchSize: args.findExploresFieldSearchSize,
+            findFieldsPageSize: args.findFieldsPageSize,
+            promptUuid: args.promptUuid,
+            telemetry: {
+                agentSettings: args.agentSettings,
+                threadUuid: args.threadUuid,
+                promptUuid: args.promptUuid,
+                telemetryEnabled: args.telemetryEnabled,
+                model: args.model,
+            },
+        },
+        {
+            findExplores: dependencies.findExplores,
+            findFields: dependencies.findFields,
+            getExplore: dependencies.getExplore,
+            updateProgress: dependencies.updateProgress,
+            storeToolCall: dependencies.storeToolCall,
+            storeToolResults: dependencies.storeToolResults,
+        },
+    );
 
     const findContent = getFindContent({
         findContent: dependencies.findContent,
         siteUrl: args.siteUrl,
+        trackCoverage: (coverage) => {
+            dependencies.trackEvent({
+                event: 'ai_agent.find_content_coverage',
+                userId: args.userId,
+                properties: {
+                    organizationId: args.organizationId,
+                    projectId: args.agentSettings.projectUuid,
+                    aiAgentId: args.agentSettings.uuid,
+                    agentName: args.agentSettings.name,
+                    threadId: args.threadUuid,
+                    promptId: args.promptUuid,
+                    searchQuery: coverage.searchQuery,
+                    totalResultCount: coverage.totalResultCount,
+                    verifiedResultCount: coverage.verifiedResultCount,
+                    topResultVerified: coverage.topResultVerified,
+                },
+            });
+        },
+    });
+
+    const listContent = getListContent({
+        listContent: dependencies.listContent,
     });
 
     const getDashboardCharts = getGetDashboardCharts({
@@ -172,7 +201,11 @@ const getAgentTools = async (
         pageSize: args.getDashboardChartsPageSize,
     });
 
-    const runQuery = getRunQuery({
+    const readContent = getReadContent({
+        readContent: dependencies.readContent,
+    });
+
+    const generateVisualization = getGenerateVisualization({
         updateProgress: dependencies.updateProgress,
         runAsyncQuery: dependencies.runAsyncQuery,
         getPrompt: dependencies.getPrompt,
@@ -180,7 +213,6 @@ const getAgentTools = async (
         createOrUpdateArtifact: dependencies.createOrUpdateArtifact,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
-        enableSelfImprovement: args.enableSelfImprovement,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -201,6 +233,7 @@ const getAgentTools = async (
               siteUrl: args.siteUrl,
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
+              maxQueryLimit: args.runSqlMaxLimit,
           })
         : null;
 
@@ -222,127 +255,167 @@ const getAgentTools = async (
     });
 
     const improveContext = getImproveContext();
-
-    const proposeChange = getProposeChange({
-        createChange: dependencies.createChange,
-        getExploreCompiler: dependencies.getExploreCompiler,
+    const editContent = getEditContent({
+        editContent: dependencies.editContent,
     });
+    const createContent = getCreateContent({
+        createContent: dependencies.createContent,
+    });
+    const runContentQuery = getRunContentQuery({
+        updateProgress: dependencies.updateProgress,
+        runAsyncQuery: dependencies.runAsyncQuery,
+        runSavedChartQuery: dependencies.runSavedChartQuery,
+        getSavedChart: dependencies.getSavedChart,
+        validateContent: dependencies.validateContent,
+        maxLimit: args.maxQueryLimit,
+        enableDataAccess: args.enableDataAccess,
+    });
+
+    const editDbtProject = args.enableAiWriteback
+        ? getEditDbtProject({
+              editDbtProject: dependencies.editDbtProject,
+          })
+        : null;
+
+    const setupPreviewDeploy = args.enablePreviewDeploySetup
+        ? getSetupPreviewDeploy({
+              setupPreviewDeploy: dependencies.setupPreviewDeploy,
+          })
+        : null;
+
+    const repoShell = args.enableRepoFs
+        ? getRepoShell({
+              repoShell: dependencies.repoShell,
+          })
+        : null;
 
     const searchFieldValues = getSearchFieldValues({
         searchFieldValues: dependencies.searchFieldValues,
     });
 
+    const searchSemanticLayer = getSearchSemanticLayer({
+        searchSemanticLayer: dependencies.searchSemanticLayer,
+        updateProgress: dependencies.updateProgress,
+        // The agent chooses pageSize per task; cap it so one call can't pull an
+        // unbounded payload while still letting an audit grab the inventory in
+        // one or two round-trips.
+        maxPageSize: 500,
+    });
+
+    const listKnowledgeDocuments = getListKnowledgeDocuments({
+        listKnowledgeDocuments: dependencies.listKnowledgeDocuments,
+    });
+
+    const getKnowledgeDocumentContent = getGetKnowledgeDocumentContent({
+        getKnowledgeDocumentContent: dependencies.getKnowledgeDocumentContent,
+    });
+
+    const loadSkill =
+        args.availableSkills.length > 0
+            ? getLoadSkill({
+                  loadSkill: dependencies.loadSkill,
+              })
+            : null;
+    const generateHashes = getGenerateHashes();
+    const generateUuids = getGenerateUuids();
+
+    const listProjects = getListProjects({
+        listProjects: dependencies.listProjects,
+    });
+
+    const getProjectInfo = getGetProjectInfo({
+        getProjectInfo: dependencies.getProjectInfo,
+    });
+
+    const loadProjectContext = args.projectContextEnabled
+        ? getLoadProjectContext({
+              getDocument: dependencies.getProjectContextDocument,
+          })
+        : null;
+
+    const enableContentTools =
+        args.enableAgentRevamp &&
+        args.enableDataAccess &&
+        args.enableContentTools;
+
     const tools: ToolSet = {
         findContent,
-        getDashboardCharts,
-        ...(discoverFields ? { discoverFields } : {}),
-        ...(findExplores ? { findExplores } : {}),
-        ...(findFields ? { findFields } : {}),
-        runQuery,
+        discoverFields,
+        ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
+        listProjects,
+        getProjectInfo,
+        listKnowledgeDocuments,
+        getKnowledgeDocumentContent,
+        ...(enableContentTools
+            ? {
+                  readContent,
+                  editContent,
+                  listContent,
+                  createContent,
+                  runContentQuery,
+              }
+            : {
+                  getDashboardCharts,
+                  generateDashboard,
+              }),
+        generateVisualization,
         runSavedChart,
-        generateDashboard,
+        generateHashes,
+        generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
-        ...(args.enableSelfImprovement && args.canManageAgent
-            ? { proposeChange }
-            : {}),
+        ...(editDbtProject ? { editDbtProject } : {}),
+        ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
+        ...(repoShell ? { repoShell } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
         ...(describeWarehouseTable ? { describeWarehouseTable } : {}),
+        ...(loadSkill ? { loadSkill } : {}),
+        ...(loadProjectContext ? { loadProjectContext } : {}),
     };
 
-    if (args.mcpServers.length === 0) {
-        logger(
-            'Agent Tools',
-            `Successfully retrieved agent tools: ${Object.keys(tools).join(', ')}`,
-        );
-        return {
-            tools,
-            closeMcpClients: async () => undefined,
-        };
-    }
-
-    const mcpClients: MCPClient[] = [];
-    const usedToolNames = new Set(Object.keys(tools));
-
-    try {
-        for await (const mcpServer of args.mcpServers) {
-            logger(
-                'Agent Tools',
-                `Connecting to MCP server: ${mcpServer.name} (${mcpServer.url})`,
-            );
-
-            const mcpClient = await createHttpMcpClient(mcpServer, (error) => {
-                Logger.error(
-                    `[AiAgent][MCP][${mcpServer.name}] Uncaught MCP client error`,
-                    error,
-                );
-            });
-            mcpClients.push(mcpClient);
-
-            const mcpTools = await mcpClient.tools();
-            const serverPrefix = sanitizeMcpToolKeyPart(mcpServer.name);
-
-            for (const [toolName, toolDefinition] of Object.entries(mcpTools)) {
-                const toolSuffix = sanitizeMcpToolKeyPart(toolName);
-                const baseToolName = `mcp_${serverPrefix}__${toolSuffix}`;
-                let namespacedToolName = baseToolName;
-                let collisionCount = 1;
-
-                while (usedToolNames.has(namespacedToolName)) {
-                    collisionCount += 1;
-                    namespacedToolName = `${baseToolName}_${collisionCount}`;
-                }
-
-                usedToolNames.add(namespacedToolName);
-                tools[namespacedToolName] = toolDefinition as ToolSet[string];
-            }
-        }
-    } catch (error) {
-        await Promise.allSettled(mcpClients.map((client) => client.close()));
-        throw error;
-    }
+    const mergedTools = { ...tools, ...mcpToolSetup.tools };
 
     logger(
         'Agent Tools',
-        `Successfully retrieved agent tools: ${Object.keys(tools).join(', ')}`,
+        `Successfully retrieved agent tools: ${Object.keys(mergedTools).join(', ')}`,
     );
-    return {
-        tools,
-        closeMcpClients: async () => {
-            const results = await Promise.allSettled(
-                mcpClients.map((client) => client.close()),
-            );
-
-            for (const result of results) {
-                if (result.status === 'rejected') {
-                    Logger.error(
-                        '[AiAgent][MCP] Failed to close MCP client',
-                        result.reason,
-                    );
-                }
-            }
-        },
-    };
+    return mergedTools;
 };
 
 const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
 
+    const messageHistory = withToolHints(args.messageHistory, args.toolHints);
+
+    // Project context is loaded on demand via the loadProjectContext tool; the
+    // system prompt only advertises that it exists (when enabled + non-empty).
+    const hasProjectContext =
+        args.projectContextEnabled && args.projectContext.length > 0;
+
     const messages = [
         getSystemPromptV2({
             agentName: args.agentSettings.name,
             instructions: args.agentSettings.instruction || undefined,
             availableExplores,
+            availableSkills: args.availableSkills,
+            knowledgeDocuments: args.knowledgeDocuments,
+            hasProjectContext,
             enableDataAccess: args.enableDataAccess,
-            enableSelfImprovement: args.enableSelfImprovement,
+            enableSearchSemanticLayer: args.enableSearchSemanticLayer,
+            enableAiWriteback: args.enableAiWriteback,
+            enableRepoFs: args.enableRepoFs,
+            repoFsRoot: args.repoFsRoot,
+            enableContentTools:
+                args.enableAgentRevamp &&
+                args.enableDataAccess &&
+                args.enableContentTools,
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
-            useDiscoverFieldsSubagent: args.useDiscoverFieldsSubagent,
         }),
-        ...args.messageHistory,
+        ...messageHistory,
     ];
 
     logger('Agent Messages', `Retrieved ${messages.length} messages.`);
@@ -375,9 +448,11 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
 export const generateAgentResponse = async ({
     args,
     dependencies,
+    mcpToolSetup,
 }: {
     args: AiAgentArgs;
     dependencies: AiAgentDependencies;
+    mcpToolSetup: AgentMcpToolSetup;
 }): Promise<string> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
@@ -388,18 +463,18 @@ export const generateAgentResponse = async ({
         'Generate Agent Response',
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
-    const availableExplores = await dependencies.listExplores();
-    const messages = getAgentMessages(args, availableExplores);
-    const { tools, closeMcpClients } = await getAgentTools(
-        args,
-        dependencies,
-        availableExplores,
-    );
-
     const startTime = Date.now();
-    const modelName = args.model.modelId;
+    const modelName = getAiAgentModelName(args.model);
 
     try {
+        const availableExplores = await dependencies.listExplores();
+        const tools = getAgentTools(
+            args,
+            dependencies,
+            availableExplores,
+            mcpToolSetup,
+        );
+        const messages = getAgentMessages(args, availableExplores);
         logger(
             'Generate Agent Response',
             `Calling generateText with model: ${modelName}`,
@@ -459,6 +534,10 @@ export const generateAgentResponse = async ({
                                     toolCallId: toolCall.toolCallId,
                                     toolName: toolCall.toolName,
                                     toolArgs: toolCall.input as object,
+                                    mcpServerUuid:
+                                        mcpToolSetup.mcpToolNameToServerUuid[
+                                            toolCall.toolName
+                                        ] ?? null,
                                     parentToolCallId: null,
                                 });
                             }
@@ -523,6 +602,14 @@ export const generateAgentResponse = async ({
             throw new AiAgentStepCapReachedError(result.steps.length);
         }
 
+        await dependencies.updatePrompt({
+            promptUuid: args.promptUuid,
+            response: result.text,
+            tokenUsage: {
+                totalTokens: result.usage.totalTokens ?? 0,
+            },
+        });
+
         const totalTime = Date.now() - startTime;
         dependencies.perf.measureGenerateResponseTime(totalTime);
         dependencies.perf.measureTTFT(totalTime, modelName, 'generate');
@@ -535,7 +622,11 @@ export const generateAgentResponse = async ({
         Logger.error(
             `[AiAgent][Generate Agent Response] Error during agent response generation: ${errorMessage}`,
         );
-        Sentry.captureException(error);
+        Sentry.captureException(error, {
+            tags: {
+                'ai.model': modelName,
+            },
+        });
 
         const userFacingMessage = getUserFacingErrorMessage(
             error,
@@ -549,18 +640,19 @@ export const generateAgentResponse = async ({
 
         throw error;
     } finally {
-        await closeMcpClients();
+        await mcpToolSetup.closeMcpClients();
     }
 };
 
 export const streamAgentResponse = async ({
     args,
     dependencies,
+    mcpToolSetup,
 }: {
     args: AiStreamAgentResponseArgs;
     dependencies: AiAgentDependencies;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-}): Promise<StreamTextResult<any, Output.Output>> => {
+    mcpToolSetup: AgentMcpToolSetup;
+}): Promise<StreamTextResult<ToolSet, Output.Output>> => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger(
         'Stream Agent Response',
@@ -570,20 +662,12 @@ export const streamAgentResponse = async ({
         'Stream Agent Response',
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
-    const availableExplores = await dependencies.listExplores();
-    const messages = getAgentMessages(args, availableExplores);
-    const { tools, closeMcpClients } = await getAgentTools(
-        args,
-        dependencies,
-        availableExplores,
-    );
 
     const startTime = Date.now();
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
-    const modelName =
-        typeof args.model === 'string' ? args.model : args.model.modelId;
+    const modelName = getAiAgentModelName(args.model);
 
     const cleanupMcpClients = async () => {
         if (mcpClientsClosed) {
@@ -591,10 +675,18 @@ export const streamAgentResponse = async ({
         }
 
         mcpClientsClosed = true;
-        await closeMcpClients();
+        await mcpToolSetup.closeMcpClients();
     };
 
     try {
+        const availableExplores = await dependencies.listExplores();
+        const tools = getAgentTools(
+            args,
+            dependencies,
+            availableExplores,
+            mcpToolSetup,
+        );
+        const messages = getAgentMessages(args, availableExplores);
         logger(
             'Stream Agent Response',
             `Calling streamText with model: ${modelName}`,
@@ -649,6 +741,7 @@ export const streamAgentResponse = async ({
                             Sentry.captureException(event.chunk.error, {
                                 tags: {
                                     errorType: 'AiAgentToolCallInvalid',
+                                    'ai.model': modelName,
                                 },
                             });
                             break;
@@ -660,6 +753,10 @@ export const streamAgentResponse = async ({
                                 toolCallId: event.chunk.toolCallId,
                                 toolName: event.chunk.toolName,
                                 toolArgs: event.chunk.input as object,
+                                mcpServerUuid:
+                                    mcpToolSetup.mcpToolNameToServerUuid[
+                                        event.chunk.toolName
+                                    ] ?? null,
                                 parentToolCallId: null,
                             })
                             .catch((error) => {
@@ -667,7 +764,11 @@ export const streamAgentResponse = async ({
                                     '[AiAgent][Chunk Tool Call] Failed to store tool call',
                                     error,
                                 );
-                                Sentry.captureException(error);
+                                Sentry.captureException(error, {
+                                    tags: {
+                                        'ai.model': modelName,
+                                    },
+                                });
                             });
                         break;
 
@@ -703,7 +804,11 @@ export const streamAgentResponse = async ({
                                     '[AiAgent][Chunk Tool Result] Failed to store tool result',
                                     error,
                                 );
-                                Sentry.captureException(error);
+                                Sentry.captureException(error, {
+                                    tags: {
+                                        'ai.model': modelName,
+                                    },
+                                });
                             });
                         break;
                     case 'text-delta':
@@ -752,7 +857,11 @@ export const streamAgentResponse = async ({
                                 'On Step Finish',
                                 `Failed to store reasoning: ${error}`,
                             );
-                            Sentry.captureException(error);
+                            Sentry.captureException(error, {
+                                tags: {
+                                    'ai.model': modelName,
+                                },
+                            });
                         });
                 }
             },
@@ -775,11 +884,17 @@ export const streamAgentResponse = async ({
                         errorMessage: getUserFacingErrorMessage(
                             new AiAgentStepCapReachedError(steps.length),
                         ),
+                        tokenUsage: {
+                            totalTokens: usage.totalTokens ?? 0,
+                        },
                     });
                 } else {
                     void dependencies.updatePrompt({
                         response: completeResponse,
                         promptUuid: args.promptUuid,
+                        tokenUsage: {
+                            totalTokens: usage.totalTokens ?? 0,
+                        },
                     });
                 }
 
@@ -819,8 +934,8 @@ export const streamAgentResponse = async ({
                 await cleanupMcpClients();
             },
             experimental_transform: smoothStream({
-                delayInMs: 40,
-                chunking: 'line',
+                delayInMs: 20,
+                chunking: 'word',
             }),
             onError: ({ error }) => {
                 console.error(error);
@@ -833,6 +948,7 @@ export const streamAgentResponse = async ({
                 Sentry.captureException(error, {
                     tags: {
                         errorType: 'AiAgentStreamError',
+                        'ai.model': modelName,
                     },
                 });
 
@@ -866,6 +982,7 @@ export const streamAgentResponse = async ({
         Sentry.captureException(error, {
             tags: {
                 errorType: 'AiAgentStreamError',
+                'ai.model': modelName,
             },
         });
 

@@ -151,9 +151,7 @@ const changeSchema = z.discriminatedUnion('entityType', [
 // Tool Schema Export
 // ============================================================================
 
-export const toolProposeChangeArgsSchema = createToolSchema({
-    description: TOOL_PROPOSE_CHANGE_DESCRIPTION,
-})
+export const toolProposeChangeArgsSchema = createToolSchema()
     .extend({
         entityTableName: z
             .string()

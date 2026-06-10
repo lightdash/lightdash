@@ -2,8 +2,17 @@
 
 You are building a React data app that queries the Lightdash semantic layer. This file is your reference for the environment, SDK, and data model.
 
+## Iteration mindset
+
+This pipeline is built for iteration — the user refines the app with follow-up prompts, and you have the full conversation history on every iteration. **Favor a responsive first build over upfront perfection.** Hit the core ask and ship; let the user tell you what to add.
+
+Extended thinking adds latency and should only be used when it will meaningfully improve answer quality. Use it for genuinely load-bearing decisions: modelling a non-obvious query, resolving a semantic-layer ambiguity, picking the right chart type for an unusual data shape. Skip it for everything else — once you've picked a visual direction, don't re-ideate on it; pick reasonable defaults for naming, file structure, and component choice and move on. When in doubt, respond directly.
+
+Don't verify your own output. **After you Write or Edit a file, do not Read it back, do not Grep over it, do not run any shell command to "check" it.** The pipeline runs `pnpm build` after you exit and will surface any compile error in a follow-up turn — that's where fixes happen, not before. Re-reading your own writes catches nothing the build doesn't and burns a tool round-trip every time.
+
 ## Environment Constraints
 
+- **`main.jsx` renders the default export of `src/App` (the shipped `src/App.jsx`) — that file must render your finished app.** Build your UI directly in `src/App.jsx`, or if you put it in `src/App.tsx`/other components, wire them into `src/App.jsx` (e.g. `export { default } from './App.tsx';`). You can't delete files, so an `src/App.tsx` you forget to wire in is dead weight and the page stays blank.
 - **Only write files in `src/`** — config files, `package.json`, and everything outside `src/` is locked.
 - **Never install packages** — all dependencies are pre-installed. Any `npm install` or `pnpm add` will fail.
 - **Only import from approved packages** — anything else will fail at build time.
@@ -22,7 +31,7 @@ Available at `@/components/ui/<name>`:
 
 ## Semantic Layer (dbt models)
 
-The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, and join available to you. **Never guess field names** — use only what's in the YAML.
+The available data models are defined in dbt YAML files at **`/tmp/dbt-repo/models/`**. Read these to discover every model, dimension, metric, join, and parameter available to you. **Never guess field names** — use only what's in the YAML. (Parameters live in a `parameters:` block under `meta:` / `config.meta:`, or in `lightdash.config.yml` — see [Parameters](#parameters).)
 
 ### Reading dbt YAML
 
@@ -102,6 +111,17 @@ query('orders')
 
 When designing queries, consider the model's grain — what combination of dimensions produces one unique row. If the grain includes dimensions you aren't selecting, you may need filters to avoid duplicates. Estimate row counts from the grain to set appropriate `.limit()` values.
 
+### Snapshot and point-in-time metrics
+
+Some models are **periodic snapshots**: one row per entity per day (or per period), capturing a *state* like a balance, inventory level, headcount, or ARR. Signals to look for: table/field names containing `snapshot`, `eod`, `end_of_day`, `balance`, `as_of`; descriptions that say "point in time", "as of", "per day", or "latest snapshot".
+
+These metrics are **not additive over time**. A balance on Monday plus the balance on Tuesday is meaningless, and the average across daily snapshots is rarely what the user wants.
+
+- **Point in time ("current total balance", KPI cards):** filter to the most recent available snapshot date first, then aggregate across entities. The latest snapshot may lag (today's may not have run yet) — search back a few days for the last available date.
+- **Trend over time ("balance over the last 12 months"):** query at the snapshot's native grain (e.g. by day), then keep only the last available snapshot in each period (last day of each month) client-side. Do **not** group by month and sum/average — that aggregates across the snapshot date and produces wrong numbers.
+- **Prefer a `total_*` metric over an `avg_*` metric** when the user asks for a total. `avg_*` on a snapshot table averages per-entity values within the snapshot, which is a different number than the portfolio total.
+- If a field description already documents the correct pattern (e.g. "always filter to the latest snapshot first"), follow it.
+
 ## Referenced metric queries
 
 The user may reference saved charts from their project by pasting chart UUIDs in their
@@ -144,8 +164,8 @@ Each file contains:
 
 ## Attached images
 
-The user can attach images to a prompt. They land at `/tmp/images/`. Use the
-Read tool to view each one before deciding how to use it.
+The user can attach images to a prompt. Use the Read tool to view each one at
+`/tmp/images/` before deciding how to use it.
 
 Two kinds, distinguished by filename:
 
@@ -156,6 +176,30 @@ Two kinds, distinguished by filename:
 
 If both are attached, the user is most likely saying "here's what it looks
 like now (screenshot) — change it to look more like this (design reference)."
+
+### Using an attached image inside the rendered app
+
+`/tmp/images/` is **inspection-only** — those paths do not exist in the built
+bundle and `<img src="/tmp/images/...">` will 404 at runtime.
+
+Design references (the `<uuid>.<ext>` files, *not* screenshots) are also
+copied to `/app/src/uploads/<same-filename>`. If the user wants the image to
+actually appear in the rendered app — "use this as our logo", "make this the
+hero image", "drop this illustration in the empty card" — import it as a
+Vite asset:
+
+```tsx
+import logo from './uploads/<uuid>.png';
+
+<img src={logo} alt="Acme" />
+```
+
+Vite hashes the URL, the asset is served auth-gated from the same origin as
+the iframe, and it works under our strict CSP. Don't construct the path as a
+string (`src="./uploads/..."`) — the import is what tells Vite to bundle it.
+
+Screenshots are not copied to `/app/src/uploads/` and must never end up in
+the bundle; they describe current state, not target.
 
 ## Element references in iteration prompts
 
@@ -327,6 +371,60 @@ Each additional metric needs:
 - If the metric exists in the dbt YAML → use `.metrics(['metric_name'])`
 - If you need a custom aggregation not in the YAML → define it with `.additionalMetrics()` AND include its name in `.metrics()`
 
+### Parameters
+
+Parameters are project- or model-level variables declared in the dbt YAML and substituted into SQL via `${lightdash.parameters.…}`. They let one query swap pieces of its SQL at runtime — e.g. the docs' metric-based parameter, where a single dropdown controls which metric a KPI shows (`total_revenue`, `won_revenue`, `deal_count`, `win_rate`). Pass values at query time with `.parameters()`:
+
+```ts
+const kpiQuery = query('deals')
+    .label('Selected KPI')
+    .metrics(['selected_kpi'])
+    .limit(1)
+    .parameters({ kpi_selector: 'total_revenue' });
+```
+
+`.parameters(map)` is immutable and merges across calls (later keys win). Values can be a string, number, or array of either: `{ region: ['EMEA', 'AMER'] }`.
+
+**Key naming mirrors the SQL reference syntax** — get this wrong and the value is silently ignored:
+
+| Parameter scope | Declared in | SQL reference | `.parameters()` key |
+|---|---|---|---|
+| Project-level | `lightdash.config.yml` | `${lightdash.parameters.region}` | `{ region: 'EMEA' }` |
+| Model-level | a model's `meta.parameters` | `${lightdash.parameters.orders.region}` | `{ 'orders.region': 'EMEA' }` |
+
+**Discover available parameters before using them** — never guess parameter names or values. Look for a `parameters:` block in `lightdash.config.yml` (project-level) or under a model's `meta:` / `config.meta:` (model-level). Each entry's key is the parameter name; its `options` / `default` tell you the valid values:
+
+```yaml
+# lightdash.config.yml — project-level parameter
+parameters:
+    kpi_selector:
+        label: "KPI Metric"
+        options: ["total_revenue", "won_revenue", "deal_count", "win_rate"]
+        default: "total_revenue"
+```
+
+**Driving a parameter from UI** — `useLightdash` keys its cache off the built query (parameters included), so a parameter bound to component state re-fetches when it changes. Keep the base query at module scope and apply `.parameters()` in a `useMemo` (same pattern as global filters — never build the whole query in render):
+
+```tsx
+const baseQuery = query('deals')
+    .label('Selected KPI')
+    .metrics(['selected_kpi'])
+    .limit(1);
+
+export function SelectedKpi() {
+    const [kpi, setKpi] = useState('total_revenue');
+    const q = useMemo(
+        () => baseQuery.parameters({ kpi_selector: kpi }),
+        [kpi],
+    );
+    const { data, format, loading } = useLightdash(q);
+    // a <Select> bound to setKpi (total_revenue | won_revenue | deal_count | win_rate)
+    // re-runs the query when changed
+}
+```
+
+Parameters are independent of `.filters()` — a filter restricts which rows are scanned; a parameter changes the SQL itself. Use a parameter only when the YAML declares one; otherwise reach for `.filters()`.
+
 ### `useLightdash(query)` return value
 
 | Field | Type | Use for |
@@ -381,7 +479,7 @@ formatDateFns(parseISO(row.order_date as string), 'EEEE, MMM d');
 
 #### Chart axes
 
-**Every `<XAxis>` and `<YAxis>` in the app must have a `tickFormatter`.** No exceptions — including year axes that "look like they'd be fine" (`race_date_year` is still a full ISO timestamp at the data layer; Recharts will render `2025-01-01T00:00:00Z`, not `2025`).
+**Every `<XAxis>` and `<YAxis>` in the app must have a `tickFormatter`.** No exceptions — including year axes that "look like they'd be fine" (`order_date_year` is still a full ISO timestamp at the data layer; Recharts will render `2025-01-01T00:00:00Z`, not `2025`).
 
 ```tsx
 import { XAxis, YAxis } from 'recharts';
@@ -397,6 +495,23 @@ const dateCol = getColumn(columns, 'order_date_month');
 ```
 
 **Self-check before declaring done:** grep the generated app for `<XAxis` and `<YAxis`. Every match must have a `tickFormatter` prop. If any axis is missing one, fix it before reporting the build complete — claiming "all axes formatted" without verifying is the most common way this lands broken.
+
+#### Chart value labels
+
+By default the value behind a bar or point is read by hovering for the tooltip, so leave labels off to avoid clutter — the chart stays interactive either way. The exception is when the chart's output will be read **statically**, e.g. exported or printed to PDF: there's no hover on a printed page, so any tooltip-only value is lost. In that case draw the numbers on the chart with `<LabelList>` **in addition to** the tooltip and any "Filter by &lt;value&gt;" interactions — labels are additive, they don't replace interactivity. Use a `formatter` so labels match the axis/tooltip formatting, and keep them compact to avoid overlap on dense series.
+
+```tsx
+import { Bar, LabelList } from 'recharts';
+import { formatNumber } from '@/lib/format';
+
+<Bar dataKey="total_revenue" fill={CHART_COLORS[0]}>
+    <LabelList
+        dataKey="total_revenue"
+        position="top"
+        formatter={(v) => formatNumber(v, 'axis')}
+    />
+</Bar>
+```
 
 #### Tables
 
@@ -449,6 +564,36 @@ Lightdash-specific constraints that apply on top of `frontend-design`'s directio
 - **Chart series colors must come from `CHART_COLORS` in `@/lib/theme`** — the canonical Lightdash palette, so generated apps' charts visually match native Lightdash dashboards. Cycle by index for multi-series (`CHART_COLORS[i % CHART_COLORS.length]`). `frontend-design`'s chosen accent/background/typography colors are independent of this.
 - **Use semantic shadcn tokens for UI chrome** — `bg-background`, `bg-card`, `text-foreground`, `text-muted-foreground`, `text-destructive`, `border`, etc. Don't hardcode hex values for surfaces, text, or borders. (`frontend-design` may direct you to redefine the underlying CSS variables for a chosen theme — that's fine; the rule is no inline hex, not "use only the default token values".)
 - **Commit to one theme; don't design for dark while rendering light.** The template's `:root` defaults to white (light tokens). If your design needs a dark background, you must do *one* of: (a) apply `className="dark"` to your top-level `<div>` so Tailwind activates the dark token values, or (b) override the CSS variables on `:root` directly to match your chosen theme. **Never** author colors that assume a dark background without ensuring the page actually loads dark — the symptom is invisible secondary text (faint red/gray on white). Before declaring done, check: does the page background actually look the way you described it? If not, you have a theme-wiring bug.
+- **Leave a gutter at the bottom of the page.** Don't let the last card, chart, or footer sit flush against the iframe's bottom edge — it reads as clipped. Add bottom padding (`pb-8` or similar) on your page's top-level themed wrapper so the gutter inherits the theme's background. Don't push the gutter onto `#root` or `body` instead — those sit outside your theme, so any space below the wrapper falls back to the template default and shows as a mismatched strip.
+
+### Organization themes
+
+When `/app/src/design/` exists in the workspace, the organization has supplied brand assets that **must** drive the visual direction. The pipeline copies them in at build time; you do not create them. Treat their contents as inviolable: read and reference, never edit or duplicate.
+
+Directory layout (any subdirectory may be empty):
+
+- `/app/src/design/css/` — stylesheets. Inspect the style sheets and decide: If they are general colors and global styles **Import them** from your main entry point (`src/main.jsx`) before any of your own styles, so cascade order lets your CSS override theme defaults only where intentional. If they are component-specific (e.g. a `.fancy-button` class), **Reference them** in your JSX (`<button className="fancy-button">`) and use them as the basis for any custom components you build. You can build styles that typically match if the specific ones you are looking for are not there. 
+- `/app/src/design/fonts/` — web fonts. **Reference them via `@font-face` in your own CSS** and use the resulting `font-family` everywhere you'd otherwise pick a font. Do not link to external font CDNs (Google Fonts, Bunny, etc.) when fonts are present here.
+- `/app/src/design/images/` — logos and brand imagery. Import as ES modules (`import logo from './design/images/logo.png'`) so Vite hashes the URL. Use them in place of any generic logo/illustration you'd otherwise invent. Try to guess from the file names or context: is it a logo (use in the header), a pattern (use as a background), or a product screenshot (reference for UI details)? 
+
+**Images are IMPORTANT and frequently more telling than the CSS or instruction files** — they carry intent the other assets can't express. Decide how to use them in this order:
+
+1. **Use them as directed in the effective skill prompt or the user's prompt.** If the instructions tell you a specific image is the logo, or to apply a particular pattern, that's the answer — stop and follow it.
+2. **If you have no further direction**, classify each image by inspecting both its filename and (when in doubt) its contents via the `Read` tool. Treat each kind seriously:
+    - **Image assets** — things meant to appear in the rendered app: logos, mascots, hero images, icons, background patterns. Use them. A logo file means the header gets that logo, not a generic one you'd invent.
+    - **Design assets** — outputs from a design tool: color-swatch sheets, type-specimen pages, component mockups, exported Figma frames. These are NOT meant to appear in the app — they are a binding spec for how the app should look. Mine them for exact hex values, type sizes, spacing, component shapes, and apply them to your own components. Treat them with the same authority as a CSS file.
+    - **References and inspiration** — dashboard screenshots, product photos, mood-board imagery the organization wants the app to evoke. These ARE a directive, just at a higher level: match the aesthetic, density, and information hierarchy you see. Don't try to reproduce them pixel-for-pixel; do try to land in the same visual neighborhood.
+
+When unsure which bucket an image falls into, prefer **design asset** or **reference** over guessing. A file that looks like a Figma export is almost never meant to ship in the app.
+
+Hard rules when a theme is active:
+
+- **Theme CSS overrides `frontend-design`'s color/typography direction.** The aesthetic distinctness `frontend-design` pushes for still applies to layout, density, and motion — but colors, font families, and any other tokens the theme CSS defines win over your own picks. If the theme sets `--accent: #6B5B95`, your headings use that purple; don't reach for a "more distinctive" alternative.
+- **If the theme CSS defines a chart palette (CSS custom properties like `--chart-1`, `--chart-2`, …, or any `*-chart-*` variables), use it instead of `CHART_COLORS` from `@/lib/theme`.** Read the values via `getComputedStyle(document.documentElement).getPropertyValue('--chart-1')` once on mount and cycle them by index for multi-series. Falling back to `CHART_COLORS` when the theme doesn't define a chart palette is correct.
+- **Instruction text in the appended system prompt is binding.** Any rules described under "Organization theme instructions" later in this prompt override conflicting defaults in this file. Treat them as customer-supplied product requirements, not suggestions.
+- **Do not modify files under `/app/src/design/`.** `Write(//app/src/**)` would technically allow it, but those files are the source of truth for the brand and may be reused across many apps. Treat the directory as read-only.
+
+When `/app/src/design/` does not exist or is empty, behave as if these rules don't apply — no theme is active and `frontend-design`'s direction is the whole story.
 
 ## Required UX Patterns
 
@@ -913,12 +1058,13 @@ function DrillResults({ query: q }) {
 | `.metrics()` on a pre-aggregated model | Re-aggregates already-aggregated values → wrong numbers | If `wins` is a dimension in the YAML, use `.dimensions(['wins'])` |
 | `.metrics(['max_cumulative_points'])` instead of `.dimensions(['cumulative_points'])` | Aggregates per-row data into a single value — collapses line charts | Check YAML: is it under `columns[].name` (dimension) or `meta.metrics` (metric)? |
 | Unused dimensions in `.dimensions()` | Changes GROUP BY → wrong numbers | Only include dimensions you render |
-| Querying hidden fields (`driver_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
+| Querying hidden fields (`customer_id`) | Leaks internal IDs | Skip fields with `hidden: true` |
 | Calling `createClient()` in app code | Not needed — client is set up in `main.jsx` | `import { query, useLightdash } from '@lightdash/query-sdk'` |
 | Qualified names like `orders_total_revenue` | Double-qualified → unknown field | Short names only |
 | Joined table field without dot notation: `customer_name` | Resolves to `orders_customer_name` → unknown field | Use `customers.customer_name` for joined tables |
 | `value: '2025'` for a number column | String won't match number | `value: 2025` |
 | Not filtering on grain dimensions you don't render | Duplicates, mixed data, wrong totals | Identify the grain, filter dimensions you don't display |
+| Aggregating a snapshot/balance metric across the snapshot date | Summing or averaging daily balances over a month → meaningless totals or a daily average instead of period-end values | Pin to the last snapshot in each period (e.g. last day of month); use `total_*` not `avg_*` for totals |
 | `.limit()` too low | Silently truncates rows — charts end early, tables incomplete | Estimate row count from the grain, set limit above that |
 | Building queries inside render | Infinite re-fetching | Define queries at module scope or memoize them |
 | Forgetting to apply global filters to a query | Chart shows unfiltered data while the rest of the page is filtered → contradictory results | Every `useLightdash()` call must pass `filtersFor(EXPLORE)` into `.filters([...])` via `useMemo` |
@@ -932,6 +1078,10 @@ function DrillResults({ query: q }) {
 | Skipping `tickFormatter` on a year axis because "year is just a number" | Year dimensions (`*_year`) are still full ISO timestamps at the data layer, so the axis renders `2025-01-01T00:00:00Z` | Apply the same `formatDate(...)` `tickFormatter` to year axes — `formatDate` will collapse to `2025` for year-grain columns |
 | Using `format(row, 'order_date')` for a date column in a table cell | Renders `2025-03-17` (zero-padded tabular) — readable but ugly in dashboards | `formatField(row, col, format, 'cell')` from `@/lib/format` — renders `Mar 17, 2025` while still routing currency/% metrics through the server format |
 | Treating `row.order_date_month` as a `Date` or short string | It's a full ISO timestamp string (`2025-03-01T00:00:00Z`) for every grain | Pass through `formatDate` / `formatField`, or `parseISO` it before doing date math |
+| Wrong `.parameters()` key scope | Value silently ignored — query returns the default | Project-level → bare name (`{ region }`); model-level → `model.param` (`{ 'orders.region' }`), matching the `${lightdash.parameters.…}` reference |
+| Inventing a parameter not declared in the YAML | Backend ignores unknown params; nothing changes | Only pass parameters that exist in a model's `meta.parameters` or `lightdash.config.yml`. Use `.filters()` for row restriction instead |
+| Applying `.parameters()` at module scope for a UI-driven value | Value never updates when the control changes | Apply `.parameters()` in a `useMemo` keyed on the state value; keep the base query at module scope |
 | Building drill query inside render | Infinite re-fetching | Build in onClick handler, store in state |
 | Drilling by a dimension already in the source query | Pointless — same grouping | Pick a different, more granular dimension |
 | Using `e.chartX`/`e.chartY` for menu position | Chart-relative coords — menu appears at wrong position | Recharts `onClick` has no native event; capture `clientX`/`clientY` from a wrapper `<div onPointerDown>` via `useRef` — pointerdown fires before onClick so the ref is ready (see action menu example) |
+| Combining a direction word with a contradictory sign in narrative copy (`down +12%`, `up -4%`) | Sign and verb disagree → reads as a self-contradiction, looks like a platform bug | Pick one convention per report and stick to it: either signed deltas with no direction word (`+12%`, `−4%`), or direction word with unsigned magnitude (`up 12%`, `down 4%`). Never mix. |

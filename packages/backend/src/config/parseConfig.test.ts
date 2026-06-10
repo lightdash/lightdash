@@ -16,6 +16,9 @@ import {
     getMaybeBase64EncodedFromEnvironmentVariable,
     getMultiProjectSetupConfig,
     getObjectFromEnvironmentVariable,
+    getStringRecordFromEnvironmentVariable,
+    getUpdateSetupConfig,
+    getUserAttributesSetupConfig,
     parseConfig,
     parseOrganizationMemberRoleArray,
 } from './parseConfig';
@@ -152,13 +155,11 @@ test('Should use explicit apps S3 config when set', () => {
     });
 });
 
-test('Should return null apps S3 config when base S3 is not configured', () => {
+test('Should fail fast when base S3 is not configured', () => {
     delete process.env.S3_ENDPOINT;
     delete process.env.S3_BUCKET;
     delete process.env.S3_REGION;
-    process.env.APPS_S3_BUCKET = 'apps_bucket';
-    const config = parseConfig();
-    expect(config.appRuntime.s3).toBeNull();
+    expect(() => parseConfig()).toThrow('S3-compatible storage is required');
 });
 
 test('Should parse rudder config from env', () => {
@@ -373,6 +374,153 @@ describe('getObjectFromEnvironmentVariable', () => {
     });
 });
 
+describe('getStringRecordFromEnvironmentVariable', () => {
+    test('returns undefined if env var is not defined', () => {
+        expect(
+            getStringRecordFromEnvironmentVariable('MISSING_ENV_VAR'),
+        ).toEqual(undefined);
+    });
+
+    test('returns string record if env var value is valid', () => {
+        process.env.VALID_STRING_RECORD =
+            '{"x-lightdash-use-case":"analytics-copilot","x-cost-center":"data-platform"}';
+        expect(
+            getStringRecordFromEnvironmentVariable('VALID_STRING_RECORD'),
+        ).toEqual({
+            'x-lightdash-use-case': 'analytics-copilot',
+            'x-cost-center': 'data-platform',
+        });
+    });
+
+    test('throws error if env var is not an object with string values', () => {
+        process.env.INVALID_STRING_RECORD = '{"team":["data"]}';
+        expect(() =>
+            getStringRecordFromEnvironmentVariable('INVALID_STRING_RECORD'),
+        ).toThrowError(ParseError);
+        expect(() =>
+            getStringRecordFromEnvironmentVariable('INVALID_STRING_RECORD'),
+        ).not.toThrow(/"team":\["data"\]/);
+    });
+
+    test('throws error if env var is explicit falsy JSON', () => {
+        process.env.INVALID_STRING_RECORD = 'null';
+        expect(() =>
+            getStringRecordFromEnvironmentVariable('INVALID_STRING_RECORD'),
+        ).toThrowError(ParseError);
+    });
+});
+
+test('Should parse AI provider custom headers from env', () => {
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+    process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+    process.env.AZURE_AI_API_KEY = 'test-azure-key';
+    process.env.AZURE_AI_ENDPOINT = 'https://example.openai.azure.com';
+    process.env.AZURE_AI_API_VERSION = '2026-01-01';
+    process.env.AZURE_AI_DEPLOYMENT_NAME = 'gpt-5';
+    process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+    process.env.BEDROCK_REGION = 'eu-west-1';
+    process.env.OPENAI_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"openai","x-gateway-route":"responses-api"}';
+    process.env.ANTHROPIC_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"anthropic","x-gateway-route":"messages-api"}';
+    process.env.OPENROUTER_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"openrouter","x-gateway-route":"router-api"}';
+    process.env.AZURE_AI_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"azure-openai","x-gateway-route":"azure-deployment"}';
+    process.env.BEDROCK_CUSTOM_HEADERS =
+        '{"x-lightdash-llm-provider":"bedrock","x-gateway-route":"aws-runtime"}';
+
+    expect(parseConfig().ai.copilot.providers).toMatchObject({
+        openai: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'openai',
+                'x-gateway-route': 'responses-api',
+            },
+        },
+        anthropic: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'anthropic',
+                'x-gateway-route': 'messages-api',
+            },
+        },
+        openrouter: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'openrouter',
+                'x-gateway-route': 'router-api',
+            },
+        },
+        azure: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'azure-openai',
+                'x-gateway-route': 'azure-deployment',
+            },
+        },
+        bedrock: {
+            customHeaders: {
+                'x-lightdash-llm-provider': 'bedrock',
+                'x-gateway-route': 'aws-runtime',
+            },
+        },
+    });
+});
+
+describe('AI provider supportsStreaming', () => {
+    beforeEach(() => {
+        process.env.OPENAI_API_KEY = 'test-openai-key';
+        process.env.ANTHROPIC_API_KEY = 'test-anthropic-key';
+        process.env.OPENROUTER_API_KEY = 'test-openrouter-key';
+        process.env.AZURE_AI_API_KEY = 'test-azure-key';
+        process.env.AZURE_AI_ENDPOINT = 'https://example.openai.azure.com';
+        process.env.AZURE_AI_API_VERSION = '2026-01-01';
+        process.env.AZURE_AI_DEPLOYMENT_NAME = 'gpt-5';
+        process.env.BEDROCK_API_KEY = 'test-bedrock-key';
+        process.env.BEDROCK_REGION = 'eu-west-1';
+    });
+
+    test('defaults to true when env vars are unset', () => {
+        expect(parseConfig().ai.copilot.providers).toMatchObject({
+            openai: { supportsStreaming: true },
+            anthropic: { supportsStreaming: true },
+            openrouter: { supportsStreaming: true },
+            azure: { supportsStreaming: true },
+            bedrock: { supportsStreaming: true },
+        });
+    });
+
+    test('stays true when env vars are explicitly "true"', () => {
+        process.env.OPENAI_SUPPORTS_STREAMING = 'true';
+        process.env.ANTHROPIC_SUPPORTS_STREAMING = 'true';
+        process.env.OPENROUTER_SUPPORTS_STREAMING = 'true';
+        process.env.AZURE_AI_SUPPORTS_STREAMING = 'true';
+        process.env.BEDROCK_SUPPORTS_STREAMING = 'true';
+
+        expect(parseConfig().ai.copilot.providers).toMatchObject({
+            openai: { supportsStreaming: true },
+            anthropic: { supportsStreaming: true },
+            openrouter: { supportsStreaming: true },
+            azure: { supportsStreaming: true },
+            bedrock: { supportsStreaming: true },
+        });
+    });
+
+    test('is false only when env vars are the literal "false"', () => {
+        process.env.OPENAI_SUPPORTS_STREAMING = 'false';
+        process.env.ANTHROPIC_SUPPORTS_STREAMING = 'false';
+        process.env.OPENROUTER_SUPPORTS_STREAMING = 'false';
+        process.env.AZURE_AI_SUPPORTS_STREAMING = 'false';
+        process.env.BEDROCK_SUPPORTS_STREAMING = 'false';
+
+        expect(parseConfig().ai.copilot.providers).toMatchObject({
+            openai: { supportsStreaming: false },
+            anthropic: { supportsStreaming: false },
+            openrouter: { supportsStreaming: false },
+            azure: { supportsStreaming: false },
+            bedrock: { supportsStreaming: false },
+        });
+    });
+});
+
 // test parseOrganizationMemberRoleArray
 describe('parseOrganizationMemberRoleArray', () => {
     beforeEach(() => {
@@ -554,6 +702,127 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
             const config = parseConfig();
             expect(config.initialSetup).toBeUndefined();
         });
+    });
+});
+
+describe('getUserAttributesSetupConfig', () => {
+    beforeEach(() => {
+        delete process.env.LD_SETUP_USER_ATTRIBUTES;
+    });
+
+    test('returns undefined when LD_SETUP_USER_ATTRIBUTES is not set', () => {
+        expect(getUserAttributesSetupConfig()).toBeUndefined();
+    });
+
+    test('returns undefined when LD_SETUP_USER_ATTRIBUTES is an empty array', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = '[]';
+        expect(getUserAttributesSetupConfig()).toBeUndefined();
+    });
+
+    test('parses a single attribute with a group mapping', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            {
+                name: 'is_privileged',
+                description: 'PII access',
+                attributeDefault: null,
+                groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
+            },
+        ]);
+        expect(getUserAttributesSetupConfig()).toEqual([
+            {
+                name: 'is_privileged',
+                description: 'PII access',
+                attributeDefault: null,
+                groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
+            },
+        ]);
+    });
+
+    test('defaults groups to [] and attributeDefault to null when omitted', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { name: 'region' },
+        ]);
+        expect(getUserAttributesSetupConfig()).toEqual([
+            {
+                name: 'region',
+                attributeDefault: null,
+                groups: [],
+            },
+        ]);
+    });
+
+    test('throws ParseError on malformed JSON', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = '{not json';
+        expect(() => getUserAttributesSetupConfig()).toThrowError(ParseError);
+    });
+
+    test('throws ParseError when an attribute is missing a name', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { groups: [{ group: 'g', value: 'v' }] },
+        ]);
+        expect(() => getUserAttributesSetupConfig()).toThrowError(ParseError);
+    });
+
+    test('throws ParseError on duplicate attribute names', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { name: 'dup', groups: [] },
+            { name: 'dup', groups: [] },
+        ]);
+        expect(() => getUserAttributesSetupConfig()).toThrowError(
+            'Duplicate user attribute name "dup"',
+        );
+    });
+});
+
+describe('getUpdateSetupConfig userAttributes', () => {
+    beforeEach(() => {
+        delete process.env.LD_SETUP_USER_ATTRIBUTES;
+    });
+
+    test('includes parsed userAttributes from LD_SETUP_USER_ATTRIBUTES', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { name: 'is_privileged', groups: [{ group: 'G', value: 'true' }] },
+        ]);
+        expect(getUpdateSetupConfig()?.userAttributes).toEqual([
+            {
+                name: 'is_privileged',
+                attributeDefault: null,
+                groups: [{ group: 'G', value: 'true' }],
+            },
+        ]);
+    });
+
+    test('userAttributes is undefined when env var not set', () => {
+        expect(getUpdateSetupConfig()?.userAttributes).toBeUndefined();
+    });
+});
+
+describe('process.env.LIGHTDASH_CORS_ENABLED', () => {
+    test('defaults CORS to enabled when not set', () => {
+        process.env.LIGHTDASH_CORS_ALLOWED_DOMAINS = 'https://example.com';
+
+        const config = parseConfig();
+
+        expect(config.security.crossOriginResourceSharingPolicy.enabled).toBe(
+            true,
+        );
+        expect(
+            config.security.crossOriginResourceSharingPolicy.allowedDomains,
+        ).toEqual(['https://example.com']);
+    });
+
+    test('disables CORS only when explicitly false', () => {
+        process.env.LIGHTDASH_CORS_ENABLED = 'false';
+        process.env.LIGHTDASH_CORS_ALLOWED_DOMAINS = 'https://example.com';
+
+        const config = parseConfig();
+
+        expect(config.security.crossOriginResourceSharingPolicy.enabled).toBe(
+            false,
+        );
+        expect(
+            config.security.crossOriginResourceSharingPolicy.allowedDomains,
+        ).toEqual([]);
     });
 });
 
@@ -858,7 +1127,6 @@ describe('legacy feature-flag env vars (compat repair for trivial-batch)', () =>
     test.each([
         ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
         ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
-        ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
         ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
         ['GROUPS_ENABLED', 'user-groups-enabled'],
         ['SHOW_EXECUTION_TIME', 'show-execution-time'],
@@ -904,5 +1172,24 @@ describe('feature flag env-var allowlists', () => {
         process.env.DISABLE_DASHBOARD_COMMENTS = 'true';
         const config = parseConfig();
         expect(config.dashboardComments.enabled).toBe(false);
+    });
+});
+
+describe('persistentDownloadUrls.enabled', () => {
+    test('defaults to false when PERSISTENT_DOWNLOAD_URLS_ENABLED is unset', () => {
+        const config = parseConfig();
+        expect(config.persistentDownloadUrls.enabled).toBe(false);
+    });
+
+    test('is true only when explicitly set to "true"', () => {
+        process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED = 'true';
+        const config = parseConfig();
+        expect(config.persistentDownloadUrls.enabled).toBe(true);
+    });
+
+    test('is false when set to "false"', () => {
+        process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED = 'false';
+        const config = parseConfig();
+        expect(config.persistentDownloadUrls.enabled).toBe(false);
     });
 });

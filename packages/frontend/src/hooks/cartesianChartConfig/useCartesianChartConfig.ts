@@ -1,7 +1,6 @@
 import {
     assertUnreachable,
     CartesianSeriesType,
-    FeatureFlags,
     getSeriesId,
     isCompleteEchartsConfig,
     isCompleteLayout,
@@ -31,7 +30,6 @@ import {
     type ReferenceLineField,
 } from '../../components/common/ReferenceLine';
 import type { InfiniteQueryResults } from '../useQueryResults';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import {
     getExpectedSeriesMap,
     isPivotSeriesOrderDeterminedByQuery,
@@ -57,9 +55,6 @@ type Args = {
               resolvedTimezone?: string;
           })
         | undefined;
-    setPivotDimensions: React.Dispatch<
-        React.SetStateAction<string[] | undefined>
-    >;
     columnOrder: string[];
     itemsMap: ItemsMap | undefined;
     stacking: boolean | StackType | undefined;
@@ -185,7 +180,6 @@ const useCartesianChartConfig = ({
     initialChartConfig,
     pivotKeys,
     resultsData,
-    setPivotDimensions,
     columnOrder,
     itemsMap,
     stacking,
@@ -533,6 +527,24 @@ const useCartesianChartConfig = ({
             };
         });
     }, []);
+    const setDataZoomAnchor = useCallback((dataZoomAnchor: 'start' | 'end') => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, dataZoomAnchor }, ...axes],
+            };
+        });
+    }, []);
+    const setDataZoomItemCount = useCallback((dataZoomItemCount: number) => {
+        setDirtyEchartsConfig((prevState) => {
+            const [firstAxis, ...axes] = prevState?.xAxis || [];
+            return {
+                ...prevState,
+                xAxis: [{ ...firstAxis, dataZoomItemCount }, ...axes],
+            };
+        });
+    }, []);
     const addSingleSeries = useCallback((yField: string) => {
         setDirtyLayout((prev) => ({
             ...prev,
@@ -841,10 +853,6 @@ const useCartesianChartConfig = ({
         [getOldTableCalculationMetadataIndex, tableCalculationsMetadata],
     );
 
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
-
     // Set fallout layout values
     // https://www.notion.so/lightdash/Default-chart-configurations-5d3001af990d4b6fa990dba4564540f6
     useEffect(() => {
@@ -926,7 +934,6 @@ const useCartesianChartConfig = ({
 
                 let newXField: string | undefined = undefined;
                 let newYFields: string[] = [];
-                let newPivotFields: string[] = [];
 
                 // one metric , one dimension
                 if (
@@ -944,7 +951,6 @@ const useCartesianChartConfig = ({
                 ) {
                     newXField = availableDimensions[0];
                     newYFields = [availableMetrics[0]];
-                    newPivotFields = [availableDimensions[1]];
                 }
 
                 // 1+ metrics, one dimension
@@ -965,7 +971,6 @@ const useCartesianChartConfig = ({
                     //Max 4 metrics in Y-axis
                     newXField = availableDimensions[0];
                     newYFields = availableMetrics.slice(0, 4);
-                    newPivotFields = [availableDimensions[1]];
                 }
 
                 // 2+ metrics with no dimensions
@@ -984,20 +989,6 @@ const useCartesianChartConfig = ({
                 ) {
                     newXField = availableDimensions[0];
                     newYFields = [availableDimensions[1]];
-                }
-
-                // Only add pivot dimensions when:
-                // 1. We have a suggestion (newPivotFields is non-empty)
-                // 2. Not using sql pivot results
-                // 3. No existing pivot is set
-                // 4. We have itemsMap (fields are loaded)
-                if (
-                    newPivotFields.length > 0 &&
-                    itemsMap !== undefined &&
-                    !useSqlPivotResults?.enabled &&
-                    !pivotKeys
-                ) {
-                    setPivotDimensions(newPivotFields);
                 }
 
                 // Don't update if we don't have a valid configuration
@@ -1022,8 +1013,6 @@ const useCartesianChartConfig = ({
         getYFields,
         isFieldValidTableCalculation,
         itemsMap,
-        setPivotDimensions,
-        useSqlPivotResults,
     ]);
 
     const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
@@ -1094,6 +1083,7 @@ const useCartesianChartConfig = ({
                         : undefined;
                 const defaultSmooth = prev?.series?.[0]?.smooth;
                 const defaultLabel = prev?.series?.[0]?.label;
+                const defaultStackLabel = prev?.series?.[0]?.stackLabel;
 
                 const defaultShowSymbol = prev?.series?.[0]?.showSymbol;
                 const expectedSeriesMap = getExpectedSeriesMap({
@@ -1101,13 +1091,13 @@ const useCartesianChartConfig = ({
                     defaultShowSymbol,
                     defaultAreaStyle,
                     defaultCartesianType,
-                    availableDimensions,
                     isStacked,
                     pivotKeys,
                     resultsData,
                     xField: dirtyLayout.xField,
                     yFields: dirtyLayout.yField,
                     defaultLabel,
+                    defaultStackLabel,
                     itemsMap,
                     columnLimit,
                 });
@@ -1322,6 +1312,8 @@ const useCartesianChartConfig = ({
         setXAxisSort,
         setXAxisLabelRotation,
         setScrollableChart,
+        setDataZoomAnchor,
+        setDataZoomItemCount,
         updateSeries,
         referenceLines,
         setReferenceLines,

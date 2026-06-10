@@ -1,8 +1,10 @@
 import {
     DbtProjectType,
+    FeatureFlags,
     type ApiGithubDbtWritePreview,
 } from '@lightdash/common';
 import {
+    Anchor,
     Badge,
     Button,
     List,
@@ -17,12 +19,18 @@ import { useDebouncedValue } from '@mantine/hooks';
 import { IconBrandGithub, IconInfoCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useState, type FC } from 'react';
 import { z } from 'zod';
+import Callout from '../../../components/common/Callout';
+import {
+    GITHUB_USER_AUTHORIZE_URL,
+    useGithubUserCredential,
+} from '../../../components/common/GithubIntegration/hooks/useGithubIntegration';
 import MantineIcon from '../../../components/common/MantineIcon';
 import MantineModal, {
     type MantineModalProps,
 } from '../../../components/common/MantineModal';
 import useHealth from '../../../hooks/health/useHealth';
 import { useProject } from '../../../hooks/useProject';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { useGithubDbtWriteBack } from '../hooks/useGithubDbtWriteBack';
 import { useGithubDbtWritePreview } from '../hooks/useGithubDbtWritePreview';
 import { useAppSelector } from '../store/hooks';
@@ -58,6 +66,10 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
 
     const { data: project } = useProject(projectUuid);
     const { data: health } = useHealth();
+    const { data: githubUserCredentialsFlag } = useServerFeatureFlag(
+        FeatureFlags.GithubUserCredentials,
+    );
+    const { data: githubUserCredential } = useGithubUserCredential();
 
     const canWriteToDbtProject = !!(
         health?.hasGithub &&
@@ -65,6 +77,9 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
             project?.dbtConnection.type as DbtProjectType,
         )
     );
+
+    const isGithubProject =
+        project?.dbtConnection.type === DbtProjectType.GITHUB;
 
     useEffect(() => {
         if (!opened || !projectUuid || !sql || !columns) return;
@@ -184,6 +199,33 @@ export const WriteBackToDbtModal: FC<Props> = ({ opened, onClose }) => {
                             ))}
                         </List>
                     </Stack>
+
+                    {isGithubProject &&
+                        githubUserCredentialsFlag?.enabled &&
+                        (githubUserCredential ? (
+                            <Text fz="xs" c="dimmed">
+                                The pull request will be authored as{' '}
+                                <Text span fw={500} inherit>
+                                    @{githubUserCredential.githubLogin}
+                                </Text>
+                                .
+                            </Text>
+                        ) : (
+                            <Callout variant="info">
+                                The pull request will be opened by the Lightdash
+                                bot.{' '}
+                                <Anchor
+                                    fz="sm"
+                                    href={`${GITHUB_USER_AUTHORIZE_URL}?redirect=${encodeURIComponent(
+                                        window.location.pathname,
+                                    )}`}
+                                    target="_blank"
+                                >
+                                    Connect your GitHub account
+                                </Anchor>{' '}
+                                to author it as you.
+                            </Callout>
+                        ))}
                 </Stack>
             </form>
         </MantineModal>

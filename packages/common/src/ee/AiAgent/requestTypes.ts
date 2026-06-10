@@ -24,6 +24,10 @@ export type AiThread = {
     agentUuid: string | null;
 };
 
+export type AiPromptTokenUsage = {
+    totalTokens: number;
+};
+
 export type CreateSlackThread = {
     organizationUuid: string;
     projectUuid: string;
@@ -89,9 +93,14 @@ export type AiPromptContextItemInput =
     | {
           type: 'chart';
           chartUuid: string;
+          chartSlug?: string | null;
           runtimeOverrides?: AiChartRuntimeOverrides;
       }
-    | { type: 'dashboard'; dashboardUuid: string };
+    | {
+          type: 'dashboard';
+          dashboardUuid: string;
+          dashboardSlug?: string | null;
+      };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
 
@@ -99,6 +108,7 @@ export type AiPromptContextItem =
     | {
           type: 'chart';
           chartUuid: string;
+          chartSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
           runtimeOverrides: AiChartRuntimeOverrides | null;
@@ -107,6 +117,7 @@ export type AiPromptContextItem =
     | {
           type: 'dashboard';
           dashboardUuid: string;
+          dashboardSlug: string | null;
           pinnedVersionUuid: string | null;
           displayName: string | null;
       };
@@ -130,6 +141,7 @@ export type UpdateSlackResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
+    tokenUsage?: AiPromptTokenUsage | null;
 };
 
 export type UpdateWebAppResponse = {
@@ -137,6 +149,7 @@ export type UpdateWebAppResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
+    tokenUsage?: AiPromptTokenUsage | null;
 };
 
 export type UpdateSlackResponseTs = {
@@ -153,6 +166,33 @@ export type AiAgentEvalRunJobPayload = TraceTaskBase & {
     evalRunUuid: string;
     agentUuid: string;
     threadUuid: string;
+};
+
+export type AiAgentReviewClassifierEventType =
+    | 'response_saved'
+    | 'feedback_changed';
+
+export type AiAgentReviewClassifierJobPayload = TraceTaskBase & {
+    eventType: AiAgentReviewClassifierEventType;
+    organizationUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
+};
+
+export type AiAgentReviewWritebackJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    organizationUuid: string;
+    projectUuid: string;
+    remediationUuid?: string;
+};
+
+export type AiAgentReviewRemediationPreviewJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    remediationUuid: string;
+    prUrl: string;
+    startedAt: number;
 };
 
 export type EmbedArtifactVersionJobPayload = TraceTaskBase & {

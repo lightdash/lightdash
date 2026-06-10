@@ -1,0 +1,25 @@
+.dropzone {
+    border: 1px dashed var(--mantine-color-gray-4);
+    border-radius: var(--mantine-radius-sm);
+    padding: var(--mantine-spacing-sm);
+    transition:
+        border-color 120ms ease,
+        background-color 120ms ease;
+}
+
+.dropzoneActive {
+    border-color: var(--mantine-color-blue-5);
+    background-color: var(--mantine-color-blue-0);
+}
+
+.browseButton {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.browseButton:hover {
+    text-decoration: none;
+}

@@ -4,6 +4,8 @@
 // module namespace, so swap them out via jest.mock instead of spyOn.
 const startSpanMock = jest.fn();
 const continueTraceMock = jest.fn();
+const setTagsMock = jest.fn();
+const setUserMock = jest.fn();
 jest.mock('@sentry/node', () => {
     const actual = jest.requireActual('@sentry/node');
     return {
@@ -12,8 +14,8 @@ jest.mock('@sentry/node', () => {
         continueTrace: (_ctx: unknown, cb: any) => continueTraceMock(cb),
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         startSpan: (opts: unknown, cb: any) => startSpanMock(opts, cb),
-        setUser: jest.fn(),
-        setTags: jest.fn(),
+        setUser: (...args: unknown[]) => setUserMock(...args),
+        setTags: (...args: unknown[]) => setTagsMock(...args),
         addBreadcrumb: jest.fn(),
         captureException: jest.fn(),
         withScope: (cb: (s: { setFingerprint: jest.Mock }) => void) =>
@@ -58,6 +60,8 @@ const makeHelpers = () =>
 describe('traceTasks — wraps every task in the Sentry trace wrapper', () => {
     beforeEach(() => {
         startSpanMock.mockClear();
+        setTagsMock.mockClear();
+        setUserMock.mockClear();
     });
 
     it('wraps a regular scheduler task in Sentry.startSpan', async () => {
@@ -101,5 +105,90 @@ describe('traceTasks — wraps every task in the Sentry trace wrapper', () => {
         expect(handlerA).toHaveBeenCalledTimes(1);
         expect(handlerB).toHaveBeenCalledTimes(1);
         expect(startSpanMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('sets organization.name tag when the resolver returns a name', async () => {
+        const handler = jest.fn().mockResolvedValue(undefined);
+        const tasks: Partial<TypedTaskList> = {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            compileProject: handler as any,
+        };
+        const resolveOrganizationName = jest
+            .fn()
+            .mockResolvedValue('Acme Corp');
+
+        const tracedList = traceTasks(tasks, { resolveOrganizationName });
+        await tracedList.compileProject!(
+            {
+                organizationUuid: 'org-uuid-123',
+                userUuid: 'user-uuid-456',
+                projectUuid: 'project-uuid-789',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any,
+            makeHelpers(),
+        );
+
+        expect(resolveOrganizationName).toHaveBeenCalledWith('org-uuid-123');
+        expect(setTagsMock).toHaveBeenCalledTimes(1);
+        expect(setTagsMock.mock.calls[0][0]).toMatchObject({
+            'organization.uuid': 'org-uuid-123',
+            'organization.name': 'Acme Corp',
+        });
+    });
+
+    it('omits organization.name tag when the resolver returns undefined', async () => {
+        const handler = jest.fn().mockResolvedValue(undefined);
+        const tasks: Partial<TypedTaskList> = {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            compileProject: handler as any,
+        };
+        const resolveOrganizationName = jest.fn().mockResolvedValue(undefined);
+
+        const tracedList = traceTasks(tasks, { resolveOrganizationName });
+        await tracedList.compileProject!(
+            {
+                organizationUuid: 'org-uuid-123',
+                userUuid: 'user-uuid-456',
+                projectUuid: 'project-uuid-789',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any,
+            makeHelpers(),
+        );
+
+        expect(setTagsMock).toHaveBeenCalledTimes(1);
+        expect(setTagsMock.mock.calls[0][0]).toMatchObject({
+            'organization.uuid': 'org-uuid-123',
+        });
+        expect(setTagsMock.mock.calls[0][0]).not.toHaveProperty(
+            'organization.name',
+        );
+    });
+
+    it('does not crash when the resolver rejects', async () => {
+        const handler = jest.fn().mockResolvedValue(undefined);
+        const tasks: Partial<TypedTaskList> = {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            compileProject: handler as any,
+        };
+        const resolveOrganizationName = jest
+            .fn()
+            .mockRejectedValue(new Error('boom'));
+
+        const tracedList = traceTasks(tasks, { resolveOrganizationName });
+        await tracedList.compileProject!(
+            {
+                organizationUuid: 'org-uuid-123',
+                userUuid: 'user-uuid-456',
+                projectUuid: 'project-uuid-789',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any,
+            makeHelpers(),
+        );
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(setTagsMock).toHaveBeenCalledTimes(1);
+        expect(setTagsMock.mock.calls[0][0]).not.toHaveProperty(
+            'organization.name',
+        );
     });
 });

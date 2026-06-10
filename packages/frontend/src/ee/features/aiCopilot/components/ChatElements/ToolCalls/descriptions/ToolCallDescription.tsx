@@ -1,11 +1,14 @@
 import type {
+    DiscoverFieldsInput,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    type AiAgentToolResult,
     type ToolDashboardArgs,
+    type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
     type ToolFindContentArgs,
     type ToolFindDashboardsArgs,
@@ -14,26 +17,57 @@ import {
     type ToolFindExploresArgsV3,
     type ToolFindFieldsArgs,
     type ToolGetDashboardChartsArgs,
+    type ToolGetKnowledgeDocumentContentArgs,
+    type ToolGetKnowledgeDocumentContentOutput,
+    type ToolListContentArgs,
+    type ToolListWarehouseTablesArgs,
     type ToolName,
+    type ToolRunContentQueryArgs,
     type ToolRunQueryArgs,
     type ToolRunSqlArgs,
     type ToolSearchFieldValuesArgs,
+    type ToolSearchSemanticLayerArgs,
 } from '@lightdash/common';
 import type { FC } from 'react';
 import type { ToolCallSummary } from '../utils/types';
 import { AiChartGenerationToolCallDescription } from './AiChartGenerationToolCallDescription';
+import { ContentEditorToolCallDescription } from './ContentEditorToolCallDescription';
 import { ContentSearchToolCallDescription } from './ContentSearchToolCallDescription';
 import { DashboardChartsToolCallDescription } from './DashboardChartsToolCallDescription';
 import { DashboardToolCallDescription } from './DashboardToolCallDescription';
+import { DescribeWarehouseTableToolCallDescription } from './DescribeWarehouseTableToolCallDescription';
+import { DiscoverFieldsToolCallDescription } from './DiscoverFieldsToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
+import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
+import { ListContentToolCallDescription } from './ListContentToolCallDescription';
+import { ListWarehouseTablesToolCallDescription } from './ListWarehouseTablesToolCallDescription';
 import { QueryResultToolCallDescription } from './QueryResultToolCallDescription';
+import { RepoShellToolCallDescription } from './RepoShellToolCallDescription';
+import { RunContentQueryToolCallDescription } from './RunContentQueryToolCallDescription';
+import { SemanticLayerSearchToolCallDescription } from './SemanticLayerSearchToolCallDescription';
 import { SqlRunToolCallDescription } from './SqlRunToolCallDescription';
+
+type ToolReadContentArgs = {
+    slug?: string;
+    type?: 'dashboard' | 'chart';
+};
+
+type ToolEditContentArgs = {
+    slug?: string;
+    type?: 'dashboard' | 'chart';
+};
+
+type ToolCreateContentArgs = {
+    content?: { slug?: string };
+    type?: 'dashboard' | 'chart';
+};
 
 export const ToolCallDescription: FC<{
     toolName: ToolName;
     toolCall: ToolCallSummary;
+    toolResult?: AiAgentToolResult;
 }> = ({ toolName, toolCall }) => {
     // Mid-stream the toolArgs payload can arrive before any input chunks have
     // been parsed. Casting an undefined value and reading fields throws, so
@@ -66,6 +100,13 @@ export const ToolCallDescription: FC<{
             return (
                 <FieldSearchToolCallDescription
                     searchQueries={toolArgsFindFields.fieldSearchQueries}
+                />
+            );
+        case 'discoverFields':
+            const discoverFieldsArgs = toolCall.toolArgs as DiscoverFieldsInput;
+            return (
+                <DiscoverFieldsToolCallDescription
+                    userQuery={discoverFieldsArgs.userQuery}
                 />
             );
         case 'searchFieldValues':
@@ -125,6 +166,7 @@ export const ToolCallDescription: FC<{
                     description={dashboardToolArgs.description}
                 />
             );
+        case 'generateVisualization':
         case 'runQuery':
             const queryToolArgs = toolCall.toolArgs as ToolRunQueryArgs;
             return (
@@ -156,11 +198,119 @@ export const ToolCallDescription: FC<{
                     limit={sqlToolArgs.limit}
                 />
             );
-        case 'discoverFields':
+        case 'readContent':
+            const readContentToolArgs =
+                toolCall.toolArgs as ToolReadContentArgs;
+            return readContentToolArgs.slug && readContentToolArgs.type ? (
+                <ContentEditorToolCallDescription
+                    action="read"
+                    slug={readContentToolArgs.slug}
+                    type={readContentToolArgs.type}
+                />
+            ) : (
+                <> </>
+            );
+        case 'editContent':
+            const editContentToolArgs =
+                toolCall.toolArgs as ToolEditContentArgs;
+            return editContentToolArgs.slug && editContentToolArgs.type ? (
+                <ContentEditorToolCallDescription
+                    action="edit"
+                    slug={editContentToolArgs.slug}
+                    type={editContentToolArgs.type}
+                />
+            ) : (
+                <> </>
+            );
+        case 'createContent':
+            const createContentToolArgs =
+                toolCall.toolArgs as ToolCreateContentArgs;
+            return createContentToolArgs.content?.slug &&
+                createContentToolArgs.type ? (
+                <ContentEditorToolCallDescription
+                    action="create"
+                    slug={createContentToolArgs.content.slug}
+                    type={createContentToolArgs.type}
+                />
+            ) : (
+                <> </>
+            );
         case 'listWarehouseTables':
+            const listWarehouseTablesArgs =
+                toolCall.toolArgs as ToolListWarehouseTablesArgs;
+            return (
+                <ListWarehouseTablesToolCallDescription
+                    schema={listWarehouseTablesArgs.schema ?? null}
+                    search={listWarehouseTablesArgs.search ?? null}
+                />
+            );
+        case 'listContent':
+            const listContentArgs = toolCall.toolArgs as ToolListContentArgs;
+            return (
+                <ListContentToolCallDescription
+                    page={listContentArgs.page}
+                    spaceSlug={listContentArgs.spaceSlug}
+                />
+            );
+        case 'runContentQuery':
+            const runContentQueryArgs =
+                toolCall.toolArgs as ToolRunContentQueryArgs;
+            return (
+                <RunContentQueryToolCallDescription
+                    source={runContentQueryArgs.source}
+                />
+            );
         case 'describeWarehouseTable':
+            const describeWarehouseTableArgs =
+                toolCall.toolArgs as ToolDescribeWarehouseTableArgs;
+            return (
+                <DescribeWarehouseTableToolCallDescription
+                    table={describeWarehouseTableArgs.table}
+                    schema={describeWarehouseTableArgs.schema ?? null}
+                />
+            );
+        case 'getKnowledgeDocumentContent':
+            const getKnowledgeDocumentContentArgs =
+                toolCall.toolArgs as ToolGetKnowledgeDocumentContentArgs;
+            const knowledgeDocumentOutput = toolCall.toolOutput as
+                | ToolGetKnowledgeDocumentContentOutput
+                | undefined;
+            return (
+                <KnowledgeDocumentToolCallDescription
+                    documentUuid={getKnowledgeDocumentContentArgs.documentUuid}
+                    toolOutput={knowledgeDocumentOutput}
+                />
+            );
+        case 'searchSemanticLayer':
+            const searchSemanticLayerArgs =
+                toolCall.toolArgs as ToolSearchSemanticLayerArgs;
+            return (
+                <SemanticLayerSearchToolCallDescription
+                    page={searchSemanticLayerArgs.page}
+                    searchQuery={searchSemanticLayerArgs.searchQuery}
+                    type={searchSemanticLayerArgs.type}
+                />
+            );
+        case 'listKnowledgeDocuments':
+        case 'listProjects':
+        case 'getProjectInfo':
+        case 'generateHashes':
+        case 'generateUuids':
         case 'improveContext':
+        case 'loadSkill':
+        case 'loadProjectContext':
+        case 'repoShell':
+            const toolArgsRepoShell = toolCall.toolArgs as {
+                command?: string;
+            };
+            return (
+                <RepoShellToolCallDescription
+                    command={toolArgsRepoShell.command ?? null}
+                />
+            );
         case 'proposeChange':
+        case 'editDbtProject':
+        case 'setupPreviewDeploy':
         case 'runSavedChart':
             return <> </>;
         default:

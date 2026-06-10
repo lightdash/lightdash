@@ -14,12 +14,14 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import classes from './AgentVisualizationChartTypeSwitcher.module.css';
 
 type Props = {
     metricQuery: MetricQuery;
     selectedChartType: AiAgentChartTypeOption;
     onChartTypeChange: (chartType: AiAgentChartTypeOption) => void;
     hasGroupByDimensions: boolean;
+    variant?: 'default' | 'pill';
 };
 
 const CHART_TYPE_ICONS: Record<AiAgentChartTypeOption, typeof IconTable> = {
@@ -37,6 +39,7 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
     selectedChartType,
     onChartTypeChange,
     hasGroupByDimensions,
+    variant = 'default',
 }) => {
     const availableChartTypes = getAvailableChartTypes(metricQuery);
 
@@ -44,6 +47,8 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
         // Don't show switcher if only one chart type is available
         return null;
     }
+
+    const isPill = variant === 'pill';
 
     return (
         <SegmentedControl
@@ -68,6 +73,7 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
                         <MantineIcon
                             icon={CHART_TYPE_ICONS[chartType]}
                             size="sm"
+                            stroke={1.3}
                             style={{
                                 rotate:
                                     chartType === 'horizontal'
@@ -77,8 +83,18 @@ export const AgentVisualizationChartTypeSwitcher: FC<Props> = ({
                         />
                     ),
                 }))}
-            color="indigo"
+            color={isPill ? undefined : 'indigo'}
             size="xs"
+            classNames={
+                isPill
+                    ? {
+                          root: classes.pillRoot,
+                          control: classes.pillControl,
+                          indicator: classes.pillIndicator,
+                          label: classes.pillLabel,
+                      }
+                    : undefined
+            }
         />
     );
 };

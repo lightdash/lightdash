@@ -14,6 +14,12 @@ import {
     type DbApp,
     type DbAppVersion,
 } from '../database/entities/apps';
+import {
+    DashboardsTableName,
+    DashboardTileDataAppsTableName,
+    DashboardTilesTableName,
+    DashboardVersionsTableName,
+} from '../database/entities/dashboards';
 import { OrganizationTableName } from '../database/entities/organizations';
 import { PinnedAppTableName } from '../database/entities/pinnedList';
 import { ProjectTableName } from '../database/entities/projects';
@@ -42,6 +48,7 @@ export class AppModel {
                     | 'description'
                     | 'template'
                     | 'space_uuid'
+                    | 'design_uuid'
                 >
             >,
         version: Pick<DbAppVersion, 'version' | 'prompt'>,
@@ -176,6 +183,36 @@ export class AppModel {
             throw new NotFoundError(`App not found: ${appId}`);
         }
         return row;
+    }
+
+    async findAppByUuid(appId: string): Promise<
+        | (DbApp & {
+              organization_uuid: string;
+          })
+        | undefined
+    > {
+        return this.database(AppsTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .innerJoin(
+                OrganizationTableName,
+                `${OrganizationTableName}.organization_id`,
+                `${ProjectTableName}.organization_id`,
+            )
+            .where(`${AppsTableName}.app_id`, appId)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .select<
+                (DbApp & {
+                    organization_uuid: string;
+                })[]
+            >(
+                `${AppsTableName}.*`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
+            .first();
     }
 
     async findApp(
@@ -442,6 +479,98 @@ export class AppModel {
     }
 
     /**
+     * Record that a preview app has been promoted into a production app. The
+     * link lives on the preview (source) row so one production app can be the
+     * upstream of many preview apps. Setting it is idempotent — re-promoting
+     * the same preview app just rewrites the same value.
+     */
+    async setUpstreamAppUuid(
+        appId: string,
+        upstreamAppUuid: string,
+    ): Promise<void> {
+        await this.database(AppsTableName)
+            .where({ app_id: appId })
+            .update({ upstream_app_uuid: upstreamAppUuid });
+    }
+
+    /**
+     * List every non-deleted app in a project. Used by preview duplication to
+     * mirror the upstream project's apps into a freshly created preview.
+     */
+    async listAppsByProject(projectUuid: string): Promise<DbApp[]> {
+        return this.database(AppsTableName)
+            .where({ project_uuid: projectUuid })
+            .whereNull('deleted_at')
+            .select('*');
+    }
+
+    /**
+     * Repoint a preview project's data-app dashboard tiles from the source
+     * (upstream) apps they were copied with onto the preview's own duplicated
+     * apps. The update is scoped to dashboards living in the preview project so
+     * the upstream project's tiles — which carry the same `app_uuid` — are
+     * never touched.
+     */
+    async remapPreviewDashboardTileApps(
+        previewProjectUuid: string,
+        mappings: { sourceAppUuid: string; previewAppUuid: string }[],
+    ): Promise<void> {
+        if (mappings.length === 0) {
+            return;
+        }
+        const previewVersionIds = this.database(DashboardVersionsTableName)
+            .innerJoin(
+                DashboardsTableName,
+                `${DashboardsTableName}.dashboard_id`,
+                `${DashboardVersionsTableName}.dashboard_id`,
+            )
+            .innerJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, previewProjectUuid)
+            .select(`${DashboardVersionsTableName}.dashboard_version_id`);
+
+        /* eslint-disable no-await-in-loop */
+        for (const { sourceAppUuid, previewAppUuid } of mappings) {
+            await this.database(DashboardTileDataAppsTableName)
+                .where('app_uuid', sourceAppUuid)
+                .whereIn('dashboard_version_id', previewVersionIds.clone())
+                .update({ app_uuid: previewAppUuid });
+        }
+        /* eslint-enable no-await-in-loop */
+    }
+
+    /**
+     * Sync the metadata of an existing production app from its preview source
+     * during a follow-up promotion. Only touches the fields promotion owns —
+     * versions are appended separately, the link and ownership stay put.
+     */
+    async syncPromotedApp(
+        appId: string,
+        update: Pick<
+            DbApp,
+            'name' | 'description' | 'space_uuid' | 'design_uuid'
+        >,
+    ): Promise<DbApp> {
+        const [row] = await this.database(AppsTableName)
+            .where({ app_id: appId })
+            .whereNull('deleted_at')
+            .update(update)
+            .returning('*');
+        if (!row) {
+            throw new NotFoundError(`App not found: ${appId}`);
+        }
+        return row;
+    }
+
+    /**
      * Atomically set auto-generated name/description, but only for fields
      * that are still at their empty-string default. Used by the background
      * pipeline so it cannot clobber edits the user made while the build
@@ -672,6 +801,74 @@ export class AppModel {
         await this.database(AppsTableName)
             .where({ app_id: appId })
             .update({ sandbox_id: sandboxId });
+    }
+
+    /**
+     * Returns the UUIDs of dashboards in `projectUuid` whose latest version
+     * contains a tile referencing `appUuid`. Old versions are intentionally
+     * ignored: if a dashboard once contained the app but no longer does,
+     * embedding that dashboard must not implicitly authorize the app.
+     */
+    async findDashboardsContainingApp(
+        appUuid: string,
+        projectUuid: string,
+    ): Promise<string[]> {
+        const latestVersionsCte = 'latest_dashboard_versions';
+        const rows = await this.database
+            .with(latestVersionsCte, (qb) => {
+                void qb
+                    .select({
+                        dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
+                        dashboard_version_id: this.database.raw(
+                            `MAX(${DashboardVersionsTableName}.dashboard_version_id)`,
+                        ),
+                    })
+                    .from(DashboardsTableName)
+                    .innerJoin(SpaceTableName, function joinSpaces() {
+                        this.on(
+                            `${DashboardsTableName}.space_id`,
+                            '=',
+                            `${SpaceTableName}.space_id`,
+                        ).andOnNull(`${SpaceTableName}.deleted_at`);
+                    })
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .innerJoin(
+                        DashboardVersionsTableName,
+                        `${DashboardsTableName}.dashboard_id`,
+                        `${DashboardVersionsTableName}.dashboard_id`,
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .groupBy(`${DashboardsTableName}.dashboard_uuid`);
+            })
+            .select<{ dashboard_uuid: string }[]>(
+                `${latestVersionsCte}.dashboard_uuid`,
+            )
+            .distinct()
+            .from(latestVersionsCte)
+            .innerJoin(
+                DashboardTilesTableName,
+                `${DashboardTilesTableName}.dashboard_version_id`,
+                `${latestVersionsCte}.dashboard_version_id`,
+            )
+            .innerJoin(DashboardTileDataAppsTableName, function joinTiles() {
+                this.on(
+                    `${DashboardTileDataAppsTableName}.dashboard_tile_uuid`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_tile_uuid`,
+                ).andOn(
+                    `${DashboardTileDataAppsTableName}.dashboard_version_id`,
+                    '=',
+                    `${DashboardTilesTableName}.dashboard_version_id`,
+                );
+            })
+            .where(`${DashboardTileDataAppsTableName}.app_uuid`, appUuid);
+
+        return rows.map((r) => r.dashboard_uuid);
     }
 
     /**

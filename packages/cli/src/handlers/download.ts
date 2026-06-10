@@ -14,6 +14,7 @@ import {
     DashboardAsCode,
     generateSlug,
     getErrorMessage,
+    isMalformedEmptyDashboardFilter,
     LightdashError,
     Project,
     PromotionAction,
@@ -516,8 +517,10 @@ const readLooseCodeFiles = async (
                         );
                     }
                 } catch (e) {
-                    GlobalState.debug(
-                        `Skipping ${file.name}: failed to parse (${getErrorMessage(e)})`,
+                    GlobalState.log(
+                        styles.warning(
+                            `Skipping ${file.name}: failed to parse (${getErrorMessage(e)})`,
+                        ),
                     );
                 }
             }),
@@ -1087,6 +1090,59 @@ const isSqlChart = (
     item: ChartAsCode | DashboardAsCode | SqlChartAsCode,
 ): item is SqlChartAsCode => 'sql' in item && !('tableName' in item);
 
+/**
+ * Strip malformed empty dashboard filters before upload.
+ *
+ * `disabled: false, values: []` on an operator that needs values is a no-op
+ * in the UI but still overrides chart-level filters at runtime, which surprises
+ * users. We drop these on upload so they don't get persisted, across all three
+ * filter buckets (dimensions, metrics, tableCalculations). The runtime override
+ * behaviour (PROD-7445) is intentional and left untouched.
+ */
+const sanitizeDashboardForUpload = (
+    dashboard: DashboardAsCode,
+): { dashboard: DashboardAsCode; droppedFilters: number } => {
+    const existing = dashboard.filters;
+    if (!existing) {
+        return { dashboard, droppedFilters: 0 };
+    }
+    const { dimensions, metrics, tableCalculations } = existing;
+    const keptDimensions = dimensions?.filter(
+        (f) => !isMalformedEmptyDashboardFilter(f),
+    );
+    const keptMetrics = metrics?.filter(
+        (f) => !isMalformedEmptyDashboardFilter(f),
+    );
+    const keptTableCalculations = tableCalculations?.filter(
+        (f) => !isMalformedEmptyDashboardFilter(f),
+    );
+    const droppedFilters =
+        (dimensions ? dimensions.length - (keptDimensions?.length ?? 0) : 0) +
+        (metrics ? metrics.length - (keptMetrics?.length ?? 0) : 0) +
+        (tableCalculations
+            ? tableCalculations.length - (keptTableCalculations?.length ?? 0)
+            : 0);
+    if (droppedFilters === 0) {
+        return { dashboard, droppedFilters: 0 };
+    }
+    return {
+        dashboard: {
+            ...dashboard,
+            filters: {
+                ...existing,
+                ...(keptDimensions !== undefined && {
+                    dimensions: keptDimensions,
+                }),
+                ...(keptMetrics !== undefined && { metrics: keptMetrics }),
+                ...(keptTableCalculations !== undefined && {
+                    tableCalculations: keptTableCalculations,
+                }),
+            },
+        },
+        droppedFilters,
+    };
+};
+
 const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
     item: T & { needsUpdating: boolean },
     type: 'charts' | 'dashboards',
@@ -1115,13 +1171,27 @@ const upsertSingleItem = async <T extends ChartAsCode | DashboardAsCode>(
             ? `/api/v1/projects/${projectId}/sqlCharts/${item.slug}/code`
             : `/api/v1/projects/${projectId}/${type}/${item.slug}/code`;
 
+        let payload: ChartAsCode | DashboardAsCode | SqlChartAsCode = item;
+        if (type === 'dashboards') {
+            const { dashboard: sanitized, droppedFilters } =
+                sanitizeDashboardForUpload(item as DashboardAsCode);
+            if (droppedFilters > 0) {
+                GlobalState.log(
+                    styles.warning(
+                        `Dropped ${droppedFilters} malformed empty dashboard filter(s) from "${item.name}" before upload (disabled:false, values:[], operator requires values). Run \`lightdash lint\` to find these in your YAML.`,
+                    ),
+                );
+            }
+            payload = sanitized;
+        }
+
         const upsertData = await lightdashApi<
             ApiChartAsCodeUpsertResponse['results']
         >({
             method: 'POST',
             url: endpoint,
             body: JSON.stringify({
-                ...item,
+                ...payload,
                 skipSpaceCreate,
                 publicSpaceCreate,
                 force,
@@ -1417,11 +1487,13 @@ const upsertResources = async <T extends ChartAsCode | DashboardAsCode>(
 const getDashboardChartSlugs = async (
     dashboardSlugs: string[],
     customPath?: string,
+    looseDashboards: (DashboardAsCode & { needsUpdating: boolean })[] = [],
 ) => {
-    const dashboardItems = await readCodeFiles<DashboardAsCode>(
+    const folderDashboards = await readCodeFiles<DashboardAsCode>(
         'dashboards',
         customPath,
     );
+    const dashboardItems = [...folderDashboards, ...looseDashboards];
 
     const filteredDashboardItems =
         dashboardSlugs.length > 0
@@ -1496,6 +1568,19 @@ export const uploadHandler = async (
         const hasFilters =
             options.charts.length > 0 || options.dashboards.length > 0;
 
+        // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
+        const looseFiles = await readLooseCodeFiles(options.path);
+        if (looseFiles.charts.length > 0) {
+            GlobalState.log(
+                `Found ${looseFiles.charts.length} chart(s) outside charts/ directory (classified by contentType)`,
+            );
+        }
+        if (looseFiles.dashboards.length > 0) {
+            GlobalState.log(
+                `Found ${looseFiles.dashboards.length} dashboard(s) outside dashboards/ directory (classified by contentType)`,
+            );
+        }
+
         // Always include the charts from dashboards if includeCharts is true regardless of the charts filters
         const chartSlugs = options.includeCharts
             ? Array.from(
@@ -1504,6 +1589,7 @@ export const uploadHandler = async (
                       ...(await getDashboardChartSlugs(
                           options.dashboards,
                           options.path,
+                          looseFiles.dashboards,
                       )),
                   ]),
               )
@@ -1527,19 +1613,6 @@ export const uploadHandler = async (
         if (Object.keys(spaceNames).length > 0) {
             GlobalState.log(
                 `Found ${Object.keys(spaceNames).length} space definition(s)`,
-            );
-        }
-
-        // Discover loose YAML files (outside charts/ and dashboards/) classified by contentType
-        const looseFiles = await readLooseCodeFiles(options.path);
-        if (looseFiles.charts.length > 0) {
-            GlobalState.log(
-                `Found ${looseFiles.charts.length} chart(s) outside charts/ directory (classified by contentType)`,
-            );
-        }
-        if (looseFiles.dashboards.length > 0) {
-            GlobalState.log(
-                `Found ${looseFiles.dashboards.length} dashboard(s) outside dashboards/ directory (classified by contentType)`,
             );
         }
 
@@ -1619,4 +1692,9 @@ export const uploadHandler = async (
             },
         });
     }
+};
+
+export const testHelpers = {
+    getDashboardChartSlugs,
+    sanitizeDashboardForUpload,
 };

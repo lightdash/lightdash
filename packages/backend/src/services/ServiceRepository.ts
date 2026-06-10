@@ -2,6 +2,11 @@ import { BulkActionable, MissingConfigError } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
+import {
+    getInstallationToken,
+    getPullRequest,
+    listCheckRunsForRef,
+} from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
@@ -14,6 +19,7 @@ import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { ChangesetService } from './ChangesetService';
+import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
@@ -35,7 +41,11 @@ import { LightdashAnalyticsService } from './LightdashAnalyticsService/Lightdash
 import { MetricsExplorerService } from './MetricsExplorerService/MetricsExplorerService';
 import { NotificationsService } from './NotificationsService/NotificationsService';
 import { OAuthService } from './OAuthService/OAuthService';
+import { OrganizationAccessService } from './OrganizationAccessService/OrganizationAccessService';
+import { OrganizationDesignService } from './OrganizationDesignService/OrganizationDesignService';
+import { OrganizationDomainVerificationService } from './OrganizationDomainVerificationService/OrganizationDomainVerificationService';
 import { OrganizationService } from './OrganizationService/OrganizationService';
+import { OrganizationSettingsService } from './OrganizationSettingsService/OrganizationSettingsService';
 import { OrganizationSsoService } from './OrganizationSsoService/OrganizationSsoService';
 import { PermissionsService } from './PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from './PersistentDownloadFileService/PersistentDownloadFileService';
@@ -46,6 +56,7 @@ import { ProjectCompileLogService } from './ProjectCompileLogService/ProjectComp
 import { ProjectParametersService } from './ProjectParametersService';
 import { ProjectService } from './ProjectService/ProjectService';
 import { PromoteService } from './PromoteService/PromoteService';
+import { PullRequestsService } from './PullRequestsService/PullRequestsService';
 import { RenameService } from './RenameService/RenameService';
 import { RolesService } from './RolesService/RolesService';
 import { SavedChartService } from './SavedChartsService/SavedChartService';
@@ -78,6 +89,8 @@ interface ServiceManifest {
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
     gitIntegrationService: GitIntegrationService;
+    ciService: CiService;
+    pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
     gdriveService: GdriveService;
@@ -86,8 +99,12 @@ interface ServiceManifest {
     notificationService: NotificationsService;
     oauthService: OAuthService;
 
+    organizationDesignService: OrganizationDesignService;
     organizationService: OrganizationService;
+    organizationSettingsService: OrganizationSettingsService;
     organizationSsoService: OrganizationSsoService;
+    organizationDomainVerificationService: OrganizationDomainVerificationService;
+    organizationAccessService: OrganizationAccessService;
     preAggregateMaterializationService: PreAggregateMaterializationService;
     persistentDownloadFileService: PersistentDownloadFileService;
     personalAccessTokenService: PersonalAccessTokenService;
@@ -123,12 +140,20 @@ interface ServiceManifest {
     projectCompileLogService: ProjectCompileLogService;
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
+    aiWritebackService: unknown;
+    writebackPreviewService: unknown;
+    previewDeploySetupService: unknown;
     appGenerateService: unknown;
     embedService: unknown;
     aiService: unknown;
     aiAgentService: unknown;
+    aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
+    aiAgentDocumentService: unknown;
+    aiAgentReviewClassifierService: unknown;
+    aiRouterService: unknown;
     aiOrganizationSettingsService: unknown;
+    projectContextService: unknown;
     scimService: unknown;
     supportService: unknown;
     cacheService: unknown;
@@ -363,6 +388,7 @@ export class ServiceRepository
                     analyticsModel: this.models.getAnalyticsModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     schedulerModel: this.models.getSchedulerModel(),
+                    searchModel: this.models.getSearchModel(),
                     schedulerService: this.getSchedulerService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     savedChartService: this.getSavedChartService(),
@@ -413,7 +439,39 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    githubAppService: this.getGithubAppService(),
+                    pullRequestsModel: this.models.getPullRequestsModel(),
                     analytics: this.context.lightdashAnalytics,
+                }),
+        );
+    }
+
+    public getCiService(): CiService {
+        return this.getService(
+            'ciService',
+            () =>
+                new CiService({
+                    projectModel: this.models.getProjectModel(),
+                    githubAppInstallationsModel:
+                        this.models.getGithubAppInstallationsModel(),
+                    githubClient: {
+                        getInstallationToken,
+                        getPullRequest,
+                        listCheckRunsForRef,
+                    },
+                }),
+        );
+    }
+
+    public getPullRequestsService(): PullRequestsService {
+        return this.getService(
+            'pullRequestsService',
+            () =>
+                new PullRequestsService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    pullRequestsModel: this.models.getPullRequestsModel(),
+                    gitIntegrationService: this.getGitIntegrationService(),
+                    projectModel: this.models.getProjectModel(),
                 }),
         );
     }
@@ -425,9 +483,12 @@ export class ServiceRepository
                 new GithubAppService({
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    gitUserCredentialsModel:
+                        this.models.getGitUserCredentialsModel(),
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -483,6 +544,8 @@ export class ServiceRepository
                     lightdashConfig: this.context.lightdashConfig,
                     organizationModel: this.models.getOrganizationModel(),
                     migrationModel: this.models.getMigrationModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }
@@ -509,6 +572,18 @@ export class ServiceRepository
         );
     }
 
+    public getOrganizationDesignService(): OrganizationDesignService {
+        return this.getService(
+            'organizationDesignService',
+            () =>
+                new OrganizationDesignService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationDesignModel:
+                        this.models.getOrganizationDesignModel(),
+                }),
+        );
+    }
+
     public getOrganizationService(): OrganizationService {
         return this.getService(
             'organizationService',
@@ -530,6 +605,16 @@ export class ServiceRepository
         );
     }
 
+    public getOrganizationAccessService(): OrganizationAccessService {
+        return this.getService(
+            'organizationAccessService',
+            () =>
+                new OrganizationAccessService({
+                    featureFlagService: this.getFeatureFlagService(),
+                }),
+        );
+    }
+
     public getOrganizationSsoService(): OrganizationSsoService {
         return this.getService(
             'organizationSsoService',
@@ -539,8 +624,37 @@ export class ServiceRepository
                     organizationSsoModel: this.models.getOrganizationSsoModel(),
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
+                    organizationDomainVerificationModel:
+                        this.models.getOrganizationDomainVerificationModel(),
                     featureFlagModel: this.models.getFeatureFlagModel(),
                     userModel: this.models.getUserModel(),
+                }),
+        );
+    }
+
+    public getOrganizationDomainVerificationService(): OrganizationDomainVerificationService {
+        return this.getService(
+            'organizationDomainVerificationService',
+            () =>
+                new OrganizationDomainVerificationService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationDomainVerificationModel:
+                        this.models.getOrganizationDomainVerificationModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
+                    emailClient: this.clients.getEmailClient(),
+                }),
+        );
+    }
+
+    public getOrganizationSettingsService(): OrganizationSettingsService {
+        return this.getService(
+            'organizationSettingsService',
+            () =>
+                new OrganizationSettingsService({
+                    lightdashConfig: this.context.lightdashConfig,
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
+                    featureFlagModel: this.models.getFeatureFlagModel(),
                 }),
         );
     }
@@ -625,6 +739,8 @@ export class ServiceRepository
                     downloadFileModel: this.models.getDownloadFileModel(),
                     persistentDownloadFileService:
                         this.getPersistentDownloadFileService(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }
@@ -676,6 +792,18 @@ export class ServiceRepository
                     spacePermissionService: this.getSpacePermissionService(),
                     contentVerificationModel:
                         this.models.getContentVerificationModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
+                    // Lazy accessor (not the instance) to duplicate the
+                    // upstream project's data apps when a preview is created.
+                    // AppGenerateService depends on ProjectService, so
+                    // resolving it eagerly here would cycle. Only wired when EE
+                    // license is active; core builds resolve undefined and skip
+                    // data-app duplication.
+                    getAppGenerateService: () =>
+                        this.providers.appGenerateService
+                            ? this.getAppGenerateService<AppGenerateService>()
+                            : undefined,
                 }),
         );
     }
@@ -735,6 +863,8 @@ export class ServiceRepository
                     adminNotificationService:
                         this.getAdminNotificationService(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
         );
     }
@@ -779,6 +909,7 @@ export class ServiceRepository
                     savedChartModel: this.models.getSavedChartModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
                     dashboardModel: this.models.getDashboardModel(),
+                    appModel: this.models.getAppModel(),
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
                     slackClient: this.clients.getSlackClient(),
@@ -890,6 +1021,7 @@ export class ServiceRepository
                     dashboardModel: this.models.getDashboardModel(),
                     savedChartModel: this.models.getSavedChartModel(),
                     savedSqlModel: this.models.getSavedSqlModel(),
+                    appModel: this.models.getAppModel(),
                     shareModel: this.models.getShareModel(),
                     fileStorageClient: this.clients.getFileStorageClient(),
                     projectModel: this.models.getProjectModel(),
@@ -940,6 +1072,8 @@ export class ServiceRepository
                     organizationAllowedEmailDomainsModel:
                         this.models.getOrganizationAllowedEmailDomainsModel(),
                     organizationSsoModel: this.models.getOrganizationSsoModel(),
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                     userWarehouseCredentialsModel:
                         this.models.getUserWarehouseCredentialsModel(),
                     warehouseAvailableTablesModel:
@@ -1017,6 +1151,8 @@ export class ServiceRepository
                     changesetModel: this.models.getChangesetModel(),
                     catalogModel: this.models.getCatalogModel(),
                     projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }
@@ -1047,6 +1183,15 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    // Lazy accessor (not the instance) to promote embedded data
+                    // apps during dashboard promotion. AppGenerateService depends
+                    // on PromoteService, so resolving it eagerly here would cycle.
+                    // Only wired when EE license is active; core builds resolve
+                    // undefined and reject DATA_APP tile promotion with an error.
+                    getAppGenerateService: () =>
+                        this.providers.appGenerateService
+                            ? this.getAppGenerateService<AppGenerateService>()
+                            : undefined,
                 }),
         );
     }
@@ -1164,10 +1309,34 @@ export class ServiceRepository
         );
     }
 
+    public getAiWritebackService<
+        AiWritebackServiceImplT,
+    >(): AiWritebackServiceImplT {
+        return this.getService('aiWritebackService');
+    }
+
+    public getPreviewDeploySetupService<
+        PreviewDeploySetupServiceImplT,
+    >(): PreviewDeploySetupServiceImplT {
+        return this.getService('previewDeploySetupService');
+    }
+
+    public getWritebackPreviewService<
+        WritebackPreviewServiceImplT,
+    >(): WritebackPreviewServiceImplT {
+        return this.getService('writebackPreviewService');
+    }
+
     public getAppGenerateService<
         AppGenerateServiceImplT,
     >(): AppGenerateServiceImplT {
         return this.getService('appGenerateService');
+    }
+
+    public getProjectContextService<
+        ProjectContextServiceImplT,
+    >(): ProjectContextServiceImplT {
+        return this.getService('projectContextService');
     }
 
     public getEmbedService<EmbedServiceImplT>(): EmbedServiceImplT {
@@ -1182,6 +1351,12 @@ export class ServiceRepository
         return this.getService('aiAgentService');
     }
 
+    public getAiAgentToolsService<
+        AiAgentToolsServiceImplT,
+    >(): AiAgentToolsServiceImplT {
+        return this.getService('aiAgentToolsService');
+    }
+
     public getAiAgentAdminService<
         AiAgentAdminServiceImplT,
     >(): AiAgentAdminServiceImplT {
@@ -1192,6 +1367,22 @@ export class ServiceRepository
         AiOrganizationSettingsServiceImplT,
     >(): AiOrganizationSettingsServiceImplT {
         return this.getService('aiOrganizationSettingsService');
+    }
+
+    public getAiAgentDocumentService<
+        AiAgentDocumentServiceImplT,
+    >(): AiAgentDocumentServiceImplT {
+        return this.getService('aiAgentDocumentService');
+    }
+
+    public getAiAgentReviewClassifierService<
+        AiAgentReviewClassifierServiceImplT,
+    >(): AiAgentReviewClassifierServiceImplT {
+        return this.getService('aiAgentReviewClassifierService');
+    }
+
+    public getAiRouterService<AiRouterServiceImplT>(): AiRouterServiceImplT {
+        return this.getService('aiRouterService');
     }
 
     public getRolesService(): RolesService {

@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "0.2960.0",
+  "version": "0.3134.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,16 +14,21 @@
   "types": "dist/types/index.d.ts",
   "scripts": {
     "dev": "tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
+    "dev:fast": "tsgo --build --watch --preserveWatchOutput ./tsconfig.build.fast.json",
     "build": "tsc --build ./tsconfig.build.json",
+    "build:fast": "tsgo --build ./tsconfig.build.fast.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
     "fix-lint": "pnpm run linter ./src --fix",
     "format": "oxfmt ./src --check",
     "fix-format": "oxfmt ./src",
-    "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts",
+    "generate:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/chart-as-code-1.0.json",
     "check:chart-as-code-schema": "tsx src/schemas/generateChartAsCodeSchema.ts --check",
+    "generate:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts && pnpm run formatter --write src/schemas/json/dashboard-as-code-1.0.json",
+    "check:dashboard-as-code-schema": "tsx src/schemas/generateDashboardAsCodeSchema.ts --check",
     "test": "TZ=UTC LANG=en_US.UTF-8 jest",
     "test:dev": "TZ=UTC LANG=en_US.UTF-8 jest --config jest.config.dev.js --onlyChanged --watch",
     "release": "pnpm publish --no-git-checks --access public"
@@ -39,17 +44,18 @@
     "cronstrue": "2.23.0",
     "dayjs": "1.11.10",
     "dependency-graph": "0.11.0",
-    "echarts": "6.0.0",
+    "echarts": "6.1.0",
     "fast-json-patch": "3.1.1",
+    "free-email-domains": "1.9.16",
     "handlebars": "4.7.9",
     "js-yaml": "4.1.1",
-    "liquidjs": "10.25.7",
+    "liquidjs": "10.26.0",
     "lodash": "4.18.1",
     "moment": "2.29.4",
     "moment-timezone": "0.5.45",
     "numfmt": "3.2.1",
     "pegjs": "0.10.0",
-    "sanitize-html": "2.12.1",
+    "sanitize-html": "2.17.4",
     "sql-formatter": "15.7.3",
     "type-fest": "4.32.0",
     "uuid": "11.1.1",
@@ -62,6 +68,7 @@
     "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
-    "typescript": "6.0.0-beta"
+    "@typescript/native-preview": "7.0.0-dev.20260527.2",
+    "typescript": "6.0.3"
   }
 }

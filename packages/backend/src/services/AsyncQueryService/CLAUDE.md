@@ -111,10 +111,7 @@ For queries returning millions of rows, this blocks the event loop during proces
 `PENDING`, `RUNNING`, `READY`, `ERROR`, or `CANCELLED`
 
 **Polling Results Source:**
-When `getAsyncQueryResults` is called, results are fetched from different sources depending on configuration:
-
-- **S3 enabled** (`resultsStorageClient.isEnabled`): Reads paginated results from S3 JSONL file
-- **S3 disabled**: Falls back to `getResultsPageFromWarehouse()`, which re-queries the warehouse using stored `warehouseQueryId`. Currently only **Snowflake** supports this via `warehouseClient.getAsyncQueryResults()`. Other warehouses throw `NotImplementedError` and require S3 to be configured.
+When `getAsyncQueryResults` is called, results are always read from the S3 JSONL file via `resultsStorageClient`. S3-compatible storage is required at boot (see `parseBaseS3Config`), so every warehouse uses this path uniformly — there is no warehouse re-query fallback.
 
 **Pagination:**
 Results are paginated (default 500 rows, max 5000). Use `page` and `pageSize` parameters.

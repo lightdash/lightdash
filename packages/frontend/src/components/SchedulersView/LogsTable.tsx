@@ -24,12 +24,6 @@ import {
     IconTextCaption,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -47,6 +41,12 @@ import {
     useSchedulerRuns,
     useSendNowSchedulerByUuid,
 } from '../../features/scheduler/hooks/useScheduler';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+    type ContentTableVirtualizer,
+} from '../common/ContentTable';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
 import { LogsTopToolbar } from './LogsTopToolbar';
@@ -95,7 +95,9 @@ const LogsTable: FC<LogsTableProps> = ({
     const isResourceScoped = !!resourceScope;
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
     const {
         search,
         setSearch,
@@ -302,7 +304,7 @@ const LogsTable: FC<LogsTableProps> = ({
         );
     }, [schedulerRunsData]);
 
-    const allColumns: MRT_ColumnDef<TableRow>[] = useMemo(
+    const allColumns: ContentTableColumnDef<TableRow>[] = useMemo(
         () => [
             {
                 accessorKey: 'scheduler.name',
@@ -566,7 +568,7 @@ const LogsTable: FC<LogsTableProps> = ({
         [allColumns, isResourceScoped],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: tableData,
         enableColumnResizing: true,
@@ -702,7 +704,7 @@ const LogsTable: FC<LogsTableProps> = ({
             },
         }),
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 48, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,
@@ -716,7 +718,7 @@ const LogsTable: FC<LogsTableProps> = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
             <ConfirmSendNowModal
                 opened={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}

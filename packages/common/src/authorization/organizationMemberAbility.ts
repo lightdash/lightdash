@@ -70,15 +70,8 @@ export const applyOrganizationMemberStaticAbilities: Record<
                 $elemMatch: { userUuid: member.userUuid },
             },
         });
-        can('view', 'DataApp', {
+        can('view', 'OrganizationDesign', {
             organizationUuid: member.organizationUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('view', 'DataApp', {
-            organizationUuid: member.organizationUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
         });
         can('view', 'Project', {
             organizationUuid: member.organizationUuid,
@@ -200,6 +193,19 @@ export const applyOrganizationMemberStaticAbilities: Record<
                 },
             },
         });
+        // View data apps shared org/project-wide or in spaces the user can
+        // access. Gated at interactive-viewer (not viewer) for parity with
+        // manage:Explore — plain viewers don't get data app access.
+        can('view', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            inheritsFromOrgOrProject: true,
+        });
+        can('view', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
         // Create personal data apps; once created, the user can also view
         // and manage their own. Moving an app into a space is gated
         // separately by the target space's manage rule.
@@ -226,6 +232,9 @@ export const applyOrganizationMemberStaticAbilities: Record<
         });
 
         can('view', 'AiAgent', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('view', 'AiAgentDocument', {
             organizationUuid: member.organizationUuid,
         });
         can('create', 'AiAgentThread', {
@@ -260,6 +269,11 @@ export const applyOrganizationMemberStaticAbilities: Record<
             organizationUuid: member.organizationUuid,
         });
         can('view', 'OrganizationWarehouseCredentials', {
+            organizationUuid: member.organizationUuid,
+        });
+        // Editors can download content as code but not upload it. Upload
+        // stays gated behind `manage:ContentAsCode` (developer+).
+        can('view', 'ContentAsCode', {
             organizationUuid: member.organizationUuid,
         });
     },
@@ -335,10 +349,21 @@ export const applyOrganizationMemberStaticAbilities: Record<
         can('manage', 'ContentAsCode', {
             organizationUuid: member.organizationUuid,
         });
+        // Redundant with the broad grant above, but kept so the system
+        // role mirrors the `manage:ContentAsCode@self` scope a custom role
+        // would carry without full `manage:ContentAsCode`.
+        can('manage', 'ContentAsCode', {
+            organizationUuid: member.organizationUuid,
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
+        });
         can('view', 'JobStatus', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'AiAgent', {
+            organizationUuid: member.organizationUuid,
+        });
+        can('manage', 'AiAgentDocument', {
             organizationUuid: member.organizationUuid,
         });
         can('manage', 'AiAgentThread', {
@@ -350,6 +375,10 @@ export const applyOrganizationMemberStaticAbilities: Record<
         applyOrganizationMemberStaticAbilities.developer(member, { can });
 
         can('manage', 'DataApp', {
+            organizationUuid: member.organizationUuid,
+        });
+
+        can('manage', 'OrganizationDesign', {
             organizationUuid: member.organizationUuid,
         });
 

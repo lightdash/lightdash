@@ -11,6 +11,7 @@ import {
     ForbiddenError,
     Group,
     GroupWithMembers,
+    isSystemRole,
     isUserWithOrg,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -263,7 +264,10 @@ export class OrganizationService extends BaseService {
         let members = organizationMembers.filter((member) =>
             auditedAbility.can(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    metadata: { userUuid: member.userUuid },
+                }),
             ),
         );
 
@@ -288,9 +292,15 @@ export class OrganizationService extends BaseService {
                 );
                 return {
                     ...member,
-                    role: groupAccess?.role
-                        ? convertProjectRoleToOrganizationRole(groupAccess.role)
-                        : member.role,
+                    // A group can carry a custom-role UUID instead of a system
+                    // role. Those aren't convertible to an org role, so fall back
+                    // to the member's own org role rather than throwing.
+                    role:
+                        groupAccess?.role && isSystemRole(groupAccess.role)
+                            ? convertProjectRoleToOrganizationRole(
+                                  groupAccess.role,
+                              )
+                            : member.role,
                 };
             });
         }
@@ -367,7 +377,10 @@ export class OrganizationService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    metadata: { userUuid: member.userUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -396,7 +409,10 @@ export class OrganizationService extends BaseService {
         if (
             auditedAbility.cannot(
                 'view',
-                subject('OrganizationMemberProfile', member),
+                subject('OrganizationMemberProfile', {
+                    ...member,
+                    metadata: { userUuid: member.userUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -417,7 +433,10 @@ export class OrganizationService extends BaseService {
         if (
             auditedAbility.cannot(
                 'update',
-                subject('OrganizationMemberProfile', { organizationUuid }),
+                subject('OrganizationMemberProfile', {
+                    organizationUuid,
+                    metadata: { userUuid: memberUserUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -585,6 +604,7 @@ export class OrganizationService extends BaseService {
                 'create',
                 subject('Group', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { groupName: createGroup.name },
                 }),
             )
         ) {
@@ -633,7 +653,16 @@ export class OrganizationService extends BaseService {
 
         const auditedAbility = this.createAuditedAbility(user);
         const allowedGroups = groups.filter((group) =>
-            auditedAbility.can('view', subject('Group', group)),
+            auditedAbility.can(
+                'view',
+                subject('Group', {
+                    ...group,
+                    metadata: {
+                        groupUuid: group.uuid,
+                        groupName: group.name,
+                    },
+                }),
+            ),
         );
 
         if (includeMembers === undefined) {
@@ -716,6 +745,7 @@ export class OrganizationService extends BaseService {
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { colorPaletteUuid },
                 }),
             )
         ) {
@@ -746,6 +776,7 @@ export class OrganizationService extends BaseService {
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { colorPaletteUuid },
                 }),
             )
         ) {
@@ -769,6 +800,7 @@ export class OrganizationService extends BaseService {
                 'update',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,
+                    metadata: { colorPaletteUuid },
                 }),
             )
         ) {

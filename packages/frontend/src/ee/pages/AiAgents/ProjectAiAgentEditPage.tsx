@@ -68,6 +68,7 @@ const formSchema = z.object({
     mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    enableContentTools: z.boolean(),
     version: z.number(),
 });
 
@@ -118,8 +119,9 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             userAccess: [],
             spaceAccess: [],
             mcpServerUuids: [],
-            enableDataAccess: false,
+            enableDataAccess: true,
             enableSelfImprovement: false,
+            enableContentTools: true,
             version: 2, // INFO: Default to v2 for now
         },
         validate: zodResolver(formSchema),
@@ -144,6 +146,9 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 mcpServerUuids: agentMcpServers?.map((mcp) => mcp.uuid) ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
+                enableContentTools:
+                    (agent.enableDataAccess ?? false) &&
+                    (agent.enableContentTools ?? false),
                 version: agent.version ?? 2, // INFO: Default to v2 for now
             };
             form.setValues(values);
@@ -380,7 +385,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                     />
                                 }
                                 component={Link}
-                                to={`/ai-agents/admin?projects=${projectUuid}&agents=${actualAgentUuid}`}
+                                to={`/generalSettings/ai/threads?projects=${projectUuid}&agents=${actualAgentUuid}`}
                             >
                                 Conversations
                             </Button>
@@ -400,9 +405,13 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         <Box pt="sm" pr="sm">
                             <AiAgentFormSetup
                                 mode={isCreateMode ? 'create' : 'edit'}
-                                agentUuid={actualAgentUuid!}
+                                agentUuid={actualAgentUuid}
                                 form={form}
                                 projectUuid={projectUuid!}
+                                isSavingAgent={isUpdatingAgent}
+                                persistedMcpServerUuids={agentMcpServers?.map(
+                                    (mcpServer) => mcpServer.uuid,
+                                )}
                             />
                         </Box>
                     )}

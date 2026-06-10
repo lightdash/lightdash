@@ -132,6 +132,41 @@
     animation: livePulse 1.8s ease-in-out infinite;
 }
 
+.mcpSummaryIconStack {
+    flex-shrink: 0;
+    margin-left: 2px;
+}
+
+.mcpSummaryIcon {
+    position: relative;
+    z-index: var(--mcp-summary-icon-z-index);
+    width: 15px;
+    height: 15px;
+    min-width: 15px;
+    margin-left: -4px;
+}
+
+.mcpSummaryIcon:first-child {
+    margin-left: 0;
+}
+
+.mcpSummaryOverflow {
+    position: relative;
+    z-index: 0;
+    display: inline-flex;
+    align-items: center;
+    height: 15px;
+    margin-left: -3px;
+    padding: 0 3px 0 5px;
+    border-radius: 999px;
+    background-color: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-ldGray-6);
+    box-shadow: inset 0 0 0 0.5px var(--mantine-color-ldGray-3);
+    font-size: 9px;
+    font-weight: 600;
+    line-height: 1;
+}
+
 .latestMcpLabel {
     min-width: 0;
     animation: labelSettle 260ms ease-out;
@@ -269,6 +304,77 @@
     z-index: 1;
     padding: 4px 0 2px 18px;
     margin-top: 2px;
+}
+
+/* Vertical progress step list — same alignment as .liveTrace so the
+   "Starting sandbox → Cloning project → …" rows hang from the same
+   indent as the parent tool's chip label. */
+.liveStepProgress {
+    position: relative;
+    z-index: 1;
+    padding: 6px 0 4px 18px;
+    margin-top: 2px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.liveStepProgressRow {
+    animation: liveStepProgressFadeIn 220ms ease-out;
+}
+
+.liveStepProgressDot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background-color: var(--mantine-color-ldGray-5);
+    flex-shrink: 0;
+    transition: background-color 200ms ease;
+}
+
+.liveStepProgressDot[data-active='true'] {
+    background-color: var(--mantine-color-indigo-6);
+    animation: liveStepProgressPulse 1.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.liveStepProgressLabel {
+    color: var(--mantine-color-ldGray-7);
+    letter-spacing: -0.005em;
+    font-weight: 500;
+}
+
+.liveStepProgressLabel[data-active='true'] {
+    color: var(--mantine-color-ldGray-9);
+}
+
+@keyframes liveStepProgressFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes liveStepProgressPulse {
+    0%,
+    100% {
+        opacity: 0.4;
+        transform: scale(0.9);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .liveStepProgressRow,
+    .liveStepProgressDot {
+        animation: none;
+    }
 }
 
 /* History rows cascade in with staggered delays (see --row-delay) so opening

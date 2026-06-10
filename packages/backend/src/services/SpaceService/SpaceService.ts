@@ -6,7 +6,9 @@ import {
     ForbiddenError,
     getHighestSpaceRole,
     NotFoundError,
+    OrganizationMemberRole,
     ParameterError,
+    ProjectMemberRole,
     SessionUser,
     Space,
     SpaceDeleteImpact,
@@ -157,23 +159,39 @@ export class SpaceService
             hasAccess: accessibleUuids.has(b.uuid),
         }));
 
+        // `resolveSpaceAccess` drops admins from restricted spaces; re-add
+        // them for audit display. A user already in `ctx.access` keeps the
+        // role they were granted directly — admin powers come via CASL.
+        const existingAccessUuids = new Set(ctx.access.map((a) => a.userUuid));
+        const adminAccess: SpaceAccess[] = ctx.admins
+            .filter((admin) => !existingAccessUuids.has(admin.userUuid))
+            .map((admin) => ({
+                userUuid: admin.userUuid,
+                role: SpaceMemberRole.ADMIN,
+                hasDirectAccess: false,
+                // Admin powers come via CASL, not a viewer-shaped custom role.
+                hasCustomProjectRoleWithSpaceAccess: false,
+                projectRole: ProjectMemberRole.ADMIN,
+                inheritedRole:
+                    admin.source === 'organization'
+                        ? OrganizationMemberRole.ADMIN
+                        : ProjectMemberRole.ADMIN,
+                inheritedFrom: admin.source,
+            }));
+
+        const allAccess: SpaceAccess[] = [...ctx.access, ...adminAccess];
+
         const userInfoMap =
             await this.spacePermissionService.getUserMetadataByUuids(
-                ctx.access.map((a) => a.userUuid),
+                allAccess.map((a) => a.userUuid),
             );
 
-        const access: SpaceShare[] = ctx.access.map((spaceAccess) => ({
-            userUuid: spaceAccess.userUuid,
-            role: spaceAccess.role,
-            hasDirectAccess: spaceAccess.hasDirectAccess,
-            hasCustomProjectRoleWithSpaceAccess:
-                spaceAccess.hasCustomProjectRoleWithSpaceAccess,
-            projectRole: spaceAccess.projectRole,
-            inheritedRole: spaceAccess.inheritedRole,
-            inheritedFrom: spaceAccess.inheritedFrom,
-            firstName: userInfoMap[spaceAccess.userUuid]?.firstName ?? '',
-            lastName: userInfoMap[spaceAccess.userUuid]?.lastName ?? '',
-            email: userInfoMap[spaceAccess.userUuid]?.email ?? '',
+        const access: SpaceShare[] = allAccess.map((a) => ({
+            ...a,
+            firstName: userInfoMap[a.userUuid]?.firstName ?? '',
+            lastName: userInfoMap[a.userUuid]?.lastName ?? '',
+            email: userInfoMap[a.userUuid]?.email ?? '',
+            isInternal: userInfoMap[a.userUuid]?.isInternal ?? false,
         }));
 
         const [queries, dashboards, childSpaces] = await Promise.all([
@@ -461,7 +479,9 @@ export class SpaceService
             trackEvent?: boolean;
         } = {},
     ) {
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+            projectUuid,
+        });
 
         if (!space) {
             throw new NotFoundError('Space not found');
@@ -486,7 +506,7 @@ export class SpaceService
 
         await this.spaceModel.moveToSpace(
             {
-                projectUuid: space.projectUuid,
+                projectUuid,
                 itemUuid: spaceUuid,
                 targetSpaceUuid,
             },
@@ -682,6 +702,7 @@ export class SpaceService
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
             deleted: true,
+            projectUuid: options?.projectUuid,
         });
 
         if (options?.bypassPermissions) {
@@ -731,6 +752,7 @@ export class SpaceService
                 // eslint-disable-next-line no-await-in-loop
                 await this.savedChartService.restore(user, chartUuid, {
                     bypassPermissions: true, // space restore authorized above
+                    projectUuid: space.projectUuid,
                 });
             }
 
@@ -743,6 +765,7 @@ export class SpaceService
                 // eslint-disable-next-line no-await-in-loop
                 await this.dashboardService.restore(user, dashboardUuid, {
                     bypassPermissions: true, // space restore authorized above
+                    projectUuid: space.projectUuid,
                 });
             }
 
@@ -774,6 +797,7 @@ export class SpaceService
                 // eslint-disable-next-line no-await-in-loop
                 await this.restore(user, childSpaceUuid, {
                     bypassPermissions: true, // space restore authorized above
+                    projectUuid: space.projectUuid,
                 });
             }
         }
@@ -803,6 +827,7 @@ export class SpaceService
         } else {
             const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
                 deleted: true,
+                projectUuid: options?.projectUuid,
             });
             const auditedAbility = this.createAuditedAbility(user);
             if (

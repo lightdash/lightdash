@@ -123,6 +123,11 @@ export const dateTruncTimezoneConversions: Record<
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
         toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
     },
+    [SupportedDbtAdapter.SPARK]: {
+        toProjectTz: (sql, tz) =>
+            `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+        toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
+    },
     // Trino returns `timestamp with time zone` values as strings like
     // "2024-01-14 00:00:00.000 America/New_York", which dayjs/moment can't
     // parse — so `toUTC` casts the UTC-shifted result back to a naive
@@ -184,6 +189,10 @@ export const dateExtractsTimezoneConversions: Record<
             `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
     },
     [SupportedDbtAdapter.DATABRICKS]: {
+        toExtractInputTz: (sql, tz) =>
+            `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
+    },
+    [SupportedDbtAdapter.SPARK]: {
         toExtractInputTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
     },
@@ -669,6 +678,7 @@ const warehouseConfigs: Record<SupportedDbtAdapter, WarehouseConfig> = {
     [SupportedDbtAdapter.POSTGRES]: postgresConfig,
     [SupportedDbtAdapter.DUCKDB]: postgresConfig,
     [SupportedDbtAdapter.DATABRICKS]: databricksConfig,
+    [SupportedDbtAdapter.SPARK]: databricksConfig, // Spark uses same SQL dialect as Databricks
     [SupportedDbtAdapter.TRINO]: trinoConfig,
     [SupportedDbtAdapter.ATHENA]: trinoConfig, // Athena uses Trino SQL dialect
     [SupportedDbtAdapter.CLICKHOUSE]: clickhouseConfig,

@@ -34,6 +34,7 @@ import MantineIcon from '../MantineIcon';
 import MantineModal from '../MantineModal';
 import PaginateControl from '../PaginateControl';
 import { DEFAULT_PAGE_SIZE } from '../Table/constants';
+import { ServiceAccountBadge } from './ServiceAccountBadge';
 import classes from './ShareSpaceModalShared.module.css';
 import {
     getAccessColor,
@@ -127,6 +128,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                     sharedUser.firstName,
                                     sharedUser.lastName,
                                     sharedUser.email,
+                                    sharedUser.isInternal,
                                 )}
                             </Avatar>
                             <Text fw={600} fz="sm">
@@ -135,6 +137,7 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                     sharedUser.firstName,
                                     sharedUser.lastName,
                                     sharedUser.email,
+                                    sharedUser.isInternal,
                                 )}
                                 {isSessionUser ? (
                                     <Text fw={400} fz="sm" span c="ldGray.6">
@@ -143,6 +146,9 @@ export const UserAccessList: FC<UserAccessListProps> = ({
                                     </Text>
                                 ) : null}
                             </Text>
+                            {sharedUser.isInternal ? (
+                                <ServiceAccountBadge />
+                            ) : null}
                         </Group>
 
                         {isSessionUser || !sharedUser.hasDirectAccess ? (

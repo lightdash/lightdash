@@ -41,6 +41,7 @@ import {
     PasswordReset,
     ProjectMemberRole,
     RegisterOrActivateUser,
+    resolveEffectiveOrganizationSettings,
     ServiceAccount,
     SessionUser,
     SnowflakeAuthenticationType,
@@ -51,12 +52,14 @@ import {
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
     WarehouseTypes,
+    type RegisteredAccount,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import * as AccountFactory from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
 import {
@@ -81,6 +84,7 @@ import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -90,6 +94,7 @@ import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredential
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
 import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
+import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -107,6 +112,7 @@ type UserServiceArguments = {
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
     organizationSsoModel: OrganizationSsoModel;
+    organizationSettingsModel: OrganizationSettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
@@ -213,6 +219,8 @@ export class UserService extends BaseService {
 
     private readonly organizationSsoModel: OrganizationSsoModel;
 
+    private readonly organizationSettingsModel: OrganizationSettingsModel;
+
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -241,6 +249,7 @@ export class UserService extends BaseService {
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
         organizationSsoModel,
+        organizationSettingsModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
         projectModel,
@@ -263,6 +272,7 @@ export class UserService extends BaseService {
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
         this.organizationSsoModel = organizationSsoModel;
+        this.organizationSettingsModel = organizationSettingsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
@@ -477,6 +487,7 @@ export class UserService extends BaseService {
                     'delete',
                     subject('OrganizationMemberProfile', {
                         organizationUuid: userToDelete.organizationUuid,
+                        metadata: { userUuid: userUuidToDelete },
                     }),
                 )
             ) {
@@ -749,6 +760,46 @@ export class UserService extends BaseService {
         }
     }
 
+    /**
+     * Whether auto-linking a new OIDC identity to an existing user (matched by
+     * a shared OIDC email) is allowed for the target user's org. The per-org
+     * `organization_settings.oidc_linking_enabled` takes priority; when it's
+     * unset (null) we fall back to the instance `AUTH_ENABLE_OIDC_LINKING`.
+     */
+    private async isOidcLinkingEnabledForOrg(
+        organizationUuid: string | undefined,
+    ): Promise<boolean> {
+        const raw = organizationUuid
+            ? await this.organizationSettingsModel.get(organizationUuid)
+            : {};
+        return (
+            resolveEffectiveOrganizationSettings(
+                raw,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            ).oidcLinkingEnabled ?? false
+        );
+    }
+
+    /**
+     * Whether auto-linking an OIDC identity to an existing user matched by
+     * verified primary email is allowed for the target user's org. The per-org
+     * `organization_settings.oidc_to_email_linking_enabled` takes priority;
+     * when unset (null) we fall back to `AUTH_ENABLE_OIDC_TO_EMAIL_LINKING`.
+     */
+    private async isOidcToEmailLinkingEnabledForOrg(
+        organizationUuid: string | undefined,
+    ): Promise<boolean> {
+        const raw = organizationUuid
+            ? await this.organizationSettingsModel.get(organizationUuid)
+            : {};
+        return (
+            resolveEffectiveOrganizationSettings(
+                raw,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            ).oidcToEmailLinkingEnabled ?? false
+        );
+    }
+
     private async loginWithOpenIdInner(
         openIdUser: OpenIdUser,
         authenticatedUser: SessionUser | undefined,
@@ -857,17 +908,20 @@ export class UserService extends BaseService {
             return loginUser;
         }
 
-        // Link the new openid identity to an existing user if they already have another OIDC with the same email
-        if (!authenticatedUser && this.lightdashConfig.auth.enableOidcLinking) {
+        // Link the new openid identity to an existing user if they already
+        // have another OIDC with the same email. Allowed instance-wide via env
+        // OR per-org via organization_settings — so we resolve the candidate
+        // user first, then check the effective toggle for their org.
+        if (!authenticatedUser) {
             const identities =
                 await this.openIdIdentityModel.findIdentitiesByEmail(
                     openIdUser.openId.email,
                 );
-            this.logger.info(
-                `OIDC linking enabled - Found ${identities.length} existing identities for email ${openIdUser.openId.email}`,
-            );
             const identitiesUsers = uniq(
                 identities.map((identity) => identity.userUuid),
+            );
+            this.logger.info(
+                `OIDC account-linking check for ${openIdUser.openId.email} — found ${identities.length} existing identities (linking decided per-org)`,
             );
             if (identitiesUsers.length > 1) {
                 this.logger.warn(
@@ -877,51 +931,60 @@ export class UserService extends BaseService {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
                 );
-                this.logger.info(
-                    `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,
-                );
 
                 if (
-                    this.lightdashConfig.groups.enabled === true &&
-                    this.lightdashConfig.auth.enableGroupSync === true &&
-                    Array.isArray(openIdUser.openId.groups) &&
-                    openIdUser.openId.groups.length &&
-                    sessionUser.organizationUuid
+                    await this.isOidcLinkingEnabledForOrg(
+                        sessionUser.organizationUuid,
+                    )
                 ) {
                     this.logger.info(
-                        `Syncing groups for existing user ${
-                            sessionUser.userUuid
-                        } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                        `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,
                     );
-                    await this.tryAddUserToGroups({
-                        userUuid: sessionUser.userUuid,
-                        groups: openIdUser.openId.groups,
-                        organizationUuid: sessionUser.organizationUuid,
-                    });
-                }
 
-                return this.linkOpenIdIdentityToUser(
-                    sessionUser,
-                    openIdUser,
-                    refreshToken,
-                );
+                    if (
+                        this.lightdashConfig.groups.enabled === true &&
+                        this.lightdashConfig.auth.enableGroupSync === true &&
+                        Array.isArray(openIdUser.openId.groups) &&
+                        openIdUser.openId.groups.length &&
+                        sessionUser.organizationUuid
+                    ) {
+                        this.logger.info(
+                            `Syncing groups for existing user ${
+                                sessionUser.userUuid
+                            } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                        );
+                        await this.tryAddUserToGroups({
+                            userUuid: sessionUser.userUuid,
+                            groups: openIdUser.openId.groups,
+                            organizationUuid: sessionUser.organizationUuid,
+                        });
+                    }
+
+                    return this.linkOpenIdIdentityToUser(
+                        sessionUser,
+                        openIdUser,
+                        refreshToken,
+                    );
+                }
             }
         }
 
-        // Link the new openid identity to an existing user if they already have the same primary email and it's verified
-        if (
-            !authenticatedUser &&
-            this.lightdashConfig.auth.enableOidcToEmailLinking
-        ) {
+        // Link the new openid identity to an existing user if they already
+        // have the same verified primary email. Allowed instance-wide via env
+        // OR per-org via organization_settings — resolve the candidate user,
+        // then check the effective toggle for their org.
+        if (!authenticatedUser) {
             const userWithSameEmail =
                 await this.userModel.findSessionUserByPrimaryEmail(
                     openIdUser.openId.email,
                 );
-            this.logger.info(
-                `Email linking enabled - Found user with same email: ${!!userWithSameEmail}`,
-            );
 
-            if (userWithSameEmail) {
+            if (
+                userWithSameEmail &&
+                (await this.isOidcToEmailLinkingEnabledForOrg(
+                    userWithSameEmail.organizationUuid,
+                ))
+            ) {
                 const emailStatus = await this.emailModel.getPrimaryEmailStatus(
                     userWithSameEmail.userUuid,
                 );
@@ -1577,6 +1640,9 @@ export class UserService extends BaseService {
                 'view',
                 subject('PersonalAccessToken', {
                     organizationUuid: user.organizationUuid!,
+                    metadata: {
+                        personalAccessTokenUuid: personalAccessToken.uuid,
+                    },
                 }),
             )
         ) {
@@ -1619,6 +1685,42 @@ export class UserService extends BaseService {
 
     async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
         return this.userModel.findSessionUserByUUID(userUuid);
+    }
+
+    async getSessionByUserUuidAndOrg(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        return this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+    }
+
+    async getAccountByUserUuid(userUuid: string): Promise<RegisteredAccount> {
+        const sessionUser = await this.getSessionByUserUuid(userUuid);
+
+        if (!this.lightdashConfig.serviceAccount.enabled) {
+            return AccountFactory.fromSession(sessionUser);
+        }
+
+        const serviceAccount =
+            await this.userModel.findServiceAccountByUserUuid(userUuid);
+
+        if (serviceAccount) {
+            return AccountFactory.fromServiceAccount(
+                {
+                    ...sessionUser,
+                    serviceAccount: {
+                        uuid: serviceAccount.uuid,
+                        description: serviceAccount.description,
+                    },
+                },
+                '',
+            );
+        }
+
+        return AccountFactory.fromSession(sessionUser);
     }
 
     private otpExpirationDate(createdAt: Date) {
@@ -2269,12 +2371,44 @@ export class UserService extends BaseService {
         });
     }
 
-    async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
+    /**
+     * Whether Google sign-in is disabled for the given email's domain by the
+     * owning organization. Google is enabled by default (shared instance OAuth
+     * app); a per-org `google` policy row with enabled=false opts out. For
+     * existing users we only honour policies from orgs they belong to — same
+     * domain-hijack guard as getLoginOptions.
+     */
+    private async isGoogleDisabledForEmail(email: string): Promise<boolean> {
+        const domain = email?.split('@')[1]?.toLowerCase();
+        if (!domain) return false;
+        const googleMethods =
+            await this.organizationSsoModel.findGoogleMethodsForEmailDomain(
+                domain,
+            );
+        if (googleMethods.length === 0) return false;
+
+        const existingUser = await this.userModel.findUserByEmail(email);
+        if (!existingUser) {
+            return googleMethods.some((m) => !m.enabled);
+        }
+        const userOrgs = await this.userModel.getOrganizationsForUser(
+            existingUser.userUuid,
+        );
+        const userOrgUuids = new Set(userOrgs.map((o) => o.organizationUuid));
+        return googleMethods
+            .filter((m) => userOrgUuids.has(m.organizationUuid))
+            .some((m) => !m.enabled);
+    }
+
+    async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
                 return !this.lightdashConfig.auth.disablePasswordAuthentication;
-            case LocalIssuerTypes.API_TOKEN:
             case OpenIdIdentityIssuerType.GOOGLE:
+                // Enabled by default, but an org can disable Google sign-in
+                // for its domains via a per-org policy.
+                return !(await this.isGoogleDisabledForEmail(email));
+            case LocalIssuerTypes.API_TOKEN:
             case OpenIdIdentityIssuerType.OKTA:
             case OpenIdIdentityIssuerType.ONELOGIN:
             case OpenIdIdentityIssuerType.AZUREAD:
@@ -2324,6 +2458,12 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
+        // Remove old BigQuery credentials to prevent duplicates on re-authentication
+        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
+            user.userUuid,
+            WarehouseTypes.BIGQUERY,
+        );
+
         const bigqueryCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
@@ -2588,6 +2728,14 @@ export class UserService extends BaseService {
                   domain,
               )
             : [];
+        // Per-org Google policy rows for the domain (includes disabled rows —
+        // a `google` row exists precisely to record an opt-out, which the
+        // enabled-only discovery above would never surface).
+        const allGoogleMethods = domain
+            ? await this.organizationSsoModel.findGoogleMethodsForEmailDomain(
+                  domain,
+              )
+            : [];
 
         // Security: if the email belongs to an existing Lightdash user, only
         // surface SSO methods from orgs they actually belong to. Prevents a
@@ -2597,6 +2745,7 @@ export class UserService extends BaseService {
         // upstream feature flag + ops vetting is the gate for that case.
         const existingUser = await this.userModel.findUserByEmail(email);
         let matchingPerOrgMethods = allMatchingMethods;
+        let matchingGoogleMethods = allGoogleMethods;
         if (existingUser) {
             const userOrgs = await this.userModel.getOrganizationsForUser(
                 existingUser.userUuid,
@@ -2607,7 +2756,19 @@ export class UserService extends BaseService {
             matchingPerOrgMethods = allMatchingMethods.filter((m) =>
                 userOrgUuids.has(m.organizationUuid),
             );
+            matchingGoogleMethods = allGoogleMethods.filter((m) =>
+                userOrgUuids.has(m.organizationUuid),
+            );
         }
+
+        // Google is enabled by default (shared instance OAuth app), so absence
+        // of a `google` row means "follow the instance default". An org opts
+        // out by storing a row with enabled=false for its domains — that
+        // suppresses the instance Google button here and is enforced
+        // server-side by isLoginMethodAllowed.
+        const googleEnabledForUser =
+            instancesOptions.has(OpenIdIdentityIssuerType.GOOGLE) &&
+            !matchingGoogleMethods.some((m) => !m.enabled);
 
         // Each SSO provider enum value maps 1:1 to its OpenIdIdentityIssuerType
         // string (e.g. 'azuread'); funnel through unknown to satisfy TS.
@@ -2625,7 +2786,9 @@ export class UserService extends BaseService {
 
         if (matchingPerOrgMethods.length > 0) {
             // Per-org SSO suppresses instance-level SSO providers for this
-            // email's domain. Only the matching per-org methods are offered.
+            // email's domain. Google is a per-org provider like the others:
+            // an enabled `google` row flows through discovery above and shows
+            // here; otherwise it follows the instance default.
             ssoOptionsForUser = Array.from(matchingPerOrgProviders);
             // Password visibility is governed by the SSO rows: lenient rule
             // — ANY matching method that permits password → show password.
@@ -2635,9 +2798,13 @@ export class UserService extends BaseService {
         } else {
             // No per-org SSO matches: instance-level behavior preserved.
             // Show OIDC issuers the user has previously linked (filtered to
-            // instance-supported providers).
-            ssoOptionsForUser = openIdIssuers.filter((o) =>
-                instancesOptions.has(o),
+            // instance-supported providers), dropping Google if the org
+            // opted out for this domain.
+            ssoOptionsForUser = openIdIssuers.filter(
+                (o) =>
+                    instancesOptions.has(o) &&
+                    (googleEnabledForUser ||
+                        o !== OpenIdIdentityIssuerType.GOOGLE),
             );
             passwordAllowedForUser = true;
         }
@@ -2658,7 +2825,11 @@ export class UserService extends BaseService {
         // new signup.
         if (showOptions.length === 0) {
             return {
-                showOptions: Array.from(instancesOptions),
+                showOptions: Array.from(instancesOptions).filter(
+                    (o) =>
+                        googleEnabledForUser ||
+                        o !== OpenIdIdentityIssuerType.GOOGLE,
+                ),
                 forceRedirect: false,
                 redirectUri: undefined,
             };
@@ -2806,6 +2977,7 @@ export class UserService extends BaseService {
                 subject('User', {
                     organizationUuid: targetUser.organizationUuid!,
                     isActive: targetUser.isActive,
+                    metadata: { targetUserUuid },
                 }),
             )
         ) {

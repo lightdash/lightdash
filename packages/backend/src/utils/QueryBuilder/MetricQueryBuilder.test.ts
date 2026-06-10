@@ -42,7 +42,6 @@ import {
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
-    METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_TABLE,
@@ -64,7 +63,6 @@ import {
     METRIC_QUERY_NESTED_AGG_WITH_DIMS,
     METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
-    METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
     METRIC_QUERY_TWO_TABLES,
     METRIC_QUERY_WITH_CUSTOM_DIMENSION,
     METRIC_QUERY_WITH_CUSTOM_USER_ATTRIBUTE_FILTER_VALUE,
@@ -84,6 +82,41 @@ const buildQuery = (
         ...args,
         parameterDefinitions: {},
     }).compileQuery();
+
+describe('field compilation errors', () => {
+    const exploreWithErroredDimension: Explore = {
+        ...EXPLORE,
+        tables: {
+            ...EXPLORE.tables,
+            table1: {
+                ...EXPLORE.tables.table1,
+                dimensions: {
+                    ...EXPLORE.tables.table1.dimensions,
+                    dim1: {
+                        ...EXPLORE.tables.table1.dimensions.dim1,
+                        compiledSql: 'NULL',
+                        compilationError: {
+                            message:
+                                'Dimension "dim1" failed to compile: Missing parameters: missing_parameter',
+                        },
+                    },
+                },
+            },
+        },
+    };
+
+    it('throws when a selected field has a partial compilation error', () => {
+        expect(() =>
+            buildQuery({
+                explore: exploreWithErroredDimension,
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: {},
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }),
+        ).toThrow('Missing parameters: missing_parameter');
+    });
+});
 
 const POP_TEST_POP_METRIC_NAME = 'total_order_amount__pop__year_1__testpop';
 const POP_TEST_POP_METRIC_ID = `orders_${POP_TEST_POP_METRIC_NAME}`;
@@ -955,6 +988,68 @@ describe('Query builder', () => {
                     timezone: QUERY_BUILDER_UTC_TIMEZONE,
                 }).query,
         ).toThrow(ForbiddenError);
+    });
+
+    test('Should replace intrinsic user attributes in selected dimensions and metrics', () => {
+        const explore: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    dimensions: {
+                        ...EXPLORE.tables.table1.dimensions,
+                        user_email_status: {
+                            type: DimensionType.STRING,
+                            name: 'user_email_status',
+                            label: 'user_email_status',
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            fieldType: FieldType.DIMENSION,
+                            sql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN \${TABLE}.shared ELSE 'other' END`,
+                            compiledSql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "table1".shared ELSE 'other' END`,
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        },
+                    },
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        user_email_metric: {
+                            type: MetricType.SUM,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'user_email_metric',
+                            label: 'user_email_metric',
+                            sql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN \${TABLE}.number_column ELSE 0 END`,
+                            compiledSql: `SUM(CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "table1".number_column ELSE 0 END)`,
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        },
+                    },
+                },
+            },
+        };
+
+        const { query } = buildQuery({
+            explore,
+            compiledMetricQuery: {
+                ...METRIC_QUERY,
+                dimensions: ['table1_user_email_status'],
+                metrics: ['table1_user_email_metric'],
+                sorts: [],
+                tableCalculations: [],
+                compiledTableCalculations: [],
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+        });
+
+        expect(query).not.toContain('${ld.user.email}');
+        expect(query).toContain("'mock@lightdash.com' = 'mock@lightdash.com'");
+        expect(query).toContain('"table1_user_email_status"');
+        expect(query).toContain('"table1_user_email_metric"');
     });
 
     it('buildQuery with row() table calculation should order by custom bin _order column', () => {
@@ -2200,25 +2295,6 @@ LIMIT 10`;
             );
         });
 
-        test('sum_distinct should include selected dimensions in PARTITION BY', () => {
-            const result = buildQuery({
-                explore: EXPLORE_WITH_SUM_DISTINCT,
-                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            // The PARTITION BY should include both the distinct key and the selected dimensions
-            expect(result.query).toContain(
-                'PARTITION BY "orders".line_item_id, "orders".payment_method, "orders".status',
-            );
-            // Should still have the ROW_NUMBER window function
-            expect(result.query).toContain('ROW_NUMBER() OVER');
-            // Should have the dd CTE
-            expect(result.query).toContain('dd_orders_total_revenue');
-        });
-
         test('sum_distinct should work with no dimensions selected', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_SUM_DISTINCT,
@@ -2261,22 +2337,6 @@ LIMIT 10`;
             expect(result.query).not.toContain('COALESCE');
         });
 
-        test('average_distinct should include selected dimensions in PARTITION BY', () => {
-            const result = buildQuery({
-                explore: EXPLORE_WITH_AVERAGE_DISTINCT,
-                compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
-                warehouseSqlBuilder: warehouseClientMock,
-                intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
-                timezone: QUERY_BUILDER_UTC_TIMEZONE,
-            });
-
-            expect(result.query).toContain(
-                'PARTITION BY "orders".line_item_id, "orders".payment_method',
-            );
-            expect(result.query).toContain('GROUP BY');
-            expect(result.query).toContain('dd_orders_avg_shipping_cost');
-        });
-
         test('type:number metric referencing cross-model sum_distinct should use CTE', () => {
             const result = buildQuery({
                 explore: EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
@@ -2297,11 +2357,6 @@ LIMIT 10`;
             );
             // The inlined fallback SUM should NOT appear in the final SELECT
             // (it's OK inside the CTE, but not in the outer query)
-            const outerSelect =
-                result.query.split('FROM')[
-                    result.query.split('FROM').length - 1
-                ];
-            // Check the final SELECT doesn't use the raw inlined SQL
             expect(result.query).not.toMatch(
                 /SELECT[\s\S]*\(SUM\("orders"\.amount\)\) \* 1\.1[\s\S]*FROM(?![\s\S]*AS \()/,
             );

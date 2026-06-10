@@ -20,6 +20,7 @@ import {
     type ApiDownloadAsyncQueryResultsAsXlsx,
     type ApiExecuteAsyncMetricQueryResults,
     type ApiJobScheduledResponse,
+    type ExecuteAsyncCalculateTotalRequestParams,
     type ExecuteAsyncDashboardChartRequestParams,
     type ExecuteAsyncDashboardSqlChartRequestParams,
     type ExecuteAsyncFieldValueSearchRequestParams,
@@ -31,6 +32,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Get,
     Hidden,
     Middlewares,
@@ -46,7 +48,11 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
-import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
+import {
+    allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
+    isAuthenticated,
+} from '../authentication';
 import { BaseController } from '../baseController';
 
 export type ApiGetAsyncQueryResultsResponse = {
@@ -127,6 +133,40 @@ export class QueryController extends BaseController {
     }
 
     /**
+     * Calculates totals for a previously-executed query, referenced by its queryUuid. Re-runs the source query's MetricQuery against the warehouse so totals are correct for every metric type (count distinct, average, ratio, etc.) — unlike client-side cell summation, which only works for sum/count. The requested `kind` selects which totals to compute.
+     * @summary Calculate totals
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{queryUuid}/calculate-total')
+    @OperationId('executeAsyncCalculateTotal')
+    async executeAsyncCalculateTotal(
+        @Path() projectUuid: string,
+        /** The UUID of the previously-executed query to compute totals from */
+        @Path() queryUuid: string,
+        @Body() body: ExecuteAsyncCalculateTotalRequestParams,
+        @Request() req: express.Request,
+    ): Promise<ApiSuccess<ApiExecuteAsyncMetricQueryResults>> {
+        this.setStatus(200);
+
+        const results = await this.services
+            .getAsyncQueryService()
+            .executeAsyncCalculateTotalFromQueryHistory({
+                account: req.account!,
+                projectUuid,
+                queryUuid,
+                kind: body.kind,
+                subtotalDimensions: body.subtotalDimensions,
+                invalidateCache: body.invalidateCache,
+            });
+
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
      * Executes a metric query asynchronously against your data warehouse using dimensions, metrics, filters, and sorts
      * @summary Execute metric query
      */
@@ -171,6 +211,7 @@ export class QueryController extends BaseController {
                 dateZoom: body.dateZoom,
                 parameters: body.parameters,
                 pivotConfiguration: body.pivotConfiguration,
+                dashboardFilters: body.dashboardFilters,
             });
 
         return {
@@ -504,11 +545,21 @@ export class QueryController extends BaseController {
     /**
      * Downloads query results in various formats with custom formatting options
      * @summary Download results
+     *
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/download')
     @OperationId('downloadResults')
+    @Deprecated()
     async downloadResults(
         @Path() projectUuid: string,
         /** The UUID of the completed async query to download */

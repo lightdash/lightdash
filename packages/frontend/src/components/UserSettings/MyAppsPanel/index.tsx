@@ -29,11 +29,6 @@ import {
 } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -44,6 +39,11 @@ import {
 import { Link } from 'react-router';
 import { useMyApps } from '../../../features/apps/hooks/useMyApps';
 import { useContentAction } from '../../../hooks/useContent';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+} from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import AppDeleteModal from '../../common/modal/AppDeleteModal';
 import AppUpdateModal from '../../common/modal/AppUpdateModal';
@@ -151,7 +151,7 @@ const MyAppsPanel: FC = () => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns: MRT_ColumnDef<ApiAppSummary>[] = useMemo(
+    const columns: ContentTableColumnDef<ApiAppSummary>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',
@@ -178,6 +178,7 @@ const MyAppsPanel: FC = () => {
                             c="inherit"
                             underline="hover"
                             truncate="end"
+                            display="block"
                         >
                             {displayName}
                         </Anchor>
@@ -232,6 +233,7 @@ const MyAppsPanel: FC = () => {
                             c="inherit"
                             underline="hover"
                             truncate="end"
+                            display="block"
                         >
                             {spaceName}
                         </Anchor>
@@ -390,7 +392,7 @@ const MyAppsPanel: FC = () => {
         [],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: flatData,
         enableColumnActions: false,
@@ -433,7 +435,7 @@ const MyAppsPanel: FC = () => {
 
     return (
         <Stack gap="md">
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
             {appToDelete && (
                 <AppDeleteModal
                     opened

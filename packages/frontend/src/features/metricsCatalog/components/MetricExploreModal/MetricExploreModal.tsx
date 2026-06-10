@@ -2,6 +2,8 @@ import {
     ECHARTS_DEFAULT_COLORS,
     getDefaultDateRangeFromInterval,
     getFilterDimensionsForMetric,
+    getInitialDefaultFilterRule,
+    getInitialDefaultSegment,
     getSegmentDimensionsForMetric,
     MetricExplorerComparison,
     type CatalogField,
@@ -125,27 +127,30 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
         MetricExplorerDateRange | undefined
     >();
 
-    const [filterRule, setFilterRule] = useState<FilterRule | undefined>();
+    // The user's explicit filter for this metric view. undefined = pristine
+    // (derive from the metric's spotlight default), null = explicitly cleared.
+    const [userFilterRule, setUserFilterRule] = useState<
+        FilterRule | null | undefined
+    >(undefined);
 
-    const [query, setQuery] = useState<MetricExplorerQuery>({
-        comparison: MetricExplorerComparison.NONE,
-        segmentDimension: null,
-    });
-
-    const segmentDimensionId = useMemo(() => {
-        return 'segmentDimension' in query ? query.segmentDimension : null;
-    }, [query]);
+    // The user's explicit query for this metric view. undefined = pristine
+    // (derive from the metric's spotlight default segment).
+    const [userQuery, setUserQuery] = useState<MetricExplorerQuery | undefined>(
+        undefined,
+    );
 
     // Reset override when navigating to a different metric
     const resetQueryState = useCallback(() => {
         setTimeDimensionOverride(undefined);
         setDateRange(undefined);
-        setFilterRule(undefined);
-        setQuery({
-            comparison: MetricExplorerComparison.NONE,
-            segmentDimension: null,
-        });
-    }, [setTimeDimensionOverride, setDateRange, setFilterRule, setQuery]);
+        setUserFilterRule(undefined);
+        setUserQuery(undefined);
+    }, [
+        setTimeDimensionOverride,
+        setDateRange,
+        setUserFilterRule,
+        setUserQuery,
+    ]);
 
     // Update navigateToMetric to reset state
     const navigateToMetricWithReset = useCallback(
@@ -172,6 +177,82 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
         });
         onClose();
     }, [navigate, onClose, projectUuid, location.search]);
+
+    const filterDimensionsQuery = useCatalogFilterDimensions({
+        projectUuid,
+        tableName,
+        options: {
+            enabled: !!projectUuid && !!tableName,
+        },
+    });
+
+    const segmentDimensionsQuery = useCatalogSegmentDimensions({
+        projectUuid,
+        tableName,
+        options: {
+            enabled: !!projectUuid && !!tableName,
+        },
+    });
+
+    const currentMetric = metrics[currentMetricIndex];
+
+    const availableFilterByDimensions = useMemo(
+        () =>
+            getFilterDimensionsForMetric(
+                filterDimensionsQuery.data ?? [],
+                currentMetric,
+            ),
+        [filterDimensionsQuery.data, currentMetric],
+    );
+
+    const availableSegmentByDimensions = useMemo(
+        () =>
+            getSegmentDimensionsForMetric(
+                segmentDimensionsQuery.data ?? [],
+                currentMetric,
+            ),
+        [segmentDimensionsQuery.data, currentMetric],
+    );
+
+    // The metric's YAML spotlight defaults, resolved against the loaded
+    // dimension allowlists (null/undefined when absent or unavailable).
+    const defaultSegment = useMemo(
+        () =>
+            getInitialDefaultSegment(
+                currentMetric,
+                availableSegmentByDimensions,
+            ),
+        [currentMetric, availableSegmentByDimensions],
+    );
+    const defaultFilterRule = useMemo(
+        () =>
+            getInitialDefaultFilterRule(
+                currentMetric,
+                availableFilterByDimensions,
+            ),
+        [currentMetric, availableFilterByDimensions],
+    );
+
+    // Effective query/filter: the user's explicit choice once made, otherwise
+    // derived from the metric's spotlight defaults (which resolve whenever the
+    // dimension lists load — no seeding, so they can never be missed or leak
+    // across metrics).
+    const query = useMemo<MetricExplorerQuery>(
+        () =>
+            userQuery ?? {
+                comparison: MetricExplorerComparison.NONE,
+                segmentDimension: defaultSegment,
+            },
+        [userQuery, defaultSegment],
+    );
+    const filterRule: FilterRule | undefined =
+        userFilterRule === undefined
+            ? defaultFilterRule
+            : (userFilterRule ?? undefined);
+
+    const segmentDimensionId = useMemo(() => {
+        return 'segmentDimension' in query ? query.segmentDimension : null;
+    }, [query]);
 
     // All data fetching, query execution, and config building in one hook
     const {
@@ -202,22 +283,6 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                 : null,
     });
 
-    const filterDimensionsQuery = useCatalogFilterDimensions({
-        projectUuid,
-        tableName,
-        options: {
-            enabled: !!projectUuid && !!tableName,
-        },
-    });
-
-    const segmentDimensionsQuery = useCatalogSegmentDimensions({
-        projectUuid,
-        tableName,
-        options: {
-            enabled: !!projectUuid && !!tableName,
-        },
-    });
-
     const metricsWithTimeDimensionsQuery = useCatalogMetricsWithTimeDimensions({
         projectUuid,
         tableName,
@@ -227,26 +292,6 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
         },
     });
 
-    const currentMetric = metrics[currentMetricIndex];
-
-    const availableFilterByDimensions = useMemo(
-        () =>
-            getFilterDimensionsForMetric(
-                filterDimensionsQuery.data ?? [],
-                currentMetric,
-            ),
-        [filterDimensionsQuery.data, currentMetric],
-    );
-
-    const availableSegmentByDimensions = useMemo(
-        () =>
-            getSegmentDimensionsForMetric(
-                segmentDimensionsQuery.data ?? [],
-                currentMetric,
-            ),
-        [segmentDimensionsQuery.data, currentMetric],
-    );
-
     // Keyboard navigation
     useHotkeys([
         ['ArrowUp', handleGoToPreviousMetric],
@@ -255,7 +300,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const handleSegmentDimensionChange = useCallback(
         (value: string | null) => {
-            setQuery({
+            setUserQuery({
                 comparison: MetricExplorerComparison.NONE,
                 segmentDimension: value,
             });
@@ -273,7 +318,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
             });
         },
         [
-            setQuery,
+            setUserQuery,
             track,
             userUuid,
             organizationUuid,
@@ -285,9 +330,11 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
 
     const handleFilterApply = useCallback(
         (nextFilterRule: FilterRule | undefined) => {
-            setFilterRule(nextFilterRule);
+            // Store null (not undefined) on clear so it records an explicit
+            // choice and the metric's default filter is not re-derived.
+            setUserFilterRule(nextFilterRule ?? null);
         },
-        [setFilterRule],
+        [setUserFilterRule],
     );
 
     const handleTimeIntervalChange = useCallback(
@@ -481,7 +528,11 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                 <MetricExploreFilter
                                     dimensions={availableFilterByDimensions}
                                     onFilterApply={handleFilterApply}
-                                    key={`${tableName}-${metricName}`}
+                                    initialFilterRule={defaultFilterRule}
+                                    key={`${tableName}-${metricName}-${
+                                        defaultFilterRule?.target.fieldId ??
+                                        'none'
+                                    }`}
                                 />
 
                                 <MetricExploreSegmentationPicker
@@ -514,7 +565,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                                 MetricExplorerComparison.NONE
                                             }
                                             onClick={() =>
-                                                setQuery({
+                                                setUserQuery({
                                                     comparison:
                                                         MetricExplorerComparison.NONE,
                                                     segmentDimension: null,
@@ -528,7 +579,7 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                     <MetricExploreComparisonSection
                                         baseMetricLabel={metricField?.label}
                                         query={query}
-                                        onQueryChange={setQuery}
+                                        onQueryChange={setUserQuery}
                                         metricsWithTimeDimensionsQuery={
                                             metricsWithTimeDimensionsQuery
                                         }
@@ -590,7 +641,6 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
                                             colorPalette={colorPalette}
                                             isLoading={isLoading}
                                             onSeriesContextMenu={undefined}
-                                            pivotTableMaxColumnLimit={60}
                                             computedSeries={computedSeries}
                                         >
                                             <LightdashVisualization />

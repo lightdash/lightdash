@@ -3,6 +3,23 @@
     overflow: hidden;
 }
 
+/* A fixed NavBar banner (preview / impersonation) reserves an extra 35px at
+   the top, so shrink to fit when one is present — otherwise the page overflows
+   the viewport and can be scrolled. Mirrors dashboardTabs/tabs.module.css. */
+:global(body:has(#preview-banner)) .layout,
+:global(body:has(#impersonation-banner)) .layout {
+    height: calc(100vh - 50px - 35px);
+}
+
+/* Hard pixel floor for the chat panel — react-resizable-panels' minSize is
+   a percent of the group width, so on wide viewports a low percent still
+   produces a sidebar too narrow for the prompt UI to render legibly.
+   Applied on the Panel element (not the inner chatPanel) so the flex item
+   itself stops shrinking instead of letting content overflow. */
+.chatPanelOuter {
+    min-width: 300px;
+}
+
 .chatPanel {
     display: flex;
     flex-direction: column;
@@ -93,7 +110,7 @@
 
 .chatInputArea {
     flex-shrink: 0;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 20px;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 48px;
     border-top: 1px solid;
 
     @mixin light {
@@ -106,9 +123,10 @@
 
 .inputWrapper {
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-lg);
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
     transition:
         border-color 150ms ease,
         box-shadow 150ms ease;
@@ -132,6 +150,16 @@
             box-shadow: 0 0 0 4px var(--mantine-color-ldDark-4);
         }
     }
+}
+
+.attachedResources {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+}
+
+.inputBottomRow {
+    flex-wrap: nowrap;
 }
 
 .textarea {
@@ -159,39 +187,18 @@
     --input-bg: transparent;
 }
 
-.resourceSections {
-    display: flex;
-    flex-direction: column;
-    gap: var(--mantine-spacing-sm);
-    margin-top: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-sm);
-    min-height: 120px;
-    max-height: 300px;
-    overflow-y: auto;
-    border-radius: var(--mantine-radius-md);
-    border: 1px dashed;
-
-    @mixin light {
-        border-color: var(--mantine-color-ldGray-2);
-    }
-    @mixin dark {
-        border-color: var(--mantine-color-ldDark-4);
-    }
-}
-
-.resourceEmpty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: 1;
-}
-
 .submitButton {
     flex-shrink: 0;
     border-radius: var(--mantine-radius-xl);
     transition:
         transform 150ms ease,
         opacity 150ms ease;
+
+    background-color: var(--mantine-color-foreground-0);
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-foreground-1);
+    }
 
     &:disabled {
         opacity: 0.4;
@@ -334,29 +341,45 @@
     }
 }
 
-.textareaColumn {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-width: 0;
-}
-
 .bubbleQueryList {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
 }
 
 .bubbleQueryItem {
-    padding: 4px 6px;
-    border-radius: var(--mantine-radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid;
+    height: 22px;
+    max-width: 100%;
+    min-width: 0;
 
     @mixin light {
         background-color: var(--mantine-color-white);
+        border-color: var(--mantine-color-ldGray-3);
     }
     @mixin dark {
-        background-color: var(--mantine-color-dark-5);
+        background-color: var(--mantine-color-ldDark-4);
+        border-color: var(--mantine-color-ldDark-6);
     }
+}
+
+.bubbleQueryItemIcon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.bubbleQueryItemName {
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 11px;
+    line-height: 1;
 }
 
 /* Full-width framed panel that hosts the clarifying questions. Sits on the

@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import { safeReplaceParameters } from './parameters';
 import {
+    applyLimitToSqlQuery,
     extractOuterLimitOffsetFromSQL,
     removeCommentsAndOuterLimitOffset,
     removeTrailingSemicolon,
@@ -201,21 +202,40 @@ export class SqlQueryBuilder {
         return `LIMIT ${limitToAppend}${offsetString}`;
     }
 
+    private hasFilters(): boolean {
+        if (!this.filters) return false;
+        const items = isAndFilterGroup(this.filters)
+            ? this.filters.and
+            : this.filters.or;
+        return items.length > 0;
+    }
+
     getSqlAndReferences(): {
         sql: string;
         parameterReferences: string[];
         missingParameterReferences: string[];
         usedParameters: ParametersValuesMap;
     } {
-        // Combine all parts of the query
-        const sql = [
-            this.selectsToSql(),
-            this.fromToSql(),
-            this.filtersToSql(),
-            this.limitToSql(),
-        ]
-            .filter((l) => l !== undefined)
-            .join('\n');
+        // When the FROM is a user-provided SQL subquery and no filters need
+        // to be applied, return the user's SQL with LIMIT appended directly
+        // instead of wrapping in an outer SELECT. Wrapping puts the user's
+        // ORDER BY inside the subquery where Snowflake/BigQuery/Redshift
+        // optimizers can drop it, making the outer LIMIT return arbitrary
+        // rows (PROD-7880).
+        const sql =
+            this.from.sql && !this.hasFilters()
+                ? applyLimitToSqlQuery({
+                      sqlQuery: this.from.sql,
+                      limit: this.limit,
+                  })
+                : [
+                      this.selectsToSql(),
+                      this.fromToSql(),
+                      this.filtersToSql(),
+                      this.limitToSql(),
+                  ]
+                      .filter((l) => l !== undefined)
+                      .join('\n');
 
         const { replacedSql, references, missingReferences } =
             safeReplaceParameters({

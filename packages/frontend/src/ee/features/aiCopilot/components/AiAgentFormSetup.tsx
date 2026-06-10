@@ -48,11 +48,9 @@ import { UserAccessMultiSelect } from '../../../components/UserAccessMultiSelect
 import AiExploreAccessTree from '../../../pages/AiAgents/AiExploreAccessTree';
 import { useDeleteAiAgentMutation } from '../hooks/useProjectAiAgents';
 import { useGetAgentExploreAccessSummary } from '../hooks/useUserAgentPreferences';
+import { AiAgentKnowledgeFilesSection } from './AiAgentKnowledgeFilesSection';
 import { AiAgentMcpServersInput } from './AiAgentMcpServersInput';
-import {
-    InstructionsGuidelines,
-    InstructionsTemplates,
-} from './InstructionsSupport';
+import { InstructionsGuidelines } from './InstructionsSupport';
 import { SpaceAccessSelect } from './SpaceAccessSelect';
 
 const formSchema = z.object({
@@ -73,6 +71,7 @@ const formSchema = z.object({
     mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
+    enableContentTools: z.boolean(),
     version: z.number(),
 });
 
@@ -81,11 +80,15 @@ export const AiAgentFormSetup = ({
     form,
     projectUuid,
     agentUuid,
+    isSavingAgent,
+    persistedMcpServerUuids,
 }: {
     mode: 'create' | 'edit';
     form: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
     projectUuid: string;
-    agentUuid: string;
+    agentUuid?: string;
+    isSavingAgent?: boolean;
+    persistedMcpServerUuids?: string[];
 }) => {
     const { data: project } = useProject(projectUuid);
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
@@ -136,6 +139,36 @@ export const AiAgentFormSetup = ({
     const isGroupsEnabled =
         userGroupsFeatureFlagQuery.isSuccess &&
         userGroupsFeatureFlagQuery.data.enabled;
+    const agentRevampFeatureFlagQuery = useServerFeatureFlag(
+        FeatureFlags.AiAgentRevamp,
+    );
+    const isAgentRevampEnabled =
+        agentRevampFeatureFlagQuery.isSuccess &&
+        agentRevampFeatureFlagQuery.data.enabled;
+
+    const handlePersistedMcpServerChange = useCallback(
+        (value: string[]) => {
+            const dirtyFields = Object.keys(form.values).reduce<
+                Record<string, boolean>
+            >((acc, field) => {
+                if (
+                    field !== 'mcpServerUuids' &&
+                    form.isDirty(field as keyof typeof form.values)
+                ) {
+                    acc[field] = true;
+                }
+
+                return acc;
+            }, {});
+
+            form.resetDirty({
+                ...form.values,
+                mcpServerUuids: value,
+            });
+            form.setDirty(dirtyFields);
+        },
+        [form],
+    );
 
     const { data: groups, isLoading: isLoadingGroups } = useOrganizationGroups(
         {
@@ -255,27 +288,6 @@ export const AiAgentFormSetup = ({
                                 </Text>
                             </Stack>
                             <Stack gap="sm">
-                                <Title
-                                    order={6}
-                                    c="ldGray.7"
-                                    size="sm"
-                                    fw={500}
-                                >
-                                    Quick Templates
-                                </Title>
-
-                                <InstructionsTemplates
-                                    onSelect={(instruction: string) => {
-                                        form.setFieldValue(
-                                            'instruction',
-                                            form.values.instruction
-                                                ? `${form.values.instruction}\n\n${instruction}`
-                                                : instruction,
-                                        );
-                                    }}
-                                />
-                            </Stack>
-                            <Stack gap="sm">
                                 <Box>
                                     <Title
                                         order={6}
@@ -303,6 +315,28 @@ export const AiAgentFormSetup = ({
                                     to learn more about instructions and how
                                     they work.
                                 </Text>
+                            </Stack>
+                            {agentUuid && (
+                                <AiAgentKnowledgeFilesSection
+                                    agentUuid={agentUuid}
+                                    projectUuid={projectUuid}
+                                />
+                            )}
+                            <Stack gap="sm">
+                                <Box>
+                                    <Title
+                                        order={6}
+                                        c="ldGray.7"
+                                        size="sm"
+                                        fw={500}
+                                    >
+                                        Configuration
+                                    </Title>
+                                    <Text c="dimmed" size="xs">
+                                        Control how this agent interacts with
+                                        your data and semantic layer.
+                                    </Text>
+                                </Box>
                             </Stack>
                             <Switch
                                 variant="subtle"
@@ -343,68 +377,77 @@ export const AiAgentFormSetup = ({
                                 {...form.getInputProps('enableDataAccess', {
                                     type: 'checkbox',
                                 })}
+                                onChange={(event) => {
+                                    const enabled = event.currentTarget.checked;
+
+                                    form.setFieldValue(
+                                        'enableDataAccess',
+                                        enabled,
+                                    );
+
+                                    if (!enabled) {
+                                        form.setFieldValue(
+                                            'enableContentTools',
+                                            false,
+                                        );
+                                    }
+                                }}
                             />
-                            <Switch
-                                variant="subtle"
-                                label={
-                                    <Group gap="xs">
-                                        <Text fz="sm" fw={500}>
-                                            Enable Self-Improvement
-                                        </Text>
-                                        <Tooltip
-                                            label="When enabled, the AI agent can make improvements to your semantic layer by updating field descriptions, creating new metrics, and refining dimensions based on user interactions."
-                                            withArrow
-                                            withinPortal
-                                            multiline
-                                            position="right"
-                                            maw="300px"
-                                        >
-                                            <MantineIcon
-                                                icon={IconInfoCircle}
-                                            />
-                                        </Tooltip>
-                                        <Badge
-                                            color="indigo"
-                                            radius="sm"
-                                            variant="light"
-                                            leftSection={
+                            {isAgentRevampEnabled && (
+                                <Switch
+                                    variant="subtle"
+                                    label={
+                                        <Group gap="xs">
+                                            <Text fz="sm" fw={500}>
+                                                Allow agent to manage Lightdash
+                                                content
+                                            </Text>
+                                            <Tooltip
+                                                label="Requires data access to be enabled. Only works for users with content-as-code access (admins and developers)."
+                                                withArrow
+                                                withinPortal
+                                                multiline
+                                                position="right"
+                                                maw="300px"
+                                            >
                                                 <MantineIcon
-                                                    icon={IconSparkles}
+                                                    icon={IconInfoCircle}
                                                 />
-                                            }
-                                        >
-                                            Beta
-                                        </Badge>
-                                    </Group>
-                                }
-                                description={
-                                    <>
-                                        Allows the agent to improve the
-                                        project's explores by updating
-                                        descriptions, creating metrics and
-                                        dimensions based on conversations.
-                                        Changes are tracked in changesets for
-                                        review.{' '}
-                                        <Anchor
-                                            href="https://docs.lightdash.com/guides/ai-agents#self-improvement"
-                                            target="_blank"
-                                            size="xs"
-                                        >
-                                            Learn more
-                                        </Anchor>
-                                    </>
-                                }
-                                {...form.getInputProps(
-                                    'enableSelfImprovement',
-                                    {
-                                        type: 'checkbox',
-                                    },
-                                )}
-                            />
+                                            </Tooltip>
+                                            <Badge
+                                                color="indigo"
+                                                radius="sm"
+                                                variant="light"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconSparkles}
+                                                    />
+                                                }
+                                            >
+                                                Beta
+                                            </Badge>
+                                        </Group>
+                                    }
+                                    description={
+                                        'Agent can build new dashboards and charts and update existing ones — add or rearrange tiles, organize tabs, change filters, and more.'
+                                    }
+                                    {...form.getInputProps(
+                                        'enableContentTools',
+                                        {
+                                            type: 'checkbox',
+                                        },
+                                    )}
+                                    disabled={!form.values.enableDataAccess}
+                                />
+                            )}
                         </Stack>
                     </Paper>
 
                     <AiAgentMcpServersInput
+                        agentUuid={agentUuid}
+                        isSavingAgent={isSavingAgent}
+                        onPersistedChange={handlePersistedMcpServerChange}
+                        persistedMcpServerUuids={persistedMcpServerUuids}
                         projectUuid={projectUuid}
                         value={form.values.mcpServerUuids}
                         onChange={(value) => {

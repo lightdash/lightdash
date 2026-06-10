@@ -22,7 +22,7 @@ const WarehouseTypeLabels = {
     [WarehouseTypes.TRINO]: 'Trino',
     [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
     [WarehouseTypes.ATHENA]: 'Athena',
-    [WarehouseTypes.DUCKDB]: 'MotherDuck',
+    [WarehouseTypes.DUCKDB]: 'DuckDB',
 };
 
 const WarehouseTypeForms = {

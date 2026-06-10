@@ -21,9 +21,7 @@ Usage Tips:
 - The query respects the same limits and permissions as other visualization tools
 `;
 
-export const toolRunMetricQueryArgsSchema = createToolSchema({
-    description: TOOL_RUN_METRIC_QUERY_DESCRIPTION,
-})
+export const toolRunMetricQueryArgsSchema = createToolSchema()
     .extend({
         vizConfig: tableVizConfigSchema,
         customMetrics: customMetricsSchema,

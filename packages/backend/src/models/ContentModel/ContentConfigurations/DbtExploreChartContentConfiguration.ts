@@ -23,6 +23,7 @@ import {
     ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
+import { applyContentNameSearch } from '../ContentSearchUtils';
 
 type SelectSavedChart = SummaryContentRow<{
     source: ChartSourceType.DBT_EXPLORE;
@@ -202,9 +203,10 @@ export const dbtExploreChartContentConfiguration: ContentConfiguration<SelectSav
                         );
                     }
                     if (filters.search) {
-                        void builder.whereRaw(
-                            `LOWER(${SavedChartsTableName}.name) LIKE ?`,
-                            [`%${filters.search.toLowerCase()}%`],
+                        applyContentNameSearch(
+                            builder,
+                            `${SavedChartsTableName}.name`,
+                            filters.search,
                         );
                     }
 

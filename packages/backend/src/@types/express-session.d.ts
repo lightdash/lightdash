@@ -5,6 +5,7 @@ declare module 'express-session' {
         oauth: {
             inviteCode?: string | undefined;
             returnTo?: string | undefined;
+            githubFlow?: 'installation' | 'user_link' | undefined;
             codeVerifier?: string | undefined;
             state?: string | undefined;
             isPopup?: boolean | undefined;
@@ -12,6 +13,9 @@ declare module 'express-session' {
                 projectUuid?: string | undefined;
             };
             azureAdStrategyName?: string | undefined;
+            oktaOrganizationUuid?: string | undefined;
+            oidcStrategyName?: string | undefined;
+            oneLoginStrategyName?: string | undefined;
         };
         slack: {
             teamId?: string | undefined;

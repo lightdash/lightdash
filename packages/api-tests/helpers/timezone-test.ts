@@ -3,9 +3,11 @@ import { expect } from 'vitest';
 import { ApiClient, Body } from './api-client';
 
 const apiUrl = '/api/v2';
-const projectUuid = SEED_PROJECT.project_uuid;
 
-export async function getProjectConfig(client: ApiClient): Promise<{
+export async function getProjectConfig(
+    client: ApiClient,
+    projectUuid: string = SEED_PROJECT.project_uuid,
+): Promise<{
     dbtConnection: Record<string, unknown>;
     warehouseConnection: Record<string, unknown>;
 }> {
@@ -25,9 +27,12 @@ export async function getProjectConfig(client: ApiClient): Promise<{
 export async function updateDataTimezone(
     client: ApiClient,
     dataTimezone?: string,
+    projectUuid: string = SEED_PROJECT.project_uuid,
 ): Promise<void> {
-    const { dbtConnection, warehouseConnection } =
-        await getProjectConfig(client);
+    const { dbtConnection, warehouseConnection } = await getProjectConfig(
+        client,
+        projectUuid,
+    );
     const resp = await client.request(`/api/v1/projects/${projectUuid}`, {
         method: 'PATCH',
         body: {
@@ -86,10 +91,14 @@ export async function runTimezoneTestQuery(
         filters?: Record<string, unknown>;
         sorts?: Array<{ fieldId: string; descending: boolean }>;
         timezone?: string;
+        projectUuid?: string;
+        maxAttempts?: number;
     },
 ): Promise<
     Array<Record<string, { value: { raw: string; formatted: string } }>>
 > {
+    const projectUuid = options.projectUuid ?? SEED_PROJECT.project_uuid;
+    const maxAttempts = options.maxAttempts ?? 30;
     const startResp = await client.request<Body<{ queryUuid: string }>>(
         `${apiUrl}/projects/${projectUuid}/query/metric-query`,
         {
@@ -117,7 +126,7 @@ export async function runTimezoneTestQuery(
     const { queryUuid } = startResp.body.results;
 
     let attempts = 0;
-    while (attempts < 30) {
+    while (attempts < maxAttempts) {
         const pollResp = await client.request<
             Body<{ status: string; rows: Array<Record<string, unknown>> }>
         >(

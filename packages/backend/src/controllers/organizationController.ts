@@ -35,6 +35,7 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -52,6 +53,7 @@ import express from 'express';
 import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -242,10 +244,20 @@ export class OrganizationController extends BaseController {
      * @summary Get organization member by UUID
      * @param req express request
      * @param userUuid the uuid of the user
+     *
+     * @deprecated Use the GET /api/v1/org/users list endpoint instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use the GET /api/v1/org/users list endpoint instead.',
+        }),
+    ])
     @Get('/users/{userUuid}')
     @OperationId('GetOrganizationMemberByUuid')
+    @Deprecated()
     async getOrganizationMemberByUuid(
         @Request() req: express.Request,
         @Path() userUuid: UUID,
@@ -296,6 +308,10 @@ export class OrganizationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-27'), {
+            suffixMessage:
+                'Use the /api/v2/org/assignments/user/{userId} endpoint instead.',
+        }),
     ])
     @Patch('/users/{userUuid}')
     @OperationId('UpdateOrganizationMember')
@@ -518,7 +534,11 @@ export class OrganizationController extends BaseController {
      * Create a new color palette
      * @summary Create color palette
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Post('/color-palettes')
     @OperationId('CreateColorPalette')
     async createColorPalette(
@@ -558,7 +578,11 @@ export class OrganizationController extends BaseController {
      * Update a color palette
      * @summary Update color palette
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Patch('/color-palettes/{colorPaletteUuid}')
     @OperationId('UpdateColorPalette')
     async updateColorPalette(
@@ -584,7 +608,11 @@ export class OrganizationController extends BaseController {
      * Delete a color palette
      * @summary Delete color palette
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Delete('/color-palettes/{colorPaletteUuid}')
     @OperationId('DeleteColorPalette')
     async deleteColorPalette(
@@ -606,7 +634,11 @@ export class OrganizationController extends BaseController {
      * Set a color palette as the active palette
      * @summary Set active color palette
      */
-    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
     @Post('/color-palettes/{colorPaletteUuid}/active')
     @OperationId('SetActiveColorPalette')
     async setActiveColorPalette(

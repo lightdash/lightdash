@@ -133,7 +133,8 @@ export type ScimAccessTokenEvent = BaseTrack & {
     event:
         | 'scim_access_token.created'
         | 'scim_access_token.deleted'
-        | 'scim_access_token.rotated';
+        | 'scim_access_token.rotated'
+        | 'scim_access_token.updated';
     userId: string;
     properties: {
         organizationId: string;

@@ -1,0 +1,12 @@
+{
+    "extends": "./tsconfig.fast.json",
+    "compilerOptions": {
+        "module": "CommonJS",
+        "outDir": "dist/cjs",
+        "sourceMap": true,
+        "composite": true,
+        "tsBuildInfoFile": "dist/cjs/.tsgo.tsbuildinfo",
+        "declaration": true,
+        "declarationMap": true
+    }
+}

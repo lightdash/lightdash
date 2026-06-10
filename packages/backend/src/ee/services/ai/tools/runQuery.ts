@@ -2,13 +2,13 @@ import {
     AiAgentValidatorError,
     AiResultType,
     convertAiTableCalcsSchemaToTableCalcs,
+    filterAggregationCustomMetrics,
     getSlackAiEchartsConfig,
     getTotalFilterRules,
     getValidAiQueryLimit,
     isSlackPrompt,
-    toolRunQueryArgsSchema,
+    runQueryToolDefinition,
     toolRunQueryArgsSchemaTransformed,
-    toolRunQueryOutputSchema,
     type Explore,
     type ToolRunQueryArgsTransformed,
 } from '@lightdash/common';
@@ -24,7 +24,10 @@ import type {
 import { AgentContext } from '../utils/AgentContext';
 import { convertQueryResultsToCsv } from '../utils/convertQueryResultsToCsv';
 import { getPivotedResults } from '../utils/getPivotedResults';
-import { populateCustomMetricsSQL } from '../utils/populateCustomMetricsSQL';
+import {
+    expandMetricsWithPopAdditionalMetrics,
+    populateCustomMetricsSQL,
+} from '../utils/populateCustomMetricsSQL';
 import { renderEcharts } from '../utils/renderEcharts';
 import { serializeData } from '../utils/serializeData';
 import { toModelOutput } from '../utils/toModelOutput';
@@ -37,6 +40,7 @@ import {
     validateFilterRules,
     validateGroupByFields,
     validateMetricDimensionFilterPlacement,
+    validatePeriodComparisons,
     validateSelectedFieldsExistence,
     validateSortFieldsAreSelected,
     validateTableCalculations,
@@ -50,8 +54,9 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     maxLimit: number;
     enableDataAccess: boolean;
-    enableSelfImprovement: boolean;
 };
+
+const toolDefinition = runQueryToolDefinition.for('agent');
 
 export const validateRunQueryTool = (
     queryTool: ToolRunQueryArgsTransformed,
@@ -64,6 +69,8 @@ export const validateRunQueryTool = (
         customMetrics,
         tableCalculations,
     } = queryTool;
+
+    const aggregations = filterAggregationCustomMetrics(customMetrics);
 
     const hasFields =
         dimensions.length > 0 ||
@@ -89,20 +96,20 @@ export const validateRunQueryTool = (
         explore,
         queryTool.queryConfig.metrics,
         'metric',
-        queryTool.customMetrics,
+        aggregations,
     );
 
-    validateCustomMetricsDefinition(explore, queryTool.customMetrics);
-    validateCustomMetricFilters(explore, queryTool.customMetrics);
+    validateCustomMetricsDefinition(explore, aggregations);
+    validateCustomMetricFilters(explore, aggregations);
     validateFilterRules(
         explore,
         filterRules,
-        queryTool.customMetrics,
+        aggregations,
         queryTool.tableCalculations,
     );
     validateMetricDimensionFilterPlacement(
         explore,
-        queryTool.customMetrics,
+        aggregations,
         queryTool.tableCalculations,
         queryTool.filters,
     );
@@ -126,7 +133,7 @@ export const validateRunQueryTool = (
     validateSelectedFieldsExistence(
         explore,
         queryTool.queryConfig.sorts.map((sort) => sort.fieldId),
-        queryTool.customMetrics,
+        aggregations,
         queryTool.tableCalculations,
     );
 
@@ -134,7 +141,7 @@ export const validateRunQueryTool = (
         queryTool.queryConfig.sorts,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
-        queryTool.customMetrics,
+        aggregations,
         queryTool.tableCalculations,
     );
 
@@ -144,7 +151,16 @@ export const validateRunQueryTool = (
         queryTool.tableCalculations,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
-        queryTool.customMetrics,
+        aggregations,
+    );
+
+    // Validate period-over-period comparisons (entries from customMetrics)
+    validatePeriodComparisons(
+        explore,
+        customMetrics,
+        queryTool.queryConfig.dimensions,
+        queryTool.queryConfig.metrics,
+        aggregations,
     );
 };
 
@@ -156,12 +172,9 @@ export const getRunQuery = ({
     createOrUpdateArtifact,
     maxLimit,
     enableDataAccess,
-    enableSelfImprovement,
 }: Dependencies) =>
     tool({
-        description: toolRunQueryArgsSchema.description,
-        inputSchema: toolRunQueryArgsSchema,
-        outputSchema: toolRunQueryOutputSchema,
+        ...toolDefinition,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 await updateProgress('Running your query...');
@@ -177,6 +190,38 @@ export const getRunQuery = ({
 
                 const prompt = await getPrompt();
 
+                const populatedCustomMetrics = populateCustomMetricsSQL(
+                    queryTool.customMetrics,
+                    explore,
+                );
+
+                const expandedMetrics = expandMetricsWithPopAdditionalMetrics(
+                    queryTool.queryConfig.metrics,
+                    populatedCustomMetrics,
+                );
+
+                // Mirror the expansion into the saved tool args so the chart
+                // renders the comparison series on the y-axis. The agent
+                // emits yAxisMetrics with only the base metric id (it can't
+                // know the auto-generated PoP ids); the server fills them
+                // in here before persisting the artifact.
+                const expandedToolArgs =
+                    expandedMetrics.length >
+                        queryTool.queryConfig.metrics.length &&
+                    toolArgs.chartConfig
+                        ? {
+                              ...toolArgs,
+                              chartConfig: {
+                                  ...toolArgs.chartConfig,
+                                  yAxisMetrics:
+                                      expandMetricsWithPopAdditionalMetrics(
+                                          toolArgs.chartConfig.yAxisMetrics,
+                                          populatedCustomMetrics,
+                                      ),
+                              },
+                          }
+                        : toolArgs;
+
                 const createOrUpdateArtifactHook = () =>
                     createOrUpdateArtifact({
                         threadUuid: prompt.threadUuid,
@@ -184,15 +229,8 @@ export const getRunQuery = ({
                         artifactType: 'chart',
                         title: toolArgs.title,
                         description: toolArgs.description,
-                        vizConfig: toolArgs,
+                        vizConfig: expandedToolArgs,
                     });
-
-                const selfImprovementResultFollowUp =
-                    enableSelfImprovement &&
-                    queryTool.customMetrics &&
-                    queryTool.customMetrics.length > 0
-                        ? `\nCan you propose the creation of this metric as a metric to the semantic layer to the user?`
-                        : '';
 
                 // Early artifact creation for non-data-access mode
                 if (!enableDataAccess && !isSlackPrompt(prompt)) {
@@ -203,11 +241,10 @@ export const getRunQuery = ({
                     };
                 }
 
-                // Execute query
                 const metricQuery = {
                     exploreName: queryTool.queryConfig.exploreName,
                     dimensions: queryTool.queryConfig.dimensions,
-                    metrics: queryTool.queryConfig.metrics,
+                    metrics: expandedMetrics,
                     sorts: queryTool.queryConfig.sorts.map((sort) => ({
                         ...sort,
                         nullsFirst: sort.nullsFirst ?? undefined,
@@ -217,7 +254,7 @@ export const getRunQuery = ({
                         maxLimit,
                     ),
                     filters: queryTool.filters,
-                    additionalMetrics: queryTool.customMetrics ?? [],
+                    additionalMetrics: populatedCustomMetrics,
                     tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
                         queryTool.tableCalculations,
                     ),
@@ -225,7 +262,7 @@ export const getRunQuery = ({
 
                 const queryResults = await runAsyncQuery(
                     metricQuery,
-                    populateCustomMetricsSQL(queryTool.customMetrics, explore),
+                    populatedCustomMetrics,
                 );
 
                 if (queryResults.rows.length === 0) {
@@ -280,17 +317,14 @@ export const getRunQuery = ({
 
                 if (!enableDataAccess) {
                     return {
-                        result: `Success. ${selfImprovementResultFollowUp}`,
+                        result: `Success.`,
                         metadata: { status: 'success' },
                     };
                 }
 
                 const csv = convertQueryResultsToCsv(queryResults);
                 return {
-                    result: `${serializeData(
-                        csv,
-                        'csv',
-                    )} ${selfImprovementResultFollowUp}`,
+                    result: serializeData(csv, 'csv'),
                     metadata: { status: 'success' },
                 };
             } catch (e) {

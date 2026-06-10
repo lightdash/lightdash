@@ -61,11 +61,13 @@ export const QUERY_WITH_FILTER_SQL =
 export const QUERY_WITH_TWO_FILTERS_SQL =
     'SELECT\n"test_table"."test_field" AS "test_field"\nFROM "test_table"\nWHERE ((\n("test_table"."test_field") IN (\'test_value\')\n) AND (\n("test_table"."test_field") IS NOT NULL\n))';
 
-export const QUERY_WITH_SUBQUERY_SQL =
-    'SELECT\n"test_field" AS "test_field"\nFROM (\nSELECT test_field FROM source_table WHERE test_field IS NOT NULL\n) AS "subquery"';
+// User-provided FROM SQL with no filters is no longer wrapped in an outer
+// SELECT — wrapping severs the user's ORDER BY from any LIMIT (PROD-7880).
+export const UNWRAPPED_FROM_SUBQUERY_SQL =
+    'SELECT test_field FROM source_table WHERE test_field IS NOT NULL';
 
-export const QUERY_WITH_SUBQUERY_SEMICOLON_COMMENTS_SQL =
-    'SELECT\n"test_field" AS "test_field"\nFROM (\nSELECT test_field FROM source_table WHERE test_field IS NOT NULL\n) AS "subquery"';
+export const UNWRAPPED_FROM_SUBQUERY_WITH_COMMENTS_SQL =
+    'SELECT test_field FROM source_table WHERE test_field IS NOT NULL';
 
 export const QUERY_WITH_NESTED_FILTERS_SQL =
     'SELECT\n"table"."field1" AS "field1",\n"table"."field2" AS "field2",\n"table"."field3" AS "field3"\nFROM "table"\nWHERE ((\n("table"."field1") IN (\'value1\')\n) AND ((\n("table"."field2") > (10)\n) OR (\n("table"."field3") = true\n)))';
@@ -77,10 +79,10 @@ export const QUERY_WITH_LIMIT_SQL =
     'SELECT\n"test_table"."test_field" AS "test_field"\nFROM "test_table"\nLIMIT 100';
 
 export const QUERY_WITH_LIMIT_OFFSET_SQL =
-    'SELECT\n"test_table"."test_field" AS "test_field"\nFROM (\nSELECT * FROM source_table WHERE field IS NOT NULL\n) AS "subquery"\nLIMIT 50 OFFSET 10';
+    'SELECT * FROM source_table WHERE field IS NOT NULL LIMIT 50 OFFSET 10';
 
 export const QUERY_WITH_LIMIT_OFFSET_MIN_SQL =
-    'SELECT\n"test_table"."test_field" AS "test_field"\nFROM (\nSELECT * FROM source_table WHERE field IS NOT NULL\n) AS "subquery"\nLIMIT 30 OFFSET 5';
+    'SELECT * FROM source_table WHERE field IS NOT NULL LIMIT 30 OFFSET 5';
 
 export const QUERY_WITH_LIMIT_ONLY_LIMIT_SQL =
-    'SELECT\n"test_table"."test_field" AS "test_field"\nFROM (\nSELECT * FROM source_table WHERE field IS NOT NULL\n) AS "subquery"\nLIMIT 75';
+    'SELECT * FROM source_table WHERE field IS NOT NULL LIMIT 75';

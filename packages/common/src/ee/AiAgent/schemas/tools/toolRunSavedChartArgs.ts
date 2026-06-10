@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { baseOutputMetadataSchema } from '../outputMetadata';
 import { createToolSchema } from '../toolSchemaBuilder';
 
-const TOOL_RUN_SAVED_CHART_DESCRIPTION = `
+export const TOOL_RUN_SAVED_CHART_DESCRIPTION = `
 Run an existing saved chart by its UUID and return the rows it produces.
 
 When to use this tool:
@@ -12,14 +12,12 @@ When to use this tool:
 - You discovered a relevant chart via findContent / findCharts and want to read
   its results without rebuilding the query from scratch.
 
-Prefer this over runQuery when a saved chart already exists for the data the
+Prefer this over generateVisualization when a saved chart already exists for the data the
 user is asking about. The chart's saved metric query, filters, sorts, and
 custom metrics are applied automatically.
 `;
 
-export const toolRunSavedChartArgsSchema = createToolSchema({
-    description: TOOL_RUN_SAVED_CHART_DESCRIPTION,
-})
+export const toolRunSavedChartArgsSchema = createToolSchema()
     .extend({
         chartUuid: z
             .string()

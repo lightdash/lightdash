@@ -6,7 +6,6 @@ import {
     getWebAiChartConfig,
     type AiAgentChartTypeOption,
     type ApiAiAgentThreadMessageVizQuery,
-    type ApiError,
     type ChartConfig,
     type EChartsSeries,
     type ToolRunQueryArgs,
@@ -16,14 +15,20 @@ import {
 } from '@lightdash/common';
 import {
     Box,
+    Button,
     Center,
+    Collapse,
+    Flex,
     Group,
     Stack,
     Text,
     useMantineColorScheme,
 } from '@mantine-8/core';
-import { IconExclamationCircle } from '@tabler/icons-react';
-import { type QueryObserverSuccessResult } from '@tanstack/react-query';
+import {
+    IconChevronDown,
+    IconChevronUp,
+    IconExclamationCircle,
+} from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC, type ReactNode } from 'react';
 import { useParams } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -42,31 +47,43 @@ import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults'
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
+import {
+    getVisualizationFieldsCount,
+    getVisualizationFiltersCount,
+    shouldDisplayMetricsAndDimensions,
+    shouldDisplayVisualizationFilters,
+} from './AiVisualizationRenderer.utils';
 
 type Props = {
+    vizQueryData: ApiAiAgentThreadMessageVizQuery;
     results: InfiniteQueryResults;
-    queryExecutionHandle: QueryObserverSuccessResult<
-        ApiAiAgentThreadMessageVizQuery,
-        ApiError
-    >;
     chartConfig:
         | ToolTableVizArgs
         | ToolTimeSeriesArgs
         | ToolVerticalBarArgs
         | ToolRunQueryArgs;
+    selectedChartType: AiAgentChartTypeOption | null;
+    // When provided, an inline switcher is rendered above the chart. Omit
+    // it (e.g. on the floating panel) when a parent renders its own.
+    onChartTypeChange?: (type: AiAgentChartTypeOption) => void;
+    // Visual style of the inline switcher. `pill` matches the floating
+    // panel chrome; default uses Mantine's standard SegmentedControl.
+    switcherVariant?: 'default' | 'pill';
+    // Forwarded when the underlying viz expands its config — used by the
+    // dashboard path to sync the change back into the query cache.
+    onExpandedChartConfigChange?: (config: ChartConfig) => void;
     headerContent?: ReactNode;
-
-    onDashboardChartTypeChange?: (type: AiAgentChartTypeOption) => void;
-    onDashboardChartConfigChange?: (config: ChartConfig) => void;
 };
 
 export const AiVisualizationRenderer: FC<Props> = ({
+    vizQueryData,
     results,
-    queryExecutionHandle,
     chartConfig,
+    selectedChartType,
+    onChartTypeChange,
+    switcherVariant = 'default',
+    onExpandedChartConfigChange,
     headerContent,
-    onDashboardChartTypeChange: onDashboardChartTypeChangeProp,
-    onDashboardChartConfigChange: onDashboardChartConfigChangeProp,
 }) => {
     const { data: health } = useHealth();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -80,22 +97,33 @@ export const AiVisualizationRenderer: FC<Props> = ({
         return resolvedPalette?.colors ?? ECHARTS_DEFAULT_COLORS;
     }, [colorScheme, resolvedPalette]);
 
-    const { metricQuery, fields, resolvedTimezone } =
-        queryExecutionHandle.data.query;
+    const { metricQuery, fields, resolvedTimezone } = vizQueryData.query;
     const tableName = metricQuery?.exploreName;
     const { data: explore } = useExplore(tableName);
+
     const [echartsClickEvent, setEchartsClickEvent] =
         useState<EchartsSeriesClickEvent | null>(null);
     const [echartsSeries, setEchartsSeries] = useState<EChartsSeries[]>([]);
+    const [detailsExpanded, setDetailsExpanded] = useState(false);
 
-    // Initialize from cached data if available
-    const [selectedChartType, setSelectedChartType] =
-        useState<AiAgentChartTypeOption | null>(null);
-
-    // Track the expanded chart config -> used to let the VisualizationProvider re-render with the new chart config, e.g. calculation of series & color assignment
+    // Tag the cached expanded config with the chart type it was computed
+    // for. Switching types makes the cached entry "for the wrong type" and
+    // we synchronously fall back to webAiChartConfig.echartsConfig — no
+    // useEffect race, no stale render. Critical for line↔scatter (both
+    // ChartType.CARTESIAN) where the provider doesn't always resync from
+    // a prop change alone.
     const [expandedChartConfig, setExpandedChartConfig] = useState<
-        ChartConfig | undefined
+        | {
+              forChartType: AiAgentChartTypeOption | null;
+              config: ChartConfig;
+          }
+        | undefined
     >(undefined);
+
+    const activeExpandedChartConfig =
+        expandedChartConfig?.forChartType === selectedChartType
+            ? expandedChartConfig.config
+            : undefined;
 
     const resultsData = useMemo(
         () => ({
@@ -107,7 +135,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
         [results, metricQuery, fields, resolvedTimezone],
     );
 
-    const chartConfigFromAiAgentVizConfig = useMemo(
+    const webAiChartConfig = useMemo(
         () =>
             getWebAiChartConfig({
                 vizConfig: chartConfig,
@@ -126,45 +154,39 @@ export const AiVisualizationRenderer: FC<Props> = ({
     );
 
     const groupByDimensions: string[] | undefined = useMemo(
-        () => getGroupByDimensions(chartConfigFromAiAgentVizConfig),
-        [chartConfigFromAiAgentVizConfig],
+        () => getGroupByDimensions(webAiChartConfig),
+        [webAiChartConfig],
     );
 
-    const displayMetricsAndDimensions = useMemo(
-        () =>
-            queryExecutionHandle.data &&
-            queryExecutionHandle.data.type !== AiResultType.TABLE_RESULT &&
-            queryExecutionHandle.data.type !== AiResultType.QUERY_RESULT,
-        [queryExecutionHandle.data],
+    const displayMetricsAndDimensions = shouldDisplayMetricsAndDimensions(
+        vizQueryData.type,
     );
+    const displayFilters = shouldDisplayVisualizationFilters(
+        metricQuery.filters,
+    );
+    const fieldsCount = displayMetricsAndDimensions
+        ? getVisualizationFieldsCount(metricQuery)
+        : 0;
+    const filtersCount = getVisualizationFiltersCount(metricQuery.filters);
+    const displayDetails = fieldsCount > 0 || filtersCount > 0;
 
-    const defaultChartType =
-        chartConfigFromAiAgentVizConfig.type === AiResultType.QUERY_RESULT
-            ? (chartConfigFromAiAgentVizConfig.vizTool.chartConfig
-                  ?.defaultVizType ?? 'table')
+    const defaultChartType: AiAgentChartTypeOption =
+        webAiChartConfig.type === AiResultType.QUERY_RESULT
+            ? (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table')
             : 'table';
 
     const handleChartConfigChange = useCallback(
         (newConfig: ChartConfig) => {
-            setExpandedChartConfig(newConfig);
-            onDashboardChartConfigChangeProp?.(newConfig);
+            setExpandedChartConfig({
+                forChartType: selectedChartType,
+                config: newConfig,
+            });
+            onExpandedChartConfigChange?.(newConfig);
         },
-        [onDashboardChartConfigChangeProp],
+        [onExpandedChartConfigChange, selectedChartType],
     );
 
-    const handleChartTypeChange = useCallback(
-        (type: AiAgentChartTypeOption) => {
-            setSelectedChartType(type);
-
-            // Reset expanded chart config to allow re-expansion
-            setExpandedChartConfig(undefined);
-
-            onDashboardChartTypeChangeProp?.(type);
-        },
-        [onDashboardChartTypeChangeProp],
-    );
-
-    if (!chartConfigFromAiAgentVizConfig.echartsConfig) {
+    if (!webAiChartConfig.echartsConfig) {
         return (
             <Center h={300}>
                 <Stack gap="xs" align="center">
@@ -182,27 +204,21 @@ export const AiVisualizationRenderer: FC<Props> = ({
             metricQuery={metricQuery}
             tableName={tableName}
             explore={explore}
-            queryUuid={queryExecutionHandle.data.query.queryUuid}
+            queryUuid={vizQueryData.query.queryUuid}
             resolvedTimezone={resolvedTimezone}
         >
             <VisualizationProvider
                 key={selectedChartType ?? 'default'}
                 resultsData={resultsData}
                 chartConfig={
-                    expandedChartConfig ??
-                    chartConfigFromAiAgentVizConfig.echartsConfig
+                    activeExpandedChartConfig ?? webAiChartConfig.echartsConfig
                 }
-                parameters={
-                    queryExecutionHandle.data.query.usedParametersValues
-                }
+                parameters={vizQueryData.query.usedParametersValues}
                 columnOrder={[
                     ...metricQuery.dimensions,
                     ...metricQuery.metrics,
                     ...metricQuery.tableCalculations.map((tc) => tc.name),
                 ]}
-                pivotTableMaxColumnLimit={
-                    health?.pivotTable.maxColumnLimit ?? 60
-                }
                 initialPivotDimensions={groupByDimensions}
                 colorPalette={colorPalette}
                 isLoading={resultsData.isFetchingRows}
@@ -216,25 +232,27 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 onChartConfigChange={handleChartConfigChange}
                 unsavedMetricQuery={metricQuery}
             >
-                <Stack gap="md" h="100%">
-                    {headerContent && headerContent}
-                    {chartConfigFromAiAgentVizConfig.type ===
-                        AiResultType.QUERY_RESULT && (
-                        <Group justify="flex-end">
-                            <AgentVisualizationChartTypeSwitcher
-                                metricQuery={metricQuery}
-                                selectedChartType={
-                                    selectedChartType ?? defaultChartType
-                                }
-                                hasGroupByDimensions={
-                                    (groupByDimensions?.length ?? 0) > 0
-                                }
-                                onChartTypeChange={handleChartTypeChange}
-                            />
-                        </Group>
-                    )}
+                <Stack gap="md" h="100%" style={{ minHeight: 0 }}>
+                    {headerContent}
+                    {webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+                        onChartTypeChange && (
+                            <Group justify="flex-end">
+                                <AgentVisualizationChartTypeSwitcher
+                                    metricQuery={metricQuery}
+                                    selectedChartType={
+                                        selectedChartType ?? defaultChartType
+                                    }
+                                    hasGroupByDimensions={
+                                        (groupByDimensions?.length ?? 0) > 0
+                                    }
+                                    onChartTypeChange={onChartTypeChange}
+                                    variant={switcherVariant}
+                                />
+                            </Group>
+                        )}
                     <Box
                         flex="1"
+                        mih={0}
                         style={{
                             // Scrolling for tables
                             overflow: 'auto',
@@ -245,7 +263,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                             data-testid="ai-visualization"
                         />
 
-                        {chartConfigFromAiAgentVizConfig.echartsConfig.type ===
+                        {webAiChartConfig.echartsConfig.type ===
                             ChartType.CARTESIAN && (
                             <SeriesContextMenu
                                 echartsSeriesClickEvent={
@@ -260,33 +278,67 @@ export const AiVisualizationRenderer: FC<Props> = ({
                         <DrillDownModal />
                     </Box>
 
-                    <Stack gap="xs">
-                        <ErrorBoundary>
-                            {displayMetricsAndDimensions && (
-                                <AgentVisualizationMetricsAndDimensions
-                                    metricQuery={
-                                        queryExecutionHandle.data.query
-                                            .metricQuery
+                    {displayDetails ? (
+                        <Stack gap="xs" style={{ flexShrink: 0 }}>
+                            <Flex align="center" justify="flex-start">
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    color="ldGray"
+                                    aria-expanded={detailsExpanded}
+                                    rightSection={
+                                        <MantineIcon
+                                            icon={
+                                                detailsExpanded
+                                                    ? IconChevronUp
+                                                    : IconChevronDown
+                                            }
+                                            size={12}
+                                        />
                                     }
-                                    fieldsMap={
-                                        queryExecutionHandle.data.query.fields
+                                    onClick={() =>
+                                        setDetailsExpanded((value) => !value)
                                     }
-                                />
-                            )}
+                                    styles={{
+                                        root: {
+                                            flexShrink: 0,
+                                            border: 'none',
+                                        },
+                                    }}
+                                >
+                                    {[
+                                        fieldsCount > 0
+                                            ? `Fields ${fieldsCount}`
+                                            : null,
+                                        filtersCount > 0
+                                            ? `Filters ${filtersCount}`
+                                            : null,
+                                    ]
+                                        .filter(Boolean)
+                                        .join(' · ')}
+                                </Button>
+                            </Flex>
+                            <Collapse in={detailsExpanded}>
+                                <Stack gap="xs">
+                                    <ErrorBoundary>
+                                        {displayMetricsAndDimensions && (
+                                            <AgentVisualizationMetricsAndDimensions
+                                                metricQuery={metricQuery}
+                                                fieldsMap={fields}
+                                            />
+                                        )}
 
-                            {chartConfig.filters ? (
-                                <AgentVisualizationFilters
-                                    filters={
-                                        queryExecutionHandle.data.query
-                                            .metricQuery.filters
-                                    }
-                                    fieldsMap={
-                                        queryExecutionHandle.data.query.fields
-                                    }
-                                />
-                            ) : null}
-                        </ErrorBoundary>
-                    </Stack>
+                                        {displayFilters ? (
+                                            <AgentVisualizationFilters
+                                                filters={metricQuery.filters}
+                                                fieldsMap={fields}
+                                            />
+                                        ) : null}
+                                    </ErrorBoundary>
+                                </Stack>
+                            </Collapse>
+                        </Stack>
+                    ) : null}
                 </Stack>
             </VisualizationProvider>
         </MetricQueryDataProvider>

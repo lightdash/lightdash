@@ -19,6 +19,7 @@ import { EmailModel } from './EmailModel';
 import { FeatureFlagModel } from './FeatureFlagModel/FeatureFlagModel';
 import { GithubAppInstallationsModel } from './GithubAppInstallations/GithubAppInstallationsModel';
 import { GitlabAppInstallationsModel } from './GitlabAppInstallations/GitlabAppInstallationsModel';
+import { GitUserCredentialsModel } from './GitUserCredentials/GitUserCredentialsModel';
 import { GroupsModel } from './GroupsModel';
 import { InviteLinkModel } from './InviteLinkModel';
 import { JobModel } from './JobModel/JobModel';
@@ -29,8 +30,11 @@ import { OAuth2Model } from './OAuth2Model';
 import { OnboardingModel } from './OnboardingModel/OnboardingModel';
 import { OpenIdIdentityModel } from './OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from './OrganizationAllowedEmailDomainsModel';
+import { OrganizationDesignModel } from './OrganizationDesignModel';
+import { OrganizationDomainVerificationModel } from './OrganizationDomainVerificationModel';
 import { OrganizationMemberProfileModel } from './OrganizationMemberProfileModel';
 import { OrganizationModel } from './OrganizationModel';
+import { OrganizationSettingsModel } from './OrganizationSettingsModel';
 import { OrganizationSsoModel } from './OrganizationSsoModel';
 import { OrganizationWarehouseCredentialsModel } from './OrganizationWarehouseCredentialsModel';
 import { PasswordResetLinkModel } from './PasswordResetLinkModel';
@@ -39,6 +43,7 @@ import { PinnedListModel } from './PinnedListModel';
 import { ProjectCompileLogModel } from './ProjectCompileLogModel';
 import { ProjectModel } from './ProjectModel/ProjectModel';
 import { ProjectParametersModel } from './ProjectParametersModel';
+import { PullRequestsModel } from './PullRequestsModel';
 import { QueryHistoryModel } from './QueryHistoryModel/QueryHistoryModel';
 import { ResourceViewItemModel } from './ResourceViewItemModel';
 import { RolesModel } from './RolesModel';
@@ -78,6 +83,7 @@ export type ModelManifest = {
     persistentDownloadFileModel: PersistentDownloadFileModel;
     emailModel: EmailModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    gitUserCredentialsModel: GitUserCredentialsModel;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     groupsModel: GroupsModel;
     inviteLinkModel: InviteLinkModel;
@@ -89,8 +95,11 @@ export type ModelManifest = {
     onboardingModel: OnboardingModel;
     openIdIdentityModel: OpenIdIdentityModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    organizationDesignModel: OrganizationDesignModel;
     organizationMemberProfileModel: OrganizationMemberProfileModel;
     organizationModel: OrganizationModel;
+    organizationDomainVerificationModel: OrganizationDomainVerificationModel;
+    organizationSettingsModel: OrganizationSettingsModel;
     organizationSsoModel: OrganizationSsoModel;
     organizationWarehouseCredentialsModel: OrganizationWarehouseCredentialsModel;
     passwordResetLinkModel: PasswordResetLinkModel;
@@ -98,6 +107,7 @@ export type ModelManifest = {
     pinnedListModel: PinnedListModel;
     projectModel: ProjectModel;
     projectCompileLogModel: ProjectCompileLogModel;
+    pullRequestsModel: PullRequestsModel;
     resourceViewItemModel: ResourceViewItemModel;
     rolesModel: RolesModel;
     savedChartModel: SavedChartModel;
@@ -131,6 +141,12 @@ export type ModelManifest = {
     changesetModel: ChangesetModel;
     /** An implementation signature for these models are not available at this stage */
     aiAgentModel: unknown;
+    aiAgentDocumentModel: unknown;
+    aiWritebackThreadModel: unknown;
+    projectCiStatusModel: unknown;
+    aiAgentReviewClassifierModel: unknown;
+    projectContextModel: unknown;
+    aiRouterModel: unknown;
     managedAgentModel: unknown;
     aiOrganizationSettingsModel: unknown;
     embedModel: unknown;
@@ -259,7 +275,6 @@ export class ModelRepository
             () =>
                 new DashboardModel({
                     database: this.database,
-                    lightdashConfig: this.lightdashConfig,
                     contentVerificationModel:
                         this.getContentVerificationModel(),
                 }),
@@ -315,6 +330,17 @@ export class ModelRepository
         );
     }
 
+    public getGitUserCredentialsModel(): GitUserCredentialsModel {
+        return this.getModel(
+            'gitUserCredentialsModel',
+            () =>
+                new GitUserCredentialsModel({
+                    database: this.database,
+                    encryptionUtil: this.utils.getEncryptionUtil(),
+                }),
+        );
+    }
+
     public getGitlabAppInstallationsModel(): GitlabAppInstallationsModel {
         return this.getModel(
             'gitlabAppInstallationsModel',
@@ -330,6 +356,13 @@ export class ModelRepository
         return this.getModel(
             'groupsModel',
             () => new GroupsModel({ database: this.database }),
+        );
+    }
+
+    public getPullRequestsModel(): PullRequestsModel {
+        return this.getModel(
+            'pullRequestsModel',
+            () => new PullRequestsModel({ database: this.database }),
         );
     }
 
@@ -420,6 +453,23 @@ export class ModelRepository
         );
     }
 
+    public getOrganizationDomainVerificationModel(): OrganizationDomainVerificationModel {
+        return this.getModel(
+            'organizationDomainVerificationModel',
+            () =>
+                new OrganizationDomainVerificationModel({
+                    database: this.database,
+                }),
+        );
+    }
+
+    public getOrganizationDesignModel(): OrganizationDesignModel {
+        return this.getModel(
+            'organizationDesignModel',
+            () => new OrganizationDesignModel({ database: this.database }),
+        );
+    }
+
     public getOrganizationWarehouseCredentialsModel(): OrganizationWarehouseCredentialsModel {
         return this.getModel(
             'organizationWarehouseCredentialsModel',
@@ -428,6 +478,13 @@ export class ModelRepository
                     database: this.database,
                     encryptionUtil: this.utils.getEncryptionUtil(),
                 }),
+        );
+    }
+
+    public getOrganizationSettingsModel(): OrganizationSettingsModel {
+        return this.getModel(
+            'organizationSettingsModel',
+            () => new OrganizationSettingsModel({ database: this.database }),
         );
     }
 
@@ -697,6 +754,30 @@ export class ModelRepository
 
     public getAiAgentModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiAgentModel');
+    }
+
+    public getAiAgentDocumentModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentDocumentModel');
+    }
+
+    public getAiWritebackThreadModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiWritebackThreadModel');
+    }
+
+    public getProjectCiStatusModel<ModelImplT>(): ModelImplT {
+        return this.getModel('projectCiStatusModel');
+    }
+
+    public getProjectContextModel<ModelImplT>(): ModelImplT {
+        return this.getModel('projectContextModel');
+    }
+
+    public getAiAgentReviewClassifierModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiAgentReviewClassifierModel');
+    }
+
+    public getAiRouterModel<ModelImplT>(): ModelImplT {
+        return this.getModel('aiRouterModel');
     }
 
     public getAiOrganizationSettingsModel<ModelImplT>(): ModelImplT {

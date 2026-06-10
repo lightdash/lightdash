@@ -543,6 +543,83 @@ describe('SpacePermissionService', () => {
                 service.getAllSpaceAccessContext(spaceUuid),
             ).rejects.toThrow(NotFoundError);
         });
+
+        test('returns admins extracted from project and org access, org wins over project on dedup', async () => {
+            const spaceUuid = 'private-space';
+
+            mockPermissionModel.getInheritanceChains.mockResolvedValue({
+                [spaceUuid]: {
+                    chain: [
+                        {
+                            spaceUuid,
+                            spaceName: 'Private',
+                            inheritParentPermissions: false,
+                        },
+                    ],
+                    inheritsFromOrgOrProject: false,
+                },
+            });
+            mockPermissionModel.getDirectSpaceAccess.mockResolvedValue({});
+            mockPermissionModel.getProjectSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid: 'project-admin',
+                        spaceUuid,
+                        role: 'admin' as ProjectMemberRole,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                    {
+                        userUuid: 'dual-admin',
+                        spaceUuid,
+                        role: 'admin' as ProjectMemberRole,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                    {
+                        userUuid: 'editor-user',
+                        spaceUuid,
+                        role: 'editor' as ProjectMemberRole,
+                        from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
+                    },
+                ],
+            });
+            mockPermissionModel.getOrganizationSpaceAccess.mockResolvedValue({
+                [spaceUuid]: [
+                    {
+                        userUuid: 'org-admin',
+                        spaceUuid,
+                        role: 'admin' as OrganizationMemberRole,
+                    },
+                    {
+                        userUuid: 'dual-admin',
+                        spaceUuid,
+                        role: 'admin' as OrganizationMemberRole,
+                    },
+                    {
+                        userUuid: 'org-member',
+                        spaceUuid,
+                        role: 'member' as OrganizationMemberRole,
+                    },
+                ],
+            });
+            mockPermissionModel.getSpaceInfo.mockResolvedValue({
+                [spaceUuid]: { projectUuid, organizationUuid },
+            });
+
+            const result = await service.getAllSpaceAccessContext(spaceUuid);
+
+            // dual-admin is in both lists; org source wins
+            expect(result.admins).toEqual(
+                expect.arrayContaining([
+                    { userUuid: 'org-admin', source: 'organization' },
+                    { userUuid: 'dual-admin', source: 'organization' },
+                    { userUuid: 'project-admin', source: 'project' },
+                ]),
+            );
+            expect(result.admins).toHaveLength(3);
+            expect(
+                result.admins.find((a) => a.userUuid === 'dual-admin')?.source,
+            ).toBe('organization');
+        });
     });
 
     describe('getInheritedPermissionsToCopy', () => {

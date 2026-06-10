@@ -1,17 +1,25 @@
 import {
     EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_SUM_DISTINCT,
+    EXPLORE_WITH_SUM_DISTINCT_WRAPPER,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
     METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+    METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_FULLY_JOINABLE,
+    METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_PARTIAL_JOIN,
     METRIC_QUERY_SUM_DISTINCT_NO_DIMS,
     METRIC_QUERY_SUM_DISTINCT_WITH_DIMS,
+    METRIC_QUERY_SUM_DISTINCT_WITH_JOINABLE_DIM,
+    METRIC_QUERY_SUM_DISTINCT_WRAPPER_DIRECT,
+    METRIC_QUERY_SUM_DISTINCT_WRAPPER_MIXED,
+    METRIC_QUERY_SUM_DISTINCT_WRAPPER_TRANSITIVE,
 } from '../MetricQueryBuilder.mock';
 import { buildQuery } from './helpers';
 
 describe('MetricQueryBuilder snapshot: distinct queries', () => {
-    // Covers sum_distinct with selected dimensions, where the deduplication CTE must partition
-    // by both the distinct key and every selected grouping dimension before rejoining the results.
-    test('matches snapshot for a sum-distinct query with dimensions', () => {
+    // Selected dimensions are orthogonal to the distinct key, so the dedup CTE collapses to a
+    // scalar and is CROSS JOINed onto dd_base. Every output row sees the same global total
+    // (SPK-450 Wise case).
+    test('matches snapshot for a sum-distinct query with dimensions not in distinct_keys', () => {
         expect(
             buildQuery({
                 explore: EXPLORE_WITH_SUM_DISTINCT,
@@ -20,8 +28,44 @@ describe('MetricQueryBuilder snapshot: distinct queries', () => {
         ).toMatchSnapshot();
     });
 
-    // Covers the no-dimension sum_distinct path, where the deduped aggregate should avoid
-    // dimension joins entirely and collapse back to a single-row aggregation shape.
+    // The selected dimension is the metric's distinct key, so the dedup CTE keeps one row per
+    // distinct-key value and is INNER JOINed back onto dd_base.
+    test('matches snapshot for a sum-distinct query where the selected dimension is the distinct key', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT,
+                compiledMetricQuery:
+                    METRIC_QUERY_SUM_DISTINCT_WITH_JOINABLE_DIM,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // Multi-key distinct where every distinct key is also a selected dimension — one output row
+    // per (order_id, payment_method), INNER JOIN on both keys. Regression test for the case where
+    // a global CROSS JOIN scalar incorrectly produced the same value on every row.
+    test('matches snapshot for a multi-key sum-distinct query with all distinct keys selected', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT,
+                compiledMetricQuery:
+                    METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_FULLY_JOINABLE,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // Multi-key distinct where only one of two distinct keys is selected — the dedup CTE
+    // aggregates over the unselected key, then INNER JOINs on the one selected key.
+    test('matches snapshot for a multi-key sum-distinct query with a partially overlapping selection', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT,
+                compiledMetricQuery:
+                    METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_PARTIAL_JOIN,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // No-dimension path: the dedup CTE collapses to a single-row aggregation with no join.
     test('matches snapshot for a sum-distinct query without dimensions', () => {
         expect(
             buildQuery({
@@ -42,13 +86,44 @@ describe('MetricQueryBuilder snapshot: distinct queries', () => {
         ).toMatchSnapshot();
     });
 
-    // Covers average_distinct with grouping dimensions, where the distinct CTE must partition
-    // by the selected dimensions and then regroup the deduplicated rows into the final result set.
-    test('matches snapshot for an average-distinct query with dimensions', () => {
+    // average_distinct with a selected dimension that is not in distinct_keys — same global value
+    // attached to every dimension row via CROSS JOIN.
+    test('matches snapshot for an average-distinct query with dimensions not in distinct_keys', () => {
         expect(
             buildQuery({
                 explore: EXPLORE_WITH_AVERAGE_DISTINCT,
                 compiledMetricQuery: METRIC_QUERY_AVERAGE_DISTINCT_WITH_DIMS,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // PROD-7893: wrapper resolves to dd CTE refs, not raw SUM(...).
+    test('matches snapshot for a type:number metric that wraps two sum_distinct metrics', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT_WRAPPER,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WRAPPER_DIRECT,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // PROD-7893: transitive rate (rate -> wrapper -> sum_distinct) resolves to dd CTE refs.
+    test('matches snapshot for a type:number metric that transitively references sum_distinct metrics through another type:number wrapper', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT_WRAPPER,
+                compiledMetricQuery:
+                    METRIC_QUERY_SUM_DISTINCT_WRAPPER_TRANSITIVE,
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // PROD-7893: both wrappers selected — exercises topo ordering.
+    test('matches snapshot for both wrapper and transitive-rate metrics selected together', () => {
+        expect(
+            buildQuery({
+                explore: EXPLORE_WITH_SUM_DISTINCT_WRAPPER,
+                compiledMetricQuery: METRIC_QUERY_SUM_DISTINCT_WRAPPER_MIXED,
             }),
         ).toMatchSnapshot();
     });

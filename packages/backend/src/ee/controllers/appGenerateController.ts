@@ -4,14 +4,20 @@ import {
     ParameterError,
     type ApiAppImageUploadResponse,
     type ApiAppImageUrlResponse,
+    type ApiAppSchedulersResponse,
     type ApiCancelAppVersionResponse,
     type ApiClarifyAppRequest,
     type ApiClarifyAppResponse,
+    type ApiCreateAppSchedulerResponse,
     type ApiDeleteAppResponse,
+    type ApiDuplicateAppResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
     type ApiPreviewTokenResponse,
+    type ApiPromoteAppDiffResponse,
+    type ApiPromoteAppResponse,
+    type ApiRestoreAppVersionResponse,
     type ApiTogglePinnedItem,
     type ApiUpdateAppRequest,
     type ApiUpdateAppResponse,
@@ -38,6 +44,7 @@ import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
+    unauthorisedInDemo,
 } from '../../controllers/authentication';
 import { BaseController } from '../../controllers/baseController';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
@@ -68,6 +75,8 @@ export class AppGenerateController extends BaseController {
             body.template,
             body.clarifications,
             body.spaceUuid,
+            body.claudeModel,
+            body.designUuid,
         );
         return {
             status: 'ok',
@@ -207,6 +216,7 @@ export class AppGenerateController extends BaseController {
             body.imageIds ?? [],
             body.charts,
             body.dashboard,
+            body.claudeModel,
         );
         return {
             status: 'ok',
@@ -238,6 +248,125 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: undefined,
+        };
+    }
+
+    /**
+     * Restore an earlier ready version by duplicating it into a new ready
+     * version at the head of the timeline. Fast: no sandbox work, no rebuild —
+     * a single DB insert plus an S3 server-side copy of the source tarball.
+     * The preview iframe can serve the restored content immediately. The
+     * next generation triggered after this call resets the sandbox working
+     * tree from the restored tarball.
+     * @summary Restore app version
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/versions/{version}/restore')
+    @OperationId('restoreAppVersion')
+    async restoreAppVersion(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+        @Path() version: number,
+    ): Promise<ApiRestoreAppVersionResponse> {
+        assertRegisteredAccount(req.account);
+        const result = await this.getAppGenerateService().restoreVersion(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+            version,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Duplicate an existing app into a new personal app owned by the
+     * requester. Latest ready version is copied; no sandbox is created.
+     * @summary Duplicate app
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/duplicate')
+    @OperationId('duplicateApp')
+    async duplicateApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiDuplicateAppResponse> {
+        assertRegisteredAccount(req.account);
+        const result = await this.getAppGenerateService().duplicateApp(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: result,
+        };
+    }
+
+    /**
+     * Preview what promoting this app into its upstream (production) project
+     * will do: create a new production app or update the linked one, and which
+     * space it will land in.
+     * @summary Get data app promotion diff
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/promoteDiff')
+    @OperationId('getAppPromoteDiff')
+    async getAppPromoteDiff(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiPromoteAppDiffResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getAppGenerateService().getPromoteAppDiff(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Promote this app from a preview project into its upstream (production)
+     * project. Snapshots the latest ready version as a new production version.
+     * @summary Promote data app to production
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/promote')
+    @OperationId('promoteApp')
+    async promoteApp(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiPromoteAppResponse> {
+        assertRegisteredAccount(req.account);
+        const results = await this.getAppGenerateService().promoteApp(
+            toSessionUser(req.account),
+            projectUuid,
+            appUuid,
+        );
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results,
         };
     }
 
@@ -367,6 +496,60 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * List schedulers for a data app
+     * @summary List app schedulers
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{appUuid}/schedulers')
+    @OperationId('getAppSchedulers')
+    async getAppSchedulers(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiAppSchedulersResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .getAppSchedulers(toSessionUser(req.account), appUuid),
+        };
+    }
+
+    /**
+     * Create a scheduler for a data app
+     * @summary Create app scheduler
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{appUuid}/schedulers')
+    @OperationId('createAppScheduler')
+    async createAppScheduler(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() appUuid: string,
+    ): Promise<ApiCreateAppSchedulerResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getSchedulerService()
+                .createAppScheduler(
+                    toSessionUser(req.account),
+                    appUuid,
+                    req.body,
+                ),
         };
     }
 

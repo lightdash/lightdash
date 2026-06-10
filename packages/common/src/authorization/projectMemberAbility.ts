@@ -72,16 +72,6 @@ export const projectMemberAbilities: Record<
             projectUuid: member.projectUuid,
             userUuid: member.userUuid,
         });
-        can('view', 'DataApp', {
-            projectUuid: member.projectUuid,
-            inheritsFromOrgOrProject: true,
-        });
-        can('view', 'DataApp', {
-            projectUuid: member.projectUuid,
-            access: {
-                $elemMatch: { userUuid: member.userUuid },
-            },
-        });
     },
     interactive_viewer(member, { can }) {
         projectMemberAbilities.viewer(member, { can });
@@ -164,6 +154,19 @@ export const projectMemberAbilities: Record<
                 },
             },
         });
+        // View data apps shared project-wide or in spaces the user can
+        // access. Gated at interactive-viewer (not viewer) for parity with
+        // manage:Explore — plain viewers don't get data app access.
+        can('view', 'DataApp', {
+            projectUuid: member.projectUuid,
+            inheritsFromOrgOrProject: true,
+        });
+        can('view', 'DataApp', {
+            projectUuid: member.projectUuid,
+            access: {
+                $elemMatch: { userUuid: member.userUuid },
+            },
+        });
         // Create personal data apps; once created, the user can also view
         // and manage their own. Moving an app into a space is gated
         // separately by the target space's manage rule.
@@ -190,6 +193,9 @@ export const projectMemberAbilities: Record<
             },
         });
         can('view', 'AiAgent', {
+            projectUuid: member.projectUuid,
+        });
+        can('view', 'AiAgentDocument', {
             projectUuid: member.projectUuid,
         });
         can('create', 'AiAgentThread', {
@@ -223,6 +229,11 @@ export const projectMemberAbilities: Record<
         can('manage', 'AiAgentThread', {
             projectUuid: member.projectUuid,
             userUuid: member.userUuid,
+        });
+        // Editors can download content as code but not upload it. Upload
+        // stays gated behind `manage:ContentAsCode` (developer+).
+        can('view', 'ContentAsCode', {
+            projectUuid: member.projectUuid,
         });
     },
     developer(member, { can }) {
@@ -294,10 +305,21 @@ export const projectMemberAbilities: Record<
         can('manage', 'ContentAsCode', {
             projectUuid: member.projectUuid,
         });
+        // Redundant with the broad grant above, but kept so the system
+        // role mirrors the `manage:ContentAsCode@self` scope a custom role
+        // would carry without full `manage:ContentAsCode`.
+        can('manage', 'ContentAsCode', {
+            projectUuid: member.projectUuid,
+            type: ProjectType.PREVIEW,
+            createdByUserUuid: member.userUuid,
+        });
         can('view', 'JobStatus', {
             projectUuid: member.projectUuid,
         });
         can('manage', 'AiAgent', {
+            projectUuid: member.projectUuid,
+        });
+        can('manage', 'AiAgentDocument', {
             projectUuid: member.projectUuid,
         });
     },

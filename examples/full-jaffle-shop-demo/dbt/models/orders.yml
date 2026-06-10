@@ -145,6 +145,26 @@ models:
                 type: count_distinct
                 spotlight:
                   categories: ["revenue_growth"]
+                  # Curate the default Metrics Explorer view: open segmented by
+                  # order source and pre-filtered to completed orders. Engineers
+                  # can switch to any of the other allowlisted dimensions.
+                  segment_by:
+                    - order_source
+                    - status
+                    - shipping_method
+                    - order_priority
+                    - fulfillment_center
+                    - is_completed
+                  filter_by:
+                    - status
+                    - order_source
+                    - shipping_method
+                    - order_priority
+                    - fulfillment_center
+                    - is_completed
+                  default_segment: order_source
+                  default_filter:
+                    status: completed
               completed_order_count:
                 label: Completed order count
                 description: Total number of completed orders
@@ -177,7 +197,8 @@ models:
                 round: 1
                 sql: CASE WHEN ${is_completed} THEN 1 ELSE 0 END
                 show_underlying_values:
-                  - amount
+                  - status
+                  - total_order_amount
                   - customers.first_name
                 spotlight:
                   owner: demo2@lightdash.com

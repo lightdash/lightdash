@@ -92,21 +92,27 @@ export class FavoritesService extends BaseService {
             throw new ForbiddenError();
         }
 
-        // Verify the user has permission to view the content they're trying to favorite
+        // Verify the user has permission to view the content they're trying to
+        // favorite. Resolve the canonical UUID from the entity since callers may
+        // pass a slug — content_uuid is a uuid column and would reject a slug.
         let spaceUuid: string;
+        let resolvedContentUuid: string;
         switch (contentType) {
             case ContentType.SPACE:
                 spaceUuid = contentUuid;
+                resolvedContentUuid = contentUuid;
                 break;
             case ContentType.CHART: {
                 const chart = await this.savedChartModel.get(contentUuid);
                 spaceUuid = chart.spaceUuid;
+                resolvedContentUuid = chart.uuid;
                 break;
             }
             case ContentType.DASHBOARD: {
                 const dashboard =
                     await this.dashboardModel.getByIdOrSlug(contentUuid);
                 spaceUuid = dashboard.spaceUuid;
+                resolvedContentUuid = dashboard.uuid;
                 break;
             }
             case ContentType.DATA_APP: {
@@ -123,6 +129,7 @@ export class FavoritesService extends BaseService {
                     );
                 }
                 spaceUuid = app.space_uuid;
+                resolvedContentUuid = app.app_id;
                 break;
             }
             default:
@@ -144,21 +151,21 @@ export class FavoritesService extends BaseService {
         const alreadyFavorited = await this.userFavoritesModel.isFavorite(
             user.userUuid,
             contentType,
-            contentUuid,
+            resolvedContentUuid,
         );
 
         if (alreadyFavorited) {
             await this.userFavoritesModel.removeFavorite(
                 user.userUuid,
                 contentType,
-                contentUuid,
+                resolvedContentUuid,
             );
         } else {
             await this.userFavoritesModel.addFavorite(
                 user.userUuid,
                 projectUuid,
                 contentType,
-                contentUuid,
+                resolvedContentUuid,
             );
         }
 
@@ -178,7 +185,7 @@ export class FavoritesService extends BaseService {
         return {
             isFavorite,
             contentType,
-            contentUuid,
+            contentUuid: resolvedContentUuid,
         };
     }
 

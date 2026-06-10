@@ -1,4 +1,24 @@
-import { useCallback, useEffect, type RefObject } from 'react';
+import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
+import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
+
+// Same key the SDK persists `instanceUrl` under (sdk/index.tsx, api.ts).
+// Duplicated rather than imported to avoid threading a shared export through
+// the SDK build. Keep in sync if the key changes there.
+const LIGHTDASH_SDK_INSTANCE_URL_KEY = '__lightdash_sdk_instance_url';
+
+/**
+ * In SDK embeds the host page is the consuming app's origin, so a relative
+ * `fetch('/api/v2/...')` would hit *their* dev server, not Lightdash. When
+ * the SDK has stashed an instance URL in sessionStorage, prepend it.
+ */
+const resolveFetchUrl = (path: string): string => {
+    if (typeof window === 'undefined') return path;
+    const instanceUrl = sessionStorage.getItem(LIGHTDASH_SDK_INSTANCE_URL_KEY);
+    if (!instanceUrl) return path;
+    // SDK persists with a trailing slash; `path` always starts with `/`.
+    return `${instanceUrl.replace(/\/$/, '')}${path}`;
+};
 
 export type QueryEventTableCalculation = {
     name: string;
@@ -111,7 +131,42 @@ export function useAppSdkBridge(
     onElementSelected?: (event: ElementSelectedEvent) => void,
     onInspectorAvailable?: () => void,
     onScreenshotAvailable?: () => void,
+    /**
+     * When set, these filters are stamped onto every intercepted metric-query
+     * POST before it reaches the backend. Used by dashboard data-app tiles so
+     * the dashboard filter bar applies to the app's queries. The iframe SDK
+     * is not involved — generated apps stay filter-agnostic.
+     */
+    dashboardFilters?: DashboardFilters,
+    /**
+     * When true, `invalidateCache` is stamped onto every intercepted
+     * metric-query POST so the backend bypasses the warehouse results cache —
+     * mirrors what chart tiles send after the dashboard refresh button is
+     * pressed. Set by `DashboardDataAppTile`; left undefined elsewhere.
+     */
+    invalidateCache?: boolean,
 ) {
+    // Embed mode adapts the bridge's outgoing fetches in two ways:
+    //   - Attaches the embed JWT header in lieu of session cookies
+    //     (the parent in embed mode has no session, only the JWT).
+    //   - Rewrites `GET /api/v1/user` to the embed-specific user-info
+    //     endpoint so that existing data apps built before embedding existed
+    //     don't break on `client.auth.getUser()`. The SDK protocol is
+    //     unchanged — the rewrite happens entirely on the parent side.
+    const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
+
+    // Maps queryUuid → POST request id. The SDK transport assigns a fresh
+    // request id to the POST (`/metric-query`) and again to each GET poll
+    // (`/query/{uuid}`), so terminal events emitted from the GET handler
+    // would otherwise carry a different id than the pending/running events
+    // emitted from the POST handler. We record the mapping when the POST
+    // resolves with a queryUuid, then re-key ready/error events to the
+    // POST id so consumers can track the full pending → ready/error
+    // lifecycle by a single stable id (without this, MinimalApp's
+    // in-flight set never drains and the screenshot indicator never
+    // mounts).
+    const queryUuidToPostIdRef = useRef<Map<string, string>>(new Map());
+
     const handleMessage = useCallback(
         async (event: MessageEvent) => {
             if (event.source !== iframeRef.current?.contentWindow) return;
@@ -169,6 +224,22 @@ export function useAppSdkBridge(
                 return;
             }
 
+            // Stamp dashboard filters and the cache-invalidation flag onto
+            // outgoing metric-query bodies. The backend drops filters whose
+            // fields aren't in the query's explore, so it's safe to send the
+            // full set on every call. `invalidateCache` mirrors what charts
+            // send on a dashboard refresh so the app's queries bypass the
+            // warehouse results cache too.
+            const effectiveBody =
+                isMetricQueryPost(method, path) &&
+                (dashboardFilters || invalidateCache)
+                    ? {
+                          ...(body as Record<string, unknown> | undefined),
+                          ...(dashboardFilters ? { dashboardFilters } : {}),
+                          ...(invalidateCache ? { invalidateCache } : {}),
+                      }
+                    : body;
+
             // Track metric query submissions
             if (isMetricQueryPost(method, path) && onQueryEvent && body) {
                 const query = (body as { query?: Record<string, unknown> })
@@ -203,11 +274,62 @@ export function useAppSdkBridge(
                 }
             }
 
+            // In embed mode, rewrite the user-info fetch to the embed
+            // endpoint so the SDK's getUser() resolves against the JWT's
+            // synthesized user instead of a session-only route.
+            const effectivePath =
+                embedToken &&
+                embedProjectUuid &&
+                method.toUpperCase() === 'GET' &&
+                path === '/api/v1/user'
+                    ? `/api/v1/embed/${embedProjectUuid}/user-info`
+                    : path;
+
+            // Emits a terminal `error` QueryEvent re-keyed to the POST id
+            // when a metric-query POST fails before the SDK ever gets a
+            // queryUuid. Without it, the pending entry stays in
+            // MinimalApp's in-flight set forever and the screenshot
+            // indicator never mounts. The GET-poll error/ready paths
+            // already emit their own terminal events, so this only runs
+            // for the POST.
+            const emitPostFailure = (errorMessage: string) => {
+                if (!isMetricQueryPost(method, path) || !onQueryEvent) return;
+                onQueryEvent({
+                    id,
+                    timestamp: Date.now(),
+                    label: null,
+                    exploreName: '',
+                    dimensions: [],
+                    metrics: [],
+                    filters: {},
+                    sorts: [],
+                    tableCalculations: [],
+                    additionalMetrics: [],
+                    limit: 0,
+                    queryUuid: null,
+                    status: 'error',
+                    rowCount: null,
+                    durationMs: null,
+                    error: errorMessage,
+                    rawMetricQuery: null,
+                });
+            };
+
             try {
-                const res = await fetch(path, {
+                // SDK embeds: a bare `fetch(path)` resolves against the
+                // host's origin, not Lightdash. Rewrite to an absolute URL
+                // against the SDK's stashed instance URL when present.
+                const res = await fetch(resolveFetchUrl(effectivePath), {
                     method,
-                    headers: { 'Content-Type': 'application/json' },
-                    ...(body ? { body: JSON.stringify(body) } : {}),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(embedToken
+                            ? { [JWT_HEADER_NAME]: embedToken }
+                            : {}),
+                    },
+                    ...(effectiveBody
+                        ? { body: JSON.stringify(effectiveBody) }
+                        : {}),
                 });
 
                 const json = await res.json();
@@ -222,6 +344,10 @@ export function useAppSdkBridge(
                         const initLabel = (
                             metadata as Record<string, unknown> | undefined
                         )?.label as string | undefined;
+                        queryUuidToPostIdRef.current.set(
+                            json.results.queryUuid,
+                            id,
+                        );
                         onQueryEvent({
                             id,
                             timestamp: Date.now(),
@@ -253,9 +379,23 @@ export function useAppSdkBridge(
                     // Track query result polling responses
                     if (isQueryResultGet(method, path) && onQueryEvent) {
                         const result = json.results;
+                        // Re-key terminal events to the POST id so consumers
+                        // see a single stable id across the pending →
+                        // ready/error lifecycle. Falls back to the GET id
+                        // only if the mapping is missing (shouldn't happen
+                        // in normal flow — the POST always runs first).
+                        const lifecycleId: string =
+                            (result?.queryUuid &&
+                                queryUuidToPostIdRef.current.get(
+                                    result.queryUuid,
+                                )) ??
+                            id;
                         if (result?.status === 'ready') {
+                            queryUuidToPostIdRef.current.delete(
+                                result.queryUuid,
+                            );
                             onQueryEvent({
-                                id,
+                                id: lifecycleId,
                                 timestamp: Date.now(),
                                 label: null,
                                 exploreName: '',
@@ -283,8 +423,11 @@ export function useAppSdkBridge(
                             result?.status === 'error' ||
                             result?.status === 'expired'
                         ) {
+                            queryUuidToPostIdRef.current.delete(
+                                result.queryUuid,
+                            );
                             onQueryEvent({
-                                id,
+                                id: lifecycleId,
                                 timestamp: Date.now(),
                                 label: null,
                                 exploreName: '',
@@ -307,15 +450,16 @@ export function useAppSdkBridge(
 
                     respond({ result: json.results });
                 } else {
-                    respond({
-                        error:
-                            json.error?.message ?? `API error (${res.status})`,
-                    });
+                    const errorMessage =
+                        json.error?.message ?? `API error (${res.status})`;
+                    emitPostFailure(errorMessage);
+                    respond({ error: errorMessage });
                 }
             } catch (err) {
-                respond({
-                    error: err instanceof Error ? err.message : 'Unknown error',
-                });
+                const errorMessage =
+                    err instanceof Error ? err.message : 'Unknown error';
+                emitPostFailure(errorMessage);
+                respond({ error: errorMessage });
             }
         },
         [
@@ -325,6 +469,10 @@ export function useAppSdkBridge(
             onElementSelected,
             onInspectorAvailable,
             onScreenshotAvailable,
+            dashboardFilters,
+            invalidateCache,
+            embedToken,
+            embedProjectUuid,
         ],
     );
 

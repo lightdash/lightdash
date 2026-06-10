@@ -922,7 +922,10 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        const savedChartsDaos = await this.savedChartModel.updateMultiple(data);
+        const savedChartsDaos = await this.savedChartModel.updateMultiple(
+            projectUuid,
+            data,
+        );
         const savedCharts = await Promise.all(
             savedChartsDaos.map(async (savedChart) => {
                 const { inheritsFromOrgOrProject, access } =
@@ -1367,6 +1370,10 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        resolvedSpaceUuid,
+                        dashboardUuid: savedChart.dashboardUuid,
+                    },
                 }),
             )
         ) {
@@ -1661,6 +1668,14 @@ export class SavedChartService
             user,
             chartUuid,
         );
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+            }),
+        );
         const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: chart.projectUuid,
             organizationUuid: chart.organizationUuid,
@@ -1670,6 +1685,9 @@ export class SavedChartService
                 resourceType: 'chart',
                 resourceUuids: [chartUuid],
                 formats: filters?.formats,
+                ...(canManageAll
+                    ? {}
+                    : { createdByUserUuids: [user.userUuid] }),
             },
         });
 
@@ -1705,6 +1723,7 @@ export class SavedChartService
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
                     userUuid: scheduler.createdBy,
+                    metadata: { chartUuid, schedulerUuid },
                 }),
             )
         ) {
@@ -1782,6 +1801,22 @@ export class SavedChartService
 
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
+
+        if (newScheduler.format === SchedulerFormat.GSHEETS) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
@@ -2023,6 +2058,9 @@ export class SavedChartService
             if (!savedChart) {
                 throw new NotFoundError('Chart not found');
             }
+            if (savedChart.projectUuid !== actor.projectUuid) {
+                throw new NotFoundError('Chart not found');
+            }
 
             if (savedChart.dashboardUuid) {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
@@ -2055,6 +2093,10 @@ export class SavedChartService
                 projectUuid: actor.projectUuid,
                 inheritsFromOrgOrProject,
                 access: spaceAccess,
+                metadata: {
+                    savedChartUuid: resource.savedChartUuid,
+                    spaceUuid,
+                },
             }),
         );
 
@@ -2081,6 +2123,10 @@ export class SavedChartService
                     projectUuid: actor.projectUuid,
                     inheritsFromOrgOrProject: newSpaceInheritsFromOrgOrProject,
                     access: newSpaceAccess,
+                    metadata: {
+                        savedChartUuid: resource.savedChartUuid,
+                        spaceUuid: resource.spaceUuid,
+                    },
                 }),
             );
 
@@ -2209,7 +2255,7 @@ export class SavedChartService
         const deletedChart = await this.savedChartModel.get(
             chartUuid,
             undefined,
-            { deleted: true },
+            { deleted: true, projectUuid: options?.projectUuid },
         );
         const { organizationUuid, projectUuid } = deletedChart;
 
@@ -2295,7 +2341,7 @@ export class SavedChartService
             const deletedChart = await this.savedChartModel.get(
                 chartUuid,
                 undefined,
-                { deleted: true },
+                { deleted: true, projectUuid: options?.projectUuid },
             );
             const { organizationUuid, projectUuid } = deletedChart;
 

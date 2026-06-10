@@ -1,0 +1,53 @@
+/* Icon + title row: let the text block shrink so the title can truncate */
+.titleCell {
+    min-width: 0;
+}
+
+/* Match the validator's icon: theme Paper border + subtle shadow */
+.medallion {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    box-shadow: var(--mantine-shadow-subtle);
+}
+
+/* Title text truncates (but doesn't grow) so it doesn't push the row wider */
+.title {
+    min-width: 0;
+}
+
+.reviewContext {
+    min-width: 0;
+}
+
+.reviewTitle {
+    max-width: 240px;
+}
+
+/* Row actions fade in on row hover (and stay visible while focused) */
+.rowActions {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.bodyRow:hover .rowActions,
+.bodyRow:focus-within .rowActions {
+    opacity: 1;
+}
+
+.clearFilter {
+    cursor: pointer;
+}
+
+.clearFilter:hover {
+    text-decoration: underline;
+}
+
+/* Right-side drawer sits below the navbar, matching the AI threads preview */
+.drawerInner {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}
+
+.drawerOverlay {
+    top: var(--drawer-top-offset, 0);
+    height: calc(100% - var(--drawer-top-offset, 0));
+}

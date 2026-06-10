@@ -11,10 +11,13 @@ import {
     PreAggregateMissReason,
     ProjectType,
     SessionUser,
+    SupportedDbtAdapter,
     WarehouseTypes,
     type ChartSummary,
+    type CreateWarehouseCredentials,
     type Explore,
     type PossibleAbilities,
+    type RegisteredAccount,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { S3CacheClient } from '../../clients/Aws/S3CacheClient';
@@ -34,6 +37,7 @@ import { GroupsModel } from '../../models/GroupsModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import { OnboardingModel } from '../../models/OnboardingModel/OnboardingModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { OrganizationWarehouseCredentialsModel } from '../../models/OrganizationWarehouseCredentialsModel';
 import { ProjectCompileLogModel } from '../../models/ProjectCompileLogModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -278,6 +282,12 @@ const getMockedProjectService = (
         } as unknown as AdminNotificationService,
         spacePermissionService:
             overrides.spacePermissionService ?? ({} as SpacePermissionService),
+        organizationSettingsModel: {
+            get: jest.fn(async () => ({
+                queryLimit: null,
+                csvCellsLimit: null,
+            })),
+        } as unknown as OrganizationSettingsModel,
     });
 
 const account = buildAccount({
@@ -2205,6 +2215,142 @@ describe('ProjectService', () => {
                 account.user.id,
             );
             expect(result.intrinsicUserAttributes).not.toEqual({});
+        });
+    });
+
+    describe('previewDataTimezone', () => {
+        const previewAccount = developerAccount as RegisteredAccount;
+        const noAccessAccount = {
+            ...developerAccount,
+            user: {
+                ...developerAccount.user,
+                ability: new Ability<PossibleAbilities>([]),
+            },
+        } as RegisteredAccount;
+        const credentials = {
+            type: WarehouseTypes.POSTGRES,
+            dataTimezone: 'America/New_York',
+        } as CreateWarehouseCredentials;
+
+        // The aware case derives from currentUtcWallClock(); pin the clock so
+        // the rendered instants are deterministic.
+        beforeEach(() => {
+            jest.useFakeTimers().setSystemTime(
+                new Date('2026-06-08T14:30:00.000Z'),
+            );
+        });
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('throws ForbiddenError when timezone support is disabled', async () => {
+            await expect(
+                service.previewDataTimezone(previewAccount, {
+                    mode: 'create',
+                    credentials,
+                }),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        it('splits the preview into affected naive and unaffected aware groups (edit flow)', async () => {
+            jest.spyOn(
+                service,
+                'isTimezoneSupportEnabled',
+            ).mockResolvedValueOnce(true);
+            (
+                projectModel.getWithSensitiveFields as jest.Mock
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    type: WarehouseTypes.POSTGRES,
+                } as CreateWarehouseCredentials,
+            });
+            (
+                projectModel.getWarehouseClientFromCredentials as jest.Mock
+            ).mockReturnValueOnce({
+                getAdapterType: () => SupportedDbtAdapter.POSTGRES,
+                runQuery: jest.fn(async () => ({
+                    fields: {},
+                    rows: [{ naive_instant: '2026-06-08 18:30:00' }],
+                })),
+            });
+
+            const result = await service.previewDataTimezone(previewAccount, {
+                mode: 'edit',
+                projectUuid: 'projectUuid',
+                warehouseType: WarehouseTypes.POSTGRES,
+                dataTimezone: 'America/New_York',
+            });
+
+            expect(result.projectTimezone).toBe('UTC');
+            expect(result.dataTimezoneApplies).toBe(true);
+            expect(result.naive.interpretedAs).toBe('America/New_York');
+            expect(result.naive.readAs).toBe('2026-06-08, 14:30:00 (-04:00)');
+            expect(result.naive.rendered).toBe('2026-06-08, 18:30:00 (+00:00)');
+            expect(result.aware.raw).toBe('2026-06-08, 14:30:00 (+00:00)');
+            expect(result.aware.rendered).toBe('2026-06-08, 14:30:00 (+00:00)');
+        });
+
+        it('rejects an edit preview when the warehouse type was switched but not saved', async () => {
+            jest.spyOn(
+                service,
+                'isTimezoneSupportEnabled',
+            ).mockResolvedValueOnce(true);
+            (
+                projectModel.getWithSensitiveFields as jest.Mock
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    type: WarehouseTypes.SNOWFLAKE,
+                } as CreateWarehouseCredentials,
+            });
+
+            await expect(
+                service.previewDataTimezone(previewAccount, {
+                    mode: 'edit',
+                    projectUuid: 'projectUuid',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    dataTimezone: 'America/New_York',
+                }),
+            ).rejects.toThrowError(ParameterError);
+        });
+
+        it('throws ForbiddenError when the user cannot update the project (edit flow)', async () => {
+            jest.spyOn(
+                service,
+                'isTimezoneSupportEnabled',
+            ).mockResolvedValueOnce(true);
+            (
+                projectModel.getWithSensitiveFields as jest.Mock
+            ).mockResolvedValueOnce({
+                ...projectWithSensitiveFields,
+                warehouseConnection: {
+                    type: WarehouseTypes.POSTGRES,
+                } as CreateWarehouseCredentials,
+            });
+
+            await expect(
+                service.previewDataTimezone(noAccessAccount, {
+                    mode: 'edit',
+                    projectUuid: 'projectUuid',
+                    warehouseType: WarehouseTypes.POSTGRES,
+                    dataTimezone: 'America/New_York',
+                }),
+            ).rejects.toThrowError(ForbiddenError);
+        });
+
+        it('throws ForbiddenError when the user cannot create projects (create flow)', async () => {
+            jest.spyOn(
+                service,
+                'isTimezoneSupportEnabled',
+            ).mockResolvedValueOnce(true);
+
+            await expect(
+                service.previewDataTimezone(noAccessAccount, {
+                    mode: 'create',
+                    credentials,
+                }),
+            ).rejects.toThrowError(ForbiddenError);
         });
     });
 });

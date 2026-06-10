@@ -57,8 +57,7 @@ const ResultsCard: FC = memo(() => {
     const columnOrder = useExplorerSelector(selectColumnOrder);
 
     // Check if grouped view is available
-    const { isSqlPivotEnabled, isGroupedDisabled } =
-        useGroupedResultsAvailability();
+    const { isGroupedDisabled } = useGroupedResultsAvailability();
     const isGroupedView =
         viewMode === ResultsViewMode.GROUPED && !isGroupedDisabled;
 
@@ -134,7 +133,7 @@ const ResultsCard: FC = memo(() => {
                 resultsIsOpen &&
                 tableName && (
                     <Group spacing="xs" noWrap>
-                        {isSqlPivotEnabled && !isGroupedDisabled && (
+                        {!isGroupedDisabled && (
                             <SegmentedControl
                                 size="xs"
                                 data={[

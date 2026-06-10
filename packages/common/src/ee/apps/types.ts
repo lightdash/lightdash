@@ -45,6 +45,16 @@ export const DATA_APP_TEMPLATES = [
 export type DataAppTemplate = (typeof DATA_APP_TEMPLATES)[number];
 
 /**
+ * Claude model used to generate / iterate the data app inside the sandbox.
+ * Mapped to the Claude CLI's `--model <alias>` flag verbatim. Persisted
+ * per-version on `AppVersionResources.claudeModel` so the user can switch
+ * mid-iteration without losing the record of which model built which version.
+ */
+export const DATA_APP_CLAUDE_MODELS = ['opus', 'sonnet', 'haiku'] as const;
+export type DataAppClaudeModel = (typeof DATA_APP_CLAUDE_MODELS)[number];
+export const DEFAULT_DATA_APP_CLAUDE_MODEL: DataAppClaudeModel = 'sonnet';
+
+/**
  * A saved-chart reference attached to a generation request.
  * `includeSampleData` is opt-in per chart: when true the backend runs the
  * underlying metric query and inlines a small sample of rows into the
@@ -107,6 +117,16 @@ export type GenerateAppRequestBody = {
     // EDITOR/ADMIN, or project admin). When omitted, the app is created as
     // personal and can be moved into a space later.
     spaceUuid?: string;
+    // Claude model to use for this version's generation. Defaults to
+    // DEFAULT_DATA_APP_CLAUDE_MODEL on the backend when absent. Can be
+    // switched between iterations — `claude --continue` keeps the prior
+    // conversation context but accepts a fresh `--model` flag per turn.
+    claudeModel?: DataAppClaudeModel;
+    // Theme (org design) to apply to this app's source tree and system
+    // prompt. Only honored on initial creation — iterations always inherit
+    // from the parent app's `apps.design_uuid`. Omit (or null) for "no
+    // theme"; the org default is resolved server-side when this is null.
+    designUuid?: string | null;
 };
 
 export type ApiClarifyAppRequest = {
@@ -141,6 +161,12 @@ export type AppVersionChartResource = {
     chartKind: string | null;
 };
 
+export type AppVersionDesignSnapshot = {
+    designUuid: string;
+    name: string;
+    fileCount: number;
+};
+
 export type AppVersionResources = {
     images: AppVersionImageResource[];
     charts: AppVersionChartResource[];
@@ -150,6 +176,16 @@ export type AppVersionResources = {
     // own card on the user message — rather than mashing them into the
     // prompt text. Empty array when the user skipped or wasn't asked.
     clarifications: AppClarification[];
+    // Claude model the user picked for this version (sonnet / haiku).
+    // Optional for backwards compatibility — versions built before the picker
+    // shipped don't carry the field; readers should fall back to
+    // DEFAULT_DATA_APP_CLAUDE_MODEL.
+    claudeModel?: DataAppClaudeModel;
+    // Snapshot of the theme used to generate this version (org design). Null
+    // when no theme was applied. Captured at generation time so the chat
+    // history reflects which theme was active even if it was later renamed
+    // or deleted.
+    design?: AppVersionDesignSnapshot | null;
 };
 
 export type ApiAppImageUrlResponse = ApiSuccess<{
@@ -203,6 +239,44 @@ export type ApiUpdateAppResponse = ApiSuccess<{
 }>;
 
 export type ApiCancelAppVersionResponse = ApiSuccessEmpty;
+
+export type ApiRestoreAppVersionResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+}>;
+
+export type ApiDuplicateAppResponse = ApiSuccess<{
+    appUuid: string;
+    version: number;
+}>;
+
+export type PromoteAppAction = 'create' | 'update';
+
+/**
+ * Preview of what promoting a data app from a preview project into its
+ * upstream (production) project will do. Drives the confirmation dialog.
+ */
+export type PromoteAppDiff = {
+    // 'create' on first promotion, 'update' when the preview app is already
+    // linked to a live production app (a new version is appended).
+    action: PromoteAppAction;
+    upstreamProjectUuid: string;
+    upstreamProjectName: string;
+    // The production app that will be updated, or null when it will be created.
+    upstreamAppUuid: string | null;
+    // The space (mirrored by path) the app will land in, or null for the
+    // production project root.
+    space: { name: string; path: string } | null;
+};
+
+export type ApiPromoteAppDiffResponse = ApiSuccess<PromoteAppDiff>;
+
+export type ApiPromoteAppResponse = ApiSuccess<{
+    appUuid: string;
+    projectUuid: string;
+    version: number;
+    action: PromoteAppAction;
+}>;
 
 export type ApiDeleteAppResponse = ApiSuccessEmpty;
 

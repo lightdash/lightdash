@@ -1,29 +1,49 @@
-import { AiAgent, AiMcpServer, WarehouseTypes } from '@lightdash/common';
+import {
+    AiAgent,
+    AiAgentDocumentSummary,
+    AiMcpServer,
+    AiMcpServerConnectionStatus,
+    ProjectContextEntry,
+    WarehouseTypes,
+} from '@lightdash/common';
 // eslint-disable-next-line import/extensions
 import { type OAuthClientProvider } from '@modelcontextprotocol/sdk/client/auth.js';
 import { ModelMessage } from 'ai';
 import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
+import { AiAgentSkillReference } from '../skills/types';
 import {
-    CreateChangeFn,
+    CreateContentFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
+    EditContentFn,
+    EditDbtProjectFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
     GetDashboardChartsFn,
-    GetExploreCompilerFn,
     GetExploreFn,
+    GetKnowledgeDocumentContentFn,
+    GetProjectInfoFn,
     GetPromptFn,
     GetSavedChartFn,
+    ListContentFn,
     ListExploresFn,
+    ListKnowledgeDocumentsFn,
+    ListProjectsFn,
     ListWarehouseTablesFn,
+    LoadAgentSkillFn,
+    ReadContentFn,
     RecordSqlApprovalFn,
+    RepoShellFn,
     RunAsyncQueryFn,
+    RunSavedChartQueryFn,
     RunSqlJobFn,
     SearchFieldValuesFn,
+    SearchSemanticLayerFn,
     SendFileFn,
     SendSlackBlocksFn,
+    SetupPreviewDeployFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -31,6 +51,7 @@ import {
     UpdateProgressFn,
     UpdatePromptFn,
     UpdateSlackMessageFn,
+    ValidateContentFn,
     WaitForSqlApprovalFn,
 } from './aiAgentDependencies';
 
@@ -40,10 +61,22 @@ export type AiAgentMcpServer = AiMcpServer & {
     resolvedCredential: AiMcpCredentialPayload | null;
     resolvedCredentialScope: 'shared' | 'user' | null;
     oauthProvider?: OAuthClientProvider;
+    enabledToolNames?: string[];
+};
+
+export type UnavailableMcpServer = {
+    serverUuid: string;
+    serverName: string;
+    message: string;
+    status: AiMcpServerConnectionStatus;
 };
 
 export type AiAgentArgs = AnyAiModel & {
     agentSettings: AiAgent;
+    knowledgeDocuments: AiAgentDocumentSummary[];
+    projectContext: ProjectContextEntry[];
+    // Whether the project_context feature is on for this turn (Control = off).
+    projectContextEnabled: boolean;
     mcpServers: AiAgentMcpServer[];
     messageHistory: ModelMessage[];
     promptUuid: string;
@@ -54,23 +87,30 @@ export type AiAgentArgs = AnyAiModel & {
     telemetryEnabled: boolean;
     enableDataAccess: boolean;
     enableSelfImprovement: boolean;
+    enableContentTools: boolean;
+    enableSearchSemanticLayer: boolean;
+    enableAiWriteback: boolean;
+    enablePreviewDeploySetup: boolean;
+    enableRepoFs: boolean;
+    // dbt project root within the repo (from project_sub_path); '.' = repo root,
+    // null when repoFs is off or the project is not git-backed.
+    repoFsRoot: string | null;
     canRunSql: boolean;
+    autoApproveSql: boolean;
+    autoApproveSqlUserUuid: string | null;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
+    availableSkills: AiAgentSkillReference[];
+    enableAgentRevamp: boolean;
 
     findExploresFieldSearchSize: number;
     findFieldsPageSize: number;
     getDashboardChartsPageSize: number;
     maxQueryLimit: number;
+    runSqlMaxLimit: number;
     siteUrl: string;
     canManageAgent: boolean;
-    /**
-     * When true, the parent agent registers the `discoverFields` subagent
-     * tool *instead of* the legacy `findExplores` + `findFields` pair.
-     * Gated by `FeatureFlags.AiDiscoverFieldsSubagent` — off by default
-     * during rollout.
-     */
-    useDiscoverFieldsSubagent: boolean;
+    toolHints: string[];
 };
 
 export type PerformanceMetrics = {
@@ -86,16 +126,26 @@ export type PerformanceMetrics = {
 
 export type AiAgentDependencies = {
     listExplores: ListExploresFn;
+    // The whole cached project_context document.
+    getProjectContextDocument: () => Promise<ProjectContextEntry[]>;
+    listContent: ListContentFn;
     findContent: FindContentFn;
+    readContent: ReadContentFn;
+    editContent: EditContentFn;
+    createContent: CreateContentFn;
+    validateContent: ValidateContentFn;
     getDashboardCharts: GetDashboardChartsFn;
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
+    searchSemanticLayer: SearchSemanticLayerFn;
     getExplore: GetExploreFn;
-    getExploreCompiler: GetExploreCompilerFn;
     runAsyncQuery: RunAsyncQueryFn;
+    runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
     listWarehouseTables: ListWarehouseTablesFn;
     describeWarehouseTable: DescribeWarehouseTableFn;
+    listKnowledgeDocuments: ListKnowledgeDocumentsFn;
+    getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;
@@ -109,9 +159,14 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    createChange: CreateChangeFn;
+    editDbtProject: EditDbtProjectFn;
+    setupPreviewDeploy: SetupPreviewDeployFn;
+    repoShell: RepoShellFn;
+    listProjects: ListProjectsFn;
+    getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    loadSkill: LoadAgentSkillFn;
     perf: PerformanceMetrics;
 };
 

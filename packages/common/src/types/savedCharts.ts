@@ -201,6 +201,14 @@ export type GaugeChart = {
     customPercentageLabel?: string;
 };
 
+/**
+ * How nodes are laid out:
+ * - `multi-step`: depth-unrolled journeys (default)
+ * - `merged`: one node per label, journeys preserved (acyclic flows only)
+ * - `direct`: two-column source→target pairs, no chaining
+ */
+export type SankeyNodeLayout = 'multi-step' | 'merged' | 'direct';
+
 export type SankeyChart = {
     /** Field ID for the source node dimension */
     sourceFieldId?: string;
@@ -212,6 +220,8 @@ export type SankeyChart = {
     nodeAlign?: 'left' | 'right' | 'justify';
     /** Orientation of the diagram */
     orient?: 'horizontal' | 'vertical';
+    /** How nodes are laid out across steps */
+    nodeLayout?: SankeyNodeLayout;
 };
 
 export enum MapChartLocation {
@@ -424,6 +434,14 @@ export type TableChart = {
     showResultsTotal?: boolean;
     /** Show subtotal rows */
     showSubtotals?: boolean;
+    /** Default subtotal rows to expanded (vs. collapsed). Only meaningful when showSubtotals is true. */
+    showSubtotalsExpanded?: boolean;
+    /**
+     * Visually deduplicate repeated row-index dimension values across consecutive
+     * rows without showing aggregate subtotal rows. When `showSubtotals` is true,
+     * grouping is implicitly active and this flag is ignored. Defaults to false.
+     */
+    showRowGrouping?: boolean;
     /** Column-specific configuration */
     columns?: Record<string, ColumnProperties>;
     /** Conditional formatting rules */
@@ -564,6 +582,11 @@ export type Series = {
     isFilteredOut?: boolean;
 };
 
+/** High-level legend placement preset. Set to 'outsideRight' or 'outsideLeft' to
+ * render the legend beside the plot with reserved grid space. Undefined behaves
+ * like 'custom' (no override of the existing legend position fields). */
+export type LegendPlacement = 'custom' | 'outsideRight' | 'outsideLeft';
+
 export type EchartsLegend = {
     /** Show the legend */
     show?: boolean;
@@ -595,6 +618,9 @@ export type EchartsLegend = {
         | 'pin'
         | 'arrow'
         | 'none';
+    /** High-level placement preset. Overrides orient/top/right/bottom/left
+     * when set to an outside value. */
+    placement?: LegendPlacement;
 };
 
 export type EchartsGrid = {
@@ -671,6 +697,10 @@ export type XAxis = Axis & {
     sortType?: XAxisSortType;
     /** Enable data zoom slider for this axis */
     enableDataZoom?: boolean;
+    /** Where the initial data-zoom window anchors when data zoom is enabled */
+    dataZoomAnchor?: 'start' | 'end';
+    /** Number of items visible at once in the data-zoom window */
+    dataZoomItemCount?: number;
 };
 
 export enum XAxisSortType {

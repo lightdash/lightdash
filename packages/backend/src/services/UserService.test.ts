@@ -21,6 +21,7 @@ import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
 import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -57,6 +58,7 @@ const userModel = {
     findUserByEmail: jest.fn(async () => undefined),
     createPendingUser: jest.fn(async () => newUser),
     findSessionUserByPrimaryEmail: jest.fn(async () => sessionUser),
+    findServiceAccountByUserUuid: jest.fn(async () => undefined),
     joinOrg: jest.fn(async () => sessionUser),
     hasUsers: jest.fn(async () => false),
 };
@@ -100,6 +102,15 @@ const projectModel = {
 
 const organizationSsoModel = {
     findEnabledMethodsForEmailDomain: jest.fn(async () => []),
+    findGoogleMethodsForEmailDomain: jest.fn(async () => []),
+};
+
+const organizationSettingsModel = {
+    get: jest.fn(async () => ({
+        oidcLinkingEnabled: null,
+        oidcToEmailLinkingEnabled: null,
+    })),
+    update: jest.fn(),
 };
 
 const createUserService = (lightdashConfig: LightdashConfig) =>
@@ -122,6 +133,8 @@ const createUserService = (lightdashConfig: LightdashConfig) =>
             {} as OrganizationAllowedEmailDomainsModel,
         organizationSsoModel:
             organizationSsoModel as unknown as OrganizationSsoModel,
+        organizationSettingsModel:
+            organizationSettingsModel as unknown as OrganizationSettingsModel,
         userWarehouseCredentialsModel: {} as UserWarehouseCredentialsModel,
         warehouseAvailableTablesModel: {} as WarehouseAvailableTablesModel,
         projectModel: projectModel as unknown as ProjectModel,
@@ -144,6 +157,46 @@ describe('UserService', () => {
     afterEach(() => {
         jest.clearAllMocks();
     });
+
+    describe('getAccountByUserUuid', () => {
+        test('should return a session account for normal users', async () => {
+            const account = await userService.getAccountByUserUuid('userUuid');
+
+            expect(userModel.findSessionUserByUUID).toHaveBeenCalledWith(
+                'userUuid',
+            );
+            expect(account.isSessionUser()).toBe(true);
+            expect(account.isServiceAccount()).toBe(false);
+        });
+
+        test('should return a service account when the user backs a service account', async () => {
+            const service = createUserService({
+                ...lightdashConfigMock,
+                serviceAccount: {
+                    enabled: true,
+                },
+            });
+            (
+                userModel.findServiceAccountByUserUuid as jest.Mock
+            ).mockResolvedValueOnce({
+                uuid: 'service-account-uuid',
+                description: 'CI preview',
+                scopes: ['system:developer'],
+                organizationUuid: sessionUser.organizationUuid,
+            });
+
+            const account = await service.getAccountByUserUuid('userUuid');
+
+            expect(account.isServiceAccount()).toBe(true);
+            expect(account.authentication).toMatchObject({
+                type: 'service-account',
+                serviceAccountUuid: 'service-account-uuid',
+                serviceAccountDescription: 'CI preview',
+            });
+            expect(account.user.id).toBe('userUuid');
+        });
+    });
+
     test('should return email and no sso (default case)', async () => {
         expect(await userService.getLoginOptions('test@lightdash.com')).toEqual(
             {
@@ -604,6 +657,495 @@ describe('UserService', () => {
         });
     });
 
+    describe('getLoginOptions per-org Okta SSO discovery', () => {
+        // Per-org Okta config lives in the DB. The instance has NO Okta env
+        // config — discovery must work purely from the stored method, proving
+        // the per-org path is independent of environment variables.
+        const oktaMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.OKTA as unknown as never,
+            config: {
+                oauth2Issuer: 'https://acme.okta.com',
+                oktaDomain: 'acme.okta.com',
+                oauth2ClientId: 'cid',
+                oauth2ClientSecret: 'sec',
+                authorizationServerId: 'default',
+                extraScopes: null,
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        // Google enabled instance-wide, Okta NOT configured via env.
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+                okta: {
+                    ...lightdashConfigMock.auth.okta,
+                    loginPath: '/login/okta',
+                },
+            },
+        };
+
+        test('per-org Okta match suppresses instance Google (returning user with password)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oktaMethod]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'okta'],
+            });
+        });
+
+        test('per-org Okta match + allow_password=false → forceRedirect to /login/okta', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([{ ...oktaMethod, allowPassword: false }]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/okta?login_hint=user%40acme.com',
+                showOptions: ['okta'],
+            });
+        });
+
+        test('brand-new user matching per-org Okta → forceRedirect with login_hint', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oktaMethod]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/okta?login_hint=newbie%40acme.com',
+                showOptions: ['okta'],
+            });
+        });
+
+        test('existing user in a DIFFERENT org → per-org Okta method filtered out (cross-org hijack defence)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oktaMethod]); // org-1
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'victim-uuid',
+                email: 'victim@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-2', organizationName: 'Victim Org' },
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('victim@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                // No Okta — the matching method belonged to a different org
+                showOptions: ['email'],
+            });
+        });
+    });
+
+    describe('getLoginOptions per-org generic OIDC discovery', () => {
+        // Per-org OIDC config lives in the DB; the instance has no OIDC env
+        // config. Proves the generic discovery path maps provider 'oidc' to the
+        // GENERIC_OIDC login option independently of env config.
+        const oidcMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.GENERIC_OIDC as unknown as never,
+            config: {
+                clientId: 'cid',
+                clientSecret: 'sec',
+                metadataDocumentEndpoint:
+                    'https://idp.acme.com/.well-known/openid-configuration',
+                scopes: null,
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+                oidc: {
+                    ...lightdashConfigMock.auth.oidc,
+                    loginPath: '/login/oidc',
+                },
+            },
+        };
+
+        test('per-org OIDC match suppresses instance Google (returning user with password)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oidcMethod]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'oidc'],
+            });
+        });
+
+        test('brand-new user matching per-org OIDC → forceRedirect to /login/oidc', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oidcMethod]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/oidc?login_hint=newbie%40acme.com',
+                showOptions: ['oidc'],
+            });
+        });
+    });
+
+    describe('getLoginOptions per-org OneLogin discovery', () => {
+        const oneLoginMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.ONELOGIN as unknown as never,
+            config: {
+                oauth2Issuer: 'https://acme.onelogin.com',
+                oauth2ClientId: 'cid',
+                oauth2ClientSecret: 'sec',
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+                oneLogin: {
+                    ...lightdashConfigMock.auth.oneLogin,
+                    loginPath: '/login/oneLogin',
+                },
+            },
+        };
+
+        test('per-org OneLogin match suppresses instance Google (returning user with password)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oneLoginMethod]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'oneLogin'],
+            });
+        });
+
+        test('brand-new user matching per-org OneLogin → forceRedirect to /login/oneLogin', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oneLoginMethod]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: true,
+                redirectUri:
+                    'https://test.lightdash.cloud/api/v1/login/oneLogin?login_hint=newbie%40acme.com',
+                showOptions: ['oneLogin'],
+            });
+        });
+    });
+
+    describe('getLoginOptions per-org Google provider', () => {
+        const configWithGoogleEnv: LightdashConfig = {
+            ...lightdashConfigMock,
+            auth: {
+                ...lightdashConfigMock.auth,
+                google: {
+                    ...lightdashConfigMock.auth.google,
+                    enabled: true,
+                    loginPath: '/login/google',
+                },
+            },
+        };
+
+        const oktaMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.OKTA as unknown as never,
+            config: {
+                oauth2Issuer: 'https://acme.okta.com',
+                oktaDomain: 'acme.okta.com',
+                oauth2ClientId: 'cid',
+                oauth2ClientSecret: 'sec',
+                authorizationServerId: 'default',
+                extraScopes: null,
+            },
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        const googleMethod = {
+            organizationUuid: 'org-1',
+            provider: OpenIdIdentityIssuerType.GOOGLE as unknown as never,
+            config: {},
+            enabled: true,
+            overrideEmailDomains: false,
+            emailDomains: [],
+            allowPassword: true,
+        };
+
+        test('an enabled Google row is shown alongside other per-org SSO (flows through discovery)', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([oktaMethod, googleMethod]);
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: true,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('user@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'okta', 'google'],
+            });
+        });
+
+        test('org disabled Google (no other SSO) → Google dropped from the new-signup fallback', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                false,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('newbie@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email'],
+            });
+        });
+
+        test('returning user with a linked Google identity but org disabled Google → Google hidden', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'member-uuid',
+                email: 'member@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-1', organizationName: 'Acme Org' },
+            ]);
+            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
+                OpenIdIdentityIssuerType.GOOGLE,
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('member@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email'],
+            });
+        });
+
+        test('disabling policy is ignored for a non-member (cross-org) → Google stays', async () => {
+            (
+                organizationSsoModel.findEnabledMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'outsider-uuid',
+                email: 'outsider@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-2', organizationName: 'Other Org' },
+            ]);
+            (userModel.getOpenIdIssuers as jest.Mock).mockResolvedValueOnce([
+                OpenIdIdentityIssuerType.GOOGLE,
+            ]);
+            (userModel.hasPasswordByEmail as jest.Mock).mockResolvedValueOnce(
+                true,
+            );
+
+            const service = createUserService(configWithGoogleEnv);
+            expect(await service.getLoginOptions('outsider@acme.com')).toEqual({
+                forceRedirect: false,
+                redirectUri: undefined,
+                showOptions: ['email', 'google'],
+            });
+        });
+    });
+
+    describe('isLoginMethodAllowed Google per-org opt-out', () => {
+        test('allows Google when the domain has no per-org policy', async () => {
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([]);
+            expect(
+                await userService.isLoginMethodAllowed(
+                    'user@acme.com',
+                    OpenIdIdentityIssuerType.GOOGLE,
+                ),
+            ).toBe(true);
+        });
+
+        test('blocks Google when the owning org disabled it', async () => {
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce(
+                undefined,
+            );
+            expect(
+                await userService.isLoginMethodAllowed(
+                    'user@acme.com',
+                    OpenIdIdentityIssuerType.GOOGLE,
+                ),
+            ).toBe(false);
+        });
+
+        test('allows Google for a non-member even if another org disabled it (cross-org)', async () => {
+            (
+                organizationSsoModel.findGoogleMethodsForEmailDomain as jest.Mock
+            ).mockResolvedValueOnce([
+                {
+                    organizationUuid: 'org-1',
+                    enabled: false,
+                    allowPassword: true,
+                },
+            ]);
+            (userModel.findUserByEmail as jest.Mock).mockResolvedValueOnce({
+                userUuid: 'outsider-uuid',
+                email: 'outsider@acme.com',
+            });
+            (
+                userModel.getOrganizationsForUser as jest.Mock
+            ).mockResolvedValueOnce([
+                { organizationUuid: 'org-2', organizationName: 'Other Org' },
+            ]);
+            expect(
+                await userService.isLoginMethodAllowed(
+                    'outsider@acme.com',
+                    OpenIdIdentityIssuerType.GOOGLE,
+                ),
+            ).toBe(true);
+        });
+    });
+
     describe('loginWithOpenId', () => {
         test('should throw error if provider not allowed', async () => {
             await expect(
@@ -727,6 +1269,43 @@ describe('UserService', () => {
                 0,
             );
         });
+        test('links via per-org OIDC linking even when the instance env flag is off', async () => {
+            // Instance env flags are off (default config); the org opts in
+            // through organization_settings.
+            (organizationSettingsModel.get as jest.Mock).mockResolvedValueOnce({
+                oidcLinkingEnabled: true,
+                oidcToEmailLinkingEnabled: false,
+            });
+
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ userId: sessionUser.userId }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+        });
+        test('links via per-org OIDC-to-email linking even when the instance env flag is off', async () => {
+            // No matching OIDC identity → the OIDC-linking gate is skipped; the
+            // user is matched by verified primary email and the org opts in.
+            (
+                openIdIdentityModel.findIdentitiesByEmail as jest.Mock
+            ).mockResolvedValueOnce([]);
+            (organizationSettingsModel.get as jest.Mock).mockResolvedValueOnce({
+                oidcLinkingEnabled: false,
+                oidcToEmailLinkingEnabled: true,
+            });
+
+            await userService.loginWithOpenId(openIdUser, undefined, undefined);
+
+            expect(
+                openIdIdentityModel.createIdentity as jest.Mock,
+            ).toHaveBeenCalledWith(
+                expect.objectContaining({ userId: sessionUser.userId }),
+            );
+            expect(userModel.createUser as jest.Mock).toHaveBeenCalledTimes(0);
+        });
         test('should update openid ', async () => {
             // Mock that identity is found for that openid
             (
@@ -818,6 +1397,13 @@ describe('UserService', () => {
                         async () => undefined,
                     ),
                 } as unknown as OrganizationSsoModel,
+                organizationSettingsModel: {
+                    get: jest.fn(async () => ({
+                        oidcLinkingEnabled: null,
+                        oidcToEmailLinkingEnabled: null,
+                    })),
+                    update: jest.fn(),
+                } as unknown as OrganizationSettingsModel,
                 userWarehouseCredentialsModel:
                     {} as UserWarehouseCredentialsModel,
                 warehouseAvailableTablesModel:
@@ -887,6 +1473,13 @@ describe('UserService', () => {
                         async () => undefined,
                     ),
                 } as unknown as OrganizationSsoModel,
+                organizationSettingsModel: {
+                    get: jest.fn(async () => ({
+                        oidcLinkingEnabled: null,
+                        oidcToEmailLinkingEnabled: null,
+                    })),
+                    update: jest.fn(),
+                } as unknown as OrganizationSettingsModel,
                 userWarehouseCredentialsModel:
                     {} as UserWarehouseCredentialsModel,
                 warehouseAvailableTablesModel:

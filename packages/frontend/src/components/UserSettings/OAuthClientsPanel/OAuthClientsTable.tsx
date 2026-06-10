@@ -1,11 +1,28 @@
 import { type OAuthClientSummary } from '@lightdash/common';
-import { ActionIcon, Group, Table, Text, Tooltip } from '@mantine-8/core';
-import { IconPencil, IconTrash } from '@tabler/icons-react';
+import {
+    ActionIcon,
+    CopyButton,
+    Group,
+    Menu,
+    Paper,
+    Table,
+    Text,
+    Tooltip,
+} from '@mantine-8/core';
+import {
+    IconCheck,
+    IconCopy,
+    IconDots,
+    IconPencil,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useState, type FC } from 'react';
+import { useTableStyles } from '../../../hooks/styles/useTableStyles';
 import { useDeleteOAuthClient } from '../../../hooks/useOAuthClients';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import { EditOAuthClientModal } from './EditOAuthClientModal';
+import classesModule from './OAuthClientsTable.module.css';
 
 const OAuthClientRow: FC<{
     client: OAuthClientSummary;
@@ -19,45 +36,76 @@ const OAuthClientRow: FC<{
         <>
             <Table.Tr>
                 <Table.Td>
-                    <Text fw={500} size="sm">
+                    <Text fw={500} fz="sm">
                         {client.clientName}
                     </Text>
                 </Table.Td>
                 <Table.Td>
-                    <Text size="sm" c="dimmed" ff="monospace">
-                        {client.clientId}
-                    </Text>
+                    <Group gap="xs" wrap="nowrap">
+                        <Text
+                            fz="sm"
+                            c="dimmed"
+                            className={classesModule.clientId}
+                        >
+                            {client.clientId}
+                        </Text>
+                        <CopyButton value={client.clientId}>
+                            {({ copied, copy }) => (
+                                <Tooltip
+                                    label={copied ? 'Copied' : 'Copy'}
+                                    withArrow
+                                    position="right"
+                                >
+                                    <ActionIcon
+                                        size="xs"
+                                        onClick={copy}
+                                        variant="transparent"
+                                        color="ldGray.6"
+                                    >
+                                        <MantineIcon
+                                            icon={copied ? IconCheck : IconCopy}
+                                        />
+                                    </ActionIcon>
+                                </Tooltip>
+                            )}
+                        </CopyButton>
+                    </Group>
                 </Table.Td>
                 <Table.Td>
-                    <Text size="sm" c="dimmed">
-                        {client.redirectUris.join(', ')}
-                    </Text>
+                    <Text fz="sm">{client.redirectUris.join(', ')}</Text>
                 </Table.Td>
                 <Table.Td>
-                    <Text size="sm" c="dimmed">
+                    <Text fz="sm">
                         {new Date(client.createdAt).toLocaleDateString()}
                     </Text>
                 </Table.Td>
-                <Table.Td>
-                    <Group justify="flex-end" gap="xs">
-                        <Tooltip label="Edit" position="left">
+                <Table.Td w="1%">
+                    <Menu withinPortal position="bottom-end">
+                        <Menu.Target>
                             <ActionIcon
-                                variant="subtle"
+                                variant="transparent"
+                                size="sm"
+                                color="ldGray.6"
+                            >
+                                <MantineIcon icon={IconDots} />
+                            </ActionIcon>
+                        </Menu.Target>
+                        <Menu.Dropdown>
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconPencil} />}
                                 onClick={() => setIsEditModalOpen(true)}
                             >
-                                <MantineIcon icon={IconPencil} />
-                            </ActionIcon>
-                        </Tooltip>
-                        <Tooltip label="Delete" position="left">
-                            <ActionIcon
-                                variant="subtle"
+                                Edit
+                            </Menu.Item>
+                            <Menu.Item
+                                leftSection={<MantineIcon icon={IconTrash} />}
                                 color="red"
                                 onClick={() => setIsDeleteModalOpen(true)}
                             >
-                                <MantineIcon icon={IconTrash} />
-                            </ActionIcon>
-                        </Tooltip>
-                    </Group>
+                                Delete
+                            </Menu.Item>
+                        </Menu.Dropdown>
+                    </Menu>
                 </Table.Td>
             </Table.Tr>
 
@@ -97,21 +145,31 @@ const OAuthClientRow: FC<{
 
 export const OAuthClientsTable: FC<{
     clients: OAuthClientSummary[];
-}> = ({ clients }) => (
-    <Table highlightOnHover>
-        <Table.Thead>
-            <Table.Tr>
-                <Table.Th>Name</Table.Th>
-                <Table.Th>Client ID</Table.Th>
-                <Table.Th>Redirect URIs</Table.Th>
-                <Table.Th>Created</Table.Th>
-                <Table.Th />
-            </Table.Tr>
-        </Table.Thead>
-        <Table.Tbody>
-            {clients.map((client) => (
-                <OAuthClientRow key={client.clientId} client={client} />
-            ))}
-        </Table.Tbody>
-    </Table>
-);
+}> = ({ clients }) => {
+    const { cx, classes } = useTableStyles();
+
+    return (
+        <Paper withBorder style={{ overflow: 'hidden' }}>
+            <Table className={cx(classes.root, classes.alignLastTdRight)}>
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th className={classesModule.nameColumn}>
+                            Name
+                        </Table.Th>
+                        <Table.Th>Client ID</Table.Th>
+                        <Table.Th className={classesModule.redirectColumn}>
+                            Redirect URIs
+                        </Table.Th>
+                        <Table.Th>Created</Table.Th>
+                        <Table.Th />
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                    {clients.map((client) => (
+                        <OAuthClientRow key={client.clientId} client={client} />
+                    ))}
+                </Table.Tbody>
+            </Table>
+        </Paper>
+    );
+};

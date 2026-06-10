@@ -75,6 +75,7 @@ const ENTERPRISE_SUBJECTS = new Set([
     'MetricsTree',
     'SpotlightTableConfig',
     'AiAgent',
+    'AiAgentDocument',
     'AiAgentThread',
     'ContentAsCode',
     'PreAggregation',
@@ -129,6 +130,7 @@ const PROJECT_PARITY_IGNORE = new Set([
     // Case 1: org-only subjects.
     '*:OrganizationMemberProfile',
     '*:Organization',
+    '*:OrganizationDesign',
     '*:Group',
     '*:InviteLink',
     '*:GitIntegration',

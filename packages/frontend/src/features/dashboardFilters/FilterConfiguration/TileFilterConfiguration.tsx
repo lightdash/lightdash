@@ -35,6 +35,7 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../components/common/ResourceIcon/utils';
 import useDashboardTileStatusContext from '../../../providers/Dashboard/useDashboardTileStatusContext';
 import { FilterActions } from './constants';
+import classes from './FilterConfiguration.module.css';
 import { getFilterTileRelation } from './utils';
 
 type TileWithTargetFields = {
@@ -629,7 +630,7 @@ const TileFilterConfiguration: FC<Props> = ({
         );
 
     return (
-        <Stack spacing="xl" mah={600} style={{ overflow: 'auto' }}>
+        <Stack spacing="xl" className={classes.tileScrollArea}>
             <Checkbox
                 size="xs"
                 checked={isAllChecked}

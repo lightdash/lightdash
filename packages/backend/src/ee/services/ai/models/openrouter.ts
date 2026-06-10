@@ -13,6 +13,7 @@ export const getOpenRouterModel = (
     const openrouter = createOpenRouter({
         apiKey: `${config.apiKey}`,
         compatibility: 'strict',
+        headers: config.customHeaders,
         extraBody: {
             /** @ref https://openrouter.ai/docs/features/provider-routing */
             provider: {

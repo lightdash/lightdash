@@ -210,6 +210,24 @@ export const isWithValueFilter = (filterOperator: FilterOperator) =>
     filterOperator !== FilterOperator.NOT_NULL &&
     filterOperator !== FilterOperator.IN_PERIOD_TO_DATE;
 
+/**
+ * A dashboard filter is "malformed empty" when it is active (not disabled),
+ * uses an operator that requires values, and has no values. These filters
+ * look empty in the UI but still override chart-level filters at runtime,
+ * which is surprising. See PROD-7445.
+ *
+ * `values` is checked with Array.isArray to tolerate hand-authored YAML
+ * where `values:` or `values: ~` parses to JS `null` instead of `[]`.
+ */
+export const isMalformedEmptyDashboardFilter = (filter: {
+    operator: FilterOperator;
+    values?: unknown[] | null;
+    disabled?: boolean;
+}): boolean =>
+    filter.disabled !== true &&
+    isWithValueFilter(filter.operator) &&
+    (!Array.isArray(filter.values) || filter.values.length === 0);
+
 export const getFilterRuleWithDefaultValue = <T extends FilterRule>(
     filterType: FilterType,
     field: FilterableField | undefined,
@@ -908,11 +926,15 @@ export const getDashboardFiltersForTile = (
     ]),
 });
 
+// When a dashboard has no tabs, the lock toggle stores the dashboard uuid as
+// a sentinel in lockedTabUuids — so any non-empty list means "locked".
 export const isFilterLockedOnTab = (
     rule: Pick<DashboardFilterRule, 'lockedTabUuids'>,
     tabUuid: string | undefined,
+    hasTabs: boolean,
 ): boolean => {
     if (!rule.lockedTabUuids || rule.lockedTabUuids.length === 0) return false;
+    if (!hasTabs) return true;
     if (!tabUuid) return false;
     return rule.lockedTabUuids.includes(tabUuid);
 };
@@ -920,10 +942,11 @@ export const isFilterLockedOnTab = (
 const buildLockedTargetKeysForTab = (
     rules: DashboardFilterRule[],
     tabUuid: string | undefined,
+    hasTabs: boolean,
 ): Set<string> => {
     const keys = new Set<string>();
     rules.forEach((rule) => {
-        if (isFilterLockedOnTab(rule, tabUuid)) {
+        if (isFilterLockedOnTab(rule, tabUuid, hasTabs)) {
             keys.add(`${rule.target.tableName}::${rule.target.fieldId}`);
         }
     });
@@ -956,25 +979,27 @@ export type StripOverridesForLockedFiltersResult = {
 
 /**
  * Drop override rules that target a field whose saved filter is locked on the
- * given tab. When `tabUuid` is undefined nothing is stripped — lock state only
- * applies when we know which tab is being evaluated.
+ * given tab. For tab-less dashboards (`hasTabs=false`) any non-empty
+ * `lockedTabUuids` is treated as a dashboard-wide lock. For tabbed dashboards
+ * `tabUuid` is required to decide; when undefined nothing is stripped.
  */
 export const stripOverridesForLockedFiltersOnTab = (
     saved: DashboardFilters,
     overrides: DashboardFilters,
     tabUuid: string | undefined,
+    hasTabs: boolean,
 ): StripOverridesForLockedFiltersResult => {
     const dimensions = dropRulesTargetingLockedFields(
         overrides.dimensions,
-        buildLockedTargetKeysForTab(saved.dimensions, tabUuid),
+        buildLockedTargetKeysForTab(saved.dimensions, tabUuid, hasTabs),
     );
     const metrics = dropRulesTargetingLockedFields(
         overrides.metrics,
-        buildLockedTargetKeysForTab(saved.metrics, tabUuid),
+        buildLockedTargetKeysForTab(saved.metrics, tabUuid, hasTabs),
     );
     const tableCalculations = dropRulesTargetingLockedFields(
         overrides.tableCalculations,
-        buildLockedTargetKeysForTab(saved.tableCalculations, tabUuid),
+        buildLockedTargetKeysForTab(saved.tableCalculations, tabUuid, hasTabs),
     );
     return {
         filters: {

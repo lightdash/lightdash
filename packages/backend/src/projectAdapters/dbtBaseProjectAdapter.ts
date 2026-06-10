@@ -19,6 +19,7 @@ import {
     InlineErrorType,
     isSupportedDbtAdapter,
     loadLightdashProjectConfig,
+    loadProjectContextFile,
     ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
@@ -27,6 +28,7 @@ import {
     SupportedDbtAdapter,
     SupportedDbtVersions,
     type LightdashProjectConfig,
+    type ProjectContextEntry,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -143,6 +145,31 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 return {
                     spotlight: DEFAULT_SPOTLIGHT_CONFIG,
                 };
+            }
+            throw e;
+        }
+    }
+
+    public async getProjectContext(): Promise<ProjectContextEntry[]> {
+        if (!this.dbtProjectDir) {
+            return [];
+        }
+
+        const configPath = path.join(
+            this.dbtProjectDir,
+            'lightdash.project_context.yml',
+        );
+
+        try {
+            const fileContents = await fs.readFile(configPath, 'utf8');
+            return loadProjectContextFile(fileContents);
+        } catch (e) {
+            Logger.debug(
+                `No lightdash.project_context.yml found in ${configPath}`,
+            );
+
+            if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+                return [];
             }
             throw e;
         }

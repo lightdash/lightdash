@@ -23,7 +23,6 @@ import {
     SegmentedControl,
     Stack,
     Text,
-    TextInput,
     Title,
     Tooltip,
     UnstyledButton,
@@ -36,20 +35,12 @@ import {
     IconCopy,
     IconDatabase,
     IconDots,
-    IconFilter,
-    IconSearch,
     IconSettings,
     IconTerminal2,
     IconTextCaption,
     IconTrash,
     IconUser,
-    IconX,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import {
@@ -58,6 +49,12 @@ import {
 } from '../../../hooks/useActiveProject';
 import { useProjects } from '../../../hooks/useProjects';
 import useApp from '../../../providers/App/useApp';
+import {
+    ContentTableSearchInput,
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+} from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
 import {
@@ -83,7 +80,7 @@ const WAREHOUSE_LABELS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.TRINO]: 'Trino',
     [WarehouseTypes.CLICKHOUSE]: 'ClickHouse',
     [WarehouseTypes.ATHENA]: 'Athena',
-    [WarehouseTypes.DUCKDB]: 'MotherDuck',
+    [WarehouseTypes.DUCKDB]: 'DuckDB',
 };
 
 const CopyableCommand: FC<{ label: string; command: string }> = ({
@@ -277,7 +274,7 @@ const ProjectManagementPanel: FC = () => {
         [lastProjectUuid, navigate, updateActiveProjectMutation],
     );
 
-    const columns: MRT_ColumnDef<OrganizationProject>[] = useMemo(
+    const columns: ContentTableColumnDef<OrganizationProject>[] = useMemo(
         () => [
             {
                 id: 'select',
@@ -582,9 +579,20 @@ const ProjectManagementPanel: FC = () => {
     );
 
     const hasActiveFilters =
-        selectedWarehouses.length > 0 || selectedCreators.length > 0;
+        search.length > 0 ||
+        activeFilter !== ProjectTypeFilter.ALL ||
+        selectedWarehouses.length > 0 ||
+        selectedCreators.length > 0;
 
-    const table = useMantineReactTable({
+    const resetAllFilters = useCallback(() => {
+        setSearch('');
+        setSelectedProjects([]);
+        setSelectedWarehouses([]);
+        setSelectedCreators([]);
+        setActiveFilter(ProjectTypeFilter.ALL);
+    }, []);
+
+    const table = useContentTable({
         columns,
         data: filteredProjects,
         enableColumnActions: false,
@@ -629,33 +637,12 @@ const ProjectManagementPanel: FC = () => {
         mantineTableProps: {
             highlightOnHover: true,
         },
-        renderEmptyRowsFallback: () => (
-            <Center className={classes.emptyState}>
-                <MantineIcon
-                    icon={search ? IconSearch : IconFilter}
-                    size="xl"
-                    color="ldGray.4"
-                    className={classes.emptyStateIcon}
-                />
-                <Text fz="sm" fw={500} c="ldGray.6">
-                    {search
-                        ? `No projects matching "${search}"`
-                        : 'No projects match the current filters'}
-                </Text>
-                <Button
-                    variant="subtle"
-                    size="xs"
-                    onClick={() => {
-                        setSearch('');
-                        setSelectedWarehouses([]);
-                        setSelectedCreators([]);
-                        setActiveFilter(ProjectTypeFilter.ALL);
-                    }}
-                >
-                    Clear all filters
-                </Button>
-            </Center>
-        ),
+        emptyState: {
+            entityName: 'projects',
+            hasActiveFilters,
+            onClearFilters: resetAllFilters,
+            search,
+        },
         state: {
             isLoading: isLoadingProjects || isLoadingLastProject,
         },
@@ -671,38 +658,10 @@ const ProjectManagementPanel: FC = () => {
                         variant="xs"
                         label="Search by project name"
                     >
-                        <TextInput
-                            size="xs"
-                            radius="md"
-                            type="search"
-                            variant="default"
+                        <ContentTableSearchInput
                             placeholder="Search projects..."
                             value={search}
-                            classNames={{
-                                input: search
-                                    ? classes.searchInputWithValue
-                                    : classes.searchInput,
-                            }}
-                            leftSection={
-                                <MantineIcon
-                                    size="md"
-                                    color="ldGray.6"
-                                    icon={IconSearch}
-                                />
-                            }
-                            onChange={(e) => setSearch(e.target.value)}
-                            rightSection={
-                                search && (
-                                    <ActionIcon
-                                        onClick={() => setSearch('')}
-                                        variant="transparent"
-                                        size="xs"
-                                        color="ldGray.5"
-                                    >
-                                        <MantineIcon icon={IconX} />
-                                    </ActionIcon>
-                                )
-                            }
+                            onChange={setSearch}
                         />
                     </Tooltip>
 
@@ -993,10 +952,7 @@ const ProjectManagementPanel: FC = () => {
                                 variant="subtle"
                                 size="sm"
                                 color="gray"
-                                onClick={() => {
-                                    setSelectedWarehouses([]);
-                                    setSelectedCreators([]);
-                                }}
+                                onClick={resetAllFilters}
                             >
                                 <MantineIcon icon={IconTrash} />
                             </ActionIcon>
@@ -1046,7 +1002,7 @@ const ProjectManagementPanel: FC = () => {
                 )}
             </Group>
 
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             {deletingProjectUuid ? (
                 <ProjectDeleteModal

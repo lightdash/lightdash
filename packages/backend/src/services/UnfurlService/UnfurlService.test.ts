@@ -7,6 +7,7 @@ import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { type SlackClient } from '../../clients/Slack/SlackClient';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { type AppModel } from '../../models/AppModel';
 import { type DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { type DownloadFileModel } from '../../models/DownloadFileModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -61,6 +62,7 @@ function createService(
         savedChartModel: {} as unknown as SavedChartModel,
         savedSqlModel: (overrides.savedSqlModel ??
             {}) as unknown as SavedSqlModel,
+        appModel: {} as unknown as AppModel,
         shareModel: {} as unknown as ShareModel,
         fileStorageClient:
             mockFileStorageClient as unknown as FileStorageClient,

@@ -1,8 +1,7 @@
 import {
-    TOOL_DISPLAY_MESSAGES,
-    TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
+    type AiAgentToolResult,
     type AiAgentToolName,
-    friendlyName,
+    type AiMcpServer,
     isToolName,
     type ToolName,
 } from '@lightdash/common';
@@ -19,31 +18,48 @@ import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { ToolCallChip } from './ToolCallChip';
+import { ToolCallIcon } from './ToolCallIcon';
 import styles from './ToolCallRow.module.css';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
-import { getToolIcon } from './utils/toolIcons';
+import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
+import {
+    getMcpServerForToolName,
+    getMcpToolDisplayMetadata,
+    getMcpToolDisplayName,
+} from './utils/mcpToolDisplay';
+import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { type ToolCallSummary } from './utils/types';
 
+// Tools whose ToolCallDescription returns an empty fragment. Tracked here
+// so the row doesn't render a chevron + clickable header that expand into
+// blank space. Keep in sync with the empty `return <></>` cases in
+// ToolCallDescription.tsx.
 const TOOLS_WITHOUT_DESCRIPTION = new Set<ToolName>([
+    'generateHashes',
+    'generateUuids',
+    'getProjectInfo',
     'improveContext',
+    'listKnowledgeDocuments',
+    'listProjects',
+    'loadSkill',
+    'loadProjectContext',
     'proposeChange',
+    'editDbtProject',
     'runSavedChart',
-    'listWarehouseTables',
-    'describeWarehouseTable',
 ]);
 
 // Tools whose description renders something tall (e.g. a code block) and can't
 // be sensibly clipped to a single-line preview — collapse to verb + chevron.
 const HIDE_INLINE_PREVIEW = new Set<ToolName>(['runSql']);
 
+const INLINE_CHIP_PREVIEW_TOOLS = new Set<ToolName>([
+    'readContent',
+    'editContent',
+    'createContent',
+]);
+
 // Max chips shown inline when collapsed before "+N more".
 const MAX_CHIPS_COLLAPSED = 3;
-
-const getMcpDisplayName = (toolName: string) => {
-    const maybeServerName = toolName.replace(/^mcp_/, '').split('__')[0];
-
-    return maybeServerName ? friendlyName(maybeServerName) : 'Tool';
-};
 
 export type ToolCallRowStatus = 'running' | 'done' | 'error';
 
@@ -51,36 +67,58 @@ type Props = {
     toolName: AiAgentToolName;
     toolCalls: ToolCallSummary[];
     status?: ToolCallRowStatus;
+    mcpServers?: AiMcpServer[];
     /**
      * Optional extra content rendered inside the expanded body, below the
      * per-call descriptions. Used to surface things like the discoverFields
      * subagent trace.
      */
     extraBody?: React.ReactNode;
+    toolResults?: AiAgentToolResult[];
+    display?: ToolCallGroupDisplay;
 };
 
 export const ToolCallRow: FC<Props> = ({
     toolName,
     toolCalls,
     status = 'done',
+    mcpServers,
     extraBody,
+    toolResults,
+    display,
 }) => {
-    const Icon = getToolIcon(toolName);
     const builtInToolName = isToolName(toolName) ? toolName : null;
+    const linkedMcpServer =
+        toolCalls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
+        undefined;
+    const mcpServer = builtInToolName
+        ? undefined
+        : (linkedMcpServer ?? getMcpServerForToolName(toolName, mcpServers));
+    const mcpDisplayMetadata = builtInToolName
+        ? undefined
+        : getMcpToolDisplayMetadata(toolName, mcpServer);
+    const mcpToolDisplayName = builtInToolName
+        ? null
+        : getMcpToolDisplayName(toolName);
     const label = builtInToolName
-        ? status === 'running'
-            ? TOOL_DISPLAY_MESSAGES[builtInToolName]
-            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[builtInToolName]
+        ? getToolCallDisplayMessage({
+              toolName: builtInToolName,
+              calls: toolCalls,
+              display,
+              status: status === 'running' ? 'running' : 'done',
+          })
         : null;
+    const hasCallDescription = (toolCall: ToolCallSummary) =>
+        isToolName(toolCall.toolName) &&
+        !TOOLS_WITHOUT_DESCRIPTION.has(toolCall.toolName);
     const hasDescription =
-        (builtInToolName && !TOOLS_WITHOUT_DESCRIPTION.has(builtInToolName)) ||
-        Boolean(extraBody);
+        toolCalls.some(hasCallDescription) || Boolean(extraBody);
     const isGrouped = toolCalls.length > 1;
     const [expanded, setExpanded] = useState(false);
 
     const chipLabels: (string | null)[] = toolCalls.map((tc) =>
-        builtInToolName
-            ? getToolCallChipLabel(builtInToolName, tc.toolArgs)
+        isToolName(tc.toolName)
+            ? getToolCallChipLabel(tc.toolName, tc.toolArgs)
             : null,
     );
     const visibleChips = chipLabels
@@ -96,16 +134,35 @@ export const ToolCallRow: FC<Props> = ({
     const renderInlinePreview = (): React.ReactNode => {
         if (
             !isGrouped &&
+            visibleChips.length > 0 &&
+            isToolName(toolCalls[0].toolName) &&
+            INLINE_CHIP_PREVIEW_TOOLS.has(toolCalls[0].toolName)
+        ) {
+            return (
+                <Group gap={4} wrap="nowrap" className={styles.chips}>
+                    <ToolCallChip className={styles.chipAppear}>
+                        {visibleChips[0].label}
+                    </ToolCallChip>
+                </Group>
+            );
+        }
+
+        if (
+            !isGrouped &&
             hasDescription &&
-            builtInToolName &&
-            !HIDE_INLINE_PREVIEW.has(builtInToolName)
+            isToolName(toolCalls[0].toolName) &&
+            !HIDE_INLINE_PREVIEW.has(toolCalls[0].toolName)
         ) {
             // Single call: show its description; clipped to one line by CSS.
             return (
                 <Box className={styles.inlineDescription}>
                     <ToolCallDescription
-                        toolName={builtInToolName}
+                        toolName={toolCalls[0].toolName}
                         toolCall={toolCalls[0]}
+                        toolResult={toolResults?.find(
+                            (result) =>
+                                result.toolCallId === toolCalls[0].toolCallId,
+                        )}
                     />
                 </Box>
             );
@@ -139,11 +196,12 @@ export const ToolCallRow: FC<Props> = ({
 
     const head = (
         <Group gap={8} align="center" wrap="nowrap" className={styles.head}>
-            <MantineIcon
-                icon={Icon}
+            <ToolCallIcon
+                toolName={toolName}
                 size={13}
                 stroke={1.6}
                 className={styles.icon}
+                mcpServer={mcpServer}
                 data-status={status}
             />
             {label ? (
@@ -152,9 +210,9 @@ export const ToolCallRow: FC<Props> = ({
                 </Text>
             ) : (
                 <Text size="xs" className={styles.label}>
-                    Used MCP {getMcpDisplayName(toolName)}:{' '}
+                    Used {mcpDisplayMetadata?.label ?? 'MCP'}:{' '}
                     <ToolCallChip maxWidth={260} className={styles.mcpToolChip}>
-                        {toolName}
+                        {mcpToolDisplayName}
                     </ToolCallChip>
                 </Text>
             )}
@@ -167,9 +225,7 @@ export const ToolCallRow: FC<Props> = ({
                     icon={IconChevronRight}
                     size={11}
                     stroke={1.6}
-                    className={`${styles.chevron} ${
-                        expanded ? styles.chevronOpen : ''
-                    }`}
+                    className={`${styles.chevron} ${expanded ? styles.chevronOpen : ''}`}
                 />
             )}
         </Group>
@@ -194,16 +250,20 @@ export const ToolCallRow: FC<Props> = ({
                 transitionDuration={240}
                 transitionTimingFunction="cubic-bezier(0.16, 1, 0.3, 1)"
             >
-                <Stack gap={8} className={styles.body}>
-                    {builtInToolName
-                        ? toolCalls.map((tc) => (
-                              <ToolCallDescription
-                                  key={tc.toolCallId}
-                                  toolName={builtInToolName}
-                                  toolCall={tc}
-                              />
-                          ))
-                        : null}
+                <Stack gap={4} className={styles.body}>
+                    {toolCalls.map((tc) =>
+                        isToolName(tc.toolName) ? (
+                            <ToolCallDescription
+                                key={tc.toolCallId}
+                                toolName={tc.toolName}
+                                toolCall={tc}
+                                toolResult={toolResults?.find(
+                                    (result) =>
+                                        result.toolCallId === tc.toolCallId,
+                                )}
+                            />
+                        ) : null,
+                    )}
                     {extraBody}
                 </Stack>
             </Collapse>

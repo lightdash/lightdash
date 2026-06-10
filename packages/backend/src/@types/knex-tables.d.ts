@@ -95,6 +95,10 @@ import {
     GitlabAppInstallationTableName,
 } from '../database/entities/gitlabAppInstallation';
 import {
+    GitUserCredentialsTable,
+    GitUserCredentialsTableName,
+} from '../database/entities/gitUserCredentials';
+import {
     GroupMembershipTable,
     GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
@@ -126,6 +130,18 @@ import {
     OrganizationColorPaletteTableName,
 } from '../database/entities/organizationColorPalettes';
 import {
+    OrganizationDesignFilesTable,
+    OrganizationDesignFilesTableName,
+} from '../database/entities/organizationDesignFiles';
+import {
+    OrganizationDesignsTable,
+    OrganizationDesignsTableName,
+} from '../database/entities/organizationDesigns';
+import {
+    OrganizationDomainVerificationsTable,
+    OrganizationDomainVerificationsTableName,
+} from '../database/entities/organizationDomainVerifications';
+import {
     OrganizationMembershipsTable,
     OrganizationMembershipsTableName,
 } from '../database/entities/organizationMemberships';
@@ -139,6 +155,10 @@ import {
     OrganizationAllowedEmailDomainsTable,
     OrganizationAllowedEmailDomainsTableName,
 } from '../database/entities/organizationsAllowedEmailDomains';
+import {
+    OrganizationSettingsTable,
+    OrganizationSettingsTableName,
+} from '../database/entities/organizationSettings';
 import {
     OrganizationSsoConfigurationsTable,
     OrganizationSsoConfigurationsTableName,
@@ -197,6 +217,10 @@ import {
     ProjectTable,
     ProjectTableName,
 } from '../database/entities/projects';
+import {
+    PullRequestsTable,
+    PullRequestsTableName,
+} from '../database/entities/pullRequests';
 import {
     QueryHistoryTable,
     QueryHistoryTableName,
@@ -316,10 +340,18 @@ import {
     AiSlackThreadTableName,
     AiSqlApprovalTable,
     AiSqlApprovalTableName,
+    AiThreadCompactionTable,
+    AiThreadCompactionTableName,
+    AiThreadShareTable,
+    AiThreadShareTableName,
     AiThreadTable,
     AiThreadTableName,
     AiWebAppPromptTable,
     AiWebAppPromptTableName,
+    AiWebAppThreadTable,
+    AiWebAppThreadTableName,
+    AiWritebackThreadTable,
+    AiWritebackThreadTableName,
 } from '../ee/database/entities/ai';
 import {
     AiAgentGroupAccessTable,
@@ -339,6 +371,22 @@ import {
     AiMcpServerTable,
     AiMcpServerTableName,
 } from '../ee/database/entities/aiAgent';
+import {
+    AiAgentDocumentAccessTable,
+    AiAgentDocumentAccessTableName,
+    AiAgentDocumentTable,
+    AiAgentDocumentTableName,
+} from '../ee/database/entities/aiAgentDocument';
+import {
+    AiAgentReviewClassifierRunTable,
+    AiAgentReviewClassifierRunTableName,
+    AiAgentReviewItemTable,
+    AiAgentReviewItemTableName,
+    AiAgentReviewRemediationTable,
+    AiAgentReviewRemediationTableName,
+    AiAgentTurnSignalTable,
+    AiAgentTurnSignalTableName,
+} from '../ee/database/entities/aiAgentReviewClassifier';
 import {
     AiAgentUserPreferencesTable,
     AiAgentUserPreferencesTableName,
@@ -362,6 +410,12 @@ import {
     AiEvalTableName,
 } from '../ee/database/entities/aiEvals';
 import {
+    AiRouterDecisionTable,
+    AiRouterDecisionTableName,
+    AiRouterTable,
+    AiRouterTableName,
+} from '../ee/database/entities/aiRouter';
+import {
     DashboardSummariesTable,
     DashboardSummariesTableName,
 } from '../ee/database/entities/dashboardSummaries';
@@ -383,6 +437,10 @@ import {
     PreAggregateMaterializationsTable,
     PreAggregateMaterializationsTableName,
 } from '../ee/database/entities/preAggregates';
+import {
+    ProjectCiStatusTable,
+    ProjectCiStatusTableName,
+} from '../ee/database/entities/projectCiStatus';
 import {
     ServiceAccountsTableName,
     ServiceAccountTable,
@@ -458,7 +516,9 @@ declare module 'knex/types/tables' {
         [SchedulerLogTableName]: SchedulerLogTable;
         [OrganizationAllowedEmailDomainsTableName]: OrganizationAllowedEmailDomainsTable;
         [OrganizationAllowedEmailDomainProjectsTableName]: OrganizationAllowedEmailDomainProjectsTable;
+        [OrganizationSettingsTableName]: OrganizationSettingsTable;
         [OrganizationSsoConfigurationsTableName]: OrganizationSsoConfigurationsTable;
+        [OrganizationDomainVerificationsTableName]: OrganizationDomainVerificationsTable;
         [ValidationTableName]: ValidationTable;
         [GroupTableName]: GroupTable;
         [GroupMembershipTableName]: GroupMembershipTable;
@@ -473,16 +533,29 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [GitUserCredentialsTableName]: GitUserCredentialsTable;
+        [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
+        [AiThreadShareTableName]: AiThreadShareTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;
+        [AiWebAppThreadTableName]: AiWebAppThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiPromptContextTableName]: AiPromptContextTable;
+        [AiThreadCompactionTableName]: AiThreadCompactionTable;
         [AiArtifactsTableName]: AiArtifactsTable;
         [AiArtifactVersionsTableName]: AiArtifactVersionsTable;
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
+        [AiWritebackThreadTableName]: AiWritebackThreadTable;
+        [ProjectCiStatusTableName]: ProjectCiStatusTable;
         [AiAgentTableName]: AiAgentTable;
+        [AiAgentDocumentTableName]: AiAgentDocumentTable;
+        [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;
+        [AiAgentReviewClassifierRunTableName]: AiAgentReviewClassifierRunTable;
+        [AiAgentTurnSignalTableName]: AiAgentTurnSignalTable;
+        [AiAgentReviewItemTableName]: AiAgentReviewItemTable;
+        [AiAgentReviewRemediationTableName]: AiAgentReviewRemediationTable;
         [AiAgentGroupAccessTableName]: AiAgentGroupAccessTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;
@@ -510,6 +583,8 @@ declare module 'knex/types/tables' {
         [MetricsTreeNodesTableName]: MetricsTreeNodesTable;
         [SpotlightTableConfigTableName]: SpotlightTableConfigTable;
         [OrganizationColorPaletteTableName]: OrganizationColorPaletteTable;
+        [OrganizationDesignsTableName]: OrganizationDesignsTable;
+        [OrganizationDesignFilesTableName]: OrganizationDesignFilesTable;
         [OrganizationWarehouseCredentialsTableName]: OrganizationWarehouseCredentialsTable;
         [QueryHistoryTableName]: QueryHistoryTable;
         [PreAggregateDefinitionsTableName]: PreAggregateDefinitionsTable;
@@ -532,5 +607,7 @@ declare module 'knex/types/tables' {
         [ContentVerificationTableName]: ContentVerificationTable;
         [AppsTableName]: AppsTable;
         [AppVersionsTableName]: AppVersionsTable;
+        [AiRouterTableName]: AiRouterTable;
+        [AiRouterDecisionTableName]: AiRouterDecisionTable;
     }
 }

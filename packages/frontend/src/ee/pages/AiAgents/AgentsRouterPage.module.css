@@ -1,0 +1,270 @@
+.routerView {
+    position: relative;
+    height: 100%;
+    min-height: 0;
+}
+
+.routerSettingsButton {
+    position: absolute;
+    top: var(--mantine-spacing-md);
+    right: var(--mantine-spacing-md);
+    z-index: 2;
+}
+
+.routingStatus {
+    animation: routingFadeIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.routingDots {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.routingDots span {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background-color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-4)
+    );
+    animation: routingDotBlink 1100ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.routingDots span:nth-child(2) {
+    animation-delay: 160ms;
+}
+
+.routingDots span:nth-child(3) {
+    animation-delay: 320ms;
+}
+
+@keyframes routingFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-2px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes routingDotBlink {
+    0%,
+    80%,
+    100% {
+        opacity: 0.25;
+        transform: scale(0.85);
+    }
+    40% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.pickerStack {
+    animation: pickerStackIn 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.pickerHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--mantine-spacing-sm);
+    animation: pickerItemIn 360ms cubic-bezier(0.16, 1, 0.3, 1) 40ms both;
+}
+
+.pickerScroll {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+    max-height: min(420px, 55vh);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 4px;
+    padding-bottom: 10px;
+    margin: -4px;
+    scrollbar-width: thin;
+    scrollbar-color: light-dark(
+            var(--mantine-color-gray-3),
+            var(--mantine-color-dark-3)
+        )
+        transparent;
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        black calc(100% - 10px),
+        transparent 100%
+    );
+    mask-image: linear-gradient(
+        to bottom,
+        black calc(100% - 10px),
+        transparent 100%
+    );
+}
+
+.pickerScroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.pickerScroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.pickerScroll::-webkit-scrollbar-thumb {
+    background-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-dark-3)
+    );
+    border-radius: 999px;
+}
+
+.pickerScroll::-webkit-scrollbar-thumb:hover {
+    background-color: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-dark-2)
+    );
+}
+
+.candidateButton {
+    display: block;
+    width: 100%;
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-3), var(--mantine-color-dark-4));
+    background-color: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-6)
+    );
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    transition:
+        border-color 120ms ease-out,
+        background-color 120ms ease-out,
+        transform 120ms ease-out;
+    text-align: left;
+    animation: pickerItemIn 380ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.candidateButton:nth-of-type(1) {
+    animation-delay: 120ms;
+}
+.candidateButton:nth-of-type(2) {
+    animation-delay: 200ms;
+}
+.candidateButton:nth-of-type(3) {
+    animation-delay: 260ms;
+}
+.candidateButton:nth-of-type(4) {
+    animation-delay: 310ms;
+}
+.candidateButton:nth-of-type(5) {
+    animation-delay: 350ms;
+}
+
+.candidateButton:hover {
+    border-color: light-dark(
+        var(--mantine-color-gray-4),
+        var(--mantine-color-dark-3)
+    );
+    background-color: light-dark(
+        var(--mantine-color-gray-0),
+        var(--mantine-color-dark-5)
+    );
+}
+
+.candidateButton:active {
+    transform: translateY(1px);
+}
+
+.candidateButton.recommended {
+    border-color: light-dark(
+        var(--mantine-color-violet-3),
+        var(--mantine-color-violet-6)
+    );
+    animation:
+        pickerItemIn 380ms cubic-bezier(0.16, 1, 0.3, 1) 120ms both,
+        recommendedSettle 900ms cubic-bezier(0.16, 1, 0.3, 1) 460ms 1 both;
+}
+
+.candidateButton.recommended:hover {
+    border-color: light-dark(
+        var(--mantine-color-violet-5),
+        var(--mantine-color-violet-5)
+    );
+    background-color: var(--mantine-color-violet-light);
+}
+
+.candidateButton.recommended .candidateDescription {
+    color: light-dark(
+        var(--mantine-color-violet-9),
+        var(--mantine-color-violet-1)
+    );
+}
+
+.chevron {
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-ldGray-4)
+    );
+    flex-shrink: 0;
+    transition:
+        transform 120ms ease-out,
+        color 120ms ease-out;
+}
+
+.candidateButton:hover .chevron {
+    transform: translateX(2px);
+    color: var(--mantine-color-ldGray-7);
+}
+
+.candidateButton.recommended .chevron {
+    color: light-dark(
+        var(--mantine-color-violet-6),
+        var(--mantine-color-violet-3)
+    );
+}
+
+@keyframes pickerStackIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes pickerItemIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes recommendedSettle {
+    0% {
+        box-shadow: 0 0 0 0 rgba(118, 65, 232, 0);
+    }
+    45% {
+        box-shadow: 0 0 0 5px rgba(118, 65, 232, 0.14);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(118, 65, 232, 0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pickerStack,
+    .pickerHeader,
+    .candidateButton,
+    .candidateButton.recommended,
+    .routingStatus,
+    .routingDots span {
+        animation: none;
+        transform: none;
+    }
+}

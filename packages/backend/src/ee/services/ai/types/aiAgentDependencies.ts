@@ -1,33 +1,44 @@
 import {
     AdditionalMetric,
     AgentToolOutput,
+    AiAgentDocumentContent,
+    AiAgentDocumentSummary,
     AiArtifact,
     AiMetricQueryWithFilters,
     AiWebAppPrompt,
+    AiWritebackRunResult,
     AllChartsSearchResult,
     AnyType,
     CacheMetadata,
     CatalogField,
-    CreateChangeParams,
+    ChartAsCode,
+    DashboardAsCode,
     DashboardSearchResult,
+    DbtProjectType,
     Explore,
-    ExploreCompiler,
     Filters,
     ItemsMap,
     KnexPaginateArgs,
+    ParametersValuesMap,
+    PreviewDeploySetupResult,
+    ProjectType,
     SavedChart,
     SlackPrompt,
     ToolFindContentArgs,
     ToolFindFieldsArgs,
+    ToolListContentArgs,
     UpdateSlackResponse,
     UpdateWebAppResponse,
     WarehouseTablesCatalog,
+    WarehouseTypes,
 } from '@lightdash/common';
 import {
+    AiAgentFindContentCoverageEvent,
     AiAgentResponseStreamed,
     AiAgentToolCallEvent,
 } from '../../../../analytics/LightdashAnalytics';
 import { PostSlackFile } from '../../../../clients/Slack/SlackClient';
+import { AiAgentSkill } from '../skills/types';
 
 type Pagination = KnexPaginateArgs & {
     totalPageCount: number;
@@ -56,6 +67,7 @@ export type FindExploresFn = (args: {
         searchRank?: number;
         description?: string;
         chartUsage?: number;
+        verifiedChartUsage?: number;
     }>;
 }>;
 
@@ -70,12 +82,62 @@ export type FindFieldFn = (
     pagination: Pagination | undefined;
 }>;
 
+export type SearchSemanticLayerFn = (args: {
+    searchQuery: string | null;
+    type: 'metric' | 'dimension' | null;
+    page: number;
+    pageSize: number;
+}) => Promise<{
+    fields: Array<{
+        name: string;
+        label: string;
+        tableName: string;
+        fieldType: string;
+        description?: string;
+        chartUsage?: number;
+        searchRank?: number;
+    }>;
+    pagination: Pagination | undefined;
+}>;
+
 export type GetExploreFn = (args: { table: string }) => Promise<Explore>;
 
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
 }) => Promise<{
     content: (AllChartsSearchResult | DashboardSearchResult)[];
+}>;
+
+export type ListContentFn = (args: {
+    spaceSlug: string | null;
+    page: NonNullable<ToolListContentArgs['page']>;
+}) => Promise<{
+    spaceSlug: string | null;
+    items: Array<
+        | {
+              contentType: 'chart' | 'dashboard' | 'data_app';
+              name: string;
+              slug: string;
+          }
+        | {
+              contentType: 'space';
+              name: string;
+              slug: string;
+              chartCount: number;
+              dashboardCount: number;
+              childSpaceCount: number;
+              appCount: number;
+              directAccess: boolean;
+          }
+    >;
+    pagination:
+        | {
+              page: number;
+              pageSize: number;
+              totalResults: number;
+              totalPageCount: number;
+          }
+        | undefined;
 }>;
 
 export type GetDashboardChartsFn = (args: {
@@ -93,20 +155,109 @@ export type GetDashboardChartsFn = (args: {
     };
 }>;
 
-export type UpdateProgressFn = (progress: string) => Promise<void>;
+export type ReadContentFn = (args: {
+    slug: string;
+    type: 'dashboard' | 'chart';
+}) => Promise<
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+          href: string;
+      }
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+          href: string;
+      }
+>;
+
+export type EditContentFn = (args: {
+    slug: string;
+    type: 'dashboard' | 'chart';
+    patch: unknown;
+}) => Promise<
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+          uuid: string;
+          href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
+      }
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+          uuid: string;
+          href: string;
+          versionUuids: {
+              before: string | null;
+              after: string | null;
+          };
+      }
+>;
+
+type CreateContentArgs =
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+      }
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+      };
+
+export type CreateContentFn = (args: CreateContentArgs) => Promise<
+    | {
+          type: 'dashboard';
+          content: DashboardAsCode;
+          uuid: string;
+          href: string;
+      }
+    | {
+          type: 'chart';
+          content: ChartAsCode;
+          uuid: string;
+          href: string;
+      }
+>;
+
+export type ValidateContentFn = (args: CreateContentArgs) => void;
+
+export type UpdateProgressFn = (
+    progress: string,
+    // The tool the progress belongs to. Web step-progress rendering uses this
+    // to scope an inline progress row to the active tool, so a concurrently
+    // running tool's message can't surface under another tool's header. Slack
+    // ignores it (single pinned message). Omitted by tools that don't need
+    // attribution.
+    toolName?: string,
+) => Promise<void>;
 
 export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;
 
 export type RunAsyncQueryFn = (
     metricQuery: AiMetricQueryWithFilters,
     additionalMetrics?: AdditionalMetric[],
+    parameters?: ParametersValuesMap,
 ) => Promise<{
     rows: Record<string, AnyType>[];
     cacheMetadata: CacheMetadata;
     fields: ItemsMap;
 }>;
 
-export type GetSavedChartFn = (chartUuid: string) => Promise<SavedChart>;
+export type RunSavedChartQueryFn = (args: {
+    chartUuid: string;
+    dashboardSlug: string | null;
+    limit: number | null;
+}) => Promise<{
+    rows: Record<string, AnyType>[];
+    cacheMetadata: CacheMetadata;
+    fields: ItemsMap;
+}>;
+
+export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
 export type SendFileFn = (args: PostSlackFile) => Promise<void>;
 
@@ -135,6 +286,7 @@ export type StoreToolCallFn = (data: {
     toolCallId: string;
     toolName: string;
     toolArgs: object;
+    mcpServerUuid?: string | null;
     parentToolCallId: string | null;
 }) => Promise<void>;
 
@@ -157,7 +309,10 @@ export type StoreReasoningFn = (
 ) => Promise<void>;
 
 export type TrackEventFn = (
-    event: AiAgentResponseStreamed | AiAgentToolCallEvent,
+    event:
+        | AiAgentResponseStreamed
+        | AiAgentToolCallEvent
+        | AiAgentFindContentCoverageEvent,
 ) => void;
 
 export type SearchFieldValuesFn = (args: {
@@ -182,15 +337,6 @@ export type CheckUserPermissionFn = (args: {
     permission: string;
 }) => Promise<boolean>;
 
-export type CreateChangeFn = (
-    params: Pick<
-        CreateChangeParams,
-        'type' | 'entityName' | 'entityType' | 'entityTableName' | 'payload'
-    >,
-) => Promise<string>;
-
-export type GetExploreCompilerFn = () => Promise<ExploreCompiler>;
-
 export type RunSqlJobFn = (args: { sql: string; limit: number }) => Promise<{
     rows: Record<string, AnyType>[];
     columns: string[];
@@ -207,6 +353,12 @@ export type DescribeWarehouseTableFn = (args: {
     resolvedSchema: string | null;
 }>;
 
+export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;
+
+export type GetKnowledgeDocumentContentFn = (args: {
+    documentUuid: string;
+}) => Promise<AiAgentDocumentContent>;
+
 export type WaitForSqlApprovalFn = (
     toolCallId: string,
     timeoutMs?: number,
@@ -217,3 +369,62 @@ export type RecordSqlApprovalFn = (
     decision: 'approved' | 'rejected',
     decidedByUserUuid: string | null,
 ) => Promise<boolean>;
+
+export type LoadAgentSkillFn = (
+    name: string,
+) => Promise<AiAgentSkill | undefined>;
+
+export type EditDbtProjectFn = (args: {
+    prompt: string | null;
+    prUrl: string | null;
+    fromActiveChangeset: boolean;
+}) => Promise<
+    AiWritebackRunResult & {
+        previewDeployConfigured: boolean | null;
+        /** Server-side preview built from the PR's head branch; null when unsupported or failed. */
+        previewUrl: string | null;
+    }
+>;
+
+export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
+
+/**
+ * Run one read-only shell command against the project's dbt repo virtual
+ * filesystem (ls/cat/find/grep/head/wc) and return combined stdout.
+ */
+export type RepoShellFn = (args: { command: string }) => Promise<string>;
+
+export type ListProjectsFn = () => Promise<
+    {
+        projectUuid: string;
+        name: string;
+        type: ProjectType;
+        isActive: boolean;
+    }[]
+>;
+
+// Safe, non-sensitive snapshot of the active project's dbt + warehouse setup.
+// Deliberately excludes any credentials (tokens, keys, installation ids) and
+// dbt environment variables, which can hold secrets.
+export type GetProjectInfoFn = () => Promise<{
+    projectName: string;
+    projectType: ProjectType;
+    dbtConnectionType: DbtProjectType;
+    dbtVersion: string;
+    warehouseType: WarehouseTypes | null;
+    git: {
+        repository: string;
+        branch: string;
+        projectSubPath: string;
+        hostDomain: string | null;
+    } | null;
+    /**
+     * Whether the git-backed repo deploys Lightdash preview projects via GitHub
+     * Actions. Null when it can't be determined (not a git project, GitHub App
+     * not installed, or the host has no preview-deploy support).
+     */
+    previewDeployCi: {
+        hasPreviewDeployWorkflow: boolean;
+        workflowPath: string | null;
+    } | null;
+}>;

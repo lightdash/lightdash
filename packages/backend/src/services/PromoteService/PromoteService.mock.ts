@@ -3,6 +3,7 @@ import {
     ChartKind,
     ChartType,
     DashboardChartTile,
+    DashboardDataAppTile,
     DashboardSqlChartTile,
     DashboardTileTypes,
     getDefaultResolvedColorPalette,
@@ -106,6 +107,7 @@ export const upstreamFullSpace: Space = {
             firstName: 'firstName',
             lastName: 'lastName',
             email: 'email',
+            isInternal: false,
             role: SpaceMemberRole.ADMIN,
             hasDirectAccess: true,
             hasCustomProjectRoleWithSpaceAccess: false,
@@ -118,6 +120,7 @@ export const upstreamFullSpace: Space = {
             firstName: 'firstName',
             lastName: 'lastName',
             email: 'adminemail',
+            isInternal: false,
             role: SpaceMemberRole.ADMIN,
             hasDirectAccess: false,
             hasCustomProjectRoleWithSpaceAccess: false,
@@ -350,6 +353,32 @@ export const promotedDashboardWithSqlTile = {
     dashboard: {
         ...promotedDashboard.dashboard,
         tiles: [...promotedDashboard.dashboard.tiles, dashboardSqlChartTile],
+    },
+};
+
+export const promotedAppUuid = 'promoted-app-uuid';
+export const upstreamAppUuid = 'upstream-app-uuid';
+
+export const dashboardDataAppTile: DashboardDataAppTile = {
+    uuid: 'data-app-tile-1234',
+    type: DashboardTileTypes.DATA_APP,
+    x: 0,
+    y: 10,
+    h: 10,
+    w: 10,
+    tabUuid: undefined,
+    properties: {
+        title: 'data app tile',
+        appUuid: promotedAppUuid,
+        appDeletedAt: null,
+    },
+};
+
+export const promotedDashboardWithDataAppTile: PromotedDashboard = {
+    ...promotedDashboard,
+    dashboard: {
+        ...promotedDashboard.dashboard,
+        tiles: [dashboardDataAppTile],
     },
 };
 

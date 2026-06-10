@@ -19,6 +19,9 @@
 .icon {
     flex-shrink: 0;
     color: var(--mantine-color-ldGray-5);
+    @mixin dark {
+        color: var(--mantine-color-ldGray-6);
+    }
     transition: color 220ms ease;
 }
 
@@ -149,9 +152,14 @@
 }
 
 .body {
-    padding: 2px 0 6px 22px;
+    padding: 1px 0 3px 21px;
     color: var(--mantine-color-ldGray-7);
     animation: bodyReveal 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.body :global(.mantine-Text-root),
+.body :global(.mantine-8-Text-root) {
+    line-height: 1.25;
 }
 
 @keyframes toolCallPulse {

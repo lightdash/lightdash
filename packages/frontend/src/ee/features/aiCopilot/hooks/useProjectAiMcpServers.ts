@@ -1,8 +1,14 @@
 import type {
+    ApiAiMcpGithubAvailabilityResponse,
+    ApiAiMcpOAuthCredentialRequest,
+    ApiAiAgentMcpServerToolListResponse,
     ApiAiMcpServerListResponse,
     ApiAiMcpServerResponse,
+    ApiConnectGithubMcpServerBody,
+    ApiAiMcpServerToolListResponse,
     ApiCreateAiMcpServer,
     ApiError,
+    ApiUpdateAiAgentMcpServerToolsRequest,
 } from '@lightdash/common';
 import {
     useMutation,
@@ -15,6 +21,8 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 
 export const PROJECT_AI_MCP_SERVERS_KEY = 'projectAiMcpServers';
 export const AGENT_AI_MCP_SERVERS_KEY = 'agentAiMcpServers';
+const PROJECT_AI_MCP_SERVER_TOOLS_KEY = 'projectAiMcpServerTools';
+const AGENT_AI_MCP_SERVER_TOOLS_KEY = 'agentAiMcpServerTools';
 
 const listProjectAiMcpServers = async (
     projectUuid: string,
@@ -48,15 +56,86 @@ const createProjectAiMcpServer = async (
         body: JSON.stringify(data),
     });
 
+const getGithubMcpAvailability = async (
+    projectUuid: string,
+): Promise<ApiAiMcpGithubAvailabilityResponse['results']> =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    lightdashApi<any>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/github/availability`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const connectGithubMcpServer = async (
+    projectUuid: string,
+    body: ApiConnectGithubMcpServerBody,
+): Promise<ApiAiMcpServerResponse['results']> =>
+    lightdashApi<ApiAiMcpServerResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/github/connect`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+const listAgentAiMcpServerTools = async (
+    projectUuid: string,
+    agentUuid: string,
+    mcpServerUuid: string,
+): Promise<ApiAiAgentMcpServerToolListResponse['results']> =>
+    lightdashApi<ApiAiAgentMcpServerToolListResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/mcpServers/${mcpServerUuid}/tools`,
+        method: 'GET',
+        body: undefined,
+    });
+
+const refreshProjectAiMcpServerTools = async (
+    projectUuid: string,
+    mcpServerUuid: string,
+): Promise<ApiAiMcpServerToolListResponse['results']> =>
+    lightdashApi<ApiAiMcpServerToolListResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}/tools/refresh`,
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+
+const updateAgentAiMcpServerTools = async (
+    projectUuid: string,
+    agentUuid: string,
+    mcpServerUuid: string,
+    data: ApiUpdateAiAgentMcpServerToolsRequest,
+): Promise<ApiAiAgentMcpServerToolListResponse['results']> =>
+    lightdashApi<ApiAiAgentMcpServerToolListResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/mcpServers/${mcpServerUuid}/tools`,
+        method: 'PATCH',
+        body: JSON.stringify(data),
+    });
+
 const startProjectAiMcpOAuthConnection = async (
     projectUuid: string,
     mcpServerUuid: string,
+    data?: ApiAiMcpOAuthCredentialRequest,
 ): Promise<{ authorizationUrl: string }> =>
     lightdashApi<any>({
         version: 'v1',
         url: `/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}/oauth/start`,
         method: 'POST',
-        body: JSON.stringify({}),
+        body: JSON.stringify(data ?? {}),
+    });
+
+const disconnectProjectAiMcpOAuthConnection = async (
+    projectUuid: string,
+    mcpServerUuid: string,
+    data?: ApiAiMcpOAuthCredentialRequest,
+): Promise<void> =>
+    lightdashApi<any>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/aiAgents/mcpServers/${mcpServerUuid}/oauth/disconnect`,
+        method: 'POST',
+        body: JSON.stringify(data ?? {}),
     });
 
 const getProjectAiMcpServerConnectionStatus = async (
@@ -199,6 +278,42 @@ export const useAgentAiMcpServers = (
     });
 };
 
+export const useAgentAiMcpServerTools = (
+    projectUuid: string | undefined,
+    agentUuid: string | undefined,
+    mcpServerUuid: string | undefined,
+    options?: UseQueryOptions<
+        ApiAiAgentMcpServerToolListResponse['results'],
+        ApiError
+    >,
+) => {
+    const { showToastApiError } = useToaster();
+
+    return useQuery<ApiAiAgentMcpServerToolListResponse['results'], ApiError>({
+        queryKey: [
+            AGENT_AI_MCP_SERVER_TOOLS_KEY,
+            projectUuid,
+            agentUuid,
+            mcpServerUuid,
+        ],
+        queryFn: () =>
+            listAgentAiMcpServerTools(projectUuid!, agentUuid!, mcpServerUuid!),
+        enabled:
+            !!projectUuid &&
+            !!agentUuid &&
+            !!mcpServerUuid &&
+            options?.enabled !== false,
+        ...options,
+        onError: (error) => {
+            showToastApiError({
+                title: 'Failed to fetch MCP tools',
+                apiError: error.error,
+            });
+            options?.onError?.(error);
+        },
+    });
+};
+
 export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -243,6 +358,103 @@ export const useProjectCreateAiMcpServerMutation = (projectUuid: string) => {
     });
 };
 
+const GITHUB_MCP_AVAILABILITY_KEY = 'githubMcpAvailability';
+
+export const useGithubMcpAvailability = (
+    projectUuid: string | undefined,
+    options?: UseQueryOptions<
+        ApiAiMcpGithubAvailabilityResponse['results'],
+        ApiError
+    >,
+) =>
+    useQuery<ApiAiMcpGithubAvailabilityResponse['results'], ApiError>({
+        queryKey: [GITHUB_MCP_AVAILABILITY_KEY, projectUuid],
+        queryFn: () => getGithubMcpAvailability(projectUuid!),
+        enabled: !!projectUuid && options?.enabled !== false,
+        ...options,
+    });
+
+export const useConnectGithubMcpServerMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiAiMcpServerResponse['results'],
+        ApiError,
+        ApiConnectGithubMcpServerBody
+    >({
+        mutationFn: (body) => connectGithubMcpServer(projectUuid, body),
+        onSuccess: async (result) => {
+            showToastSuccess({
+                title: 'GitHub connected',
+                subtitle: `${result.name} is ready to use with your agents.`,
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [GITHUB_MCP_AVAILABILITY_KEY, projectUuid],
+            });
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to connect GitHub',
+                apiError: error,
+            });
+        },
+    });
+};
+
+export const useRefreshAiMcpServerToolsMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        ApiAiMcpServerToolListResponse['results'],
+        ApiError,
+        {
+            mcpServerUuid: string;
+            agentUuid?: string;
+            showSuccessToast?: boolean;
+        }
+    >({
+        mutationFn: ({ mcpServerUuid }) =>
+            refreshProjectAiMcpServerTools(projectUuid, mcpServerUuid),
+        onSuccess: async (_, variables) => {
+            if (variables.showSuccessToast) {
+                showToastSuccess({
+                    title: 'MCP tools refreshed',
+                });
+            }
+
+            await queryClient.invalidateQueries({
+                queryKey: [
+                    PROJECT_AI_MCP_SERVER_TOOLS_KEY,
+                    projectUuid,
+                    variables.mcpServerUuid,
+                ],
+            });
+
+            if (variables.agentUuid) {
+                await queryClient.invalidateQueries({
+                    queryKey: [
+                        AGENT_AI_MCP_SERVER_TOOLS_KEY,
+                        projectUuid,
+                        variables.agentUuid,
+                        variables.mcpServerUuid,
+                    ],
+                });
+            }
+        },
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to refresh MCP tools',
+                apiError: error,
+            });
+        },
+    });
+};
+
 export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
     const queryClient = useQueryClient();
     const { showToastError, showToastSuccess } = useToaster();
@@ -250,12 +462,17 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
     return useMutation<
         void,
         Error,
-        { mcpServerUuid: string; popupWindow?: Window | null }
+        {
+            mcpServerUuid: string;
+            credentialScope?: ApiAiMcpOAuthCredentialRequest['credentialScope'];
+            popupWindow?: Window | null;
+        }
     >({
-        mutationFn: async ({ mcpServerUuid, popupWindow }) => {
+        mutationFn: async ({ mcpServerUuid, credentialScope, popupWindow }) => {
             const { authorizationUrl } = await startProjectAiMcpOAuthConnection(
                 projectUuid,
                 mcpServerUuid,
+                credentialScope ? { credentialScope } : undefined,
             );
             await openOAuthPopup({
                 authorizationUrl,
@@ -283,4 +500,140 @@ export const useStartMcpOAuthConnectionMutation = (projectUuid: string) => {
             });
         },
     });
+};
+
+export const useDisconnectMcpOAuthConnectionMutation = (
+    projectUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastError, showToastSuccess } = useToaster();
+
+    return useMutation<
+        void,
+        Error,
+        {
+            mcpServerUuid: string;
+            credentialScope?: ApiAiMcpOAuthCredentialRequest['credentialScope'];
+        }
+    >({
+        mutationFn: async ({ mcpServerUuid, credentialScope }) => {
+            await disconnectProjectAiMcpOAuthConnection(
+                projectUuid,
+                mcpServerUuid,
+                credentialScope ? { credentialScope } : undefined,
+            );
+        },
+        onSuccess: async () => {
+            showToastSuccess({
+                title: 'MCP account disconnected',
+            });
+            await queryClient.invalidateQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+            });
+            await queryClient.refetchQueries({
+                queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
+                exact: true,
+            });
+        },
+        onError: (error) => {
+            showToastError({
+                title: 'Failed to disconnect MCP account',
+                subtitle: error.message || 'Please try again',
+            });
+        },
+    });
+};
+
+export const useUpdateAgentAiMcpServerToolsMutation = (
+    projectUuid: string,
+    agentUuid: string,
+    mcpServerUuid: string,
+) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentMcpServerToolListResponse['results'],
+        ApiError,
+        ApiUpdateAiAgentMcpServerToolsRequest
+    >(
+        (data) =>
+            updateAgentAiMcpServerTools(
+                projectUuid,
+                agentUuid,
+                mcpServerUuid,
+                data,
+            ),
+        {
+            onMutate: async (
+                data,
+            ): Promise<{
+                previousTools?: ApiAiAgentMcpServerToolListResponse['results'];
+            }> => {
+                const queryKey = [
+                    AGENT_AI_MCP_SERVER_TOOLS_KEY,
+                    projectUuid,
+                    agentUuid,
+                    mcpServerUuid,
+                ];
+
+                await queryClient.cancelQueries({ queryKey });
+
+                const previousTools =
+                    queryClient.getQueryData<
+                        ApiAiAgentMcpServerToolListResponse['results']
+                    >(queryKey);
+
+                queryClient.setQueryData<
+                    ApiAiAgentMcpServerToolListResponse['results']
+                >(
+                    queryKey,
+                    (currentTools) =>
+                        currentTools?.map((tool) => {
+                            const nextSetting = data.toolSettings.find(
+                                (setting) => setting.toolName === tool.toolName,
+                            );
+
+                            return nextSetting
+                                ? { ...tool, enabled: nextSetting.enabled }
+                                : tool;
+                        }) ?? currentTools,
+                );
+
+                return { previousTools };
+            },
+            onSuccess: (tools) => {
+                queryClient.setQueryData(
+                    [
+                        AGENT_AI_MCP_SERVER_TOOLS_KEY,
+                        projectUuid,
+                        agentUuid,
+                        mcpServerUuid,
+                    ],
+                    tools,
+                );
+            },
+            onError: ({ error }, _, context) => {
+                queryClient.setQueryData(
+                    [
+                        AGENT_AI_MCP_SERVER_TOOLS_KEY,
+                        projectUuid,
+                        agentUuid,
+                        mcpServerUuid,
+                    ],
+                    (
+                        context as
+                            | {
+                                  previousTools?: ApiAiAgentMcpServerToolListResponse['results'];
+                              }
+                            | undefined
+                    )?.previousTools,
+                );
+                showToastApiError({
+                    title: 'Failed to update MCP tools',
+                    apiError: error,
+                });
+            },
+        },
+    );
 };

@@ -139,6 +139,27 @@ export class ValidationService extends BaseService {
         return existingFields;
     }
 
+    private static buildExistingTableNames(
+        compiledExplores: (Explore | ExploreError)[],
+    ): Set<string> {
+        // Includes baseTable for every explore (even those that failed to
+        // compile, so a broken-but-present model is not falsely reported
+        // as deleted) plus every joined table from non-error explores —
+        // dashboard filter targets can reference joined tables too.
+        const tableNames = new Set<string>();
+        compiledExplores.forEach((explore) => {
+            if (explore.baseTable) {
+                tableNames.add(explore.baseTable);
+            }
+            if (!isExploreError(explore) && explore.tables) {
+                Object.keys(explore.tables).forEach((name) =>
+                    tableNames.add(name),
+                );
+            }
+        });
+        return tableNames;
+    }
+
     lightdashConfig: LightdashConfig;
 
     analytics: LightdashAnalytics;
@@ -568,12 +589,13 @@ export class ValidationService extends BaseService {
                             chartType,
                             chartConfig,
                             queryTableCalculations: tableCalculations,
+                            tableCalculationFilters: filters.tableCalculations,
                         });
 
                     const unusedTableCalculationErrors: CreateChartValidation[] =
                         unusedTableCalculations.map((tc) => ({
                             ...commonValidation,
-                            error: `table calculation is not used in the chart configuration (x-axis or y-axis). This can cause incorrect rendering. We recommend removing unused fields.`,
+                            error: `table calculation is not used in the chart configuration (x-axis, y-axis, or table calculation filters). This can cause incorrect rendering. We recommend removing unused fields.`,
                             errorType: ValidationErrorType.ChartConfiguration,
                             fieldName: tc,
                         }));
@@ -597,6 +619,7 @@ export class ValidationService extends BaseService {
     private async validateDashboards(
         projectUuid: string,
         existingFields: CompiledField[],
+        existingTableNames: Set<string>,
         brokenCharts: Pick<CreateChartValidation, 'chartUuid' | 'name'>[],
         dashboardUuid?: string,
     ): Promise<CreateDashboardValidation[]> {
@@ -666,6 +689,27 @@ export class ValidationService extends BaseService {
                         return undefined;
                     };
 
+                    // Without this check a deleted dbt model's dimensions
+                    // stay silently in the filter dropdown — the existing
+                    // fieldId check only catches renamed/removed fields
+                    // within an existing table. The parser in
+                    // ValidationModel.parseDashboardFilterError keys off the
+                    // exact "Table 'X' no longer exists" wording.
+                    const checkTableExists = (
+                        fieldId: string,
+                        tableName: string | undefined,
+                    ): CreateDashboardValidation | undefined => {
+                        if (tableName && !existingTableNames.has(tableName)) {
+                            return {
+                                ...commonValidation,
+                                errorType: ValidationErrorType.Filter,
+                                error: `Table '${tableName}' no longer exists`,
+                                fieldName: fieldId,
+                            };
+                        }
+                        return undefined;
+                    };
+
                     const dashboardFilterRules = [
                         ...filters.dimensions,
                         ...filters.metrics,
@@ -694,6 +738,14 @@ export class ValidationService extends BaseService {
                             );
                             if (consistencyError) {
                                 return [...acc, consistencyError];
+                            }
+
+                            const tableMissingError = checkTableExists(
+                                fieldId,
+                                tableName,
+                            );
+                            if (tableMissingError) {
+                                return [...acc, tableMissingError];
                             }
 
                             return containsFieldId({
@@ -743,6 +795,14 @@ export class ValidationService extends BaseService {
                                     );
                                 if (consistencyError) {
                                     return [...acc, consistencyError];
+                                }
+
+                                const tableMissingError = checkTableExists(
+                                    fieldId,
+                                    tableName,
+                                );
+                                if (tableMissingError) {
+                                    return [...acc, tableMissingError];
                                 }
 
                                 return containsFieldId({
@@ -983,12 +1043,17 @@ export class ValidationService extends BaseService {
                 error.errorType !== ValidationErrorType.ChartConfiguration,
         );
 
+        const existingTableNames = explores
+            ? ValidationService.buildExistingTableNames(explores)
+            : new Set<string>();
+
         const dashboardErrors =
             !hasValidationTargets ||
             validationTargets.has(ValidationTarget.DASHBOARDS)
                 ? await this.validateDashboards(
                       projectUuid,
                       existingFields,
+                      existingTableNames,
                       blockingChartErrors,
                   )
                 : [];
@@ -1015,6 +1080,11 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        context,
+                        validationTargets,
+                        onlyValidateExploresInArgs,
+                    },
                 }),
             )
         ) {
@@ -1133,6 +1203,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid: organizationUuid!,
                     projectUuid,
+                    metadata: { jobId, fromSettings },
                 }),
             )
         ) {
@@ -1268,6 +1339,11 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
+                    metadata: {
+                        jobId: options?.jobId,
+                        fromSettings: options?.fromSettings,
+                        searchQuery: options?.searchQuery,
+                    },
                 }),
             )
         ) {
@@ -1399,6 +1475,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { chartUuid },
                 }),
             )
         ) {
@@ -1406,7 +1483,9 @@ export class ValidationService extends BaseService {
         }
 
         // Get the chart to find which explore it uses
-        const chart = await this.savedChartModel.get(chartUuid);
+        const chart = await this.savedChartModel.get(chartUuid, undefined, {
+            projectUuid,
+        });
 
         // Check user permissions
         const { inheritsFromOrgOrProject, access } =
@@ -1455,7 +1534,10 @@ export class ValidationService extends BaseService {
         );
 
         // Delete existing validations for this chart
-        await this.validationModel.deleteChartValidations(chartUuid);
+        await this.validationModel.deleteChartValidations(
+            chartUuid,
+            projectUuid,
+        );
 
         // Store new validation errors if any
         if (validationErrors.length > 0) {
@@ -1484,6 +1566,7 @@ export class ValidationService extends BaseService {
                 subject('Validation', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { dashboardUuid },
                 }),
             )
         ) {
@@ -1491,8 +1574,12 @@ export class ValidationService extends BaseService {
         }
 
         // Get the dashboard to check permissions
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            {
+                projectUuid,
+            },
+        );
 
         // Check user permissions
         const { inheritsFromOrgOrProject, access } =
@@ -1529,6 +1616,8 @@ export class ValidationService extends BaseService {
         // Get existing fields for validation
         const existingFields =
             ValidationService.buildExistingFields(compiledExplores);
+        const existingTableNames =
+            ValidationService.buildExistingTableNames(compiledExplores);
 
         // Get existing chart validation errors from database
         const validations = await this.validationModel.get(projectUuid);
@@ -1553,12 +1642,16 @@ export class ValidationService extends BaseService {
         const validationErrors = await this.validateDashboards(
             projectUuid,
             existingFields,
+            existingTableNames,
             blockingChartErrors,
             dashboardUuid,
         );
 
         // Delete existing validations for this dashboard
-        await this.validationModel.deleteDashboardValidations(dashboardUuid);
+        await this.validationModel.deleteDashboardValidations(
+            dashboardUuid,
+            projectUuid,
+        );
 
         // Store new validation errors if any
         if (validationErrors.length > 0) {

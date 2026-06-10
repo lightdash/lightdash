@@ -47,17 +47,41 @@ describe('PersistentDownloadFileService', () => {
     });
 
     describe('createPersistentUrl', () => {
-        it('should return raw S3 URL when feature is disabled', async () => {
+        it('should return raw S3 URL (honoring the requested expiry) when feature is disabled', async () => {
             mockS3GetFileUrl.mockResolvedValue(
                 'https://s3.amazonaws.com/bucket/test-file.csv',
             );
             const service = createService({ enabled: false });
 
-            const url = await service.createPersistentUrl(baseData);
+            const url = await service.createPersistentUrl({
+                ...baseData,
+                expirationSeconds: 86400,
+            });
 
             expect(url).toBe('https://s3.amazonaws.com/bucket/test-file.csv');
-            expect(mockS3GetFileUrl).toHaveBeenCalledWith(baseData.s3Key);
+            // The requested expiry is forwarded to the raw presigned URL.
+            expect(mockS3GetFileUrl).toHaveBeenCalledWith(
+                baseData.s3Key,
+                86400,
+            );
             expect(mockModelCreate).not.toHaveBeenCalled();
+        });
+
+        it('should transparently use persistent URLs when the requested expiry exceeds the 7-day S3 limit, even with the feature off', async () => {
+            mockModelCreate.mockResolvedValue(undefined);
+            const service = createService({ enabled: false });
+
+            // 14 days — longer than a raw S3 presigned URL can live.
+            const url = await service.createPersistentUrl({
+                ...baseData,
+                expirationSeconds: 14 * 86400,
+            });
+
+            expect(url).toMatch(
+                /^https:\/\/test\.lightdash\.cloud\/api\/v1\/file\/[\w-]{21}$/,
+            );
+            expect(mockModelCreate).toHaveBeenCalled();
+            expect(mockS3GetFileUrl).not.toHaveBeenCalled();
         });
 
         it('should create persistent URL when feature is enabled', async () => {

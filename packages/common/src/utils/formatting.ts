@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import dayjsTimezone from 'dayjs/plugin/timezone';
 import moment, { type MomentInput } from 'moment-timezone';
 import {
+    addLocale,
     format as formatWithExpression,
     isDateFormat,
     isTextFormat,
@@ -131,6 +132,14 @@ export const isMomentInput = (value: unknown): value is MomentInput =>
     value instanceof moment ||
     value instanceof dayjs;
 
+// A string carrying both a date and a time component (e.g. "2024-01-02T03:04…"
+// or "2024-01-02 03:04…") — as opposed to a bare date, a number, or text.
+// Unlike a parse-validity check, this requires a time part, so date-only values
+// are excluded (they must not be timezone-shifted).
+export const isTimestampString = (value: unknown): value is string =>
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(value);
+
 export function formatDate(
     date: MomentInput,
     timeInterval: TimeFrames = TimeFrames.DAY,
@@ -226,6 +235,23 @@ export const shouldShiftItemTimezone = (item: Item | undefined): boolean => {
     if (item.type === DimensionType.TIMESTAMP) return true;
     return (
         item.type === DimensionType.DATE &&
+        isDimension(item) &&
+        item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
+    );
+};
+
+// A calendar value is a bare wall-clock date (year/month/day, no instant) that
+// must never be timezone-shifted or anchored. True for plain DATE columns,
+// DATE-base truncations and DATE metrics; false for any TIMESTAMP (including
+// `skipTimezoneConversion` ones — those are TZ-immune but still real instants)
+// and for a DATE truncated from a TIMESTAMP base, which is a bucketed instant
+// that still anchors and shifts.
+export const isCalendarValueDimension = (
+    item: Item | AdditionalMetric | undefined,
+): boolean => {
+    if (!isField(item)) return false;
+    if (item.type !== DimensionType.DATE) return false;
+    return !(
         isDimension(item) &&
         item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
     );
@@ -333,6 +359,50 @@ export function isNumber(value: unknown): value is number {
     return !valueIsNaN(value);
 }
 
+// Separator styles whose grouping/decimal characters have no exact built-in
+// numfmt locale are registered here once, at module load. The characters mirror
+// the `toLocaleString`-based CustomFormat path so an ECMA-376 expression and a
+// structured format render the same separators. The registry is immutable after
+// this — the separator is selected per-call via numfmt's `locale` option, which
+// is safe for concurrent multi-tenant formatting on the server.
+// Tags must be valid BCP-47 (numfmt rejects 3+ hyphenated parts as malformed
+// and silently falls back to its default locale), so use short 2-segment tags.
+const NUMFMT_LOCALE_PERIOD_COMMA = 'ld-pc'; // 1.234.567,50
+const NUMFMT_LOCALE_SPACE_PERIOD = 'ld-sp'; // 1 234 567.50
+const NUMFMT_LOCALE_NO_SEPARATOR = 'ld-ns'; // 1234567.50
+const NUMFMT_LOCALE_APOSTROPHE_PERIOD = 'ld-ap'; // 1'234'567.50
+addLocale({ group: '.', decimal: ',' }, NUMFMT_LOCALE_PERIOD_COMMA);
+addLocale({ group: ' ', decimal: '.' }, NUMFMT_LOCALE_SPACE_PERIOD);
+addLocale({ group: '', decimal: '.' }, NUMFMT_LOCALE_NO_SEPARATOR);
+addLocale({ group: "'", decimal: '.' }, NUMFMT_LOCALE_APOSTROPHE_PERIOD);
+
+// The numfmt locale used to render an ECMA-376 expression for a given separator.
+// DEFAULT and COMMA_PERIOD return undefined so numfmt keeps its built-in
+// comma-period output, leaving existing format strings byte-identical.
+function separatorToNumfmtLocale(
+    separator: NumberSeparator | undefined,
+): string | undefined {
+    switch (separator) {
+        case NumberSeparator.PERIOD_COMMA:
+            return NUMFMT_LOCALE_PERIOD_COMMA;
+        case NumberSeparator.SPACE_PERIOD:
+            return NUMFMT_LOCALE_SPACE_PERIOD;
+        case NumberSeparator.NO_SEPARATOR_PERIOD:
+            return NUMFMT_LOCALE_NO_SEPARATOR;
+        case NumberSeparator.APOSTROPHE_PERIOD:
+            return NUMFMT_LOCALE_APOSTROPHE_PERIOD;
+        case NumberSeparator.COMMA_PERIOD:
+        case NumberSeparator.DEFAULT:
+        case undefined:
+            return undefined;
+        default:
+            return assertUnreachable(
+                separator,
+                `Unknown number separator ${separator}`,
+            );
+    }
+}
+
 export function formatNumberValue(
     value: number,
     format?: CustomFormat,
@@ -352,6 +422,8 @@ export function formatNumberValue(
                 ...options,
                 useGrouping: false,
             });
+        case NumberSeparator.APOSTROPHE_PERIOD:
+            return value.toLocaleString('en-US', options).replace(/,/g, "'");
         case NumberSeparator.DEFAULT:
             // This will apply the default style for each currency
             return value.toLocaleString(undefined, options);
@@ -443,6 +515,31 @@ export function hasFormatting(
     return false;
 }
 
+// The effective number separator for an item, in priority order: an explicit
+// formatOptions separator, a table calculation's format separator, then the
+// field-level `separator` (the dbt YAML property). Used by both the structured
+// and ECMA-376 rendering paths so they agree.
+export function getEffectiveSeparator(
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+): NumberSeparator | undefined {
+    if (!item) return undefined;
+    if (hasFormatOptions(item) && item.formatOptions.separator) {
+        return item.formatOptions.separator;
+    }
+    if (isTableCalculation(item) && item.format?.separator) {
+        return item.format.separator;
+    }
+    if ('separator' in item && item.separator) {
+        return item.separator;
+    }
+    return undefined;
+}
+
 export function getCustomFormat(
     item:
         | Field
@@ -450,29 +547,38 @@ export function getCustomFormat(
         | TableCalculation
         | CustomDimension
         | undefined,
-) {
+): CustomFormat | undefined {
     if (!item) return undefined;
 
+    let base: CustomFormat | undefined;
     if (hasFormatOptions(item)) {
-        return item.formatOptions;
+        base = item.formatOptions;
+    } else if (isTableCalculation(item)) {
+        base = item.format;
+    } else {
+        const legacyFormat = {
+            ...('format' in item && { format: item.format }),
+            ...('compact' in item && { compact: item.compact }),
+            ...('round' in item && { round: item.round }),
+        };
+
+        // Only get custom format from legacy if there are any legacy format options or if the item is numeric
+        if (Object.keys(legacyFormat).length > 0 || isNumericItem(item)) {
+            base = getCustomFormatFromLegacy(legacyFormat);
+        }
     }
 
-    if (isTableCalculation(item)) {
-        return item.format;
+    if (!base) return undefined;
+
+    // Apply the field-level separator unless the format already carries one.
+    // DEFAULT is a no-op, so skip the allocation for it.
+    if (!base.separator) {
+        const separator = getEffectiveSeparator(item);
+        if (separator && separator !== NumberSeparator.DEFAULT) {
+            return { ...base, separator };
+        }
     }
-
-    const legacyFormat = {
-        ...('format' in item && { format: item.format }),
-        ...('compact' in item && { compact: item.compact }),
-        ...('round' in item && { round: item.round }),
-    };
-
-    // Only get custom format from legacy if there are any legacy format options or if the item is numeric
-    if (Object.keys(legacyFormat).length > 0 || isNumericItem(item)) {
-        return getCustomFormatFromLegacy(legacyFormat);
-    }
-
-    return undefined;
+    return base;
 }
 
 function applyCompact(
@@ -497,9 +603,16 @@ function applyCompact(
     return { compactValue: Number(value), compactSuffix: '' };
 }
 
-export function formatValueWithExpression(expression: string, value: unknown) {
+export function formatValueWithExpression(
+    expression: string,
+    value: unknown,
+    locale?: string,
+) {
     try {
         let sanitizedValue = value;
+        // Only number formatting is localised; dates/text keep the default
+        // locale so month names etc. are unaffected.
+        const localeOptions = locale ? { locale } : undefined;
 
         if (typeof value === 'bigint') {
             if (
@@ -539,6 +652,7 @@ export function formatValueWithExpression(expression: string, value: unknown) {
                 const formattedNumber = formatWithExpression(
                     baseExpression,
                     convertedValue,
+                    localeOptions,
                 );
                 return `${formattedNumber}${binarySuffixMatch}`;
             }
@@ -564,7 +678,11 @@ export function formatValueWithExpression(expression: string, value: unknown) {
         // format number
         return valueIsNaN(Number(sanitizedValue))
             ? `${value}` // Return the raw value as a string if it's not a number
-            : formatWithExpression(expression, Number(sanitizedValue));
+            : formatWithExpression(
+                  expression,
+                  Number(sanitizedValue),
+                  localeOptions,
+              );
     } catch (e) {
         // eslint-disable-next-line no-console
         console.error('Error formatting value with expression', e);
@@ -638,7 +756,11 @@ export function applyCustomFormat(
             )}${bytesCompactSuffix}`;
         }
         case CustomFormatType.CUSTOM:
-            return formatValueWithExpression(format.custom || '', value);
+            return formatValueWithExpression(
+                format.custom || '',
+                value,
+                separatorToNumfmtLocale(format.separator),
+            );
         default:
             return assertUnreachable(
                 format.type,
@@ -854,10 +976,27 @@ export function getFormatExpression(
     if (hasValidFormatExpression(item)) {
         return item.format;
     }
+
     const customFormat = getCustomFormat(item);
     return customFormat
         ? convertCustomFormatToFormatExpression(customFormat) || undefined
         : undefined;
+}
+
+export function getExcelFormatExpression(
+    item: Item | AdditionalMetric,
+): string | undefined {
+    const formatExpression = getFormatExpression(item);
+    if (
+        formatExpression === '#,##0.###' &&
+        isMetric(item) &&
+        [MetricType.COUNT, MetricType.COUNT_DISTINCT].includes(item.type) &&
+        !hasFormatting(item)
+    ) {
+        return '#,##0';
+    }
+
+    return formatExpression;
 }
 
 export function formatItemValue(
@@ -878,6 +1017,12 @@ export function formatItemValue(
     if (value === undefined) return '-';
     if (item) {
         if (hasValidFormatExpression(item)) {
+            // A field-level separator localises the ECMA-376 expression, which
+            // numfmt otherwise renders with US separators regardless of locale.
+            const separatorLocale = separatorToNumfmtLocale(
+                getEffectiveSeparator(item),
+            );
+
             // Check if format uses parameter placeholders
             const hasParameterPlaceholders =
                 item.format.includes(
@@ -897,6 +1042,7 @@ export function formatItemValue(
                         const result = formatValueWithExpression(
                             formatExpression,
                             value,
+                            separatorLocale,
                         );
                         return result;
                     } catch (error) {
@@ -911,7 +1057,11 @@ export function formatItemValue(
 
             // EXISTING: Handle non-parameter formats (unchanged behavior)
             try {
-                const result = formatValueWithExpression(item.format, value);
+                const result = formatValueWithExpression(
+                    item.format,
+                    value,
+                    separatorLocale,
+                );
                 return result;
             } catch (error) {
                 // Fall through to custom format handling below
@@ -942,6 +1092,7 @@ export function formatItemValue(
                     return formatValueWithExpression(
                         customFormat.custom,
                         value,
+                        separatorToNumfmtLocale(customFormat.separator),
                     );
                 } catch {
                     // Fall through to the default date/timestamp render.
@@ -960,15 +1111,12 @@ export function formatItemValue(
                 case DimensionType.DATE:
                 case MetricType.DATE:
                 case TableCalculationType.DATE: {
-                    // Truncated dimensions whose base column is DATE have no
-                    // time component — applying a display timezone would
-                    // shift the calendar day (off-by-one in negative offsets).
-                    const dateTimezone =
-                        isDimension(item) &&
-                        item.timeIntervalBaseDimensionType ===
-                            DimensionType.DATE
-                            ? undefined
-                            : effectiveTimezone;
+                    // Calendar values (wall-clock dates) have no time component
+                    // — applying a display timezone would shift the calendar
+                    // day (off-by-one in negative offsets).
+                    const dateTimezone = isCalendarValueDimension(item)
+                        ? undefined
+                        : effectiveTimezone;
                     return isMomentInput(value)
                         ? formatDate(
                               value,
@@ -991,17 +1139,31 @@ export function formatItemValue(
                           )
                         : 'NaT';
                 case MetricType.MAX:
-                case MetricType.MIN:
-                    if (value instanceof Date && customFormat === undefined) {
+                case MetricType.MIN: {
+                    // MIN/MAX inherit the aggregated column's type. A temporal
+                    // result must render in the resolved project timezone like
+                    // a dimension does — whether it arrives as a Date (fresh
+                    // query) or an ISO datetime string (rehydrated from cached
+                    // results). The auto-derived numeric format must not
+                    // suppress this; a user-chosen display format still wins.
+                    const formatType = customFormat?.type;
+                    const userChoseDisplayFormat =
+                        formatType === CustomFormatType.DATE ||
+                        formatType === CustomFormatType.TIMESTAMP ||
+                        formatType === CustomFormatType.CUSTOM;
+                    const isTimestampValue =
+                        value instanceof Date || isTimestampString(value);
+                    if (isTimestampValue && !userChoseDisplayFormat) {
                         return formatTimestamp(
                             value,
-                            isDimension(item) ? item.timeInterval : undefined,
+                            undefined,
                             convertToUTC,
                             effectiveTimezone,
                             displayTimezone,
                         );
                     }
                     break;
+                }
                 case DimensionType.NUMBER:
                     if (
                         isDimension(item) &&

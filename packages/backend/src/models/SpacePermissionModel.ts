@@ -29,6 +29,11 @@ import {
 import { UserTableName } from '../database/entities/users';
 import { wrapSentryTransaction } from '../utils';
 
+// Custom-role scopes that grant a viewer-shaped role effective space/content
+// management. Used to flag access entries whose legacy role column reads as
+// `viewer` but which can actually manage the space's content, so the UI can
+// suppress the "promote to interactive viewer" warning. Keep in sync with the
+// `manage` content/space scopes in `packages/common/src/authorization/scopes.ts`.
 const CUSTOM_ROLE_SPACE_ACCESS_SCOPES = [
     'manage:Dashboard',
     'manage:Dashboard@space',
@@ -473,10 +478,6 @@ export class SpacePermissionModel {
         );
     }
 
-    /**
-     * Fetches user metadata (firstName, lastName, email) for a list of user UUIDs.
-     * Used to enrich SpaceAccess[] into SpaceShare[] for the share modal UI.
-     */
     async getUserMetadataByUuids(
         userUuids: string[],
     ): Promise<Record<string, SpaceAccessUserMetadata>> {
@@ -487,23 +488,33 @@ export class SpacePermissionModel {
                 if (userUuids.length === 0) return {};
 
                 const rows = await this.database(UserTableName)
-                    .innerJoin(
-                        EmailTableName,
-                        `${UserTableName}.user_id`,
-                        `${EmailTableName}.user_id`,
-                    )
-                    .where(`${EmailTableName}.is_primary`, true)
+                    .leftJoin(EmailTableName, function joinPrimaryEmail() {
+                        this.on(
+                            `${UserTableName}.user_id`,
+                            '=',
+                            `${EmailTableName}.user_id`,
+                        ).andOnVal(`${EmailTableName}.is_primary`, true);
+                    })
                     .whereIn(`${UserTableName}.user_uuid`, userUuids)
-                    .select<(SpaceAccessUserMetadata & { userUuid: string })[]>(
-                        {
-                            userUuid: `${UserTableName}.user_uuid`,
-                            firstName: `${UserTableName}.first_name`,
-                            lastName: `${UserTableName}.last_name`,
-                            email: `${EmailTableName}.email`,
-                        },
-                    );
+                    .select<
+                        (SpaceAccessUserMetadata & {
+                            userUuid: string;
+                            email: string | null;
+                        })[]
+                    >({
+                        userUuid: `${UserTableName}.user_uuid`,
+                        firstName: `${UserTableName}.first_name`,
+                        lastName: `${UserTableName}.last_name`,
+                        email: `${EmailTableName}.email`,
+                        isInternal: `${UserTableName}.is_internal`,
+                    });
 
-                return Object.fromEntries(rows.map((r) => [r.userUuid, r]));
+                return Object.fromEntries(
+                    rows.map((r) => [
+                        r.userUuid,
+                        { ...r, email: r.email ?? '' },
+                    ]),
+                );
             },
         );
     }

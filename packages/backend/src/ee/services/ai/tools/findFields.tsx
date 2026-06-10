@@ -1,12 +1,14 @@
 import {
     CatalogField,
     convertToAiHints,
+    DEFAULT_FILTER_CASE_SENSITIVE,
+    DimensionType,
     Explore,
+    FieldType,
+    findFieldsToolDefinition,
     getFilterTypeFromItemType,
     getItemId,
     isEmojiIcon,
-    toolFindFieldsArgsSchema,
-    toolFindFieldsOutputSchema,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import type {
@@ -26,6 +28,29 @@ type Dependencies = {
     pageSize: number;
 };
 
+const toolDefinition = findFieldsToolDefinition.for('agent');
+
+const getFieldCaseSensitive = (
+    catalogField: CatalogField,
+    explore?: Explore,
+): boolean | undefined => {
+    if (
+        catalogField.fieldType !== FieldType.DIMENSION ||
+        catalogField.fieldValueType !== DimensionType.STRING
+    ) {
+        return undefined;
+    }
+
+    const dimension =
+        explore?.tables[catalogField.tableName]?.dimensions[catalogField.name];
+
+    return (
+        dimension?.caseSensitive ??
+        explore?.caseSensitive ??
+        DEFAULT_FILTER_CASE_SENSITIVE
+    );
+};
+
 const renderField = (catalogField: CatalogField, explore?: Explore) => {
     const isFromJoinedTable =
         explore &&
@@ -33,6 +58,7 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
         explore.joinedTables.some(
             (join) => join.table === catalogField.tableName,
         );
+    const caseSensitiveFilters = getFieldCaseSensitive(catalogField, explore);
 
     const aiHints = convertToAiHints(catalogField.aiHints ?? undefined);
 
@@ -51,7 +77,11 @@ const renderField = (catalogField: CatalogField, explore?: Explore) => {
             )}
             searchRank={catalogField.searchRank}
             chartUsage={catalogField.chartUsage}
+            usageInVerifiedCharts={catalogField.verifiedChartUsage ?? 0}
             isFromJoinedTable={isFromJoinedTable}
+            {...(caseSensitiveFilters === undefined
+                ? {}
+                : { caseSensitiveFilters })}
         >
             {isFromJoinedTable && explore && (
                 <note>
@@ -113,9 +143,7 @@ export const getFindFields = ({
     pageSize,
 }: Dependencies) =>
     tool({
-        description: toolFindFieldsArgsSchema.description,
-        inputSchema: toolFindFieldsArgsSchema,
-        outputSchema: toolFindFieldsOutputSchema,
+        ...toolDefinition,
         execute: async (args) => {
             try {
                 const searchLabels = args.fieldSearchQueries
@@ -169,6 +197,8 @@ export const getFindFields = ({
                                             fieldType: field.fieldType,
                                             searchRank: field.searchRank,
                                             chartUsage: field.chartUsage,
+                                            verifiedChartUsage:
+                                                field.verifiedChartUsage,
                                         }),
                                     ),
                                     pagination:

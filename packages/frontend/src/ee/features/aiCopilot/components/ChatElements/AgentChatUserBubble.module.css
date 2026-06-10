@@ -1,0 +1,55 @@
+.bubble {
+    align-self: flex-end;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.contextGroup {
+    min-width: 0;
+    max-width: 100%;
+}
+
+.messageCard {
+    overflow: visible;
+
+    @mixin light {
+        background-color: color-mix(
+            in srgb,
+            var(--mantine-color-ldGray-1) 45%,
+            transparent
+        );
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-ldGray-4);
+        border-color: var(--mantine-color-ldGray-9);
+    }
+}
+
+.markdown {
+    background-color: transparent;
+    font-size: 0.8125rem;
+    font-weight: 500;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-8);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-gray-0);
+    }
+}
+
+.messageText {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.inlineMarkdown {
+    display: inline;
+}
+
+.inlineMarkdown :global(p) {
+    display: inline;
+    margin: 0;
+}

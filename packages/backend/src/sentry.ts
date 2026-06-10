@@ -17,6 +17,10 @@ export const IGNORE_ERRORS = [
     'ReadFileError',
     'AiAgentValidatorError',
     'UserInfoError', // Google oauth2 error when using invalid credentials
+    // Invalid user-supplied parameter (e.g. AI writeback requires a GitHub
+    // dbt connection but the project uses "none") — surfaced to the user,
+    // not a server bug.
+    'ParameterError',
 ];
 
 const spotlightEnabled =

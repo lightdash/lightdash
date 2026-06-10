@@ -151,7 +151,6 @@ export type VisualizationTableConfigProps =
         itemsMap: ItemsMap | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
-        pivotTableMaxColumnLimit: number;
         savedChartUuid: string | undefined;
         dashboardFilters: DashboardFilters | undefined;
         invalidateCache: boolean | undefined;

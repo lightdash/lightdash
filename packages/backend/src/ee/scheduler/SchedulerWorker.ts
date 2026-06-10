@@ -14,23 +14,35 @@ import {
     SchedulerWorkerArguments,
 } from '../../scheduler/SchedulerWorker';
 import { TypedEETaskList } from '../../scheduler/types';
+import { AiAgentAdminService } from '../services/AiAgentAdminService';
+import { AiAgentReviewClassifierService } from '../services/AiAgentReviewClassifierService';
 import { AiAgentService } from '../services/AiAgentService/AiAgentService';
 import { AppGenerateService } from '../services/AppGenerateService/AppGenerateService';
 import type { EmbedService } from '../services/EmbedService/EmbedService';
 import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgentService';
+import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
     aiAgentService: AiAgentService;
+    aiAgentReviewClassifierService: AiAgentReviewClassifierService;
+    aiAgentAdminService: AiAgentAdminService;
     embedService: EmbedService;
     managedAgentService: ManagedAgentService;
     appGenerateService: AppGenerateService;
+    projectContextService: ProjectContextService;
 };
 
 export class CommercialSchedulerWorker extends SchedulerWorker {
     protected readonly aiAgentService: AiAgentService;
+
+    protected readonly aiAgentReviewClassifierService: AiAgentReviewClassifierService;
+
+    protected readonly aiAgentAdminService: AiAgentAdminService;
 
     protected readonly embedService: EmbedService;
 
@@ -38,12 +50,18 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
 
     protected readonly appGenerateService: AppGenerateService;
 
+    protected readonly projectContextService: ProjectContextService;
+
     constructor(args: CommercialSchedulerWorkerArguments) {
         super(args);
         this.aiAgentService = args.aiAgentService;
+        this.aiAgentReviewClassifierService =
+            args.aiAgentReviewClassifierService;
+        this.aiAgentAdminService = args.aiAgentAdminService;
         this.embedService = args.embedService;
         this.managedAgentService = args.managedAgentService;
         this.appGenerateService = args.appGenerateService;
+        this.projectContextService = args.projectContextService;
     }
 
     protected getCronItems() {
@@ -76,6 +94,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             [EE_SCHEDULER_TASKS.SLACK_AI_PROMPT]: async (payload, _helpers) => {
                 await this.aiAgentService.replyToSlackPrompt(
                     payload.slackPromptUuid,
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: async (
+                payload,
+                _helpers,
+            ) => {
+                await this.aiAgentAdminService.pollReviewRemediationPreview(
+                    payload,
                 );
             },
             [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (
@@ -129,6 +155,87 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 agentUuid: payload.agentUuid,
                                 evalRunUuid: payload.evalRunUuid,
                                 evalRunResultUuid: payload.evalRunResultUuid,
+                            },
+                        });
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentReviewClassifierService.runLiveEvent(
+                                {
+                                    ...payload,
+                                    requestedByUserUuid: payload.userUuid,
+                                },
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS,
+                    async (job, e) => {
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                agentUuid: payload.agentUuid,
+                                threadUuid: payload.threadUuid,
+                                promptUuid: payload.promptUuid,
+                                eventType: payload.eventType,
+                            },
+                        });
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentAdminService.runReviewItemWritebackJob(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS,
+                    async (job, e) => {
+                        await this.aiAgentAdminService.failReviewItemWritebackJob(
+                            {
+                                fingerprint: payload.fingerprint,
+                                organizationUuid: payload.organizationUuid,
+                                message: getErrorMessage(e),
+                            },
+                        );
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                organizationUuid: payload.organizationUuid,
+                                projectUuid: payload.projectUuid,
+                                fingerprint: payload.fingerprint,
                             },
                         });
                     },
@@ -227,6 +334,35 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             },
             [EE_SCHEDULER_TASKS.SWEEP_STALE_APP_LOCKS]: async () => {
                 await this.appGenerateService.sweepStaleLocks();
+            },
+            [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: async (
+                payload,
+                helpers,
+            ) => {
+                try {
+                    const user =
+                        await this.userService.getSessionByUserUuidAndOrg(
+                            payload.userUuid,
+                            payload.organizationUuid,
+                        );
+                    await this.projectContextService.ingestProjectContext(
+                        user,
+                        payload.projectUuid,
+                    );
+                } catch (e) {
+                    await this.schedulerService.logSchedulerJob({
+                        task: SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT,
+                        jobId: helpers.job.id,
+                        scheduledTime: helpers.job.run_at,
+                        status: SchedulerJobStatus.ERROR,
+                        details: {
+                            error: getErrorMessage(e),
+                            projectUuid: payload.projectUuid,
+                            organizationUuid: payload.organizationUuid,
+                        },
+                    });
+                    throw e;
+                }
             },
             [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (
                 payload,

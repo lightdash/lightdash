@@ -1,10 +1,9 @@
 import {
-    TOOL_DISPLAY_MESSAGES,
-    TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
-    friendlyName,
+    type AiMcpServer,
+    type AiWritebackStep,
     isToolName,
 } from '@lightdash/common';
 import {
@@ -21,15 +20,26 @@ import remarkEmoji from 'remark-emoji';
 import remarkGfm from 'remark-gfm';
 import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import bubbleStyles from '../AgentChatAssistantBubble.module.css';
+import { AgentStepGroups } from './AgentStepGroups';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
+import { parseAgentStep } from './parseAgentStep';
 import { ToolCallChip } from './ToolCallChip';
+import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
 import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
+import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
+import {
+    getMcpServerForToolName,
+    getMcpToolDisplayMetadata,
+    getMcpToolDisplayName,
+} from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
+import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { getToolIcon } from './utils/toolIcons';
 import { type ToolCallSummary } from './utils/types';
 
@@ -37,6 +47,7 @@ export type LiveActivityToolGroup = {
     toolName: AiAgentToolName;
     calls: ToolCallSummary[];
     keyId: string;
+    display?: ToolCallGroupDisplay;
 };
 
 type Props = {
@@ -50,6 +61,7 @@ type Props = {
     toolResults?: AiAgentToolResult[];
     /** All tool calls for the message. Used to resolve subagent children via parentToolCallId. */
     toolCalls?: AiAgentToolCall[];
+    mcpServers?: AiMcpServer[];
     /**
      * Pending interactive content (e.g. SqlApprovalCard awaiting user
      * decision). When present, the card auto-expands and renders this in the
@@ -57,6 +69,16 @@ type Props = {
      * of as a separate floating card.
      */
     pendingContent?: React.ReactNode;
+    /**
+     * In-flight status events emitted across the stream (e.g. "Starting
+     * sandbox", "Cloning project", "Committing changes" for editDbtProject).
+     * Each carries the tool it belongs to so the inline row can be scoped to
+     * the active tool — a concurrently running tool's progress (e.g. a
+     * `findFields` query fired alongside the writeback) must not surface under
+     * the writeback header. Latest matching entry is shown as a single
+     * replacing row. Empty when no tool has fired a progress event yet.
+     */
+    stepProgressMessages?: StepProgressMessage[];
 };
 
 const REASONING_PREVIEW_LENGTH = 140;
@@ -66,14 +88,92 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'improveContext',
     'proposeChange',
     'runSavedChart',
-    'listWarehouseTables',
-    'describeWarehouseTable',
 ]);
 
-const getMcpDisplayName = (toolName: string) => {
-    const maybeServerName = toolName.replace(/^mcp_/, '').split('__')[0];
+// Built-in tools whose ToolCallDescription returns an empty fragment.
+// Listing them lets the latest-description Box opt out entirely, instead
+// of rendering an empty wrapper that animates an empty area open/closed
+// when the user expands the card. Keep this in sync with the empty cases
+// in ToolCallDescription.tsx — discoverFields is intentionally excluded
+// because it has no description string but does render a subagent trace.
+const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
+    'listKnowledgeDocuments',
+    'listProjects',
+    'getProjectInfo',
+    'generateHashes',
+    'generateUuids',
+    'improveContext',
+    'loadSkill',
+    'loadProjectContext',
+    'proposeChange',
+    'editDbtProject',
+    'setupPreviewDeploy',
+    'runSavedChart',
+]);
 
-    return maybeServerName ? friendlyName(maybeServerName) : 'Tool';
+// Tools that stream coarse step progress rendered as a single replacing row.
+// editDbtProject is intentionally absent: its actions are surfaced as grouped
+// step rows (AgentStepGroups) under the tool call instead of a transient line.
+const TOOLS_WITH_STEP_PROGRESS = new Set<string>(['setupPreviewDeploy']);
+
+const MCP_SUMMARY_ICON_LIMIT = 4;
+
+const getMcpSummaryIcons = (
+    toolGroups: LiveActivityToolGroup[],
+    mcpServers?: AiMcpServer[],
+) => {
+    const seen = new Set<string>();
+
+    return toolGroups.flatMap((group) => {
+        if (isToolName(group.toolName)) return [];
+
+        const linkedMcpServer =
+            group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
+            undefined;
+        const mcpServer =
+            linkedMcpServer ??
+            getMcpServerForToolName(group.toolName, mcpServers);
+        const metadata = getMcpToolDisplayMetadata(group.toolName, mcpServer);
+        const key = mcpServer?.uuid ?? metadata.label;
+
+        if (seen.has(key)) return [];
+        seen.add(key);
+
+        return [{ toolName: group.toolName, mcpServer, key }];
+    });
+};
+
+const McpSummaryIconStack: FC<{
+    toolGroups: LiveActivityToolGroup[];
+    mcpServers?: AiMcpServer[];
+}> = ({ toolGroups, mcpServers }) => {
+    const icons = getMcpSummaryIcons(toolGroups, mcpServers);
+    if (icons.length === 0) return null;
+
+    const visibleIcons = icons.slice(0, MCP_SUMMARY_ICON_LIMIT);
+    const overflow = icons.length - visibleIcons.length;
+
+    return (
+        <Group gap={0} wrap="nowrap" className={styles.mcpSummaryIconStack}>
+            {visibleIcons.map((icon, idx) => (
+                <ToolCallIcon
+                    key={icon.key}
+                    toolName={icon.toolName}
+                    mcpServer={icon.mcpServer}
+                    className={styles.mcpSummaryIcon}
+                    style={
+                        {
+                            '--mcp-summary-icon-z-index':
+                                visibleIcons.length - idx,
+                        } as React.CSSProperties
+                    }
+                />
+            ))}
+            {overflow > 0 && (
+                <Box className={styles.mcpSummaryOverflow}>+{overflow}</Box>
+            )}
+        </Group>
+    );
 };
 
 export const ReasoningHistoryRow: FC<{
@@ -139,9 +239,7 @@ export const ReasoningHistoryRow: FC<{
                         icon={IconChevronRight}
                         size={11}
                         stroke={1.6}
-                        className={`${styles.chevron} ${
-                            open ? styles.chevronOpen : ''
-                        }`}
+                        className={`${styles.chevron} ${open ? styles.chevronOpen : ''}`}
                     />
                 </Group>
             </UnstyledButton>
@@ -171,23 +269,43 @@ export const ReasoningHistoryRow: FC<{
     );
 };
 
-const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
-    group,
-    isLive,
-}) => {
-    const Icon = getToolIcon(group.toolName);
+const LatestRow: FC<{
+    group: LiveActivityToolGroup;
+    isLive: boolean;
+    mcpServers?: AiMcpServer[];
+}> = ({ group, isLive, mcpServers }) => {
     const builtInToolName = isToolName(group.toolName) ? group.toolName : null;
+    const linkedMcpServer =
+        group.calls.find((toolCall) => toolCall.mcpServer)?.mcpServer ??
+        undefined;
+    const mcpServer = builtInToolName
+        ? undefined
+        : (linkedMcpServer ??
+          getMcpServerForToolName(group.toolName, mcpServers));
+    const mcpDisplayMetadata = builtInToolName
+        ? undefined
+        : getMcpToolDisplayMetadata(group.toolName, mcpServer);
+    const mcpToolDisplayName = builtInToolName
+        ? null
+        : getMcpToolDisplayName(group.toolName);
     const label = builtInToolName
-        ? isLive
-            ? TOOL_DISPLAY_MESSAGES[builtInToolName]
-            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[builtInToolName]
+        ? getToolCallDisplayMessage({
+              toolName: builtInToolName,
+              calls: group.calls,
+              display: group.display,
+              status: isLive ? 'running' : 'done',
+          })
         : null;
     const isGrouped = group.calls.length > 1;
     const lastCall = group.calls[group.calls.length - 1];
-    const chipLabel = isToolName(group.toolName)
-        ? getToolCallChipLabel(group.toolName, lastCall.toolArgs)
+    const lastBuiltInToolName = isToolName(lastCall.toolName)
+        ? lastCall.toolName
+        : builtInToolName;
+    const chipLabel = lastBuiltInToolName
+        ? getToolCallChipLabel(lastBuiltInToolName, lastCall.toolArgs)
         : null;
-    const showPreview = chipLabel && !TOOLS_WITHOUT_PREVIEW.has(group.toolName);
+    const showPreview =
+        chipLabel && !TOOLS_WITHOUT_PREVIEW.has(lastBuiltInToolName ?? '');
 
     return (
         <Group
@@ -207,11 +325,12 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
                     className={styles.iconChip}
                     data-live={isLive ? 'true' : 'false'}
                 >
-                    <MantineIcon
-                        icon={Icon}
+                    <ToolCallIcon
+                        toolName={group.toolName}
                         size={12}
                         stroke={1.7}
                         className={styles.latestIcon}
+                        mcpServer={mcpServer}
                         data-live={isLive ? 'true' : 'false'}
                     />
                 </Box>
@@ -232,13 +351,13 @@ const LatestRow: FC<{ group: LiveActivityToolGroup; isLive: boolean }> = ({
                     key={`label-${group.toolName}-${isLive ? 'live' : 'done'}`}
                 >
                     <Text size="xs" className={styles.latestLabel}>
-                        Using MCP {getMcpDisplayName(group.toolName)}:
+                        Using {mcpDisplayMetadata?.label ?? 'MCP'}:
                     </Text>
                     <ToolCallChip
                         maxWidth={260}
                         className={styles.latestMcpToolChip}
                     >
-                        {group.toolName}
+                        {mcpToolDisplayName}
                     </ToolCallChip>
                 </Group>
             )}
@@ -288,11 +407,12 @@ type DiscoverFieldsOutputMetadata = {
     trace?: TraceEntry[];
 };
 
-const extractTraceFromMessage = (
+const extractDiscoverFieldsTraceFromStreamingMessage = (
     message: StreamingMessage | undefined,
 ): TraceEntry[] | null => {
     if (!message) return null;
     const entries: TraceEntry[] = [];
+    const seenToolCallIds = new Set<string>();
     for (const part of message.parts) {
         if (
             part.type !== 'tool-findExplores' &&
@@ -301,6 +421,8 @@ const extractTraceFromMessage = (
             continue;
         }
         if (!part.toolCallId) continue;
+        if (seenToolCallIds.has(part.toolCallId)) continue;
+        seenToolCallIds.add(part.toolCallId);
         entries.push({
             toolCallId: part.toolCallId,
             toolName:
@@ -344,7 +466,9 @@ const getDiscoverFieldsTrace = (
     const metadata = toolResult.metadata as
         | DiscoverFieldsOutputMetadata
         | undefined;
-    const fromMessage = extractTraceFromMessage(metadata?.streamingMessage);
+    const fromMessage = extractDiscoverFieldsTraceFromStreamingMessage(
+        metadata?.streamingMessage,
+    );
     if (fromMessage) return fromMessage;
     const legacy = metadata?.trace;
     return Array.isArray(legacy) && legacy.length > 0 ? legacy : null;
@@ -363,7 +487,75 @@ const getDiscoverFieldsTraceFromCall = (
     const output = call.toolOutput as
         | { metadata?: DiscoverFieldsOutputMetadata }
         | undefined;
-    return extractTraceFromMessage(output?.metadata?.streamingMessage);
+    return extractDiscoverFieldsTraceFromStreamingMessage(
+        output?.metadata?.streamingMessage,
+    );
+};
+
+/**
+ * Render the latest tool's progress as a single inline row under the
+ * card header — the label gets replaced (rather than stacked) as the tool
+ * advances. Matches the Slack experience where one pinned line is
+ * overwritten with each new stage, without losing the visual anchor of a
+ * pulsing dot.
+ *
+ * Returns null when there's nothing to render (the tool hasn't fired any
+ * progress events, an SQL approval is pending, or we're not actively
+ * streaming). Today only editDbtProject emits progress strings that
+ * warrant this treatment; other tools either run instantly or share the
+ * single "Running your query…" string that the parent bubble shows via
+ * TypingDots instead.
+ *
+ * Crucially, the row shows only the latest event belonging to the active
+ * tool (`toolName === latest.toolName`). A writeback often runs alongside
+ * other tools (e.g. a `findFields` query the agent fired in the same turn),
+ * and all of their progress lands in one flat list — without this scoping a
+ * concurrent tool's "Searching for fields…" would briefly surface under the
+ * "Opening a pull request" header.
+ */
+const renderInlineLiveStepProgress = (params: {
+    latest: LiveActivityToolGroup | null;
+    isLive: boolean;
+    hasPending: boolean;
+    stepProgressMessages: StepProgressMessage[];
+}): React.ReactNode => {
+    const { latest, isLive, hasPending, stepProgressMessages } = params;
+    if (!isLive || !latest || hasPending) return null;
+    if (!TOOLS_WITH_STEP_PROGRESS.has(latest.toolName)) return null;
+
+    const currentMessage = stepProgressMessages
+        .filter((m) => m.toolName === latest.toolName)
+        .at(-1)?.message;
+    if (!currentMessage) return null;
+
+    return (
+        <Box className={styles.liveStepProgress}>
+            <Group
+                gap={6}
+                align="center"
+                wrap="nowrap"
+                className={styles.liveStepProgressRow}
+                // Key on the message so React swaps the node (replays the
+                // fade-in animation) each time a new progress event lands,
+                // rather than just rewriting the text in place. Reads as a
+                // deliberate "next step" rather than a silent label change.
+                key={currentMessage}
+                data-active="true"
+            >
+                <Box
+                    className={styles.liveStepProgressDot}
+                    data-active="true"
+                />
+                <Text
+                    size="xs"
+                    className={styles.liveStepProgressLabel}
+                    data-active="true"
+                >
+                    {currentMessage}
+                </Text>
+            </Group>
+        </Box>
+    );
 };
 
 /**
@@ -401,7 +593,9 @@ export const LiveActivityCard: FC<Props> = ({
     isLive,
     toolResults,
     toolCalls,
+    mcpServers,
     pendingContent,
+    stepProgressMessages = [],
 }) => {
     const [userExpanded, setUserExpanded] = useState(false);
 
@@ -447,7 +641,9 @@ export const LiveActivityCard: FC<Props> = ({
     // sees it immediately, without needing to click the chevron.
     const expanded = hasPending || userExpanded;
 
-    const showBody = expanded && (hasHistory || hasPending);
+    const latestNeedsExpandedBody = latest?.toolName === 'runSql';
+    const showBody =
+        expanded && (hasHistory || hasPending || latestNeedsExpandedBody);
 
     return (
         <Box
@@ -460,7 +656,9 @@ export const LiveActivityCard: FC<Props> = ({
                 onClick={() => setUserExpanded((prev) => !prev)}
                 aria-expanded={expanded}
                 className={styles.header}
-                disabled={!hasHistory && !hasPending}
+                disabled={
+                    !hasHistory && !hasPending && !latestNeedsExpandedBody
+                }
             >
                 <Group gap={6} align="center" wrap="nowrap">
                     <Box className={styles.latestSlot}>
@@ -487,11 +685,19 @@ export const LiveActivityCard: FC<Props> = ({
                                         >
                                             {summary.title}
                                         </Text>
+                                        <McpSummaryIconStack
+                                            toolGroups={toolGroups}
+                                            mcpServers={mcpServers}
+                                        />
                                     </Group>
                                 );
                             })()
                         ) : latest ? (
-                            <LatestRow group={latest} isLive={isLive} />
+                            <LatestRow
+                                group={latest}
+                                isLive={isLive}
+                                mcpServers={mcpServers}
+                            />
                         ) : hasPending ? (
                             <Group
                                 gap={8}
@@ -528,7 +734,7 @@ export const LiveActivityCard: FC<Props> = ({
                             +{olderCount}
                         </Text>
                     )}
-                    {(hasHistory || hasPending) && (
+                    {(hasHistory || hasPending || latestNeedsExpandedBody) && (
                         <MantineIcon
                             icon={IconChevronRight}
                             size={11}
@@ -541,6 +747,30 @@ export const LiveActivityCard: FC<Props> = ({
                 </Group>
             </UnstyledButton>
             {renderInlineLiveTrace({ latest, isLive, hasPending })}
+            {renderInlineLiveStepProgress({
+                latest,
+                isLive,
+                hasPending,
+                stepProgressMessages,
+            })}
+            {isLive &&
+                !hasPending &&
+                latest?.toolName === 'editDbtProject' &&
+                (() => {
+                    // Live grouped step rows for the writeback tool: parse the
+                    // streamed progress strings back into structured steps so
+                    // they render (and group) the same way as the persisted
+                    // steps once the run completes.
+                    const liveSteps = stepProgressMessages
+                        .filter((m) => m.toolName === 'editDbtProject')
+                        .map((m) => parseAgentStep(m.message));
+                    if (liveSteps.length === 0) return null;
+                    return (
+                        <Box className={styles.liveStepProgress}>
+                            <AgentStepGroups steps={liveSteps} />
+                        </Box>
+                    );
+                })()}
             <Collapse
                 in={showBody}
                 transitionDuration={260}
@@ -550,58 +780,71 @@ export const LiveActivityCard: FC<Props> = ({
                     {hasPending && (
                         <Box className={styles.pending}>{pendingContent}</Box>
                     )}
-                    {latest && !hasPending && (
-                        <Stack gap={4}>
-                            {(() => {
-                                const latestBuiltInToolName = isToolName(
-                                    latest.toolName,
+                    {(() => {
+                        if (!latest || hasPending) return null;
+                        const latestBuiltInToolName = isToolName(
+                            latest.toolName,
+                        )
+                            ? latest.toolName
+                            : null;
+                        if (!latestBuiltInToolName) return null;
+
+                        const renderableCalls = latest.calls
+                            .map((tc) => {
+                                const callBuiltInToolName = isToolName(
+                                    tc.toolName,
                                 )
-                                    ? latest.toolName
+                                    ? tc.toolName
                                     : null;
-
-                                return latestBuiltInToolName
-                                    ? latest.calls.map((tc) => {
-                                          const trace =
-                                              latestBuiltInToolName ===
-                                              'discoverFields'
-                                                  ? (getDiscoverFieldsTraceFromCall(
-                                                        tc,
-                                                    ) ??
-                                                    getDiscoverFieldsTrace(
-                                                        toolResults?.find(
-                                                            (r) =>
-                                                                r.toolCallId ===
-                                                                tc.toolCallId,
-                                                        ),
-                                                        toolCalls,
-                                                    ))
-                                                  : null;
-
-                                          return (
-                                              <Box
-                                                  key={tc.toolCallId}
-                                                  className={
-                                                      styles.latestDescription
-                                                  }
-                                              >
-                                                  <ToolCallDescription
-                                                      toolName={
-                                                          latestBuiltInToolName
-                                                      }
-                                                      toolCall={tc}
-                                                  />
-                                                  {trace && (
-                                                      <DiscoverFieldsTrace
-                                                          trace={trace}
-                                                      />
-                                                  )}
-                                              </Box>
-                                          );
-                                      })
-                                    : null;
-                            })()}
-                        </Stack>
-                    )}
+                                if (!callBuiltInToolName) return null;
+                                const hasNoDescription =
+                                    TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
+                                        callBuiltInToolName,
+                                    );
+                                const trace =
+                                    callBuiltInToolName === 'discoverFields'
+                                        ? (getDiscoverFieldsTraceFromCall(tc) ??
+                                          getDiscoverFieldsTrace(
+                                              toolResults?.find(
+                                                  (r) =>
+                                                      r.toolCallId ===
+                                                      tc.toolCallId,
+                                              ),
+                                              toolCalls,
+                                          ))
+                                        : null;
+                                // Skip the wrapper entirely when there's
+                                // nothing to show, otherwise expanding the
+                                // card animates an empty box open/closed.
+                                if (hasNoDescription && !trace) return null;
+                                return (
+                                    <Box
+                                        key={tc.toolCallId}
+                                        className={styles.latestDescription}
+                                    >
+                                        {!hasNoDescription && (
+                                            <ToolCallDescription
+                                                toolName={callBuiltInToolName}
+                                                toolCall={tc}
+                                                toolResult={toolResults?.find(
+                                                    (result) =>
+                                                        result.toolCallId ===
+                                                        tc.toolCallId,
+                                                )}
+                                            />
+                                        )}
+                                        {trace && (
+                                            <DiscoverFieldsTrace
+                                                trace={trace}
+                                            />
+                                        )}
+                                    </Box>
+                                );
+                            })
+                            .filter((node) => node !== null);
+                        if (renderableCalls.length === 0) return null;
+                        return <Stack gap={4}>{renderableCalls}</Stack>;
+                    })()}
                     {olderGroups.length > 0 && (
                         <Stack gap={2}>
                             {olderGroups.map((group, idx) => {
@@ -624,6 +867,25 @@ export const LiveActivityCard: FC<Props> = ({
                                               )
                                               .find((t) => t && t.length > 0)
                                         : null;
+                                // Adapt the writeback tool's persisted, generic
+                                // step actions into grouped step rows. The
+                                // adaptation lives here (the orchestrator),
+                                // never in the generic row/step components.
+                                const groupSteps =
+                                    group.toolName === 'editDbtProject'
+                                        ? group.calls.flatMap((tc) => {
+                                              const meta = toolResults?.find(
+                                                  (r) =>
+                                                      r.toolCallId ===
+                                                      tc.toolCallId,
+                                              )?.metadata as
+                                                  | {
+                                                        steps?: AiWritebackStep[];
+                                                    }
+                                                  | undefined;
+                                              return meta?.steps ?? [];
+                                          })
+                                        : [];
                                 return (
                                     <Box
                                         key={group.keyId}
@@ -637,14 +899,24 @@ export const LiveActivityCard: FC<Props> = ({
                                         <ToolCallRow
                                             toolName={group.toolName}
                                             toolCalls={group.calls}
+                                            display={group.display}
                                             status="done"
-                                            extraBody={
-                                                groupTrace ? (
+                                            toolResults={toolResults}
+                                            mcpServers={mcpServers}
+                                            extraBody={(() => {
+                                                if (groupSteps.length > 0) {
+                                                    return (
+                                                        <AgentStepGroups
+                                                            steps={groupSteps}
+                                                        />
+                                                    );
+                                                }
+                                                return groupTrace ? (
                                                     <DiscoverFieldsTrace
                                                         trace={groupTrace}
                                                     />
-                                                ) : undefined
-                                            }
+                                                ) : undefined;
+                                            })()}
                                         />
                                     </Box>
                                 );

@@ -13,6 +13,7 @@ import type {
 } from '../types/catalog';
 import { type CompiledTable } from '../types/explore';
 import {
+    convertFieldRefToFieldId,
     CustomDimensionType,
     DimensionType,
     MetricType,
@@ -28,6 +29,7 @@ import {
     type FilterRule,
 } from '../types/filter';
 import {
+    isMetricsExplorerCompatibleDimension,
     MetricExplorerComparison,
     type MetricExploreDataPoint,
     type MetricExplorerDateRange,
@@ -37,6 +39,7 @@ import { type WarehouseTypes } from '../types/projects';
 import type { ResultRow } from '../types/results';
 import { TimeFrames, type DefaultTimeDimension } from '../types/timeFrames';
 import assertUnreachable from './assertUnreachable';
+import { createFilterRuleFromModelRequiredFilterRule } from './filters';
 import { getItemId } from './item';
 
 dayjs.extend(isoWeek);
@@ -586,13 +589,7 @@ export const getAvailableTimeDimensionsFromTables = (
 export const getTypeValidFilterDimensions = (
     dimensions: CompiledDimension[],
 ): CompiledDimension[] =>
-    dimensions.filter((d) => {
-        // Exclude date-derived dimensions (month name, day name, etc.) even though they're strings
-        if (d.timeIntervalBaseDimensionName) return false;
-        return (
-            d.type === DimensionType.STRING || d.type === DimensionType.BOOLEAN
-        );
-    });
+    dimensions.filter(isMetricsExplorerCompatibleDimension);
 
 /**
  * Filters dimensions for a specific metric, applying metric's spotlight allowlist.
@@ -619,13 +616,7 @@ export const getFilterDimensionsForMetric = (
 export const getTypeValidSegmentDimensions = (
     dimensions: CompiledDimension[],
 ): CompiledDimension[] =>
-    dimensions.filter((d) => {
-        // Exclude date-derived dimensions (month name, day name, etc.) even though they're strings
-        if (d.timeIntervalBaseDimensionName) return false;
-        return (
-            d.type === DimensionType.STRING || d.type === DimensionType.BOOLEAN
-        );
-    });
+    dimensions.filter(isMetricsExplorerCompatibleDimension);
 
 /**
  * Filters dimensions for a specific metric, applying metric's spotlight allowlist.
@@ -643,6 +634,53 @@ export const getSegmentDimensionsForMetric = (
         // Otherwise use dimension-level setting
         return d.spotlight?.segmentBy !== false;
     });
+
+/**
+ * Resolve the metric's spotlight `default_segment` (a dimension ref, bare or
+ * joined like "customers.first_name") to the explorer's fieldId, but only if it
+ * is one of the dimensions currently available to segment by.
+ * Returns null when there is no default or it is not available.
+ */
+export const getInitialDefaultSegment = (
+    metric:
+        | Pick<CatalogField, 'spotlightDefaultSegment' | 'tableName'>
+        | undefined,
+    availableSegmentDimensions: CompiledDimension[],
+): string | null => {
+    const ref = metric?.spotlightDefaultSegment;
+    if (!ref) return null;
+    const fieldId = convertFieldRefToFieldId(ref, metric.tableName);
+    const isAvailable = availableSegmentDimensions.some(
+        (d) => getItemId(d) === fieldId,
+    );
+    return isAvailable ? fieldId : null;
+};
+
+/**
+ * Build the Metrics Explorer `FilterRule` from the metric's spotlight
+ * `default_filter`. Returns undefined when there is no default or the dimension
+ * is not available to filter by.
+ */
+export const getInitialDefaultFilterRule = (
+    metric:
+        | Pick<CatalogField, 'spotlightDefaultFilter' | 'tableName'>
+        | undefined,
+    availableFilterDimensions: CompiledDimension[],
+): FilterRule | undefined => {
+    const defaultFilter = metric?.spotlightDefaultFilter;
+    if (!defaultFilter) return undefined;
+    // A spotlight default filter is a non-required, pre-applied filter — the
+    // same shape as a model default filter — so reuse that loader to resolve
+    // fieldRef→fieldId and carry `required` through unchanged.
+    const filterRule = createFilterRuleFromModelRequiredFilterRule(
+        defaultFilter,
+        metric.tableName,
+    );
+    const isAvailable = availableFilterDimensions.some(
+        (d) => getItemId(d) === filterRule.target.fieldId,
+    );
+    return isAvailable ? filterRule : undefined;
+};
 
 export const getAvailableCompareMetrics = (
     metrics: MetricWithAssociatedTimeDimension[],

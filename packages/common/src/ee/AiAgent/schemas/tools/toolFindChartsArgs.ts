@@ -15,9 +15,7 @@ Usage tips:
 - Returns chart URLs when available
 `;
 
-export const toolFindChartsArgsSchema = createToolSchema({
-    description: TOOL_FIND_CHARTS_DESCRIPTION,
-})
+export const toolFindChartsArgsSchema = createToolSchema()
     .extend({
         chartSearchQueries: z.array(
             z.object({

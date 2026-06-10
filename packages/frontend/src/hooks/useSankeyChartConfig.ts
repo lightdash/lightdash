@@ -3,29 +3,16 @@ import {
     type Dimension,
     type ItemsMap,
     type Metric,
-    type ResultRow,
-    type ResultValue,
     type SankeyChart,
     type TableCalculation,
     type TableCalculationMetadata,
 } from '@lightdash/common';
 import { useEffect, useMemo, useState } from 'react';
+import {
+    transformSankeyData,
+    type SankeySeriesDataPoint,
+} from './sankeyTransform';
 import { type InfiniteQueryResults } from './useQueryResults';
-
-export type SankeySeriesDataPoint = {
-    nodes: { name: string }[];
-    links: {
-        source: string;
-        target: string;
-        value: number;
-        meta: {
-            value: ResultValue;
-            rows: ResultRow[];
-        };
-    }[];
-    /** Maximum depth level discovered during BFS traversal */
-    maxDepth: number;
-};
 
 type SankeyChartConfig = {
     validConfig: SankeyChart;
@@ -43,6 +30,11 @@ type SankeyChartConfig = {
 
     orient: NonNullable<SankeyChart['orient']>;
     onOrientChange: (orient: NonNullable<SankeyChart['orient']>) => void;
+
+    nodeLayout: NonNullable<SankeyChart['nodeLayout']>;
+    onNodeLayoutChange: (
+        nodeLayout: NonNullable<SankeyChart['nodeLayout']>,
+    ) => void;
 
     data: SankeySeriesDataPoint;
 };
@@ -81,6 +73,9 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
     const [orient, setOrient] = useState<NonNullable<SankeyChart['orient']>>(
         sankeyChartConfig?.orient ?? 'horizontal',
     );
+    const [nodeLayout, setNodeLayout] = useState<
+        NonNullable<SankeyChart['nodeLayout']>
+    >(sankeyChartConfig?.nodeLayout ?? 'multi-step');
 
     const dimensionIds = useMemo(() => Object.keys(dimensions), [dimensions]);
     const numericFieldIds = useMemo(
@@ -153,175 +148,21 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
         }
     }, [numericFieldIds, metricFieldId, isLoading, tableCalculationsMetadata]);
 
-    // Transform results into Sankey nodes & links using BFS-based depth assignment.
-    // This handles cyclical flows by creating depth-specific node instances
-    // (e.g., "Conversion - Step 2" and "Conversion - Step 4").
     const data: SankeySeriesDataPoint = useMemo(() => {
         if (
             !resultsData ||
             !sourceFieldId ||
             !targetFieldId ||
-            !metricFieldId ||
-            resultsData.rows.length === 0
+            !metricFieldId
         ) {
-            return { nodes: [], links: [], maxDepth: 0 };
+            return { nodes: [], links: [], maxDepth: 0, hasCycle: false };
         }
-
-        // Step 1: Aggregate raw rows into source→target links
-        const aggregated = new Map<
-            string,
-            {
-                source: string;
-                target: string;
-                value: number;
-                meta: { value: ResultValue; rows: ResultRow[] };
-            }
-        >();
-
-        for (const row of resultsData.rows) {
-            const sourceCell = row[sourceFieldId];
-            const targetCell = row[targetFieldId];
-            const metricCell = row[metricFieldId];
-            if (!sourceCell || !targetCell || !metricCell) continue;
-
-            const sourceName = String(sourceCell.value.formatted);
-            const targetName = String(targetCell.value.formatted);
-            const metricValue = Number(metricCell.value.raw);
-            if (isNaN(metricValue) || metricValue <= 0) continue;
-
-            const key = `${sourceName}→${targetName}`;
-            const existing = aggregated.get(key);
-            if (existing) {
-                existing.value += metricValue;
-                existing.meta.rows.push(row);
-            } else {
-                aggregated.set(key, {
-                    source: sourceName,
-                    target: targetName,
-                    value: metricValue,
-                    meta: { value: metricCell.value, rows: [row] },
-                });
-            }
-        }
-
-        // Step 2: Build adjacency list (source → set of targets)
-        const outgoing = new Map<string, Set<string>>();
-        for (const link of aggregated.values()) {
-            if (!outgoing.has(link.source))
-                outgoing.set(link.source, new Set());
-            outgoing.get(link.source)!.add(link.target);
-        }
-
-        // Step 3: Find root nodes (sources that never appear as targets)
-        const allTargets = new Set(
-            Array.from(aggregated.values()).map((l) => l.target),
+        return transformSankeyData(
+            resultsData.rows,
+            { sourceFieldId, targetFieldId, metricFieldId },
+            { nodeLayout },
         );
-        const allSources = new Set(
-            Array.from(aggregated.values()).map((l) => l.source),
-        );
-        let roots = [...allSources].filter((s) => !allTargets.has(s));
-        if (roots.length === 0) roots = [...allSources].slice(0, 1); // fallback for pure cycles
-
-        // Step 4: BFS to discover node depths and edges.
-        // Each original edge (e.g., "Conversion→Retargeting") is placed exactly
-        // once. This prevents cycles from creating infinite depth expansion.
-        const MAX_DEPTH = 50;
-
-        // Track all depths each node appears at
-        const nodeDepthMap = new Map<string, Set<number>>();
-        // Track edges with depth info
-        const edgeInstances: {
-            source: string;
-            sourceDepth: number;
-            target: string;
-            targetDepth: number;
-        }[] = [];
-        // Track which original edges have been placed (stop BFS when all placed)
-        const placedOriginalEdges = new Set<string>();
-
-        type BFSItem = { name: string; depth: number };
-        const queue: BFSItem[] = roots.map((n) => ({ name: n, depth: 0 }));
-        const visited = new Set<string>(); // "name:depth"
-        let maxDepth = 0;
-
-        while (queue.length > 0) {
-            const { name, depth } = queue.shift()!;
-            if (depth > MAX_DEPTH) continue;
-
-            const key = `${name}:${depth}`;
-            if (visited.has(key)) continue;
-            visited.add(key);
-
-            if (!nodeDepthMap.has(name)) nodeDepthMap.set(name, new Set());
-            nodeDepthMap.get(name)!.add(depth);
-            if (depth > maxDepth) maxDepth = depth;
-
-            const targets = outgoing.get(name);
-            if (!targets) continue;
-
-            for (const target of targets) {
-                const originalEdgeKey = `${name}→${target}`;
-                // Each original edge is placed only once to prevent
-                // cycles from expanding infinitely
-                if (placedOriginalEdges.has(originalEdgeKey)) continue;
-                placedOriginalEdges.add(originalEdgeKey);
-
-                const targetDepth = depth + 1;
-                edgeInstances.push({
-                    source: name,
-                    sourceDepth: depth,
-                    target,
-                    targetDepth,
-                });
-                queue.push({ name: target, depth: targetDepth });
-            }
-        }
-
-        // Step 5: Determine which nodes need step suffixes (appear at multiple depths)
-        const multiDepthNodes = new Set<string>();
-        for (const [name, depths] of nodeDepthMap) {
-            if (depths.size > 1) multiDepthNodes.add(name);
-        }
-
-        const getLabel = (name: string, depth: number) => {
-            if (multiDepthNodes.has(name)) return `${name} - Step ${depth}`;
-            return name;
-        };
-
-        // Step 6: Build final nodes and links
-        const nodeSet = new Set<string>();
-        const finalLinks: SankeySeriesDataPoint['links'] = [];
-        const placedLinks = new Set<string>();
-
-        for (const edge of edgeInstances) {
-            const sourceLabel = getLabel(edge.source, edge.sourceDepth);
-            const targetLabel = getLabel(edge.target, edge.targetDepth);
-
-            nodeSet.add(sourceLabel);
-            nodeSet.add(targetLabel);
-
-            const linkKey = `${sourceLabel}→${targetLabel}`;
-            if (placedLinks.has(linkKey)) continue;
-            placedLinks.add(linkKey);
-
-            const aggKey = `${edge.source}→${edge.target}`;
-            const aggLink = aggregated.get(aggKey);
-            if (!aggLink) continue;
-
-            finalLinks.push({
-                source: sourceLabel,
-                target: targetLabel,
-                value: aggLink.value,
-                meta: aggLink.meta,
-            });
-        }
-
-        return {
-            nodes: Array.from(nodeSet).map((name) => ({ name })),
-            links: finalLinks,
-            maxDepth,
-        };
-    }, [resultsData, sourceFieldId, targetFieldId, metricFieldId]);
+    }, [resultsData, sourceFieldId, targetFieldId, metricFieldId, nodeLayout]);
 
     const validConfig: SankeyChart = useMemo(
         () => ({
@@ -330,8 +171,16 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
             metricFieldId: metricFieldId ?? undefined,
             nodeAlign,
             orient,
+            nodeLayout,
         }),
-        [sourceFieldId, targetFieldId, metricFieldId, nodeAlign, orient],
+        [
+            sourceFieldId,
+            targetFieldId,
+            metricFieldId,
+            nodeAlign,
+            orient,
+            nodeLayout,
+        ],
     );
 
     return {
@@ -346,6 +195,8 @@ const useSankeyChartConfig: SankeyChartConfigFn = (
         onNodeAlignChange: setNodeAlign,
         orient,
         onOrientChange: setOrient,
+        nodeLayout,
+        onNodeLayoutChange: setNodeLayout,
         data,
     };
 };

@@ -39,15 +39,6 @@ export const warehouseClientMock: WarehouseClient = {
             },
         },
     }),
-    getAsyncQueryResults: async () => ({
-        queryId: null,
-        queryMetadata: null,
-        totalRows: 0,
-        durationMs: 0,
-        fields: {},
-        pageCount: 0,
-        rows: [],
-    }),
     streamQuery(query, streamCallback) {
         void streamCallback({
             fields: {},
@@ -90,6 +81,7 @@ export const warehouseClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '"',
     getFloatingType: () => 'FLOAT',
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
@@ -147,6 +139,7 @@ export const bigqueryClientMock: WarehouseClient = {
     getFieldQuoteChar: () => '`',
     getFloatingType: () => 'FLOAT64',
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getCatalog: async () => ({
         default: {
             public: {
@@ -155,15 +148,6 @@ export const bigqueryClientMock: WarehouseClient = {
                 },
             },
         },
-    }),
-    getAsyncQueryResults: async () => ({
-        queryId: null,
-        queryMetadata: null,
-        totalRows: 0,
-        durationMs: 0,
-        fields: {},
-        pageCount: 0,
-        rows: [],
     }),
     streamQuery(query, streamCallback) {
         void streamCallback({
@@ -2390,6 +2374,18 @@ export const EXPLORE_WITH_SUM_DISTINCT: Explore = {
                     tablesReferences: ['orders'],
                     hidden: false,
                 },
+                line_item_id: {
+                    type: DimensionType.STRING,
+                    name: 'line_item_id',
+                    label: 'Line Item ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.line_item_id',
+                    compiledSql: '"orders".line_item_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
             },
             metrics: {
                 total_revenue: {
@@ -2403,6 +2399,24 @@ export const EXPLORE_WITH_SUM_DISTINCT: Explore = {
                     compiledSql: 'SUM("orders".amount)',
                     compiledValueSql: '"orders".amount',
                     compiledDistinctKeys: ['"orders".line_item_id'],
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                // Multi-key distinct: dedupes by (order_id, payment_method)
+                total_payment_by_method_per_order: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'total_payment_by_method_per_order',
+                    label: 'Total payment by method per order',
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM("orders".amount)',
+                    compiledValueSql: '"orders".amount',
+                    compiledDistinctKeys: [
+                        '"orders".order_id',
+                        '"orders".payment_method',
+                    ],
                     tablesReferences: ['orders'],
                     hidden: false,
                 },
@@ -2424,6 +2438,64 @@ export const METRIC_QUERY_SUM_DISTINCT_WITH_DIMS: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
     compiledCustomDimensions: [],
 };
+
+// Selected dimension matches the metric's distinct_key — exercises the INNER JOIN path
+// where the dedup CTE keeps one row per distinct-key value.
+export const METRIC_QUERY_SUM_DISTINCT_WITH_JOINABLE_DIM: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_line_item_id'],
+        metrics: ['orders_total_revenue'],
+        filters: {},
+        sorts: [{ fieldId: 'orders_total_revenue', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+// Multi-key distinct where both distinct_keys are selected as dimensions — reproduces
+// the case reported on feature/spk-450 where every output row was incorrectly the same.
+export const METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_FULLY_JOINABLE: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_order_id', 'orders_payment_method'],
+        metrics: ['orders_total_payment_by_method_per_order'],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'orders_total_payment_by_method_per_order',
+                descending: true,
+            },
+        ],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+// Multi-key distinct where only one of two distinct_keys is selected — outer CTE must
+// aggregate across the unselected key, INNER JOIN on the selected one.
+export const METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_PARTIAL_JOIN: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_order_id'],
+        metrics: ['orders_total_payment_by_method_per_order'],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'orders_total_payment_by_method_per_order',
+                descending: true,
+            },
+        ],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
 
 export const METRIC_QUERY_SUM_DISTINCT_NO_DIMS: CompiledMetricQuery = {
     exploreName: 'orders',
@@ -2521,6 +2593,171 @@ export const METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS: CompiledMetricQuery = {
     metrics: ['orders_avg_shipping_cost'],
     filters: {},
     sorts: [{ fieldId: 'orders_avg_shipping_cost', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// PROD-7893: type:number wrappers over sum_distinct metrics, plus a transitive rate.
+export const EXPLORE_WITH_SUM_DISTINCT_WRAPPER: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'transfers',
+    label: 'transfers',
+    baseTable: 'transfers',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        transfers: {
+            name: 'transfers',
+            label: 'transfers',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."transfers"',
+            primaryKey: ['client_id'],
+            dimensions: {
+                client_id: {
+                    type: DimensionType.STRING,
+                    name: 'client_id',
+                    label: 'Client ID',
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.client_id',
+                    compiledSql: '"transfers".client_id',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                date: {
+                    type: DimensionType.DATE,
+                    name: 'date',
+                    label: 'Date',
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.date',
+                    compiledSql: '"transfers".date',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_corridor_transfers: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_corridor_transfers',
+                    label: 'Total corridor transfers',
+                    sql: '${TABLE}.total_daily_corridor_transfers',
+                    compiledSql:
+                        'SUM("transfers".total_daily_corridor_transfers)',
+                    compiledValueSql:
+                        '"transfers".total_daily_corridor_transfers',
+                    compiledDistinctKeys: [
+                        '"transfers".client_id',
+                        '"transfers".date',
+                    ],
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_residual_transfers: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_residual_transfers',
+                    label: 'Total residual transfers',
+                    sql: '${TABLE}.total_daily_residual_transfers',
+                    compiledSql:
+                        'SUM("transfers".total_daily_residual_transfers)',
+                    compiledValueSql:
+                        '"transfers".total_daily_residual_transfers',
+                    compiledDistinctKeys: ['"transfers".client_id'],
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_inbound_contacts: {
+                    type: MetricType.COUNT_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_inbound_contacts',
+                    label: 'Total inbound contacts',
+                    sql: '${TABLE}.contact_id',
+                    compiledSql: 'COUNT(DISTINCT "transfers".contact_id)',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_transfers: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_transfers',
+                    label: 'Total transfers',
+                    sql: '${total_corridor_transfers} + ${total_residual_transfers}',
+                    compiledSql:
+                        '(SUM("transfers".total_daily_corridor_transfers)) + (SUM("transfers".total_daily_residual_transfers))',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                transfer_inbound_contact_rate: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'transfer_inbound_contact_rate',
+                    label: 'Transfer inbound contact rate',
+                    sql: '${total_inbound_contacts} / nullif(${total_transfers}, 0)',
+                    compiledSql:
+                        '(COUNT(DISTINCT "transfers".contact_id)) / nullif(((SUM("transfers".total_daily_corridor_transfers)) + (SUM("transfers".total_daily_residual_transfers))), 0)',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_DIRECT: CompiledMetricQuery = {
+    exploreName: 'transfers',
+    dimensions: ['transfers_date'],
+    metrics: ['transfers_total_transfers'],
+    filters: {},
+    sorts: [{ fieldId: 'transfers_date', descending: false }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_TRANSITIVE: CompiledMetricQuery =
+    {
+        exploreName: 'transfers',
+        dimensions: ['transfers_date'],
+        metrics: ['transfers_transfer_inbound_contact_rate'],
+        filters: {},
+        sorts: [{ fieldId: 'transfers_date', descending: false }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_MIXED: CompiledMetricQuery = {
+    exploreName: 'transfers',
+    dimensions: ['transfers_date'],
+    metrics: [
+        'transfers_total_transfers',
+        'transfers_transfer_inbound_contact_rate',
+    ],
+    filters: {},
+    sorts: [{ fieldId: 'transfers_date', descending: false }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],

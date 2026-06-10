@@ -1,222 +1,39 @@
-import { type AiAgent, type AiAgentThreadSummary } from '@lightdash/common';
+import { type AiAgent } from '@lightdash/common';
+import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine-8/core';
+import { IconShare2 } from '@tabler/icons-react';
+import { useCallback, useState } from 'react';
 import {
-    Alert,
-    Box,
-    Button,
-    Group,
-    Loader,
-    NavLink,
-    Paper,
-    rem,
-    Stack,
-    Text,
-    Title,
-    Tooltip,
-} from '@mantine-8/core';
-import {
-    IconBrandSlack,
-    IconChevronDown,
-    IconCirclePlus,
-    IconInfoCircle,
-    IconSettings,
-    IconSparkles,
-    IconWindowMinimize,
-} from '@tabler/icons-react';
-import { useState, type FC } from 'react';
-import {
-    Link,
     Navigate,
     Outlet,
     useNavigate,
     useParams,
     useSearchParams,
 } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
+import MantineModal from '../../../components/common/MantineModal';
+import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { AgentSelector } from '../../features/aiCopilot/components/AgentSelector';
+import { AgentPageHeader } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentPageHeader';
+import { AgentSidebar } from '../../features/aiCopilot/components/AiAgentPageLayout/AgentSidebar';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
-import { SidebarButton } from '../../features/aiCopilot/components/AiAgentPageLayout/SidebarButton';
 import { launcherSession } from '../../features/aiCopilot/components/Launcher/launcherSession';
 import { useLauncherDock } from '../../features/aiCopilot/components/Launcher/useLauncherDock';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
-import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
-    useAiAgentThreads,
+    useCreateAgentThreadShareMutation,
     useProjectAiAgents,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { store as aiAgentStore } from '../../features/aiCopilot/store';
 import { openPanel } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
+import styles from './AgentPage.module.css';
 
-const INITIAL_MAX_THREADS = 10;
-const MAX_THREADS_INCREMENT = 10;
-
-type ThreadNavLinkProps = {
-    thread: AiAgentThreadSummary;
-    isActive: boolean;
-    projectUuid: string;
-};
-
-const ThreadNavLink: FC<ThreadNavLinkProps> = ({
-    thread,
-    isActive,
-    projectUuid,
-}) => (
-    <NavLink
-        color="gray"
-        component={Link}
-        key={thread.uuid}
-        to={`/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`}
-        px="xs"
-        py={rem(4)}
-        style={(theme) => ({
-            borderRadius: theme.radius.sm,
-        })}
-        label={
-            <Text truncate="end" size="sm" c="ldGray.9">
-                {thread.title || thread.firstMessage.message}
-            </Text>
-        }
-        active={isActive}
-        rightSection={
-            thread.createdFrom === 'slack' && (
-                <Tooltip label={'Threads created in slack are read only'}>
-                    <IconBrandSlack size={18} stroke={1} />
-                </Tooltip>
-            )
-        }
-        viewTransition
-    />
-);
-
-const AgentSidebar: FC<{
-    agent: AiAgent;
-    projectUuid: string;
+type NavigateFromAgentChatOptions = {
     threadUuid?: string;
-    isAgentSidebarCollapsed: boolean;
-}> = ({ agent, projectUuid, threadUuid, isAgentSidebarCollapsed }) => {
-    const aiOrganizationSettingsQuery = useAiOrganizationSettings();
-    const isTrial =
-        aiOrganizationSettingsQuery.isSuccess &&
-        aiOrganizationSettingsQuery.data.isTrial;
-    const { data: threads } = useAiAgentThreads(projectUuid, agent.uuid);
-    const [showMaxItems, setShowMaxItems] = useState(INITIAL_MAX_THREADS);
-
-    return (
-        <Stack gap="md" style={{ flexGrow: 1, overflowY: 'auto' }}>
-            <Box>
-                <SidebarButton
-                    leftSection={<MantineIcon icon={IconCirclePlus} />}
-                    component={Link}
-                    to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/threads`}
-                    size="sm"
-                    {...(!isAgentSidebarCollapsed && {
-                        fullWidth: true,
-                        justify: 'flex-start',
-                    })}
-                >
-                    {isAgentSidebarCollapsed ? '' : 'New thread'}
-                </SidebarButton>
-            </Box>
-
-            {projectUuid && threads && !isAgentSidebarCollapsed && (
-                <Stack gap="xs" style={{ flexGrow: 1, overflowY: 'auto' }}>
-                    <Title
-                        order={6}
-                        c="dimmed"
-                        tt="uppercase"
-                        size="xs"
-                        ml="xs"
-                    >
-                        Recent
-                    </Title>
-
-                    <Stack gap={2}>
-                        {threads.length === 0 && (
-                            <Paper variant="dotted" p="sm">
-                                <Text
-                                    truncate="end"
-                                    size="sm"
-                                    c="ldGray.6"
-                                    ta="center"
-                                >
-                                    No threads yet
-                                </Text>
-                            </Paper>
-                        )}
-
-                        <Box>
-                            {threads.slice(0, showMaxItems).map((thread) => (
-                                <ThreadNavLink
-                                    key={thread.uuid}
-                                    thread={thread}
-                                    isActive={thread.uuid === threadUuid}
-                                    projectUuid={projectUuid}
-                                />
-                            ))}
-                        </Box>
-                    </Stack>
-
-                    <Box>
-                        {threads.length >= showMaxItems && (
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                onClick={() =>
-                                    setShowMaxItems(
-                                        (s) => s + MAX_THREADS_INCREMENT,
-                                    )
-                                }
-                                leftSection={
-                                    <MantineIcon icon={IconChevronDown} />
-                                }
-                                style={{
-                                    root: {
-                                        border: 'none',
-                                    },
-                                }}
-                            >
-                                View more
-                            </Button>
-                        )}
-                    </Box>
-                </Stack>
-            )}
-            {isTrial && (
-                <Alert
-                    icon={<MantineIcon icon={IconSparkles} />}
-                    variant="outline"
-                    color="indigo.6"
-                    bg="indigo.0"
-                    fz="xs"
-                    p="xs"
-                    title={
-                        <Text size="xs" fw={500}>
-                            You're currently using Lightdash AI Agents in free
-                            trial mode
-                        </Text>
-                    }
-                >
-                    <Button
-                        size="compact-xs"
-                        variant="light"
-                        color="indigo"
-                        leftSection={
-                            <MantineIcon icon={IconInfoCircle} size="sm" />
-                        }
-                        component={Link}
-                        to="https://docs.lightdash.com/guides/ai-agents"
-                        target="_blank"
-                    >
-                        Learn more
-                    </Button>
-                </Alert>
-            )}
-        </Stack>
-    );
+    title?: string | null;
 };
 
 const AgentPage = () => {
@@ -250,58 +67,108 @@ const AgentPage = () => {
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const { track } = useTracking();
     const { user } = useApp();
+    const { mutateAsync: createThreadShare, isLoading: isCreatingShare } =
+        useCreateAgentThreadShareMutation();
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [shareUrl, setShareUrl] = useState<string | null>(null);
 
-    const handleMinimize = () => {
-        if (!agent || !projectUuid) return;
-        track({
-            name: EventName.AI_AGENT_CHAT_MINIMIZED,
-            properties: {
-                userId: user?.data?.userUuid,
-                organizationId: user?.data?.organizationUuid,
-                projectId: projectUuid,
-                agentUuid: agent.uuid,
-                threadUuid,
-            },
-        });
-        if (threadUuid) {
-            const dockTitle =
-                thread?.title ||
-                thread?.firstMessage?.message ||
-                'Conversation';
-            addDockItem({
-                threadId: threadUuid,
-                agentUuid: agent.uuid,
-                title: dockTitle,
+    const handleMinimize = useCallback(
+        (targetUrl?: string, options?: NavigateFromAgentChatOptions) => {
+            if (!agent || !projectUuid) return;
+            const panelThreadUuid = options?.threadUuid ?? threadUuid;
+            track({
+                name: EventName.AI_AGENT_CHAT_MINIMIZED,
+                properties: {
+                    userId: user?.data?.userUuid,
+                    organizationId: user?.data?.organizationUuid,
+                    projectId: projectUuid,
+                    agentUuid: agent.uuid,
+                    threadUuid: panelThreadUuid,
+                },
             });
-            aiAgentStore.dispatch(
-                openPanel({
-                    threadId: threadUuid,
+            if (panelThreadUuid) {
+                const dockTitle =
+                    options?.title ||
+                    (panelThreadUuid === threadUuid
+                        ? thread?.title || thread?.firstMessage?.message
+                        : undefined) ||
+                    'Conversation';
+                addDockItem({
+                    threadId: panelThreadUuid,
                     agentUuid: agent.uuid,
-                }),
+                    title: dockTitle,
+                });
+                aiAgentStore.dispatch(
+                    openPanel({
+                        threadId: panelThreadUuid,
+                        agentUuid: agent.uuid,
+                    }),
+                );
+            } else {
+                const chartUuid = searchParams.get('chartUuid');
+                const dashboardUuid = searchParams.get('dashboardUuid');
+                const pendingContext =
+                    chartUuid || dashboardUuid
+                        ? {
+                              chartUuid: chartUuid ?? undefined,
+                              dashboardUuid: dashboardUuid ?? undefined,
+                          }
+                        : null;
+                aiAgentStore.dispatch(
+                    openPanel({
+                        threadId: null,
+                        agentUuid: agent.uuid,
+                        pendingContext,
+                    }),
+                );
+            }
+            void navigate(
+                targetUrl ??
+                    launcherSession.consumeLastNonAgentUrl() ??
+                    `/projects/${projectUuid}/home`,
+                { viewTransition: true },
             );
-        } else {
-            const chartUuid = searchParams.get('chartUuid');
-            const dashboardUuid = searchParams.get('dashboardUuid');
-            const pendingContext =
-                chartUuid || dashboardUuid
-                    ? {
-                          chartUuid: chartUuid ?? undefined,
-                          dashboardUuid: dashboardUuid ?? undefined,
-                      }
-                    : null;
-            aiAgentStore.dispatch(
-                openPanel({
-                    threadId: null,
-                    agentUuid: agent.uuid,
-                    pendingContext,
-                }),
-            );
+        },
+        [
+            addDockItem,
+            agent,
+            navigate,
+            projectUuid,
+            searchParams,
+            thread,
+            threadUuid,
+            track,
+            user?.data?.organizationUuid,
+            user?.data?.userUuid,
+        ],
+    );
+
+    const closeShareModal = useCallback(() => {
+        setIsShareModalOpen(false);
+        setShareUrl(null);
+    }, []);
+
+    const handleShare = useCallback(async () => {
+        if (!projectUuid || !agentUuid || !threadUuid) return;
+        setIsShareModalOpen(true);
+        setShareUrl(null);
+        try {
+            const share = await createThreadShare({
+                projectUuid,
+                agentUuid,
+                threadUuid,
+            });
+            setShareUrl(share.shareUrl);
+        } catch {
+            closeShareModal();
         }
-        void navigate(
-            launcherSession.consumeLastNonAgentUrl() ??
-                `/projects/${projectUuid}/home`,
-        );
-    };
+    }, [
+        agentUuid,
+        closeShareModal,
+        createThreadShare,
+        projectUuid,
+        threadUuid,
+    ]);
 
     if (isLoadingAgent) {
         return (
@@ -335,69 +202,91 @@ const AgentPage = () => {
                 />
             }
             Header={
-                <Group align="center" justify="space-between">
-                    <Box>
-                        {agentsList && agentsList.length && (
+                agentsList && agentsList.length > 0 ? (
+                    <AgentPageHeader
+                        leftSection={
                             <AgentSelector
                                 projectUuid={projectUuid!}
                                 agents={agentsList}
                                 selectedAgent={agent}
+                                variant="header"
                             />
-                        )}
-                    </Box>
-
-                    <Group gap="xs">
-                        <Button
-                            variant="default"
-                            onClick={handleMinimize}
-                            leftSection={
-                                <MantineIcon
-                                    icon={IconWindowMinimize}
-                                    style={{ transform: 'scaleX(-1)' }}
-                                />
-                            }
-                            styles={(theme) => ({
-                                root: {
-                                    borderColor: theme.colors.ldGray[2],
-                                    boxShadow: `var(--mantine-shadow-subtle)`,
-                                    color: theme.colors.ldGray[9],
-                                    fontSize: theme.fontSizes.xs,
-                                },
-                            })}
-                        >
-                            Minimize
-                        </Button>
-                        {canManageAgents && (
-                            <Button
-                                component={Link}
-                                variant="default"
-                                to={`/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`}
-                                leftSection={
-                                    <MantineIcon icon={IconSettings} />
-                                }
-                                styles={(theme) => ({
-                                    root: {
-                                        borderColor: theme.colors.ldGray[2],
-                                        boxShadow: `var(--mantine-shadow-subtle)`,
-                                        color: theme.colors.ldGray[9],
-                                        fontSize: theme.fontSizes.xs,
-                                    },
-                                })}
-                            >
-                                Settings
-                            </Button>
-                        )}
-                    </Group>
-                </Group>
+                        }
+                        onShare={
+                            thread?.createdFrom === 'web_app'
+                                ? handleShare
+                                : undefined
+                        }
+                        isSharing={isCreatingShare}
+                        onMinimize={() => handleMinimize()}
+                        settingsHref={
+                            canManageAgents
+                                ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
+                                : undefined
+                        }
+                    />
+                ) : undefined
             }
         >
-            <Outlet context={{ agent }} />
+            <MantineModal
+                opened={isShareModalOpen}
+                onClose={closeShareModal}
+                title="Share thread"
+                icon={IconShare2}
+                size={560}
+                cancelLabel={false}
+            >
+                <Stack gap="md">
+                    <Stack gap="xs">
+                        <Text size="sm">
+                            Anyone with the link and access to this AI agent can
+                            open this conversation as their own copy.
+                        </Text>
+                        <Text size="sm" c="dimmed">
+                            New messages you send later won't be included.
+                        </Text>
+                    </Stack>
+
+                    <Group
+                        wrap="nowrap"
+                        gap="sm"
+                        p="sm"
+                        className={styles.shareCopyBar}
+                    >
+                        <TextInput
+                            value={
+                                isCreatingShare
+                                    ? 'Creating link...'
+                                    : (shareUrl ?? '')
+                            }
+                            readOnly
+                            variant="unstyled"
+                            className={styles.shareLinkInput}
+                        />
+                        {shareUrl && !isCreatingShare ? (
+                            <ShareLinkButton url={shareUrl} />
+                        ) : null}
+                    </Group>
+                </Stack>
+            </MantineModal>
+            <Outlet
+                context={{
+                    agent,
+                    agents: agentsList ?? [],
+                    navigateFromAgentChat: handleMinimize,
+                }}
+            />
         </AiAgentPageLayout>
     );
 };
 
 export interface AgentContext {
     agent: AiAgent;
+    agents: AiAgent[];
+    navigateFromAgentChat: (
+        targetUrl: string,
+        options?: NavigateFromAgentChatOptions,
+    ) => void;
 }
 
 export default AgentPage;

@@ -4,6 +4,14 @@
     width: 100%;
 }
 
+/* A fixed NavBar banner (preview / impersonation) reserves an extra 35px at
+   the top, so shrink to fit when one is present — otherwise the page overflows
+   the viewport and can be scrolled. Mirrors dashboardTabs/tabs.module.css. */
+:global(body:has(#preview-banner)) .previewContainer,
+:global(body:has(#impersonation-banner)) .previewContainer {
+    height: calc(100vh - 50px - 35px);
+}
+
 .menuOverlay {
     position: absolute;
     top: var(--mantine-spacing-sm);

@@ -21,7 +21,7 @@ import {
 import { Prism } from '@mantine/prism';
 import { IconExclamationCircle } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { memo, useCallback, type FC } from 'react';
+import { memo, useCallback, useState, type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useCompiledSqlFromMetricQuery } from '../../../../../hooks/useCompiledSql';
 import { useInfiniteQueryResults } from '../../../../../hooks/useQueryResults';
@@ -31,7 +31,6 @@ import {
 } from '../../hooks/useProjectAiAgents';
 import { AiChartQuickOptions } from './AiChartQuickOptions';
 import { AiVisualizationRenderer } from './AiVisualizationRenderer';
-import { ViewSqlButton } from './ViewSqlButton';
 
 type Props = {
     visualization: ToolTableVizArgs | ToolTimeSeriesArgs | ToolVerticalBarArgs;
@@ -57,7 +56,9 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
     }) => {
         const queryClient = useQueryClient();
 
-        // Fetch the chart query data
+        const [selectedChartType, setSelectedChartType] =
+            useState<AiAgentChartTypeOption | null>(null);
+
         const queryExecutionHandle = useAiAgentDashboardChartVizQuery({
             projectUuid,
             agentUuid,
@@ -82,8 +83,10 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
             queryExecutionHandle.isLoading || queryResults.isFetchingRows;
         const queryError = queryExecutionHandle.error || queryResults.error;
 
-        const handleDashboardChartTypeChange = useCallback(
+        const handleChartTypeChange = useCallback(
             (type: AiAgentChartTypeOption) => {
+                setSelectedChartType(type);
+
                 const queryKey = getAiAgentDashboardChartVizQueryKey({
                     projectUuid,
                     agentUuid,
@@ -99,7 +102,6 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                         return {
                             ...oldData,
                             selectedChartType: type,
-                            // Clear expanded config when type changes
                             expandedChartConfig: undefined,
                         };
                     },
@@ -115,7 +117,7 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
             ],
         );
 
-        const handleDashboardChartConfigChange = useCallback(
+        const handleExpandedChartConfigChange = useCallback(
             (config: ChartConfig) => {
                 const queryKey = getAiAgentDashboardChartVizQueryKey({
                     projectUuid,
@@ -172,7 +174,6 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
                     )}
                 </Stack>
                 <Group gap="sm">
-                    <ViewSqlButton sql={compiledSql?.query} />
                     <AiChartQuickOptions
                         projectUuid={projectUuid}
                         agentUuid={agentUuid}
@@ -264,14 +265,16 @@ export const AiDashboardVisualizationItem: FC<Props> = memo(
         return (
             <Flex direction="column" h="100%">
                 <AiVisualizationRenderer
+                    vizQueryData={queryExecutionHandle.data}
                     results={queryResults}
-                    queryExecutionHandle={queryExecutionHandle}
                     chartConfig={visualization}
-                    headerContent={<VisualizationHeaderWithButton />}
-                    onDashboardChartTypeChange={handleDashboardChartTypeChange}
-                    onDashboardChartConfigChange={
-                        handleDashboardChartConfigChange
+                    selectedChartType={selectedChartType}
+                    onChartTypeChange={handleChartTypeChange}
+                    switcherVariant="pill"
+                    onExpandedChartConfigChange={
+                        handleExpandedChartConfigChange
                     }
+                    headerContent={<VisualizationHeaderWithButton />}
                 />
             </Flex>
         );

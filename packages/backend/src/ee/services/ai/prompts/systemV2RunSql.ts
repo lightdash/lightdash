@@ -18,7 +18,7 @@ const WAREHOUSE_HINTS: Record<WarehouseTypes, string> = {
     [WarehouseTypes.ATHENA]:
         'Athena SQL dialect (Presto-compatible). Use SEQUENCE() + UNNEST for arrays, approx_percentile for percentiles, regexp_like for regex.',
     [WarehouseTypes.DUCKDB]:
-        'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex.',
+        'DuckDB SQL dialect (Postgres-compatible). Use generate_series, UNNEST for arrays, quantile_cont for medians, regexp_matches for regex. DuckLake-configured projects expose tables under an attached catalog and follow the project schema.',
 };
 
 export const getRunSqlSection = (
@@ -35,19 +35,26 @@ export const getRunSqlSection = (
 
     return `
 **Raw SQL (runSql tool):**
-You have access to a runSql tool that executes raw SELECT queries directly against the warehouse.
+You have access to a runSql tool that executes raw SELECT queries directly against the warehouse. The chat UI shows the SQL in the tool activity and your final answer should explain the result.
 
 **When to use it:**
-- ALWAYS prefer runQuery (semantic layer) when the question fits — runQuery is governed, charted, and reusable.
+- ALWAYS prefer generateVisualization (semantic layer) when the question fits — generateVisualization is governed, charted, and reusable.
 - Use runSql ONLY when the semantic layer cannot answer the question:
   - joins across tables not modelled in any explore
-  - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that runQuery cannot produce
+  - recursive CTEs, percentile functions (PERCENTILE_CONT), or warehouse-specific syntax that generateVisualization cannot produce
   - lookups in raw tables that are not part of any explore
   - the user explicitly asks for raw SQL
 
 **ABSOLUTE RULES — these are not preferences, they are hard requirements.**
 
 Every \`runSql\` call costs the user an approval click. Treat each one as if you are emailing the user the SQL and waiting for them to reply YES. If you would not send this SQL to a busy human, do not call \`runSql\`.
+
+**Final SQL rule.** If you need multiple SQL calls to reach an answer, make the final runSql call the composed query:
+
+- If earlier SQL steps informed the answer, fold the final logic into one SELECT/WITH statement using CTEs and joins.
+- Do not make the final answer depend on intermediate discovery queries unless the final result genuinely came from that intermediate table.
+- If the user should inspect, edit, or save the final SQL in SQL Runner, include this exact standalone markdown link in your final answer: \`[Open in SQL Runner](#sql-runner-link)\`. The UI will turn it into a button wired to the latest successful runSql query.
+- Do not paste the full SQL into your final answer unless the user explicitly asks to see the SQL. If you do include SQL, use a fenced \`\`\`sql code block.
 
 **1. ZERO \`information_schema\`.** The server REJECTS any SQL containing \`information_schema\` with a clear error. You have four discovery tools that cover every legitimate use case:
 
@@ -66,7 +73,7 @@ Every \`runSql\` call costs the user an approval click. Treat each one as if you
 - ❌ NEVER: any \`SELECT *\` whose only purpose is exploration
 - ✅ INSTEAD: build the real query from \`findFields\` output. If you genuinely need to inspect specific values (e.g. enum cardinality), select THE specific columns with \`DISTINCT\` and a tight limit.
 
-**3. ONE runSql per question.** Compose multi-stage logic into a single query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple runSql calls in one turn means you're either iterating because the first attempt was wrong, or you're spelunking — both are bugs.
+**3. Keep runSql calls intentional.** Compose multi-stage logic into a single final query using CTEs (\`WITH a AS (...), b AS (...) SELECT ... FROM b\`). Multiple runSql calls in one turn are acceptable only when you need real warehouse values to recover or validate.
 
 - ✅ GOOD: one query with 3 CTEs that produces the final answer
 - ❌ BAD: query 1 to "check the schema", query 2 to "sample rows", query 3 to actually answer
@@ -87,7 +94,7 @@ NEVER guess column names across multiple \`runSql\` calls. Discovery is free; SQ
 
 **Operational rules:**
 - SELECT/WITH only. Mutations (INSERT, UPDATE, DELETE, DDL) are rejected server-side.
-- Results come back as a table — no chart. If the user wants a chart, suggest re-running with runQuery once fields exist in the semantic layer.
+- Prefer a concise text summary of the SQL result. If a small table helps the answer, include it in the final response.
 - Default row limit 500, max 5000. Include LIMIT explicitly or rely on the default.
 - ${warehouseLine}
 `;

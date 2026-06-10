@@ -4,6 +4,7 @@ import type { Filters } from '../../../../types/filter';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from '../../constants';
 import type { AiMetricQueryWithFilters } from '../../types';
 import { getValidAiQueryLimit } from '../../validators';
+import { filterAggregationCustomMetrics } from '../customMetrics';
 import { getFieldIdSchema } from '../fieldId';
 import sortFieldSchema from '../sortField';
 import type { ToolVerticalBarArgsTransformed } from '../tools';
@@ -96,7 +97,7 @@ export const metricQueryVerticalBarViz = ({
         })),
         exploreName: vizConfig.exploreName,
         filters,
-        additionalMetrics: customMetrics ?? [],
+        additionalMetrics: filterAggregationCustomMetrics(customMetrics),
         // TODO: add tableCalculations
         tableCalculations,
     };

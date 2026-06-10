@@ -7,7 +7,7 @@ import {
     Badge,
     Box,
     Group,
-    Paper,
+    Stack,
     Text,
     Tooltip,
     useMantineTheme,
@@ -31,13 +31,6 @@ import {
     IconUser,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useDeferredValue,
     useEffect,
@@ -47,14 +40,33 @@ import {
     type UIEvent,
 } from 'react';
 import { useNavigate } from 'react-router';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
+import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
+    type ContentTableVirtualizer,
+} from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useGetSlack } from '../../../../../hooks/slack/useSlack';
 import { useIsTruncated } from '../../../../../hooks/useIsTruncated';
 import SlackSvg from '../../../../../svgs/slack.svg?react';
-import { useInfiniteAiAgentAdminThreads } from '../../hooks/useAiAgentAdmin';
+import {
+    useAiAgentAdminReviewItems,
+    useInfiniteAiAgentAdminThreads,
+} from '../../hooks/useAiAgentAdmin';
 import { useAiAgentAdminFilters } from '../../hooks/useAiAgentAdminFilters';
+import { AgentNamePill } from '../AgentNamePill';
 import { AiAgentAdminTopToolbar } from './AiAgentAdminTopToolbar';
+import {
+    getThreadReviewHeadline,
+    summarizeThreadReviewItems,
+    THREAD_REVIEW_ITEM_STATUSES,
+    threadReviewRootCauseColors,
+    threadReviewRootCauseLabels,
+    threadReviewStatusColors,
+} from './threadReviewContext';
 
 type AiAgentAdminThreadsTableProps = {
     onThreadSelect?: (thread: AiAgentAdminThreadSummary) => void;
@@ -92,7 +104,7 @@ const AiAgentAdminThreadsTable = ({
 
     const deferredSearch = useDeferredValue(search);
 
-    const sorting = useMemo<MRT_SortingState>(
+    const sorting = useMemo<ContentTableSortingState>(
         () => [{ id: sortField, desc: sortDirection === 'desc' }],
         [sortField, sortDirection],
     );
@@ -100,8 +112,8 @@ const AiAgentAdminThreadsTable = ({
     const handleSortingChange = useCallback(
         (
             updaterOrValue:
-                | MRT_SortingState
-                | ((old: MRT_SortingState) => MRT_SortingState),
+                | ContentTableSortingState
+                | ((old: ContentTableSortingState) => ContentTableSortingState),
         ) => {
             const newSorting =
                 typeof updaterOrValue === 'function'
@@ -126,7 +138,9 @@ const AiAgentAdminThreadsTable = ({
 
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const { data, isInitialLoading, isFetching, hasNextPage, fetchNextPage } =
         useInfiniteAiAgentAdminThreads(
@@ -143,11 +157,26 @@ const AiAgentAdminThreadsTable = ({
             },
             { keepPreviousData: true },
         );
+    const { data: reviewItems = [] } = useAiAgentAdminReviewItems(
+        { statuses: THREAD_REVIEW_ITEM_STATUSES },
+        { enabled: true },
+    );
 
     const flatData = useMemo(() => {
         if (!data) return [];
         return data.pages.flatMap((page) => page.data.threads);
     }, [data]);
+
+    const reviewSummaryByThreadUuid = useMemo(
+        () =>
+            new Map(
+                flatData.map((thread) => [
+                    thread.uuid,
+                    summarizeThreadReviewItems(reviewItems, thread.uuid),
+                ]),
+            ),
+        [flatData, reviewItems],
+    );
 
     // Temporary workaround to resolve a memoization issue with react-mantine-table
     const [tableData, setTableData] = useState<AiAgentAdminThreadSummary[]>([]);
@@ -185,7 +214,7 @@ const AiAgentAdminThreadsTable = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns: MRT_ColumnDef<AiAgentAdminThreadSummary>[] = [
+    const columns: ContentTableColumnDef<AiAgentAdminThreadSummary>[] = [
         {
             accessorKey: 'title',
             header: 'Thread',
@@ -232,24 +261,10 @@ const AiAgentAdminThreadsTable = ({
             Cell: ({ row }) => {
                 const thread = row.original;
                 return (
-                    <Paper px="xs" maw="100%">
-                        <Group gap="two" wrap="nowrap">
-                            <LightdashUserAvatar
-                                size={12}
-                                name={thread.agent.name}
-                                src={thread.agent.imageUrl}
-                            />
-                            <Text
-                                fz="sm"
-                                fw={500}
-                                c="ldGray.7"
-                                truncate
-                                maw={220}
-                            >
-                                {thread.agent.name}
-                            </Text>
-                        </Group>
-                    </Paper>
+                    <AgentNamePill
+                        name={thread.agent.name}
+                        imageUrl={thread.agent.imageUrl}
+                    />
                 );
             },
         },
@@ -451,6 +466,91 @@ const AiAgentAdminThreadsTable = ({
             },
         },
         {
+            accessorKey: 'reviewWarnings',
+            header: 'Warnings',
+            enableSorting: false,
+            enableEditing: false,
+            size: 240,
+            Header: ({ column }) => (
+                <Group gap="two">
+                    <MantineIcon
+                        icon={IconMessageCircleStar}
+                        color="ldGray.6"
+                    />
+                    {column.columnDef.header}
+                </Group>
+            ),
+            Cell: ({ row }) => {
+                const thread = row.original;
+                const summary = reviewSummaryByThreadUuid.get(thread.uuid);
+                const latestReviewItem = summary?.latestReviewItem ?? null;
+
+                if (
+                    !summary ||
+                    summary.findingCount === 0 ||
+                    !latestReviewItem
+                ) {
+                    return (
+                        <Text fz="xs" c="ldGray.5" fw={500}>
+                            Clean
+                        </Text>
+                    );
+                }
+
+                const headline =
+                    getThreadReviewHeadline(latestReviewItem) ??
+                    latestReviewItem.title;
+                const activeCount =
+                    summary.openFindingCount + summary.inProgressFindingCount;
+
+                return (
+                    <Stack gap={4} miw={0}>
+                        <Group gap={6} wrap="nowrap">
+                            <Badge variant="light" color="violet">
+                                {summary.findingCount}{' '}
+                                {summary.findingCount === 1
+                                    ? 'finding'
+                                    : 'findings'}
+                            </Badge>
+                            <Badge
+                                variant="light"
+                                color={
+                                    threadReviewStatusColors[
+                                        latestReviewItem.status
+                                    ]
+                                }
+                            >
+                                {activeCount > 0
+                                    ? `${activeCount} active`
+                                    : latestReviewItem.status.replaceAll(
+                                          '_',
+                                          ' ',
+                                      )}
+                            </Badge>
+                        </Group>
+                        <Group gap={6} wrap="nowrap" miw={0}>
+                            <CategoryBadge
+                                variant="dot"
+                                label={
+                                    threadReviewRootCauseLabels[
+                                        latestReviewItem.primaryRootCause
+                                    ]
+                                }
+                                color={
+                                    threadReviewRootCauseColors[
+                                        latestReviewItem.primaryRootCause
+                                    ]
+                                }
+                            />
+                            <Text fz="xs" c="ldGray.6" lineClamp={1}>
+                                {headline}
+                            </Text>
+                        </Group>
+                    </Stack>
+                );
+            },
+        },
+        {
             accessorKey: 'createdAt',
             header: 'Created',
             enableSorting: true,
@@ -472,7 +572,7 @@ const AiAgentAdminThreadsTable = ({
         },
     ];
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: tableData,
         enableColumnResizing: true,
@@ -600,19 +700,11 @@ const AiAgentAdminThreadsTable = ({
             const isSelected = selectedThread?.uuid === thread.uuid;
 
             return {
-                sx: {
+                style: {
                     cursor: 'pointer',
-                    '&:hover': {
-                        td: {
-                            backgroundColor: theme.colors.ldGray[0],
-                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        },
-                    },
-                    ...(isSelected && {
-                        td: {
-                            backgroundColor: theme.colors.ldGray[1],
-                        },
-                    }),
+                    backgroundColor: isSelected
+                        ? theme.colors.ldGray[1]
+                        : undefined,
                 },
                 onClick: () => {
                     setSelectedThread?.(thread);
@@ -720,12 +812,12 @@ const AiAgentAdminThreadsTable = ({
             showGlobalFilter: true,
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 40 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
         enableFilterMatchHighlighting: true,
         enableRowActions: false,
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 export default AiAgentAdminThreadsTable;

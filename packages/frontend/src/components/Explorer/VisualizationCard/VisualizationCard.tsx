@@ -6,6 +6,7 @@ import {
     getHiddenTableFields,
     getPivotConfig,
     NotFoundError,
+    FeatureFlags,
     type ApiErrorDetail,
     type ChartConfig,
     type ChartType,
@@ -34,6 +35,7 @@ import {
     selectIsVisualizationConfigOpen,
     selectIsVisualizationExpanded,
     selectSavedChart,
+    selectSorts,
     selectTableCalculationsMetadata,
     selectUnsavedChartVersion,
     selectUnsavedColorPaletteUuid,
@@ -46,6 +48,7 @@ import { uploadGsheet } from '../../../hooks/gdrive/useGdrive';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import { ExplorerSection } from '../../../providers/Explorer/types';
@@ -56,6 +59,7 @@ import MantineIcon from '../../common/MantineIcon';
 import LightdashVisualization from '../../LightdashVisualization';
 import VisualizationProvider from '../../LightdashVisualization/VisualizationProvider';
 import { type EchartsSeriesClickEvent } from '../../SimpleChart';
+import SortButton from '../../SortButton';
 import { VisualizationConfigPortalId } from '../ExplorePanel/constants';
 import { DevCopyChartDebugData } from '../ExplorerHeader/DevCopyChartDebugData';
 import VisualizationConfig from '../VisualizationCard/VisualizationConfig';
@@ -89,33 +93,42 @@ const VisualizationCard: FC<Props> = memo((props) => {
     // Get savedChart from Redux
     const savedChart = useExplorerSelector(selectSavedChart);
 
+    const sorts = useExplorerSelector(selectSorts);
+
+    const { data: pivotColumnSortFlag } = useServerFeatureFlag(
+        FeatureFlags.PivotColumnSort,
+    );
+    const isPivotColumnSortEnabled = pivotColumnSortFlag?.enabled ?? false;
+
     const projectUuid = savedChart?.projectUuid || fallBackUUid;
     const stagedColorPaletteUuid = useExplorerSelector(
         selectUnsavedColorPaletteUuid,
     );
-    const isPaletteStagedDirty =
-        savedChart !== undefined &&
-        stagedColorPaletteUuid !== savedChart.colorPaletteUuid;
-    const resolverChartUuid =
-        isPaletteStagedDirty && stagedColorPaletteUuid === null
-            ? undefined
-            : savedChart?.uuid;
+    // When the user has explicitly cleared a previously-set chart-level
+    // palette, ask the resolver to skip the chart-level branch but seed
+    // the space walk from the chart's own space — otherwise the resolver
+    // loses the space cascade entirely and falls back to project/org.
+    const isClearingChartLevelPalette =
+        stagedColorPaletteUuid === null && savedChart?.colorPaletteUuid != null;
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
-        chartUuid: resolverChartUuid,
+        chartUuid: isClearingChartLevelPalette ? undefined : savedChart?.uuid,
+        spaceUuid: isClearingChartLevelPalette
+            ? savedChart?.spaceUuid
+            : undefined,
         dashboardUuid: savedChart?.dashboardUuid ?? undefined,
     });
 
     const { data: palettes } = useColorPalettes({
-        enabled: isPaletteStagedDirty && stagedColorPaletteUuid !== null,
+        enabled: stagedColorPaletteUuid !== null,
     });
     const stagedPalette = useMemo(() => {
-        if (!isPaletteStagedDirty || stagedColorPaletteUuid === null) {
+        if (stagedColorPaletteUuid === null) {
             return undefined;
         }
         return palettes?.find(
             (p) => p.colorPaletteUuid === stagedColorPaletteUuid,
         );
-    }, [isPaletteStagedDirty, stagedColorPaletteUuid, palettes]);
+    }, [stagedColorPaletteUuid, palettes]);
 
     const colorPalette = useMemo(() => {
         if (stagedPalette) {
@@ -329,7 +342,6 @@ const VisualizationCard: FC<Props> = memo((props) => {
                 isLoading={isLoadingQueryResults}
                 columnOrder={unsavedChartVersion.tableConfig.columnOrder}
                 onSeriesContextMenu={onSeriesContextMenu}
-                pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
                 savedChartUuid={isEditMode ? undefined : savedChart?.uuid}
                 onChartConfigChange={handleSetChartConfig}
                 onChartTypeChange={handleSetChartType}
@@ -350,17 +362,28 @@ const VisualizationCard: FC<Props> = memo((props) => {
                     onToggle={toggleSection}
                     headerElement={
                         isOpen && (
-                            <VisualizationWarning
-                                dirtyPivotConfiguration={
-                                    dirtyPivotConfiguration
-                                }
-                                chartConfig={unsavedChartVersion.chartConfig}
-                                resultsData={resultsData}
-                                isLoading={isLoadingQueryResults}
-                                maxColumnLimit={
-                                    health.data?.pivotTable?.maxColumnLimit
-                                }
-                            />
+                            <>
+                                {isPivotColumnSortEnabled &&
+                                    sorts.length > 0 && (
+                                        <SortButton
+                                            sorts={sorts}
+                                            isEditMode={isEditMode}
+                                        />
+                                    )}
+                                <VisualizationWarning
+                                    dirtyPivotConfiguration={
+                                        dirtyPivotConfiguration
+                                    }
+                                    chartConfig={
+                                        unsavedChartVersion.chartConfig
+                                    }
+                                    resultsData={resultsData}
+                                    isLoading={isLoadingQueryResults}
+                                    maxColumnLimit={
+                                        health.data?.pivotTable?.maxColumnLimit
+                                    }
+                                />
+                            </>
                         )
                     }
                     rightHeaderElement={

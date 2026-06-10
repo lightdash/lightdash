@@ -1,6 +1,6 @@
 import { type CatalogField } from '@lightdash/common';
 import { Button, Text, Tooltip } from '@mantine-8/core';
-import { type MRT_Row } from 'mantine-react-table';
+import { type ContentTableRow } from '../../../components/common/ContentTable';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { BarChart } from '../../../svgs/metricsCatalog';
 import { EventName } from '../../../types/Events';
@@ -11,7 +11,7 @@ import styles from './MetricChartUsageButton.module.css';
 export const MetricChartUsageButton = ({
     row,
 }: {
-    row: MRT_Row<CatalogField>;
+    row: ContentTableRow<CatalogField>;
 }) => {
     const hasChartsUsage = row.original.chartUsage ?? 0 > 0;
     const organizationUuid = useAppSelector(

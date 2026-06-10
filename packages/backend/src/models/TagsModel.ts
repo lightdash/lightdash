@@ -29,9 +29,16 @@ export class TagsModel {
     }
 
     async update(tagUuid: string, tagUpdate: DbTagUpdate) {
+        const updateFields: DbTagUpdate = {
+            ...(tagUpdate.name !== undefined ? { name: tagUpdate.name } : {}),
+            ...(tagUpdate.color !== undefined
+                ? { color: tagUpdate.color }
+                : {}),
+        };
+
         await this.database(TagsTableName)
             .where('tag_uuid', tagUuid)
-            .update(tagUpdate);
+            .update(updateFields);
     }
 
     async get(tagUuid: string): Promise<Tag | undefined> {

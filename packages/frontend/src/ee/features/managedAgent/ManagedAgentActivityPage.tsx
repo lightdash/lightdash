@@ -67,6 +67,7 @@ import {
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { useParams } from 'react-router';
 import { lightdashApi } from '../../../api';
+import { CategoryBadge } from '../../../components/common/CategoryBadge';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import InfoRow from '../../../components/common/PageHeader/InfoRow';
@@ -920,15 +921,13 @@ const DetailSidebar: FC<{
             {/* Header */}
             <Stack gap={2} className={classes.sidebarHeader}>
                 <Group justify="space-between" align="center">
-                    <Group gap={6}>
-                        <Box
-                            className={classes.dot}
-                            style={{ backgroundColor: config.dotColor }}
-                        />
-                        <Text fz="xs" c="dimmed">
-                            {config.label}
-                        </Text>
-                    </Group>
+                    <CategoryBadge
+                        variant="dot"
+                        bordered={false}
+                        label={config.label}
+                        color={config.dotColor}
+                        tooltip={config.tooltip}
+                    />
                     <Group gap={2}>
                         <Menu position="bottom-end" withinPortal>
                             <Menu.Target>
@@ -1478,25 +1477,13 @@ const ActionRow: FC<{
             onClick={() => onSelect(action)}
         >
             <Table.Td w={100}>
-                {config.tooltip ? (
-                    <Tooltip label={config.tooltip} withinPortal>
-                        <span className={classes.actionPill}>
-                            <Box
-                                className={classes.dot}
-                                style={{ backgroundColor: config.dotColor }}
-                            />
-                            {config.label}
-                        </span>
-                    </Tooltip>
-                ) : (
-                    <span className={classes.actionPill}>
-                        <Box
-                            className={classes.dot}
-                            style={{ backgroundColor: config.dotColor }}
-                        />
-                        {config.label}
-                    </span>
-                )}
+                <CategoryBadge
+                    variant="dot"
+                    label={config.label}
+                    color={config.dotColor}
+                    tooltip={config.tooltip}
+                    className={classes.actionPill}
+                />
             </Table.Td>
             <Table.Td w={250}>
                 <Group gap={6} wrap="nowrap">

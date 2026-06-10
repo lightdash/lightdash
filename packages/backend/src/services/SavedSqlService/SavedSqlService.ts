@@ -17,6 +17,7 @@ import {
     Project,
     QueryExecutionContext,
     SchedulerAndTargets,
+    SchedulerFormat,
     SessionUser,
     SqlChart,
     SqlRunnerPivotQueryBody,
@@ -279,6 +280,7 @@ export class SavedSqlService
                 subject('CustomSql', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { spaceUuid: sqlChart.spaceUuid },
                 }),
             )
         ) {
@@ -479,6 +481,7 @@ export class SavedSqlService
     ): Promise<void> {
         const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             deleted: true,
+            projectUuid: options?.projectUuid,
         });
         const { projectUuid } = savedChart.project;
         const { organizationUuid } = savedChart.organization;
@@ -548,7 +551,7 @@ export class SavedSqlService
         } else {
             const savedChart = await this.savedSqlModel.getByUuid(
                 savedSqlUuid,
-                { deleted: true },
+                { deleted: true, projectUuid: options?.projectUuid },
             );
             const { projectUuid } = savedChart.project;
             const { organizationUuid } = savedChart.organization;
@@ -853,12 +856,24 @@ export class SavedSqlService
         projectUuid: string,
         savedSqlUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkCreateScheduledDeliveryAccess(
-            user,
-            projectUuid,
-            savedSqlUuid,
+        const { organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(
+                user,
+                projectUuid,
+                savedSqlUuid,
+            );
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid,
+                projectUuid,
+            }),
         );
-        return this.schedulerModel.getSqlChartSchedulers(savedSqlUuid);
+        return this.schedulerModel.getSqlChartSchedulers(
+            savedSqlUuid,
+            canManageAll ? undefined : user.userUuid,
+        );
     }
 
     async createScheduler(
@@ -867,11 +882,27 @@ export class SavedSqlService
         savedSqlUuid: string,
         newScheduler: CreateSchedulerAndTargetsWithoutIds,
     ): Promise<SchedulerAndTargets> {
-        await this.checkCreateScheduledDeliveryAccess(
-            user,
-            projectUuid,
-            savedSqlUuid,
-        );
+        const { organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(
+                user,
+                projectUuid,
+                savedSqlUuid,
+            );
+
+        if (newScheduler.format === SchedulerFormat.GSHEETS) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
 
         if (!isValidFrequency(newScheduler.cron)) {
             throw new ParameterError(

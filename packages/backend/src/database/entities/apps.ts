@@ -23,6 +23,11 @@ export type DbApp = {
     space_uuid: string | null;
     sandbox_id: string | null;
     template: Exclude<DataAppTemplate, 'custom'> | null;
+    design_uuid: string | null;
+    // The production app this (preview) app was promoted into. Null until the
+    // app is first promoted. Lives on the preview side so a single production
+    // app can be the upstream of many preview apps.
+    upstream_app_uuid: string | null;
     created_at: Date;
     created_by_user_uuid: string;
     deleted_at: Date | null;
@@ -43,6 +48,8 @@ export type AppsTable = Knex.CompositeTableType<
                 | 'space_uuid'
                 | 'sandbox_id'
                 | 'template'
+                | 'design_uuid'
+                | 'upstream_app_uuid'
             >
         >,
     Partial<
@@ -52,6 +59,8 @@ export type AppsTable = Knex.CompositeTableType<
             | 'description'
             | 'space_uuid'
             | 'sandbox_id'
+            | 'design_uuid'
+            | 'upstream_app_uuid'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
             | 'views_count'

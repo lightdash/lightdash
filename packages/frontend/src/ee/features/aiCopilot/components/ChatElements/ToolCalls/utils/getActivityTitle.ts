@@ -1,8 +1,8 @@
 import {
     IconChartLine,
     IconLayoutDashboard,
+    IconRoute,
     IconSearch,
-    IconSparkles,
     type TablerIconsProps,
 } from '@tabler/icons-react';
 import type { JSX } from 'react';
@@ -17,13 +17,17 @@ const SEARCH_TOOLS = new Set([
     'findExplores',
     'findFields',
     'discoverFields',
+    'searchSemanticLayer',
     'searchFieldValues',
     'findContent',
+    'listContent',
     'findDashboards',
     'findCharts',
     'getDashboardCharts',
     'listWarehouseTables',
     'describeWarehouseTable',
+    'listKnowledgeDocuments',
+    'getKnowledgeDocumentContent',
 ]);
 
 const VIZ_TOOLS = new Set([
@@ -41,18 +45,30 @@ export const getActivityTitle = (
     toolGroups: LiveActivityToolGroup[],
 ): ActivityTitle => {
     if (toolGroups.length === 0) {
-        return { title: 'Steps taken', icon: IconSparkles };
+        return { title: 'Steps taken', icon: IconRoute };
     }
-    const toolNames = toolGroups.map((g) => g.toolName);
+    const toolNames = toolGroups.flatMap((g) =>
+        g.calls.map((call) => call.toolName),
+    );
     const hasDashboard = toolNames.includes('generateDashboard');
+    const hasCreateContent = toolNames.includes('createContent');
     const hasViz = toolNames.some((n) => VIZ_TOOLS.has(n));
-    const hasQuery = toolNames.includes('runQuery');
+    const hasQuery =
+        toolNames.includes('generateVisualization') ||
+        toolNames.includes('runContentQuery') ||
+        toolNames.includes('runQuery');
     const hasRunSql = toolNames.includes('runSql');
     const onlySearches = toolNames.every((n) => SEARCH_TOOLS.has(n));
 
     if (hasDashboard) {
         return {
             title: 'How this dashboard was built',
+            icon: IconLayoutDashboard,
+        };
+    }
+    if (hasCreateContent) {
+        return {
+            title: 'How this content was created',
             icon: IconLayoutDashboard,
         };
     }
@@ -65,5 +81,5 @@ export const getActivityTitle = (
     if (onlySearches) {
         return { title: 'Research steps', icon: IconSearch };
     }
-    return { title: 'Steps taken', icon: IconSparkles };
+    return { title: 'Steps taken', icon: IconRoute };
 };

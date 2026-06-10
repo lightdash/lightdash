@@ -1,6 +1,8 @@
 import {
+    buildRunSqlDescription,
+    createToolRunSqlArgsSchema,
     isSlackPrompt,
-    toolRunSqlArgsSchema,
+    runSqlToolDefinition,
     type AnyType,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -28,7 +30,12 @@ type Dependencies = {
     siteUrl: string;
     waitForSqlApproval: WaitForSqlApprovalFn;
     recordSqlApproval: RecordSqlApprovalFn;
+    maxQueryLimit: number;
+    autoApproveSql?: boolean;
+    autoApproveSqlUserUuid?: string | null;
 };
+
+const toolDefinition = runSqlToolDefinition.for('agent');
 
 // Strip --line and /* block */ comments + string literals so subsequent
 // keyword checks don't false-positive on text that's inside a comment or a
@@ -73,11 +80,29 @@ export const getRunSql = ({
     siteUrl,
     waitForSqlApproval,
     recordSqlApproval,
-}: Dependencies) =>
-    tool({
-        description: toolRunSqlArgsSchema.description,
-        inputSchema: toolRunSqlArgsSchema,
+    maxQueryLimit,
+    autoApproveSql = false,
+    autoApproveSqlUserUuid = null,
+}: Dependencies) => {
+    let sqlApprovalTimedOut = false;
+
+    const inputSchema = createToolRunSqlArgsSchema({
+        maxLimit: maxQueryLimit,
+    });
+
+    return tool({
+        description: buildRunSqlDescription(500, maxQueryLimit),
+        inputSchema,
+        outputSchema: toolDefinition.outputSchema,
+        toModelOutput: toolDefinition.toModelOutput,
         execute: async ({ sql, limit }, { toolCallId }) => {
+            if (sqlApprovalTimedOut) {
+                return {
+                    result: 'A previous SQL approval timed out in this response. Do not call runSql again in this response; tell the user the SQL was not approved and ask them to retry when ready.',
+                    metadata: { status: 'timeout' },
+                };
+            }
+
             // Pre-section errors (bad SQL shape) — no Slack message exists
             // yet, just return the error to the agent.
             try {
@@ -93,6 +118,7 @@ export const getRunSql = ({
             const isSlack = isSlackPrompt(prompt);
             const slackAutoApproved =
                 isSlack && isSlackThreadAutoApproved(prompt.threadUuid);
+            const shouldAutoApprove = autoApproveSql || slackAutoApproved;
 
             // Render a runSql state INTO the bot's existing progress message
             // (the bolt-gif "Thinking…" message at response_slack_ts). One
@@ -110,8 +136,15 @@ export const getRunSql = ({
             };
 
             try {
-                if (slackAutoApproved) {
-                    await renderState({ kind: 'approved', sql });
+                if (shouldAutoApprove) {
+                    if (isSlack) {
+                        await renderState({ kind: 'approved', sql });
+                    }
+                    await recordSqlApproval(
+                        toolCallId,
+                        'approved',
+                        autoApproveSql ? autoApproveSqlUserUuid : null,
+                    );
                 } else if (isSlack) {
                     await renderState({
                         kind: 'pending',
@@ -123,14 +156,9 @@ export const getRunSql = ({
                     await updateProgress('Awaiting approval to run SQL...');
                 }
 
-                // Auto-approval: pre-record the decision so the poller in
-                // waitForSqlApproval picks it up on its first poll. Approvals
-                // are DB-backed (ai_sql_approval) so this works across pods
-                // and survives restarts.
-                if (slackAutoApproved) {
-                    await recordSqlApproval(toolCallId, 'approved', null);
-                }
-                const decision = await waitForSqlApproval(toolCallId);
+                const decision = shouldAutoApprove
+                    ? 'approved'
+                    : await waitForSqlApproval(toolCallId);
                 if (decision === 'rejected') {
                     await renderState({ kind: 'rejected', sql });
                     return {
@@ -139,6 +167,7 @@ export const getRunSql = ({
                     };
                 }
                 if (decision === 'timeout') {
+                    sqlApprovalTimedOut = true;
                     await renderState({ kind: 'timeout', sql });
                     return {
                         result: 'SQL approval timed out after 5 minutes with no response. The user may have stepped away — acknowledge politely and wait for them to re-ask.',
@@ -154,7 +183,7 @@ export const getRunSql = ({
 
                 const { rows, columns, rowCount } = await runSqlJob({
                     sql,
-                    limit,
+                    limit: Math.min(limit, maxQueryLimit),
                 });
 
                 if (rowCount === 0) {
@@ -261,3 +290,4 @@ export const getRunSql = ({
             }
         },
     });
+};

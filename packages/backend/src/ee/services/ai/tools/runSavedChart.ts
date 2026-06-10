@@ -1,7 +1,6 @@
 import {
     getValidAiQueryLimit,
-    toolRunSavedChartArgsSchema,
-    toolRunSavedChartOutputSchema,
+    runSavedChartToolDefinition,
     type AiMetricQueryWithFilters,
     type MetricQuery,
 } from '@lightdash/common';
@@ -25,13 +24,15 @@ type Dependencies = {
     enableDataAccess: boolean;
 };
 
+const toolDefinition = runSavedChartToolDefinition.for('agent');
+
 /**
  * Builds a structural summary the LLM can read to understand what the saved
  * chart is querying. When `includeFullSpec` is false (data access disabled
  * mode), only field IDs are surfaced — filter values and sort/limit details
  * are omitted to keep filter values out of the LLM context.
  */
-const buildHeader = (
+export const buildSavedChartHeader = (
     chartUuid: string,
     name: string,
     metricQuery: MetricQuery,
@@ -94,9 +95,7 @@ export const getRunSavedChart = ({
     enableDataAccess,
 }: Dependencies) =>
     tool({
-        description: toolRunSavedChartArgsSchema.description,
-        inputSchema: toolRunSavedChartArgsSchema,
-        outputSchema: toolRunSavedChartOutputSchema,
+        ...toolDefinition,
         execute: async ({ chartUuid }) => {
             try {
                 await updateProgress('Running saved chart...');
@@ -106,9 +105,14 @@ export const getRunSavedChart = ({
 
                 if (!enableDataAccess) {
                     return {
-                        result: `${buildHeader(chartUuid, name, metricQuery, {
-                            includeFullSpec: false,
-                        })}Data access is disabled for this agent. Reason about the chart from its structure above; do not assume specific row values.`,
+                        result: `${buildSavedChartHeader(
+                            chartUuid,
+                            name,
+                            metricQuery,
+                            {
+                                includeFullSpec: false,
+                            },
+                        )}Data access is disabled for this agent. Reason about the chart from its structure above; do not assume specific row values.`,
                         metadata: { status: 'success' },
                     };
                 }
@@ -135,9 +139,14 @@ export const getRunSavedChart = ({
 
                 const csv = convertQueryResultsToCsv(queryResults);
                 return {
-                    result: `${buildHeader(chartUuid, name, metricQuery, {
-                        includeFullSpec: true,
-                    })}${serializeData(csv, 'csv')}`,
+                    result: `${buildSavedChartHeader(
+                        chartUuid,
+                        name,
+                        metricQuery,
+                        {
+                            includeFullSpec: true,
+                        },
+                    )}${serializeData(csv, 'csv')}`,
                     metadata: { status: 'success' },
                 };
             } catch (e) {

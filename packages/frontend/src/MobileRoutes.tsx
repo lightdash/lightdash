@@ -39,6 +39,7 @@ import { useAiAgentButtonVisibility } from './ee/features/aiCopilot/hooks/useAiA
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
 import { getMantineThemeOverride } from './mantineTheme';
+import AppPreviewTest from './pages/AppPreviewTest';
 import AuthPopupResult, {
     SuccessAuthPopupResult,
 } from './pages/AuthPopupResult';
@@ -204,6 +205,8 @@ const routesNotSupportedInMobile = [
     '/projects/:projectUuid/tables/:tableId',
     '/projects/:projectUuid/tables',
     '/projects/:projectUuid/user-activity',
+    '/projects/:projectUuid/apps/:appUuid',
+    '/projects/:projectUuid/apps/generate',
 ];
 
 const FALLBACK_ROUTE: RouteObject = {
@@ -340,6 +343,14 @@ const APP_ROUTES: RouteObject[] = [
                                 <MobileSpaces />
                             </TrackPage>
                         ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid/preview',
+                        element: <AppPreviewTest />,
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid/versions/:version/preview',
+                        element: <AppPreviewTest />,
                     },
                 ],
             },

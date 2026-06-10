@@ -122,6 +122,8 @@ const newSchedulerPayload = {
     targets: [],
     includeLinks: false,
     enabled: true,
+    appUuid: null,
+    appName: null,
 };
 
 describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
@@ -140,16 +142,24 @@ describe('SavedSqlService - Scheduler authorization (PROD-7098)', () => {
     afterEach(() => jest.clearAllMocks());
 
     describe('getSchedulers', () => {
-        it('admin can list SQL chart schedulers', async () => {
+        it('admin lists all SQL chart schedulers', async () => {
             await expect(
                 service.getSchedulers(adminUser, projectUuid, savedSqlUuid),
             ).resolves.toEqual([]);
+            expect(schedulerModel.getSqlChartSchedulers).toHaveBeenCalledWith(
+                savedSqlUuid,
+                undefined,
+            );
         });
 
-        it('editor can list SQL chart schedulers (PROD-7098 regression)', async () => {
+        it('editor lists only their own SQL chart schedulers', async () => {
             await expect(
                 service.getSchedulers(editorUser, projectUuid, savedSqlUuid),
             ).resolves.toEqual([]);
+            expect(schedulerModel.getSqlChartSchedulers).toHaveBeenCalledWith(
+                savedSqlUuid,
+                'editor-uuid',
+            );
         });
 
         it('viewer is blocked from listing SQL chart schedulers', async () => {

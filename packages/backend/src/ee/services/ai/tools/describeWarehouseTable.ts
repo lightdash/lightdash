@@ -1,4 +1,4 @@
-import { toolDescribeWarehouseTableArgsSchema } from '@lightdash/common';
+import { describeWarehouseTableToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
 import type { DescribeWarehouseTableFn } from '../types/aiAgentDependencies';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -7,12 +7,13 @@ type Dependencies = {
     describeWarehouseTable: DescribeWarehouseTableFn;
 };
 
+const toolDefinition = describeWarehouseTableToolDefinition.for('agent');
+
 export const getDescribeWarehouseTable = ({
     describeWarehouseTable,
 }: Dependencies) =>
     tool({
-        description: toolDescribeWarehouseTableArgsSchema.description,
-        inputSchema: toolDescribeWarehouseTableArgsSchema,
+        ...toolDefinition,
         execute: async ({ table, schema }) => {
             try {
                 const { columns, resolvedSchema } =

@@ -5,10 +5,9 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 
-// SAs are immutable after creation, so the only client-side need is reading
-// the per-SA grants list (for the table's hover preview). Mutation hooks
-// have been intentionally removed along with the underlying backend
-// endpoints — grants are set once via the SA create payload.
+// Reads the per-SA project-grants list — used by the table's hover preview and
+// by the edit modal to pre-fill the project-access rows. Grants are written via
+// the SA create and update payloads, not a dedicated grants endpoint.
 const SA_GRANTS_KEY = 'service-account-project-grants';
 
 const fetchGrantsForServiceAccount = (serviceAccountUuid: string) =>

@@ -20,11 +20,37 @@
   "prHourlyLimit": 2,
   "commitMessageExtra": "({{updateType}})",
   "labels": ["dependencies"],
+  "assignees": [
+    "IrakliJani",
+    "magnew",
+    "rephus",
+    "charliedowler",
+    "sdolidze",
+    "pimmey",
+    "joaoviana",
+    "tatianainama",
+    "ZeRego",
+    "notgiorgi",
+    "almeidabbm",
+    "Spissable"
+  ],
+  "assigneesSampleSize": 1,
   "dependencyDashboardApproval": false,
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["before 5am on monday"]
   },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Keep the GitHub Action SHAs embedded in the generated preview-deploy workflow template (previewDeployWorkflow.ts) bumped like any other pinned action",
+      "fileMatch": ["^packages/common/src/utils/previewDeployWorkflow\\.ts$"],
+      "matchStrings": [
+        "(?<depName>[\\w.-]+/[\\w.-]+)@(?<currentDigest>[a-f0-9]{40}) # (?<currentValue>v[\\w.+-]+)"
+      ],
+      "datasourceTemplate": "github-tags"
+    }
+  ],
   "packageRules": [
     {
       "description": "Automerge dev dependency minor/patch updates for stable packages",

@@ -5,6 +5,7 @@ import {
     getErrorMessage,
     NotFoundError,
     ParameterError,
+    PullRequestState,
     UnexpectedGitError,
 } from '@lightdash/common';
 
@@ -65,7 +66,10 @@ const makeGitlabRequest = async (
     const response = await fetch(url, {
         ...options,
         headers: {
-            'PRIVATE-TOKEN': token,
+            // `Authorization: Bearer` accepts OAuth tokens, personal access
+            // tokens, and project access tokens; `PRIVATE-TOKEN` rejects OAuth
+            // tokens (writeback uses the org's GitLab app-install OAuth token).
+            Authorization: `Bearer ${token}`,
             'Content-Type': 'application/json',
             ...options.headers,
         },
@@ -295,6 +299,160 @@ export const createPullRequest = async ({
         title: mergeRequest.title,
         number: mergeRequest.iid,
     };
+};
+
+const GITLAB_MR_BATCH_SIZE = 100;
+
+const mapGitlabMrState = (state: string): PullRequestState => {
+    switch (state) {
+        case 'merged':
+            return PullRequestState.MERGED;
+        case 'closed':
+        case 'locked':
+            return PullRequestState.CLOSED;
+        default:
+            return PullRequestState.OPEN;
+    }
+};
+
+/**
+ * Batch-resolve the live title/state for many merge requests in a single
+ * project. Uses the `iids[]` filter so the whole batch costs one request per
+ * project. `iid`s that cannot be resolved are simply absent from the result.
+ */
+export const getMergeRequests = async ({
+    owner,
+    repo,
+    iids,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & { iids: number[] }): Promise<
+    Record<number, { title: string; state: PullRequestState }>
+> => {
+    const projectId = getProjectId(owner, repo);
+
+    const chunks: number[][] = [];
+    for (let i = 0; i < iids.length; i += GITLAB_MR_BATCH_SIZE) {
+        chunks.push(iids.slice(i, i + GITLAB_MR_BATCH_SIZE));
+    }
+
+    const responses: Array<
+        Array<{ iid: number; title: string; state: string }>
+    > = await Promise.all(
+        chunks.map((chunk) => {
+            const params = chunk.map((iid) => `iids[]=${iid}`).join('&');
+            const url = getApiUrl(
+                hostDomain,
+                `/projects/${projectId}/merge_requests?${params}&per_page=${GITLAB_MR_BATCH_SIZE}`,
+            );
+            return makeGitlabRequest(url, token);
+        }),
+    );
+
+    const result: Record<number, { title: string; state: PullRequestState }> =
+        {};
+    responses.forEach((mergeRequests) => {
+        mergeRequests.forEach((mr) => {
+            result[mr.iid] = {
+                title: mr.title,
+                state: mapGitlabMrState(mr.state),
+            };
+        });
+    });
+
+    return result;
+};
+
+/**
+ * Resolve a single merge request's state and source/target projects. Used by
+ * the writeback adopt path to reject closed/merged MRs and fork-sourced MRs
+ * (where `source_project_id` differs from `target_project_id`).
+ */
+export const getMergeRequest = async ({
+    owner,
+    repo,
+    iid,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & { iid: number }): Promise<{
+    state: 'open' | 'closed';
+    merged: boolean;
+    sourceBranch: string;
+    /** `null` when absent from the response — the caller treats that as "unknown". */
+    sourceProjectId: number | null;
+    targetProjectId: number | null;
+    webUrl: string;
+}> => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests/${iid}`,
+    );
+    const mr = await makeGitlabRequest(url, token);
+    return {
+        state: mr.state === 'opened' ? 'open' : 'closed',
+        merged: mr.state === 'merged',
+        sourceBranch: mr.source_branch,
+        sourceProjectId: mr.source_project_id ?? null,
+        targetProjectId: mr.target_project_id ?? null,
+        webUrl: mr.web_url,
+    };
+};
+
+/**
+ * Read a merge request's notes (comments). Used to surface the preview-project
+ * URL that the dbt repo's CI posts on the MR. Returns note bodies oldest-first
+ * — the same contract as the GitHub comments reader — so
+ * `extractPreviewUrlFromComments` (which scans newest-last) picks the most
+ * recent preview. System notes (auto-generated activity) and empty bodies are
+ * dropped. Fetches the 100 most recent notes; preview comments are recent, so a
+ * single page is enough.
+ */
+export const getMergeRequestComments = async ({
+    owner,
+    repo,
+    iid,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & { iid: number }): Promise<string[]> => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests/${iid}/notes?order_by=created_at&sort=desc&per_page=100`,
+    );
+    const notes: Array<{ body?: string; system?: boolean }> =
+        await makeGitlabRequest(url, token);
+
+    return notes
+        .filter((note) => !note.system)
+        .map((note) => note.body ?? '')
+        .filter((body) => body.length > 0)
+        .reverse();
+};
+
+/** Patch a merge request's title/description (writeback resume turns). */
+export const updateMergeRequest = async ({
+    owner,
+    repo,
+    iid,
+    title,
+    description,
+    token,
+    hostDomain = DEFAULT_GITLAB_HOST_DOMAIN,
+}: GitlabApiParams & {
+    iid: number;
+    title: string;
+    description: string;
+}) => {
+    const projectId = getProjectId(owner, repo);
+    const url = getApiUrl(
+        hostDomain,
+        `/projects/${projectId}/merge_requests/${iid}`,
+    );
+    return makeGitlabRequest(url, token, {
+        method: 'PUT',
+        body: JSON.stringify({ title, description }),
+    });
 };
 
 export const getBranches = async ({

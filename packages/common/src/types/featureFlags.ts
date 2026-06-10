@@ -43,11 +43,6 @@ export enum FeatureFlags {
     AiCustomViz = 'ai-custom-viz',
 
     /**
-     * Enable SQL pivot results conversion to PivotData format
-     */
-    UseSqlPivotResults = 'use-sql-pivot-results',
-
-    /**
      * Enable viewing and editing YAML source files in the Explore UI
      */
     EditYamlInUi = 'edit-yaml-in-ui',
@@ -107,6 +102,14 @@ export enum FeatureFlags {
     AiAutopilot = 'ai-autopilot',
 
     /**
+     * Enable AI agent revamp features including built-in skills, the
+     * loadSkill tool, and content tools like readContent/editContent/createContent.
+     * When enabled, these replace older dashboard-specific content lookup
+     * tools in the agent tool surface.
+     */
+    AiAgentRevamp = 'ai-agent-revamp',
+
+    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.
@@ -139,16 +142,6 @@ export enum FeatureFlags {
     ResultsCacheEnabled = 'results-cache-enabled',
 
     /**
-     * Route the AI analyst's explore/field discovery through a focused
-     * subagent (single `discoverFields` tool replaces `findExplores` +
-     * `findFields` in the parent toolset). Targets context bloat and
-     * disambiguation accuracy on rich semantic layers. Off by default —
-     * dogfood internally, then expand per-org once the eval set confirms
-     * no regression.
-     */
-    AiDiscoverFieldsSubagent = 'ai-discover-fields-subagent',
-
-    /**
      * Allow dashboard editors to mark individual dashboard filters as locked.
      * Locked filters are visible to viewers but cannot be edited from view
      * mode, and URL/embed filter overrides targeting a locked filter's field
@@ -157,6 +150,121 @@ export enum FeatureFlags {
      * if the flag is later turned off.
      */
     LockDashboardFilters = 'lock-dashboard-filters',
+
+    /**
+     * Show empty-state suggestion chips above the AI agent chat input. Each
+     * chip carries a tool hint that biases the agent toward the implied tool
+     * on the first turn. Gated for staged rollout while we tune the Haiku
+     * prompt and measure click-through.
+     */
+    AiAgentSuggestions = 'ai-agent-suggestions',
+
+    /**
+     * Enable the new pivot-column-sort UI: per-pivot-column sort menu on
+     * pivot table headers, sort-direction indicators, and the pinned
+     * pivot-column entries in the Sort popover. Backend support
+     * (per-metric anchor CTE, pivot_values persistence) is always on;
+     * this flag only gates the UI/UX so we can validate with design
+     * partners before announcing GA.
+     */
+    PivotColumnSort = 'pivot-column-sort',
+
+    /**
+     * Gate the "Schedule delivery" entry point for data apps. Disabled by
+     * default while the screenshot pipeline is producing blank pages in
+     * production. Enable per-org once the underlying rendering issue is
+     * fixed.
+     */
+    DataAppsScheduledDeliveries = 'data-apps-scheduled-deliveries',
+
+    /**
+     * Enable UI for hiding dimensions in pivot table charts (so a dimension
+     * can drive sort order without rendering or leaking into CSV/XLSX).
+     * Off by default while we validate with design partners before GA.
+     */
+    HidePivotDimensions = 'hide-pivot-dimensions',
+
+    /**
+     * Enable the "Group repeated row values" toggle on pivot tables — visual
+     * dedup of row-header dim values without rendering aggregate subtotal
+     * rows. Off by default while we validate the rendering across customer
+     * data shapes before GA.
+     */
+    PivotRowGrouping = 'pivot-row-grouping',
+
+    /**
+     * Show a persistent trial warning banner for an organization on shared
+     * instances. This does not block product access.
+     */
+    OrganizationTrialWarning = 'organization-trial-warning',
+
+    /**
+     * Enable the (in-progress) AI writeback feature. Spins up an e2b
+     * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
+     * user-supplied prompt against it synchronously. Off by default — gated
+     * while the sandbox runtime and write-back semantics are still being
+     * built out.
+     */
+    AiWriteback = 'ai-writeback',
+
+    /**
+     * Enable the `searchSemanticLayer` agent tool, which lets the AI agent
+     * list/search metrics and dimensions across ALL explores at once (backed
+     * by the catalog search index) to answer project-wide questions like
+     * "find duplicate or confusingly similar metrics". Off by default while
+     * the tool and its prompt routing are validated.
+     */
+    SearchSemanticLayer = 'search-semantic-layer',
+
+    /**
+     * Enable the AI writeback sandbox agent's preview-deploy secondary task:
+     * detecting whether a repo deploys Lightdash preview projects via GitHub
+     * Actions, offering to set it up during a writeback, and the
+     * setupPreviewDeploy tool (direct or on consent). Off by default and
+     * independent of AiWriteback, so this outward-facing behaviour (it opens
+     * extra PRs) can be dark-launched and killed without touching writeback.
+     */
+    AiPreviewDeploySetup = 'ai-preview-deploy-setup',
+
+    /**
+     * Enable the built-in system agent fallback in Slack. When enabled, if a
+     * Slack channel has no configured agent, the system will use the built-in
+     * system agent instead of showing an error. Independent of AiWriteback so
+     * the features can be toggled separately.
+     */
+    AiSlackSystemAgentFallback = 'ai-slack-system-agent-fallback',
+
+    /**
+     * Enable one-click "Connect GitHub" setup for AI agent MCP servers. When
+     * enabled (and the org has a GitHub App installation the user can manage),
+     * the agent MCP settings offer a button that provisions the hosted GitHub
+     * MCP using the org's existing installation token — no manual URL/auth.
+     */
+    GithubMcpOneClick = 'github-mcp-one-click',
+
+    /**
+     * Let users link their personal GitHub account (user-to-server OAuth
+     * token) so write-back commits and pull requests are authored as them
+     * instead of the Lightdash GitHub App bot. Off by default while the
+     * link/unlink UX and token lifecycle are validated; when off, write-backs
+     * keep today's bot identity.
+     */
+    GithubUserCredentials = 'github-user-credentials',
+
+    /**
+     * Give the AI agent a read-only virtual filesystem over the project's dbt
+     * repo (`repoShell` tool): a limited shell (ls/cat/find/grep/head) backed by
+     * the GitHub API — no E2B sandbox/clone. Lets the agent inspect source
+     * before diagnosing, instead of guessing or spinning up a writeback sandbox.
+     */
+    RepoFs = 'repo-fs',
+
+    /**
+     * Gate the org-level export Limits settings panel (per-org query max rows
+     * and CSV cells limit). Backend enforcement of any stored overrides is
+     * always on; this flag only controls who can see/configure the panel.
+     */
+    ProLimits = 'pro-limits',
 }
 
 export type FeatureFlag = {

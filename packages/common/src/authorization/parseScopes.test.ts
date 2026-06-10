@@ -2,28 +2,29 @@ import { parseScopes } from './parseScopes';
 
 describe('parseScopes', () => {
     describe('with valid scopes', () => {
-        it('should return a Set of valid scope names for non-enterprise', () => {
+        it('should return valid scope names for non-enterprise', () => {
             const result = parseScopes({
                 scopes: ['view:dashboard', 'manage:dashboard'],
                 isEnterprise: false,
             });
 
-            expect(result).toBeInstanceOf(Set);
-            expect(result.size).toBe(2);
-            expect(result.has('view:Dashboard')).toBe(true);
-            expect(result.has('manage:Dashboard')).toBe(true);
+            expect(result.valid).toBeInstanceOf(Set);
+            expect(result.valid.size).toBe(2);
+            expect(result.valid.has('view:Dashboard')).toBe(true);
+            expect(result.valid.has('manage:Dashboard')).toBe(true);
+            expect(result.invalid).toEqual([]);
         });
 
-        it('should return a Set of valid scope names for enterprise', () => {
+        it('should return valid scope names for enterprise', () => {
             const result = parseScopes({
                 scopes: ['view:ai_agent', 'manage:ai_agent'],
                 isEnterprise: true,
             });
 
-            expect(result).toBeInstanceOf(Set);
-            expect(result.size).toBe(2);
-            expect(result.has('view:AiAgent')).toBe(true);
-            expect(result.has('manage:AiAgent')).toBe(true);
+            expect(result.valid.size).toBe(2);
+            expect(result.valid.has('view:AiAgent')).toBe(true);
+            expect(result.valid.has('manage:AiAgent')).toBe(true);
+            expect(result.invalid).toEqual([]);
         });
 
         it('should handle mixed case scope names correctly', () => {
@@ -32,9 +33,10 @@ describe('parseScopes', () => {
                 isEnterprise: true,
             });
 
-            expect(result.size).toBe(2);
-            expect(result.has('manage:CustomSql')).toBe(true);
-            expect(result.has('manage:PersonalAccessToken')).toBe(true);
+            expect(result.valid.size).toBe(2);
+            expect(result.valid.has('manage:CustomSql')).toBe(true);
+            expect(result.valid.has('manage:PersonalAccessToken')).toBe(true);
+            expect(result.invalid).toEqual([]);
         });
 
         it('should handle single scope correctly', () => {
@@ -43,8 +45,9 @@ describe('parseScopes', () => {
                 isEnterprise: false,
             });
 
-            expect(result.size).toBe(1);
-            expect(result.has('view:Project')).toBe(true);
+            expect(result.valid.size).toBe(1);
+            expect(result.valid.has('view:Project')).toBe(true);
+            expect(result.invalid).toEqual([]);
         });
 
         it('should handle empty scopes array', () => {
@@ -53,35 +56,54 @@ describe('parseScopes', () => {
                 isEnterprise: false,
             });
 
-            expect(result).toBeInstanceOf(Set);
-            expect(result.size).toBe(0);
+            expect(result.valid.size).toBe(0);
+            expect(result.invalid).toEqual([]);
         });
     });
 
     describe('with invalid scopes', () => {
-        it('should filter out invalid scope names', () => {
-            expect(
-                parseScopes({
-                    scopes: ['view:dashboard', 'invalid:scope'],
-                    isEnterprise: false,
-                }),
-            ).toEqual(new Set(['view:Dashboard']));
+        it('should separate invalid scope names from valid ones', () => {
+            const result = parseScopes({
+                scopes: ['view:dashboard', 'invalid:scope'],
+                isEnterprise: false,
+            });
+
+            expect(result.valid).toEqual(new Set(['view:Dashboard']));
+            expect(result.invalid).toEqual(['invalid:Scope']);
         });
 
-        it('should filter out enterprise scopes when not enterprise', () => {
-            expect(
-                parseScopes({
-                    scopes: ['view:dashboard', 'view:ai_agent'],
-                    isEnterprise: false,
-                }),
-            ).toEqual(new Set(['view:Dashboard']));
+        it('should treat enterprise-only scopes as invalid when not enterprise', () => {
+            const nonEnterprise = parseScopes({
+                scopes: ['view:dashboard', 'view:ai_agent'],
+                isEnterprise: false,
+            });
+            expect(nonEnterprise.valid).toEqual(new Set(['view:Dashboard']));
+            expect(nonEnterprise.invalid).toEqual(['view:AiAgent']);
 
-            expect(
-                parseScopes({
-                    scopes: ['view:dashboard', 'view:ai_agent'],
-                    isEnterprise: true,
-                }),
-            ).toEqual(new Set(['view:Dashboard', 'view:AiAgent']));
+            const enterprise = parseScopes({
+                scopes: ['view:dashboard', 'view:ai_agent'],
+                isEnterprise: true,
+            });
+            expect(enterprise.valid).toEqual(
+                new Set(['view:Dashboard', 'view:AiAgent']),
+            );
+            expect(enterprise.invalid).toEqual([]);
+        });
+
+        it('should not emit console warnings for invalid scopes', () => {
+            const warnSpy = jest
+                .spyOn(console, 'warn')
+                .mockImplementation(() => {});
+            parseScopes({
+                scopes: [
+                    'export:DashboardCsv',
+                    'export:DashboardPdf',
+                    'export:DashboardImage',
+                ],
+                isEnterprise: true,
+            });
+            expect(warnSpy).not.toHaveBeenCalled();
+            warnSpy.mockRestore();
         });
     });
 
@@ -96,9 +118,9 @@ describe('parseScopes', () => {
                 isEnterprise: true,
             });
 
-            expect(result.has('manage:CustomSql')).toBe(true);
-            expect(result.has('manage:PersonalAccessToken')).toBe(true);
-            expect(result.has('view:SemanticViewer')).toBe(true);
+            expect(result.valid.has('manage:CustomSql')).toBe(true);
+            expect(result.valid.has('manage:PersonalAccessToken')).toBe(true);
+            expect(result.valid.has('view:SemanticViewer')).toBe(true);
         });
 
         it('should handle camelCase input correctly', () => {
@@ -107,8 +129,8 @@ describe('parseScopes', () => {
                 isEnterprise: false,
             });
 
-            expect(result.has('view:Dashboard')).toBe(true);
-            expect(result.has('manage:SavedChart')).toBe(true);
+            expect(result.valid.has('view:Dashboard')).toBe(true);
+            expect(result.valid.has('manage:SavedChart')).toBe(true);
         });
 
         it('should handle mixed case input correctly', () => {
@@ -117,7 +139,7 @@ describe('parseScopes', () => {
                 isEnterprise: false,
             });
 
-            expect(result.has('view:UnderlyingData')).toBe(true);
+            expect(result.valid.has('view:UnderlyingData')).toBe(true);
         });
     });
 });

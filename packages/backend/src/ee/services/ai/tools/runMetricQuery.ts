@@ -1,9 +1,11 @@
 import {
     convertAiTableCalcsSchemaToTableCalcs,
     Explore,
+    filterAggregationCustomMetrics,
     getItemLabelWithoutTableName,
     getTotalFilterRules,
     metricQueryTableViz,
+    runMetricQueryToolDefinition,
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
     ToolRunMetricQueryArgsTransformed,
@@ -28,6 +30,8 @@ import {
     validateSortFieldsAreSelected,
 } from '../utils/validators';
 
+const toolDefinition = runMetricQueryToolDefinition.for('agent');
+
 type Dependencies = {
     runAsyncQuery: RunAsyncQueryFn;
     maxLimit: number;
@@ -42,6 +46,9 @@ export const getRunMetricQuery = ({
         explore: Explore,
     ) => {
         const filterRules = getTotalFilterRules(vizTool.filters);
+        const aggregations = filterAggregationCustomMetrics(
+            vizTool.customMetrics,
+        );
         validateFieldEntityType(
             explore,
             vizTool.vizConfig.dimensions,
@@ -51,40 +58,38 @@ export const getRunMetricQuery = ({
             explore,
             vizTool.vizConfig.metrics,
             'metric',
-            vizTool.customMetrics,
+            aggregations,
         );
-        validateCustomMetricsDefinition(explore, vizTool.customMetrics);
+        validateCustomMetricsDefinition(explore, aggregations);
         validateFilterRules(
             explore,
             filterRules,
-            vizTool.customMetrics,
+            aggregations,
             vizTool.tableCalculations,
         );
         validateMetricDimensionFilterPlacement(
             explore,
-            vizTool.customMetrics,
+            aggregations,
             vizTool.tableCalculations,
             vizTool.filters,
         );
         validateSelectedFieldsExistence(
             explore,
             vizTool.vizConfig.sorts.map((sort) => sort.fieldId),
-            vizTool.customMetrics,
+            aggregations,
             vizTool.tableCalculations,
         );
         validateSortFieldsAreSelected(
             vizTool.vizConfig.sorts,
             vizTool.vizConfig.dimensions,
             vizTool.vizConfig.metrics,
-            vizTool.customMetrics,
+            aggregations,
             vizTool.tableCalculations,
         );
     };
 
     return tool({
-        description: toolRunMetricQueryArgsSchema.description,
-        inputSchema: toolRunMetricQueryArgsSchema,
-        outputSchema: toolRunMetricQueryOutputSchema,
+        ...toolDefinition,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);
@@ -107,7 +112,10 @@ export const getRunMetricQuery = ({
 
                 const results = await runAsyncQuery(
                     query,
-                    populateCustomMetricsSQL(vizTool.customMetrics, explore),
+                    populateCustomMetricsSQL(
+                        filterAggregationCustomMetrics(vizTool.customMetrics),
+                        explore,
+                    ),
                 );
 
                 if (results.rows.length === 0) {

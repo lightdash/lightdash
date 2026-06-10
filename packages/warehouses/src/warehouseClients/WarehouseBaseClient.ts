@@ -3,7 +3,6 @@ import {
     CreateWarehouseCredentials,
     DimensionType,
     Metric,
-    NotImplementedError,
     PartitionColumn,
     SupportedDbtAdapter,
     TimeIntervalUnit,
@@ -13,8 +12,6 @@ import {
     WeekDay,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
-    type WarehouseGetAsyncQueryResults,
-    type WarehouseGetAsyncQueryResultsArgs,
 } from '@lightdash/common';
 import { type WarehouseClient } from '../types';
 
@@ -54,6 +51,10 @@ export default abstract class WarehouseBaseClient<
         return this.sqlBuilder.getNullSafeEqualSql(left, right);
     }
 
+    getNullSafeEqualJoinSql(left: string, right: string): string {
+        return this.sqlBuilder.getNullSafeEqualJoinSql(left, right);
+    }
+
     buildArrayAgg(expression: string, orderBy?: string): string {
         return this.sqlBuilder.buildArrayAgg(expression, orderBy);
     }
@@ -65,15 +66,6 @@ export default abstract class WarehouseBaseClient<
     abstract getCatalog(
         config: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog>;
-
-    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
-        _args: WarehouseGetAsyncQueryResultsArgs,
-        _rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
-        throw new NotImplementedError(
-            `Native pagination not supported. Please configure S3 Storage to use ${this.getAdapterType()} - https://docs.lightdash.com/self-host/customize-deployment/environment-variables#s3`,
-        );
-    }
 
     abstract streamQuery(
         query: string,

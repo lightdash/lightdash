@@ -3,6 +3,7 @@ import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
+import { ThemeExamplePage } from './ThemeExamplePage';
 
 export type ExampleDefinition = {
     component: ComponentType<{ embedConfig: EmbedConfigState }>;
@@ -41,6 +42,15 @@ export const examples: ExampleDefinition[] = [
         sourcePath:
             'packages/sdk-test-app/src/examples/PaletteUuidExamplePage.tsx',
         component: PaletteUuidExamplePage,
+    },
+    {
+        slug: 'theme',
+        path: '/examples/theme',
+        title: 'Theme demo',
+        description:
+            'Switch the embedded dashboard between light and dark mode via the `theme` prop.',
+        sourcePath: 'packages/sdk-test-app/src/examples/ThemeExamplePage.tsx',
+        component: ThemeExamplePage,
     },
     // Future examples:
     // {

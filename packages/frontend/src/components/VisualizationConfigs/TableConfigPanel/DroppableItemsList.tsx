@@ -3,7 +3,7 @@ import {
     Droppable,
     type DraggableStateSnapshot,
 } from '@hello-pangea/dnd';
-import { Group, Stack, Text } from '@mantine/core';
+import { Group, Stack, Text } from '@mantine-8/core';
 import React, { type FC } from 'react';
 import { createPortal } from 'react-dom';
 import { GrabIcon } from '../common/GrabIcon';
@@ -26,6 +26,7 @@ type DroppableItemsListProps = {
     isDragging: boolean;
     disableReorder: boolean;
     placeholder?: string;
+    allowHidePivotDimension?: boolean;
 };
 
 const DroppableItemsList: FC<DroppableItemsListProps> = ({
@@ -34,14 +35,15 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
     isDragging,
     disableReorder,
     placeholder,
+    allowHidePivotDimension = false,
 }) => {
     const hasItems = itemIds.length > 0;
     return (
         <Stack
-            spacing="xs"
-            sx={(theme) => ({
+            gap="xs"
+            style={(theme) => ({
                 padding: theme.spacing.xs,
-                backgroundColor: theme.colors.ldGray['0'],
+                backgroundColor: theme.colors.ldGray?.[0],
                 borderRadius: theme.radius.sm,
             })}
         >
@@ -49,7 +51,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                 {(dropProps, droppableSnapshot) => (
                     <Stack
                         {...dropProps.droppableProps}
-                        spacing="xs"
+                        gap="xs"
                         ref={dropProps.innerRef}
                         mih={isDragging ? '30px' : undefined}
                         bg={
@@ -61,7 +63,7 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                         }
                     >
                         {!isDragging && !hasItems ? (
-                            <Text size="xs" color="ldGray.6" m="xs" ta="center">
+                            <Text size="xs" c="ldGray.6" m="xs" ta="center">
                                 {placeholder}
                             </Text>
                         ) : null}
@@ -81,8 +83,8 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
                                 ) => (
                                     <DraggablePortalHandler snapshot={snapshot}>
                                         <Group
-                                            noWrap
-                                            spacing="xs"
+                                            wrap="nowrap"
+                                            gap="xs"
                                             ref={innerRef}
                                             {...draggableProps}
                                             style={{
@@ -103,6 +105,9 @@ const DroppableItemsList: FC<DroppableItemsListProps> = ({
 
                                             <ColumnConfiguration
                                                 fieldId={itemId}
+                                                allowHidePivotDimension={
+                                                    allowHidePivotDimension
+                                                }
                                             />
                                         </Group>
                                     </DraggablePortalHandler>

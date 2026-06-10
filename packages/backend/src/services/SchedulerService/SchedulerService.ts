@@ -10,6 +10,7 @@ import {
     GoogleSheetsScopeError,
     GoogleSheetsTransientError,
     InvalidUser,
+    isAppScheduler,
     isChartScheduler,
     isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
@@ -20,7 +21,6 @@ import {
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
-    JobPollTimeoutError,
     JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
@@ -40,7 +40,6 @@ import {
     SchedulerTaskName,
     SchedulerWithLogs,
     SessionUser,
-    sleep,
     UnexpectedGoogleSheetsError,
     UpdateSchedulerAndTargetsWithoutId,
     UserSchedulersSummary,
@@ -60,6 +59,7 @@ import {
     getSchedulerTargetType,
     SchedulerLogDb,
 } from '../../database/entities/scheduler';
+import { AppModel } from '../../models/AppModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { JobModel } from '../../models/JobModel/JobModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -81,6 +81,7 @@ type SchedulerServiceArguments = {
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
     savedSqlModel: SavedSqlModel;
+    appModel: AppModel;
     projectModel: ProjectModel;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
@@ -114,6 +115,8 @@ export class SchedulerService extends BaseService {
 
     savedSqlModel: SavedSqlModel;
 
+    appModel: AppModel;
+
     schedulerClient: SchedulerClient;
 
     slackClient: SlackClient;
@@ -139,6 +142,7 @@ export class SchedulerService extends BaseService {
         dashboardModel,
         savedChartModel,
         savedSqlModel,
+        appModel,
         schedulerClient,
         slackClient,
         emailClient,
@@ -156,6 +160,7 @@ export class SchedulerService extends BaseService {
         this.dashboardModel = dashboardModel;
         this.savedChartModel = savedChartModel;
         this.savedSqlModel = savedSqlModel;
+        this.appModel = appModel;
         this.schedulerClient = schedulerClient;
         this.slackClient = slackClient;
         this.emailClient = emailClient;
@@ -190,6 +195,16 @@ export class SchedulerService extends BaseService {
             return {
                 projectUuid: sqlChart.project.projectUuid,
                 organizationUuid: sqlChart.organization.organizationUuid,
+            };
+        }
+        if (isAppScheduler(scheduler)) {
+            const app = await this.appModel.findAppByUuid(scheduler.appUuid);
+            if (!app) {
+                throw new NotFoundError(`App not found: ${scheduler.appUuid}`);
+            }
+            return {
+                projectUuid: app.project_uuid,
+                organizationUuid: app.organization_uuid,
             };
         }
         throw new ParameterError('Invalid scheduler type');
@@ -292,6 +307,10 @@ export class SchedulerService extends BaseService {
                 organizationUuid,
                 projectUuid,
                 userUuid: scheduler.createdBy,
+                metadata: {
+                    schedulerUuid,
+                    createdByUserUuid: scheduler.createdBy,
+                },
             }),
         );
 
@@ -304,6 +323,10 @@ export class SchedulerService extends BaseService {
             subject('GoogleSheets', {
                 organizationUuid,
                 projectUuid,
+                metadata: {
+                    schedulerUuid,
+                    schedulerFormat: scheduler.format,
+                },
             }),
         );
 
@@ -321,7 +344,7 @@ export class SchedulerService extends BaseService {
         user: SessionUser,
         scheduler: Pick<
             CreateSchedulerAndTargets,
-            'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid'
+            'savedChartUuid' | 'dashboardUuid' | 'savedSqlUuid' | 'appUuid'
         >,
     ) {
         const auditedAbility = this.createAuditedAbility(user);
@@ -342,6 +365,9 @@ export class SchedulerService extends BaseService {
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        metadata: {
+                            savedChartUuid: scheduler.savedChartUuid,
+                        },
                     }),
                 )
             )
@@ -365,6 +391,9 @@ export class SchedulerService extends BaseService {
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        metadata: {
+                            dashboardUuid: scheduler.dashboardUuid,
+                        },
                     }),
                 )
             )
@@ -391,13 +420,43 @@ export class SchedulerService extends BaseService {
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
+                        metadata: {
+                            savedSqlUuid: scheduler.savedSqlUuid,
+                        },
+                    }),
+                )
+            )
+                throw new ForbiddenError();
+        } else if (scheduler.appUuid) {
+            const app = await this.appModel.findAppByUuid(scheduler.appUuid);
+            if (!app) {
+                throw new NotFoundError(`App not found: ${scheduler.appUuid}`);
+            }
+            const spaceContext = app.space_uuid
+                ? await this.spacePermissionService.getSpaceAccessContext(
+                      user.userUuid,
+                      app.space_uuid,
+                  )
+                : {};
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('DataApp', {
+                        organizationUuid: app.organization_uuid,
+                        projectUuid: app.project_uuid,
+                        createdByUserUuid: app.created_by_user_uuid,
+                        ...spaceContext,
+                        metadata: {
+                            appUuid: scheduler.appUuid,
+                            createdByUserUuid: app.created_by_user_uuid,
+                        },
                     }),
                 )
             )
                 throw new ForbiddenError();
         } else {
             throw new ParameterError(
-                'Missing savedChartUuid, dashboardUuid, and savedSqlUuid on scheduler',
+                'Missing savedChartUuid, dashboardUuid, savedSqlUuid, and appUuid on scheduler',
             );
         }
     }
@@ -455,11 +514,111 @@ export class SchedulerService extends BaseService {
         return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
     }
 
+    private async checkAppScheduledDeliveryAccess(
+        user: SessionUser,
+        appUuid: string,
+    ): Promise<void> {
+        const app = await this.appModel.findAppByUuid(appUuid);
+        if (!app) {
+            throw new NotFoundError(`App not found: ${appUuid}`);
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        const spaceContext = app.space_uuid
+            ? await this.spacePermissionService.getSpaceAccessContext(
+                  user.userUuid,
+                  app.space_uuid,
+              )
+            : {};
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid: app.project_uuid,
+                    createdByUserUuid: app.created_by_user_uuid,
+                    ...spaceContext,
+                    metadata: {
+                        appUuid,
+                        createdByUserUuid: app.created_by_user_uuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: app.organization_uuid,
+                    projectUuid: app.project_uuid,
+                    metadata: {
+                        appUuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+    }
+
+    async getAppSchedulers(
+        user: SessionUser,
+        appUuid: string,
+    ): Promise<SchedulerAndTargets[]> {
+        await this.checkAppScheduledDeliveryAccess(user, appUuid);
+        return this.schedulerModel.getAppSchedulers(appUuid);
+    }
+
+    async createAppScheduler(
+        user: SessionUser,
+        appUuid: string,
+        newScheduler: Omit<
+            CreateSchedulerAndTargets,
+            | 'createdBy'
+            | 'savedChartUuid'
+            | 'dashboardUuid'
+            | 'savedSqlUuid'
+            | 'appUuid'
+        >,
+    ): Promise<SchedulerAndTargets> {
+        await this.checkAppScheduledDeliveryAccess(user, appUuid);
+
+        if (newScheduler.format !== SchedulerFormat.IMAGE) {
+            throw new ParameterError(
+                'Data app schedulers only support image deliveries',
+            );
+        }
+        if (!isValidFrequency(newScheduler.cron)) {
+            throw new ParameterError(
+                'Frequency not allowed, custom input is limited to hourly',
+            );
+        }
+        if (!isValidTimezone(newScheduler.timezone)) {
+            throw new ParameterError('Timezone string is not valid');
+        }
+
+        return this.schedulerModel.createScheduler({
+            ...newScheduler,
+            createdBy: user.userUuid,
+            savedChartUuid: null,
+            dashboardUuid: null,
+            savedSqlUuid: null,
+            appUuid,
+        });
+    }
+
     async getScheduler(
         user: SessionUser,
         schedulerUuid: string,
     ): Promise<SchedulerAndTargets> {
-        return this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const scheduler =
+            await this.schedulerModel.getSchedulerAndTargets(schedulerUuid);
+        await this.checkViewResource(user, scheduler);
+        return scheduler;
     }
 
     async getUserSchedulers(
@@ -769,6 +928,27 @@ export class SchedulerService extends BaseService {
                         organizationUuid,
                         projectUuid,
                         userUuid: scheduler.createdBy,
+                        metadata: {
+                            schedulerUuid: scheduler.schedulerUuid,
+                            createdByUserUuid: scheduler.createdBy,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+
+            if (
+                scheduler.format === SchedulerFormat.GSHEETS &&
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                        metadata: {
+                            schedulerUuid: scheduler.schedulerUuid,
+                            schedulerFormat: scheduler.format,
+                        },
                     }),
                 )
             ) {
@@ -816,11 +996,27 @@ export class SchedulerService extends BaseService {
             );
         }
 
-        // Check if any schedulers are GSHEETS format - new owner must have Google refresh token
+        // Check if any schedulers are GSHEETS format - new owner must be able to
+        // create Google Sheets syncs and have an active Google connection
         const hasGsheetsSchedulers = schedulers.some(
             (s) => s.format === SchedulerFormat.GSHEETS,
         );
         if (hasGsheetsSchedulers) {
+            if (
+                // eslint-disable-next-line no-direct-ability-check -- Checking newOwner's capability, not caller's access control. Caller's manage check is audited above.
+                newOwner.ability.cannot(
+                    'create',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError(
+                    'New owner does not have permission to create Google Sheets scheduled deliveries',
+                );
+            }
+
             try {
                 await this.userModel.getRefreshToken(newOwnerUserUuid);
             } catch (error) {
@@ -922,6 +1118,9 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
                         projectUuid: context.projectUuid,
+                        metadata: {
+                            savedChartUuid: chartUuid,
+                        },
                     }),
                 )
             ) {
@@ -978,6 +1177,9 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
                         projectUuid: context.projectUuid,
+                        metadata: {
+                            dashboardUuid,
+                        },
                     }),
                 )
             ) {
@@ -1033,6 +1235,9 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
                         projectUuid: context.projectUuid,
+                        metadata: {
+                            savedChartUuid: chartUuid,
+                        },
                     }),
                 )
             ) {
@@ -1084,6 +1289,9 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid: context.organizationUuid,
                         projectUuid: context.projectUuid,
+                        metadata: {
+                            dashboardUuid,
+                        },
                     }),
                 )
             ) {
@@ -1135,6 +1343,10 @@ export class SchedulerService extends BaseService {
                     projectUuid: job.details?.projectUuid,
                     organizationUuid: job.details?.organizationUuid,
                     createdByUserUuid: job.details?.createdByUserUuid,
+                    metadata: {
+                        jobId,
+                        createdByUserUuid: job.details?.createdByUserUuid,
+                    },
                 }),
             )
         ) {
@@ -1207,71 +1419,16 @@ export class SchedulerService extends BaseService {
                     organizationUuid: job.details?.organizationUuid,
                     projectUuid: job.details?.projectUuid,
                     createdByUserUuid: job.details?.createdByUserUuid,
+                    metadata: {
+                        jobId,
+                        createdByUserUuid: job.details?.createdByUserUuid,
+                    },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
         return { status: job.status, details: job.details };
-    }
-
-    /**
-     * Yields the job's status on a backoff cadence, stopping when the deadline
-     * is reached. Consumers iterate with `for await` and break out when they
-     * see a status they care about; the generator handles the sleep/backoff
-     * plumbing.
-     */
-    async *streamJobStatus(
-        account: Account,
-        jobId: string,
-        {
-            initialBackoffMs = 500,
-            maxBackoffMs = 2000,
-            timeoutMs = 5 * 60 * 1000,
-        }: {
-            initialBackoffMs?: number;
-            maxBackoffMs?: number;
-            timeoutMs?: number;
-        } = {},
-    ): AsyncGenerator<Pick<SchedulerLogDb, 'status' | 'details'>> {
-        const deadline = Date.now() + timeoutMs;
-        let backoffMs = initialBackoffMs;
-        while (Date.now() < deadline) {
-            // eslint-disable-next-line no-await-in-loop
-            yield await this.getJobStatus(account, jobId);
-            // eslint-disable-next-line no-await-in-loop
-            await sleep(backoffMs);
-            backoffMs = Math.min(backoffMs * 2, maxBackoffMs);
-        }
-    }
-
-    /**
-     * Polls a scheduler job until it reaches COMPLETED or ERROR. Returns the
-     * final job state; throws if the timeout elapses first. Caller decides
-     * how to interpret COMPLETED vs ERROR.
-     */
-    async pollJobToCompletion(
-        account: Account,
-        jobId: string,
-        options: {
-            initialBackoffMs?: number;
-            maxBackoffMs?: number;
-            timeoutMs?: number;
-        } = {},
-    ): Promise<Pick<SchedulerLogDb, 'status' | 'details'>> {
-        const { timeoutMs = 5 * 60 * 1000 } = options;
-        for await (const job of this.streamJobStatus(account, jobId, {
-            ...options,
-            timeoutMs,
-        })) {
-            if (
-                job.status === SchedulerJobStatus.COMPLETED ||
-                job.status === SchedulerJobStatus.ERROR
-            ) {
-                return job;
-            }
-        }
-        throw new JobPollTimeoutError(jobId, timeoutMs);
     }
 
     async setJobStatus(
@@ -1319,7 +1476,37 @@ export class SchedulerService extends BaseService {
             }
         }
 
+        const { organizationUuid, projectUuid } =
+            await this.getSchedulerProjectContext(scheduler);
+
         await this.checkViewResource(user, scheduler);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('ScheduledDeliveries', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: getSchedulerResourceTypeAndId(scheduler),
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        if (
+            scheduler.format === SchedulerFormat.GSHEETS &&
+            auditedAbility.cannot(
+                'create',
+                subject('GoogleSheets', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const slackChannels = scheduler.targets
             .filter(isCreateSchedulerSlackTarget)
@@ -1328,9 +1515,6 @@ export class SchedulerService extends BaseService {
             user.organizationUuid,
             slackChannels,
         );
-
-        const { organizationUuid, projectUuid } =
-            await this.getSchedulerProjectContext(scheduler);
 
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
@@ -1357,6 +1541,8 @@ export class SchedulerService extends BaseService {
             schedulerUuid,
             true,
         );
+
+        await this.checkViewResource(user, scheduler);
 
         return this.schedulerClient.addScheduledDeliveryJob(
             new Date(),
@@ -1546,6 +1732,11 @@ export class SchedulerService extends BaseService {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid,
                     userUuid: scheduler.createdBy,
+                    metadata: {
+                        schedulerUuid: runLogs.schedulerUuid,
+                        runId,
+                        createdByUserUuid: scheduler.createdBy,
+                    },
                 }),
             )
         ) {
@@ -1611,6 +1802,10 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid,
                         projectUuid: project.projectUuid,
+                        metadata: {
+                            targetUserUuid,
+                            projectName: project.projectName,
+                        },
                     }),
                 ),
             )
@@ -1675,6 +1870,11 @@ export class SchedulerService extends BaseService {
                     subject('ScheduledDeliveries', {
                         organizationUuid,
                         projectUuid: project.projectUuid,
+                        metadata: {
+                            fromUserUuid,
+                            newOwnerUserUuid,
+                            projectName: project.projectName,
+                        },
                     }),
                 )
             ) {

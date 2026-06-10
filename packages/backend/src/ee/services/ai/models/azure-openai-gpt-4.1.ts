@@ -12,6 +12,7 @@ export const getAzureProvider = (
         baseURL: config.endpoint,
         apiVersion: config.apiVersion,
         useDeploymentBasedUrls: config.useDeploymentBasedUrls,
+        headers: config.customHeaders,
     });
 
 export const getAzureGpt41Model = (

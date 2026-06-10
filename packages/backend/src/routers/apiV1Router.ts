@@ -1,4 +1,4 @@
-import { AuthorizationError } from '@lightdash/common';
+import { AuthorizationError, OrganizationSsoProvider } from '@lightdash/common';
 import {
     DATABRICKS_DEFAULT_OAUTH_CLIENT_ID,
     isDatabricksCliOAuthClientId,
@@ -24,6 +24,14 @@ import {
     getDatabricksOidcEndpointsFromHost,
     getDatabricksStrategyName,
 } from '../controllers/authentication/strategies/databricksStrategy';
+import {
+    createGenericOidcStrategyForConfig,
+    isGenericOidcPassportStrategyAvailableToUse,
+} from '../controllers/authentication/strategies/oidcStrategy';
+import {
+    createOneLoginStrategyForConfig,
+    isOneLoginPassportStrategyAvailableToUse,
+} from '../controllers/authentication/strategies/oneLoginStrategy';
 import { AiAgentService } from '../ee/services/AiAgentService/AiAgentService';
 import { createAuditLogEvent } from '../logging/auditLog';
 import { createActorFromUser } from '../logging/caslAuditWrapper';
@@ -195,7 +203,10 @@ const resolveAzureAdStrategyName = async (
     const email = getLoginHint(req);
 
     if (email) {
-        const method = await ssoService.findEnabledAzureAdMethodForEmail(email);
+        const method = await ssoService.findEnabledMethodForEmail(
+            email,
+            OrganizationSsoProvider.AZUREAD,
+        );
         if (method) {
             return registerAzureAdStrategyForOrg(
                 method.organizationUuid,
@@ -206,6 +217,123 @@ const resolveAzureAdStrategyName = async (
     // Fall back to the env-based strategy registered at startup, if available.
     if (isAzureAdPassportStrategyAvailableToUse) {
         return 'azuread';
+    }
+    return undefined;
+};
+
+// Cache dynamic generic-OIDC strategies (keyed `oidc:<orgUuid>`), mirroring the
+// Azure AD cache. Building the strategy is async (OIDC issuer discovery), so
+// registration is async too. Evicted after the same TTL so rotated secrets are
+// eventually picked up.
+const genericOidcStrategyCache = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout> }
+>();
+
+const registerGenericOidcStrategyForOrg = async (
+    organizationUuid: string,
+    config: import('@lightdash/common').GenericOidcSsoConfig,
+): Promise<string> => {
+    const strategyName = `oidc:${organizationUuid}`;
+    const existing = genericOidcStrategyCache.get(strategyName);
+    // Always re-register so config changes (e.g. rotated secret) take effect.
+    passport.use(
+        strategyName,
+        await createGenericOidcStrategyForConfig(config),
+    );
+    if (existing) {
+        clearTimeout(existing.timer);
+    }
+    const timer = setTimeout(() => {
+        genericOidcStrategyCache.delete(strategyName);
+        passport.unuse(strategyName);
+    }, AZURE_AD_STRATEGY_TTL_MS);
+    genericOidcStrategyCache.set(strategyName, { timer });
+    return strategyName;
+};
+
+/**
+ * Resolves the generic-OIDC strategy name for this request, registering the
+ * per-org strategy dynamically. Returns undefined when neither a per-org DB
+ * config matching the email domain nor an env-based fallback is available.
+ */
+const resolveGenericOidcStrategyName = async (
+    req: express.Request,
+): Promise<string | undefined> => {
+    const ssoService = req.services.getOrganizationSsoService();
+    const email = getLoginHint(req);
+
+    if (email) {
+        const method = await ssoService.findEnabledMethodForEmail(
+            email,
+            OrganizationSsoProvider.GENERIC_OIDC,
+        );
+        if (method) {
+            return registerGenericOidcStrategyForOrg(
+                method.organizationUuid,
+                method.config,
+            );
+        }
+    }
+    // Fall back to the env-based strategy registered at startup, if available.
+    if (isGenericOidcPassportStrategyAvailableToUse) {
+        return 'oidc';
+    }
+    return undefined;
+};
+
+// Cache dynamic OneLogin strategies (keyed `oneLogin:<orgUuid>`), mirroring the
+// Azure AD cache. OneLogin endpoints are templated from the issuer, so building
+// the strategy is synchronous. Evicted after the same TTL.
+const oneLoginStrategyCache = new Map<
+    string,
+    { timer: ReturnType<typeof setTimeout> }
+>();
+
+const registerOneLoginStrategyForOrg = (
+    organizationUuid: string,
+    config: import('@lightdash/common').OneLoginSsoConfig,
+): string => {
+    const strategyName = `oneLogin:${organizationUuid}`;
+    const existing = oneLoginStrategyCache.get(strategyName);
+    passport.use(strategyName, createOneLoginStrategyForConfig(config));
+    if (existing) {
+        clearTimeout(existing.timer);
+    }
+    const timer = setTimeout(() => {
+        oneLoginStrategyCache.delete(strategyName);
+        passport.unuse(strategyName);
+    }, AZURE_AD_STRATEGY_TTL_MS);
+    oneLoginStrategyCache.set(strategyName, { timer });
+    return strategyName;
+};
+
+/**
+ * Resolves the OneLogin strategy name for this request, registering the per-org
+ * strategy dynamically. Returns undefined when neither a per-org DB config
+ * matching the email domain nor an env-based fallback is available.
+ */
+const resolveOneLoginStrategyName = async (
+    req: express.Request,
+): Promise<string | undefined> => {
+    const ssoService = req.services.getOrganizationSsoService();
+    const email = getLoginHint(req);
+
+    if (email) {
+        const method = await ssoService.findEnabledMethodForEmail(
+            email,
+            OrganizationSsoProvider.ONELOGIN,
+        );
+        if (method) {
+            return registerOneLoginStrategyForOrg(
+                method.organizationUuid,
+                method.config,
+            );
+        }
+    }
+    // Fall back to the env-based strategy registered at startup, if available.
+    if (isOneLoginPassportStrategyAvailableToUse) {
+        return 'oneLogin';
     }
     return undefined;
 };
@@ -371,7 +499,10 @@ apiV1Router.get(
                 const orgUuid = strategyName.slice('azuread:'.length);
                 const config = await req.services
                     .getOrganizationSsoService()
-                    .getAzureAdConfigForOrganization(orgUuid);
+                    .getConfigForOrganization(
+                        orgUuid,
+                        OrganizationSsoProvider.AZUREAD,
+                    );
                 if (config) {
                     registerAzureAdStrategyForOrg(orgUuid, config);
                 }
@@ -390,47 +521,165 @@ apiV1Router.get(
 apiV1Router.get(
     lightdashConfig.auth.oidc.loginPath,
     storeOIDCRedirect,
-    passport.authenticate(
-        'oidc',
-        lightdashConfig.auth.oidc.scopes
-            ? {
-                  scope: lightdashConfig.auth.oidc.scopes,
-              }
-            : {},
-    ),
+    async (req, res, next) => {
+        try {
+            const strategyName = await resolveGenericOidcStrategyName(req);
+            if (!strategyName) {
+                res.status(404).json({
+                    status: 'error',
+                    message: 'OIDC SSO is not configured',
+                });
+                return;
+            }
+            req.session.oauth = req.session.oauth || {};
+            req.session.oauth.oidcStrategyName = strategyName;
+            // Per-org strategies bake the scope into the client params; the
+            // env-based 'oidc' strategy still takes its scope here.
+            const authenticateOptions: passport.AuthenticateOptions =
+                strategyName === 'oidc' && lightdashConfig.auth.oidc.scopes
+                    ? { scope: lightdashConfig.auth.oidc.scopes }
+                    : {};
+            passport.authenticate(strategyName, authenticateOptions)(
+                req,
+                res,
+                next,
+            );
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
-apiV1Router.get(lightdashConfig.auth.oidc.callbackPath, (req, res, next) =>
-    passport.authenticate('oidc', {
-        failureRedirect: getOidcRedirectURL(false)(req),
-        successRedirect: getOidcRedirectURL(true)(req),
-        failureFlash: true,
-    })(req, res, next),
+apiV1Router.get(
+    lightdashConfig.auth.oidc.callbackPath,
+    async (req, res, next) => {
+        try {
+            const sessionStrategyName = req.session.oauth?.oidcStrategyName;
+            const strategyName =
+                sessionStrategyName ??
+                (await resolveGenericOidcStrategyName(req));
+            if (!strategyName) {
+                res.status(404).json({
+                    status: 'error',
+                    message: 'OIDC SSO is not configured',
+                });
+                return;
+            }
+            // Re-register the per-org strategy if it was evicted (e.g. a server
+            // restart between login and callback).
+            if (
+                strategyName.startsWith('oidc:') &&
+                !genericOidcStrategyCache.has(strategyName)
+            ) {
+                const orgUuid = strategyName.slice('oidc:'.length);
+                const config = await req.services
+                    .getOrganizationSsoService()
+                    .getConfigForOrganization(
+                        orgUuid,
+                        OrganizationSsoProvider.GENERIC_OIDC,
+                    );
+                if (config) {
+                    await registerGenericOidcStrategyForOrg(orgUuid, config);
+                }
+            }
+            passport.authenticate(strategyName, {
+                failureRedirect: getOidcRedirectURL(false)(req),
+                successRedirect: getOidcRedirectURL(true)(req),
+                failureFlash: true,
+            })(req, res, next);
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
 apiV1Router.get(
     lightdashConfig.auth.oneLogin.loginPath,
     storeOIDCRedirect,
-    passport.authenticate('oneLogin', {
-        scope: ['openid', 'profile', 'email'],
-    }),
+    async (req, res, next) => {
+        try {
+            const strategyName = await resolveOneLoginStrategyName(req);
+            if (!strategyName) {
+                res.status(404).json({
+                    status: 'error',
+                    message: 'OneLogin SSO is not configured',
+                });
+                return;
+            }
+            req.session.oauth = req.session.oauth || {};
+            req.session.oauth.oneLoginStrategyName = strategyName;
+            passport.authenticate(strategyName, {
+                scope: ['openid', 'profile', 'email'],
+            })(req, res, next);
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
-apiV1Router.get(lightdashConfig.auth.oneLogin.callbackPath, (req, res, next) =>
-    passport.authenticate('oneLogin', {
-        failureRedirect: getOidcRedirectURL(false)(req),
-        successRedirect: getOidcRedirectURL(true)(req),
-        failureFlash: true,
-    })(req, res, next),
+apiV1Router.get(
+    lightdashConfig.auth.oneLogin.callbackPath,
+    async (req, res, next) => {
+        try {
+            const sessionStrategyName = req.session.oauth?.oneLoginStrategyName;
+            const strategyName =
+                sessionStrategyName ?? (await resolveOneLoginStrategyName(req));
+            if (!strategyName) {
+                res.status(404).json({
+                    status: 'error',
+                    message: 'OneLogin SSO is not configured',
+                });
+                return;
+            }
+            // Re-register the per-org strategy if it was evicted (e.g. a server
+            // restart between login and callback).
+            if (
+                strategyName.startsWith('oneLogin:') &&
+                !oneLoginStrategyCache.has(strategyName)
+            ) {
+                const orgUuid = strategyName.slice('oneLogin:'.length);
+                const config = await req.services
+                    .getOrganizationSsoService()
+                    .getConfigForOrganization(
+                        orgUuid,
+                        OrganizationSsoProvider.ONELOGIN,
+                    );
+                if (config) {
+                    registerOneLoginStrategyForOrg(orgUuid, config);
+                }
+            }
+            passport.authenticate(strategyName, {
+                failureRedirect: getOidcRedirectURL(false)(req),
+                successRedirect: getOidcRedirectURL(true)(req),
+                failureFlash: true,
+            })(req, res, next);
+        } catch (error) {
+            next(error);
+        }
+    },
 );
 
 apiV1Router.get(
     lightdashConfig.auth.google.loginPath,
     storeOIDCRedirect,
     (req, res, next) => {
+        const { includeBigqueryScope } = lightdashConfig.auth.google;
+        const scope = ['profile', 'email'];
+        if (includeBigqueryScope) {
+            scope.push('https://www.googleapis.com/auth/bigquery');
+        }
         passport.authenticate('google', {
-            scope: ['profile', 'email'],
+            scope,
             loginHint: getLoginHint(req),
+            // Request a refresh token and force the consent screen so we can
+            // store BigQuery credentials. Only needed when the BigQuery scope
+            // is bundled into the login flow.
+            ...(includeBigqueryScope && {
+                accessType: 'offline',
+                prompt: 'consent',
+                session: false,
+                includeGrantedScopes: true,
+            }),
         })(req, res, next);
     },
 );

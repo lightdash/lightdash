@@ -18,7 +18,7 @@ import { getAgentTelemetryConfig } from '../telemetry';
 import { DiscoverFieldsInput, discoverFieldsResultSchema } from './schema';
 import { getDiscoverFieldsSystemPrompt } from './systemPrompt';
 
-const SUBAGENT_STEP_CAP = 10;
+const SUBAGENT_STEP_CAP = 15;
 
 const SUBAGENT_PERSISTED_TOOL_NAMES = ['findExplores', 'findFields'] as const;
 type SubagentPersistedToolName = (typeof SUBAGENT_PERSISTED_TOOL_NAMES)[number];
@@ -50,7 +50,11 @@ export type DiscoverFieldsAgentArgs = {
     parentToolCallId: string;
     telemetry: Pick<
         AiAgentArgs,
-        'agentSettings' | 'threadUuid' | 'promptUuid' | 'telemetryEnabled'
+        | 'agentSettings'
+        | 'threadUuid'
+        | 'promptUuid'
+        | 'telemetryEnabled'
+        | 'model'
     >;
 };
 

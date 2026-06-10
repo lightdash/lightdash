@@ -62,7 +62,8 @@ const OmnibarItem: FC<Props> = ({
             <Stack gap="two" className={classes.content}>
                 <Group gap="xs" wrap="nowrap">
                     <Text fw={500} size="sm" truncate ref={scrollRef}>
-                        {item.prefix} {item.title}
+                        {item.prefix ? <>{item.prefix} </> : null}
+                        {item.title}
                     </Text>
                     {itemHasVerification(item) && (
                         <Badge
@@ -77,7 +78,11 @@ const OmnibarItem: FC<Props> = ({
                     )}
                 </Group>
 
-                {item.description || item.typeLabel ? (
+                {item.contextLabel ? (
+                    <Text size="xs" truncate c="dimmed">
+                        {item.contextLabel}
+                    </Text>
+                ) : item.description || item.typeLabel ? (
                     <Text size="xs" truncate c="dimmed">
                         {item.typeLabel}
                         {item.typeLabel && item.description ? <> · </> : null}

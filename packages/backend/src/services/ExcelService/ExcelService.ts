@@ -5,12 +5,11 @@ import {
     formatItemValue,
     formatRows,
     getErrorMessage,
-    getFormatExpression,
+    getExcelFormatExpression,
     isDimension,
     isField,
     isNumber,
     ItemsMap,
-    MetricQuery,
     PivotConfig,
     pivotResultsAsCsv,
     pivotResultsAsData,
@@ -18,6 +17,8 @@ import {
     shouldShiftItemTimezone,
     timeIntervalToExcelNumFmt,
     toExcelWallClockDate,
+    UnexpectedServerError,
+    type PivotRowTotalsByIndex,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -139,26 +140,32 @@ export class ExcelService {
     static async downloadPivotTableXlsx({
         rows,
         itemMap,
-        metricQuery,
         pivotConfig,
         onlyRaw,
         customLabels,
-        maxColumnLimit,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         enableImprovedExcelDates = false,
         timezone,
     }: {
         rows: Record<string, AnyType>[];
         itemMap: ItemsMap;
-        metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
-        maxColumnLimit: number;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         enableImprovedExcelDates?: boolean;
         timezone?: string;
     }): Promise<Excel.Buffer> {
+        if (!pivotDetails) {
+            throw new UnexpectedServerError(
+                'Cannot export pivot table XLSX without SQL pivot details',
+            );
+        }
+
         const formattedRows = formatRows(
             rows,
             itemMap,
@@ -171,12 +178,12 @@ export class ExcelService {
             return ExcelService.downloadPivotTableXlsxLegacy({
                 formattedRows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw,
                 customLabels,
-                maxColumnLimit,
                 pivotDetails,
+                warehouseRowTotals,
+                warehouseColumnTotals,
                 timezone,
             });
         }
@@ -185,11 +192,11 @@ export class ExcelService {
             pivotConfig,
             rows: formattedRows,
             itemMap,
-            metricQuery,
             customLabels,
             onlyRaw,
-            maxColumnLimit,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
         });
 
         // Build date column metadata: for each data column, determine if
@@ -304,33 +311,33 @@ export class ExcelService {
     private static async downloadPivotTableXlsxLegacy({
         formattedRows,
         itemMap,
-        metricQuery,
         pivotConfig,
         onlyRaw,
         customLabels,
-        maxColumnLimit,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         timezone,
     }: {
         formattedRows: ResultRow[];
         itemMap: ItemsMap;
-        metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
-        maxColumnLimit: number;
-        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         timezone?: string;
     }): Promise<Excel.Buffer> {
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,
             itemMap,
-            metricQuery,
             customLabels,
             onlyRaw,
-            maxColumnLimit,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
         });
 
         const workbook = new Excel.Workbook();
@@ -379,21 +386,24 @@ export class ExcelService {
     static async downloadAsyncPivotTableXlsx({
         resultsFileName,
         fields,
-        metricQuery,
         resultsStorageClient,
         exportsStorageClient,
         lightdashConfig,
         options,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         timezone,
+        csvCellsLimit,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
-        metricQuery: MetricQuery;
         resultsStorageClient: S3ResultsFileStorageClient;
         exportsStorageClient: FileStorageClient;
         lightdashConfig: LightdashConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -404,6 +414,9 @@ export class ExcelService {
             attachmentDownloadName?: string;
         };
         timezone?: string;
+        // Per-org export limit resolved by the caller; falls back to the
+        // instance default when not provided.
+        csvCellsLimit?: number;
     }): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -414,7 +427,8 @@ export class ExcelService {
             await resultsStorageClient.getDownloadStream(resultsFileName);
 
         const fieldCount = Object.keys(fields).length;
-        const cellsLimit = lightdashConfig.query?.csvCellsLimit || 100000;
+        const cellsLimit =
+            csvCellsLimit ?? lightdashConfig.query?.csvCellsLimit ?? 100000;
 
         // Use standard csvCellsLimit calculation - same as original downloadPivotTableCsv
         const maxRows = Math.floor(cellsLimit / fieldCount);
@@ -446,12 +460,12 @@ export class ExcelService {
         const excelBuffer = await ExcelService.downloadPivotTableXlsx({
             rows,
             itemMap: fields,
-            metricQuery,
             pivotConfig,
             onlyRaw,
             customLabels,
-            maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
             enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
             timezone,
         });
@@ -520,7 +534,7 @@ export class ExcelService {
         worksheet.columns = headers.map((header, index) => {
             const fieldId = sortedFieldIds[index];
             const item = fields[fieldId];
-            const formatExpression = getFormatExpression(item);
+            const formatExpression = getExcelFormatExpression(item);
 
             const column: Partial<Excel.Column> = {
                 header,

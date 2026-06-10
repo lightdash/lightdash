@@ -337,6 +337,7 @@ export const CreateMetricChurnRate: Story = {
                 type: 'create',
                 value: {
                     metric: {
+                        kind: 'aggregation',
                         name: 'churn_rate',
                         type: MetricType.AVERAGE,
                         label: 'Churn Rate (No Orders in Last 1 Month)',
@@ -344,6 +345,7 @@ export const CreateMetricChurnRate: Story = {
                             'Churn rate is the percentage of customers who stop ordering in the last 30 days.',
                         table: 'customers',
                         baseDimensionName: 'customer_id',
+                        filters: null,
                     },
                     entityType: 'metric',
                 },
@@ -363,6 +365,7 @@ export const CreateMetricTotalRevenue: Story = {
                 type: 'create',
                 value: {
                     metric: {
+                        kind: 'aggregation',
                         name: 'total_revenue',
                         type: MetricType.SUM,
                         label: 'Total Revenue',
@@ -370,6 +373,7 @@ export const CreateMetricTotalRevenue: Story = {
                             'Total revenue from all orders, including taxes and discounts.',
                         table: 'orders',
                         baseDimensionName: 'order_total',
+                        filters: null,
                     },
                     entityType: 'metric',
                 },
@@ -389,6 +393,7 @@ export const CreateMetricCustomerCount: Story = {
                 type: 'create',
                 value: {
                     metric: {
+                        kind: 'aggregation',
                         name: 'customer_count',
                         type: MetricType.COUNT,
                         label: 'Total Customers',
@@ -396,6 +401,7 @@ export const CreateMetricCustomerCount: Story = {
                             'Total number of customers in the database.',
                         table: 'customers',
                         baseDimensionName: 'customer_id',
+                        filters: null,
                     },
                     entityType: 'metric',
                 },
@@ -415,6 +421,7 @@ export const CreateMetricAverageOrderValue: Story = {
                 type: 'create',
                 value: {
                     metric: {
+                        kind: 'aggregation',
                         name: 'average_order_value',
                         type: MetricType.AVERAGE,
                         label: 'Average Order Value',
@@ -422,6 +429,7 @@ export const CreateMetricAverageOrderValue: Story = {
                             'Average order value from all orders, including taxes and discounts.',
                         table: 'orders',
                         baseDimensionName: 'order_total',
+                        filters: null,
                     },
                     entityType: 'metric',
                 },

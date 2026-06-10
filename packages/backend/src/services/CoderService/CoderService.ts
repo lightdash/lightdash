@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
+    assertUnreachable,
     ChartAsCode,
     ChartAsCodeInternalization,
     ChartSummary,
@@ -11,7 +12,10 @@ import {
     currentVersion,
     DashboardAsCode,
     DashboardAsCodeInternalization,
+    DashboardChartTileAsCode,
     DashboardDAO,
+    DashboardMarkdownTileAsCode,
+    DashboardSqlChartTileAsCode,
     DashboardTile,
     DashboardTileAsCode,
     DashboardTileTarget,
@@ -21,7 +25,9 @@ import {
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
     NotFoundError,
+    ParameterError,
     Project,
+    ProjectType,
     PromotionAction,
     PromotionChanges,
     SavedChartDAO,
@@ -71,6 +77,14 @@ type CoderServiceArguments = {
     contentVerificationModel: ContentVerificationModel;
 };
 
+type UpsertContentAsCodeOptions = {
+    skipSpaceCreate?: boolean;
+    publicSpaceCreate?: boolean;
+    force?: boolean;
+    spaceNames?: Record<string, string>;
+    mode?: 'upsert' | 'create';
+};
+
 const normalizeFilterGroupItem = (
     item: FilterGroupItemInput,
 ): FilterGroupItem => {
@@ -104,11 +118,16 @@ const normalizeFilterIds = (filters: FiltersInput): Filters => ({
     tableCalculations: normalizeFilterGroup(filters.tableCalculations),
 });
 
+type AnyChartTile = Extract<
+    DashboardTileAsCode | DashboardTile,
+    {
+        type: DashboardTileTypes.SAVED_CHART | DashboardTileTypes.SQL_CHART;
+    }
+>;
+
 const isAnyChartTile = (
     tile: DashboardTileAsCode | DashboardTile,
-): tile is DashboardTile & {
-    properties: { chartSlug: string; hideTitle: boolean; chartName?: string };
-} =>
+): tile is AnyChartTile =>
     tile.type === DashboardTileTypes.SAVED_CHART ||
     tile.type === DashboardTileTypes.SQL_CHART;
 
@@ -253,6 +272,9 @@ export class CoderService extends BaseService {
     ) => {
         const tile = dashboard.tiles.find((t) => t.uuid === uuid);
         if (tile && isAnyChartTile(tile)) {
+            if (tile.properties.chartSlug == null) {
+                return undefined;
+            }
             const hasMultipleTilesWithSameChartSlug =
                 dashboard.tiles.filter(
                     (t) =>
@@ -373,8 +395,29 @@ export class CoderService extends BaseService {
         const tilesWithoutUuids: DashboardTileAsCode[] = dashboard.tiles.map(
             (tile): DashboardTileAsCode => {
                 if (isAnyChartTile(tile)) {
-                    return {
+                    if (tile.type === DashboardTileTypes.SAVED_CHART) {
+                        const chartTile: DashboardChartTileAsCode = {
+                            ...tile,
+                            type: DashboardTileTypes.SAVED_CHART,
+                            uuid: undefined,
+                            tileSlug: CoderService.getChartSlugForTileUuid(
+                                dashboard,
+                                tile.uuid,
+                            ),
+                            properties: {
+                                title: tile.properties.title,
+                                hideTitle: tile.properties.hideTitle,
+                                chartSlug: tile.properties.chartSlug ?? null,
+                                chartName:
+                                    tile.properties.chartName ?? undefined,
+                            },
+                        };
+                        return chartTile;
+                    }
+
+                    const sqlTile: DashboardSqlChartTileAsCode = {
                         ...tile,
+                        type: DashboardTileTypes.SQL_CHART,
                         uuid: undefined,
                         tileSlug: CoderService.getChartSlugForTileUuid(
                             dashboard,
@@ -383,13 +426,29 @@ export class CoderService extends BaseService {
                         properties: {
                             title: tile.properties.title,
                             hideTitle: tile.properties.hideTitle,
-                            chartSlug: tile.properties.chartSlug,
+                            chartSlug: tile.properties.chartSlug ?? null,
                             chartName: tile.properties.chartName,
                         },
                     };
+                    return sqlTile;
                 }
 
-                // Markdown and loom are returned as they are
+                if (tile.type === DashboardTileTypes.MARKDOWN) {
+                    const markdownTile: DashboardMarkdownTileAsCode = {
+                        ...tile,
+                        type: DashboardTileTypes.MARKDOWN,
+                        uuid: undefined,
+                        tileSlug: undefined,
+                        properties: {
+                            title: tile.properties.title,
+                            content: tile.properties.content,
+                            hideFrame: tile.properties.hideFrame,
+                        },
+                    };
+                    return markdownTile;
+                }
+
+                // Other non-chart tiles already match the as-code shape
                 return {
                     ...tile,
                     tileSlug: undefined,
@@ -428,20 +487,55 @@ export class CoderService extends BaseService {
         projectUuid: string,
         tiles: DashboardTileAsCode[],
     ): Promise<DashboardTileWithSlug[]> {
-        const chartSlugs: string[] = tiles.reduce<string[]>(
-            (acc, tile) =>
-                isAnyChartTile(tile)
-                    ? [...acc, tile.properties.chartSlug]
-                    : acc,
-            [],
-        );
+        const chartSlugs: string[] = tiles.reduce<string[]>((acc, tile) => {
+            if (!isAnyChartTile(tile) || tile.properties.chartSlug == null) {
+                return acc;
+            }
 
-        // Skip database queries if there are no chart tiles
-        if (chartSlugs.length === 0) {
-            return tiles.map((tile) => ({
+            return [...acc, tile.properties.chartSlug];
+        }, []);
+
+        const withResolvedTileUuid = (
+            tile: DashboardTileAsCode,
+            chartInfo?: { uuid: string; isSql: boolean },
+        ): DashboardTileWithSlug => {
+            if (!isAnyChartTile(tile)) {
+                return {
+                    ...tile,
+                    uuid: tile.uuid ?? uuidv4(),
+                } as DashboardTileWithSlug;
+            }
+
+            const isSqlChart =
+                chartInfo?.isSql ?? tile.type === DashboardTileTypes.SQL_CHART;
+
+            if (isSqlChart) {
+                return {
+                    ...tile,
+                    uuid: tile.uuid ?? uuidv4(),
+                    type: DashboardTileTypes.SQL_CHART,
+                    properties: {
+                        ...tile.properties,
+                        chartSlug: tile.properties.chartSlug ?? null,
+                        savedSqlUuid: chartInfo?.uuid ?? null,
+                    },
+                } as DashboardTileWithSlug;
+            }
+
+            return {
                 ...tile,
                 uuid: tile.uuid ?? uuidv4(),
-            })) as DashboardTileWithSlug[];
+                type: DashboardTileTypes.SAVED_CHART,
+                properties: {
+                    ...tile.properties,
+                    chartSlug: tile.properties.chartSlug ?? null,
+                    savedChartUuid: chartInfo?.uuid ?? null,
+                },
+            } as DashboardTileWithSlug;
+        };
+
+        if (chartSlugs.length === 0) {
+            return tiles.map((tile) => withResolvedTileUuid(tile));
         }
 
         // Query both regular charts and SQL charts in parallel
@@ -476,36 +570,14 @@ export class CoderService extends BaseService {
         return tiles.map((tile) => {
             if (isAnyChartTile(tile)) {
                 const { chartSlug } = tile.properties;
-                const chartInfo = chartSlugToInfo.get(chartSlug);
-                const isSqlChart =
-                    chartInfo?.isSql ??
-                    tile.type === DashboardTileTypes.SQL_CHART;
-
-                // Use the correct property name based on chart type
-                if (isSqlChart) {
-                    return {
-                        ...tile,
-                        uuid: uuidv4(),
-                        type: DashboardTileTypes.SQL_CHART,
-                        properties: {
-                            ...tile.properties,
-                            savedSqlUuid: chartInfo?.uuid ?? null,
-                        },
-                    } as DashboardTileWithSlug;
+                if (chartSlug == null) {
+                    return withResolvedTileUuid(tile);
                 }
-
-                return {
-                    ...tile,
-                    uuid: uuidv4(),
-                    type: DashboardTileTypes.SAVED_CHART,
-                    properties: {
-                        ...tile.properties,
-                        savedChartUuid: chartInfo?.uuid ?? null,
-                    },
-                } as DashboardTileWithSlug;
+                const chartInfo = chartSlugToInfo.get(chartSlug);
+                return withResolvedTileUuid(tile, chartInfo);
             }
 
-            return tile as DashboardTileWithSlug;
+            return withResolvedTileUuid(tile);
         });
     }
 
@@ -615,7 +687,7 @@ export class CoderService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'view',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
@@ -751,7 +823,7 @@ export class CoderService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'view',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
@@ -864,6 +936,74 @@ export class CoderService extends BaseService {
         };
     }
 
+    async getCurrentContentVersionBySlug(
+        user: SessionUser,
+        projectUuid: string,
+        type: 'dashboard' | 'chart',
+        slug: string,
+    ): Promise<{ contentUuid: string; versionUuid: string | null }> {
+        const { name: projectName, organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName, type, slug },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        switch (type) {
+            case 'dashboard': {
+                const [dashboard] = await this.dashboardModel.find({
+                    projectUuid,
+                    slugs: [slug],
+                });
+                if (!dashboard) {
+                    throw new NotFoundError(
+                        `Dashboard with slug "${slug}" not found`,
+                    );
+                }
+
+                const currentDashboard =
+                    await this.dashboardModel.getByIdOrSlug(dashboard.uuid);
+                return {
+                    contentUuid: dashboard.uuid,
+                    versionUuid: currentDashboard.versionUuid,
+                };
+            }
+            case 'chart': {
+                const [chart] = await this.savedChartModel.find({
+                    projectUuid,
+                    slugs: [slug],
+                    excludeChartsSavedInDashboard: false,
+                    includeOrphanChartsWithinDashboard: true,
+                });
+                if (!chart) {
+                    throw new NotFoundError(
+                        `Chart with slug "${slug}" not found`,
+                    );
+                }
+
+                const version =
+                    await this.savedChartModel.getLatestVersionSummary(
+                        chart.uuid,
+                    );
+                return {
+                    contentUuid: chart.uuid,
+                    versionUuid: version?.versionUuid ?? null,
+                };
+            }
+            default:
+                return assertUnreachable(type, 'Invalid content type');
+        }
+    }
+
     async getSqlCharts(
         user: SessionUser,
         projectUuid: string,
@@ -884,7 +1024,7 @@ export class CoderService extends BaseService {
         const auditedAbility = this.createAuditedAbility(user);
         if (
             auditedAbility.cannot(
-                'manage',
+                'view',
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
@@ -1015,6 +1155,7 @@ export class CoderService extends BaseService {
                     organizationUuid,
                     projectUuid,
                     uuid: projectUuid,
+                    metadata: { contentType, contentUuid },
                 }),
             )
         ) {
@@ -1073,11 +1214,17 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slug: string,
         chartAsCode: ChartAsCode,
-        skipSpaceCreate?: boolean,
-        publicSpaceCreate?: boolean,
-        force?: boolean,
-        spaceNames?: Record<string, string>,
+        options: UpsertContentAsCodeOptions = {},
     ) {
+        const {
+            skipSpaceCreate,
+            publicSpaceCreate,
+            force,
+            spaceNames,
+            mode = 'upsert',
+        } = options;
+        const shouldUpdateExistingContent = mode === 'upsert';
+        const shouldUseExactSlug = mode === 'upsert';
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -1087,6 +1234,9 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: { slug },
                 }),
             )
         ) {
@@ -1104,12 +1254,16 @@ export class CoderService extends BaseService {
             },
         };
 
-        const [chart] = await this.savedChartModel.find({
-            slug,
-            projectUuid,
-            excludeChartsSavedInDashboard: false,
-            includeOrphanChartsWithinDashboard: true,
-        });
+        // Create mode treats the requested slug as a base for a new unique
+        // slug instead of updating content that already owns it.
+        const [chart] = shouldUpdateExistingContent
+            ? await this.savedChartModel.find({
+                  slug,
+                  projectUuid,
+                  excludeChartsSavedInDashboard: false,
+                  includeOrphanChartsWithinDashboard: true,
+              })
+            : [undefined];
 
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
@@ -1155,7 +1309,7 @@ export class CoderService extends BaseService {
                             name: friendlyName(chartWithDefaults.dashboardSlug),
                             tiles: [],
                             slug: chartWithDefaults.dashboardSlug,
-                            forceSlug: true,
+                            forceSlug: shouldUseExactSlug,
                             tabs: [],
                         },
                         user,
@@ -1169,7 +1323,7 @@ export class CoderService extends BaseService {
                     spaceUuid: null,
                     dashboardUuid,
                     updatedByUser: user,
-                    forceSlug: true,
+                    forceSlug: shouldUseExactSlug,
                 };
             } else {
                 createChart = {
@@ -1177,7 +1331,7 @@ export class CoderService extends BaseService {
                     spaceUuid: space.uuid,
                     dashboardUuid: null,
                     updatedByUser: user,
-                    forceSlug: true,
+                    forceSlug: shouldUseExactSlug,
                 };
             }
 
@@ -1309,6 +1463,9 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: { slug },
                 }),
             )
         ) {
@@ -1583,11 +1740,17 @@ export class CoderService extends BaseService {
         projectUuid: string,
         slug: string,
         dashboardAsCode: DashboardAsCode,
-        skipSpaceCreate?: boolean,
-        publicSpaceCreate?: boolean,
-        force?: boolean,
-        spaceNames?: Record<string, string>,
+        options: UpsertContentAsCodeOptions = {},
     ): Promise<PromotionChanges> {
+        const {
+            skipSpaceCreate,
+            publicSpaceCreate,
+            force,
+            spaceNames,
+            mode = 'upsert',
+        } = options;
+        const shouldUpdateExistingContent = mode === 'upsert';
+        const shouldUseExactSlug = mode === 'upsert';
         const project = await this.projectModel.get(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
@@ -1597,6 +1760,9 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    type: project.type,
+                    createdByUserUuid: project.createdByUserUuid,
+                    metadata: { slug },
                 }),
             )
         ) {
@@ -1615,10 +1781,14 @@ export class CoderService extends BaseService {
             },
         };
 
-        const [dashboardSummary] = await this.dashboardModel.find({
-            slug,
-            projectUuid,
-        });
+        // Create mode treats the requested slug as a base for a new unique
+        // slug instead of updating content that already owns it.
+        const [dashboardSummary] = shouldUpdateExistingContent
+            ? await this.dashboardModel.find({
+                  slug,
+                  projectUuid,
+              })
+            : [undefined];
         const tilesWithUuids = await this.convertTileWithSlugsToUuids(
             projectUuid,
             dashboardWithDefaults.tiles,
@@ -1646,7 +1816,7 @@ export class CoderService extends BaseService {
                 {
                     ...dashboardWithDefaults,
                     tiles: tilesWithUuids,
-                    forceSlug: true,
+                    forceSlug: shouldUseExactSlug,
                     filters: dashboardFilters,
                 },
                 user,

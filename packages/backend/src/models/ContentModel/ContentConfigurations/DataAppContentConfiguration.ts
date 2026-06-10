@@ -15,6 +15,7 @@ import {
     ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
+import { applyContentNameSearch } from '../ContentSearchUtils';
 
 export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow> =
     {
@@ -176,9 +177,10 @@ export const dataAppContentConfiguration: ContentConfiguration<SummaryContentRow
                     );
 
                     if (filters.search) {
-                        void builder.whereRaw(
-                            `LOWER(${AppsTableName}.name) LIKE ?`,
-                            [`%${filters.search.toLowerCase()}%`],
+                        applyContentNameSearch(
+                            builder,
+                            `${AppsTableName}.name`,
+                            filters.search,
                         );
                     }
 

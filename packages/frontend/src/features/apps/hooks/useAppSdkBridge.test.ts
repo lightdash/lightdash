@@ -1,0 +1,278 @@
+import { renderHook } from '@testing-library/react';
+import { type RefObject } from 'react';
+import {
+    afterEach,
+    beforeEach,
+    describe,
+    expect,
+    it,
+    vi,
+    type Mock,
+} from 'vitest';
+import { useAppSdkBridge, type QueryEvent } from './useAppSdkBridge';
+
+vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
+    default: () => ({
+        embedToken: undefined,
+        projectUuid: undefined,
+    }),
+}));
+
+const PROJECT_UUID = 'project-uuid';
+const POST_PATH = `/api/v2/projects/${PROJECT_UUID}/query/metric-query`;
+const POST_ID = '11111111-1111-1111-1111-111111111111';
+const GET_ID = '22222222-2222-2222-2222-222222222222';
+const QUERY_UUID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+
+const METRIC_QUERY = {
+    exploreName: 'orders',
+    dimensions: [],
+    metrics: [],
+    filters: {},
+    sorts: [],
+    tableCalculations: [],
+    additionalMetrics: [],
+    limit: 100,
+};
+
+function dispatchFetchMessage(payload: Record<string, unknown>) {
+    // MessageEvent's `source` is intentionally set to `window` so that the
+    // bridge's `event.source !== iframeRef.current?.contentWindow` identity
+    // check passes when the iframe ref points at window in the test (see
+    // setup below). `origin: 'null'` matches the sandboxed-iframe branch of
+    // the bridge's origin check.
+    const event = new MessageEvent('message', {
+        data: payload,
+        origin: 'null',
+        source: window,
+    });
+    window.dispatchEvent(event);
+}
+
+function mockFetchOk(json: Record<string, unknown>) {
+    (fetch as Mock).mockResolvedValueOnce({
+        json: async () => json,
+        status: 200,
+    } as Response);
+}
+
+function mockFetchNonOk(json: Record<string, unknown>, status = 500) {
+    (fetch as Mock).mockResolvedValueOnce({
+        json: async () => json,
+        status,
+    } as Response);
+}
+
+function mockFetchReject(err: Error) {
+    (fetch as Mock).mockRejectedValueOnce(err);
+}
+
+function postMetricQuery() {
+    dispatchFetchMessage({
+        type: 'lightdash:sdk:fetch',
+        id: POST_ID,
+        method: 'POST',
+        path: POST_PATH,
+        body: { query: METRIC_QUERY },
+    });
+}
+
+function pollQueryResult(id: string = GET_ID) {
+    dispatchFetchMessage({
+        type: 'lightdash:sdk:fetch',
+        id,
+        method: 'GET',
+        path: `/api/v2/projects/${PROJECT_UUID}/query/${QUERY_UUID}`,
+    });
+}
+
+function renderBridge(onQueryEvent: (event: QueryEvent) => void) {
+    const iframeRef = {
+        current: { contentWindow: window } as unknown as HTMLIFrameElement,
+    } as RefObject<HTMLIFrameElement | null>;
+    renderHook(() =>
+        useAppSdkBridge(iframeRef, window.location.origin, onQueryEvent),
+    );
+}
+
+describe('useAppSdkBridge', () => {
+    beforeEach(() => {
+        vi.stubGlobal('fetch', vi.fn());
+    });
+
+    afterEach(() => {
+        vi.unstubAllGlobals();
+        vi.clearAllMocks();
+    });
+
+    it('re-keys ready events to the POST request id (regression: id mismatch left MinimalApp stuck on the indicator)', async () => {
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+        await vi.waitFor(() =>
+            expect(events.map((e) => e.status)).toEqual(['pending', 'running']),
+        );
+
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: QUERY_UUID,
+                status: 'ready',
+                totalResults: 42,
+                metadata: {
+                    performance: { initialQueryExecutionMs: 17 },
+                },
+            },
+        });
+        pollQueryResult();
+        await vi.waitFor(() => expect(events).toHaveLength(3));
+
+        expect(events[0]).toMatchObject({
+            id: POST_ID,
+            status: 'pending',
+            queryUuid: null,
+        });
+        expect(events[1]).toMatchObject({
+            id: POST_ID,
+            status: 'running',
+            queryUuid: QUERY_UUID,
+        });
+        // Previously emitted with id=GET_ID, so consumers tracking lifecycle
+        // by event.id (e.g., MinimalApp's activeQueryIds set) never matched
+        // the pending entry and the set never drained to zero.
+        expect(events[2]).toMatchObject({
+            id: POST_ID,
+            status: 'ready',
+            queryUuid: QUERY_UUID,
+            rowCount: 42,
+        });
+    });
+
+    it('re-keys terminal error events to the POST request id', async () => {
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: QUERY_UUID,
+                status: 'error',
+                error: 'Warehouse timeout',
+            },
+        });
+        pollQueryResult();
+        await vi.waitFor(() => expect(events).toHaveLength(3));
+
+        expect(events[2]).toMatchObject({
+            id: POST_ID,
+            status: 'error',
+            queryUuid: QUERY_UUID,
+            error: 'Warehouse timeout',
+        });
+    });
+
+    it('emits a terminal error event when the metric-query POST returns a non-ok payload', async () => {
+        // Without this, the pending event's id stays in MinimalApp's in-flight
+        // set forever, isReady never flips true, and the screenshot indicator
+        // never mounts — so the headless browser hits the 60s timeout.
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        mockFetchNonOk({
+            status: 'error',
+            error: { message: 'Internal server error' },
+        });
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+        expect(events[0]).toMatchObject({ id: POST_ID, status: 'pending' });
+        expect(events[1]).toMatchObject({
+            id: POST_ID,
+            status: 'error',
+            queryUuid: null,
+            error: 'Internal server error',
+        });
+    });
+
+    it('emits a terminal error event when the metric-query POST fetch throws', async () => {
+        const events: QueryEvent[] = [];
+        renderBridge((e) => events.push(e));
+
+        mockFetchReject(new Error('Network unreachable'));
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(events).toHaveLength(2));
+        expect(events[0]).toMatchObject({ id: POST_ID, status: 'pending' });
+        expect(events[1]).toMatchObject({
+            id: POST_ID,
+            status: 'error',
+            queryUuid: null,
+            error: 'Network unreachable',
+        });
+    });
+
+    it('MinimalApp-style in-flight set drains to zero when the POST fails', async () => {
+        // The bug this guards: a failed POST left its pending id stuck in the
+        // set, blocking the screenshot indicator from ever mounting on any
+        // run where a query errored. Mirrors the success-path drain test
+        // below.
+        const activeIds = new Set<string>();
+        renderBridge((event) => {
+            const inFlight =
+                event.status === 'pending' || event.status === 'running';
+            if (inFlight) activeIds.add(event.id);
+            else activeIds.delete(event.id);
+        });
+
+        mockFetchReject(new Error('boom'));
+        postMetricQuery();
+
+        await vi.waitFor(() => expect(activeIds.size).toBe(0));
+    });
+
+    it('MinimalApp-style in-flight set drains to zero after a query completes', async () => {
+        // Models MinimalApp's handleQueryEvent: pending/running add the
+        // event id to a set, ready/error remove it. With the original bug,
+        // the set never drained because the ready event carried the GET id
+        // (not the POST id that was added), so isReady stayed false and
+        // the screenshot indicator never mounted.
+        const activeIds = new Set<string>();
+        renderBridge((event) => {
+            const inFlight =
+                event.status === 'pending' || event.status === 'running';
+            if (inFlight) activeIds.add(event.id);
+            else activeIds.delete(event.id);
+        });
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+        postMetricQuery();
+        await vi.waitFor(() => expect(activeIds.size).toBe(1));
+
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                queryUuid: QUERY_UUID,
+                status: 'ready',
+                totalResults: 0,
+                metadata: { performance: { initialQueryExecutionMs: 1 } },
+            },
+        });
+        pollQueryResult();
+        await vi.waitFor(() => expect(activeIds.size).toBe(0));
+    });
+});

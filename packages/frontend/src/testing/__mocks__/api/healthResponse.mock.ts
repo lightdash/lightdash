@@ -43,16 +43,15 @@ export default function mockHealthResponse(
         query: {
             maxPageSize: 2500,
             maxLimit: 1000000,
+            queryMaxLimit: 1000000,
             defaultLimit: 500,
             csvCellsLimit: 100,
+            csvMaxLimit: 5000000,
             retryQueryOnTransientErrors: true,
         },
         dashboard: {
             maxTilesPerTab: 50,
             maxTabsPerDashboard: 20,
-            versionHistory: {
-                daysLimit: 3,
-            },
             disableSentryTracking: false,
         },
         pivotTable: {

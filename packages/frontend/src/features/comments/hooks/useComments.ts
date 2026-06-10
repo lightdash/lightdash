@@ -3,6 +3,7 @@ import {
     type ApiDeleteComment,
     type ApiError,
     type ApiGetComments,
+    type ApiResolveComment,
     type Comment,
 } from '@lightdash/common';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -63,31 +64,54 @@ export const useCreateComment = () => {
 const getDashboardComments = async ({
     dashboardUuid,
     projectUuid,
-}: Pick<CreateDashboardTileComment, 'dashboardUuid' | 'projectUuid'>) =>
-    lightdashApi<ApiGetComments['results']>({
-        url: `/projects/${projectUuid}/dashboards/${dashboardUuid}/comments`,
+    resolved,
+}: Pick<CreateDashboardTileComment, 'dashboardUuid' | 'projectUuid'> & {
+    resolved: boolean;
+}) => {
+    const queryParams = new URLSearchParams({ resolved: String(resolved) });
+    return lightdashApi<ApiGetComments['results']>({
+        url: `/projects/${projectUuid}/dashboards/${dashboardUuid}/comments?${queryParams.toString()}`,
         version: 'v2',
         method: 'GET',
         body: undefined,
     });
+};
+
+const useDashboardComments = (
+    dashboardUuid: string,
+    projectUuid: string | undefined,
+    enabled: boolean,
+    resolved: boolean,
+) =>
+    useQuery<ApiGetComments['results'], ApiError>(
+        ['comments', dashboardUuid, projectUuid, { resolved }],
+        async () => {
+            if (!projectUuid) throw new Error('projectUuid is required');
+            return getDashboardComments({
+                dashboardUuid,
+                projectUuid,
+                resolved,
+            });
+        },
+        {
+            // Only poll the active (unresolved) comments
+            refetchInterval: resolved ? undefined : 3 * 60 * 1000,
+            retry: (_, error) => error.error.statusCode !== 403,
+            enabled: enabled && !!projectUuid,
+        },
+    );
 
 export const useGetComments = (
     dashboardUuid: string,
     projectUuid: string | undefined,
     enabled: boolean,
-) =>
-    useQuery<ApiGetComments['results'], ApiError>(
-        ['comments', dashboardUuid, projectUuid],
-        async () => {
-            if (!projectUuid) throw new Error('projectUuid is required');
-            return getDashboardComments({ dashboardUuid, projectUuid });
-        },
-        {
-            refetchInterval: 3 * 60 * 1000, // 3 minutes
-            retry: (_, error) => error.error.statusCode !== 403,
-            enabled: enabled && !!projectUuid,
-        },
-    );
+) => useDashboardComments(dashboardUuid, projectUuid, enabled, false);
+
+export const useGetResolvedComments = (
+    dashboardUuid: string,
+    projectUuid: string | undefined,
+    enabled: boolean,
+) => useDashboardComments(dashboardUuid, projectUuid, enabled, true);
 
 type RemoveCommentParams = { commentId: string } & Pick<
     CreateDashboardTileComment,
@@ -112,6 +136,43 @@ export const useRemoveComment = () => {
         (data) => removeComment(data),
         {
             mutationKey: ['remove-comment'],
+            onSuccess: async (_, { dashboardUuid }) => {
+                await Promise.all([
+                    queryClient.invalidateQueries(['comments', dashboardUuid]),
+                    queryClient.invalidateQueries([
+                        'comments',
+                        params.dashboardUuid,
+                    ]),
+                ]);
+            },
+        },
+    );
+};
+
+type ResolveCommentParams = { commentId: string; resolved: boolean } & Pick<
+    CreateDashboardTileComment,
+    'dashboardUuid'
+>;
+
+const resolveComment = async ({
+    commentId,
+    dashboardUuid,
+    resolved,
+}: ResolveCommentParams) =>
+    lightdashApi<ApiResolveComment>({
+        url: `/comments/dashboards/${dashboardUuid}/${commentId}`,
+        method: 'PATCH',
+        body: JSON.stringify({ resolved }),
+    });
+
+export const useResolveComment = () => {
+    const queryClient = useQueryClient();
+    const params = useParams();
+
+    return useMutation<ApiResolveComment, ApiError, ResolveCommentParams>(
+        (data) => resolveComment(data),
+        {
+            mutationKey: ['resolve-comment'],
             onSuccess: async (_, { dashboardUuid }) => {
                 await Promise.all([
                     queryClient.invalidateQueries(['comments', dashboardUuid]),

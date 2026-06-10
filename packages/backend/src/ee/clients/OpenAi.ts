@@ -9,8 +9,12 @@ import { ChatPromptTemplate } from '@langchain/core/prompts';
 import { Runnable } from '@langchain/core/runnables';
 import { ChatOpenAI, ChatOpenAICallOptions } from '@langchain/openai';
 import { sleep, UnexpectedServerError } from '@lightdash/common';
+import { type LightdashConfig } from '../../config/parseConfig';
 
 const DEFAULT_RETRY_TIMEOUT_MS = 5000;
+
+type OpenAiProviderConfig =
+    LightdashConfig['ai']['copilot']['providers']['openai'];
 
 class TokenUsageHandler extends BaseCallbackHandler {
     tokenUsage: TokenUsage | undefined;
@@ -32,14 +36,17 @@ export default class OpenAi {
 
     model: ChatOpenAI<ChatOpenAICallOptions> | undefined;
 
-    constructor() {
-        this.openAiApiKey = process.env.OPENAI_API_KEY;
+    constructor(openAiProviderConfig: OpenAiProviderConfig) {
+        this.openAiApiKey = openAiProviderConfig?.apiKey;
 
-        this.model = this.openAiApiKey
+        this.model = openAiProviderConfig
             ? new ChatOpenAI({
-                  openAIApiKey: this.openAiApiKey,
+                  openAIApiKey: openAiProviderConfig.apiKey,
                   modelName: 'gpt-5.4-2026-03-05',
                   temperature: 0.2,
+                  configuration: {
+                      defaultHeaders: openAiProviderConfig.customHeaders,
+                  },
               })
             : undefined;
     }

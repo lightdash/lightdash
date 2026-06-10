@@ -137,6 +137,12 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --project 
 
 **CRITICAL**: Never guess filter values. Case mismatches (e.g., `'Payment'` vs `'payment'`) cause charts to silently return no data.
 
+Filters are case-sensitive by default. The `case_sensitive` key can override this in order of priority:
+
+- Dimension metadata
+- Model/explore metadata
+- `lightdash.config.yml` `defaults.case_sensitive`
+
 **Before writing any string filter**, query actual values from the warehouse:
 
 ```bash
@@ -258,6 +264,16 @@ version: 1
 **Key ordering:** All YAML keys must be sorted alphabetically at every nesting level. The CLI writes files with `sortKeys: true` and warns on upload if keys are unsorted. When writing or editing YAML by hand, keep keys in alphabetical order to avoid warnings and noisy diffs.
 
 **Chart scoping:** Use `spaceSlug` only for shared charts. Add `dashboardSlug` to scope a chart to a specific dashboard (it won't appear in the space).
+
+**Nested spaces:** Spaces can be nested. In YAML, `spaceSlug` uses `parent/child` syntax to address a sub-space — the `/` denotes hierarchy. Examples:
+
+```yaml
+spaceSlug: sales              # Top-level space "sales"
+spaceSlug: sales/maps         # Sub-space "maps" inside "sales"
+spaceSlug: sales/eu/forecasts # Deeper nesting works the same way
+```
+
+Each path segment must be the slug of an existing (or to-be-created) space at that level. A bare slug like `sales-maps` is a flat top-level space, NOT a sub-space — the slash is the only thing that creates the hierarchy.
 
 ### Choosing the Right Chart Type
 

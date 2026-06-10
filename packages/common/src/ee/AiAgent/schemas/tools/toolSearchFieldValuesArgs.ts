@@ -16,9 +16,7 @@ Usage Tips:
 - Results are returned as a list of unique field values (limited to 100)
 `;
 
-export const toolSearchFieldValuesArgsSchema = createToolSchema({
-    description: TOOL_SEARCH_FIELD_VALUES_DESCRIPTION,
-})
+export const toolSearchFieldValuesArgsSchema = createToolSchema()
     .extend({
         table: z.string().describe('The table to search in.'),
         fieldId: getFieldIdSchema({

@@ -11,7 +11,7 @@ export const SqlRunToolCallDescription: FC<SqlRunToolCallDescriptionProps> = ({
     limit,
 }) => {
     return (
-        <Stack gap={4}>
+        <Stack gap={6} align="stretch" w="100%">
             {limit ? (
                 <Text c="dimmed" size="xs">
                     Row limit: {limit}
@@ -19,7 +19,14 @@ export const SqlRunToolCallDescription: FC<SqlRunToolCallDescriptionProps> = ({
             ) : null}
             <Code
                 block
-                style={{ fontSize: 11, maxHeight: 200, overflow: 'auto' }}
+                style={{
+                    boxSizing: 'border-box',
+                    display: 'block',
+                    fontSize: 11,
+                    maxHeight: 280,
+                    overflow: 'auto',
+                    width: '100%',
+                }}
             >
                 {sql}
             </Code>

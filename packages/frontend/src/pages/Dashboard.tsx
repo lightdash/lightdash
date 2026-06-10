@@ -6,12 +6,14 @@ import {
 } from '@lightdash/common';
 import { Button, Text } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { captureException } from '@sentry/react';
+import {
+    ErrorBoundary as SentryErrorBoundary,
+    captureException,
+} from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
 import { useBlocker, useNavigate, useParams } from 'react-router';
-import { dashboardCSSVars } from '../components/common/Dashboard/dashboard.constants';
 import styles from '../components/common/Dashboard/Dashboard.module.css';
 import DashboardHeader from '../components/common/Dashboard/DashboardHeader';
 import ErrorState from '../components/common/ErrorState';
@@ -32,6 +34,7 @@ import { useOrganization } from '../hooks/organization/useOrganization';
 import useToaster from '../hooks/toaster/useToaster';
 import { useContentAction } from '../hooks/useContent';
 import useApp from '../providers/App/useApp';
+import DashboardAiAgentContextBridge from '../providers/Dashboard/DashboardAiAgentContextBridge';
 import DashboardProvider from '../providers/Dashboard/DashboardProvider';
 import useDashboardContext from '../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../providers/Dashboard/useDashboardTileStatusContext';
@@ -256,14 +259,15 @@ const Dashboard: FC = () => {
     useEffect(() => {
         if (isDashboardLoading) return;
         if (dashboardTiles === undefined) return;
+        if (!dashboardUuid) return;
 
         clearIsEditingDashboardChart();
 
-        const unsavedDashboardTilesRaw = sessionStorage.getItem(
-            'unsavedDashboardTiles',
-        );
+        const tilesStorageKey = `unsavedDashboardTiles:${dashboardUuid}`;
+        const unsavedDashboardTilesRaw =
+            sessionStorage.getItem(tilesStorageKey);
         if (unsavedDashboardTilesRaw) {
-            sessionStorage.removeItem('unsavedDashboardTiles');
+            sessionStorage.removeItem(tilesStorageKey);
 
             try {
                 const unsavedDashboardTiles = JSON.parse(
@@ -284,9 +288,10 @@ const Dashboard: FC = () => {
             }
         }
 
-        const unsavedDashboardTabsRaw = sessionStorage.getItem('dashboardTabs');
+        const tabsStorageKey = `dashboardTabs:${dashboardUuid}`;
+        const unsavedDashboardTabsRaw = sessionStorage.getItem(tabsStorageKey);
 
-        sessionStorage.removeItem('dashboardTabs');
+        sessionStorage.removeItem(tabsStorageKey);
 
         if (unsavedDashboardTabsRaw) {
             try {
@@ -308,6 +313,7 @@ const Dashboard: FC = () => {
     }, [
         isDashboardLoading,
         dashboardTiles,
+        dashboardUuid,
         activeTab,
         setHaveTilesChanged,
         setDashboardTiles,
@@ -626,7 +632,7 @@ const Dashboard: FC = () => {
                 `/projects/${projectUuid}/dashboards/${dashboardUuid}`,
             ) &&
             // Allow user to add a new table
-            !sessionStorage.getItem('unsavedDashboardTiles')
+            !sessionStorage.getItem(`unsavedDashboardTiles:${dashboardUuid}`)
         ) {
             return true; //blocks navigation
         }
@@ -812,7 +818,7 @@ const Dashboard: FC = () => {
                 withFullHeight
                 fullPageScroll
             >
-                <div style={dashboardCSSVars as React.CSSProperties}>
+                <div>
                     <DashboardHeader {...dashboardHeaderProps} />
 
                     <DashboardTabs
@@ -892,6 +898,9 @@ const DashboardPage: FC = () => {
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
         >
+            <SentryErrorBoundary fallback={() => <></>}>
+                <DashboardAiAgentContextBridge />
+            </SentryErrorBoundary>
             <Dashboard />
         </DashboardProvider>
     );

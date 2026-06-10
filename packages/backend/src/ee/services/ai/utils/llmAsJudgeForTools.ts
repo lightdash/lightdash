@@ -1,23 +1,6 @@
 import {
+    agentToolDefinitionsByName,
     isToolName,
-    toolDashboardV2ArgsSchema,
-    toolDescribeWarehouseTableArgsSchema,
-    toolFindChartsArgsSchema,
-    toolFindContentArgsSchema,
-    toolFindDashboardsArgsSchema,
-    toolFindExploresArgsSchemaV3,
-    toolFindFieldsArgsSchema,
-    toolGetDashboardChartsArgsSchema,
-    toolImproveContextArgsSchema,
-    toolListWarehouseTablesArgsSchema,
-    toolProposeChangeArgsSchema,
-    toolRunQueryArgsSchema,
-    toolRunSavedChartArgsSchema,
-    toolRunSqlArgsSchema,
-    toolSearchFieldValuesArgsSchema,
-    toolTableVizArgsSchema,
-    toolTimeSeriesArgsSchema,
-    toolVerticalBarArgsSchema,
     type ToolName,
 } from '@lightdash/common';
 import { generateObject } from 'ai';
@@ -26,66 +9,61 @@ import { compact, differenceWith } from 'lodash';
 import { z } from 'zod';
 import { DbAiAgentToolCall } from '../../../database/entities/ai';
 import { defaultAgentOptions } from '../agents/agentV2';
-import { discoverFieldsInputSchema } from '../agents/discoverFields/schema';
 import { getOpenaiGptmodel } from '../models/openai-gpt';
 
 const TOOL_NAME_TO_DB_TOOL_NAME = {
     findExplores: 'find_explores',
     findFields: 'find_fields',
+    searchSemanticLayer: 'search_semantic_layer',
     discoverFields: 'discover_fields',
     searchFieldValues: 'search_field_values',
     findContent: 'find_content',
+    listContent: 'list_content',
     findDashboards: 'find_dashboards',
     findCharts: 'find_charts',
     getDashboardCharts: 'get_dashboard_charts',
+    readContent: 'read_content',
+    editContent: 'edit_content',
+    createContent: 'create_content',
     generateTableVizConfig: 'table',
     generateTimeSeriesVizConfig: 'time_series_chart',
     generateBarVizConfig: 'vertical_bar_chart',
+    loadSkill: 'load_skill',
+    generateHashes: 'generate_hashes',
+    loadProjectContext: 'load_project_context',
+    generateUuids: 'generate_uuids',
+    generateVisualization: 'query_result',
     runQuery: 'query_result',
+    runContentQuery: 'run_content_query',
     runSavedChart: 'run_saved_chart',
     runSql: 'run_sql',
     listWarehouseTables: 'list_warehouse_tables',
     describeWarehouseTable: 'describe_warehouse_table',
+    listKnowledgeDocuments: 'list_knowledge_documents',
+    getKnowledgeDocumentContent: 'get_knowledge_document_content',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
+    listProjects: 'list_projects',
+    getProjectInfo: 'get_project_info',
     proposeChange: 'propose_change',
+    editDbtProject: 'edit_dbt_project',
+    repoShell: 'repo_shell',
+    setupPreviewDeploy: 'setup_preview_deploy',
 } satisfies Record<ToolName, string>;
-
-// Explicit mapping of tool names to their schemas
-const TOOL_SCHEMAS = {
-    findExplores: toolFindExploresArgsSchemaV3,
-    findFields: toolFindFieldsArgsSchema,
-    discoverFields: discoverFieldsInputSchema,
-    searchFieldValues: toolSearchFieldValuesArgsSchema,
-    generateBarVizConfig: toolVerticalBarArgsSchema,
-    generateTableVizConfig: toolTableVizArgsSchema,
-    generateTimeSeriesVizConfig: toolTimeSeriesArgsSchema,
-    // TODO: agent needs to be v2 for this to work
-    generateDashboard: toolDashboardV2ArgsSchema,
-    findContent: toolFindContentArgsSchema,
-    findDashboards: toolFindDashboardsArgsSchema,
-    findCharts: toolFindChartsArgsSchema,
-    getDashboardCharts: toolGetDashboardChartsArgsSchema,
-    improveContext: toolImproveContextArgsSchema,
-    proposeChange: toolProposeChangeArgsSchema,
-    runQuery: toolRunQueryArgsSchema,
-    runSavedChart: toolRunSavedChartArgsSchema,
-    runSql: toolRunSqlArgsSchema,
-    listWarehouseTables: toolListWarehouseTablesArgsSchema,
-    describeWarehouseTable: toolDescribeWarehouseTableArgsSchema,
-} satisfies Record<ToolName, z.ZodSchema>;
 
 const getToolInfo = (toolName: string) => {
     if (!isToolName(toolName)) {
         throw new Error(`Tool ${toolName} is not a valid tool`);
     }
-    return TOOL_SCHEMAS[toolName];
+    return agentToolDefinitionsByName[toolName].inputSchema;
 };
 
-const availableTools = Object.entries(TOOL_SCHEMAS).map(([name, schema]) => ({
-    name: TOOL_NAME_TO_DB_TOOL_NAME[name as ToolName],
-    description: schema.description,
-}));
+const availableTools = Object.entries(agentToolDefinitionsByName).map(
+    ([name, definition]) => ({
+        name: TOOL_NAME_TO_DB_TOOL_NAME[name as ToolName],
+        description: definition.description,
+    }),
+);
 
 const availableToolsDescription = availableTools
     .map((tool) => `- ${tool.name}: ${tool.description}`)

@@ -1,4 +1,141 @@
 .sidebarStack {
     flex-grow: 1;
     overflow: hidden;
+    min-height: 0;
+}
+
+.sidebarHeader {
+    flex-wrap: nowrap;
+    gap: var(--mantine-spacing-xs);
+    flex-shrink: 0;
+}
+
+.sidebarScroll {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Keep the thumb visible while scrolling — the theme sets it via inline styles
+   (very faint ldGray-3), so override needs !important to win. */
+.sidebarScroll :global([class*='-ScrollArea-thumb']) {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-dark-2)
+    ) !important;
+}
+
+/* ------------------------------------------------------------------ *
+ * Sidebar nav polish — scoped to .sidebarScroll so other RouterNavLink
+ * usages elsewhere in the app are untouched. Substring class matches
+ * (`-NavLink-root`) so it survives the Mantine class prefix.
+ * ------------------------------------------------------------------ */
+
+/* Section labels ("Your settings", "Organization settings", …) */
+.sidebarScroll :global([class*='-Title-root']) {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-dark-2)
+    );
+}
+
+/* Nav item */
+.sidebarScroll :global([class*='-NavLink-root']) {
+    position: relative;
+    border-radius: var(--mantine-radius-md);
+    padding-block: 7px;
+    margin-bottom: 2px;
+    font-weight: 500;
+    color: light-dark(
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-dark-1)
+    );
+    transition:
+        background-color 150ms ease,
+        color 150ms ease,
+        transform 150ms ease;
+}
+
+/* Icon */
+.sidebarScroll :global([class*='-NavLink-section']) {
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-dark-2)
+    );
+    transition:
+        color 150ms ease,
+        transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Icon micro-pop on hover (settles with a touch of spring) */
+.sidebarScroll
+    :global([class*='-NavLink-root']:hover [class*='-NavLink-section']) {
+    transform: scale(1.12);
+}
+
+/* Hover (non-active): soft neutral fill */
+.sidebarScroll :global([class*='-NavLink-root']:not([data-active]):hover) {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-1),
+        var(--mantine-color-dark-6)
+    );
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+.sidebarScroll
+    :global(
+        [class*='-NavLink-root']:not([data-active]):hover
+            [class*='-NavLink-section']
+    ) {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+/* Active: neutral grey fill + stronger text */
+.sidebarScroll :global([class*='-NavLink-root'][data-active]) {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-2),
+        var(--mantine-color-dark-5)
+    );
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+    font-weight: 600;
+}
+
+.sidebarScroll :global([class*='-NavLink-root'][data-active]:hover) {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-3),
+        var(--mantine-color-dark-4)
+    );
+}
+
+.sidebarScroll
+    :global([class*='-NavLink-root'][data-active] [class*='-NavLink-section']) {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
+    );
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebarScroll :global([class*='-NavLink-root']),
+    .sidebarScroll :global([class*='-NavLink-section']) {
+        transition: none;
+    }
+    .sidebarScroll :global([class*='-NavLink-root']:hover) {
+        transform: none;
+    }
+    .sidebarScroll
+        :global([class*='-NavLink-root']:hover [class*='-NavLink-section']) {
+        transform: none;
+    }
 }

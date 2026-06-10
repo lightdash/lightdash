@@ -2,6 +2,7 @@ import { type ExploreWarningReport } from '../compiler/compilationReport';
 // Note: EE types removed from direct import to avoid circular module resolution
 // They are still available via the re-export below: export * from './ee';
 import type {
+    ApiAgentSuggestionsResponse,
     ApiAiAgentAdminConversationsResponse,
     ApiAiAgentArtifactResponse,
     ApiAiAgentEvaluationResponse,
@@ -9,12 +10,15 @@ import type {
     ApiAiAgentEvaluationRunResultsResponse,
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
+    ApiAiAgentProjectThreadSummaryListResponse,
+    ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
@@ -23,8 +27,14 @@ import type {
     ApiAiGenerateTableCalculationResponse,
     ApiAiGetDashboardSummaryResponse,
     ApiAiOrganizationSettingsResponse,
+    ApiAiRouterDecisionCommitResponse,
+    ApiAiRouterDecisionListResponse,
+    ApiAiRouterInstructionResponse,
+    ApiAiRouterResponse,
+    ApiAiRouterRouteResponse,
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
+    ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
     ApiGetAppResponse,
@@ -33,7 +43,12 @@ import type {
     ApiManagedAgentRunResponse,
     ApiManagedAgentRunsListResponse,
     ApiMyAppsResponse,
+    ApiOrganizationDesignFileResponse,
+    ApiOrganizationDesignResponse,
+    ApiOrganizationDesignsResponse,
     ApiPreviewTokenResponse,
+    ApiPromoteAppDiffResponse,
+    ApiPromoteAppResponse,
     ApiUpdateAiOrganizationSettingsResponse,
     ApiUpdateUserAgentPreferencesResponse,
     DecodedEmbed,
@@ -71,6 +86,7 @@ import {
     type ApiUpdateMetricsTreeResponse,
 } from './catalog';
 import { type ApiGetChangeResponse } from './changeset';
+import { type CiChecks } from './ci';
 import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
@@ -93,6 +109,7 @@ import {
     type DashboardHistory,
     type DashboardVersion,
 } from './dashboard';
+import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
 import {
@@ -110,11 +127,14 @@ import { type FieldValueSearchResult } from './fieldMatch';
 import { type DashboardFilters } from './filter';
 import {
     type ApiGitFileContent,
+    type ApiPullRequestsResponse,
     type GitBranch,
     type GitFileOrDirectory,
+    type GithubUserCredential,
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
+    type PullRequestPreview,
 } from './gitIntegration';
 import type { ApiGroupListResponse } from './groups';
 import { type ApiImpersonationOrganizationSettingsResponse } from './impersonationOrganizationSettings';
@@ -139,12 +159,23 @@ import {
     type OrganizationProject,
     type UpdateAllowedEmailDomains,
 } from './organization';
+import { type OrganizationAccess } from './organizationAccess';
+import {
+    type DomainVerificationStatus,
+    type VerifiedDomain,
+} from './organizationDomainVerification';
 import {
     type ApiOrganizationMemberProfiles,
     type OrganizationMemberProfile,
     type OrganizationMemberRole,
 } from './organizationMemberProfile';
-import { type AzureAdSsoConfigSummary } from './organizationSso';
+import { type OrganizationSettings } from './organizationSettings';
+import {
+    type AzureAdSsoConfigSummary,
+    type GenericOidcSsoConfigSummary,
+    type OktaSsoConfigSummary,
+    type OneLoginSsoConfigSummary,
+} from './organizationSso';
 import type { ResultsPaginationMetadata } from './paginateResults';
 import type { ParametersValuesMap } from './parameters';
 import {
@@ -159,6 +190,8 @@ import type {
     ApiPreAggregateCheckResponse,
     PreAggregateMatchMiss,
 } from './preAggregate';
+import { type ApiPreviewExpirationProjectSettingsResponse } from './previewExpirationProjectSettings';
+import { type ProjectCiStatus } from './projectCiStatus';
 import {
     type ApiProjectCompileLogResponse,
     type ApiProjectCompileLogsResponse,
@@ -447,18 +480,26 @@ export type HealthState = {
     signupUrl: string | undefined;
     helpMenuUrl: string | undefined;
     query: {
+        /** Effective max query rows for the requesting org (the org's
+         *  `query_limit` override, else LIGHTDASH_QUERY_MAX_LIMIT). Drives the
+         *  explorer/SQL-runner row-limit clamp. */
         maxLimit: number;
+        /** Effective new-query default for the org, never above `maxLimit`. */
         defaultLimit: number;
+        /** Effective CSV/Excel cells limit for the requesting org. */
         csvCellsLimit: number;
+        /** Instance ceiling an org admin can set the per-org query rows limit
+         *  to: LIGHTDASH_QUERY_MAX_LIMIT. */
+        queryMaxLimit: number;
+        /** Instance ceiling an org admin can set the per-org CSV cells limit
+         *  to: max(LIGHTDASH_CSV_MAX_LIMIT, LIGHTDASH_CSV_CELLS_LIMIT). */
+        csvMaxLimit: number;
         maxPageSize: number;
         retryQueryOnTransientErrors: boolean;
     };
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
-        versionHistory: {
-            daysLimit: number;
-        };
         disableSentryTracking: boolean;
     };
     pivotTable: {
@@ -739,6 +780,11 @@ export type ReadyQueryResultsPage = ResultsPaginationMetadata<ResultRow> & {
         groupByColumns: GroupByColumn[] | undefined;
         sortBy: SortBy | undefined;
         originalColumns: ResultColumns;
+        // Hidden pivot-column dims that are carried through the SQL pipeline
+        // for cross-field richText/image templates (`row.<table>.<field>.raw`)
+        // but are not rendered as pivot column headers. Their raw values are
+        // attached to each result row under their fieldId.
+        passthroughDimensions?: GroupByColumn[];
     } | null;
 };
 
@@ -880,7 +926,9 @@ type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiCreatePreviewResults
+    | ApiDataTimezonePreviewResults
     | ApiHealthResults
+    | OrganizationAccess
     | Organization
     | LightdashUser
     | LoginOptions
@@ -924,9 +972,15 @@ type ApiResults =
     | ApiDownloadCsv
     | AllowedEmailDomains
     | AzureAdSsoConfigSummary
+    | OktaSsoConfigSummary
+    | GenericOidcSsoConfigSummary
+    | OneLoginSsoConfigSummary
+    | OrganizationSettings
     | UpdateAllowedEmailDomains
     | UserAllowedOrganization[]
     | EmailStatusExpiring
+    | DomainVerificationStatus
+    | VerifiedDomain[]
     | ApiScheduledDownloadCsv
     | PinnedItems
     | ViewStatistics
@@ -941,8 +995,12 @@ type ApiResults =
     | DecodedEmbed
     | Array<GitRepo>
     | PullRequestCreated
+    | PullRequestPreview
+    | ProjectCiStatus
     | ApiGitFileContent
     | GitIntegrationConfiguration
+    | GithubUserCredential
+    | CiChecks
     | GitBranch
     | GitBranch[]
     | GitFileOrDirectory
@@ -983,6 +1041,7 @@ type ApiResults =
     | ApiMetricsCatalog['results']
     | ApiMetricsExplorerQueryResults['results']
     | ApiGroupListResponse['results']
+    | ApiPullRequestsResponse['results']
     | ApiCreateTagResponse['results']
     | ApiChartAsCodeListResponse['results']
     | ApiSqlChartAsCodeListResponse['results']
@@ -1018,12 +1077,16 @@ type ApiResults =
     | ApiGetProjectParametersResults
     | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
+    | ApiAiAgentThreadShareResponse['results']
+    | ApiCloneAiAgentThreadShareResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
     | ApiAiAgentArtifactResponse['results']
     | ApiAiAgentThreadGenerateTitleResponse['results']
     | ApiAiAgentThreadSummaryListResponse['results']
+    | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentReviewItemWritebackPreviewResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']
@@ -1031,10 +1094,16 @@ type ApiResults =
     | ApiAiAgentEvaluationRunResultsResponse['results']
     | ApiAiAgentVerifiedArtifactsResponse['results']
     | ApiCreateEvaluationResponse['results']
+    | ApiAgentSuggestionsResponse['results']
     | ApiAppendInstructionResponse['results']
     | ApiGetChangeResponse['results']
     | ApiAiOrganizationSettingsResponse['results']
     | ApiUpdateAiOrganizationSettingsResponse['results']
+    | ApiAiRouterResponse['results']
+    | ApiAiRouterRouteResponse['results']
+    | ApiAiRouterInstructionResponse['results']
+    | ApiAiRouterDecisionCommitResponse['results']
+    | ApiAiRouterDecisionListResponse['results']
     | ApiProjectCompileLogsResponse['results']
     | ApiProjectCompileLogResponse['results']
     | ApiSingleValidationResponse['results']
@@ -1047,6 +1116,7 @@ type ApiResults =
     | ApiGetPreAggregateMaterializationsResponse['results']
     | ApiPreAggregateCheckResponse['results']
     | ApiImpersonationOrganizationSettingsResponse['results']
+    | ApiPreviewExpirationProjectSettingsResponse['results']
     | ApiContentVerificationResponse['results']
     | ApiContentVerificationDeleteResponse['results']
     | ApiVerifiedContentListResponse['results']
@@ -1056,8 +1126,13 @@ type ApiResults =
     | ApiGenerateAppResponse['results']
     | ApiGetAppResponse['results']
     | ApiMyAppsResponse['results']
+    | ApiPromoteAppResponse['results']
+    | ApiPromoteAppDiffResponse['results']
     | ApiPreviewTokenResponse['results']
     | ApiAppImageUploadResponse['results']
+    | ApiOrganizationDesignResponse['results']
+    | ApiOrganizationDesignsResponse['results']
+    | ApiOrganizationDesignFileResponse['results']
     | ApiProjectColorPaletteResponse['results']
     | ApiManagedAgentRunResponse['results']
     | ApiManagedAgentRunsListResponse['results']

@@ -72,7 +72,7 @@ export const testCases: TestCase[] = [
             `breakdown by dimension: payment method, with revenue data for credit_card and coupon in Q3 2024`,
         ].join('\n'),
         expectedToolOutcome: [
-            `runQuery tool args should have filters: Order date in Q3 2024 (July-September 2024) and Payment method (credit_card, coupon)`,
+            `generateVisualization tool args should have filters: Order date in Q3 2024 (July-September 2024) and Payment method (credit_card, coupon)`,
             'Should use a date filter (from orders explore) for Q3 2024',
             'Should use filter for filtering the payment method',
             'Default visualization should be a bar chart',
@@ -85,7 +85,7 @@ export const testCases: TestCase[] = [
         expectedAnswer:
             'Replies with payments from credit cards that were from customers created between 2023 and 2024',
         expectedToolOutcome: [
-            `runQuery tool args should have filters: Customer creation date between 2023-01-01 and 2024-12-31 and Payment method (credit_card)`,
+            `generateVisualization tool args should have filters: Customer creation date between 2023-01-01 and 2024-12-31 and Payment method (credit_card)`,
             'Should use a date filter (from customers explore) for the date range',
             'Should use filter for filtering the payment method',
             'Default visualization could be a table or a bar chart',
@@ -218,6 +218,25 @@ export const testCases: TestCase[] = [
             `The response added a dimension filter for shipping method with values ["standard", "express"]`,
             `Both filters are combined in the filters object (date AND shipping method)`,
             `The response did NOT use limit+sort to approximate the time window`,
+        ].join('\n'),
+    },
+    {
+        // IMPORTANT: regression test for #23766 — a categorical filter must NOT be
+        // dropped when combined with non-contiguous date periods. Previously the agent
+        // OR'd the whole dimension group, making the categorical filter optional.
+        name: 'should keep categorical filter when combined with non-contiguous date periods',
+        prompt: 'Total order amount for completed orders in either March or May 2024',
+        expectedAnswer: [
+            `Response contains total order amount for completed orders in March and May 2024`,
+            `explore: orders`,
+            `metric: total order amount`,
+            `filters: order date in March 2024 or May 2024 AND status equals completed`,
+        ].join('\n'),
+        expectedToolOutcome: [
+            `The response added a date filter selecting March 2024 and May 2024 (e.g. an equals rule on a month-grain date field with both month values, or two inBetween ranges)`,
+            `The response added a dimension filter for status with value ["completed"]`,
+            `Crucially, the status (categorical) filter MUST be present — it must NOT be dropped`,
+            `The status filter must be combined with the date selection under AND, so completed status applies to both March and May (not OR'd across the whole group, which would make status optional)`,
         ].join('\n'),
     },
 ];

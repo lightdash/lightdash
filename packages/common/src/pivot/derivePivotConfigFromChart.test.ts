@@ -1304,4 +1304,458 @@ describe('derivePivotConfigurationFromChart', () => {
             expect(indexRefs).not.toContain('y_day');
         });
     });
+
+    describe('sort-only pivot-column dimensions (hidden pivot dims) for Table charts', () => {
+        // orders_status_priority is a helper dim that the user adds as a pivot column
+        // purely to drive column sort order. It is hidden so users see only orders_status
+        // as the pivot header, but the helper value still determines the column order.
+        const itemsWithPriority: ItemsMap = {
+            ...mockItems,
+            orders_status_priority: {
+                sql: '${TABLE}.status_priority',
+                name: 'status_priority',
+                type: DimensionType.NUMBER,
+                index: 5,
+                label: 'Status priority',
+                table: 'orders',
+                groups: [],
+                hidden: false, // not hidden in the explore — hidden in the chart config
+                fieldType: FieldType.DIMENSION,
+                tableLabel: 'Orders',
+            },
+        };
+
+        it('routes a hidden pivot-column dim with a sort entry to sortOnlyDimensions (not groupByColumns)', () => {
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: { orders_status_priority: { visible: false } },
+                    pivotDimensions: [
+                        'orders_status',
+                        'orders_status_priority',
+                    ],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: {
+                    columns: ['orders_status', 'orders_status_priority'],
+                },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_status',
+                    'orders_status_priority',
+                ],
+                metrics: ['payments_total_revenue'],
+                sorts: [
+                    { fieldId: 'orders_status_priority', descending: false },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithPriority,
+            );
+
+            expect(result).toBeDefined();
+
+            // orders_status_priority should NOT be in groupByColumns
+            expect(
+                result?.groupByColumns?.some(
+                    (c) => c.reference === 'orders_status_priority',
+                ),
+            ).toBe(false);
+
+            // orders_status SHOULD still be in groupByColumns
+            expect(
+                result?.groupByColumns?.some(
+                    (c) => c.reference === 'orders_status',
+                ),
+            ).toBe(true);
+
+            // orders_status_priority SHOULD be in sortOnlyDimensions
+            expect(
+                result?.sortOnlyDimensions?.some(
+                    (c) => c.reference === 'orders_status_priority',
+                ),
+            ).toBe(true);
+
+            // sortBy should still include orders_status_priority
+            expect(
+                result?.sortBy?.some(
+                    (s) => s.reference === 'orders_status_priority',
+                ),
+            ).toBe(true);
+        });
+
+        it('sets pivotColumnsOrder to the declared pivot-column order (visible + sort-only) so a hidden sort dim keeps its position (PROD-8159)', () => {
+            // Declared order: payment_method (outer, visible), status_priority
+            // (hidden sort helper), status (inner, visible). Hiding the helper
+            // must not change column order, so pivotColumnsOrder preserves the
+            // full declared sequence — the SQL builder then sorts the helper at
+            // its declared (middle) position instead of hoisting it to the front.
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: { orders_status_priority: { visible: false } },
+                    pivotDimensions: [
+                        'payments_payment_method',
+                        'orders_status_priority',
+                        'orders_status',
+                    ],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: {
+                    columns: [
+                        'payments_payment_method',
+                        'orders_status_priority',
+                        'orders_status',
+                    ],
+                },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_status',
+                    'orders_status_priority',
+                ],
+                metrics: ['payments_total_revenue'],
+                sorts: [
+                    { fieldId: 'orders_status_priority', descending: false },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithPriority,
+            );
+
+            expect(result?.pivotColumnsOrder).toEqual([
+                { reference: 'payments_payment_method' },
+                { reference: 'orders_status_priority' },
+                { reference: 'orders_status' },
+            ]);
+        });
+
+        it('routes a hidden pivot-column dim with no sort entry to passthroughDimensions (PROD-7873)', () => {
+            // Hidden + not sorted used to drop the dim from the query entirely,
+            // which broke richText / image templates on visible fields that
+            // reference the hidden field via `row.<table>.<field>.raw`.
+            // Now the dim carries through via passthroughDimensions: it stays
+            // in `group_by_query` SELECT/GROUP BY so its values reach the
+            // result rows, but it does NOT appear as a pivot column header
+            // and does NOT drive any ORDER BY.
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: { orders_status_priority: { visible: false } },
+                    pivotDimensions: [
+                        'orders_status',
+                        'orders_status_priority',
+                    ],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: {
+                    columns: ['orders_status', 'orders_status_priority'],
+                },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_status',
+                    'orders_status_priority',
+                ],
+                metrics: ['payments_total_revenue'],
+                sorts: [], // no sort on the hidden dim
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithPriority,
+            );
+
+            expect(result).toBeDefined();
+
+            // orders_status_priority must NOT be in groupByColumns
+            // (still hidden from rendered pivot column headers).
+            expect(
+                result?.groupByColumns?.some(
+                    (c) => c.reference === 'orders_status_priority',
+                ),
+            ).toBe(false);
+
+            // sortOnlyDimensions should be empty (the dim isn't a sort target).
+            expect(result?.sortOnlyDimensions ?? []).toEqual([]);
+
+            // passthroughDimensions should carry the hidden dim through SQL
+            // so cross-field templates can reference it.
+            expect(result?.passthroughDimensions).toEqual([
+                { reference: 'orders_status_priority' },
+            ]);
+        });
+
+        it('does not affect non-hidden pivot-column dims', () => {
+            // Both pivot dims are visible — neither should go to sortOnlyDimensions
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: {}, // no hidden columns
+                    pivotDimensions: [
+                        'orders_status',
+                        'orders_status_priority',
+                    ],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: {
+                    columns: ['orders_status', 'orders_status_priority'],
+                },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: [
+                    'payments_payment_method',
+                    'orders_status',
+                    'orders_status_priority',
+                ],
+                metrics: ['payments_total_revenue'],
+                sorts: [
+                    { fieldId: 'orders_status_priority', descending: false },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                itemsWithPriority,
+            );
+
+            expect(result).toBeDefined();
+
+            // Both dims should be in groupByColumns
+            expect(
+                result?.groupByColumns?.some(
+                    (c) => c.reference === 'orders_status',
+                ),
+            ).toBe(true);
+            expect(
+                result?.groupByColumns?.some(
+                    (c) => c.reference === 'orders_status_priority',
+                ),
+            ).toBe(true);
+
+            // sortOnlyDimensions should be empty (dim is visible)
+            expect(result?.sortOnlyDimensions ?? []).toEqual([]);
+        });
+    });
+
+    describe('sort-only dimensions for Table charts', () => {
+        it('puts a hidden helper dimension in sortOnlyColumns instead of indexColumn', () => {
+            // orders_status is hidden (visible: false) but used for sort order.
+            // payments_payment_method is the pivot dimension (groupByColumn).
+            // Result: orders_status must appear in sortOnlyColumns, NOT in indexColumn.
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: {
+                        orders_status: { visible: false },
+                    },
+                    pivotDimensions: ['payments_payment_method'],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: { columns: ['payments_payment_method'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                // Both dims: payments_payment_method (pivot/groupBy) and
+                // orders_status (would be row-index but is hidden)
+                dimensions: ['payments_payment_method', 'orders_status'],
+                metrics: ['payments_total_revenue'],
+                sorts: [{ fieldId: 'orders_status', descending: false }],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                mockItems,
+            );
+
+            expect(result).toBeDefined();
+
+            // orders_status must NOT appear in indexColumn
+            let indexRefs: string[];
+            if (Array.isArray(result?.indexColumn)) {
+                indexRefs = result!.indexColumn.map((c) => c.reference);
+            } else if (result?.indexColumn) {
+                indexRefs = [result.indexColumn.reference];
+            } else {
+                indexRefs = [];
+            }
+            expect(indexRefs).not.toContain('orders_status');
+
+            // orders_status MUST appear in sortOnlyColumns
+            expect(result?.sortOnlyColumns).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({ reference: 'orders_status' }),
+                ]),
+            );
+        });
+
+        it('does not add a hidden dim to sortOnlyColumns when it is not in sorts', () => {
+            // If hidden but not in sorts, it should simply not appear anywhere.
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: {
+                        orders_status: { visible: false },
+                    },
+                    pivotDimensions: ['payments_payment_method'],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: { columns: ['payments_payment_method'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: ['payments_payment_method', 'orders_status'],
+                metrics: ['payments_total_revenue'],
+                sorts: [
+                    {
+                        fieldId: 'payments_payment_method',
+                        descending: false,
+                    },
+                ],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                mockItems,
+            );
+
+            expect(result).toBeDefined();
+            // sortOnlyColumns should be empty or undefined (no hidden sort dim)
+            expect(result?.sortOnlyColumns ?? []).toEqual([]);
+        });
+
+        it('routes a hidden row dim with no sort entry to passthroughDimensions (PROD-7873)', () => {
+            // Hidden + not sorted row dim used to be dropped from the query
+            // entirely, breaking richText / image templates on visible fields
+            // that referenced the hidden field via `row.<table>.<field>.raw`.
+            // Now it routes through passthroughDimensions: removed from
+            // indexColumn rendering, but its values survive `group_by_query`
+            // SELECT/GROUP BY so they reach the result rows.
+            const chartConfig = {
+                type: ChartType.TABLE,
+                config: {
+                    columns: {
+                        orders_status: { visible: false },
+                    },
+                    pivotDimensions: ['payments_payment_method'],
+                    showSubtotals: false,
+                },
+            } as const;
+
+            const savedChart: Pick<
+                SavedChartDAO,
+                'chartConfig' | 'pivotConfig'
+            > = {
+                chartConfig,
+                pivotConfig: { columns: ['payments_payment_method'] },
+            };
+
+            const mq: MetricQuery = {
+                ...mockMetricQuery,
+                dimensions: ['payments_payment_method', 'orders_status'],
+                metrics: ['payments_total_revenue'],
+                // No sort on orders_status — purely hidden with no sort role.
+                sorts: [],
+            };
+
+            const result = derivePivotConfigurationFromChart(
+                savedChart,
+                mq,
+                mockItems,
+            );
+
+            expect(result).toBeDefined();
+
+            // orders_status must NOT appear in indexColumn (still hidden from
+            // rendered row labels).
+            let indexRefs: string[];
+            if (Array.isArray(result?.indexColumn)) {
+                indexRefs = result!.indexColumn.map((c) => c.reference);
+            } else if (result?.indexColumn) {
+                indexRefs = [result.indexColumn.reference];
+            } else {
+                indexRefs = [];
+            }
+            expect(indexRefs).not.toContain('orders_status');
+
+            // Not a sort target → not in sortOnlyColumns.
+            const sortOnlyRefs = (result?.sortOnlyColumns ?? []).map(
+                (c) => c.reference,
+            );
+            expect(sortOnlyRefs).not.toContain('orders_status');
+            expect(result?.sortOnlyColumns ?? []).toEqual([]);
+
+            // passthroughDimensions carries the hidden row dim through SQL
+            // so cross-field templates can reference it.
+            expect(result?.passthroughDimensions).toEqual([
+                { reference: 'orders_status' },
+            ]);
+        });
+    });
 });

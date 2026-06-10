@@ -13,6 +13,7 @@ export type DbAiAgent = {
     tags: string[] | null;
     enable_data_access: boolean;
     enable_self_improvement: boolean;
+    enable_content_tools: boolean;
     /**
      * @deprecated Per-agent reasoning toggle was removed. The gating feature flag
      * `agent-reasoning` was never enabled so this column was effectively
@@ -20,6 +21,13 @@ export type DbAiAgent = {
      * Column kept on the table (DB default `false`); drop in a follow-up migration.
      */
     enable_reasoning?: boolean;
+    /**
+     * Built-in fallback agent used when an organization has no configured
+     * agents. Hidden from normal agent listings (so it never counts as "an
+     * agent configured") but usable as a Slack fallback. At most one per
+     * (organization, project).
+     */
+    is_system: boolean;
     version: number;
     created_at: Date;
     updated_at: Date;
@@ -159,7 +167,16 @@ export type DbAiMcpServer = {
     project_uuid: string;
     name: string;
     url: string;
+    icon_url: string | null;
     auth_type: 'none' | 'bearer' | 'oauth';
+    allow_oauth_credential_sharing: boolean;
+    connection_status:
+        | 'not_connected'
+        | 'connecting'
+        | 'connected'
+        | 'error'
+        | null;
+    error: string | null;
     created_at: Date;
     updated_at: Date;
 };
@@ -221,4 +238,76 @@ export type AiAgentMcpServerTable = Knex.CompositeTableType<
             'ai_agent_uuid' | 'ai_mcp_server_uuid' | 'created_at'
         >
     >
+>;
+
+export const AiMcpServerToolTableName = 'ai_mcp_server_tool';
+
+export type DbAiMcpServerTool = {
+    ai_mcp_server_tool_uuid: string;
+    ai_mcp_server_uuid: string;
+    tool_name: string;
+    title: string | null;
+    description: string | null;
+    input_schema: unknown;
+    annotations: unknown | null;
+    meta: unknown | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiMcpServerToolTable = Knex.CompositeTableType<
+    DbAiMcpServerTool,
+    Omit<
+        DbAiMcpServerTool,
+        'ai_mcp_server_tool_uuid' | 'created_at' | 'updated_at'
+    >,
+    Partial<
+        Omit<
+            DbAiMcpServerTool,
+            'ai_mcp_server_tool_uuid' | 'created_at' | 'updated_at'
+        >
+    > & {
+        updated_at: Knex.Raw;
+    }
+>;
+
+export const AiAgentMcpServerToolTableName = 'ai_agent_mcp_server_tool';
+
+export const AiAgentMcpServerToolPermissionModes = [
+    'always_allow',
+    'ask',
+    'always_deny',
+] as const;
+
+export type DbAiAgentMcpServerToolPermissionMode =
+    (typeof AiAgentMcpServerToolPermissionModes)[number];
+
+export type DbAiAgentMcpServerTool = {
+    ai_agent_uuid: string;
+    ai_mcp_server_uuid: string;
+    ai_mcp_server_tool_uuid: string;
+    /**
+     * @deprecated Kept for rolling deploy safety. New code should use
+     * `permission_mode` instead.
+     */
+    enabled?: boolean;
+    permission_mode: DbAiAgentMcpServerToolPermissionMode;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiAgentMcpServerToolTable = Knex.CompositeTableType<
+    DbAiAgentMcpServerTool,
+    Omit<DbAiAgentMcpServerTool, 'created_at' | 'updated_at'>,
+    Partial<
+        Omit<
+            DbAiAgentMcpServerTool,
+            | 'ai_agent_uuid'
+            | 'ai_mcp_server_uuid'
+            | 'ai_mcp_server_tool_uuid'
+            | 'created_at'
+        >
+    > & {
+        updated_at: Knex.Raw;
+    }
 >;

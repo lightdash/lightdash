@@ -9,6 +9,8 @@ import {
     applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildWarehouseColumnTotals,
+    buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CompiledDimension,
@@ -29,17 +31,18 @@ import {
     ExploreCompiler,
     ExploreType,
     FieldType,
-    flattenFilterGroup,
     ForbiddenError,
     formatItemValue,
     formatRawRows,
     formatRawValue,
     formatRow,
+    formatRows,
     getAccountUserTimezone,
     getAvailableFilterFieldIds,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
     getDashboardFilterRulesForTileAndReferences,
+    getDateZoomFromRequestParameters,
     getDimensions,
     getDimensionsWithValidParameters,
     getErrorMessage,
@@ -88,6 +91,7 @@ import {
     type ApiExecuteAsyncMetricQueryResults,
     type ApiGetAsyncQueryResults,
     type CacheMetadata,
+    type CalculateTotalKind,
     type CompiledCustomSqlDimension,
     type CompiledMetric,
     type CustomDimension,
@@ -100,6 +104,7 @@ import {
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type PivotRowTotalsByIndex,
     type PivotValuesColumn,
     type Project,
     type QueryHistory,
@@ -123,7 +128,9 @@ import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
+import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
+import { getSchedulerContext } from '../../logging/winston';
 import { DownloadAuditModel } from '../../models/DownloadAuditModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
 import type { SavedSqlModel } from '../../models/SavedSqlModel';
@@ -151,6 +158,7 @@ import type { ICacheService } from '../CacheService/ICacheService';
 import { CreateCacheResult } from '../CacheService/types';
 import { CsvService } from '../CsvService/CsvService';
 import { ExcelService } from '../ExcelService/ExcelService';
+import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
@@ -168,7 +176,14 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
+import {
+    getColumnSubtotalQueryFromSource,
+    getColumnTotalQueryFromSource,
+    getGrandTotalMetricQuery,
+    getRowTotalQueryFromSource,
+} from './getTotalsQueryFromSource';
 import { getUnpivotedColumns } from './getUnpivotedColumns';
 import {
     NoOpPreAggregateStrategy,
@@ -259,6 +274,62 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
 };
 
 export class AsyncQueryService extends ProjectService {
+    private static sleep(ms: number, signal?: AbortSignal) {
+        if (signal?.aborted) {
+            throw new Error('Query polling request was aborted');
+        }
+
+        return new Promise<void>((resolve, reject) => {
+            let timeout: ReturnType<typeof setTimeout>;
+            const onAbort = () => {
+                clearTimeout(timeout);
+                reject(new Error('Query polling request was aborted'));
+            };
+
+            timeout = setTimeout(() => {
+                signal?.removeEventListener('abort', onAbort);
+                resolve();
+            }, ms);
+            signal?.addEventListener('abort', onAbort, { once: true });
+        });
+    }
+
+    private async *streamQueryHistoryUntilDeadline({
+        account,
+        projectUuid,
+        queryUuid,
+        deadlineMs,
+        pollIntervalMs,
+        signal,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        deadlineMs: number;
+        pollIntervalMs: number;
+        signal?: AbortSignal;
+    }): AsyncGenerator<QueryHistory> {
+        const intervalMs = Math.max(1, pollIntervalMs);
+
+        while (true) {
+            // eslint-disable-next-line no-await-in-loop
+            yield await this.getAsyncQueryHistory({
+                account,
+                projectUuid,
+                queryUuid,
+            });
+
+            const remainingMs = deadlineMs - Date.now();
+            if (remainingMs <= 0) return;
+
+            // eslint-disable-next-line no-await-in-loop
+            await AsyncQueryService.sleep(
+                Math.min(intervalMs, remainingMs),
+                signal,
+            );
+        }
+    }
+
     queryHistoryModel: QueryHistoryModel;
 
     downloadAuditModel: DownloadAuditModel;
@@ -383,6 +454,9 @@ export class AsyncQueryService extends ProjectService {
                     projectUuid: savedChart.project.projectUuid,
                     inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
                     access: ctx.access,
+                    metadata: {
+                        spaceUuid: savedChart.space.uuid,
+                    },
                 }),
             )
         ) {
@@ -472,7 +546,11 @@ export class AsyncQueryService extends ProjectService {
         );
 
         if (isExploreError(explore)) {
-            throw new NotFoundError(`Explore "${exploreName}" has an error.`);
+            throw new NotFoundError(
+                `Explore "${exploreName}" has an error: ${explore.errors
+                    .map((error) => error.message)
+                    .join(', ')}`,
+            );
         }
 
         if (
@@ -584,39 +662,6 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    async getResultsPageFromWarehouse(
-        account: Account,
-        queryHistory: QueryHistory,
-        page: number,
-        pageSize: number,
-        formatter: (row: Record<string, unknown>) => ResultRow,
-    ) {
-        if (!queryHistory.projectUuid) {
-            throw new Error('Project UUID is required');
-        }
-
-        const warehouseConnection = await this._getWarehouseClient(
-            queryHistory.projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid: queryHistory.projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
-        );
-
-        return warehouseConnection.warehouseClient.getAsyncQueryResults(
-            {
-                sql: queryHistory.compiledSql,
-                queryId: queryHistory.warehouseQueryId,
-                queryMetadata: queryHistory.warehouseQueryMetadata,
-                page,
-                pageSize,
-            },
-            formatter,
-        );
-    }
-
     async cancelAsyncQuery({
         account,
         projectUuid,
@@ -718,6 +763,11 @@ export class AsyncQueryService extends ProjectService {
             groupByColumns: pivotConfiguration.groupByColumns,
             sortBy: pivotConfiguration.sortBy,
             originalColumns: originalColumns || {},
+            ...(pivotConfiguration.passthroughDimensions &&
+                pivotConfiguration.passthroughDimensions.length > 0 && {
+                    passthroughDimensions:
+                        pivotConfiguration.passthroughDimensions,
+                }),
         };
     }
 
@@ -733,22 +783,24 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(account);
+        const canViewProject = auditedAbility.can(
+            'view',
+            subject('Project', {
+                organizationUuid,
+                projectUuid,
+                metadata: { queryUuid },
+            }),
+        );
+
         const queryHistory = await this.queryHistoryModel.get(
             queryUuid,
             projectUuid,
             account,
         );
 
-        const auditedAbility = this.createAuditedAbility(account);
         const isForbidden =
-            auditedAbility.cannot(
-                'view',
-                subject('Project', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { queryUuid },
-                }),
-            ) &&
+            !canViewProject &&
             auditedAbility.cannot(
                 'view',
                 subject('Explore', {
@@ -838,35 +890,19 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone ?? undefined,
             );
 
-        const resultsCacheEnabled =
-            (await this.cacheService?.isResultsCacheEnabled({
-                userUuid: account.user.id,
-                organizationUuid: account.organization.organizationUuid,
-                organizationName: account.organization.name,
-            })) ?? false;
-
         const {
             result: { rows },
             durationMs,
         } = await measureTime(
             () =>
-                this.getResultsStorageClientForContext(queryHistory.context)
-                    .isEnabled || resultsCacheEnabled
-                    ? this.getResultsPageFromS3(
-                          queryUuid,
-                          resultsFileName,
-                          queryHistory.context,
-                          page,
-                          defaultedPageSize,
-                          formatter,
-                      )
-                    : this.getResultsPageFromWarehouse(
-                          account,
-                          queryHistory,
-                          page,
-                          defaultedPageSize,
-                          formatter,
-                      ),
+                this.getResultsPageFromS3(
+                    queryUuid,
+                    resultsFileName,
+                    queryHistory.context,
+                    page,
+                    defaultedPageSize,
+                    formatter,
+                ),
             'getCachedResultsPage',
             this.logger,
             context,
@@ -967,6 +1003,60 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    async getAsyncQueryHistory({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<QueryHistory> {
+        assertIsAccountWithOrg(account);
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(account);
+        const canViewProject = auditedAbility.can(
+            'view',
+            subject('Project', {
+                organizationUuid,
+                projectUuid,
+                metadata: { queryUuid },
+            }),
+        );
+
+        if (canViewProject) {
+            return this.queryHistoryModel.get(queryUuid, projectUuid, account);
+        }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Explore', {
+                    organizationUuid,
+                    projectUuid,
+                    exploreNames: [queryHistory.metricQuery.exploreName],
+                    metadata: {
+                        queryUuid,
+                        exploreName: queryHistory.metricQuery.exploreName,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return queryHistory;
+    }
+
     async getResultsStream({
         account,
         projectUuid,
@@ -981,12 +1071,6 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -1000,6 +1084,12 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
 
         const { status, resultsFileName } = queryHistory;
 
@@ -1130,6 +1220,91 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    /**
+     * Pivot totals are exclusively warehouse-computed — the export renderer has
+     * no client-side fallback, so without this they come out blank. Mirrors the
+     * UI: re-run the source query collapsed across the pivot (`calculate-total`)
+     * and key the results so the pivot worker can match each rendered cell. A
+     * failed totals query (e.g. source can't be totalled) never fails the
+     * export — that total is simply left blank, as it is in the UI.
+     */
+    private async getExportWarehouseTotals({
+        account,
+        projectUuid,
+        sourceQueryUuid,
+        pivotConfig,
+        pivotDetails,
+    }: {
+        account: Account;
+        projectUuid: string;
+        sourceQueryUuid: string;
+        pivotConfig: PivotConfig;
+        pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
+    }): Promise<{
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
+    }> {
+        let warehouseColumnTotals: Record<string, number> | undefined;
+        let warehouseRowTotals: PivotRowTotalsByIndex | undefined;
+
+        if (pivotConfig.columnTotals) {
+            try {
+                const { rows, fields } =
+                    await this.executeCalculateTotalAndGetResults({
+                        account,
+                        projectUuid,
+                        queryUuid: sourceQueryUuid,
+                        kind: 'columnTotal',
+                    });
+                warehouseColumnTotals = buildWarehouseColumnTotals(
+                    formatRows(rows, fields),
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to compute column totals for pivot export',
+                    {
+                        projectUuid,
+                        sourceQueryUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+
+        const { indexColumn } = pivotDetails;
+        const indexFieldIds = indexColumn
+            ? (Array.isArray(indexColumn) ? indexColumn : [indexColumn]).map(
+                  (col) => col.reference,
+              )
+            : [];
+        if (pivotConfig.rowTotals && indexFieldIds.length > 0) {
+            try {
+                const { rows, fields } =
+                    await this.executeCalculateTotalAndGetResults({
+                        account,
+                        projectUuid,
+                        queryUuid: sourceQueryUuid,
+                        kind: 'rowTotal',
+                    });
+                warehouseRowTotals = buildWarehouseRowTotals(
+                    formatRows(rows, fields),
+                    indexFieldIds,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to compute row totals for pivot export',
+                    {
+                        projectUuid,
+                        sourceQueryUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+
+        return { warehouseRowTotals, warehouseColumnTotals };
+    }
+
     private async downloadAsyncQueryResults({
         account,
         projectUuid,
@@ -1150,12 +1325,6 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
         const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
@@ -1169,6 +1338,12 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+
+        const queryHistory = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
 
         const displayTimezone = queryHistory.metricQuery.timezone ?? null;
 
@@ -1267,22 +1442,65 @@ export class AsyncQueryService extends ProjectService {
                       ),
                   )
                 : fields;
-        const downloadPivotConfig = exportPivotedData ? pivotConfig : undefined;
+        // Pivot structure (which dimension is pivoted, layout) comes from the
+        // query's stored config so the export matches the rendered results;
+        // pivotConfig only adds presentation (totals, hidden fields).
+        const pivotDetails =
+            AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory);
+        const downloadPivotConfig: PivotConfig | undefined =
+            exportPivotedData && pivotDetails
+                ? {
+                      pivotDimensions: (pivotDetails.groupByColumns ?? []).map(
+                          (col) => col.reference,
+                      ),
+                      metricsAsRows:
+                          queryHistory.pivotConfiguration?.metricsAsRows ??
+                          false,
+                      columnOrder: validColumnOrder,
+                      hiddenMetricFieldIds: pivotConfig?.hiddenMetricFieldIds,
+                      hiddenDimensionFieldIds:
+                          pivotConfig?.hiddenDimensionFieldIds,
+                      visibleMetricFieldIds: pivotConfig?.visibleMetricFieldIds,
+                      rowTotals: pivotConfig?.rowTotals,
+                      columnTotals: pivotConfig?.columnTotals,
+                  }
+                : undefined;
+
+        // Warehouse-computed totals for the pivot export — without these the
+        // renderer leaves total cells blank (no client-side fallback).
+        const { warehouseRowTotals, warehouseColumnTotals } =
+            downloadPivotConfig &&
+            pivotDetails &&
+            (downloadPivotConfig.rowTotals || downloadPivotConfig.columnTotals)
+                ? await this.getExportWarehouseTotals({
+                      account,
+                      projectUuid,
+                      sourceQueryUuid: queryUuid,
+                      pivotConfig: downloadPivotConfig,
+                      pivotDetails,
+                  })
+                : {
+                      warehouseRowTotals: undefined,
+                      warehouseColumnTotals: undefined,
+                  };
 
         switch (type) {
             case DownloadFileType.CSV:
                 // Check if this is a pivot table download
-                if (downloadPivotConfig && queryHistory.metricQuery) {
+                if (
+                    downloadPivotConfig &&
+                    pivotDetails &&
+                    queryHistory.metricQuery
+                ) {
                     return this.pivotTableService.downloadAsyncPivotTableCsv({
                         resultsFileName,
                         fields,
                         metricQuery: queryHistory.metricQuery,
                         projectUuid,
                         storageClient: resultsStorageClient,
-                        pivotDetails:
-                            AsyncQueryService.getPivotDetailsFromQueryHistory(
-                                queryHistory,
-                            ),
+                        pivotDetails,
+                        warehouseRowTotals,
+                        warehouseColumnTotals,
                         options: {
                             onlyRaw,
                             showTableNames,
@@ -1331,18 +1549,25 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
                 const xlsxResult =
-                    downloadPivotConfig && queryHistory.metricQuery
+                    downloadPivotConfig &&
+                    pivotDetails &&
+                    queryHistory.metricQuery
                         ? await ExcelService.downloadAsyncPivotTableXlsx({
                               resultsFileName,
                               fields,
-                              metricQuery: queryHistory.metricQuery,
                               resultsStorageClient,
                               exportsStorageClient: this.exportsStorageClient,
                               lightdashConfig: this.lightdashConfig,
-                              pivotDetails:
-                                  AsyncQueryService.getPivotDetailsFromQueryHistory(
-                                      queryHistory,
-                                  ),
+                              csvCellsLimit: (
+                                  await resolveOrganizationExportLimits(
+                                      this.organizationSettingsModel,
+                                      this.lightdashConfig.query,
+                                      organizationUuid,
+                                  )
+                              ).csvCellsLimit,
+                              pivotDetails,
+                              warehouseRowTotals,
+                              warehouseColumnTotals,
                               options: {
                                   onlyRaw,
                                   showTableNames,
@@ -1580,6 +1805,15 @@ export class AsyncQueryService extends ProjectService {
         let pivotTotalRows = 0;
         let unpivotedColumns: ResultColumns = {};
 
+        // Passthrough dims should be 1-to-1 with the visible row/pivot dims —
+        // they ride along through `group_by_query` GROUP BY but are not in
+        // row_ranking, so multiple warehouse rows with the same row_index
+        // can carry conflicting passthrough values. We keep the first one
+        // (deterministic by warehouse row order) and remember which dims
+        // had conflicts for a debug log — useful when devs investigate
+        // "wrong image showing in pivot" reports.
+        const passthroughCardinalityViolations = new Set<string>();
+
         const writeAndTransformRowsIfPivot = pivotConfiguration
             ? async (
                   rows: WarehouseResults['rows'],
@@ -1601,8 +1835,12 @@ export class AsyncQueryService extends ProjectService {
                       fields,
                   );
 
-                  const { indexColumn, valuesColumns, groupByColumns } =
-                      pivotConfiguration;
+                  const {
+                      indexColumn,
+                      valuesColumns,
+                      groupByColumns,
+                      passthroughDimensions,
+                  } = pivotConfiguration;
 
                   if (!groupByColumns || groupByColumns.length === 0) {
                       // When there are no group by columns, we can just derive the value columns from the values columns config
@@ -1653,6 +1891,73 @@ export class AsyncQueryService extends ProjectService {
                               currentTransformedRow = {};
                           }
                           currentRowIndex = row.row_index;
+                      }
+
+                      // Carry passthrough dim values onto the row so that
+                      // cross-field richText / image templates can resolve
+                      // `row.<table>.<field>.raw` even when the field's own
+                      // column is hidden from the rendered pivot. The first
+                      // warehouse row for a row_index wins. Run on EVERY
+                      // warehouse row (not just on row_index change) so we
+                      // can detect cardinality violations: if a later row
+                      // with the same row_index carries a different value
+                      // for the same passthrough dim, the dim isn't
+                      // 1-to-1 with the visible row/pivot dims.
+                      if (passthroughDimensions && currentTransformedRow) {
+                          for (const dim of passthroughDimensions) {
+                              const incoming = row[dim.reference];
+                              const existing =
+                                  currentTransformedRow[dim.reference];
+                              if (incoming === undefined) {
+                                  // Warehouse row missing the field — nothing
+                                  // to merge. Existing value (if any) wins.
+                              } else if (existing === undefined) {
+                                  currentTransformedRow[dim.reference] =
+                                      incoming;
+                              } else if (
+                                  !passthroughCardinalityViolations.has(
+                                      dim.reference,
+                                  )
+                              ) {
+                                  // Compare raw values to handle the
+                                  // `{value: {raw, formatted}}` envelope and
+                                  // bare-value warehouse shapes. Normalise via
+                                  // JSON.stringify so object-typed warehouse
+                                  // values (Dates, JSON columns) are compared
+                                  // by content, not reference — reference
+                                  // equality would treat every row as a
+                                  // violation for those types.
+                                  const pickRaw = (v: unknown) => {
+                                      if (
+                                          v !== null &&
+                                          typeof v === 'object' &&
+                                          'value' in v &&
+                                          v.value !== null &&
+                                          typeof v.value === 'object' &&
+                                          'raw' in v.value
+                                      ) {
+                                          return (v.value as { raw: unknown })
+                                              .raw;
+                                      }
+                                      return v;
+                                  };
+                                  const existingRaw = pickRaw(existing);
+                                  const incomingRaw = pickRaw(incoming);
+                                  const same =
+                                      existingRaw === incomingRaw ||
+                                      (existingRaw !== null &&
+                                          incomingRaw !== null &&
+                                          typeof existingRaw === 'object' &&
+                                          typeof incomingRaw === 'object' &&
+                                          JSON.stringify(existingRaw) ===
+                                              JSON.stringify(incomingRaw));
+                                  if (!same) {
+                                      passthroughCardinalityViolations.add(
+                                          dim.reference,
+                                      );
+                                  }
+                              }
+                          }
                       }
 
                       const pivotValues =
@@ -1766,6 +2071,23 @@ export class AsyncQueryService extends ProjectService {
         if (currentTransformedRow) {
             pivotTotalRows += 1;
             await write?.([currentTransformedRow]);
+        }
+
+        const passthroughCardinalityWarnings = Array.from(
+            passthroughCardinalityViolations,
+        );
+        if (passthroughCardinalityWarnings.length > 0) {
+            // Debug-level so we don't spam prod logs for misconfigured charts.
+            // Surface via Logger.debug for devs investigating user reports of
+            // "wrong image showing"; the dim isn't 1-to-1 with the visible
+            // pivot/row dims so the first warehouse row's value wins
+            // arbitrarily. No user-facing UI consumer yet — see PROD-7873 PR
+            // description for the deferred surface.
+            Logger.debug(
+                `Pivot passthrough dimensions had multiple values per row_index — values rendered in cross-field templates are arbitrary. Fields: ${passthroughCardinalityWarnings.join(
+                    ', ',
+                )}`,
+            );
         }
 
         return {
@@ -2403,7 +2725,12 @@ export class AsyncQueryService extends ProjectService {
                     warehouseType: warehouseCredentialsType,
                     errorName: e instanceof Error ? e.name : undefined,
                     errorCode: (e as { code?: string })?.code,
-                    queryContext: queryTags.query_context,
+                    // Surface every queryTag (chart_uuid, dashboard_uuid,
+                    // saved_sql_uuid, scheduler_uuid, scheduler_name, job_id,
+                    // explore_name, query_context, …) onto the error log so a
+                    // single Cloud Logging filter maps a warehouse failure
+                    // back to the originating chart / scheduled sync.
+                    ...queryTags,
                 },
             );
 
@@ -2490,11 +2817,16 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone = projectUuid
             ? await this.getQueryTimezoneForProject(projectUuid)
             : 'UTC';
-        const resolvedTimezone = resolveQueryTimezone(
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+            userUuid,
+            organizationUuid,
+        });
+        const resolvedTimezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
             userTimezone,
-        );
+            isUserTimezoneEnabled,
+        });
         const enabled = await this.isTimezoneSupportEnabled({
             userUuid,
             organizationUuid,
@@ -2712,6 +3044,23 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /**
+     * Reads scheduler/job context from the request-scoped ExecutionContext
+     * (populated by SchedulerTask handlers when a scheduled job is running)
+     * so warehouse queries can be tagged back to the originating sync/delivery.
+     * Returns an empty object outside scheduler execution.
+     */
+    private static getSchedulerQueryTags(): Partial<RunQueryTags> {
+        const ctx = getSchedulerContext();
+        if (!ctx) return {};
+        const tags: Partial<RunQueryTags> = {};
+        if (ctx.scheduler_uuid) tags.scheduler_uuid = ctx.scheduler_uuid;
+        if (ctx.scheduler_name) tags.scheduler_name = ctx.scheduler_name;
+        if (ctx.saved_sql_uuid) tags.saved_sql_uuid = ctx.saved_sql_uuid;
+        if (ctx.job_id) tags.job_id = ctx.job_id;
+        return tags;
+    }
+
     private static buildQueryTags(query: QueryHistory): RunQueryTags {
         let actorTags: Record<string, string>;
         if (query.createdByActorType === 'jwt') {
@@ -2743,6 +3092,7 @@ export class AsyncQueryService extends ProjectService {
 
         return {
             ...actorTags,
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: query.organizationUuid,
             project_uuid: query.projectUuid ?? undefined,
             explore_name: query.metricQuery.exploreName,
@@ -2942,6 +3292,9 @@ export class AsyncQueryService extends ProjectService {
                                 format: convertCustomFormatToFormatExpression(
                                     formatOptions,
                                 ),
+                                // The format expression can't encode the separator, so carry it
+                                // separately for the render paths (getEffectiveSeparator reads it).
+                                separator: formatOptions.separator,
                             },
                         ];
                     }
@@ -3123,7 +3476,9 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         cacheKey,
                         account,
-                        args.invalidateCache,
+                        requestParameters.invalidateCache ??
+                            args.invalidateCache ??
+                            false,
                     );
                     const cacheCheckMs = Date.now() - cacheCheckStart;
 
@@ -3137,11 +3492,14 @@ export class AsyncQueryService extends ProjectService {
                             fields: fieldsMap,
                             compiledSql: query,
                             requestParameters,
-                            // Persist the fully resolved timezone (chart >
-                            // user > project fallback) on the snapshot so
-                            // worker paths read it back without re-resolving
-                            // against an absent request account.
-                            metricQuery: { ...metricQuery, timezone },
+                            // Persist the gated display timezone (matches
+                            // what the SQL was built with). Storing the
+                            // ungated resolvedTimezone leaks a +TZ shift
+                            // through formatTimestamp on flag-off orgs.
+                            metricQuery: {
+                                ...metricQuery,
+                                timezone: displayTimezone ?? undefined,
+                            },
                             cacheKey,
                             pivotConfiguration: pivotConfiguration ?? null,
                         });
@@ -3588,19 +3946,16 @@ export class AsyncQueryService extends ProjectService {
     }
 
     // execute
-    async executeAsyncMetricQuery({
-        account,
-        projectUuid,
-        dateZoom,
-        context,
-        metricQuery,
-        invalidateCache,
-        usePreAggregateCache,
-        parameters,
-        pivotConfiguration,
-        userAttributeOverrides,
-        materializationRole,
-    }: ExecuteAsyncMetricQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
+    async executeAsyncMetricQuery(
+        args: ExecuteAsyncMetricQueryArgs,
+    ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        const {
+            account,
+            projectUuid,
+            context,
+            metricQuery: inputMetricQuery,
+            materializationRole,
+        } = args;
         assertIsAccountWithOrg(account);
 
         if (
@@ -3618,16 +3973,15 @@ export class AsyncQueryService extends ProjectService {
         // We only check `exploreName` for chart embeds. Otherwise, CASL doesn't match
         // on condition checks that aren't set. If no `exploreName` is set in conditions,
         // CASL ignores it.
-
         const auditedAbility = this.createAuditedAbility(account);
         const isForbidden = auditedAbility.cannot(
             'view',
             subject('Explore', {
                 organizationUuid,
                 projectUuid,
-                exploreNames: [metricQuery.exploreName],
+                exploreNames: [inputMetricQuery.exploreName],
                 metadata: {
-                    exploreName: metricQuery.exploreName,
+                    exploreName: inputMetricQuery.exploreName,
                 },
             }),
         );
@@ -3635,11 +3989,38 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
+        return this.runAsyncMetricQueryWithoutPermissionCheck(
+            args,
+            organizationUuid,
+        );
+    }
+
+    // Callers MUST authorize the account for this explore/query first.
+    private async runAsyncMetricQueryWithoutPermissionCheck(
+        {
+            account,
+            projectUuid,
+            dateZoom,
+            context,
+            metricQuery: inputMetricQuery,
+            invalidateCache,
+            usePreAggregateCache,
+            parameters,
+            pivotConfiguration,
+            userAttributeOverrides,
+            materializationRole,
+            dashboardFilters,
+        }: ExecuteAsyncMetricQueryArgs,
+        organizationUuid: string,
+    ): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
-            explore_name: metricQuery.exploreName,
+            explore_name: inputMetricQuery.exploreName,
             query_context: context,
         };
 
@@ -3648,7 +4029,7 @@ export class AsyncQueryService extends ProjectService {
         const explore = await this.getExploreForMetricQueryExecution({
             account,
             projectUuid,
-            exploreName: metricQuery.exploreName,
+            exploreName: inputMetricQuery.exploreName,
             organizationUuid,
             materializationRole:
                 context === QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
@@ -3656,6 +4037,32 @@ export class AsyncQueryService extends ProjectService {
                     : undefined,
         });
         const getExploreMs = Date.now() - metricQueryStart;
+
+        // Dashboard filters (e.g. from a data-app tile) are merged once the
+        // explore is known so we can drop filters that target fields outside
+        // it — silent drop is intentional, see ExecuteAsyncMetricQueryRequestParams.
+        let metricQuery: MetricQuery = inputMetricQuery;
+        if (dashboardFilters) {
+            const availableFieldIds = getAvailableFilterFieldIds(explore);
+            metricQuery = addDashboardFiltersToMetricQuery(
+                inputMetricQuery,
+                {
+                    dimensions: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.dimensions,
+                    ),
+                    metrics: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.metrics,
+                    ),
+                    tableCalculations: getDashboardFilterRulesForTables(
+                        availableFieldIds,
+                        dashboardFilters.tableCalculations,
+                    ),
+                },
+                explore,
+            );
+        }
 
         const whCredStart = Date.now();
         const warehouseCredentials = await this.getWarehouseCredentials({
@@ -3711,6 +4118,7 @@ export class AsyncQueryService extends ProjectService {
             context,
             query: metricQuery,
             parameters: combinedParameters,
+            dateZoom,
         };
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -3775,6 +4183,98 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
+    /**
+     * Calculate totals for a previously-executed async query referenced by
+     * its queryUuid. The source query's metricQuery + pivotConfiguration are
+     * read from query_history; this endpoint stores its own row in query_history
+     * so it inherits cancellation, polling, download, and analytics for free.
+     */
+    async executeAsyncCalculateTotalFromQueryHistory({
+        account,
+        projectUuid,
+        queryUuid,
+        kind,
+        subtotalDimensions,
+        invalidateCache,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        kind: CalculateTotalKind;
+        subtotalDimensions?: string[];
+        invalidateCache?: boolean;
+    }): Promise<ApiExecuteAsyncMetricQueryResults> {
+        assertIsAccountWithOrg(account);
+
+        // `get` enforces the query belongs to this project and was created by
+        // this account — that ownership authorizes the totals query, so we skip
+        // the explore-level CASL gate (which embed JWT callers can't pass).
+        const source = await this.queryHistoryModel.get(
+            queryUuid,
+            projectUuid,
+            account,
+        );
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const sourceInputs = {
+            metricQuery: source.metricQuery,
+            pivotConfiguration: source.pivotConfiguration,
+        };
+        let metricQuery: MetricQuery;
+        let pivotConfiguration: PivotConfiguration | undefined;
+        switch (kind) {
+            case 'columnTotal':
+                ({ metricQuery, pivotConfiguration } =
+                    getColumnTotalQueryFromSource(sourceInputs));
+                break;
+            case 'rowTotal':
+                ({ metricQuery, pivotConfiguration } =
+                    getRowTotalQueryFromSource(sourceInputs));
+                break;
+            case 'columnSubtotal':
+                ({ metricQuery, pivotConfiguration } =
+                    getColumnSubtotalQueryFromSource({
+                        ...sourceInputs,
+                        subtotalDimensions: subtotalDimensions ?? [],
+                    }));
+                break;
+            default:
+                return assertUnreachable(
+                    kind,
+                    `Calculate-total kind "${kind}" is not yet supported`,
+                );
+        }
+
+        // Reuse the source's parameter values so the totals query sees the
+        // same parameter context as the original. The execution path
+        // re-combines these against project defaults.
+        const sourceParameters: ParametersValuesMap | undefined =
+            source.requestParameters?.parameters;
+
+        // The totals re-query must reproduce the source's grain. Date Zoom is a
+        // runtime override not baked into the stored metricQuery, so recover it
+        // from the persisted request echo.
+        const sourceDateZoom = getDateZoomFromRequestParameters(
+            source.requestParameters,
+        );
+
+        return this.runAsyncMetricQueryWithoutPermissionCheck(
+            {
+                account,
+                projectUuid,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
+                metricQuery,
+                pivotConfiguration,
+                parameters: sourceParameters,
+                dateZoom: sourceDateZoom,
+                invalidateCache,
+            },
+            organizationUuid,
+        );
+    }
+
     async executeAsyncFieldValueSearch({
         account,
         projectUuid,
@@ -3809,6 +4309,12 @@ export class AsyncQueryService extends ProjectService {
 
         const context = QueryExecutionContext.FILTER_AUTOCOMPLETE;
 
+        const { maxLimit } = await resolveOrganizationExportLimits(
+            this.organizationSettingsModel,
+            this.lightdashConfig.query,
+            organizationUuid,
+        );
+
         const { metricQuery, explore, fieldId } =
             await getFieldValuesMetricQuery({
                 projectUuid,
@@ -3816,13 +4322,14 @@ export class AsyncQueryService extends ProjectService {
                 initialFieldId,
                 search,
                 limit,
-                maxLimit: this.lightdashConfig.query.maxLimit,
+                maxLimit,
                 filters,
                 exploreResolver: this.projectModel,
             });
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: explore.name,
@@ -4025,15 +4532,23 @@ export class AsyncQueryService extends ProjectService {
             limit,
         };
 
+        const { maxLimit, csvCellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                savedChartOrganizationUuid,
+            );
+
         const metricQueryWithLimit = applyMetricQueryLimit(
             metricQuery,
             limit,
-            this.lightdashConfig.query?.csvCellsLimit,
-            this.lightdashConfig.query?.maxLimit,
+            csvCellsLimit,
+            maxLimit,
         );
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: savedChartOrganizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
@@ -4294,19 +4809,28 @@ export class AsyncQueryService extends ProjectService {
                 explore,
             });
 
+        const validatedDashboardSorts = getValidatedDashboardSorts(
+            dashboardSorts,
+            metricQueryWithFilters,
+        );
+
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...metricQueryWithFilters,
-            sorts:
-                dashboardSorts && dashboardSorts.length > 0
-                    ? dashboardSorts
-                    : savedChart.metricQuery.sorts,
+            sorts: validatedDashboardSorts ?? savedChart.metricQuery.sorts,
         };
+
+        const { maxLimit, csvCellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
 
         const metricQueryWithLimit = applyMetricQueryLimit(
             metricQueryWithDashboardOverrides,
             limit,
-            this.lightdashConfig.query?.csvCellsLimit,
-            this.lightdashConfig.query?.maxLimit,
+            csvCellsLimit,
+            maxLimit,
         );
 
         const exploreDimensions = getDimensions(explore);
@@ -4353,6 +4877,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
@@ -4373,8 +4898,10 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
@@ -4533,6 +5060,9 @@ export class AsyncQueryService extends ProjectService {
                 subject('UnderlyingData', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        underlyingDataSourceQueryUuid,
+                    },
                 }),
             )
         ) {
@@ -4717,6 +5247,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             explore_name: exploreName,
@@ -4736,11 +5267,18 @@ export class AsyncQueryService extends ProjectService {
             timezone: metricQuery.timezone,
         };
 
+        const { maxLimit, csvCellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
+
         const underlyingDataMetricQueryWithLimit = applyMetricQueryLimit(
             underlyingDataMetricQuery,
             limit,
-            this.lightdashConfig.query?.csvCellsLimit,
-            this.lightdashConfig.query?.maxLimit,
+            csvCellsLimit,
+            maxLimit,
         );
 
         const {
@@ -4873,8 +5411,12 @@ export class AsyncQueryService extends ProjectService {
                 useTimezoneAwareDateTrunc: false,
             },
             {
-                query: metricQuery,
+                sql,
+                limit,
+                pivotConfiguration,
                 invalidateCache,
+                parameters,
+                context,
             },
         );
 
@@ -4932,6 +5474,7 @@ export class AsyncQueryService extends ProjectService {
 
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
+            ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             query_context: context,
@@ -4980,25 +5523,58 @@ export class AsyncQueryService extends ProjectService {
             );
         }
 
-        await warehouseConnection.warehouseClient.streamQuery(
-            applyLimitToSqlQuery({ sqlQuery: columnDiscoverySql, limit: 1 }),
-            (chunk) => {
-                // Only handle the first call
-                if (columns.length === 0 && chunk.fields) {
-                    Object.keys(chunk.fields).forEach((key) => {
-                        columns.push({
-                            name: key,
-                            type: chunk.fields[key].type,
+        const limitedColumnDiscoverySql = applyLimitToSqlQuery({
+            sqlQuery: columnDiscoverySql,
+            limit: 1,
+        });
+        this.logger.info('column_discovery.started', {
+            event: 'column_discovery.started',
+            projectUuid,
+            sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
+            ...queryTags,
+        });
+        try {
+            await warehouseConnection.warehouseClient.streamQuery(
+                limitedColumnDiscoverySql,
+                (chunk) => {
+                    // Only handle the first call
+                    if (columns.length === 0 && chunk.fields) {
+                        Object.keys(chunk.fields).forEach((key) => {
+                            columns.push({
+                                name: key,
+                                type: chunk.fields[key].type,
+                            });
                         });
-                    });
-                }
-            },
-            {
-                tags: queryTags,
-            },
-        );
+                    }
+                },
+                {
+                    tags: queryTags,
+                },
+            );
+        } catch (e) {
+            const durationMs = performance.now() - sectionStartColumnDiscovery;
+            this.logger.error('column_discovery.failed', {
+                event: 'column_discovery.failed',
+                projectUuid,
+                durationMs,
+                sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
+                errorName: e instanceof Error ? e.name : undefined,
+                errorCode: (e as { code?: string })?.code,
+                errorMessage: getErrorMessage(e),
+                ...queryTags,
+            });
+            throw e;
+        }
         const durationColumnDiscovery =
             performance.now() - sectionStartColumnDiscovery;
+        this.logger.info('column_discovery.completed', {
+            event: 'column_discovery.completed',
+            projectUuid,
+            durationMs: durationColumnDiscovery,
+            sqlBytes: Buffer.byteLength(limitedColumnDiscoverySql, 'utf8'),
+            columnCount: columns.length,
+            ...queryTags,
+        });
 
         // 4. Query Building
         const sectionStartQueryBuilding = performance.now();
@@ -5147,14 +5723,15 @@ export class AsyncQueryService extends ProjectService {
                 2,
             )}`,
             {
+                event: 'prepare_sql_chart_async_query_args.completed',
+                projectUuid,
                 totalTimeMs: totalTime,
-                sections: {
-                    warehouseMs: durationWarehouse.toFixed(2),
-                    userAttributesMs: durationUserAttributes.toFixed(2),
-                    columnDiscoveryMs: durationColumnDiscovery.toFixed(2),
-                    queryBuildingMs: durationQueryBuilding.toFixed(2),
-                    sqlGenerationMs: durationSqlGeneration.toFixed(2),
-                },
+                warehouseMs: durationWarehouse,
+                userAttributesMs: durationUserAttributes,
+                columnDiscoveryMs: durationColumnDiscovery,
+                queryBuildingMs: durationQueryBuilding,
+                sqlGenerationMs: durationSqlGeneration,
+                ...queryTags,
             },
         );
 
@@ -5271,7 +5848,7 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             tileUuid,
-            dashboardUuid,
+            dashboardUuid: requestDashboardUuid,
             context,
             invalidateCache,
             dashboardFilters,
@@ -5279,10 +5856,32 @@ export class AsyncQueryService extends ProjectService {
             limit,
         } = args;
 
-        await this.assertSavedChartAccess(account, 'view', savedChart);
+        // For JWT users, the dashboard scope is bound to the token, not the
+        // request body. Trusting `args.dashboardUuid` would let a JWT user
+        // merge another dashboard's parameter values into their query.
+        const dashboardUuid = isJwtUser(account)
+            ? account.access.content.dashboardUuid
+            : requestDashboardUuid;
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        if (!dashboardUuid) {
+            throw new ForbiddenError(
+                'JWT does not grant access to a dashboard',
+            );
+        }
+
+        if (isJwtUser(account)) {
+            await this.permissionsService.checkEmbedSqlChartPermissions(
+                account,
+                savedChart.savedSqlUuid,
+            );
+        } else {
+            await this.assertSavedChartAccess(account, 'view', savedChart);
+        }
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
@@ -5389,6 +5988,58 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    async pollQueryHistoryUntilDeadline({
+        account,
+        projectUuid,
+        queryUuid,
+        deadlineMs,
+        pollIntervalMs,
+        signal,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+        deadlineMs: number;
+        pollIntervalMs: number;
+        signal?: AbortSignal;
+    }): Promise<QueryHistory> {
+        let lastQueryHistory: QueryHistory | undefined;
+
+        for await (const queryHistory of this.streamQueryHistoryUntilDeadline({
+            account,
+            projectUuid,
+            queryUuid,
+            deadlineMs,
+            pollIntervalMs,
+            signal,
+        })) {
+            lastQueryHistory = queryHistory;
+
+            switch (queryHistory.status) {
+                case QueryHistoryStatus.PENDING:
+                case QueryHistoryStatus.QUEUED:
+                case QueryHistoryStatus.EXECUTING:
+                    break;
+                case QueryHistoryStatus.CANCELLED:
+                case QueryHistoryStatus.ERROR:
+                case QueryHistoryStatus.EXPIRED:
+                case QueryHistoryStatus.READY:
+                    return queryHistory;
+                default:
+                    return assertUnreachable(
+                        queryHistory.status,
+                        'Unknown query status',
+                    );
+            }
+        }
+
+        if (!lastQueryHistory) {
+            throw new UnexpectedServerError('Query polling did not run');
+        }
+
+        return lastQueryHistory;
+    }
+
     /**
      * Execute metric query and wait for all results.
      * Returns raw rows from warehouse
@@ -5419,6 +6070,52 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             queryUuid,
+            cacheMetadata,
+            fields,
+        });
+    }
+
+    /**
+     * Execute a calculate-total query (row/column totals) derived from a source
+     * query and wait for all results. Mirrors `executeMetricQueryAndGetResults`
+     * but starts from `executeAsyncCalculateTotalFromQueryHistory`.
+     */
+    private async executeCalculateTotalAndGetResults(
+        args: {
+            account: Account;
+            projectUuid: string;
+            queryUuid: string;
+            kind: CalculateTotalKind;
+            subtotalDimensions?: string[];
+            invalidateCache?: boolean;
+        },
+        pollingOptions?: PollingOptions,
+    ): Promise<{
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+    }> {
+        const { account, projectUuid } = args;
+
+        const {
+            queryUuid: totalsQueryUuid,
+            cacheMetadata,
+            fields,
+        } = await this.executeAsyncCalculateTotalFromQueryHistory(args);
+
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid: totalsQueryUuid,
+            ...pollingOptions,
+        });
+
+        return this.getReadyQueryResults({
+            account,
+            projectUuid,
+            queryUuid: totalsQueryUuid,
             cacheMetadata,
             fields,
         });
@@ -5473,34 +6170,64 @@ export class AsyncQueryService extends ProjectService {
         };
     }
 
-    private static getCalculateTotalMetricQuery(
-        metricQuery: MetricQuery,
-    ): MetricQuery {
-        const totalQuery: MetricQuery = {
-            ...metricQuery,
-            limit: 1,
-            tableCalculations: [],
-            sorts: [],
-            dimensions: [],
-            customDimensions: metricQuery.customDimensions,
-            metrics: metricQuery.metrics,
-            additionalMetrics: metricQuery.additionalMetrics,
-        };
+    async getRawAsyncQueryResults({
+        account,
+        projectUuid,
+        queryUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        queryUuid: string;
+    }): Promise<{
+        rows: Record<string, unknown>[];
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+    }> {
+        const queryHistory = await this.getAsyncQueryHistory({
+            account,
+            projectUuid,
+            queryUuid,
+        });
 
-        const hasMetricFilters =
-            !!totalQuery.filters.metrics &&
-            flattenFilterGroup(totalQuery.filters.metrics).length > 0;
-        const hasTableCalculationFilters =
-            !!totalQuery.filters.tableCalculations &&
-            flattenFilterGroup(totalQuery.filters.tableCalculations).length > 0;
-
-        if (hasMetricFilters || hasTableCalculationFilters) {
-            throw new NotSupportedError(
-                'Totals cannot be correctly calculated with metric filters or table calculation filters',
+        if (queryHistory.status !== QueryHistoryStatus.READY) {
+            throw new UnexpectedServerError(
+                `Query ${queryUuid} is not ready to fetch results`,
             );
         }
 
-        return totalQuery;
+        if (
+            queryHistory.resultsExpiresAt &&
+            queryHistory.resultsExpiresAt < new Date()
+        ) {
+            throw new ResultsExpiredError();
+        }
+
+        if (!queryHistory.resultsFileName) {
+            throw new UnexpectedServerError(
+                `No results file found for query ${queryUuid}`,
+            );
+        }
+
+        const resultsStream = await this.getResultsStorageClientForContext(
+            queryHistory.context,
+        ).getDownloadStream(queryHistory.resultsFileName);
+
+        const rows: Record<string, unknown>[] = [];
+        await streamJsonlData<void>({
+            readStream: resultsStream,
+            onRow: (rawRow) => {
+                rows.push(rawRow);
+            },
+        });
+
+        return {
+            rows,
+            fields: queryHistory.fields,
+            pivotDetails:
+                AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory),
+            displayTimezone: queryHistory.metricQuery.timezone ?? null,
+        };
     }
 
     private async executeMetricQueryAndGetResultsForTotals({
@@ -5624,34 +6351,6 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             queryUuid,
         });
-
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
-        if (!queryHistory.resultsFileName) {
-            // Some self-hosted installs disable results-file storage, so the
-            // async query still completes but there is no file to download.
-            const { rows } = await this.getResultsPageFromWarehouse(
-                account,
-                queryHistory,
-                1,
-                Math.max(queryHistory.totalRowCount ?? 0, 1),
-                (row) => row as ResultRow,
-            );
-
-            return {
-                rows,
-                cacheMetadata,
-                fields,
-                pivotDetails:
-                    AsyncQueryService.getPivotDetailsFromQueryHistory(
-                        queryHistory,
-                    ),
-            };
-        }
 
         return this.getReadyQueryResults({
             account,
@@ -5813,8 +6512,7 @@ export class AsyncQueryService extends ProjectService {
         invalidateCache?: boolean;
         userAccessControls?: UserAccessControls;
     }): Promise<Record<string, unknown> | undefined> {
-        const totalMetricQuery =
-            AsyncQueryService.getCalculateTotalMetricQuery(metricQuery);
+        const totalMetricQuery = getGrandTotalMetricQuery(metricQuery);
 
         const { rows } = await this.executeMetricQueryAndGetResultsForTotals({
             account,
@@ -5832,6 +6530,7 @@ export class AsyncQueryService extends ProjectService {
         return rows[0];
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateMetricQuerySubtotals({
         account,
         projectUuid,
@@ -6014,6 +6713,7 @@ export class AsyncQueryService extends ProjectService {
                 context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     ...this.getUserQueryTags(account),
+                    ...AsyncQueryService.getSchedulerQueryTags(),
                     organization_uuid: savedChart.organizationUuid,
                     project_uuid: projectUuid,
                     explore_name: explore.name,
@@ -6080,6 +6780,7 @@ export class AsyncQueryService extends ProjectService {
                 context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     ...this.getUserQueryTags(account),
+                    ...AsyncQueryService.getSchedulerQueryTags(),
                     organization_uuid: account.organization.organizationUuid,
                     project_uuid: projectUuid,
                     explore_name: data.explore,
@@ -6097,6 +6798,7 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateSubtotalsFromQuery(
         account: Account,
         projectUuid: string,
@@ -6167,6 +6869,7 @@ export class AsyncQueryService extends ProjectService {
             context: QueryExecutionContext.CALCULATE_SUBTOTAL,
             queryTags: {
                 ...this.getUserQueryTags(account),
+                ...AsyncQueryService.getSchedulerQueryTags(),
                 organization_uuid: account.organization.organizationUuid,
                 project_uuid: projectUuid,
                 explore_name: data.explore,
@@ -6202,6 +6905,9 @@ export class AsyncQueryService extends ProjectService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        exploreName: filters?.exploreName,
+                    },
                 }),
             )
         ) {
@@ -6230,7 +6936,17 @@ export class AsyncQueryService extends ProjectService {
         );
 
         const auditedAbility = this.createAuditedAbility(account);
-        if (auditedAbility.cannot('view', subject('Dashboard', dashboard))) {
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...dashboard,
+                    metadata: {
+                        dashboardUuid,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 

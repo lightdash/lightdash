@@ -19,6 +19,7 @@ import {
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
     isFilterRuleInQuery,
+    isMalformedEmptyDashboardFilter,
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
@@ -1263,6 +1264,7 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
             saved,
             overrides,
             TAB_A,
+            true,
         );
         expect(result.filters.dimensions).toEqual([]);
         expect(result.droppedCount).toBe(1);
@@ -1287,6 +1289,7 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
             saved,
             overrides,
             TAB_B,
+            true,
         );
         expect(result.filters.dimensions).toHaveLength(1);
         expect(result.droppedCount).toBe(0);
@@ -1311,6 +1314,7 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
             saved,
             overrides,
             TAB_A,
+            true,
         );
         expect(result.filters.dimensions).toHaveLength(1);
         expect(result.droppedCount).toBe(0);
@@ -1335,6 +1339,7 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
             saved,
             overrides,
             TAB_A,
+            true,
         );
         expect(result.filters.metrics).toHaveLength(1);
         expect(result.droppedCount).toBe(0);
@@ -1359,12 +1364,13 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
             saved,
             overrides,
             TAB_A,
+            true,
         );
         expect(result.filters.dimensions).toHaveLength(1);
         expect(result.droppedCount).toBe(0);
     });
 
-    test('undefined tabUuid means nothing is stripped', () => {
+    test('tabbed dashboard with undefined tabUuid strips nothing (transient pre-selection state)', () => {
         const saved = {
             dimensions: [
                 makeRule('s-1', 'orders_status', 'orders', {
@@ -1383,6 +1389,7 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
             saved,
             overrides,
             undefined,
+            true,
         );
         expect(result.filters.dimensions).toHaveLength(1);
         expect(result.droppedCount).toBe(0);
@@ -1403,8 +1410,18 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
             metrics: [],
             tableCalculations: [],
         };
-        const a = stripOverridesForLockedFiltersOnTab(saved, overrides, TAB_A);
-        const b = stripOverridesForLockedFiltersOnTab(saved, overrides, TAB_B);
+        const a = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_A,
+            true,
+        );
+        const b = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_B,
+            true,
+        );
         expect(a.droppedCount).toBe(1);
         expect(b.droppedCount).toBe(1);
     });
@@ -1428,8 +1445,170 @@ describe('stripOverridesForLockedFiltersOnTab', () => {
             saved,
             overrides,
             TAB_A,
+            true,
         );
         expect(result.filters.dimensions).toHaveLength(1);
         expect(result.droppedCount).toBe(0);
+    });
+
+    test('tab-less dashboard: any non-empty lockedTabUuids strips overrides', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: ['dashboard-uuid-as-sentinel'],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [
+                makeRule('o-1', 'orders_status', 'orders', {
+                    values: ['returned'],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            undefined,
+            false,
+        );
+        expect(result.filters.dimensions).toEqual([]);
+        expect(result.droppedCount).toBe(1);
+    });
+
+    test('tab-less dashboard: empty lockedTabUuids still does not strip', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            undefined,
+            false,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('tab-less dashboard: non-target field is not affected by lock', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: ['dashboard-uuid-as-sentinel'],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_amount', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            undefined,
+            false,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+});
+
+describe('isMalformedEmptyDashboardFilter', () => {
+    test('flags disabled:false + empty values + value-requiring operator', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: [],
+            }),
+        ).toBe(true);
+    });
+
+    test('flags missing values (treated as empty)', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+            }),
+        ).toBe(true);
+    });
+
+    test('flags omitted disabled (defaults to active)', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                values: [],
+            }),
+        ).toBe(true);
+    });
+
+    test('treats null values (YAML `values: ~`) as empty', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: null,
+            }),
+        ).toBe(true);
+    });
+
+    test('does NOT flag disabled filters', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: true,
+                values: [],
+            }),
+        ).toBe(false);
+    });
+
+    test('does NOT flag operators that legitimately take no values', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.NULL,
+                disabled: false,
+                values: [],
+            }),
+        ).toBe(false);
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.NOT_NULL,
+                disabled: false,
+            }),
+        ).toBe(false);
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.IN_PERIOD_TO_DATE,
+                disabled: false,
+            }),
+        ).toBe(false);
+    });
+
+    test('does NOT flag filters with values', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: ['some-value'],
+            }),
+        ).toBe(false);
     });
 });

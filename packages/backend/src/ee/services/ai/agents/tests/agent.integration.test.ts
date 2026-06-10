@@ -47,6 +47,8 @@ describeOrSkip.concurrent('agent integration tests', () => {
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
+            customHeaders: {},
+            supportsStreaming: true,
         },
         getModelPreset('openai', 'gpt-5.4')!,
     );
@@ -168,7 +170,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
                         // RunQuery efficiency evaluation
                         const runQueryCount = toolCalls.filter(
-                            (tc) => tc.tool_name === 'runQuery',
+                            (tc) => tc.tool_name === 'generateVisualization',
                         ).length;
                         const runQueryEfficiencyScore =
                             calculateRunQueryEfficiencyScore(runQueryCount);
@@ -349,7 +351,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
                         // RunQuery efficiency evaluation
                         const runQueryCount = toolCalls.filter(
-                            (tc) => tc.tool_name === 'runQuery',
+                            (tc) => tc.tool_name === 'generateVisualization',
                         ).length;
                         const runQueryEfficiencyScore =
                             calculateRunQueryEfficiencyScore(runQueryCount);

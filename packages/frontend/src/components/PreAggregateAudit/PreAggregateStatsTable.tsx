@@ -12,13 +12,13 @@ import {
     IconTable,
     IconTarget,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-} from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import {
     aggregateStats,
@@ -43,7 +43,7 @@ const PreAggregateStatsTable: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
 
-    const [sorting, setSorting] = useState<MRT_SortingState>([
+    const [sorting, setSorting] = useState<ContentTableSortingState>([
         { id: 'queries', desc: true },
     ]);
     const [selectedQueryType, setSelectedQueryType] =
@@ -124,7 +124,7 @@ const PreAggregateStatsTable: FC<Props> = ({
         selectedMissReason,
     ]);
 
-    const columns = useMemo<MRT_ColumnDef<AggregatedRow>[]>(
+    const columns = useMemo<ContentTableColumnDef<AggregatedRow>[]>(
         () => [
             {
                 accessorKey: 'exploreName',
@@ -300,7 +300,7 @@ const PreAggregateStatsTable: FC<Props> = ({
         [projectUuid],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredRows,
         enableColumnResizing: false,
@@ -415,7 +415,7 @@ const PreAggregateStatsTable: FC<Props> = ({
         onSortingChange: setSorting,
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 export default PreAggregateStatsTable;

@@ -4,6 +4,11 @@ import { StringCodec, type Consumer, type JsMsg } from 'nats';
 import { z } from 'zod';
 import { type NatsClient } from '../clients/NatsClient';
 import Logger from '../logging/logger';
+import { type QueryHistoryModel } from '../models/QueryHistoryModel/QueryHistoryModel';
+import {
+    noopOrganizationNameResolver,
+    type OrganizationNameResolver,
+} from '../sentry/organizationNameResolver';
 import { type AsyncQueryService } from '../services/AsyncQueryService/AsyncQueryService';
 import {
     STREAM_CONFIGS,
@@ -34,8 +39,10 @@ type ParsedMessage = {
 type NatsWorkerArgs = {
     natsClient: NatsClient;
     asyncQueryService: AsyncQueryService;
+    queryHistoryModel: QueryHistoryModel;
     streams: NatsWorkerStream[];
     workerConcurrency: number;
+    resolveOrganizationName?: OrganizationNameResolver;
 };
 
 const FETCH_EXPIRES_MS = 30 * 1000;
@@ -46,6 +53,8 @@ export class NatsWorker {
 
     private readonly natsClient: NatsClient;
 
+    private readonly queryHistoryModel: QueryHistoryModel;
+
     private readonly codec = StringCodec();
 
     private readonly activeConfigs: StreamConfig[];
@@ -53,6 +62,8 @@ export class NatsWorker {
     private consumePromise: Promise<void> | undefined;
 
     private readonly workerConcurrency: number;
+
+    private readonly resolveOrganizationName: OrganizationNameResolver;
 
     public isRunning = false;
 
@@ -64,7 +75,10 @@ export class NatsWorker {
     constructor(args: NatsWorkerArgs) {
         this.natsClient = args.natsClient;
         this.asyncQueryService = args.asyncQueryService;
+        this.queryHistoryModel = args.queryHistoryModel;
         this.workerConcurrency = args.workerConcurrency;
+        this.resolveOrganizationName =
+            args.resolveOrganizationName ?? noopOrganizationNameResolver;
         this.activeConfigs = args.streams
             .filter((s) => STREAM_CONFIGS[s] !== undefined)
             .map((s) => STREAM_CONFIGS[s]);
@@ -191,20 +205,30 @@ export class NatsWorker {
                         baggage: parsed.trace.baggageHeader,
                     },
                     () =>
-                        Sentry.startSpan(
-                            {
-                                op: 'queue.process',
-                                name: 'queue_consumer',
-                                attributes: {
-                                    'messaging.message.id': parsed.jobId ?? '',
-                                    'messaging.destination.name':
-                                        message.subject,
-                                    'lightdash.queryUuid':
-                                        parsed.payload.queryUuid,
+                        Sentry.withIsolationScope(() =>
+                            Sentry.startSpan(
+                                {
+                                    op: 'queue.process',
+                                    name: 'queue_consumer',
+                                    attributes: {
+                                        'messaging.message.id':
+                                            parsed.jobId ?? '',
+                                        'messaging.destination.name':
+                                            message.subject,
+                                        'lightdash.queryUuid':
+                                            parsed.payload.queryUuid,
+                                    },
                                 },
-                            },
-                            () =>
-                                runQuery(parsed.payload.queryUuid, workerLabel),
+                                async () => {
+                                    await this.applyQuerySentryContext(
+                                        parsed.payload.queryUuid,
+                                    );
+                                    return runQuery(
+                                        parsed.payload.queryUuid,
+                                        workerLabel,
+                                    );
+                                },
+                            ),
                         ),
                 ),
             );
@@ -288,6 +312,42 @@ export class NatsWorker {
                 error,
             );
             return null;
+        }
+    }
+
+    private async applyQuerySentryContext(queryUuid: string): Promise<void> {
+        try {
+            const queryHistory =
+                await this.queryHistoryModel.getByQueryUuid(queryUuid);
+            if (!queryHistory) return;
+
+            const { organizationUuid, createdByUserUuid } = queryHistory;
+
+            const organizationName = organizationUuid
+                ? await this.resolveOrganizationName(organizationUuid).catch(
+                      () => undefined,
+                  )
+                : undefined;
+
+            if (createdByUserUuid) {
+                Sentry.setUser({
+                    id: createdByUserUuid,
+                    organization: organizationUuid,
+                });
+            }
+
+            Sentry.setTags({
+                ...(organizationUuid && {
+                    'organization.uuid': organizationUuid,
+                }),
+                ...(organizationName && {
+                    'organization.name': organizationName,
+                }),
+            });
+        } catch (error) {
+            Logger.debug(
+                `Failed to enrich Sentry context for query ${queryUuid}: ${getErrorMessage(error)}`,
+            );
         }
     }
 

@@ -218,13 +218,13 @@ const computeDashboardChartSeries = (
             defaultShowSymbol: firstSerie?.showSymbol,
             defaultAreaStyle: firstSerie?.areaStyle,
             defaultCartesianType: CartesianSeriesType.BAR,
-            availableDimensions: chart.metricQuery.dimensions,
             isStacked: false,
             pivotKeys: validPivotDimensions,
             resultsData: resultData,
             xField: chart.chartConfig.config.layout.xField,
             yFields: chart.chartConfig.config.layout.yField,
             defaultLabel: firstSerie?.label,
+            defaultStackLabel: firstSerie?.stackLabel,
             itemsMap,
             columnLimit: chart.chartConfig.config.columnLimit,
         });
@@ -368,7 +368,6 @@ const ValidDashboardChartTile: FC<{
                 isLoading={resultsData.isFetchingRows}
                 onSeriesContextMenu={onSeriesContextMenu}
                 columnOrder={chart.tableConfig.columnOrder}
-                pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
                 savedChartUuid={chart.uuid}
                 dashboardFilters={dashboardFilters}
                 invalidateCache={invalidateCache}
@@ -511,7 +510,6 @@ const ValidDashboardChartTileMinimal: FC<{
             isLoading={resultsData.isFetchingRows}
             onSeriesContextMenu={onSeriesContextMenu}
             columnOrder={chart.tableConfig.columnOrder}
-            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={chart.uuid}
             dashboardFilters={dashboardFilters}
             colorPalette={colorPalette}
@@ -1473,6 +1471,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                 <AskAiAgentMenuItem
                                     projectUuid={projectUuid}
                                     chartUuid={savedChartUuid ?? undefined}
+                                    dashboardUuid={dashboardUuid}
                                     clickedFrom="dashboard_chart_tile"
                                 />
 
@@ -2314,19 +2313,15 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
         props.tile.properties?.savedChartUuid,
     );
 
-    // Use fresh chart data from useSavedQuery (which is properly cache-invalidated
-    // on verify/unverify) to keep verification status up-to-date without requiring
-    // a full page refresh.
-    const readyQueryDataWithFreshVerification = useMemo(() => {
+    // Use fresh chart data from useSavedQuery to keep dashboard tiles aligned
+    // with chart edits without requiring a full page refresh.
+    const readyQueryDataWithFreshChart = useMemo(() => {
         if (!readyQuery.data) return undefined;
         const freshChart = readyQuery.chartQuery?.data;
         if (!freshChart) return readyQuery.data;
         return {
             ...readyQuery.data,
-            chart: {
-                ...readyQuery.data.chart,
-                verification: freshChart.verification,
-            },
+            chart: freshChart,
         };
     }, [readyQuery.data, readyQuery.chartQuery?.data]);
 
@@ -2358,7 +2353,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
             {...props}
             isLoading={isLoading}
             resultsData={resultsData}
-            dashboardChartReadyQuery={readyQueryDataWithFreshVerification}
+            dashboardChartReadyQuery={readyQueryDataWithFreshChart}
             error={orphanedChartError ?? readyQuery.error ?? resultsData.error}
         />
     );

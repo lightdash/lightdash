@@ -233,6 +233,14 @@ const AppPromptEditor = forwardRef<AppPromptEditorHandle, Props>(
             editor?.setEditable(!disabled);
         }, [editor, disabled]);
 
+        const hasAutoFocused = useRef(false);
+        useEffect(() => {
+            if (!hasAutoFocused.current && autoFocus && editor && !disabled) {
+                editor.commands.focus('end');
+                hasAutoFocused.current = true;
+            }
+        }, [autoFocus, disabled, editor]);
+
         useImperativeHandle(
             ref,
             () => ({

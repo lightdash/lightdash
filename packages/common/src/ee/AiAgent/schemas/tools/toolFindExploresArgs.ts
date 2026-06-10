@@ -5,21 +5,18 @@ import { createToolSchema } from '../toolSchemaBuilder';
 export const TOOL_FIND_EXPLORES_DESCRIPTION = `Tool: findExplores
 
 Purpose:
-Returns an explore with all its fields, joined tables, AI hints and descriptions. When multiple explores match your search, also returns alternative explores and top 50 matching fields across ALL explores.
+Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
-- searchQuery: Full user query for finding relevant explores
+- searchQuery: Keyword terms for finding relevant explores
 
 Output:
-- Selected explore with all fields and metadata (including fields from joined tables)
-- Alternative explores (if multiple matches) with searchRank scores
+- Matching explores with searchRank scores
 - Top matching fields with their explore names and searchRank scores
 `;
 
-export const toolFindExploresArgsSchemaV1 = createToolSchema({
-    description: TOOL_FIND_EXPLORES_DESCRIPTION,
-})
+export const toolFindExploresArgsSchemaV1 = createToolSchema()
     .extend({
         exploreName: z
             .string()
@@ -29,9 +26,7 @@ export const toolFindExploresArgsSchemaV1 = createToolSchema({
     .withPagination()
     .build();
 
-export const toolFindExploresArgsSchemaV2 = createToolSchema({
-    description: TOOL_FIND_EXPLORES_DESCRIPTION,
-})
+export const toolFindExploresArgsSchemaV2 = createToolSchema()
     .extend({
         exploreName: z
             .string()
@@ -39,15 +34,13 @@ export const toolFindExploresArgsSchemaV2 = createToolSchema({
     })
     .build();
 
-export const toolFindExploresArgsSchemaV3 = createToolSchema({
-    description: TOOL_FIND_EXPLORES_DESCRIPTION,
-})
+export const toolFindExploresArgsSchemaV3 = createToolSchema()
     .extend({
         // TODO: check if we need to add exploreName back in for backward compatibility
         searchQuery: z
             .string()
             .describe(
-                'The full user query or search terms to help find the most relevant explore. Use the complete user request for better search results.',
+                "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore and field name, label, and description. Prefer metric/entity/dimension nouns that capture the user's analytical intent.",
             ),
     })
     .build();
@@ -76,6 +69,7 @@ export const findExploresRankingMetadataSchema = z.object({
                 fieldType: z.string(),
                 searchRank: z.number().nullable().optional(),
                 chartUsage: z.number().nullable().optional(),
+                verifiedChartUsage: z.number().nullable().optional(),
             }),
         )
         .optional(),

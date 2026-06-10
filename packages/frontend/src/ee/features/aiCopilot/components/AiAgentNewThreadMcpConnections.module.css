@@ -1,0 +1,22 @@
+.connectionStrip {
+    align-self: center;
+    width: 100%;
+    max-width: min(100%, rem(760px));
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-lg);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+        color: var(--mantine-color-ldGray-7);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+        color: var(--mantine-color-ldGray-3);
+    }
+}
+
+.connectionIcon {
+    flex-shrink: 0;
+    margin-top: rem(1px);
+}

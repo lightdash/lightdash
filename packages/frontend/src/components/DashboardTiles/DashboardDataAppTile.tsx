@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { type DashboardDataAppTile } from '@lightdash/common';
+import {
+    hashStringToBase36,
+    ProjectType,
+    type DashboardDataAppTile,
+} from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
 import { IconAppsOff, IconPencil } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
@@ -9,9 +13,13 @@ import { useAppPreviewToken } from '../../features/apps/hooks/useAppPreviewToken
 import { useGetApp } from '../../features/apps/hooks/useGetApp';
 import { usePreviewOrigin } from '../../features/apps/previewOrigin';
 import { DashboardTileComments } from '../../features/comments';
+import useDashboardFiltersForTile from '../../hooks/dashboard/useDashboardFiltersForTile';
+import { useProject } from '../../hooks/useProject';
 import { useSpaceSummaries } from '../../hooks/useSpaces';
 import useApp from '../../providers/App/useApp';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
+import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
+import { convertDateDashboardFilters } from '../../utils/dateFilter';
 import LinkMenuItem from '../common/LinkMenuItem';
 import MantineIcon from '../common/MantineIcon';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -49,7 +57,32 @@ const DataAppTile: FC<Props> = (props) => {
         [showComments, isCommentsMenuOpen, uuid],
     );
 
+    // Tile-scoped dashboard filters (drops filters the admin disabled for
+    // this tile via tileTargets). The backend additionally drops filters
+    // whose target field isn't in a given query's explore — an app may
+    // query multiple explores.
+    const tileDashboardFilters = useDashboardFiltersForTile(uuid);
+    const dashboardFiltersForApp = useMemo(
+        () => convertDateDashboardFilters(tileDashboardFilters),
+        [tileDashboardFilters],
+    );
+
+    // The dashboard refresh button bumps `refreshCounter` and flips
+    // `invalidateCache` (both via `clearCacheAndFetch`). Chart tiles re-fetch
+    // through React Query; this iframe re-fires its mount-time queries only on
+    // reload, so we bake the counter into the URL to force one, and forward
+    // invalidateCache so those re-fired queries bypass the warehouse cache —
+    // matching how a chart refreshes.
+    const invalidateCache = useDashboardTileStatusContext(
+        (c) => c.invalidateCache,
+    );
+    const refreshCounter = useDashboardTileStatusContext(
+        (c) => c.refreshCounter,
+    );
+
     const previewOrigin = usePreviewOrigin();
+    const { data: project } = useProject(projectUuid);
+    const isPreviewProject = project?.type === ProjectType.PREVIEW;
     // Skip the network calls when the backend already told us the app is
     // gone — `useGetApp` would 404 anyway, but bypassing the request avoids
     // a noisy log entry and a wasted round trip on every dashboard load.
@@ -100,9 +133,22 @@ const DataAppTile: FC<Props> = (props) => {
         error: tokenError,
     } = useAppPreviewToken(projectUuid, appUuid, latestReadyVersion);
 
+    // Bump the iframe URL whenever the active filters change so the app
+    // reloads and its mount-time metric queries re-fire — by then the bridge
+    // is stamping the new filters onto every outgoing call. Without this the
+    // bridge sees no new traffic until the user manually refreshes.
+    //
+    // Hash rather than serialize the filters: the app reads them from the
+    // bridge, not this URL, and embedding the full object made the URL grow
+    // with filters × tiles and 502 on large dashboards.
+    const filtersKey = useMemo(
+        () => hashStringToBase36(JSON.stringify(dashboardFiltersForApp)),
+        [dashboardFiltersForApp],
+    );
+
     const previewUrl =
         token && latestReadyVersion
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/?token=${token}#transport=postMessage&projectUuid=${projectUuid}`
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/?f=${filtersKey}&r=${refreshCounter}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
     const isForbidden =
@@ -135,8 +181,12 @@ const DataAppTile: FC<Props> = (props) => {
                 {isNotFound ? (
                     <SuboptimalState
                         icon={IconAppsOff}
-                        title="Data app not found"
-                        description="This data app no longer exists. Edit the tile to pick another app."
+                        title="Data app not available"
+                        description={
+                            isPreviewProject
+                                ? "Data apps aren't duplicated into preview environments yet. You can however edit or remove the tile itself."
+                                : 'This data app no longer exists. Edit the tile to pick another app.'
+                        }
                     />
                 ) : isForbidden ? (
                     <SuboptimalState
@@ -165,6 +215,8 @@ const DataAppTile: FC<Props> = (props) => {
                         src={previewUrl}
                         expectedPreviewOrigin={previewOrigin}
                         identityKey={`${appUuid}:${latestReadyVersion}`}
+                        dashboardFilters={dashboardFiltersForApp}
+                        invalidateCache={invalidateCache}
                     />
                 )}
             </Box>

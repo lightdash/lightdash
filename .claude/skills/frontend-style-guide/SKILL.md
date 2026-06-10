@@ -227,6 +227,45 @@ Before moving styles to CSS modules, check if they're actually needed:
 </Flex>
 ```
 
+## Shared Layout CSS Variables (heights, widths, z-indexes)
+
+Cross-cutting layout constants (navbar/header/banner/footer heights, page content
+widths, sidebar dimensions, dashboard header/tab heights and z-indexes) are exposed
+as **global CSS variables** so CSS modules can use them directly:
+
+```css
+/* ✅ Reference the global var — resolves on :root everywhere */
+.myPanel {
+    top: var(--dashboard-header-height);
+    max-width: var(--page-content-max-width-large);
+}
+```
+
+```css
+/* ❌ Don't hardcode the literal — drifts from the source of truth */
+.myPanel {
+    top: 50px;
+}
+```
+
+```tsx
+// ❌ Don't bridge a constant into CSS via an inline style object
+<div style={{ '--dashboard-header-height': `${DASHBOARD_HEADER_HEIGHT}px` }}>
+```
+
+**Source of truth:** the numeric values live in their `*/constants.ts` files
+(e.g. `components/common/Page/constants.ts`,
+`components/common/Dashboard/dashboard.constants.ts`) and are registered as CSS
+variables in **`src/mantine8CssVariablesResolver.ts`** (wired into `Mantine8Provider`
+via Mantine's `cssVariablesResolver`). Read that file for the full list of available
+`var(--...)` names before defining your own.
+
+**To add a new shared layout constant:** add the number to the relevant
+`constants.ts`, register it in `mantine8CssVariablesResolver.ts`, then reference
+`var(--your-name)` in CSS. Don't re-declare the literal in a `.module.css` file and
+don't pass it through an inline `style`. Keep using the numeric constant directly in
+TS where you need it as a JS value (e.g. a Mantine `h=` prop).
+
 ## Theme-Aware Component Logic
 
 For JavaScript logic that needs to know the current theme:
@@ -326,6 +365,11 @@ Both accept all props of their base component (`GroupProps` / `PaperProps`) plus
 // ✅ Accepts any Text prop
 <TruncatedText maxWidth="100%" fw={500}>{space.name}</TruncatedText>
 ```
+
+### Tables with search, pagination, and sorting
+
+Use the `ContentTable` component from `components/common/ContentTable` for tables with search, pagination, and sorting.
+If you need filters, use FilterFacet
 
 ## Mantine Documentation
 

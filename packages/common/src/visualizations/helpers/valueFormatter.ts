@@ -9,7 +9,7 @@ export const getFormattedValue = (
     key: string,
     itemsMap: ItemsMap,
     convertToUTC: boolean = true,
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
     parameters?: ParametersValuesMap,
     timezone?: string,
     displayTimezone?: string,
@@ -30,7 +30,7 @@ export const valueFormatter =
     (
         yFieldId: string,
         itemsMap: ItemsMap,
-        pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+        pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
         parameters?: ParametersValuesMap,
         timezone?: string,
         displayTimezone?: string,

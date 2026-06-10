@@ -80,7 +80,10 @@ import { SpaceTableName } from '../../database/entities/spaces';
 import { UserTable, UserTableName } from '../../database/entities/users';
 import { DbValidationTable } from '../../database/entities/validation';
 import Logger from '../../logging/logger';
-import { generateUniqueSlug } from '../../utils/SlugUtils';
+import {
+    acquireProjectSlugLock,
+    generateUniqueSlug,
+} from '../../utils/SlugUtils';
 import { ContentVerificationModel } from '../ContentVerificationModel';
 import { SpaceModel } from '../SpaceModel';
 import Transaction = Knex.Transaction;
@@ -131,22 +134,16 @@ export type GetChartTileQuery = Pick<
 
 type DashboardModelArguments = {
     database: Knex;
-    lightdashConfig?: {
-        dashboard: { versionHistory: { daysLimit: number } };
-    };
     contentVerificationModel?: ContentVerificationModel;
 };
 
 export class DashboardModel {
     private readonly database: Knex;
 
-    private readonly lightdashConfig?: DashboardModelArguments['lightdashConfig'];
-
     private contentVerificationModel: ContentVerificationModel | undefined;
 
     constructor(args: DashboardModelArguments) {
         this.database = args.database;
-        this.lightdashConfig = args.lightdashConfig;
         this.contentVerificationModel = args.contentVerificationModel;
     }
 
@@ -1097,8 +1094,13 @@ export class DashboardModel {
                 dashboard.dashboard_id,
             );
 
-        const tableCalculationFilters = view?.filters?.tableCalculations;
-        view.filters.tableCalculations = tableCalculationFilters || [];
+        // A version may have no dashboard_views row (e.g. legacy or partially
+        // written data). Guard the backfill — the return below already defaults
+        // `filters` when `view` is absent.
+        if (view?.filters) {
+            view.filters.tableCalculations =
+                view.filters.tableCalculations || [];
+        }
 
         const verification =
             (await this.contentVerificationModel?.getByContent(
@@ -1286,6 +1288,33 @@ export class DashboardModel {
         projectUuid: string,
     ): Promise<DashboardDAO> {
         const dashboardId = await this.database.transaction(async (trx) => {
+            if (dashboard.forceSlug) {
+                // Forced slugs (content-as-code / promotion) skip unique-slug
+                // generation, and there is no DB unique constraint on the slug.
+                // Serialize concurrent creates of the same (project, slug) and
+                // dedupe against a row a racing upsert already created, so we
+                // never insert a duplicate slug (PROD-7883).
+                await acquireProjectSlugLock(trx, projectUuid, dashboard.slug);
+                const [existing] = await trx(DashboardsTableName)
+                    .innerJoin(
+                        SpaceTableName,
+                        `${SpaceTableName}.space_id`,
+                        `${DashboardsTableName}.space_id`,
+                    )
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .where(`${DashboardsTableName}.slug`, dashboard.slug)
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .select(`${DashboardsTableName}.dashboard_uuid`);
+                if (existing) {
+                    return existing.dashboard_uuid;
+                }
+            }
+
             const [space] = await trx(SpaceTableName)
                 .where('space_uuid', spaceUuid)
                 .select(`${SpaceTableName}.*`)
@@ -1603,6 +1632,70 @@ export class DashboardModel {
         return !!result;
     }
 
+    async savedSqlChartExistsInDashboard(
+        projectUuid: string,
+        dashboardUuid: string,
+        savedSqlUuid: string,
+    ): Promise<boolean> {
+        const cteName = 'latest_dashboard_version_cte';
+
+        const result = await this.database
+            .with(cteName, (qb) => {
+                void qb
+                    .select({
+                        dashboard_uuid: `${DashboardsTableName}.dashboard_uuid`,
+                        dashboard_version_id: this.database.raw(
+                            `MAX(${DashboardVersionsTableName}.dashboard_version_id)`,
+                        ),
+                    })
+                    .from(DashboardsTableName)
+                    .innerJoin(
+                        DashboardVersionsTableName,
+                        `${DashboardsTableName}.dashboard_id`,
+                        `${DashboardVersionsTableName}.dashboard_id`,
+                    )
+                    .innerJoin(
+                        SpaceTableName,
+                        `${DashboardsTableName}.space_id`,
+                        `${SpaceTableName}.space_id`,
+                    )
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .where(
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        dashboardUuid,
+                    )
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .whereNull(`${DashboardsTableName}.deleted_at`)
+                    .groupBy(`${DashboardsTableName}.dashboard_uuid`);
+            })
+            .select<
+                {
+                    dashboard_uuid: string;
+                }[]
+            >(`${cteName}.dashboard_uuid`)
+            .from(cteName)
+            .innerJoin(
+                DashboardTileSqlChartTableName,
+                `${cteName}.dashboard_version_id`,
+                `${DashboardTileSqlChartTableName}.dashboard_version_id`,
+            )
+            .innerJoin(SavedSqlTableName, function savedSqlJoin() {
+                this.on(
+                    `${DashboardTileSqlChartTableName}.saved_sql_uuid`,
+                    '=',
+                    `${SavedSqlTableName}.saved_sql_uuid`,
+                ).andOnNull(`${SavedSqlTableName}.deleted_at`);
+            })
+            .where(`${SavedSqlTableName}.saved_sql_uuid`, savedSqlUuid)
+            .first();
+
+        return !!result;
+    }
+
     async findInfoForDbtExposures(projectUuid: string): Promise<
         Array<
             Pick<DashboardDAO, 'uuid' | 'name' | 'description'> &
@@ -1678,19 +1771,6 @@ export class DashboardModel {
             .whereNull(`${DashboardsTableName}.deleted_at`);
     }
 
-    private getLastVersionUuidQuery(dashboardUuid: string) {
-        return this.database(DashboardVersionsTableName)
-            .select(`${DashboardVersionsTableName}.dashboard_version_uuid`)
-            .innerJoin(
-                DashboardsTableName,
-                `${DashboardsTableName}.dashboard_id`,
-                `${DashboardVersionsTableName}.dashboard_id`,
-            )
-            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
-            .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
-            .limit(1);
-    }
-
     async getVersionSummaryByUuid(
         dashboardUuid: string,
         versionUuid: string,
@@ -1751,11 +1831,6 @@ export class DashboardModel {
     async getLatestVersionSummaries(
         dashboardUuid: string,
     ): Promise<DashboardVersionSummary[]> {
-        const daysLimit =
-            this.lightdashConfig?.dashboard.versionHistory.daysLimit ?? 3;
-        const getLastVersionUuidSubQuery =
-            this.getLastVersionUuidQuery(dashboardUuid);
-
         type VersionSummaryRow = {
             dashboard_uuid: string;
             dashboard_version_uuid: string;
@@ -1785,15 +1860,6 @@ export class DashboardModel {
                 `${UserTableName}.last_name`,
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
-            .andWhere(function whereRecentVersionsOrCurrentVersion() {
-                void this.whereRaw(
-                    `${DashboardVersionsTableName}.created_at >= DATE(current_timestamp - interval '?? days')`,
-                    [daysLimit],
-                ).orWhere(
-                    `${DashboardVersionsTableName}.dashboard_version_uuid`,
-                    getLastVersionUuidSubQuery,
-                );
-            })
             .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc');
 
         const mapRow = (row: VersionSummaryRow): DashboardVersionSummary => ({
@@ -1808,39 +1874,6 @@ export class DashboardModel {
                   }
                 : null,
         });
-
-        // If there's only one version in the date range (the current one),
-        // also fetch the previous version for comparison
-        if (versions.length === 1) {
-            const oldVersions = await this.database(DashboardVersionsTableName)
-                .innerJoin(
-                    DashboardsTableName,
-                    `${DashboardsTableName}.dashboard_id`,
-                    `${DashboardVersionsTableName}.dashboard_id`,
-                )
-                .leftJoin(
-                    UserTableName,
-                    `${UserTableName}.user_uuid`,
-                    `${DashboardVersionsTableName}.updated_by_user_uuid`,
-                )
-                .select<VersionSummaryRow[]>(
-                    `${DashboardsTableName}.dashboard_uuid`,
-                    `${DashboardVersionsTableName}.dashboard_version_uuid`,
-                    `${DashboardVersionsTableName}.created_at`,
-                    `${UserTableName}.user_uuid`,
-                    `${UserTableName}.first_name`,
-                    `${UserTableName}.last_name`,
-                )
-                .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
-                .andWhereNot(
-                    `${DashboardVersionsTableName}.dashboard_version_uuid`,
-                    versions[0].dashboard_version_uuid,
-                )
-                .orderBy(`${DashboardVersionsTableName}.created_at`, 'desc')
-                .limit(1);
-
-            return [...versions, ...oldVersions].map(mapRow);
-        }
 
         return versions.map(mapRow);
     }
@@ -2129,8 +2162,13 @@ export class DashboardModel {
                 dashboard.dashboard_id,
             );
 
-        const tableCalculationFilters = view?.filters?.tableCalculations;
-        view.filters.tableCalculations = tableCalculationFilters || [];
+        // A version may have no dashboard_views row (e.g. legacy or partially
+        // written data). Guard the backfill — the return below already defaults
+        // `filters` when `view` is absent.
+        if (view?.filters) {
+            view.filters.tableCalculations =
+                view.filters.tableCalculations || [];
+        }
 
         const verification =
             (await this.contentVerificationModel?.getByContent(

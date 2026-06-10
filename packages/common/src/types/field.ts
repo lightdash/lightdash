@@ -64,6 +64,7 @@ export enum NumberSeparator {
     SPACE_PERIOD = 'spacePeriod', // 100 000.00
     PERIOD_COMMA = 'periodComma', // 100.000,00
     NO_SEPARATOR_PERIOD = 'noSeparatorPeriod', // 100000.00
+    APOSTROPHE_PERIOD = 'apostrophePeriod', // 100'000.00
 }
 type CompactConfig = {
     compact: Compact;
@@ -602,6 +603,12 @@ export interface Field {
     round?: number;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
     /**
+     * Number separator style for grouping/decimal characters. Composes with
+     * `format` (including ECMA-376 expressions) and `formatOptions` — it only
+     * controls the separator characters, not the format shape.
+     */
+    separator?: NumberSeparator;
+    /**
      * @deprecated Use groups property instead.
      */
     groupLabel?: string;
@@ -907,6 +914,8 @@ export interface Metric extends Field {
         categories?: string[]; // yaml_reference
         filterBy?: string[]; // dimension IDs allowlist
         segmentBy?: string[]; // dimension IDs allowlist
+        defaultSegment?: string; // dimension name pre-selected in Segment by
+        defaultFilter?: MetricFilterRule; // parsed single default filter
         owner?: string; // metric owner email
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')

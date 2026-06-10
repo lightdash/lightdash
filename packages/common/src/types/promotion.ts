@@ -32,6 +32,11 @@ export type PromotedSqlChart = {
     spacePath: string;
 };
 
+export type PromotedApp = {
+    uuid: string;
+    name: string;
+};
+
 export type PromotionChanges = {
     spaces: {
         action: PromotionAction;
@@ -48,6 +53,12 @@ export type PromotionChanges = {
     sqlCharts?: {
         action: PromotionAction;
         data: PromotedSqlChart;
+    }[];
+    // Data apps referenced by DATA_APP dashboard tiles. Only populated for
+    // dashboard promotion; charts/SQL charts never carry apps.
+    dataApps?: {
+        action: PromotionAction;
+        data: PromotedApp;
     }[];
 };
 

@@ -251,7 +251,7 @@ export type DbSavedChartAdditionalMetric = {
     filters: MetricFilterRule[] | null; // JSONB
     base_dimension_name: string | null;
     uuid: string;
-    format_options?: CustomFormat | null; // JSONB
+    format_options?: CustomFormat | string | null; // JSONB
     // PoP metadata (optional)
     generation_type?: string | null;
     base_metric_id?: string | null;

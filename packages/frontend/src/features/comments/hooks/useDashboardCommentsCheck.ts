@@ -16,6 +16,11 @@ export const useDashboardCommentsCheck = (
         'DashboardComments',
     );
 
+    const canManageDashboardComments = !!user?.ability?.can(
+        'manage',
+        'DashboardComments',
+    );
+
     // Default-on; opt out via DISABLE_DASHBOARD_COMMENTS=true on the backend.
     const isDashboardCommentsEnabled =
         health.data?.dashboardComments?.enabled ?? true;
@@ -25,5 +30,7 @@ export const useDashboardCommentsCheck = (
             isDashboardCommentsEnabled && canViewDashboardComments,
         canCreateDashboardComments:
             isDashboardCommentsEnabled && canCreateDashboardComments,
+        canManageDashboardComments:
+            isDashboardCommentsEnabled && canManageDashboardComments,
     };
 };

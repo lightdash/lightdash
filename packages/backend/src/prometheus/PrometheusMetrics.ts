@@ -13,6 +13,7 @@ import path from 'path';
 import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
 import { z } from 'zod';
+import { AI_WRITEBACK_STAGES } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateMaterializationsTableName } from '../ee/database/entities/preAggregates';
 import Logger from '../logging/logger';
@@ -56,6 +57,20 @@ export function getQueryContextLabel(
     return SCHEDULED_CONTEXTS.has(context) ? 'scheduled' : 'interactive';
 }
 
+export function getHttpUriLabel(req: express.Request): string {
+    const { route } = req;
+    if (route?.path !== undefined) {
+        const base = req.baseUrl ?? '';
+        const pathPart = route.path === '/' ? '' : route.path;
+        const combined = `${base}${pathPart}`;
+        return combined.length > 0 ? combined : '/';
+    }
+    if (req.path?.startsWith('/assets/')) {
+        return '/assets/*';
+    }
+    return 'unmatched';
+}
+
 export default class PrometheusMetrics {
     private readonly config: LightdashConfig['prometheus'];
 
@@ -76,6 +91,26 @@ export default class PrometheusMetrics {
     public aiAgentStreamFirstChunkHistogram: prometheus.Histogram | null = null;
 
     public aiAgentTTFTHistogram: prometheus.Histogram | null = null;
+
+    // repoShell (read-only repo VFS) GitHub API latency
+    public repoFsGithubTreeDurationHistogram: prometheus.Histogram | null =
+        null;
+
+    public repoFsGithubFileDurationHistogram: prometheus.Histogram<'outcome'> | null =
+        null;
+
+    // AI writeback (E2B sandbox) latency
+    public aiWritebackSandboxCreateDurationHistogram: prometheus.Histogram | null =
+        null;
+
+    public aiWritebackCompileDurationHistogram: prometheus.Histogram<'status'> | null =
+        null;
+
+    public aiWritebackRunDurationHistogram: prometheus.Histogram<'status'> | null =
+        null;
+
+    public aiWritebackStageDurationHistogram: prometheus.Histogram<'stage'> | null =
+        null;
 
     // Pre-aggregate metrics
     public preAggregateMatchCounter: prometheus.Counter<string> | null = null;
@@ -142,8 +177,35 @@ export default class PrometheusMetrics {
 
     private overheadDurationHistogram: prometheus.Histogram | null = null;
 
+    private httpServerRequestsDurationSeconds: prometheus.Histogram<
+        'method' | 'uri' | 'status_code'
+    > | null = null;
+
     constructor(config: LightdashConfig['prometheus']) {
         this.config = config;
+    }
+
+    public httpServerRequestMetricsMiddleware(): express.RequestHandler {
+        return (req, res, next) => {
+            const histogram = this.httpServerRequestsDurationSeconds;
+            if (!histogram) {
+                next();
+                return;
+            }
+            const start = process.hrtime.bigint();
+            res.on('finish', () => {
+                const seconds = Number(process.hrtime.bigint() - start) / 1e9;
+                histogram.observe(
+                    {
+                        method: req.method,
+                        uri: getHttpUriLabel(req),
+                        status_code: String(res.statusCode),
+                    },
+                    seconds,
+                );
+            });
+            next();
+        };
     }
 
     public start() {
@@ -212,6 +274,20 @@ export default class PrometheusMetrics {
                     buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120],
                     ...rest,
                 });
+
+                if (this.config.extendedMetricsEnabled) {
+                    this.httpServerRequestsDurationSeconds =
+                        new prometheus.Histogram({
+                            name: 'http_server_requests_seconds',
+                            help: 'HTTP server request duration in seconds',
+                            labelNames: ['method', 'uri', 'status_code'],
+                            buckets: [
+                                0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1,
+                                2.5, 5, 10, 30, 60, 120,
+                            ],
+                            ...rest,
+                        });
+                }
 
                 // Initialize AI Agent response time histograms
                 this.aiAgentGenerateResponseDurationHistogram =
@@ -316,6 +392,97 @@ export default class PrometheusMetrics {
                         120000, // 2 minutes
                     ],
                     ...rest,
+                });
+
+                // repoShell GitHub API latency (per-request round-trips)
+                const githubRequestBuckets = [
+                    25, 50, 100, 150, 200, 300, 500, 750, 1000, 2000, 5000,
+                    10000,
+                ];
+                this.repoFsGithubTreeDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_repofs_github_tree_duration_ms',
+                        help: 'repoShell GitHub Git Trees fetch (repo file listing) duration in ms',
+                        buckets: githubRequestBuckets,
+                        ...rest,
+                    });
+
+                this.repoFsGithubFileDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_repofs_github_file_duration_ms',
+                        help: 'repoShell GitHub Contents fetch (per file) duration in ms',
+                        labelNames: ['outcome'],
+                        buckets: githubRequestBuckets,
+                        ...rest,
+                    });
+
+                // AI writeback (E2B sandbox) latency
+                this.aiWritebackSandboxCreateDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_writeback_sandbox_create_duration_ms',
+                        help: 'AI writeback E2B sandbox creation duration in ms',
+                        buckets: [
+                            250, 500, 1000, 2500, 5000, 10000, 20000, 30000,
+                            60000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiWritebackCompileDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_writeback_compile_duration_ms',
+                        help: 'AI writeback `lightdash compile` (in sandbox) duration in ms',
+                        labelNames: ['status'],
+                        buckets: [
+                            1000, 2500, 5000, 10000, 20000, 30000, 45000, 60000,
+                            90000, 120000,
+                        ],
+                        ...rest,
+                    });
+
+                this.aiWritebackRunDurationHistogram = new prometheus.Histogram(
+                    {
+                        name: 'ai_writeback_run_duration_ms',
+                        help: 'AI writeback end-to-end run duration in ms',
+                        labelNames: ['status'],
+                        buckets: [
+                            5000, 10000, 30000, 60000, 120000, 180000, 240000,
+                            300000, 480000, 600000, 900000,
+                        ],
+                        ...rest,
+                    },
+                );
+
+                // Per-stage latency budget for a writeback run. The 'agent'
+                // stage is the time the in-sandbox agent spends working on the
+                // problem; the others (install/sandbox/clone/commit/push/
+                // pull_request) account for the surrounding pipeline.
+                this.aiWritebackStageDurationHistogram =
+                    new prometheus.Histogram({
+                        name: 'ai_writeback_stage_duration_ms',
+                        help: 'AI writeback per-stage duration in ms (install, sandbox, clone, agent, commit, push, pull_request)',
+                        labelNames: ['stage'],
+                        buckets: [
+                            100, 250, 500, 1000, 2500, 5000, 10000, 30000,
+                            60000, 120000, 240000, 480000, 900000,
+                        ],
+                        ...rest,
+                    });
+
+                // Pre-create every known label combination so each series
+                // exports a zero baseline from process start. Without this,
+                // Managed Prometheus treats the first observed sample of a
+                // new labelled series as the counter-reset baseline and the
+                // entire first burst of observations is invisible to rate().
+                (['found', 'missing', 'error'] as const).forEach((outcome) => {
+                    this.repoFsGithubFileDurationHistogram?.zero({ outcome });
+                });
+                (['success', 'error'] as const).forEach((status) => {
+                    this.aiWritebackCompileDurationHistogram?.zero({ status });
+                    this.aiWritebackRunDurationHistogram?.zero({ status });
+                });
+                AI_WRITEBACK_STAGES.forEach((stage) => {
+                    this.aiWritebackStageDurationHistogram?.zero({ stage });
                 });
 
                 // Initialize pre-aggregate metrics
@@ -959,6 +1126,45 @@ export default class PrometheusMetrics {
             );
         }
     };
+
+    public observeRepoFsGithubTreeDuration(durationMs: number) {
+        this.repoFsGithubTreeDurationHistogram?.observe(durationMs);
+    }
+
+    public observeRepoFsGithubFileDuration(
+        durationMs: number,
+        outcome: 'found' | 'missing' | 'error',
+    ) {
+        this.repoFsGithubFileDurationHistogram?.observe(
+            { outcome },
+            durationMs,
+        );
+    }
+
+    public observeAiWritebackSandboxCreateDuration(durationMs: number) {
+        this.aiWritebackSandboxCreateDurationHistogram?.observe(durationMs);
+    }
+
+    public observeAiWritebackCompileDuration(
+        durationMs: number,
+        status: 'success' | 'error',
+    ) {
+        this.aiWritebackCompileDurationHistogram?.observe(
+            { status },
+            durationMs,
+        );
+    }
+
+    public observeAiWritebackRunDuration(
+        durationMs: number,
+        status: 'success' | 'error',
+    ) {
+        this.aiWritebackRunDurationHistogram?.observe({ status }, durationMs);
+    }
+
+    public observeAiWritebackStageDuration(stage: string, durationMs: number) {
+        this.aiWritebackStageDurationHistogram?.observe({ stage }, durationMs);
+    }
 
     public monitorEventMetrics(eventEmitter: EventEmitter) {
         if (!this.config.enabled || !this.config.eventMetricsEnabled) {

@@ -27,6 +27,7 @@ import {
     WarehouseTypes,
     WeekDay,
     type SchedulerTaskName,
+    type UserAttributeSetupEntry,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/core';
 import { type ClientAuthMethod } from 'openid-client';
@@ -139,6 +140,24 @@ export const getObjectFromEnvironmentVariable = (
     }
 };
 
+export const getStringRecordFromEnvironmentVariable = (
+    name: string,
+): Record<string, string> | undefined => {
+    const value = getObjectFromEnvironmentVariable(name);
+    if (value === undefined) {
+        return undefined;
+    }
+
+    const result = z.record(z.string()).safeParse(value);
+    if (!result.success) {
+        throw new ParseError(
+            `Cannot parse environment variable "${name}". Value must be a JSON object with string values. Error: ${result.error.message}`,
+        );
+    }
+
+    return result.data;
+};
+
 const getArrayFromCommaSeparatedList = (envVar: string) => {
     const raw = process.env[envVar];
     if (!raw) {
@@ -150,6 +169,9 @@ const getArrayFromCommaSeparatedList = (envVar: string) => {
         .map((domain) => domain.trim())
         .filter((domain) => domain.length > 0);
 };
+
+const getProviderCustomHeaders = (envVar: string): Record<string, string> =>
+    getStringRecordFromEnvironmentVariable(envVar) ?? {};
 
 export const getHexColorsFromEnvironmentVariable = (
     colorPalette: string | undefined,
@@ -440,6 +462,71 @@ export const getMultiProjectSetupConfig = ():
     return parsed as MultiProjectSetupEntry[];
 };
 
+const userAttributeSetupEntrySchema = z.object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    attributeDefault: z.string().nullable().default(null),
+    groups: z
+        .array(
+            z.object({
+                group: z.string().min(1),
+                value: z.string(),
+            }),
+        )
+        .default([]),
+});
+
+const userAttributesSetupSchema = z.array(userAttributeSetupEntrySchema).refine(
+    (entries) => {
+        const names = entries.map((e) => e.name);
+        return new Set(names).size === names.length;
+    },
+    (entries) => {
+        const names = entries.map((e) => e.name);
+        const duplicate = names.find((name, i) => names.indexOf(name) !== i);
+        return {
+            message: `Duplicate user attribute name "${duplicate}" in LD_SETUP_USER_ATTRIBUTES`,
+        };
+    },
+);
+
+export const getUserAttributesSetupConfig = ():
+    | UserAttributeSetupEntry[]
+    | undefined => {
+    const raw = process.env.LD_SETUP_USER_ATTRIBUTES;
+    if (!raw) return undefined;
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (e) {
+        throw new ParseError(
+            `Failed to parse LD_SETUP_USER_ATTRIBUTES: ${getErrorMessage(e)}`,
+        );
+    }
+
+    if (Array.isArray(parsed) && parsed.length === 0) {
+        return undefined;
+    }
+
+    const result = userAttributesSetupSchema.safeParse(parsed);
+    if (!result.success) {
+        const errorDetails = result.error.errors
+            .map((err) =>
+                err.path.length > 0
+                    ? `  - ${err.path.join('.')}: ${err.message}`
+                    : `  - ${err.message}`,
+            )
+            .join('\n');
+        throw new ParseError(
+            `Invalid LD_SETUP_USER_ATTRIBUTES:\n${errorDetails}\n\n` +
+                `See https://docs.lightdash.com/self-host/customize-deployment/environment-variables for details.`,
+        );
+    }
+
+    return result.data;
+};
+
 const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
     const parseCompute = (): CreateDatabricksCredentials['compute'] => {
         // This is a stringified array of objects, in JSON format
@@ -614,6 +701,7 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
             personal_access_token: process.env.LD_SETUP_GITHUB_PAT,
         },
         projects: getMultiProjectSetupConfig(),
+        userAttributes: getUserAttributesSetupConfig(),
         embed: {
             allowAllDashboards:
                 process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS === 'true',
@@ -648,7 +736,10 @@ export const parseBaseS3Config = (): LightdashConfig['s3'] => {
         .filter((v) => v.length > 0);
 
     if (!endpoint || !bucket || !region) {
-        return undefined;
+        throw new ParseError(
+            'S3-compatible storage is required. Set S3_ENDPOINT, S3_BUCKET and S3_REGION (AWS S3, GCS, MinIO, etc.) - https://docs.lightdash.com/self-host/customize-deployment/environment-variables#s3',
+            {},
+        );
     }
 
     return {
@@ -827,7 +918,11 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
     return ALL_TASK_NAMES;
 };
 
-const getBedrockConfig = () => {
+// Default-on: streaming is disabled only when the env var is the literal 'false'
+const getProviderSupportsStreaming = (envVar: string): boolean =>
+    process.env[envVar] !== 'false';
+
+const getBedrockConfig = (customHeaders: Record<string, string>) => {
     if (process.env.BEDROCK_API_KEY) {
         return {
             apiKey: process.env.BEDROCK_API_KEY,
@@ -839,6 +934,10 @@ const getBedrockConfig = () => {
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
             availableModels: getArrayFromCommaSeparatedList(
                 'BEDROCK_AVAILABLE_MODELS',
+            ),
+            customHeaders,
+            supportsStreaming: getProviderSupportsStreaming(
+                'BEDROCK_SUPPORTS_STREAMING',
             ),
         } as const;
     }
@@ -855,6 +954,10 @@ const getBedrockConfig = () => {
             embeddingModelName: process.env.BEDROCK_EMBEDDING_MODEL,
             availableModels: getArrayFromCommaSeparatedList(
                 'BEDROCK_AVAILABLE_MODELS',
+            ),
+            customHeaders,
+            supportsStreaming: getProviderSupportsStreaming(
+                'BEDROCK_SUPPORTS_STREAMING',
             ),
         } as const;
     }
@@ -890,6 +993,12 @@ export const getAiConfig = () => ({
                       process.env.AZURE_EMBEDDING_DEPLOYMENT_NAME,
                   useDeploymentBasedUrls:
                       process.env.AZURE_USE_DEPLOYMENT_BASED_URLS !== 'false',
+                  customHeaders: getProviderCustomHeaders(
+                      'AZURE_AI_CUSTOM_HEADERS',
+                  ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'AZURE_AI_SUPPORTS_STREAMING',
+                  ),
               }
             : undefined,
         openai: process.env.OPENAI_API_KEY
@@ -907,6 +1016,12 @@ export const getAiConfig = () => ({
                   ),
                   zeroDataRetention:
                       process.env.OPENAI_ZERO_DATA_RETENTION === 'true',
+                  customHeaders: getProviderCustomHeaders(
+                      'OPENAI_CUSTOM_HEADERS',
+                  ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'OPENAI_SUPPORTS_STREAMING',
+                  ),
               }
             : undefined,
         anthropic:
@@ -920,6 +1035,12 @@ export const getAiConfig = () => ({
                       availableModels: getArrayFromCommaSeparatedList(
                           'ANTHROPIC_AVAILABLE_MODELS',
                       ),
+                      customHeaders: getProviderCustomHeaders(
+                          'ANTHROPIC_CUSTOM_HEADERS',
+                      ),
+                      supportsStreaming: getProviderSupportsStreaming(
+                          'ANTHROPIC_SUPPORTS_STREAMING',
+                      ),
                   }
                 : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
@@ -932,17 +1053,32 @@ export const getAiConfig = () => ({
                   allowedProviders: getArrayFromCommaSeparatedList(
                       'OPENROUTER_ALLOWED_PROVIDERS',
                   ),
+                  customHeaders: getProviderCustomHeaders(
+                      'OPENROUTER_CUSTOM_HEADERS',
+                  ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'OPENROUTER_SUPPORTS_STREAMING',
+                  ),
               }
             : undefined,
-        bedrock: getBedrockConfig(),
+        bedrock: getBedrockConfig(
+            getProviderCustomHeaders('BEDROCK_CUSTOM_HEADERS'),
+        ),
     },
     maxQueryLimit:
+        getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
+        AI_DEFAULT_MAX_QUERY_LIMIT,
+    runSqlMaxLimit:
+        getIntegerFromEnvironmentVariable('AI_COPILOT_RUN_SQL_MAX_LIMIT') ||
         getIntegerFromEnvironmentVariable('AI_COPILOT_MAX_QUERY_LIMIT') ||
         AI_DEFAULT_MAX_QUERY_LIMIT,
     verifiedAnswerSimilarityThreshold:
         getFloatFromEnvironmentVariable(
             'AI_VERIFIED_ANSWER_SIMILARITY_THRESHOLD',
         ) ?? 0.6,
+    mcpConnectionTimeoutMs:
+        getIntegerFromEnvironmentVariable('AI_COPILOT_MCP_TIMEOUT_MS') ||
+        20_000,
 });
 
 export type LoggingConfig = {
@@ -1018,6 +1154,7 @@ export type LightdashConfig = {
         eventMetricsEnabled: boolean;
         eventMetricsConfigPath?: string;
         allQueryMetricsEnabled: boolean;
+        extendedMetricsEnabled: boolean;
     };
     database: {
         connectionUri: string | undefined;
@@ -1031,6 +1168,7 @@ export type LightdashConfig = {
         maxLimit: number;
         defaultLimit: number;
         csvCellsLimit: number;
+        csvMaxLimit: number;
         timezone: string | undefined;
         maxPageSize: number;
         retryQueryOnTransientErrors: boolean;
@@ -1040,17 +1178,9 @@ export type LightdashConfig = {
         maxColumnLimit: number;
     };
     enableImprovedExcelDates: boolean;
-    chart: {
-        versionHistory: {
-            daysLimit: number;
-        };
-    };
     dashboard: {
         maxTilesPerTab: number;
         maxTabsPerDashboard: number;
-        versionHistory: {
-            daysLimit: number;
-        };
         disableSentryTracking: boolean;
     };
     // This is the override color palette for the organization
@@ -1163,6 +1293,9 @@ export type LightdashConfig = {
         schedule: string;
         sessionTimeoutMs: number;
     };
+    aiWriteback: {
+        anthropicApiKey: string | null;
+    };
 
     initialSetup?: {
         organization: {
@@ -1207,6 +1340,7 @@ export type LightdashConfig = {
             personalAccessToken?: CreateDatabricksCredentials['personalAccessToken'];
         };
         projects?: MultiProjectSetupEntry[];
+        userAttributes?: UserAttributeSetupEntry[];
         serviceAccount?: {
             token: string;
             expirationTime: Date | null;
@@ -1218,6 +1352,7 @@ export type LightdashConfig = {
     };
     mcp: {
         enabled: boolean;
+        runSqlMaxLimit: number;
     };
     customRoles: {
         enabled: boolean;
@@ -1336,6 +1471,14 @@ export type AppRuntimeConfig = {
      * deployments that haven't picked up a version-tagged build yet.
      */
     e2bTemplateTag: string;
+    /**
+     * Separate template name+tag for the AI writeback sandbox. Decoupled from
+     * the data-app template so operators can pin or roll back the writeback
+     * image independently (e.g. roll back writeback without disturbing data
+     * apps). Defaults match the release workflow's build target.
+     */
+    e2bAiWritebackTemplateName: string;
+    e2bAiWritebackTemplateTag: string;
 };
 
 export type IntercomConfig = {
@@ -1397,6 +1540,13 @@ export type AuthGoogleConfig = {
     googleDriveApiKey: string | undefined;
     enabled: boolean;
     enableGCloudADC: boolean;
+    /**
+     * When true, the Google login flow also requests the BigQuery scope so
+     * users on BigQuery SSO complete a single consent screen instead of two
+     * separate OAuth flows (one for login, one for BigQuery warehouse access).
+     * See PROD-7783.
+     */
+    includeBigqueryScope: boolean;
 };
 
 type AuthOktaConfig = {
@@ -1541,12 +1691,18 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             .filter(Boolean),
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
-        e2bTemplateName: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
+        e2bTemplateName:
+            process.env.E2B_TEMPLATE_NAME || 'lightdash/lightdash-data-app',
         // Default to the running Lightdash version so prod always launches
         // sandboxes from the matching template build (the release workflow
         // guarantees this tag exists). Operators can override to roll back
         // or pin during incidents.
         e2bTemplateTag: process.env.E2B_TEMPLATE_TAG ?? (VERSION as string),
+        e2bAiWritebackTemplateName:
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_NAME ||
+            'lightdash-ai-writeback',
+        e2bAiWritebackTemplateTag:
+            process.env.E2B_AI_WRITEBACK_TEMPLATE_TAG ?? (VERSION as string),
     };
 };
 
@@ -1565,11 +1721,6 @@ const LEGACY_ENABLE_ENV_VARS: ReadonlyArray<
     // Add per migration; truthy env value enables the flag.
     ['CHANGE_CHART_EXPLORE_ENABLED', 'change-chart-explore'],
     ['GOOGLE_CHAT_ENABLED', 'google-chat-enabled'],
-    // helm defaults set USE_SQL_PIVOT_RESULTS=true for all cloud deployments;
-    // translating to enabledFeatureFlags ensures both existing and new cloud
-    // instances pick up the DB-backed flag as enabled without needing per-DB
-    // bootstrapping.
-    ['USE_SQL_PIVOT_RESULTS', 'use-sql-pivot-results'],
     ['USER_IMPERSONATION_ENABLED', 'user-impersonation'],
     // GROUPS_ENABLED is also read by UserService for group-sync logic (separate
     // from the feature flag) — keep the config field, but translate the env
@@ -1638,7 +1789,7 @@ export const parseConfig = (): LightdashConfig => {
         'LIGHTDASH_CORS_ALLOWED_DOMAINS',
     );
     const iframeEmbeddingEnabled = iframeAllowedDomains.length > 0;
-    const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED === 'true';
+    const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED !== 'false';
     const secureCookies = process.env.SECURE_COOKIES === 'true';
     const useSecureBrowser = process.env.USE_SECURE_BROWSER === 'true';
     const browserProtocol = useSecureBrowser ? 'wss' : 'ws';
@@ -1824,6 +1975,8 @@ export const parseConfig = (): LightdashConfig => {
                 googleDriveApiKey: process.env.GOOGLE_DRIVE_API_KEY,
                 enabled: process.env.AUTH_GOOGLE_ENABLED === 'true',
                 enableGCloudADC: process.env.AUTH_ENABLE_GCLOUD_ADC === 'true',
+                includeBigqueryScope:
+                    process.env.AUTH_GOOGLE_INCLUDE_BIGQUERY_SCOPE === 'true',
             },
             okta: {
                 oauth2Issuer: process.env.AUTH_OKTA_OAUTH_ISSUER,
@@ -1965,6 +2118,9 @@ export const parseConfig = (): LightdashConfig => {
             allQueryMetricsEnabled:
                 process.env.LIGHTDASH_PROMETHEUS_ALL_QUERY_METRICS_ENABLED ===
                 'true', // defaults to false, tracks execution duration & S3 upload for all queries (not just pre-aggregate)
+            extendedMetricsEnabled:
+                process.env.LIGHTDASH_PROMETHEUS_EXTENDED_METRICS_ENABLED ===
+                'true', // defaults to false
         },
         allowMultiOrgs: process.env.ALLOW_MULTIPLE_ORGS === 'true',
         maxPayloadSize: process.env.LIGHTDASH_MAX_PAYLOAD || '5mb',
@@ -1981,6 +2137,12 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_CSV_CELLS_LIMIT',
                 ) || 100000,
+            // Ceiling an org admin can set the per-org CSV cells limit to. The
+            // effective cap is max(this, csvCellsLimit) so an instance whose
+            // default already exceeds it is never forced below its own default.
+            csvMaxLimit:
+                getIntegerFromEnvironmentVariable('LIGHTDASH_CSV_MAX_LIMIT') ||
+                5000000,
             timezone: process.env.LIGHTDASH_QUERY_TIMEZONE,
             maxPageSize:
                 getIntegerFromEnvironmentVariable(
@@ -1995,14 +2157,6 @@ export const parseConfig = (): LightdashConfig => {
                 ? process.env.LIGHTDASH_ENABLE_TIMEZONE_SUPPORT === 'true'
                 : undefined,
         },
-        chart: {
-            versionHistory: {
-                daysLimit:
-                    getIntegerFromEnvironmentVariable(
-                        'LIGHTDASH_CHART_VERSION_HISTORY_DAYS_LIMIT',
-                    ) || 3,
-            },
-        },
         dashboard: {
             maxTilesPerTab:
                 getIntegerFromEnvironmentVariable(
@@ -2012,12 +2166,6 @@ export const parseConfig = (): LightdashConfig => {
                 getIntegerFromEnvironmentVariable(
                     'LIGHTDASH_DASHBOARD_MAX_TABS_PER_DASHBOARD',
                 ) || 20,
-            versionHistory: {
-                daysLimit:
-                    getIntegerFromEnvironmentVariable(
-                        'LIGHTDASH_DASHBOARD_VERSION_HISTORY_DAYS_LIMIT',
-                    ) || 3,
-            },
             disableSentryTracking:
                 process.env.LIGHTDASH_DASHBOARD_DISABLE_SENTRY_TRACKING ===
                 'true',
@@ -2126,6 +2274,9 @@ export const parseConfig = (): LightdashConfig => {
                 : undefined,
         },
         persistentDownloadUrls: {
+            // Off unless explicitly enabled (preserves existing behavior).
+            // Note: links over 7 days always use persistent URLs regardless of
+            // this flag — see PersistentDownloadFileService.
             enabled: process.env.PERSISTENT_DOWNLOAD_URLS_ENABLED === 'true',
             expirationSeconds:
                 getIntegerFromEnvironmentVariable(
@@ -2272,10 +2423,16 @@ export const parseConfig = (): LightdashConfig => {
                 10,
             ), // 10 minutes default
         },
+        aiWriteback: {
+            anthropicApiKey: process.env.AI_WRITEBACK_ANTHROPIC_API_KEY || null,
+        },
         initialSetup: getInitialSetupConfig(),
         updateSetup: getUpdateSetupConfig(),
         mcp: {
             enabled: process.env.MCP_ENABLED === 'true',
+            runSqlMaxLimit:
+                getIntegerFromEnvironmentVariable('MCP_RUN_SQL_MAX_LIMIT') ||
+                AI_DEFAULT_MAX_QUERY_LIMIT,
         },
         customRoles: {
             enabled: process.env.CUSTOM_ROLES_ENABLED === 'true',

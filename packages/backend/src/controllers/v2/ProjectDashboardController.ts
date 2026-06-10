@@ -14,6 +14,7 @@ import {
     OperationId,
     Patch,
     Path,
+    Query,
     Request,
     Response,
     Route,
@@ -134,6 +135,7 @@ export class ProjectDashboardControllerV2 extends BaseController {
         @Path() projectUuid: string,
         @Path() dashboardUuidOrSlug: string,
         @Request() req: express.Request,
+        @Query() resolved?: boolean,
     ): Promise<ApiGetComments> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -146,6 +148,7 @@ export class ProjectDashboardControllerV2 extends BaseController {
                     dashboardUuidOrSlug,
                     {
                         projectUuid,
+                        resolved,
                     },
                 ),
         };

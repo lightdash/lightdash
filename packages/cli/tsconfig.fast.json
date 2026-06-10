@@ -1,0 +1,10 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "moduleResolution": "bundler",
+        "paths": {
+            "better-ajv-errors": ["./node_modules/better-ajv-errors/typings.d.ts"]
+        },
+        "tsBuildInfoFile": "dist/.tsgo.tsbuildinfo"
+    }
+}

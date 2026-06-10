@@ -35,7 +35,7 @@ const BASE_ROLE_SCOPES = {
         'view:MetricsTree',
         'view:SpotlightTableConfig',
         'view:AiAgentThread@self',
-        'view:DataApp',
+        'view:OrganizationDesign',
     ],
 
     [ProjectMemberRole.INTERACTIVE_VIEWER]: [
@@ -64,7 +64,9 @@ const BASE_ROLE_SCOPES = {
 
         // Enterprise scopes
         'view:AiAgent',
+        'view:AiAgentDocument',
         'create:AiAgentThread',
+        'view:DataApp', // Project-wide + space-access view (parity with manage:Explore)
         'create:DataApp', // Personal apps (not yet in a space)
         'view:DataApp@self', // Own personal apps
         'manage:DataApp@self', // Own personal apps
@@ -92,6 +94,7 @@ const BASE_ROLE_SCOPES = {
         // Enterprise scopes
         'manage:MetricsTree',
         'manage:AiAgentThread@self', // User's own threads
+        'view:ContentAsCode', // Download (but not upload) content as code
     ],
 
     [ProjectMemberRole.DEVELOPER]: [
@@ -129,13 +132,19 @@ const BASE_ROLE_SCOPES = {
         // Enterprise scopes
         'manage:SpotlightTableConfig',
         'manage:ContentAsCode',
+        // Redundant for developers (covered by the broad manage above) but
+        // surfaced so admin-cloned custom roles can drop full
+        // `manage:ContentAsCode` and keep self-preview write.
+        'manage:ContentAsCode@self',
         'manage:AiAgent',
+        'manage:AiAgentDocument',
         'manage:AiAgentThread@self', // User's own threads
     ],
 
     [ProjectMemberRole.ADMIN]: [
         // Admin-specific permissions
         'manage:DataApp',
+        'manage:OrganizationDesign',
         'delete:Project', // Any project
         'view:Analytics',
         'manage:Dashboard', // All dashboards
@@ -234,17 +243,23 @@ export const getNonEnterpriseScopesForRole = (
         'view:SpotlightTableConfig',
         'manage:SpotlightTableConfig',
         'view:AiAgent',
+        'view:AiAgentDocument',
         'view:AiAgentThread',
         'create:AiAgentThread',
         'manage:AiAgent',
+        'manage:AiAgentDocument',
         'manage:AiAgentThread',
+        'view:ContentAsCode',
         'manage:ContentAsCode',
+        'manage:ContentAsCode@self',
         'view:DataApp',
         'manage:DataApp',
         'manage:DataApp@space',
         'create:DataApp',
         'view:DataApp@self',
         'manage:DataApp@self',
+        'view:OrganizationDesign',
+        'manage:OrganizationDesign',
         'manage:PersonalAccessToken',
         'manage:PreAggregation',
     ]);

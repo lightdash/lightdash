@@ -88,9 +88,6 @@ const warehouseClientMock: WarehouseClient = {
     getCatalog() {
         throw new NotImplementedError('getCatalog not implemented');
     },
-    getAsyncQueryResults() {
-        throw new NotImplementedError('getAsyncQueryResults not implemented');
-    },
     getAdapterType() {
         throw new NotImplementedError('getCatalog not implemented');
     },
@@ -140,6 +137,7 @@ const warehouseClientMock: WarehouseClient = {
         return 'FLOAT';
     },
     getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     escapeString(value) {
         return value;
     },

@@ -84,6 +84,17 @@
         "Format": {
             "type": "string"
         },
+        "Separator": {
+            "type": "string",
+            "enum": [
+                "default",
+                "commaPeriod",
+                "spacePeriod",
+                "periodComma",
+                "noSeparatorPeriod",
+                "apostrophePeriod"
+            ]
+        },
         "Urls": {
             "type": "array",
             "items": {
@@ -188,6 +199,9 @@
                 "format": {
                     "$ref": "#/definitions/Format"
                 },
+                "separator": {
+                    "$ref": "#/definitions/Separator"
+                },
                 "group_label": {
                     "type": "string",
                     "deprecated": true,
@@ -242,6 +256,9 @@
                 },
                 "format": {
                     "$ref": "#/definitions/Format"
+                },
+                "separator": {
+                    "$ref": "#/definitions/Separator"
                 },
                 "group_label": {
                     "type": "string",
@@ -311,6 +328,9 @@
                 },
                 "format": {
                     "$ref": "#/definitions/Format"
+                },
+                "separator": {
+                    "$ref": "#/definitions/Separator"
                 },
                 "group_label": {
                     "type": "string",

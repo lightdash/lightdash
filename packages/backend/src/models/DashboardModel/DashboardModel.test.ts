@@ -798,4 +798,88 @@ describe('DashboardModel', () => {
         expect(tilesInsert!.bindings).not.toContain(staleTabUuid);
         expect(tilesInsert!.bindings).toContain(null);
     });
+
+    // A dashboard version may have a missing or malformed dashboard_views row
+    // (legacy or partially-written data). Reading such a version must degrade
+    // gracefully rather than throwing an unguarded `view.filters` NPE — this
+    // guards the shared filters-normalisation path used by both getByIdOrSlug
+    // and getVersionByUuid.
+    describe('reading a version degrades gracefully on malformed view data', () => {
+        const setupDashboardQueries = (viewResponse: AnyType[]) => {
+            tracker.on
+                .select(
+                    queryMatcher(DashboardsTableName, [
+                        expectedDashboard.uuid,
+                        1,
+                    ]),
+                )
+                .response([
+                    {
+                        ...dashboardWithVersionEntry,
+                        space_uuid: 'spaceUuid',
+                        space_name: 'space name',
+                    },
+                ]);
+            tracker.on
+                .select(
+                    queryMatcher(DashboardViewsTableName, [
+                        dashboardWithVersionEntry.dashboard_version_id,
+                    ]),
+                )
+                .response(viewResponse);
+            tracker.on
+                .select(
+                    queryMatcher(DashboardTilesTableName, [
+                        dashboardWithVersionEntry.dashboard_version_id,
+                    ]),
+                )
+                .response([]);
+            tracker.on
+                .select(
+                    queryMatcher(DashboardTabsTableName, [
+                        dashboardWithVersionEntry.dashboard_version_id,
+                        dashboardWithVersionEntry.dashboard_id,
+                    ]),
+                )
+                .response([]);
+        };
+
+        test('returns default filters when the version has no dashboard_views row', async () => {
+            setupDashboardQueries([]); // regression: this used to throw an NPE
+
+            const dashboard = await model.getByIdOrSlug(expectedDashboard.uuid);
+
+            expect(dashboard.filters).toEqual({
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            });
+        });
+
+        it.each<[string, AnyType]>([
+            ['null filters', null],
+            ['undefined filters', undefined],
+            ['empty object filters', {}],
+            [
+                'filters missing tableCalculations',
+                { dimensions: [], metrics: [] },
+            ],
+            ['filters with only dimensions', { dimensions: [{ id: 'a' }] }],
+        ])(
+            'does not throw and always normalises tableCalculations to an array: %s',
+            async (_label, filters) => {
+                setupDashboardQueries([
+                    { ...dashboardViewEntry, filters } as AnyType,
+                ]);
+
+                const dashboard = await model.getByIdOrSlug(
+                    expectedDashboard.uuid,
+                );
+
+                expect(Array.isArray(dashboard.filters.tableCalculations)).toBe(
+                    true,
+                );
+            },
+        );
+    });
 });

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AllChartsSearchResult,
     DashboardSearchResult,
     DashboardTabResult,
     FieldSearchResult,
@@ -58,6 +59,92 @@ export class SearchService extends BaseService {
         this.userAttributesModel = args.userAttributesModel;
         this.spacePermissionService = args.spacePermissionService;
         this.appGenerateService = args.appGenerateService;
+    }
+
+    async findContent(
+        user: SessionUser,
+        projectUuid: string,
+        query: string,
+    ): Promise<{
+        content: (DashboardSearchResult | AllChartsSearchResult)[];
+    }> {
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const dashboardSearchResults = await this.searchModel.searchDashboards(
+            projectUuid,
+            query,
+            undefined,
+            'OR',
+        );
+
+        const chartSearchResults = await this.searchModel.searchAllCharts(
+            projectUuid,
+            query,
+            'OR',
+        );
+
+        const allContent = [
+            ...dashboardSearchResults,
+            ...chartSearchResults,
+        ] satisfies (DashboardSearchResult | AllChartsSearchResult)[];
+        if (allContent.length === 0) {
+            return { content: [] };
+        }
+
+        const spaceUuids = [
+            ...new Set(allContent.map((content) => content.spaceUuid)),
+        ];
+        const spaceContexts =
+            await this.spacePermissionService.getSpacesAccessContext(
+                user.userUuid,
+                spaceUuids,
+            );
+
+        return {
+            content: allContent.filter((content) => {
+                const spaceContext = spaceContexts[content.spaceUuid];
+                if (!spaceContext) return false;
+
+                if ('charts' in content) {
+                    return auditedAbility.can(
+                        'view',
+                        subject('Dashboard', {
+                            ...spaceContext,
+                            metadata: {
+                                dashboardUuid: content.uuid,
+                                dashboardName: content.name,
+                            },
+                        }),
+                    );
+                }
+
+                return auditedAbility.can(
+                    'view',
+                    subject('SavedChart', {
+                        ...spaceContext,
+                        metadata: {
+                            savedChartUuid: content.uuid,
+                            savedChartName: content.name,
+                        },
+                    }),
+                );
+            }),
+        };
     }
 
     async getSearchResults(

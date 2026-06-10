@@ -13,6 +13,26 @@ import {
 
 export const organizationRouter: Router = express.Router();
 
+organizationRouter.get(
+    '/access',
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    async (req, res, next) => {
+        try {
+            const results = await req.services
+                .getOrganizationAccessService()
+                .getOrganizationAccess(req.account);
+
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (e) {
+            next(e);
+        }
+    },
+);
+
 organizationRouter.post(
     '/projects/precompiled',
     allowApiKeyAuthentication,

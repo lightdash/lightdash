@@ -22,11 +22,6 @@ import {
     IconInfoCircle,
     IconTrash,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useMemo, useState, type FC } from 'react';
 import { useOrganization } from '../../../hooks/organization/useOrganization';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
@@ -35,6 +30,11 @@ import {
     useUserAttributesDeleteMutation,
 } from '../../../hooks/useUserAttributes';
 import useApp from '../../../providers/App/useApp';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+} from '../../common/ContentTable';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
 import MantineModal from '../../common/MantineModal';
@@ -64,7 +64,7 @@ const UserAttributesPanel: FC = () => {
     const isGroupManagementEnabled =
         userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
-    const columns: MRT_ColumnDef<UserAttribute>[] = useMemo(
+    const columns: ContentTableColumnDef<UserAttribute>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',
@@ -183,7 +183,7 @@ const UserAttributesPanel: FC = () => {
         );
     }, [orgUserAttributes, searchQuery]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: tableData,
         enableColumnResizing: false,
@@ -356,7 +356,7 @@ const UserAttributesPanel: FC = () => {
                         </ActionIcon>
                     </Tooltip>
                 </Group>
-                <MantineReactTable table={table} />
+                <ContentTable table={table} />
             </Stack>
 
             <UserAttributeModal

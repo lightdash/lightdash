@@ -2,6 +2,7 @@ import { SupportedDbtAdapter } from '../types/dbt';
 import { CompileError } from '../types/errors';
 import { DimensionType, FieldType, friendlyName } from '../types/field';
 import { FilterOperator } from '../types/filter';
+import { TimeFrames } from '../types/timeFrames';
 import {
     ExploreCompiler,
     parseAllReferences,
@@ -481,6 +482,121 @@ describe('Compile metrics with filters', () => {
         ).toStrictEqual(
             `MAX(CASE WHEN (("table1".shared) LIKE '%foo%') THEN (CASE WHEN "table1".number_column THEN 1 ELSE 0 END) ELSE NULL END)`,
         );
+    });
+});
+
+describe('compileMetric spotlight defaults validation', () => {
+    const baseMetric = tablesWithMetricsWithFilters.table1.metrics.metric1;
+
+    test('accepts a valid default_segment and default_filter', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                segmentBy: ['shared'],
+                defaultSegment: 'shared',
+                defaultFilter: {
+                    id: 'x',
+                    target: { fieldRef: 'shared' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['foo'],
+                },
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).not.toThrow();
+    });
+
+    test('accepts a joined (cross-table) default_filter reference', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                defaultFilter: {
+                    id: 'x',
+                    target: { fieldRef: 'table2.dim2' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['v'],
+                },
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).not.toThrow();
+    });
+
+    test('does not throw for a metric with no spotlight defaults (no regression)', () => {
+        expect(() =>
+            compiler.compileMetric(
+                baseMetric,
+                tablesWithMetricsWithFilters,
+                [],
+            ),
+        ).not.toThrow();
+    });
+
+    test('throws when default_segment is not in the segment_by allowlist', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                segmentBy: ['shared'],
+                defaultSegment: 'dim1',
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).toThrowError(/default_segment 'dim1' must be one of segment_by/);
+    });
+
+    test('throws when default_segment dimension is not segmentable', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                defaultSegment: 'dim1',
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).toThrowError(/default_segment 'dim1' .* segmentable/);
+    });
+
+    test('throws when default_filter references an unknown dimension', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                defaultFilter: {
+                    id: 'x',
+                    target: { fieldRef: 'does_not_exist' },
+                    operator: FilterOperator.EQUALS,
+                    values: ['foo'],
+                },
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).toThrowError(/default_filter references an unknown dimension/);
+    });
+
+    test('throws when default_filter uses an unsupported operator', () => {
+        const metric = {
+            ...baseMetric,
+            spotlight: {
+                visibility: 'show' as const,
+                defaultFilter: {
+                    id: 'x',
+                    target: { fieldRef: 'shared' },
+                    operator: FilterOperator.GREATER_THAN,
+                    values: [4],
+                },
+            },
+        };
+        expect(() =>
+            compiler.compileMetric(metric, tablesWithMetricsWithFilters, []),
+        ).toThrowError(/default_filter uses operator .* not supported/);
     });
 });
 
@@ -1096,6 +1212,140 @@ describe('Explore compilation with model-level parameters', () => {
             expect(result.tables.b.dimensions).toHaveProperty('dim1');
             expect(result.tables.b.dimensions).toHaveProperty('dim2');
             expect(result.tables.b.dimensions).not.toHaveProperty('dim3');
+        });
+
+        it('should include time interval and custom granularity child dimensions when their base is listed in join.fields', () => {
+            const explore: UncompiledExplore = {
+                name: 'test_explore',
+                label: 'Test Explore',
+                tags: [],
+                baseTable: 'a',
+                groupLabel: undefined,
+                joinedTables: [
+                    {
+                        table: 'b',
+                        sqlOn: '${a.dim1} = ${b.dim1}',
+                        fields: ['dim1', 'order_date'],
+                    },
+                ],
+                tables: {
+                    a: {
+                        name: 'a',
+                        label: 'a',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'test.a',
+                        dimensions: {
+                            dim1: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'dim1',
+                                label: 'Dim 1',
+                                table: 'a',
+                                tableLabel: 'a',
+                                sql: '${TABLE}.dim1',
+                                hidden: false,
+                                index: 0,
+                            },
+                        },
+                        metrics: {},
+                        lineageGraph: {},
+                    },
+                    b: {
+                        name: 'b',
+                        label: 'b',
+                        database: 'database',
+                        schema: 'schema',
+                        sqlTable: 'test.b',
+                        dimensions: {
+                            dim1: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'dim1',
+                                label: 'Dim 1',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: '${TABLE}.dim1',
+                                hidden: false,
+                                index: 0,
+                            },
+                            order_date: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.DATE,
+                                name: 'order_date',
+                                label: 'Order date',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: '${TABLE}.order_date',
+                                hidden: false,
+                                index: 1,
+                                isIntervalBase: true,
+                            },
+                            order_date_month: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.DATE,
+                                name: 'order_date_month',
+                                label: 'Order date month',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: "DATE_TRUNC('MONTH', ${TABLE}.order_date)",
+                                hidden: false,
+                                index: 2,
+                                timeInterval: TimeFrames.MONTH,
+                                timeIntervalBaseDimensionName: 'order_date',
+                                timeIntervalBaseDimensionType:
+                                    DimensionType.DATE,
+                            },
+                            order_date_week_starting_friday: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.DATE,
+                                name: 'order_date_week_starting_friday',
+                                label: 'Order date week starting Friday',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: "DATE_TRUNC('WEEK', ${TABLE}.order_date + INTERVAL '2 days') - INTERVAL '2 days'",
+                                hidden: false,
+                                index: 3,
+                                timeInterval: undefined,
+                                customTimeInterval: 'week_starting_friday',
+                                timeIntervalBaseDimensionName: 'order_date',
+                                timeIntervalBaseDimensionType:
+                                    DimensionType.DATE,
+                            },
+                            unrelated_dim: {
+                                fieldType: FieldType.DIMENSION,
+                                type: DimensionType.STRING,
+                                name: 'unrelated_dim',
+                                label: 'Unrelated',
+                                table: 'b',
+                                tableLabel: 'b',
+                                sql: '${TABLE}.unrelated_dim',
+                                hidden: false,
+                                index: 4,
+                            },
+                        },
+                        metrics: {},
+                        lineageGraph: {},
+                    },
+                },
+                targetDatabase: SupportedDbtAdapter.POSTGRES,
+                meta: {},
+            };
+
+            const result = compiler.compileExplore(explore);
+
+            expect(result.tables.b.dimensions).toHaveProperty('order_date');
+            expect(result.tables.b.dimensions).toHaveProperty(
+                'order_date_month',
+            );
+            // PROD-7858: custom granularity children should be retained alongside
+            // standard time intervals when the base dimension is in join.fields
+            expect(result.tables.b.dimensions).toHaveProperty(
+                'order_date_week_starting_friday',
+            );
+            expect(result.tables.b.dimensions).not.toHaveProperty(
+                'unrelated_dim',
+            );
         });
 
         it('should throw error for non-existent set in join', () => {

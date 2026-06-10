@@ -27,6 +27,7 @@ packages/e2e/lightdash
 /packages/backend/src/database/logs
 /packages/cli/logs
 /packages/warehouses/logs
+*.log
 
 # development
 lightdash_dev.yml
@@ -129,3 +130,9 @@ http-client.private.env.json
 scripts/har-replay-server.ts
 *.har
 agent-harness/cloud/credentials.env
+
+# AI
+.agents
+.codex
+.claude/*.lock
+AGENTS.md

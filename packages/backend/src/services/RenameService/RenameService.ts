@@ -101,6 +101,11 @@ export class RenameService extends BaseService {
                 subject('Project', {
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
+                    metadata: {
+                        chartUuid,
+                        chartName: chart.name,
+                        tableName: chart.tableName,
+                    },
                 }),
             )
         ) {
@@ -216,6 +221,7 @@ export class RenameService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid: chartProjectUuid,
+                    metadata: { chartUuid, chartName, from, to, type },
                 }),
             )
         ) {
@@ -362,6 +368,11 @@ export class RenameService extends BaseService {
                 subject('Project', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    metadata: {
+                        dashboardUuid,
+                        dashboardName: dashboard.name,
+                        tableName,
+                    },
                 }),
             )
         ) {
@@ -465,6 +476,7 @@ export class RenameService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { dashboardUuid, from, to, type, fixAll },
                 }),
             )
         ) {
@@ -612,6 +624,12 @@ export class RenameService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        from: renameBody.from,
+                        to: renameBody.to,
+                        type: renameBody.type,
+                        model: renameBody.model,
+                    },
                 }),
             )
         ) {
@@ -653,6 +671,12 @@ export class RenameService extends BaseService {
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        from: renameBody.from,
+                        to: renameBody.to,
+                        type: renameBody.type,
+                        model: renameBody.model,
+                    },
                 }),
             )
         ) {

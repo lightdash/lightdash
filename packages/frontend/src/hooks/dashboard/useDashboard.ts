@@ -30,7 +30,7 @@ import { invalidateContent } from '../useContent';
 import useQueryError from '../useQueryError';
 import useDashboardStorage from './useDashboardStorage';
 
-const getDashboard = async (id: string, projectUuid: string) =>
+export const getDashboard = async (id: string, projectUuid: string) =>
     lightdashApi<Dashboard>({
         url: `/projects/${projectUuid}/dashboards/${id}`,
         version: 'v2',

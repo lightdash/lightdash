@@ -3,16 +3,19 @@ import { Box, Text, useMantineTheme } from '@mantine/core';
 import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';
-import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { useRef, useState, type FC } from 'react';
+import {
+    type ContentTableRow,
+    type ContentTableInstance,
+} from '../../../components/common/ContentTable';
 import { useIsLineClamped } from '../../../hooks/useIsLineClamped';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
 import { setDescriptionPopoverIsClosing } from '../store/metricsCatalogSlice';
 import { MetricCatalogCellOverlay } from './MetricCatalogCellOverlay';
 
 type Props = {
-    row: MRT_Row<CatalogField>;
-    table: MRT_TableInstance<CatalogField>;
+    row: ContentTableRow<CatalogField>;
+    table: ContentTableInstance<CatalogField>;
 };
 
 export const MetricsCatalogColumnDescription: FC<Props> = ({ row, table }) => {

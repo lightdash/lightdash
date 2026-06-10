@@ -338,8 +338,32 @@ const useToaster = () => {
                 errorData: notificationData,
                 updateErrorsFunction: (key, errorData) => {
                     if (!errorData) return;
-                    if (currentErrors.current[key]) {
-                        currentErrors.current[key].push({
+                    // Dedupe by content: when several parallel queries fail
+                    // with the same error (e.g. main metric-query +
+                    // useCompiledSql preview both hitting a table-calc
+                    // compile error), we'd otherwise stack identical entries
+                    // in the toast. Primitive fields only; ReactNode
+                    // subtitles fall back to reference identity.
+                    const fingerprintOf = (e: NotificationData) => [
+                        e.title ?? null,
+                        typeof e.subtitle === 'string' ? e.subtitle : null,
+                        e.apiError?.message ?? null,
+                        e.apiError?.name ?? null,
+                        e.apiError?.statusCode ?? null,
+                    ];
+                    const fpA = fingerprintOf(errorData);
+                    const existing = currentErrors.current[key];
+                    if (existing) {
+                        const alreadyPresent = existing.some((e) => {
+                            const fpB = fingerprintOf(e);
+                            return (
+                                fpA.every((v, i) => v === fpB[i]) &&
+                                (typeof errorData.subtitle === 'string' ||
+                                    e.subtitle === errorData.subtitle)
+                            );
+                        });
+                        if (alreadyPresent) return;
+                        existing.push({
                             ...notificationData,
                             messageKey: uuid(),
                         });

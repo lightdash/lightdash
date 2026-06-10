@@ -1,8 +1,10 @@
 import {
+    type ApiDataTimezonePreviewResults,
     type ApiError,
     type ApiJobStartedResults,
     type CreateProject,
     type CreateWarehouseCredentials,
+    type DataTimezonePreviewRequest,
     type MostPopularAndRecentlyUpdated,
     type Project,
     type UpdateDefaultUserSpaces,
@@ -40,6 +42,22 @@ const getProject = async (uuid: string) =>
         url: `/projects/${uuid}`,
         method: 'GET',
         body: undefined,
+    });
+
+const postDataTimezonePreview = async (body: DataTimezonePreviewRequest) =>
+    lightdashApi<ApiDataTimezonePreviewResults>({
+        url: `/projects/preview-data-timezone`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+export const useDataTimezonePreviewMutation = () =>
+    useMutation<
+        ApiDataTimezonePreviewResults,
+        ApiError,
+        DataTimezonePreviewRequest
+    >({
+        mutationFn: postDataTimezonePreview,
     });
 
 const updateProjectSchedulerSettings = async (

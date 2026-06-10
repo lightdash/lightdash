@@ -39,6 +39,8 @@ export type DbProject = {
     color_palette_uuid: string | null;
     table_groups: Record<string, GroupType> | null;
     expires_at: Date | null;
+    default_preview_expiration_hours: number;
+    max_preview_expiration_hours: number;
 };
 
 type CreateDbProject = Pick<
@@ -78,6 +80,8 @@ type UpdateDbProject = Partial<
         | 'project_defaults'
         | 'color_palette_uuid'
         | 'table_groups'
+        | 'default_preview_expiration_hours'
+        | 'max_preview_expiration_hours'
     >
 >;
 

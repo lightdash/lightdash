@@ -1,3 +1,4 @@
+import { type DashboardFilters } from '@lightdash/common';
 import {
     forwardRef,
     useCallback,
@@ -52,16 +53,32 @@ type Props = {
      *  sits during inspect mode (the toolbar button before any click; the
      *  prompt editor after each click — TipTap yanks focus back on insert). */
     onInspectorCancelled?: () => void;
+    /** Dashboard filters to merge into every metric-query the iframe runs.
+     *  Set by `DashboardDataAppTile`; left undefined by `AppGenerate` where
+     *  there's no dashboard context. */
+    dashboardFilters?: DashboardFilters;
+    /** When true, every metric-query the iframe runs is sent with
+     *  `invalidateCache` so the backend bypasses the warehouse results cache.
+     *  Set by `DashboardDataAppTile` after a dashboard refresh, mirroring what
+     *  chart tiles send; left undefined elsewhere. */
+    invalidateCache?: boolean;
+    /** Fired on every iframe `onload` (including the initial about:blank).
+     *  Used by `MinimalApp` to gate the screenshot readiness signal. */
+    onIframeLoad?: () => void;
 };
 
 /**
  * Renders a sandboxed app preview iframe with a postMessage fetch proxy.
  *
- * The iframe has `sandbox="allow-scripts allow-modals"` (no `allow-same-origin`),
- * so it cannot access the parent's cookies. `allow-modals` lets generated apps
- * call `window.print()` (needed for PDF Report templates) - it also enables
- * `alert`/`confirm`/`prompt`, which is acceptable here since the iframe is
- * already isolated from parent origin. The SDK inside the iframe routes all
+ * The iframe is sandboxed without `allow-same-origin`, so it cannot access the
+ * parent's cookies. `allow-modals` lets generated apps call `window.print()`
+ * (needed for PDF Report templates) - it also enables `alert`/`confirm`/`prompt`,
+ * which is acceptable here since the iframe is already isolated from parent
+ * origin. `allow-popups-to-escape-sandbox` lets cards open links in a new
+ * un-sandboxed tab, and `allow-top-navigation-by-user-activation` lets a clicked
+ * link navigate the current tab (e.g. to another dashboard) without letting app
+ * code redirect the page silently. None of these grant `allow-same-origin`, so
+ * the parent session stays inaccessible. The SDK inside the iframe routes all
  * API calls through postMessage, and this component's bridge executes them
  * using the current user's session.
  *
@@ -82,6 +99,9 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
             onInspectorAvailabilityChange,
             onScreenshotAvailabilityChange,
             onInspectorCancelled,
+            dashboardFilters,
+            invalidateCache,
+            onIframeLoad,
         },
         ref,
     ) => {
@@ -103,6 +123,8 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 onElementSelected,
                 handleInspectorAnnounce,
                 handleScreenshotAnnounce,
+                dashboardFilters,
+                invalidateCache,
             );
         const { captureScreenshot } = useIframeScreenshot(iframeRef);
 
@@ -153,6 +175,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
         const handleLoad = () => {
             handleIframeLoad();
             if (inspectorEnabled) enableInspector();
+            onIframeLoad?.();
         };
 
         return (
@@ -161,7 +184,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 src={src}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title="App preview"
-                sandbox="allow-scripts allow-modals"
+                sandbox="allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""
                 onLoad={handleLoad}
             />
