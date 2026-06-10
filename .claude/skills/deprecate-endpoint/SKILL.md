@@ -1,6 +1,6 @@
 ---
 name: deprecate-endpoint
-description: Use when deprecating, sunsetting, or removing a backend HTTP API endpoint in Lightdash — wiring deprecation logging, deadline/sunset dates, response headers, and Sentry alerting onto a TSOA controller route. Covers the first-party-caller precondition and the shared deprecation middleware.
+description: Use when deprecating, sunsetting, or removing a backend HTTP API endpoint in Lightdash — wiring deprecation logging, deadline/sunset dates, response headers, and Sentry alerting onto a TSOA controller route. Also covers making the deprecation visible on docs.lightdash.com and llms.txt (description lead line, x-mint migration banner). Covers the first-party-caller precondition and the shared deprecation middleware.
 allowed-tools: Read, Grep, Glob, Edit, Bash
 ---
 
@@ -53,6 +53,10 @@ In the controller, on the route handler:
       tag to set `deprecated: true` in the OpenAPI spec.
 - [ ] Add the TSOA `@Deprecated()` decorator — the explicit, consistent way to
       mark it (decorator order doesn't matter). Keep both this and the JSDoc.
+- [ ] Rewrite the JSDoc **description** so its first line is plain text
+      `Deprecated — use the v2 <name> endpoint instead.` (see "Make it visible
+      in the docs" below for why this exact shape matters).
+- [ ] Add an `@Extension('x-mint', ...)` migration banner (same section below).
 - [ ] Add `getDeprecatedRouteMiddleware` to the handler's `@Middlewares([...])`
       (use the same text for `suffixMessage` as the `@deprecated` JSDoc):
 
@@ -74,6 +78,56 @@ import { getDeprecatedRouteMiddleware } from './authentication';
   a different sunset has been agreed.
 - If the handler has no `@Middlewares` block (e.g. some embed routes), add one
   containing just the middleware.
+
+## Make it visible in the docs (description + x-mint)
+
+`deprecated: true` alone is nearly invisible on docs.lightdash.com — AI agents
+and scripts reading the docs keep generating code against the route. The docs
+site auto-generates API pages and llms.txt from
+`packages/backend/src/generated/swagger.json` (main branch), so docs visibility
+is wired here, in the controller JSDoc:
+
+- The llms.txt entry is `- [summary](url): first sentence of description`
+  (truncated ~60 chars), and the description renders as the page subtitle.
+  So the description's **first line must be plain text** (no markdown links,
+  no MDX) leading with the deprecation:
+
+```ts
+/**
+ * Deprecated — use the v2 Execute metric query endpoint instead.
+ *
+ * This endpoint was deprecated on <date> and will sunset on <date>. Migrate to
+ * the v2 async query flow: Execute metric query, then Get results.
+ * @summary Run metric query   // ⚠️ do NOT change — the docs page slug/URL is built from it
+ * @deprecated Use POST /api/v2/projects/{projectUuid}/query/metric-query instead
+ */
+```
+
+- The visible banner on the endpoint page comes from the Mintlify
+  `x-mint: content` OpenAPI extension (renders **above** the auto-generated
+  reference; supports MDX). MDX in the plain `description` is NOT supported —
+  don't put `<Warning>` there. Emit it with TSOA's `@Extension` (string must be
+  a literal; backtick-escape inline code so `{braces}` don't break MDX):
+
+```ts
+@Extension('x-mint', {
+    content: `<Warning>
+**This endpoint is deprecated and will sunset on <date>.**
+
+Migrate to [Execute metric query](https://docs.lightdash.com/api-reference/v2/execute-metric-query) (\`POST /api/v2/projects/{projectUuid}/query/metric-query\`), then [Get results](https://docs.lightdash.com/api-reference/v2/get-results).
+</Warning>`,
+})
+```
+
+- [ ] Run `pnpm generate-api` and check the swagger.json diff: the operation
+      keeps `deprecated: true`, summary unchanged, description starts with the
+      plain-text `Deprecated — ...` sentence, and `x-mint` is present. Expect
+      unrelated key-reordering drift in generated files — to keep the PR clean,
+      revert generated files to HEAD, graft only the changed operation objects,
+      then `pnpm -F backend formatter --write ./src/generated/swagger.json`.
+
+Docs go live on the next mintlify-docs deploy after the backend change reaches
+main (the docs site re-fetches swagger.json from main at build time).
 
 ## You get this for free
 

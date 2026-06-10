@@ -139,6 +139,16 @@ endpoint was deprecated and `suffixMessage` names the replacement. Keep the TSOA
 @Patch('{projectUuid}/access/{userUuid}')
 ```
 
+**Docs visibility:** `deprecated: true` alone is nearly invisible on
+docs.lightdash.com (pages and llms.txt are generated from
+`src/generated/swagger.json`). Also lead the JSDoc description with a plain-text
+`Deprecated — use the v2 <name> endpoint instead.` first line (it becomes the
+llms.txt entry and page subtitle; no markdown/MDX there), add an
+`@Extension('x-mint', { content: '<Warning>...' })` migration banner (renders
+above the generated reference; MDX allowed there, not in the description), and
+keep `@summary` unchanged — the docs page URL is derived from it. Then
+`pnpm generate-api`. See the `deprecate-endpoint` skill for the full pattern.
+
 **Behavior** (`authentication/deprecation.ts`):
 
 - Every call logs. It logs a warning, escalating to an error once the removal
