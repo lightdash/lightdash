@@ -1,3 +1,10 @@
+# [0.3128.0](https://github.com/lightdash/lightdash/compare/0.3127.0...0.3128.0) (2026-06-10)
+
+
+### Features
+
+* **ai:** build writeback PR previews server-side instead of polling for CI comments ([#24123](https://github.com/lightdash/lightdash/issues/24123)) ([43342c6](https://github.com/lightdash/lightdash/commit/43342c6b9bb87c65eb4eec2f887416d76e070f95))
+
 # [0.3127.0](https://github.com/lightdash/lightdash/compare/0.3126.2...0.3127.0) (2026-06-10)
 
 
