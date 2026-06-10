@@ -44,7 +44,7 @@ export function hasBigqueryCredentials(): boolean {
     }
 }
 
-async function createProject(
+export async function createProject(
     client: ApiClient,
     projectName: string,
     warehouseConnection: Record<string, unknown>,
