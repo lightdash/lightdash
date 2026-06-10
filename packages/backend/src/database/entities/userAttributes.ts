@@ -7,13 +7,18 @@ export type DbUserAttribute = {
     description?: string;
     organization_id: number;
     attribute_default: string | null;
+    managed: boolean;
 };
 
 export type UserAttributeTable = Knex.CompositeTableType<
     DbUserAttribute,
     Pick<
         DbUserAttribute,
-        'name' | 'description' | 'organization_id' | 'attribute_default'
+        | 'name'
+        | 'description'
+        | 'organization_id'
+        | 'attribute_default'
+        | 'managed'
     >
 >;
 

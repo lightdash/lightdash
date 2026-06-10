@@ -31,6 +31,34 @@ export type CreateUserAttribute = Pick<
 > & {
     users: CreateUserAttributeValue[];
     groups: CreateGroupAttributeValue[];
+    /**
+     * Provenance flag: true when declared via instance config
+     * (`LD_SETUP_USER_ATTRIBUTES`). Defaults to false (UI-created). Enforcement
+     * of read-only-in-UI is deferred — see [[user attributes as code]].
+     */
+    managed?: boolean;
+};
+
+/**
+ * A group→value mapping declared in `LD_SETUP_USER_ATTRIBUTES`. The group is
+ * referenced by name (not UUID) because SCIM-synced groups are created by the
+ * IdP, so their UUIDs aren't known at deploy time.
+ */
+export type UserAttributeSetupGroupMapping = {
+    group: string;
+    value: string;
+};
+
+/**
+ * One entry in the `LD_SETUP_USER_ATTRIBUTES` instance-config env var. Defaults
+ * are applied at parse time, so the post-parse shape has every field present.
+ */
+export type UserAttributeSetupEntry = {
+    name: string;
+    description?: string;
+    attributeDefault: string | null;
+    managed: boolean;
+    groups: UserAttributeSetupGroupMapping[];
 };
 
 export type ApiUserAttributesResponse = {

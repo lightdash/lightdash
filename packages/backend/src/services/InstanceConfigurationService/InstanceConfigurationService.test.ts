@@ -96,6 +96,18 @@ const createMockService = (overrides: AnyType = {}) => {
         ...overrides.serviceAccountModel,
     };
 
+    const userAttributesModel = {
+        find: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
+        ...overrides.userAttributesModel,
+    };
+
+    const groupsModel = {
+        find: jest.fn(),
+        ...overrides.groupsModel,
+    };
+
     const lightdashConfig = {
         ...lightdashConfigMock,
         updateSetup: overrides.updateSetup || undefined,
@@ -117,6 +129,8 @@ const createMockService = (overrides: AnyType = {}) => {
         serviceAccountModel: serviceAccountModel as AnyType,
         embedModel: {} as AnyType,
         encryptionUtil: { encrypt: jest.fn() } as AnyType,
+        userAttributesModel: userAttributesModel as AnyType,
+        groupsModel: groupsModel as AnyType,
     });
 };
 
@@ -889,6 +903,140 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             expect(
                 service['projectModel'].getDefaultProjectUuidsByName,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('user attributes update scenarios', () => {
+        const privilegedAttribute = {
+            name: 'is_privileged',
+            description: 'PII access',
+            attributeDefault: null,
+            managed: true,
+            groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
+        };
+
+        const updateSetupWithAttribute = {
+            organizationUuid: mockOrgUuid,
+            projects: [], // route through the (empty) multi-project no-op branch
+            userAttributes: [privilegedAttribute],
+        };
+
+        const orgWithSingleUuid = {
+            getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
+        };
+
+        test('creates a new attribute, resolving the group by name to its uuid', async () => {
+            const create = jest.fn();
+            const update = jest.fn();
+            service = createMockService({
+                updateSetup: updateSetupWithAttribute,
+                organizationModel: orgWithSingleUuid,
+                userAttributesModel: {
+                    find: jest.fn().mockResolvedValue([]),
+                    create,
+                    update,
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [
+                            { uuid: 'grp-1', name: 'Privileged Data Analyst' },
+                        ],
+                    }),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(create).toHaveBeenCalledWith(mockOrgUuid, {
+                name: 'is_privileged',
+                description: 'PII access',
+                attributeDefault: null,
+                managed: true,
+                users: [],
+                groups: [{ groupUuid: 'grp-1', value: 'true' }],
+            });
+            expect(update).not.toHaveBeenCalled();
+        });
+
+        test('updates an existing attribute matched by name', async () => {
+            const create = jest.fn();
+            const update = jest.fn();
+            service = createMockService({
+                updateSetup: updateSetupWithAttribute,
+                organizationModel: orgWithSingleUuid,
+                userAttributesModel: {
+                    find: jest
+                        .fn()
+                        .mockResolvedValue([
+                            { uuid: 'attr-1', name: 'is_privileged' },
+                        ]),
+                    create,
+                    update,
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [
+                            { uuid: 'grp-1', name: 'Privileged Data Analyst' },
+                        ],
+                    }),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(update).toHaveBeenCalledWith(
+                mockOrgUuid,
+                'attr-1',
+                expect.objectContaining({
+                    name: 'is_privileged',
+                    groups: [{ groupUuid: 'grp-1', value: 'true' }],
+                }),
+            );
+            expect(create).not.toHaveBeenCalled();
+        });
+
+        test('skips a group mapping when the group is not found, without throwing', async () => {
+            const create = jest.fn();
+            service = createMockService({
+                updateSetup: updateSetupWithAttribute,
+                organizationModel: orgWithSingleUuid,
+                userAttributesModel: {
+                    find: jest.fn().mockResolvedValue([]),
+                    create,
+                    update: jest.fn(),
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({ data: [] }),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(create).toHaveBeenCalledWith(
+                mockOrgUuid,
+                expect.objectContaining({
+                    name: 'is_privileged',
+                    groups: [],
+                }),
+            );
+        });
+
+        test('does nothing when no userAttributes are configured', async () => {
+            const find = jest.fn();
+            service = createMockService({
+                updateSetup: { organizationUuid: mockOrgUuid, projects: [] },
+                organizationModel: orgWithSingleUuid,
+                userAttributesModel: {
+                    find,
+                    create: jest.fn(),
+                    update: jest.fn(),
+                },
+                groupsModel: { find: jest.fn() },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(find).not.toHaveBeenCalled();
         });
     });
 });

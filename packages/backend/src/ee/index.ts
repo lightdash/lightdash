@@ -497,6 +497,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     serviceAccountModel: models.getServiceAccountModel(),
                     embedModel: models.getEmbedModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
+                    userAttributesModel: models.getUserAttributesModel(),
+                    groupsModel: models.getGroupsModel(),
                 }),
             asyncQueryService: ({
                 models,

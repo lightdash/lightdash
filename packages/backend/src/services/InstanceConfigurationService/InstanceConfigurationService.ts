@@ -1,6 +1,8 @@
 import {
     AllowedEmailDomains,
+    CreateGroupAttributeValue,
     CreateProject,
+    CreateUserAttribute,
     CreateWarehouseCredentials,
     DbtProjectConfig,
     DbtVersionOptionLatest,
@@ -25,9 +27,11 @@ import { EmbedModel } from '../../ee/models/EmbedModel';
 import { ServiceAccountModel } from '../../ee/models/ServiceAccountModel';
 import { PersonalAccessTokenModel } from '../../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../../models/EmailModel';
+import { GroupsModel } from '../../models/GroupsModel';
 import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { UserAttributesModel } from '../../models/UserAttributesModel';
 import { UserModel } from '../../models/UserModel';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { BaseService } from '../BaseService';
@@ -47,6 +51,8 @@ type InstanceConfigurationServiceArguments = {
     serviceAccountModel?: ServiceAccountModel; // For creating service account on new setup
     embedModel?: EmbedModel; // For updating embed settings on new setup
     encryptionUtil: EncryptionUtil; // For encrypting embed secrets
+    userAttributesModel: UserAttributesModel; // For declaring user attributes as config
+    groupsModel: GroupsModel; // For resolving attribute group mappings by name
 };
 
 export class InstanceConfigurationService extends BaseService {
@@ -74,6 +80,10 @@ export class InstanceConfigurationService extends BaseService {
 
     private readonly encryptionUtil: EncryptionUtil;
 
+    private readonly userAttributesModel: UserAttributesModel;
+
+    private readonly groupsModel: GroupsModel;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -87,6 +97,8 @@ export class InstanceConfigurationService extends BaseService {
         serviceAccountModel,
         embedModel,
         encryptionUtil,
+        userAttributesModel,
+        groupsModel,
     }: InstanceConfigurationServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -102,6 +114,8 @@ export class InstanceConfigurationService extends BaseService {
         this.serviceAccountModel = serviceAccountModel;
         this.embedModel = embedModel;
         this.encryptionUtil = encryptionUtil;
+        this.userAttributesModel = userAttributesModel;
+        this.groupsModel = groupsModel;
     }
 
     async initializeInstance() {
@@ -774,6 +788,83 @@ export class InstanceConfigurationService extends BaseService {
         }
     }
 
+    /**
+     * Reconcile user attributes declared via LD_SETUP_USER_ATTRIBUTES. Upserts
+     * each declared attribute by name and resolves its group mappings by group
+     * name. Groups that don't exist yet (e.g. not yet synced from SCIM) are
+     * skipped with a warning and reconciled on a later deploy — never fatal.
+     * Attributes not listed in config are left untouched (non-destructive).
+     */
+    private async updateUserAttributesConfiguration(
+        config: NonNullable<LightdashConfig['updateSetup']>,
+    ) {
+        if (!config.userAttributes || config.userAttributes.length === 0) {
+            this.logger.debug(
+                `Update instance: No user attributes config found, skipping`,
+            );
+            return;
+        }
+
+        const organizationUuid = await this.getSingleOrg();
+        const existingAttributes = await this.userAttributesModel.find({
+            organizationUuid,
+        });
+
+        /* eslint-disable no-await-in-loop */
+        for (const entry of config.userAttributes) {
+            const groups: CreateGroupAttributeValue[] = [];
+            for (const mapping of entry.groups) {
+                const { data } = await this.groupsModel.find({
+                    organizationUuid,
+                    name: mapping.group,
+                });
+                const group = data.find((g) => g.name === mapping.group);
+                if (group) {
+                    groups.push({
+                        groupUuid: group.uuid,
+                        value: mapping.value,
+                    });
+                } else {
+                    this.logger.warn(
+                        `Update instance: group "${mapping.group}" for user attribute "${entry.name}" not found (not yet synced?); skipping this mapping`,
+                    );
+                }
+            }
+
+            const payload: CreateUserAttribute = {
+                name: entry.name,
+                description: entry.description,
+                attributeDefault: entry.attributeDefault,
+                managed: entry.managed,
+                users: [],
+                groups,
+            };
+
+            const existing = existingAttributes.find(
+                (a) => a.name === entry.name,
+            );
+            if (existing) {
+                await this.userAttributesModel.update(
+                    organizationUuid,
+                    existing.uuid,
+                    payload,
+                );
+                this.logger.info(
+                    `Update instance: Updated user attribute "${entry.name}"`,
+                );
+            } else {
+                await this.userAttributesModel.create(
+                    organizationUuid,
+                    payload,
+                );
+                this.logger.info(
+                    `Update instance: Created user attribute "${entry.name}"`,
+                );
+            }
+        }
+        /* eslint-enable no-await-in-loop */
+    }
+
     async updateInstanceConfiguration() {
         const config = this.lightdashConfig.updateSetup;
         if (!config) {
@@ -797,5 +888,7 @@ export class InstanceConfigurationService extends BaseService {
         }
 
         await this.updateOrganizationDefaultRole(config);
+
+        await this.updateUserAttributesConfiguration(config);
     }
 }

@@ -17,6 +17,8 @@ import {
     getMultiProjectSetupConfig,
     getObjectFromEnvironmentVariable,
     getStringRecordFromEnvironmentVariable,
+    getUpdateSetupConfig,
+    getUserAttributesSetupConfig,
     parseConfig,
     parseOrganizationMemberRoleArray,
 } from './parseConfig';
@@ -644,6 +646,102 @@ describe('process.env.LIGHTDASH_IFRAME_EMBEDDING_DOMAINS', () => {
             const config = parseConfig();
             expect(config.initialSetup).toBeUndefined();
         });
+    });
+});
+
+describe('getUserAttributesSetupConfig', () => {
+    beforeEach(() => {
+        delete process.env.LD_SETUP_USER_ATTRIBUTES;
+    });
+
+    test('returns undefined when LD_SETUP_USER_ATTRIBUTES is not set', () => {
+        expect(getUserAttributesSetupConfig()).toBeUndefined();
+    });
+
+    test('returns undefined when LD_SETUP_USER_ATTRIBUTES is an empty array', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = '[]';
+        expect(getUserAttributesSetupConfig()).toBeUndefined();
+    });
+
+    test('parses a single attribute with a group mapping', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            {
+                name: 'is_privileged',
+                description: 'PII access',
+                attributeDefault: null,
+                managed: true,
+                groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
+            },
+        ]);
+        expect(getUserAttributesSetupConfig()).toEqual([
+            {
+                name: 'is_privileged',
+                description: 'PII access',
+                attributeDefault: null,
+                managed: true,
+                groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
+            },
+        ]);
+    });
+
+    test('defaults groups to [], managed to false, attributeDefault to null when omitted', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { name: 'region' },
+        ]);
+        expect(getUserAttributesSetupConfig()).toEqual([
+            {
+                name: 'region',
+                attributeDefault: null,
+                managed: false,
+                groups: [],
+            },
+        ]);
+    });
+
+    test('throws ParseError on malformed JSON', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = '{not json';
+        expect(() => getUserAttributesSetupConfig()).toThrowError(ParseError);
+    });
+
+    test('throws ParseError when an attribute is missing a name', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { groups: [{ group: 'g', value: 'v' }] },
+        ]);
+        expect(() => getUserAttributesSetupConfig()).toThrowError(ParseError);
+    });
+
+    test('throws ParseError on duplicate attribute names', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { name: 'dup', groups: [] },
+            { name: 'dup', groups: [] },
+        ]);
+        expect(() => getUserAttributesSetupConfig()).toThrowError(
+            'Duplicate user attribute name "dup"',
+        );
+    });
+});
+
+describe('getUpdateSetupConfig userAttributes', () => {
+    beforeEach(() => {
+        delete process.env.LD_SETUP_USER_ATTRIBUTES;
+    });
+
+    test('includes parsed userAttributes from LD_SETUP_USER_ATTRIBUTES', () => {
+        process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
+            { name: 'is_privileged', groups: [{ group: 'G', value: 'true' }] },
+        ]);
+        expect(getUpdateSetupConfig()?.userAttributes).toEqual([
+            {
+                name: 'is_privileged',
+                attributeDefault: null,
+                managed: false,
+                groups: [{ group: 'G', value: 'true' }],
+            },
+        ]);
+    });
+
+    test('userAttributes is undefined when env var not set', () => {
+        expect(getUpdateSetupConfig()?.userAttributes).toBeUndefined();
     });
 });
 

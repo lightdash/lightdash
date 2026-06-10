@@ -357,6 +357,7 @@ export class UserAttributesModel {
                     description: orgAttribute.description,
                     organization_id: organization.organization_id,
                     attribute_default: orgAttribute.attributeDefault,
+                    managed: orgAttribute.managed ?? false,
                 })
                 .returning('*');
 
@@ -407,6 +408,7 @@ export class UserAttributesModel {
                     name: orgAttribute.name,
                     description: orgAttribute.description,
                     attribute_default: orgAttribute.attributeDefault,
+                    managed: orgAttribute.managed ?? false,
                 })
                 .where('user_attribute_uuid', orgAttributeUuid);
 

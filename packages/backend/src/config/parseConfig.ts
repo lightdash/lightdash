@@ -27,6 +27,7 @@ import {
     WarehouseTypes,
     WeekDay,
     type SchedulerTaskName,
+    type UserAttributeSetupEntry,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/core';
 import { type ClientAuthMethod } from 'openid-client';
@@ -461,6 +462,72 @@ export const getMultiProjectSetupConfig = ():
     return parsed as MultiProjectSetupEntry[];
 };
 
+const userAttributeSetupEntrySchema = z.object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    attributeDefault: z.string().nullable().default(null),
+    managed: z.boolean().default(false),
+    groups: z
+        .array(
+            z.object({
+                group: z.string().min(1),
+                value: z.string(),
+            }),
+        )
+        .default([]),
+});
+
+const userAttributesSetupSchema = z.array(userAttributeSetupEntrySchema).refine(
+    (entries) => {
+        const names = entries.map((e) => e.name);
+        return new Set(names).size === names.length;
+    },
+    (entries) => {
+        const names = entries.map((e) => e.name);
+        const duplicate = names.find((name, i) => names.indexOf(name) !== i);
+        return {
+            message: `Duplicate user attribute name "${duplicate}" in LD_SETUP_USER_ATTRIBUTES`,
+        };
+    },
+);
+
+export const getUserAttributesSetupConfig = ():
+    | UserAttributeSetupEntry[]
+    | undefined => {
+    const raw = process.env.LD_SETUP_USER_ATTRIBUTES;
+    if (!raw) return undefined;
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (e) {
+        throw new ParseError(
+            `Failed to parse LD_SETUP_USER_ATTRIBUTES: ${getErrorMessage(e)}`,
+        );
+    }
+
+    if (Array.isArray(parsed) && parsed.length === 0) {
+        return undefined;
+    }
+
+    const result = userAttributesSetupSchema.safeParse(parsed);
+    if (!result.success) {
+        const errorDetails = result.error.errors
+            .map((err) =>
+                err.path.length > 0
+                    ? `  - ${err.path.join('.')}: ${err.message}`
+                    : `  - ${err.message}`,
+            )
+            .join('\n');
+        throw new ParseError(
+            `Invalid LD_SETUP_USER_ATTRIBUTES:\n${errorDetails}\n\n` +
+                `See https://docs.lightdash.com/self-host/customize-deployment/environment-variables for details.`,
+        );
+    }
+
+    return result.data;
+};
+
 const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
     const parseCompute = (): CreateDatabricksCredentials['compute'] => {
         // This is a stringified array of objects, in JSON format
@@ -635,6 +702,7 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
             personal_access_token: process.env.LD_SETUP_GITHUB_PAT,
         },
         projects: getMultiProjectSetupConfig(),
+        userAttributes: getUserAttributesSetupConfig(),
         embed: {
             allowAllDashboards:
                 process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS === 'true',
@@ -1251,6 +1319,7 @@ export type LightdashConfig = {
             personalAccessToken?: CreateDatabricksCredentials['personalAccessToken'];
         };
         projects?: MultiProjectSetupEntry[];
+        userAttributes?: UserAttributeSetupEntry[];
         serviceAccount?: {
             token: string;
             expirationTime: Date | null;
