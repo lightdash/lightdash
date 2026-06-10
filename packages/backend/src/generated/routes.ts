@@ -8914,6 +8914,13 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                xlsxFileLayout: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { dataType: 'enum', enums: ['zip'] },
+                        { dataType: 'enum', enums: ['workbook'] },
+                    ],
+                },
                 exportPivotedData: { dataType: 'boolean' },
                 asAttachment: { dataType: 'boolean' },
                 limit: {
