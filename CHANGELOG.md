@@ -1,3 +1,19 @@
+# [0.3129.0](https://github.com/lightdash/lightdash/compare/0.3128.0...0.3129.0) (2026-06-10)
+
+
+### Bug Fixes
+
+* **ai-writeback:** restrict E2B sandbox egress to an allowlist ([#24134](https://github.com/lightdash/lightdash/issues/24134)) ([723a826](https://github.com/lightdash/lightdash/commit/723a826dfa4ee7a2b04cb2b3e106eb5e8ff8a459))
+
+
+### Features
+
+* **ai:** add per-provider supportsStreaming capability for non-streaming LLM gateways ([#24129](https://github.com/lightdash/lightdash/issues/24129)) ([f52abea](https://github.com/lightdash/lightdash/commit/f52abeae23ee2578e0e48867a97881c7c1844096))
+* **ai:** install Lightdash skills into the writeback sandbox ([#24133](https://github.com/lightdash/lightdash/issues/24133)) ([620f803](https://github.com/lightdash/lightdash/commit/620f8037b79c5447f0102875fab9d4500db094fa))
+* **instance-config:** declare user attributes & group mappings via LD_SETUP_USER_ATTRIBUTES ([#24100](https://github.com/lightdash/lightdash/issues/24100)) ([51a9507](https://github.com/lightdash/lightdash/commit/51a95079777c18358bcea7392f8c1212b4765b17))
+* per-org CORS settings with dynamic allow-list ([#24103](https://github.com/lightdash/lightdash/issues/24103)) ([b8caa9d](https://github.com/lightdash/lightdash/commit/b8caa9de344bd14d23d891e4340a74b2abc22c45))
+* show an error if bedrock is misconfigured ([#24091](https://github.com/lightdash/lightdash/issues/24091)) ([b13c7ec](https://github.com/lightdash/lightdash/commit/b13c7ec254358fd5515d80ec474cf01ce3a9b15f))
+
 # [0.3128.0](https://github.com/lightdash/lightdash/compare/0.3127.0...0.3128.0) (2026-06-10)
 
 
