@@ -32,6 +32,7 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -401,11 +402,20 @@ export class CatalogController extends BaseController {
      * @param projectUuid
      * @param table Table name to get metadata for
      * @returns ApiCatalogMetadataResults
+     *
+     * @deprecated No replacement, this endpoint will be removed
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage: 'No replacement, this endpoint will be removed.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{table}/metadata')
     @OperationId('getMetadata')
+    @Deprecated()
     async getMetadata(
         @Path() projectUuid: string,
         @Path() table: string,

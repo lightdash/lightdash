@@ -26,6 +26,7 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Hidden,
     Middlewares,
@@ -46,6 +47,7 @@ import { getContextFromQueryOrHeader } from '../analytics/LightdashAnalytics';
 import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -186,11 +188,21 @@ export class SqlRunnerController extends BaseController {
      * @param fileId the fileId for the file
      * @param projectUuid the uuid for the project
      * @param req express request
+     *
+     * @deprecated Use GET /api/v2/projects/{projectUuid}/query/{queryUuid}/results instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use GET /api/v2/projects/{projectUuid}/query/{queryUuid}/results instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('results/{fileId}')
     @OperationId('getLocalResults')
+    @Deprecated()
     async getLocalResults(
         @Path() fileId: string,
         @Path() projectUuid: string,
@@ -279,11 +291,21 @@ export class SqlRunnerController extends BaseController {
      * @param projectUuid - the uuid of the project
      * @param slug - the slug of the saved chart
      * @param req - express request
+     *
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/sql-chart with the chart slug instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/sql-chart with the chart slug instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('saved/slug/{slug}/results-job')
     @OperationId('getSavedSqlResultsJob')
+    @Deprecated()
     async getSavedSqlResultsJob(
         @Path() slug: string,
         @Path() projectUuid: string,
@@ -311,11 +333,21 @@ export class SqlRunnerController extends BaseController {
      * @param projectUuid - the uuid of the project
      * @param uuid - the uuid of the saved chart
      * @param req - express request
+     *
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/sql-chart with savedSqlUuid instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/sql-chart with savedSqlUuid instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('saved/{uuid}/results-job')
     @OperationId('getSavedSqlResultsJobByUuid')
+    @Deprecated()
     async getSavedSqlResultsJobByUuid(
         @Path() uuid: string,
         @Path() projectUuid: string,
