@@ -77,48 +77,41 @@ const getDashboardComments = async ({
     });
 };
 
-export const useGetComments = (
+const useDashboardComments = (
     dashboardUuid: string,
     projectUuid: string | undefined,
     enabled: boolean,
+    resolved: boolean,
 ) =>
     useQuery<ApiGetComments['results'], ApiError>(
-        ['comments', dashboardUuid, projectUuid, { resolved: false }],
+        ['comments', dashboardUuid, projectUuid, { resolved }],
         async () => {
             if (!projectUuid) throw new Error('projectUuid is required');
             return getDashboardComments({
                 dashboardUuid,
                 projectUuid,
-                resolved: false,
+                resolved,
             });
         },
         {
-            refetchInterval: 3 * 60 * 1000, // 3 minutes
+            // Only poll the active (unresolved) comments
+            refetchInterval: resolved ? undefined : 3 * 60 * 1000,
             retry: (_, error) => error.error.statusCode !== 403,
             enabled: enabled && !!projectUuid,
         },
     );
 
+export const useGetComments = (
+    dashboardUuid: string,
+    projectUuid: string | undefined,
+    enabled: boolean,
+) => useDashboardComments(dashboardUuid, projectUuid, enabled, false);
+
 export const useGetResolvedComments = (
     dashboardUuid: string,
     projectUuid: string | undefined,
     enabled: boolean,
-) =>
-    useQuery<ApiGetComments['results'], ApiError>(
-        ['comments', dashboardUuid, projectUuid, { resolved: true }],
-        async () => {
-            if (!projectUuid) throw new Error('projectUuid is required');
-            return getDashboardComments({
-                dashboardUuid,
-                projectUuid,
-                resolved: true,
-            });
-        },
-        {
-            retry: (_, error) => error.error.statusCode !== 403,
-            enabled: enabled && !!projectUuid,
-        },
-    );
+) => useDashboardComments(dashboardUuid, projectUuid, enabled, true);
 
 type RemoveCommentParams = { commentId: string } & Pick<
     CreateDashboardTileComment,
