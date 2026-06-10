@@ -150,7 +150,7 @@ export class WritebackPreviewService extends BaseService {
                 body: [
                     `🔍 **Lightdash preview environment ready:** ${previewUrl}`,
                     '',
-                    `Compiled from branch \`${pullRequest.headRef}\` by Lightdash — no CI required. Explores may take a minute to appear while the project compiles.`,
+                    `Compiled from branch \`${pullRequest.headRef}\`. Explores may take a minute to appear while the project compiles.`,
                 ].join('\n'),
                 token,
             });
