@@ -6,7 +6,7 @@ import { ApiClient, Body } from './api-client';
 
 export const BIGQUERY_CREDENTIALS_PATH = path.resolve(
     __dirname,
-    '../../cypress/fixtures/credentials.json',
+    '../../e2e/cypress/fixtures/credentials.json',
 );
 
 /**
