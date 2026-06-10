@@ -1179,21 +1179,22 @@ const AiAgentAdminReviewItemsTable = ({
             }
 
             const isSelected = selectedReviewItemUuid === reviewItem.uuid;
+            const latestFinding = reviewItem.latestFinding;
 
             return {
                 className: styles.bodyRow,
                 style: {
-                    cursor: reviewItem.latestFinding ? 'pointer' : 'default',
+                    cursor: latestFinding ? 'pointer' : 'default',
                     backgroundColor: isSelected
                         ? theme.colors.ldGray[0]
                         : undefined,
                 },
-                onClick: reviewItem.latestFinding
+                onClick: latestFinding
                     ? () =>
                           onReviewItemSelect?.({
-                              projectUuid: reviewItem.latestFinding.projectUuid,
-                              agentUuid: reviewItem.latestFinding.agentUuid,
-                              threadUuid: reviewItem.latestFinding.threadUuid,
+                              projectUuid: latestFinding.projectUuid,
+                              agentUuid: latestFinding.agentUuid,
+                              threadUuid: latestFinding.threadUuid,
                               reviewItemUuid: reviewItem.uuid,
                           })
                     : undefined,

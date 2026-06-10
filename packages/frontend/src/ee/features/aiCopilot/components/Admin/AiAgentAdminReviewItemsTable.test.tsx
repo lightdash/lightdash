@@ -1,7 +1,7 @@
 import { type AiAgentReviewItemSummary } from '@lightdash/common';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithProviders } from '../../../../../testing/testUtils';
 import AiAgentAdminReviewItemsTable from './AiAgentAdminReviewItemsTable';
 
@@ -135,13 +135,6 @@ const reviewSignals = [
         finding: null,
     },
 ];
-
-beforeAll(() => {
-    globalThis.ResizeObserver = class ResizeObserver {
-        observe() {}
-        disconnect() {}
-    } as typeof ResizeObserver;
-});
 
 describe('AiAgentAdminReviewItemsTable', () => {
     beforeEach(() => {
