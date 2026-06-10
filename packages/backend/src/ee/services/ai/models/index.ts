@@ -1,4 +1,5 @@
 import { assertUnreachable, ParameterError } from '@lightdash/common';
+import { simulateStreamingMiddleware, wrapLanguageModel } from 'ai';
 import { LightdashConfig } from '../../../../config/parseConfig';
 import Logger from '../../../../logging/logger';
 import { getAnthropicModel } from './anthropic-claude';
@@ -12,6 +13,7 @@ import {
     ModelPreset,
     ModelPresetProvider,
 } from './presets';
+import { AiModel, AiProvider } from './types';
 
 export { MODEL_PRESETS };
 
@@ -133,6 +135,38 @@ export const getModelPreset = <T extends 'openai' | 'anthropic' | 'bedrock'>(
     };
 };
 
+/**
+ * Some LLM gateways don't support streaming (SSE) completions. When a provider
+ * is marked `supportsStreaming: false`, wrap its model with the AI SDK's
+ * simulateStreamingMiddleware: `streamText` then issues a single non-streaming
+ * `doGenerate` request per step and replays the result as a simulated stream,
+ * so call sites (and the browser-facing SSE endpoint) are unaffected.
+ */
+export const applyStreamingCapability = <P extends AiProvider>(
+    modelProperties: AiModel<P>,
+    supportsStreaming: boolean,
+): AiModel<P> => {
+    if (supportsStreaming) {
+        return modelProperties;
+    }
+    const { model } = modelProperties;
+    if (model.specificationVersion !== 'v3') {
+        throw new ParameterError(
+            `Provider model "${model.modelId}" does not support disabling streaming`,
+        );
+    }
+    Logger.debug(
+        `Provider does not support streaming: serving "${model.modelId}" calls as non-streaming requests via simulated streaming`,
+    );
+    return {
+        ...modelProperties,
+        model: wrapLanguageModel({
+            model,
+            middleware: simulateStreamingMiddleware(),
+        }),
+    };
+};
+
 export const getModel = (
     config: LightdashConfig['ai']['copilot'],
     options?: {
@@ -162,9 +196,12 @@ export const getModel = (
                 config,
                 resolveModelName('openai'),
             );
-            return getOpenaiGptmodel(openaiConfig, preset, {
-                enableReasoning: options?.enableReasoning,
-            });
+            return applyStreamingCapability(
+                getOpenaiGptmodel(openaiConfig, preset, {
+                    enableReasoning: options?.enableReasoning,
+                }),
+                openaiConfig.supportsStreaming,
+            );
         }
         case 'azure': {
             const azureConfig = config.providers.azure;
@@ -172,7 +209,10 @@ export const getModel = (
                 throw new ParameterError('Azure configuration is required');
             }
             // Azure doesn't use presets - uses deployment name directly
-            return getAzureGpt41Model(azureConfig);
+            return applyStreamingCapability(
+                getAzureGpt41Model(azureConfig),
+                azureConfig.supportsStreaming,
+            );
         }
         case 'anthropic': {
             const { config: anthropicConfig, preset } = getModelPreset(
@@ -180,9 +220,12 @@ export const getModel = (
                 config,
                 resolveModelName('anthropic'),
             );
-            return getAnthropicModel(anthropicConfig, preset, {
-                enableReasoning: options?.enableReasoning,
-            });
+            return applyStreamingCapability(
+                getAnthropicModel(anthropicConfig, preset, {
+                    enableReasoning: options?.enableReasoning,
+                }),
+                anthropicConfig.supportsStreaming,
+            );
         }
         case 'openrouter': {
             const openrouterConfig = config.providers.openrouter;
@@ -192,7 +235,10 @@ export const getModel = (
                 );
             }
             // OpenRouter doesn't use presets - uses model name directly
-            return getOpenRouterModel(openrouterConfig);
+            return applyStreamingCapability(
+                getOpenRouterModel(openrouterConfig),
+                openrouterConfig.supportsStreaming,
+            );
         }
         case 'bedrock': {
             const { config: bedrockConfig, preset } = getModelPreset(
@@ -200,9 +246,12 @@ export const getModel = (
                 config,
                 resolveModelName('bedrock'),
             );
-            return getBedrockModel(bedrockConfig, preset, {
-                enableReasoning: options?.enableReasoning,
-            });
+            return applyStreamingCapability(
+                getBedrockModel(bedrockConfig, preset, {
+                    enableReasoning: options?.enableReasoning,
+                }),
+                bedrockConfig.supportsStreaming,
+            );
         }
         default:
             return assertUnreachable(provider, `Invalid provider: ${provider}`);

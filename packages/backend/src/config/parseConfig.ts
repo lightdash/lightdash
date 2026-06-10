@@ -918,6 +918,10 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
     return ALL_TASK_NAMES;
 };
 
+// Default-on: streaming is disabled only when the env var is the literal 'false'
+const getProviderSupportsStreaming = (envVar: string): boolean =>
+    process.env[envVar] !== 'false';
+
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
     if (process.env.BEDROCK_API_KEY) {
         return {
@@ -932,6 +936,9 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
                 'BEDROCK_AVAILABLE_MODELS',
             ),
             customHeaders,
+            supportsStreaming: getProviderSupportsStreaming(
+                'BEDROCK_SUPPORTS_STREAMING',
+            ),
         } as const;
     }
     if (process.env.BEDROCK_ACCESS_KEY_ID) {
@@ -949,6 +956,9 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
                 'BEDROCK_AVAILABLE_MODELS',
             ),
             customHeaders,
+            supportsStreaming: getProviderSupportsStreaming(
+                'BEDROCK_SUPPORTS_STREAMING',
+            ),
         } as const;
     }
 
@@ -986,6 +996,9 @@ export const getAiConfig = () => ({
                   customHeaders: getProviderCustomHeaders(
                       'AZURE_AI_CUSTOM_HEADERS',
                   ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'AZURE_AI_SUPPORTS_STREAMING',
+                  ),
               }
             : undefined,
         openai: process.env.OPENAI_API_KEY
@@ -1006,6 +1019,9 @@ export const getAiConfig = () => ({
                   customHeaders: getProviderCustomHeaders(
                       'OPENAI_CUSTOM_HEADERS',
                   ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'OPENAI_SUPPORTS_STREAMING',
+                  ),
               }
             : undefined,
         anthropic:
@@ -1022,6 +1038,9 @@ export const getAiConfig = () => ({
                       customHeaders: getProviderCustomHeaders(
                           'ANTHROPIC_CUSTOM_HEADERS',
                       ),
+                      supportsStreaming: getProviderSupportsStreaming(
+                          'ANTHROPIC_SUPPORTS_STREAMING',
+                      ),
                   }
                 : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
@@ -1036,6 +1055,9 @@ export const getAiConfig = () => ({
                   ),
                   customHeaders: getProviderCustomHeaders(
                       'OPENROUTER_CUSTOM_HEADERS',
+                  ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'OPENROUTER_SUPPORTS_STREAMING',
                   ),
               }
             : undefined,
