@@ -5,7 +5,7 @@ import {
     formatItemValue,
     formatRows,
     getErrorMessage,
-    getFormatExpression,
+    getExcelFormatExpression,
     isDimension,
     isField,
     isNumber,
@@ -534,7 +534,7 @@ export class ExcelService {
         worksheet.columns = headers.map((header, index) => {
             const fieldId = sortedFieldIds[index];
             const item = fields[fieldId];
-            const formatExpression = getFormatExpression(item);
+            const formatExpression = getExcelFormatExpression(item);
 
             const column: Partial<Excel.Column> = {
                 header,

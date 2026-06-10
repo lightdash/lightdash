@@ -968,10 +968,27 @@ export function getFormatExpression(
     if (hasValidFormatExpression(item)) {
         return item.format;
     }
+
     const customFormat = getCustomFormat(item);
     return customFormat
         ? convertCustomFormatToFormatExpression(customFormat) || undefined
         : undefined;
+}
+
+export function getExcelFormatExpression(
+    item: Item | AdditionalMetric,
+): string | undefined {
+    const formatExpression = getFormatExpression(item);
+    if (
+        formatExpression === '#,##0.###' &&
+        isMetric(item) &&
+        [MetricType.COUNT, MetricType.COUNT_DISTINCT].includes(item.type) &&
+        !hasFormatting(item)
+    ) {
+        return '#,##0';
+    }
+
+    return formatExpression;
 }
 
 export function formatItemValue(
