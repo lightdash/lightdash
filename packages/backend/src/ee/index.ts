@@ -112,7 +112,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
                 }),
-            aiWritebackService: ({ context, models, prometheusMetrics }) =>
+            aiWritebackService: ({
+                context,
+                models,
+                repository,
+                prometheusMetrics,
+            }) =>
                 new AiWritebackService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -120,6 +125,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    githubAppService: repository.getGithubAppService(),
                     gitlabAppInstallationsModel:
                         models.getGitlabAppInstallationsModel(),
                     aiWritebackThreadModel:

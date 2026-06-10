@@ -139,6 +139,9 @@ export class GitlabProvider implements GitProvider {
      */
     async resolveInstallation(
         organizationUuid: string,
+        // Per-user GitLab account linking is not implemented yet; GitLab
+        // writebacks always act as the org's app installation.
+        _options?: { user?: SessionUser; connection?: GitConnection },
     ): Promise<GitInstallation> {
         let auth: {
             token: string;

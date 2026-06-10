@@ -62,9 +62,17 @@ export type AdoptedPullRequest = {
 export type GithubInstallation = {
     provider: PullRequestProvider.GITHUB;
     installationId: string;
-    /** Installation access token — authenticates the in-sandbox clone/push. */
+    /** Installation access token — authenticates the in-sandbox clone. */
     token: string;
-    /** Author stamped on the (local) writeback commit — the Lightdash app identity. */
+    /**
+     * The triggering user's user-to-server token, when they have linked their
+     * GitHub account (feature-flagged) and it can reach this repo. When set,
+     * the API commits and the pull request are authored — and signed — as that
+     * user, and no co-author trailer is added. Null → act as the app bot and
+     * credit the triggering user as a commit co-author instead.
+     */
+    userToken: string | null;
+    /** Author stamped on the (local, never-pushed) writeback commit — the Lightdash app identity. */
     commitAuthor: GitCommitAuthor;
     /**
      * `Co-authored-by:` trailer appended to the commit message to credit the
