@@ -13,6 +13,7 @@ import path from 'path';
 import { performance } from 'perf_hooks';
 import prometheus from 'prom-client';
 import { z } from 'zod';
+import { AI_WRITEBACK_STAGES } from '../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../config/parseConfig';
 import { PreAggregateMaterializationsTableName } from '../ee/database/entities/preAggregates';
 import Logger from '../logging/logger';
@@ -467,6 +468,22 @@ export default class PrometheusMetrics {
                         ],
                         ...rest,
                     });
+
+                // Pre-create every known label combination so each series
+                // exports a zero baseline from process start. Without this,
+                // Managed Prometheus treats the first observed sample of a
+                // new labelled series as the counter-reset baseline and the
+                // entire first burst of observations is invisible to rate().
+                (['found', 'missing', 'error'] as const).forEach((outcome) => {
+                    this.repoFsGithubFileDurationHistogram?.zero({ outcome });
+                });
+                (['success', 'error'] as const).forEach((status) => {
+                    this.aiWritebackCompileDurationHistogram?.zero({ status });
+                    this.aiWritebackRunDurationHistogram?.zero({ status });
+                });
+                AI_WRITEBACK_STAGES.forEach((stage) => {
+                    this.aiWritebackStageDurationHistogram?.zero({ stage });
+                });
 
                 // Initialize pre-aggregate metrics
                 this.preAggregateMatchCounter = new prometheus.Counter({
