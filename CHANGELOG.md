@@ -1,3 +1,10 @@
+# [0.3134.0](https://github.com/lightdash/lightdash/compare/0.3133.0...0.3134.0) (2026-06-10)
+
+
+### Features
+
+* **ai-reviews:** simplify findings table and drawer ([#24155](https://github.com/lightdash/lightdash/issues/24155)) ([5692583](https://github.com/lightdash/lightdash/commit/56925837f59f8f71d9d9e213515f3daec727c5b4))
+
 # [0.3133.0](https://github.com/lightdash/lightdash/compare/0.3132.1...0.3133.0) (2026-06-10)
 
 
