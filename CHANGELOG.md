@@ -1,3 +1,10 @@
+## [0.3124.2](https://github.com/lightdash/lightdash/compare/0.3124.1...0.3124.2) (2026-06-10)
+
+
+### Bug Fixes
+
+* validate dashboard chart sorts ([#24042](https://github.com/lightdash/lightdash/issues/24042)) ([9033021](https://github.com/lightdash/lightdash/commit/903302152ff754da0fd90ab013ecb6cac08d6047)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3124.1](https://github.com/lightdash/lightdash/compare/0.3124.0...0.3124.1) (2026-06-10)
 
 
