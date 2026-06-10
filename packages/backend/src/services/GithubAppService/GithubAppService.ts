@@ -32,6 +32,34 @@ import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
 import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 
+/**
+ * GitHub OAuth error codes that mean the stored refresh token is no longer
+ * usable (the user revoked the grant, or it was reset). Only these — plus a
+ * 401 — should trigger deleting the credential; everything else is treated as
+ * transient so a temporary outage doesn't silently unlink the user.
+ */
+const REVOKED_GITHUB_TOKEN_OAUTH_ERRORS = new Set([
+    'bad_refresh_token',
+    'invalid_grant',
+    'unauthorized',
+]);
+
+const isRevokedGithubTokenError = (error: unknown): boolean => {
+    if (typeof error !== 'object' || error === null) {
+        return false;
+    }
+    const maybeError = error as {
+        status?: number;
+        response?: { status?: number; data?: { error?: string } };
+    };
+    const oauthError = maybeError.response?.data?.error;
+    if (oauthError && REVOKED_GITHUB_TOKEN_OAUTH_ERRORS.has(oauthError)) {
+        return true;
+    }
+    const status = maybeError.status ?? maybeError.response?.status;
+    return status === 401;
+};
+
 type GithubAppServiceArguments = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
     gitUserCredentialsModel: GitUserCredentialsModel;
@@ -411,6 +439,38 @@ export class GithubAppService extends BaseService {
     }
 
     /**
+     * Coerce a caller-supplied return path into a safe same-origin relative
+     * path. Rejects absolute URLs and protocol-relative (`//host`) values so a
+     * malicious `returnTo` cannot turn the post-OAuth redirect into an open
+     * redirect. Falls back to the integrations settings page.
+     */
+    private toSameOriginPath(returnToPath?: string): string {
+        const fallback = '/generalSettings/integrations';
+        if (
+            !returnToPath ||
+            !returnToPath.startsWith('/') ||
+            returnToPath.startsWith('//')
+        ) {
+            return fallback;
+        }
+        try {
+            const candidate = new URL(
+                returnToPath,
+                this.lightdashConfig.siteUrl,
+            );
+            const siteOrigin = new URL(this.lightdashConfig.siteUrl).origin;
+            // Reject anything that resolved to another origin (e.g. backslash
+            // tricks that browsers normalise to `//host`).
+            if (candidate.origin !== siteOrigin) {
+                return fallback;
+            }
+            return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+        } catch {
+            return fallback;
+        }
+    }
+
+    /**
      * Build the redirect for linking a user's personal GitHub account.
      * Reuses the GitHub App's OAuth client and callback URL; the flow is
      * disambiguated from app installation via the session's githubFlow flag.
@@ -434,7 +494,7 @@ export class GithubAppService extends BaseService {
         });
 
         const returnToUrl = new URL(
-            returnToPath || '/generalSettings/integrations',
+            this.toSameOriginPath(returnToPath),
             this.lightdashConfig.siteUrl,
         );
         const randomID = nanoid().replace('_', '');
@@ -626,15 +686,26 @@ export class GithubAppService extends BaseService {
             }
             return token;
         } catch (error) {
+            if (isRevokedGithubTokenError(error)) {
+                this.logger.warn(
+                    `GitHub user token for user ${userUuid} is revoked or invalid, removing credential: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                await this.gitUserCredentialsModel.deleteCredential(
+                    userUuid,
+                    organizationUuid,
+                    PullRequestProvider.GITHUB,
+                );
+                return undefined;
+            }
+            // Transient failure (network error, timeout, rate limit, GitHub
+            // outage): keep the credential so a blip doesn't silently unlink
+            // the user, and fall back to app auth for this request.
             this.logger.warn(
-                `GitHub user token for user ${userUuid} could not be refreshed, removing credential: ${getErrorMessage(
+                `GitHub user token for user ${userUuid} could not be refreshed, falling back to app auth: ${getErrorMessage(
                     error,
                 )}`,
-            );
-            await this.gitUserCredentialsModel.deleteCredential(
-                userUuid,
-                organizationUuid,
-                PullRequestProvider.GITHUB,
             );
             return undefined;
         }
