@@ -14,6 +14,14 @@
     min-width: 0;
 }
 
+.reviewContext {
+    min-width: 0;
+}
+
+.reviewTitle {
+    max-width: 240px;
+}
+
 /* Row actions fade in on row hover (and stay visible while focused) */
 .rowActions {
     opacity: 0;

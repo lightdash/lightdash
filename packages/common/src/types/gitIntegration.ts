@@ -1,3 +1,7 @@
+import type {
+    AiAgentReviewItemStatus,
+    AiAgentRootCause,
+} from '../ee/AiAgent/aiAgentReviewClassifierTypes';
 import { type KnexPaginatedData } from './knex-paginate';
 
 export type GitIntegrationConfiguration = {
@@ -8,6 +12,18 @@ export type GitIntegrationConfiguration = {
 export type PullRequestCreated = {
     prTitle: string;
     prUrl: string;
+};
+
+export type PullRequestReviewContext = {
+    reviewItemUuid: string;
+    reviewItemFingerprint: string;
+    reviewTitle: string;
+    reviewStatus: AiAgentReviewItemStatus;
+    primaryRootCause: AiAgentRootCause;
+    sourceFindingUuid: string;
+    sourceThreadUuid: string;
+    sourceProjectUuid: string;
+    sourceAgentUuid: string;
 };
 
 export enum PullRequestProvider {
@@ -56,6 +72,11 @@ export type PullRequest = {
      * build the in-app thread link. Null whenever `aiThreadUuid` is null.
      */
     aiAgentUuid: string | null;
+    /**
+     * Source review context for AI review remediation PRs. Present when the PR
+     * was opened to address a review finding.
+     */
+    reviewContext: PullRequestReviewContext | null;
     createdAt: Date;
 };
 
