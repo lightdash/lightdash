@@ -2056,11 +2056,19 @@ export class AppGenerateService extends BaseService {
             e2bApiKey = this.getE2bApiKey();
             ({ client: s3Client, bucket } = this.getS3Client());
         } catch (error) {
+            // Config errors (missing/incomplete provider, E2B, or S3 setup) carry
+            // a clear, actionable message — surface it so operators can see what's
+            // misconfigured instead of a generic "something went wrong". Other
+            // errors stay generic.
+            const userMessage =
+                error instanceof MissingConfigError
+                    ? error.message
+                    : 'Something went wrong. Please try again.';
             const marked = await this.markError(
                 appUuid,
                 version,
                 error,
-                'Something went wrong. Please try again.',
+                userMessage,
             );
             if (marked) {
                 this.trackVersionFailed(payload, 'config', error, {}, null, 0);
@@ -2365,11 +2373,19 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
+                // In Bedrock mode a generation failure is often the model not
+                // being enabled in the configured region (the call fails before
+                // any tool use) — point operators at that instead of the generic
+                // "try rephrasing".
+                const userMessage =
+                    claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
+                        ? 'Failed to generate the app. If this keeps happening, check that the selected model is enabled in your AWS Bedrock region (see server logs).'
+                        : 'Failed to generate app code. Try rephrasing your request.';
                 const marked = await this.markError(
                     appUuid,
                     version,
                     error,
-                    'Failed to generate app code. Try rephrasing your request.',
+                    userMessage,
                 );
                 if (marked) {
                     this.trackVersionFailed(
