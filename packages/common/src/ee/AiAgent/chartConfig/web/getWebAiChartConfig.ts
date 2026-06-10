@@ -1,14 +1,7 @@
-import { type ChartAsCode } from '../../../../types/coder';
 import { type ItemsMap } from '../../../../types/field';
 import { type MetricQuery } from '../../../../types/metricQuery';
 import assertUnreachable from '../../../../utils/assertUnreachable';
-import {
-    type ToolRunQueryArgs,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
-} from '../../schemas';
-import { AiResultType } from '../../types';
+import { AiResultType, type AiArtifactChartConfig } from '../../types';
 import { parseVizConfig } from '../../utils';
 import { getVerticalBarChartConfig } from './generateBarVizConfigTool/getVerticalBarChartConfig';
 import { getTableChartConfig } from './generateTableVizConfigTool/getTableChartConfig';
@@ -22,12 +15,7 @@ export const getWebAiChartConfig = ({
     fieldsMap,
     overrideChartType,
 }: {
-    vizConfig:
-        | ChartAsCode
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs;
+    vizConfig: AiArtifactChartConfig;
     metricQuery: MetricQuery;
     maxQueryLimit?: number;
     fieldsMap: ItemsMap;

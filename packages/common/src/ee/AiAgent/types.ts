@@ -35,6 +35,13 @@ export type AiMetricQueryWithFilters = AiMetricQuery & {
     filters: Filters;
 };
 
+export type AiArtifactChartConfig =
+    | ChartAsCode
+    | ToolTableVizArgs
+    | ToolTimeSeriesArgs
+    | ToolVerticalBarArgs
+    | ToolRunQueryArgs;
+
 export type AiAgentVizConfig =
     | {
           type: 'vertical_bar_chart';

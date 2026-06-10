@@ -153,7 +153,7 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
 
         const defaultChartType: AiAgentChartTypeOption =
             parsedChartConfig?.type === AiResultType.QUERY_RESULT
-                ? (parsedChartConfig.vizTool.chartConfig?.defaultVizType ??
+                ? (parsedChartConfig.vizTool?.chartConfig?.defaultVizType ??
                   'table')
                 : 'table';
 
