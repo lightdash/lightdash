@@ -10,6 +10,18 @@
     background-color: var(--mantine-color-ldGray-3) !important;
 }
 
+.contentPanel {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.contentStack {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+}
+
 .threadPanel {
     max-height: 100%;
 }

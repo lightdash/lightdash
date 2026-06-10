@@ -204,8 +204,14 @@ export const EvalSectionLayout: FC<EvalSectionLayoutProps> = ({ children }) => {
                 id="eval-content"
                 defaultSize={isSidebarOpen ? 40 : 100}
                 minSize={30}
+                className={styles.contentPanel}
             >
-                <Stack gap="sm" mt="lg" pr="md">
+                <Stack
+                    className={styles.contentStack}
+                    gap="sm"
+                    pt="lg"
+                    pr="md"
+                >
                     <Stack gap="md">
                         <Group justify="space-between" align="flex-start">
                             <Stack gap="xs">
