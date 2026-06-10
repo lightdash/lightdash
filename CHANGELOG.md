@@ -1,3 +1,16 @@
+# [0.3131.0](https://github.com/lightdash/lightdash/compare/0.3130.0...0.3131.0) (2026-06-10)
+
+
+### Bug Fixes
+
+* emit terminal error event when SDK metric-query POST fails ([#24144](https://github.com/lightdash/lightdash/issues/24144)) ([28072da](https://github.com/lightdash/lightdash/commit/28072da1cb56b496fb9a1179850118b1a2d69e3f))
+
+
+### Features
+
+* **ai-agents:** link review findings from pull requests ([#24122](https://github.com/lightdash/lightdash/issues/24122)) ([298f83c](https://github.com/lightdash/lightdash/commit/298f83cd71ab37788d787f12c25a5b78262c0185))
+* **timezone:** add fractional-offset zones to the picker ([#24126](https://github.com/lightdash/lightdash/issues/24126)) ([929af8e](https://github.com/lightdash/lightdash/commit/929af8ec6a1d1ae4824d77929f5b0354a2b41b56))
+
 # [0.3130.0](https://github.com/lightdash/lightdash/compare/0.3129.1...0.3130.0) (2026-06-10)
 
 
