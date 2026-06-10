@@ -203,7 +203,9 @@ export type DateFilterRule = FilterRule<
 
 export const isDateFilterRule = (
     filter: FilterRule<FilterOperator, FieldTarget | unknown, AnyType, AnyType>,
-): filter is DateFilterRule => 'unitOfTime' in (filter.settings || {});
+): filter is DateFilterRule =>
+    'unitOfTime' in (filter.settings || {}) ||
+    'completed' in (filter.settings || {});
 
 export type FilterGroupItem = FilterGroup | FilterRule;
 
