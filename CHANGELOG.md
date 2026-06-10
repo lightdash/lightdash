@@ -1,3 +1,10 @@
+## [0.3132.1](https://github.com/lightdash/lightdash/compare/0.3132.0...0.3132.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* **common:** format MIN/MAX timestamp aggregations in project timezone (GLITCH-485) ([#24137](https://github.com/lightdash/lightdash/issues/24137)) ([158f5e5](https://github.com/lightdash/lightdash/commit/158f5e57a7a62b40d6311210798e3316b762f260))
+
 # [0.3132.0](https://github.com/lightdash/lightdash/compare/0.3131.0...0.3132.0) (2026-06-10)
 
 
