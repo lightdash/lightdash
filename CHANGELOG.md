@@ -1,3 +1,10 @@
+## [0.3125.2](https://github.com/lightdash/lightdash/compare/0.3125.1...0.3125.2) (2026-06-10)
+
+
+### Bug Fixes
+
+* **prometheus:** zero-init labelled AI writeback histogram series ([#24114](https://github.com/lightdash/lightdash/issues/24114)) ([97fd658](https://github.com/lightdash/lightdash/commit/97fd6583a8ea1d4d4fedb56d161fa5dbc25cc0b1))
+
 ## [0.3125.1](https://github.com/lightdash/lightdash/compare/0.3125.0...0.3125.1) (2026-06-10)
 
 
