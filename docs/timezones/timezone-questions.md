@@ -359,6 +359,19 @@ The only place this could go wrong is if we ever emitted `IS NULL OR (col >= bou
 
 The one gap: the resolved `queryTimezone` value itself isn't shown next to the SQL — you can infer it from the literals, but a "resolved TZ: America/New_York" label above the SQL panel would close the loop.
 
+**The output is raw by design — we don't auto-convert it.** SQL Runner results bypass `formatRows`, so timestamps render as raw UTC ISO 8601 (`2026-01-15T09:30:00.000Z`) regardless of project timezone. This is intentional: custom SQL can return any shape, so Lightdash will *not* apply the project timezone to SQL Runner / SQL-chart output. The supported path for users who want conversion is the `${ldQueryTimezone}` template variable ([GLITCH-462](https://linear.app/lightdash/issue/GLITCH-462), v3) — they write the conversion in their own SQL without hardcoding a zone; [GLITCH-466](https://linear.app/lightdash/issue/GLITCH-466) additionally labels the resolved TZ next to the compiled SQL.
+
+The residual friction: SQL Runner serializes every timestamp via a JS `Date` → ISO 8601 `Z` string, regardless of the value's real zone, so it both ignores the data/session TZ and misrepresents the value. Verified on Postgres with the warehouse session at Pacific/Pago_Pago (UTC−11):
+
+| Expression | SQL Runner shows | Warehouse `::text` / `to_char` |
+| ---------- | ---------------- | ------------------------------ |
+| `'2026-06-09 12:00:00+00'::timestamptz` | `2026-06-09T12:00:00.000Z` | `2026-06-09 01:00:00-11` |
+| `... AT TIME ZONE 'America/New_York'` | `2026-06-09T08:00:00.000Z` | `2026-06-09 08:00:00` |
+
+The first row shows a TZ-aware value collapsed to the UTC instant with the offset dropped; the second shows a naive (converted) wall-clock stamped with a false `Z`. Either way the rendering misrepresents the value, and casting to text is the only faithful workaround.
+
+Verified on Snowflake too: `CONVERT_TIMEZONE('America/New_York', '2026-06-09 12:00:00 +00:00'::timestamp_tz)` returns a `TIMESTAMP_TZ` of `08:00:00 -04:00`, but SQL Runner displays `2026-06-09T12:00:00.000Z` — *identical* to the unconverted value, so the 2-arg conversion looks completely inert; `TO_CHAR(...)` confirms the real `2026-06-09 08:00:00 -04:00`. (Note Snowflake `TIMESTAMP_TZ` keeps the literal's own offset rather than the session zone, so on Snowflake the drop shows up as this converted-looks-inert case rather than as a session-offset divergence.) Making SQL Runner render timestamps faithfully is tracked as [GLITCH-489](https://linear.app/lightdash/issue/GLITCH-489) (v3), separate from GLITCH-462.
+
 ---
 
 ## The meta question
@@ -393,6 +406,6 @@ So the architectural intent is "support both, default to consistent." **This is 
 | Pre-agg TZ-frozen-after-project-TZ-change behavior | Correctness | 1d test | materialization path |
 | `${ldQueryTimezone}` SQL templating | Feature | 1w | `MetricQueryBuilder.ts` |
 | Customer-facing "how Lightdash handles TZ" doc | Docs | 2d | new file in docs site |
-| Timestamp leak in SQL Runner output | Polish | indef | warehouse `getSqlForTruncatedDate` |
+| SQL Runner output is raw UTC ISO by design; conversion is user-driven via `${ldQueryTimezone}`. In-SQL `CONVERT_TIMEZONE` only shows once cast to string | Feature | v3 | GLITCH-462 (`${ldQueryTimezone}` var) |
 | Half-hour TZ test coverage | Testing | 0.5d | test matrix |
 | moment-timezone version pinning policy | Hygiene | 0.5d | `package.json` |

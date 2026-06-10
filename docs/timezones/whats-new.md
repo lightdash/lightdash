@@ -27,7 +27,7 @@ Short summary of how v2 changes user-facing behavior vs. today's published docs 
 
 ## Deferred (called out, not shipping in v2)
 
-GLITCH-462 (template var for SQL Runner), GLITCH-463 (per-column TZ annotation), GLITCH-460 (pick one conversion mechanism), GLITCH-465, GLITCH-466.
+GLITCH-462 (template var for SQL Runner), GLITCH-463 (per-column TZ annotation), GLITCH-460 (pick one conversion mechanism), GLITCH-465, GLITCH-466, GLITCH-489 (faithful raw timestamp display in SQL Runner — no UTC collapse / false `Z`).
 
 ## Rollout
 

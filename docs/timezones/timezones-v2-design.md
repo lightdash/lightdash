@@ -150,6 +150,7 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
 
 30. **SQL Runner shows the same TZ-conversion expressions the rest of the system uses.**
     ✅ Compiled SQL is always visible; ⚠️ `gap-sql-runner-resolved-label` *[qol]* — the resolved TZ value should be labeled next to it.
+    ❌ `gap-sql-runner-raw-display` *[bug]* — separately, the output *values* are serialized as UTC ISO `Z` regardless of type: TZ-aware values collapse to the UTC instant (offset dropped) and naive values get a false `Z`, so a user's in-SQL conversion is hidden or mislabeled. (GLITCH-489, v3)
 
 31. **A customer-facing doc explains the model — pinned vs viewer-TZ trade-off, DATE vs TIMESTAMP semantics,** `dataTimezone` **vs** `queryTimezone`**.**
     ❌ `gap-customer-tz-doc` *[qol]* — Today only engineer-facing `timezone-handling.md` exists. (Draft at `draft-user-documentation.md`.)
