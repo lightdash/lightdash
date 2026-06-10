@@ -1,5 +1,7 @@
+import { subject } from '@casl/ability';
 import {
     DbtProjectType,
+    ForbiddenError,
     getErrorMessage,
     RequestMethod,
     type SessionUser,
@@ -98,12 +100,25 @@ export class WritebackPreviewService extends BaseService {
         projectUuid: string;
         prUrl: string;
     }): Promise<WritebackPreviewResult | null> {
+        const project = await this.projectModel.get(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
         try {
             const parsed = parseGithubPullRequestUrl(prUrl);
             if (!parsed) {
                 return null;
             }
-            if (!(await this.isSupported(projectUuid))) {
+            if (project.dbtConnection.type !== DbtProjectType.GITHUB) {
                 return null;
             }
             if (!user.organizationUuid) {
