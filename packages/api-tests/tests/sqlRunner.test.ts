@@ -5,58 +5,18 @@ import {
     UpdateSqlChart,
     WarehouseTypes,
 } from '@lightdash/common';
-import fs from 'fs';
-import path from 'path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, SITE_URL } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import { waitForJobCompletion } from '../helpers/polling';
+import {
+    bigqueryWarehouseConfig,
+    createProject,
+    deleteProjectsByName,
+    hasBigqueryCredentials,
+} from '../helpers/projects';
 
 const apiUrl = '/api/v1';
-
-/**
- * Create a project via the API and return its UUID.
- */
-async function createProject(
-    client: ApiClient,
-    projectName: string,
-    warehouseConfig: Record<string, unknown>,
-): Promise<string> {
-    const resp = await client.post<{
-        results: { project: { projectUuid: string } };
-    }>('/api/v1/org/projects', {
-        name: projectName,
-        type: 'DEFAULT',
-        dbtConnection: {
-            target: '',
-            environment: [],
-            type: 'dbt',
-            project_dir: process.env.DBT_PROJECT_DIR || '/usr/app/dbt',
-        },
-        dbtVersion: 'v1.7',
-        warehouseConnection: warehouseConfig,
-    });
-    expect(resp.status).toBe(200);
-    return resp.body.results.project.projectUuid;
-}
-
-/**
- * Delete projects by name.
- */
-async function deleteProjectsByName(
-    client: ApiClient,
-    names: string[],
-): Promise<void> {
-    const resp = await client.get<{
-        results: { projectUuid: string; name: string }[];
-    }>('/api/v1/org/projects');
-    expect(resp.status).toBe(200);
-    for (const project of resp.body.results) {
-        if (names.includes(project.name)) {
-            await client.delete(`/api/v1/org/projects/${project.projectUuid}`);
-        }
-    }
-}
 
 /**
  * Poll a job status until completed or error.
@@ -128,26 +88,8 @@ if (
 }
 
 // Add bigQuery if credentials file exists and contains a valid private key
-const bigQueryCredentialsPath = path.resolve(
-    __dirname,
-    '../../cypress/fixtures/credentials.json',
-);
-if (fs.existsSync(bigQueryCredentialsPath)) {
-    const keyfileContents = JSON.parse(
-        fs.readFileSync(bigQueryCredentialsPath, 'utf-8'),
-    );
-    if (keyfileContents.private_key) {
-        warehouseEntries.push([
-            'bigQuery',
-            {
-                project: 'lightdash-database-staging',
-                location: 'europe-west1',
-                dataset: 'e2e_jaffle_shop',
-                keyfileContents,
-                type: WarehouseTypes.BIGQUERY,
-            },
-        ]);
-    }
+if (hasBigqueryCredentials()) {
+    warehouseEntries.push(['bigQuery', bigqueryWarehouseConfig()]);
 }
 
 function getDatabaseDetails(

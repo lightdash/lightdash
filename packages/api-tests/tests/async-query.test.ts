@@ -3,11 +3,15 @@ import {
     SEED_PROJECT,
     WarehouseTypes,
 } from '@lightdash/common';
-import fs from 'fs';
-import path from 'path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ApiClient, Body } from '../helpers/api-client';
 import { login } from '../helpers/auth';
+import {
+    bigqueryWarehouseConfig,
+    createAndRefreshProject,
+    deleteProjectsByName,
+    hasBigqueryCredentials,
+} from '../helpers/projects';
 
 const apiUrl = '/api/v2';
 
@@ -42,96 +46,6 @@ const postgresConfig = {
     sslmode: 'disable',
     type: WarehouseTypes.POSTGRES,
 };
-
-/**
- * Create a project via the API and return its UUID.
- */
-async function createProject(
-    client: ApiClient,
-    projectName: string,
-    warehouseConfig: Record<string, unknown>,
-): Promise<string> {
-    const resp = await client.post<{
-        results: { project: { projectUuid: string } };
-    }>('/api/v1/org/projects', {
-        name: projectName,
-        type: 'DEFAULT',
-        dbtConnection: {
-            target: '',
-            environment: [],
-            type: 'dbt',
-            project_dir: process.env.DBT_PROJECT_DIR || '/usr/app/dbt',
-        },
-        dbtVersion: 'v1.7',
-        warehouseConnection: warehouseConfig,
-    });
-    expect(resp.status).toBe(200);
-    return resp.body.results.project.projectUuid;
-}
-
-/**
- * Wait for a v1 job to complete (used for project refresh).
- */
-async function waitForV1JobCompletion(
-    client: ApiClient,
-    jobUuid: string,
-    maxRetries = 60,
-): Promise<boolean> {
-    for (let i = 0; i < maxRetries; i++) {
-        const resp = await client.get<any>(`/api/v1/jobs/${jobUuid}`);
-        const { jobStatus } = resp.body.results;
-        if (jobStatus === 'ERROR') {
-            return false;
-        }
-        if (jobStatus === 'DONE') {
-            return true;
-        }
-        await new Promise((r) => setTimeout(r, 1000));
-    }
-    return false;
-}
-
-/**
- * Create a project and refresh it, returning the UUID or undefined on failure.
- */
-async function createAndRefreshProject(
-    client: ApiClient,
-    name: string,
-    config: Record<string, unknown>,
-): Promise<string | undefined> {
-    const projectUuid = await createProject(client, name, config);
-
-    const refreshResp = await client.post(
-        `/api/v1/projects/${projectUuid}/refresh`,
-    );
-    expect(refreshResp.status).toBe(200);
-    const { jobUuid } = (refreshResp.body as { results: { jobUuid: string } })
-        .results;
-
-    const success = await waitForV1JobCompletion(client, jobUuid);
-    if (!success) {
-        return undefined;
-    }
-    return projectUuid;
-}
-
-/**
- * Delete projects by name.
- */
-async function deleteProjectsByName(
-    client: ApiClient,
-    names: string[],
-): Promise<void> {
-    const resp = await client.get<{
-        results: { projectUuid: string; name: string }[];
-    }>('/api/v1/org/projects');
-    expect(resp.status).toBe(200);
-    for (const project of resp.body.results) {
-        if (names.includes(project.name)) {
-            await client.delete(`/api/v1/org/projects/${project.projectUuid}`);
-        }
-    }
-}
 
 /**
  * Poll for async query results until ready.
@@ -407,17 +321,7 @@ describe('Async Query API', () => {
         }, 120_000);
     });
 
-    describe.skipIf(
-        (() => {
-            const credPath = path.resolve(
-                __dirname,
-                '../../cypress/fixtures/credentials.json',
-            );
-            if (!fs.existsSync(credPath)) return true;
-            const creds = JSON.parse(fs.readFileSync(credPath, 'utf-8'));
-            return !creds.private_key;
-        })(),
-    )('BigQuery', () => {
+    describe.skipIf(!hasBigqueryCredentials())('BigQuery', () => {
         let projectUuid: string | undefined;
         const projectName = 'bigQuerySQL query test';
 
@@ -428,22 +332,11 @@ describe('Async Query API', () => {
         });
 
         it('should execute async query and get all results paged', async () => {
-            const keyfileContents = JSON.parse(
-                fs.readFileSync(
-                    path.resolve(
-                        __dirname,
-                        '../../cypress/fixtures/credentials.json',
-                    ),
-                    'utf-8',
-                ),
+            projectUuid = await createAndRefreshProject(
+                admin,
+                projectName,
+                bigqueryWarehouseConfig(),
             );
-            projectUuid = await createAndRefreshProject(admin, projectName, {
-                project: 'lightdash-database-staging',
-                location: 'europe-west1',
-                dataset: 'e2e_jaffle_shop',
-                keyfileContents,
-                type: WarehouseTypes.BIGQUERY,
-            });
             await runAsyncQueryTest(admin, projectUuid);
         }, 120_000);
     });
