@@ -3583,6 +3583,30 @@ export class ProjectModel {
         });
     }
 
+    async getPreviewAiAgentUuid({
+        projectUuid,
+        previewProjectUuid,
+        aiAgentUuid,
+    }: {
+        projectUuid: string;
+        previewProjectUuid: string;
+        aiAgentUuid: string;
+    }): Promise<string | null> {
+        const row = await this.database('preview_content')
+            .select<{ content_mapping: PreviewContentMapping }[]>(
+                'content_mapping',
+            )
+            .where('project_uuid', projectUuid)
+            .where('preview_project_uuid', previewProjectUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        const match = row?.content_mapping.aiAgents.find(
+            (mapping) => String(mapping.id) === aiAgentUuid,
+        );
+        return typeof match?.newId === 'string' ? match.newId : null;
+    }
+
     // Easier to mock in ProjectService
     // eslint-disable-next-line class-methods-use-this
     getWarehouseClientFromCredentials(credentials: CreateWarehouseCredentials) {

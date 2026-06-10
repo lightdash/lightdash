@@ -5,10 +5,13 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
+    AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
     DbtProjectType,
+    extractPreviewProjectUuidFromUrl,
+    extractPreviewUrlFromComments,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
@@ -24,6 +27,7 @@ import {
     type AiAgentReviewItemWritebackEligibility,
     type AiAgentReviewItemWritebackPreview,
     type AiAgentReviewItemWritebackStrategy,
+    type PullRequest,
     type SessionUser,
 } from '@lightdash/common';
 import jwt from 'jsonwebtoken';
@@ -31,6 +35,7 @@ import { type LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import {
     getInstallationToken,
     getPullRequest,
+    getPullRequestComments,
 } from '../../clients/github/Github';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -98,6 +103,16 @@ const terminalReviewStatuses = new Set<AiAgentReviewItemStatus>([
     'dismissed',
     'duplicate',
 ]);
+
+const activeRemediationStatuses = new Set([
+    'queued',
+    'running',
+    'pr_open',
+    'preview_ready',
+]);
+
+const REVIEW_PREVIEW_POLL_INTERVAL_MS = 25_000;
+const REVIEW_PREVIEW_WAIT_TIMEOUT_MS = 10 * 60_000;
 
 const unavailableWritebackEligibility = (
     reason: AiAgentReviewItemWritebackBlockedReason,
@@ -175,6 +190,12 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
         return unavailableWritebackEligibility('pull_request_open');
     }
     if (
+        item.remediation &&
+        activeRemediationStatuses.has(item.remediation.status)
+    ) {
+        return unavailableWritebackEligibility('writeback_in_progress');
+    }
+    if (
         item.prWritebackStatus === 'queued' ||
         item.prWritebackStatus === 'running'
     ) {
@@ -237,17 +258,47 @@ const isWritebackStale = (
         item.prWritebackStatus === 'running') &&
     now - new Date(item.updatedAt).getTime() > WRITEBACK_STALE_MS;
 
+// queued/running are worker-bound states; jobs run with maxAttempts: 1, so a
+// crashed worker would otherwise leave the remediation active forever and the
+// eligibility gate (plus the one-active-per-fingerprint index) would block any
+// retry. pr_open/preview_ready are deliberately excluded — a PR can stay open
+// for a long time legitimately.
+const isRemediationStale = (
+    remediation: NonNullable<AiAgentReviewItemSummary['remediation']>,
+    now: number,
+): boolean =>
+    (remediation.status === 'queued' || remediation.status === 'running') &&
+    now - new Date(remediation.updatedAt).getTime() > WRITEBACK_STALE_MS;
+
 const withStaleWritebackOverride = (
     item: AiAgentReviewItemSummary,
     now: number,
-): AiAgentReviewItemSummary =>
-    isWritebackStale(item, now)
-        ? {
-              ...item,
-              prWritebackStatus: 'failed',
-              prWritebackMessage: 'Writeback timed out',
-          }
-        : item;
+): AiAgentReviewItemSummary => {
+    const writebackStale = isWritebackStale(item, now);
+    const remediationStale =
+        item.remediation !== null && isRemediationStale(item.remediation, now);
+    if (!writebackStale && !remediationStale) {
+        return item;
+    }
+    return {
+        ...item,
+        ...(writebackStale
+            ? {
+                  prWritebackStatus: 'failed',
+                  prWritebackMessage: 'Writeback timed out',
+              }
+            : {}),
+        ...(remediationStale && item.remediation
+            ? {
+                  remediation: {
+                      ...item.remediation,
+                      status: 'failed',
+                      errorMessage: 'Writeback timed out',
+                  },
+              }
+            : {}),
+    };
+};
 
 export class AiAgentAdminService extends BaseService {
     private readonly analytics: LightdashAnalytics;
@@ -816,6 +867,12 @@ export class AiAgentAdminService extends BaseService {
         if (!reviewItem) {
             throw new NotFoundError('Review item not found');
         }
+        const finding = reviewItem.latestFinding;
+        if (!finding) {
+            throw new ParameterError(
+                'Writeback requires a promoted review finding',
+            );
+        }
         const [reviewsEnabled, projectContextEnabled] = await Promise.all([
             this.areReviewsEnabled(user),
             reviewItem.primaryRootCause === 'project_context'
@@ -852,6 +909,41 @@ export class AiAgentAdminService extends BaseService {
             throw new NotFoundError('Review item not found');
         }
 
+        // The stale override above only relaxes the eligibility check; the
+        // partial unique index still sees the old remediation as active, so it
+        // must be persisted as failed before a new one can be inserted.
+        if (
+            reviewItem.remediation &&
+            isRemediationStale(reviewItem.remediation, Date.now())
+        ) {
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid: reviewItem.remediation.uuid,
+                    organizationUuid,
+                    status: 'failed',
+                    errorMessage: 'Writeback timed out',
+                },
+            );
+        }
+
+        const retryPrompt =
+            await this.aiAgentReviewClassifierModel.getPromptText({
+                organizationUuid,
+                promptUuid: finding.promptUuid,
+            });
+        const remediation =
+            await this.aiAgentReviewClassifierModel.createReviewRemediation({
+                fingerprint,
+                organizationUuid,
+                sourceFindingUuid: finding.uuid,
+                sourcePromptUuid: finding.promptUuid,
+                sourceThreadUuid: finding.threadUuid,
+                sourceProjectUuid: finding.projectUuid,
+                sourceAgentUuid: finding.agentUuid,
+                retryPrompt,
+                createdByUserUuid: user.userUuid,
+            });
+
         await this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
             fingerprint,
             organizationUuid,
@@ -866,6 +958,7 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             projectUuid: scope.projectUuid,
             userUuid: user.userUuid,
+            remediationUuid: remediation.uuid,
         });
 
         this.analytics.track({
@@ -892,8 +985,13 @@ export class AiAgentAdminService extends BaseService {
     async runReviewItemWritebackJob(
         payload: AiAgentReviewWritebackJobPayload,
     ): Promise<void> {
-        const { fingerprint, organizationUuid, projectUuid, userUuid } =
-            payload;
+        const {
+            fingerprint,
+            organizationUuid,
+            projectUuid,
+            userUuid,
+            remediationUuid,
+        } = payload;
 
         const setProgress = (message: string) =>
             this.aiAgentReviewClassifierModel.updateReviewItemWritebackProgress(
@@ -915,9 +1013,28 @@ export class AiAgentAdminService extends BaseService {
                 fingerprint,
             );
         if (!scope || !reviewItem) {
+            if (remediationUuid) {
+                await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                    {
+                        remediationUuid,
+                        organizationUuid,
+                        status: 'failed',
+                        errorMessage: 'Review item no longer exists',
+                    },
+                );
+            }
             return;
         }
         const { agentUuid } = scope;
+        if (remediationUuid) {
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid,
+                    organizationUuid,
+                    status: 'running',
+                },
+            );
+        }
 
         const setTerminal = (
             status: 'completed' | 'failed',
@@ -949,6 +1066,7 @@ export class AiAgentAdminService extends BaseService {
             strategy = planStrategy;
 
             let prUrl: string | null;
+            let pullRequest: PullRequest | null = null;
             if (plan.strategy === 'project_context') {
                 await setProgress('Updating project context…');
                 const finding = reviewItem.latestFinding;
@@ -969,7 +1087,7 @@ export class AiAgentAdminService extends BaseService {
                 prUrl = writeback.prUrl;
                 // Surface the PR in the project's Pull Requests list with
                 // AI_AGENT provenance, same as the semantic_layer writeback.
-                await this.pullRequestsModel.findOrCreate({
+                pullRequest = await this.pullRequestsModel.findOrCreate({
                     organizationUuid,
                     projectUuid,
                     createdByUserUuid: userUuid,
@@ -991,6 +1109,30 @@ export class AiAgentAdminService extends BaseService {
                     },
                 });
                 prUrl = result.prUrl;
+                pullRequest = prUrl
+                    ? await this.pullRequestsModel.findByProjectAndUrl(
+                          projectUuid,
+                          prUrl,
+                      )
+                    : null;
+                if (prUrl && !pullRequest) {
+                    const parsed = parsePullRequestUrl(prUrl);
+                    if (parsed) {
+                        pullRequest = await this.pullRequestsModel.findOrCreate(
+                            {
+                                organizationUuid,
+                                projectUuid,
+                                createdByUserUuid: userUuid,
+                                provider: PullRequestProvider.GITHUB,
+                                source: PullRequestSource.AI_AGENT,
+                                owner: parsed.owner,
+                                repo: parsed.repo,
+                                prNumber: parsed.pullNumber,
+                                prUrl,
+                            },
+                        );
+                    }
+                }
             }
 
             if (prUrl) {
@@ -1002,8 +1144,49 @@ export class AiAgentAdminService extends BaseService {
                     linkedPrUrl: prUrl,
                     prState: 'open',
                 });
+                if (remediationUuid && pullRequest) {
+                    await this.aiAgentReviewClassifierModel.setReviewRemediationPullRequest(
+                        {
+                            remediationUuid,
+                            organizationUuid,
+                            pullRequestUuid: pullRequest.pullRequestUuid,
+                        },
+                    );
+                    await this.scheduleReviewRemediationPreviewPoll({
+                        remediationUuid,
+                        fingerprint,
+                        organizationUuid,
+                        projectUuid,
+                        userUuid,
+                        prUrl,
+                    });
+                } else if (remediationUuid) {
+                    // The PR exists (e.g. a non-GitHub URL we cannot record in
+                    // pull_requests) — keep the lifecycle truthful instead of
+                    // failing a successful writeback. Preview polling is
+                    // skipped without a recorded pull request.
+                    await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                        {
+                            remediationUuid,
+                            organizationUuid,
+                            status: 'pr_open',
+                        },
+                    );
+                }
                 await setTerminal('completed', 'Opened pull request');
             } else {
+                if (remediationUuid) {
+                    // No PR means nothing was wrong to fix — a legitimate
+                    // no-op, not a failure; close the remediation to match the
+                    // item's completed status.
+                    await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                        {
+                            remediationUuid,
+                            organizationUuid,
+                            status: 'resolved',
+                        },
+                    );
+                }
                 await setTerminal(
                     'completed',
                     'Writeback ran — no changes were needed',
@@ -1022,6 +1205,16 @@ export class AiAgentAdminService extends BaseService {
                 },
             });
         } catch (error) {
+            if (remediationUuid) {
+                await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                    {
+                        remediationUuid,
+                        organizationUuid,
+                        status: 'failed',
+                        errorMessage: getErrorMessage(error),
+                    },
+                );
+            }
             await setTerminal('failed', getErrorMessage(error));
             this.analytics.track({
                 event: 'ai_agent_review_item.writeback_failed',
@@ -1037,6 +1230,154 @@ export class AiAgentAdminService extends BaseService {
             });
             throw error;
         }
+    }
+
+    private async scheduleReviewRemediationPreviewPoll(args: {
+        remediationUuid: string;
+        fingerprint: string;
+        organizationUuid: string;
+        projectUuid: string;
+        userUuid: string;
+        prUrl: string;
+    }): Promise<void> {
+        if (!parsePullRequestUrl(args.prUrl)) {
+            return;
+        }
+
+        try {
+            await this.schedulerClient.aiAgentReviewRemediationPreview({
+                organizationUuid: args.organizationUuid,
+                projectUuid: args.projectUuid,
+                userUuid: args.userUuid,
+                fingerprint: args.fingerprint,
+                remediationUuid: args.remediationUuid,
+                prUrl: args.prUrl,
+                startedAt: Date.now(),
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to schedule review remediation preview poll: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+    }
+
+    private async resolveReviewWritebackPreviewUrl(
+        organizationUuid: string,
+        prUrl: string,
+    ): Promise<string | null> {
+        const parsed = parsePullRequestUrl(prUrl);
+        if (!parsed) {
+            return null;
+        }
+
+        try {
+            const installationId =
+                await this.githubAppInstallationsModel.getInstallationId(
+                    organizationUuid,
+                );
+            const comments = await getPullRequestComments({
+                owner: parsed.owner,
+                repo: parsed.repo,
+                pullNumber: parsed.pullNumber,
+                installationId,
+            });
+            return extractPreviewUrlFromComments(
+                comments,
+                this.lightdashConfig.siteUrl,
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to resolve review remediation preview URL: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return null;
+        }
+    }
+
+    async pollReviewRemediationPreview(
+        payload: AiAgentReviewRemediationPreviewJobPayload,
+    ): Promise<void> {
+        const { organizationUuid, remediationUuid, prUrl, startedAt } = payload;
+
+        // Status guard must run before the timeout: a poll firing after the
+        // remediation reached a terminal state (e.g. an admin marked it fixed)
+        // must not overwrite that state.
+        const remediation =
+            await this.aiAgentReviewClassifierModel.getReviewRemediation({
+                organizationUuid,
+                remediationUuid,
+            });
+        if (!remediation || remediation.status !== 'pr_open') {
+            return;
+        }
+
+        if (Date.now() - startedAt > REVIEW_PREVIEW_WAIT_TIMEOUT_MS) {
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid,
+                    organizationUuid,
+                    status: 'pr_open',
+                    errorMessage: 'Preview URL was not published in time',
+                },
+            );
+            return;
+        }
+
+        const previewUrl = await this.resolveReviewWritebackPreviewUrl(
+            organizationUuid,
+            prUrl,
+        );
+        if (!previewUrl) {
+            await this.schedulerClient.aiAgentReviewRemediationPreview(
+                payload,
+                new Date(Date.now() + REVIEW_PREVIEW_POLL_INTERVAL_MS),
+            );
+            return;
+        }
+
+        const previewProjectUuid = extractPreviewProjectUuidFromUrl(
+            previewUrl,
+            this.lightdashConfig.siteUrl,
+        );
+        if (!previewProjectUuid) {
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid,
+                    organizationUuid,
+                    status: 'failed',
+                    errorMessage:
+                        'Preview URL did not contain a Lightdash project',
+                },
+            );
+            return;
+        }
+
+        const previewAgentUuid = await this.projectModel.getPreviewAiAgentUuid({
+            projectUuid: remediation.sourceProjectUuid,
+            previewProjectUuid,
+            aiAgentUuid: remediation.sourceAgentUuid,
+        });
+        if (!previewAgentUuid) {
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid,
+                    organizationUuid,
+                    status: 'failed',
+                    errorMessage: 'Preview did not copy the source AI agent',
+                },
+            );
+            return;
+        }
+
+        await this.aiAgentReviewClassifierModel.setReviewRemediationPreview({
+            remediationUuid,
+            organizationUuid,
+            previewProjectUuid,
+            previewAgentUuid,
+        });
     }
 
     async failReviewItemWritebackJob(args: {

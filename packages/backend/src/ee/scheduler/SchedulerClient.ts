@@ -1,6 +1,7 @@
 import {
     AiAgentEvalRunJobPayload,
     AiAgentReviewClassifierJobPayload,
+    AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewWritebackJobPayload,
     AppGeneratePipelineJobPayload,
     EE_SCHEDULER_TASKS,
@@ -106,6 +107,23 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt: new Date(),
                 maxAttempts: 1,
                 jobKey: `ai-agent-review-writeback:${payload.fingerprint}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiAgentReviewRemediationPreview(
+        payload: AiAgentReviewRemediationPreviewJobPayload,
+        runAt: Date = new Date(),
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW,
+            payload,
+            {
+                runAt,
+                maxAttempts: 1,
+                jobKey: `ai-agent-review-remediation-preview:${payload.remediationUuid}`,
             },
         );
         return { jobId };
