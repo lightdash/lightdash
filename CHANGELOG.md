@@ -1,3 +1,10 @@
+# [0.3127.0](https://github.com/lightdash/lightdash/compare/0.3126.2...0.3127.0) (2026-06-10)
+
+
+### Features
+
+* support aws bedrock for data apps ([#24088](https://github.com/lightdash/lightdash/issues/24088)) ([efc5af6](https://github.com/lightdash/lightdash/commit/efc5af64ce39f9c633e90a8841c1450060cf0b05))
+
 ## [0.3126.2](https://github.com/lightdash/lightdash/compare/0.3126.1...0.3126.2) (2026-06-10)
 
 
