@@ -75,8 +75,7 @@ import type { PromoteService } from '../../../services/PromoteService/PromoteSer
 import type { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import type { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
-import { getAnthropicModel } from '../ai/models/anthropic-claude';
-import { getModelPreset } from '../ai/models/presets';
+import { getModel } from '../ai/models';
 import {
     buildClaudeCodeEnv,
     claudeCodeAllowedHosts,
@@ -2840,8 +2839,13 @@ export class AppGenerateService extends BaseService {
      * LLM errors — the build flow should proceed without clarification
      * rather than fail. Returns an empty array when:
      * - the prompt is already specific enough (model judgment),
-     * - the Anthropic model is not configured,
+     * - neither Anthropic nor Bedrock is configured,
      * - the LLM call times out or errors.
+     *
+     * Routes through Bedrock when `AI_DEFAULT_PROVIDER=bedrock`, otherwise
+     * Anthropic — mirroring the data-apps sandbox provider switch in
+     * `claudeCodeEnv.ts` so the clarifier and code generation use the same
+     * provider.
      */
     async clarifyApp(
         user: SessionUser,
@@ -2867,24 +2871,23 @@ export class AppGenerateService extends BaseService {
             throw new ParameterError('Prompt is required');
         }
 
-        const anthropicConfig =
-            this.lightdashConfig.ai.copilot.providers.anthropic;
-        if (!anthropicConfig?.apiKey) {
+        const { copilot } = this.lightdashConfig.ai;
+        const llmProvider: 'anthropic' | 'bedrock' =
+            copilot.defaultProvider === 'bedrock' ? 'bedrock' : 'anthropic';
+
+        let modelOptions;
+        try {
+            modelOptions = getModel(copilot, {
+                provider: llmProvider,
+                modelName: 'claude-sonnet-4-5',
+                enableReasoning: false,
+            });
+        } catch (err) {
             this.logger.info(
-                'Skipping app clarification: Anthropic API key not configured',
+                `Skipping app clarification: ${llmProvider} not configured (${getErrorMessage(err)})`,
             );
             return { questions: [] };
         }
-        const preset = getModelPreset('anthropic', 'claude-sonnet-4-5');
-        if (!preset) {
-            this.logger.warn(
-                'Skipping app clarification: claude-sonnet-4-5 preset not found',
-            );
-            return { questions: [] };
-        }
-        const modelOptions = getAnthropicModel(anthropicConfig, preset, {
-            enableReasoning: false,
-        });
 
         const [catalogSummary, attachedResources] = await Promise.all([
             this.buildCatalogSummaryForClarifier(projectUuid),
@@ -2966,7 +2969,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             });
         } catch (err) {
             this.logger.warn(
-                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}): ${getErrorMessage(err)}`,
+                `App clarify failed after ${AppGenerateService.elapsed(start)}ms (project=${projectUuid}, llm=${llmProvider}): ${getErrorMessage(err)}`,
             );
             return { questions: [] };
         }
@@ -2978,7 +2981,7 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             .slice(0, 4);
 
         this.logger.info(
-            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid})`,
+            `App clarify: ${questions.length} question(s) in ${elapsedMs}ms (project=${projectUuid}, llm=${llmProvider})`,
         );
 
         return { questions };
