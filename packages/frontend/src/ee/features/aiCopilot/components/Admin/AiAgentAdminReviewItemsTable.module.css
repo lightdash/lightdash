@@ -45,22 +45,33 @@
     cursor: help;
 }
 
-.threadButton {
+.toolbarGroup {
+    align-items: center;
+}
+
+.toolbarHeading {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    margin-top: 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: light-dark(
-        var(--mantine-color-indigo-6),
-        var(--mantine-color-indigo-4)
-    );
+    height: 32px;
+    padding-top: 1px;
 }
 
 .threadIcon {
     opacity: 0;
     transition: opacity 120ms ease-out;
+}
+
+.bodyRow {
+    transition:
+        background-color 120ms ease-out,
+        box-shadow 120ms ease-out;
+}
+
+.bodyRow:hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-6)
+    );
 }
 
 .bodyRow:hover .threadIcon,
@@ -69,55 +80,9 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .threadIcon,
-    .reasoningToggle,
-    .threadLink {
+    .threadIcon {
         transition: none;
     }
-}
-
-.reasoningToggle {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    width: fit-content;
-    margin-top: 2px;
-    font-size: 12px;
-    font-weight: 600;
-    color: light-dark(
-        var(--mantine-color-ldGray-6),
-        var(--mantine-color-dark-2)
-    );
-    transition: color 120ms ease;
-}
-
-.reasoningToggle:hover {
-    color: light-dark(
-        var(--mantine-color-ldGray-9),
-        var(--mantine-color-dark-0)
-    );
-}
-
-.reasoning {
-    margin-top: 8px;
-    padding: 10px 12px;
-    border-radius: var(--mantine-radius-md);
-    background-color: light-dark(
-        var(--mantine-color-ldGray-0),
-        var(--mantine-color-dark-6)
-    );
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
-}
-
-.reasoningLabel {
-    font-size: var(--mantine-font-size-xs);
-    font-weight: 500;
-    color: light-dark(
-        var(--mantine-color-ldGray-8),
-        var(--mantine-color-dark-3)
-    );
-    margin-bottom: 4px;
 }
 
 .statusDot {
@@ -127,31 +92,10 @@
     flex-shrink: 0;
 }
 
-.threadLink {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: 10px;
-    font-size: 12px;
-    font-weight: 600;
-    color: light-dark(
-        var(--mantine-color-indigo-6),
-        var(--mantine-color-indigo-4)
-    );
-    transition: color 120ms ease;
-}
-
-.threadLink:hover {
-    color: light-dark(
-        var(--mantine-color-indigo-7),
-        var(--mantine-color-indigo-3)
-    );
-}
-
 .countPill {
     display: flex;
     align-items: center;
-    height: 32px;
+    height: 30px;
     padding: 0 var(--mantine-spacing-sm);
     border-radius: var(--mantine-radius-md);
     background-color: var(--mantine-color-ldGray-1);
