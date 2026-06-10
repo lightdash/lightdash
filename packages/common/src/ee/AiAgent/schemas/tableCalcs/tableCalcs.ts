@@ -205,3 +205,23 @@ export function convertAiTableCalcsSchemaToTableCalcs(
 ): TableCalculation[] {
     return tableCalcs?.map((tc) => convertTableCalcSchemaToTableCalc(tc)) ?? [];
 }
+
+const TABLE_CALC_TEMPLATE_TYPES = new Set<string>(
+    Object.values(TableCalculationTemplateType),
+);
+
+const isTableCalcSchemaItem = (
+    tableCalc: TableCalcSchema | TableCalculation,
+): tableCalc is TableCalcSchema =>
+    typeof tableCalc.type === 'string' &&
+    TABLE_CALC_TEMPLATE_TYPES.has(tableCalc.type);
+
+/** Accepts both the AI tool schema shape and already-built table calculations. */
+export function toTableCalculations(
+    tableCalcs: TableCalcsSchema | TableCalculation[] | null | undefined,
+): TableCalculation[] {
+    if (!tableCalcs) return [];
+    return tableCalcs.map((tc) =>
+        isTableCalcSchemaItem(tc) ? convertTableCalcSchemaToTableCalc(tc) : tc,
+    );
+}

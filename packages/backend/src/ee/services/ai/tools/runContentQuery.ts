@@ -1,9 +1,9 @@
 import {
-    getValidAiQueryLimit,
+    buildChartAsCodeArtifact,
+    ChartType,
+    normalizeChartAsCodeMetricQuery,
     runContentQueryToolDefinition,
-    type AiMetricQueryWithFilters,
-    type ChartAsCode,
-    type Filters,
+    type ChartAsCodeMetricQueryInput,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -99,40 +99,30 @@ export const getRunContentQuery = ({
                     };
                 }
 
-                const rawMetricQuery = source.metricQuery as Partial<
-                    AiMetricQueryWithFilters & { limit: number | null }
-                >;
-                const metricQuery = {
-                    dimensions: [],
-                    metrics: [],
-                    sorts: [],
-                    tableCalculations: [],
-                    additionalMetrics: [],
-                    ...rawMetricQuery,
-                    exploreName: rawMetricQuery.exploreName ?? source.tableName,
-                    filters: (rawMetricQuery.filters ?? {}) as Filters,
-                    limit: getValidAiQueryLimit(
-                        rawMetricQuery.limit ?? null,
-                        maxLimit,
-                    ),
-                } as AiMetricQueryWithFilters;
+                const metricQuery = normalizeChartAsCodeMetricQuery(
+                    source.tableName,
+                    source.metricQuery as ChartAsCodeMetricQueryInput,
+                    maxLimit,
+                );
 
                 validateContent({
                     type: 'chart',
                     content: {
-                        name: 'Query',
-                        slug: 'query',
-                        description: null,
-                        tableName: source.tableName,
-                        spaceSlug: 'agent-suggestions',
-                        version: 1,
-                        chartConfig: { type: 'table', config: {} },
-                        tableConfig: { columnOrder: [] },
-                        dashboardSlug: undefined,
-                        pivotConfig: undefined,
-                        parameters: source.parameters ?? undefined,
-                        metricQuery,
-                    } as unknown as ChartAsCode,
+                        ...buildChartAsCodeArtifact({
+                            name: 'Query',
+                            tableName: source.tableName,
+                            metricQuery:
+                                source.metricQuery as ChartAsCodeMetricQueryInput,
+                            chartConfig: {
+                                type: ChartType.TABLE,
+                                config: {},
+                            },
+                            maxLimit,
+                        }),
+                        parameters: source.parameters as
+                            | ParametersValuesMap
+                            | undefined,
+                    },
                 });
 
                 if (!enableDataAccess) {

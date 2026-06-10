@@ -1,3 +1,4 @@
+import { type ChartAsCode } from '../../../../types/coder';
 import { type ItemsMap } from '../../../../types/field';
 import { type MetricQuery } from '../../../../types/metricQuery';
 import assertUnreachable from '../../../../utils/assertUnreachable';
@@ -22,6 +23,7 @@ export const getWebAiChartConfig = ({
     overrideChartType,
 }: {
     vizConfig:
+        | ChartAsCode
         | ToolTableVizArgs
         | ToolTimeSeriesArgs
         | ToolVerticalBarArgs
@@ -76,9 +78,20 @@ export const getWebAiChartConfig = ({
                 echartsConfig: getTableChartConfig(),
             };
         case AiResultType.QUERY_RESULT:
+            // Chart-as-code already carries a runtime ChartConfig — render it as-is.
+            if (parsedConfig.chartAsCode) {
+                return {
+                    type: parsedConfig.type,
+                    vizTool: null,
+                    chartAsCode: parsedConfig.chartAsCode,
+                    metricQuery: parsedConfig.metricQuery,
+                    echartsConfig: parsedConfig.chartAsCode.chartConfig,
+                } as const;
+            }
             return {
                 type: parsedConfig.type,
                 vizTool: parsedConfig.vizTool,
+                chartAsCode: null,
                 metricQuery: parsedConfig.metricQuery,
                 echartsConfig: getRunQueryChartConfig({
                     queryTool: parsedConfig.vizTool,
