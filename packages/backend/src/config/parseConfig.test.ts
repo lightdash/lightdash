@@ -797,6 +797,35 @@ describe('getUpdateSetupConfig userAttributes', () => {
     });
 });
 
+describe('process.env.LIGHTDASH_CORS_ENABLED', () => {
+    test('defaults CORS to enabled when not set', () => {
+        process.env.LIGHTDASH_CORS_ALLOWED_DOMAINS = 'https://example.com';
+
+        const config = parseConfig();
+
+        expect(config.security.crossOriginResourceSharingPolicy.enabled).toBe(
+            true,
+        );
+        expect(
+            config.security.crossOriginResourceSharingPolicy.allowedDomains,
+        ).toEqual(['https://example.com']);
+    });
+
+    test('disables CORS only when explicitly false', () => {
+        process.env.LIGHTDASH_CORS_ENABLED = 'false';
+        process.env.LIGHTDASH_CORS_ALLOWED_DOMAINS = 'https://example.com';
+
+        const config = parseConfig();
+
+        expect(config.security.crossOriginResourceSharingPolicy.enabled).toBe(
+            false,
+        );
+        expect(
+            config.security.crossOriginResourceSharingPolicy.allowedDomains,
+        ).toEqual([]);
+    });
+});
+
 describe('parseAndSanitizeSchedulerTasks', () => {
     beforeEach(() => {
         // Clear scheduler environment variables before each test

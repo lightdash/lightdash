@@ -264,7 +264,7 @@ export const lightdashConfigMock: LightdashConfig = {
             frameAncestors: [],
         },
         crossOriginResourceSharingPolicy: {
-            enabled: false,
+            enabled: true,
             allowedDomains: [],
         },
     },

@@ -72,6 +72,7 @@ import { SchedulerWorker } from './scheduler/SchedulerWorker';
 import { SchedulerWorkerHealth } from './scheduler/SchedulerWorkerHealth';
 import { createOrganizationNameResolver } from './sentry/organizationNameResolver';
 import { InstanceConfigurationService } from './services/InstanceConfigurationService/InstanceConfigurationService';
+import { createCorsOptionsDelegate } from './services/OrganizationSettingsService/CorsPolicy';
 import {
     OperationContext,
     ServiceProviderMap,
@@ -334,37 +335,15 @@ export default class App {
         // Cross-Origin Resource Sharing policy (CORS)
         // WARNING: this middleware should be mounted before the helmet middleware
         // (ideally at the top of the middleware stack)
-        if (
-            this.lightdashConfig.security.crossOriginResourceSharingPolicy
-                .enabled &&
-            this.lightdashConfig.security.crossOriginResourceSharingPolicy
-                .allowedDomains.length > 0
-        ) {
-            const allowedOrigins: Array<string | RegExp> = [
-                this.lightdashConfig.siteUrl,
-            ];
-
-            for (const allowedDomain of this.lightdashConfig.security
-                .crossOriginResourceSharingPolicy.allowedDomains) {
-                if (
-                    allowedDomain.startsWith('/') &&
-                    allowedDomain.endsWith('/')
-                ) {
-                    allowedOrigins.push(new RegExp(allowedDomain.slice(1, -1)));
-                } else {
-                    allowedOrigins.push(allowedDomain);
-                }
-            }
-
-            expressApp.use(
-                cors({
-                    methods: 'OPTIONS, GET, HEAD, PUT, PATCH, POST, DELETE',
-                    allowedHeaders: '*',
-                    credentials: false,
-                    origin: allowedOrigins,
+        expressApp.use(
+            cors(
+                createCorsOptionsDelegate({
+                    lightdashConfig: this.lightdashConfig,
+                    organizationSettingsModel:
+                        this.models.getOrganizationSettingsModel(),
                 }),
-            );
-        }
+            ),
+        );
 
         const KnexSessionStore = connectSessionKnex(expressSession);
 

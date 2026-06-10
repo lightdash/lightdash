@@ -51,6 +51,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsGoogleChat: null,
                 queryLimit: null,
                 csvCellsLimit: null,
+                corsAllowedDomains: null,
             });
         });
 
@@ -74,6 +75,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsGoogleChat: null,
                 queryLimit: null,
                 csvCellsLimit: null,
+                corsAllowedDomains: null,
             });
         });
 
@@ -94,6 +96,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsGoogleChat: null,
                 queryLimit: null,
                 csvCellsLimit: null,
+                corsAllowedDomains: null,
             });
         });
 
@@ -116,7 +119,65 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsGoogleChat: null,
                 queryLimit: null,
                 csvCellsLimit: null,
+                corsAllowedDomains: null,
             });
+        });
+
+        test('maps the CORS columns', async () => {
+            const { model } = createModel({
+                cors_allowed_domains: [
+                    'https://app.example.com',
+                    '/^https:\\/\\/.*\\.example\\.com$/',
+                ],
+            });
+            expect(await model.get(ORG)).toEqual({
+                oidcLinkingEnabled: null,
+                oidcToEmailLinkingEnabled: null,
+                supportImpersonationEnabled: null,
+                scheduledDeliveryExpirationSeconds: null,
+                scheduledDeliveryExpirationSecondsEmail: null,
+                scheduledDeliveryExpirationSecondsSlack: null,
+                scheduledDeliveryExpirationSecondsMsTeams: null,
+                scheduledDeliveryExpirationSecondsGoogleChat: null,
+                queryLimit: null,
+                csvCellsLimit: null,
+                corsAllowedDomains: [
+                    'https://app.example.com',
+                    '/^https:\\/\\/.*\\.example\\.com$/',
+                ],
+            });
+        });
+    });
+
+    describe('getAllEnabledCorsAllowedDomains', () => {
+        test('returns a flattened list of domains from org rows with CORS entries', async () => {
+            const rows = [
+                {
+                    cors_allowed_domains: [
+                        'https://app.example.com',
+                        '/^https:\\/\\/.*\\.example\\.com$/',
+                    ],
+                },
+                { cors_allowed_domains: ['https://embed.example.com'] },
+            ];
+            const builder: Record<string, jest.Mock> = {};
+            Object.assign(builder, {
+                select: jest.fn(() => builder),
+                whereNotNull: jest.fn(async () => rows),
+            });
+            const database = jest.fn(() => builder) as unknown as Knex;
+            const model = new OrganizationSettingsModel({ database });
+
+            await expect(
+                model.getAllEnabledCorsAllowedDomains(),
+            ).resolves.toEqual([
+                'https://app.example.com',
+                '/^https:\\/\\/.*\\.example\\.com$/',
+                'https://embed.example.com',
+            ]);
+            expect(builder.whereNotNull).toHaveBeenCalledWith(
+                'cors_allowed_domains',
+            );
         });
     });
 
@@ -158,6 +219,7 @@ describe('OrganizationSettingsModel', () => {
                 scheduledDeliveryExpirationSecondsGoogleChat: null,
                 queryLimit: null,
                 csvCellsLimit: null,
+                corsAllowedDomains: null,
             });
         });
 
@@ -206,6 +268,37 @@ describe('OrganizationSettingsModel', () => {
             expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
         });
 
+        test('writes the CORS columns when provided', async () => {
+            const { model, captured } = createModel({
+                cors_allowed_domains: [
+                    'https://app.example.com',
+                    '/^https:\\/\\/.*\\.example\\.com$/',
+                ],
+            });
+
+            await model.update(ORG, {
+                corsAllowedDomains: [
+                    'https://app.example.com',
+                    '/^https:\\/\\/.*\\.example\\.com$/',
+                ],
+            });
+
+            expect(captured.insert).toEqual({
+                organization_uuid: ORG,
+                cors_allowed_domains: [
+                    'https://app.example.com',
+                    '/^https:\\/\\/.*\\.example\\.com$/',
+                ],
+            });
+            expect(captured.merge).toMatchObject({
+                cors_allowed_domains: [
+                    'https://app.example.com',
+                    '/^https:\\/\\/.*\\.example\\.com$/',
+                ],
+            });
+            expect(captured.merge).not.toHaveProperty('oidc_linking_enabled');
+        });
+
         test('updating multiple settings writes all provided columns', async () => {
             const { model, captured } = createModel({
                 oidc_linking_enabled: true,
@@ -244,6 +337,7 @@ describe('OrganizationSettingsModel', () => {
             expect(captured.merge).not.toHaveProperty(
                 'scheduled_delivery_expiration_seconds_slack',
             );
+            expect(captured.merge).not.toHaveProperty('cors_allowed_domains');
             expect(captured.merge?.updated_at).toBeInstanceOf(Date);
             expect(captured.insert).toEqual({ organization_uuid: ORG });
         });
