@@ -6,7 +6,6 @@ import knexConfig from '../../knexfile';
 import { getEnterpriseAppArguments } from '../index';
 import { getFixDuplicateSlugsScripts } from './scripts/fixDuplicateSlugs';
 import { getListProjectsScripts } from './scripts/listProjects';
-import { getAiAgentReviewDemoScripts } from './scripts/reviewDemo';
 
 (async () => {
     const app = new App({
@@ -37,7 +36,6 @@ import { getAiAgentReviewDemoScripts } from './scripts/reviewDemo';
         scripts: {
             ...getFixDuplicateSlugsScripts(database, clients),
             ...getListProjectsScripts(database),
-            ...getAiAgentReviewDemoScripts(database),
         },
     });
 })();
