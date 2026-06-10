@@ -124,6 +124,7 @@ const BASE_ROLE_SCOPES = {
         'manage:Dashboard@selfPreview',
         'manage:SavedChart@selfPreview',
         'manage:Space@selfPreview',
+        'manage:Explore@selfPreview',
         'view:JobStatus', // All jobs in project
         'view:SourceCode',
         'manage:SourceCode',

@@ -2442,6 +2442,32 @@ describe('scopeAbilityBuilder', () => {
             ).toBe(true);
         });
 
+        it('manage:Explore@selfPreview grants explore/query access in own preview project', () => {
+            const ability = buildWith(selfPreviewContext, [
+                'manage:Explore@selfPreview',
+            ]);
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Explore', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                    }),
+                ),
+            ).toBe(true);
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Explore', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'other-project',
+                    }),
+                ),
+            ).toBe(false);
+        });
+
         it('grants nothing when the project is not a preview', () => {
             const ability = buildWith(
                 {

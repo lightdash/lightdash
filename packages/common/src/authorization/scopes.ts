@@ -608,6 +608,14 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:Explore@selfPreview',
+        description:
+            'Explore and query data in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addSelfPreviewCondition,
+    },
+    {
         name: 'manage:SqlRunner',
         description:
             'Run SQL queries, execute SQL charts, and browse warehouse schema',
