@@ -163,8 +163,11 @@ export const AiArtifactPanel: FC<AiArtifactPanelProps> = memo(
             ? getGroupByDimensions(parsedChartConfig)
             : undefined;
 
+        // Chart-type switching only applies to legacy query-result artifacts;
+        // chart-as-code artifacts carry their own runtime chart config.
         const shouldShowPill =
-            parsedChartConfig?.type === AiResultType.QUERY_RESULT;
+            parsedChartConfig?.type === AiResultType.QUERY_RESULT &&
+            !!parsedChartConfig.vizTool;
 
         if (isArtifactLoading || !message) {
             return (

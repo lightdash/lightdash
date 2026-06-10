@@ -7,6 +7,7 @@ import {
     type AiAgentChartTypeOption,
     type AiArtifactChartConfig,
     type ApiAiAgentThreadMessageVizQuery,
+    type ChartAsCode,
     type ChartConfig,
     type EChartsSeries,
 } from '@lightdash/common';
@@ -108,13 +109,15 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const [expandedChartConfig, setExpandedChartConfig] = useState<
         | {
               forChartType: AiAgentChartTypeOption | null;
+              sourceConfig: Props['chartConfig'];
               config: ChartConfig;
           }
         | undefined
     >(undefined);
 
     const activeExpandedChartConfig =
-        expandedChartConfig?.forChartType === selectedChartType
+        expandedChartConfig?.forChartType === selectedChartType &&
+        expandedChartConfig.sourceConfig === chartConfig
             ? expandedChartConfig.config
             : undefined;
 
@@ -128,26 +131,40 @@ export const AiVisualizationRenderer: FC<Props> = ({
         [results, metricQuery, fields, resolvedTimezone],
     );
 
-    const webAiChartConfig = useMemo(
-        () =>
-            getWebAiChartConfig({
+    const webAiChartConfig = useMemo(() => {
+        try {
+            return getWebAiChartConfig({
                 vizConfig: chartConfig,
                 metricQuery,
                 maxQueryLimit: health?.query.maxLimit,
                 fieldsMap: fields,
                 overrideChartType: selectedChartType ?? undefined,
-            }),
-        [
-            chartConfig,
-            metricQuery,
-            health?.query.maxLimit,
-            fields,
-            selectedChartType,
-        ],
-    );
+            });
+        } catch {
+            return null;
+        }
+    }, [
+        chartConfig,
+        metricQuery,
+        health?.query.maxLimit,
+        fields,
+        selectedChartType,
+    ]);
+
+    const chartAsCodeConfig: ChartAsCode | null =
+        webAiChartConfig &&
+        webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+        'chartAsCode' in webAiChartConfig
+            ? (webAiChartConfig.chartAsCode as ChartAsCode | null)
+            : null;
+
+    const visualizationChartConfig = webAiChartConfig?.echartsConfig;
 
     const groupByDimensions: string[] | undefined = useMemo(
-        () => getGroupByDimensions(webAiChartConfig),
+        () =>
+            webAiChartConfig
+                ? getGroupByDimensions(webAiChartConfig)
+                : undefined,
         [webAiChartConfig],
     );
 
@@ -164,7 +181,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
     const displayDetails = fieldsCount > 0 || filtersCount > 0;
 
     const defaultChartType: AiAgentChartTypeOption =
-        webAiChartConfig.type === AiResultType.QUERY_RESULT
+        webAiChartConfig?.type === AiResultType.QUERY_RESULT
             ? (webAiChartConfig.vizTool?.chartConfig?.defaultVizType ?? 'table')
             : 'table';
 
@@ -172,14 +189,15 @@ export const AiVisualizationRenderer: FC<Props> = ({
         (newConfig: ChartConfig) => {
             setExpandedChartConfig({
                 forChartType: selectedChartType,
+                sourceConfig: chartConfig,
                 config: newConfig,
             });
             onExpandedChartConfigChange?.(newConfig);
         },
-        [onExpandedChartConfigChange, selectedChartType],
+        [chartConfig, onExpandedChartConfigChange, selectedChartType],
     );
 
-    if (!webAiChartConfig.echartsConfig) {
+    if (!visualizationChartConfig) {
         return (
             <Center h={300}>
                 <Stack gap="xs" align="center">
@@ -204,14 +222,16 @@ export const AiVisualizationRenderer: FC<Props> = ({
                 key={selectedChartType ?? 'default'}
                 resultsData={resultsData}
                 chartConfig={
-                    activeExpandedChartConfig ?? webAiChartConfig.echartsConfig
+                    activeExpandedChartConfig ?? visualizationChartConfig
                 }
                 parameters={vizQueryData.query.usedParametersValues}
-                columnOrder={[
-                    ...metricQuery.dimensions,
-                    ...metricQuery.metrics,
-                    ...metricQuery.tableCalculations.map((tc) => tc.name),
-                ]}
+                columnOrder={
+                    chartAsCodeConfig?.tableConfig?.columnOrder ?? [
+                        ...metricQuery.dimensions,
+                        ...metricQuery.metrics,
+                        ...metricQuery.tableCalculations.map((tc) => tc.name),
+                    ]
+                }
                 initialPivotDimensions={groupByDimensions}
                 colorPalette={colorPalette}
                 isLoading={resultsData.isFetchingRows}
@@ -227,7 +247,8 @@ export const AiVisualizationRenderer: FC<Props> = ({
             >
                 <Stack gap="md" h="100%" style={{ minHeight: 0 }}>
                     {headerContent}
-                    {webAiChartConfig.type === AiResultType.QUERY_RESULT &&
+                    {webAiChartConfig?.type === AiResultType.QUERY_RESULT &&
+                        webAiChartConfig.vizTool &&
                         onChartTypeChange && (
                             <Group justify="flex-end">
                                 <AgentVisualizationChartTypeSwitcher
@@ -256,7 +277,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
                             data-testid="ai-visualization"
                         />
 
-                        {webAiChartConfig.echartsConfig.type ===
+                        {visualizationChartConfig.type ===
                             ChartType.CARTESIAN && (
                             <SeriesContextMenu
                                 echartsSeriesClickEvent={
