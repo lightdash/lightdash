@@ -1,3 +1,15 @@
+# [0.3125.0](https://github.com/lightdash/lightdash/compare/0.3124.2...0.3125.0) (2026-06-10)
+
+
+### Bug Fixes
+
+* **ai:** alias legacy proposeWriteback tool rows so old threads read again ([#24097](https://github.com/lightdash/lightdash/issues/24097)) ([82cf4a2](https://github.com/lightdash/lightdash/commit/82cf4a2d254ee4c593a350de13606aa08e1e88a7)), closes [#24095](https://github.com/lightdash/lightdash/issues/24095)
+
+
+### Features
+
+* **comments:** resolve & unresolve dashboard tile comment threads ([#24080](https://github.com/lightdash/lightdash/issues/24080)) ([401f05b](https://github.com/lightdash/lightdash/commit/401f05b0b3aec6b39d6c1e406809df002a8b4e51))
+
 ## [0.3124.2](https://github.com/lightdash/lightdash/compare/0.3124.1...0.3124.2) (2026-06-10)
 
 
