@@ -176,6 +176,7 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import {
     getColumnSubtotalQueryFromSource,
@@ -4808,12 +4809,14 @@ export class AsyncQueryService extends ProjectService {
                 explore,
             });
 
+        const validatedDashboardSorts = getValidatedDashboardSorts(
+            dashboardSorts,
+            metricQueryWithFilters,
+        );
+
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...metricQueryWithFilters,
-            sorts:
-                dashboardSorts && dashboardSorts.length > 0
-                    ? dashboardSorts
-                    : savedChart.metricQuery.sorts,
+            sorts: validatedDashboardSorts ?? savedChart.metricQuery.sorts,
         };
 
         const { maxLimit, csvCellsLimit } =
