@@ -2698,10 +2698,10 @@
                     "projectRole": {
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     },
-                    "hasDirectAccess": {
+                    "hasCustomProjectRoleWithSpaceAccess": {
                         "type": "boolean"
                     },
-                    "hasCustomProjectRoleWithSpaceAccess": {
+                    "hasDirectAccess": {
                         "type": "boolean"
                     },
                     "role": {
@@ -2712,8 +2712,8 @@
                     }
                 },
                 "required": [
-                    "hasDirectAccess",
                     "hasCustomProjectRoleWithSpaceAccess",
+                    "hasDirectAccess",
                     "role",
                     "userUuid"
                 ],

@@ -2627,11 +2627,11 @@ const models: TsoaRoute.Models = {
                     ],
                     required: true,
                 },
-                hasDirectAccess: { dataType: 'boolean', required: true },
                 hasCustomProjectRoleWithSpaceAccess: {
                     dataType: 'boolean',
                     required: true,
                 },
+                hasDirectAccess: { dataType: 'boolean', required: true },
                 role: { ref: 'SpaceMemberRole', required: true },
                 userUuid: { dataType: 'string', required: true },
             },

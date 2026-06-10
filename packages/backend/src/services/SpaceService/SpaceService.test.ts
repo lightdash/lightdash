@@ -1004,6 +1004,7 @@ describe('SpaceService.createSpace', () => {
             projectUuid: 'test-project-uuid',
             inheritsFromOrgOrProject: false,
             access: [],
+            admins: [],
         });
         mockSpacePermissionService.getGroupAccess.mockResolvedValue([]);
         mockSpacePermissionService.getUserMetadataByUuids.mockResolvedValue({});
