@@ -1,3 +1,10 @@
+## [0.3125.1](https://github.com/lightdash/lightdash/compare/0.3125.0...0.3125.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* warn when SSO provider has no verified domains ([#24110](https://github.com/lightdash/lightdash/issues/24110)) ([e6b83b8](https://github.com/lightdash/lightdash/commit/e6b83b8fc4622da5e291962c46bfb6496f2a11f0))
+
 # [0.3125.0](https://github.com/lightdash/lightdash/compare/0.3124.2...0.3125.0) (2026-06-10)
 
 
