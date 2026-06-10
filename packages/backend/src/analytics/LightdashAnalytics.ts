@@ -1426,14 +1426,17 @@ export type AiWritebackCompletedEvent = BaseTrack & {
 };
 
 // Pipeline stage that was running when an AI writeback run failed.
-export type AiWritebackFailureStage =
-    | 'install'
-    | 'sandbox'
-    | 'clone'
-    | 'agent'
-    | 'commit'
-    | 'push'
-    | 'pull_request';
+export const AI_WRITEBACK_STAGES = [
+    'install',
+    'sandbox',
+    'clone',
+    'agent',
+    'commit',
+    'push',
+    'pull_request',
+] as const;
+
+export type AiWritebackFailureStage = (typeof AI_WRITEBACK_STAGES)[number];
 
 export type AiWritebackFailedEvent = BaseTrack & {
     event: 'ai_writeback.failed';
