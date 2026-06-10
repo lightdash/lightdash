@@ -860,6 +860,23 @@ export class AiAgentAdminService extends BaseService {
                     resolvedByUserUuid: user.userUuid,
                 },
             );
+        } else if (
+            terminalReviewStatuses.has(update.status) &&
+            reviewItem.remediation &&
+            activeRemediationStatuses.has(reviewItem.remediation.status)
+        ) {
+            // Dismissing or duplicating must also close an active remediation —
+            // otherwise the one-active-per-fingerprint index blocks all future
+            // writebacks for this fingerprint. Closed as failed (not resolved)
+            // so "resolved" keeps meaning the fix was confirmed.
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid: reviewItem.remediation.uuid,
+                    organizationUuid,
+                    status: 'failed',
+                    errorMessage: `Review item was marked as ${update.status}`,
+                },
+            );
         }
         return this.getReviewItem(user, fingerprint);
     }

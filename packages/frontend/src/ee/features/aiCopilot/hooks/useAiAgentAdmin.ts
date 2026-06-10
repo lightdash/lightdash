@@ -226,8 +226,12 @@ export const useUpdateAiAgentReviewItemStatus = () => {
         { fingerprint: string; body: UpdateAiAgentReviewItemStatus }
     >({
         mutationFn: updateAiAgentReviewItemStatus,
-        onSuccess: () => {
+        onSuccess: (updatedItem, { fingerprint }) => {
             showToastSuccess({ title: 'Review item updated' });
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item', fingerprint],
+                updatedItem,
+            );
             void queryClient.invalidateQueries({
                 queryKey: ['ai-agent-admin-review-items'],
             });
