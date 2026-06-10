@@ -28,6 +28,7 @@ import {
     getEffectiveSeparator,
     isCalendarValueDimension,
     isMomentInput,
+    isTimestampString,
     shouldShiftItemTimezone,
     toIsoWithProjectOffset,
 } from './formatting';
@@ -732,6 +733,28 @@ describe('Formatting', () => {
         });
     });
 
+    describe('isTimestampString', () => {
+        test('true only for strings with a date AND a time component', () => {
+            expect(isTimestampString('2018-10-31T06:44:22.667Z')).toBe(true);
+            expect(isTimestampString('2020-08-11 16:44:00')).toBe(true);
+        });
+
+        test('false for date-only, numbers, Dates, and non-temporal strings', () => {
+            // bare date — must not be timezone-shifted, so excluded
+            expect(isTimestampString('2018-10-31')).toBe(false);
+            // date-shaped but no time component
+            expect(isTimestampString('2018-13-99')).toBe(false);
+            expect(isTimestampString('42')).toBe(false);
+            expect(isTimestampString(5000)).toBe(false);
+            expect(isTimestampString('hello')).toBe(false);
+            // type-guard is for strings only; Date instances are handled separately
+            expect(
+                isTimestampString(new Date('2018-10-31T06:44:22.667Z')),
+            ).toBe(false);
+            expect(isTimestampString(undefined)).toBe(false);
+        });
+    });
+
     describe('isCalendarValueDimension', () => {
         const dateBaseColumn: Dimension = {
             ...dimension,
@@ -1064,6 +1087,66 @@ describe('Formatting', () => {
                     1000,
                 ),
             ).toEqual('1K');
+        });
+
+        test('formatItemValue MIN/MAX timestamps format in project tz from a Date OR an ISO string (GLITCH-485)', () => {
+            const maxMetric = { ...metric, type: MetricType.MAX };
+            const isoString = '2018-10-31T06:44:22.667Z';
+            const asDate = new Date(isoString);
+            const tz = 'Asia/Tokyo'; // +09:00, no DST
+
+            // Fresh queries deliver a Date (already formatted); cached results
+            // rehydrate from S3 as ISO strings and must format identically —
+            // not fall through and show the raw UTC value.
+            const fromDate = formatItemValue(
+                maxMetric,
+                asDate,
+                false,
+                undefined,
+                tz,
+            );
+            const fromString = formatItemValue(
+                maxMetric,
+                isoString,
+                false,
+                undefined,
+                tz,
+            );
+            expect(fromDate).toEqual('2018-10-31, 15:44:22:667 (+09:00)');
+            expect(fromString).toEqual(fromDate);
+        });
+
+        test('formatItemValue MIN/MAX does not coerce non-timestamp values (GLITCH-485)', () => {
+            const tz = 'Pacific/Pago_Pago'; // -11:00, exposes any wrong shift
+            // Numeric aggregations stay numbers — fresh (number) or cached (string)
+            expect(
+                formatItemValue(
+                    { ...metric, type: MetricType.MAX },
+                    5000,
+                    false,
+                    undefined,
+                    tz,
+                ),
+            ).toEqual('5,000');
+            expect(
+                formatItemValue(
+                    { ...metric, type: MetricType.MIN },
+                    '42',
+                    false,
+                    undefined,
+                    tz,
+                ),
+            ).toEqual('42');
+            // A date-only aggregate is a wall-clock date — never tz-shifted
+            expect(
+                formatItemValue(
+                    { ...metric, type: MetricType.MAX },
+                    '2018-10-31',
+                    false,
+                    undefined,
+                    tz,
+                ),
+            ).toEqual('2018-10-31');
         });
 
         describe('formatItemValue timestamp handling', () => {
