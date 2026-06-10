@@ -162,11 +162,18 @@ export class SpaceService
                 ctx.access.map((a) => a.userUuid),
             );
 
-        const access: SpaceShare[] = ctx.access.map((a) => ({
-            ...a,
-            firstName: userInfoMap[a.userUuid]?.firstName ?? '',
-            lastName: userInfoMap[a.userUuid]?.lastName ?? '',
-            email: userInfoMap[a.userUuid]?.email ?? '',
+        const access: SpaceShare[] = ctx.access.map((spaceAccess) => ({
+            userUuid: spaceAccess.userUuid,
+            role: spaceAccess.role,
+            hasDirectAccess: spaceAccess.hasDirectAccess,
+            hasCustomProjectRoleWithSpaceAccess:
+                spaceAccess.hasCustomProjectRoleWithSpaceAccess,
+            projectRole: spaceAccess.projectRole,
+            inheritedRole: spaceAccess.inheritedRole,
+            inheritedFrom: spaceAccess.inheritedFrom,
+            firstName: userInfoMap[spaceAccess.userUuid]?.firstName ?? '',
+            lastName: userInfoMap[spaceAccess.userUuid]?.lastName ?? '',
+            email: userInfoMap[spaceAccess.userUuid]?.email ?? '',
         }));
 
         const [queries, dashboards, childSpaces] = await Promise.all([
