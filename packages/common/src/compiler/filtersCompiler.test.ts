@@ -1521,6 +1521,50 @@ describe('Filter SQL', () => {
             ),
         ).toBe('1=1');
     });
+
+    test('should allow nested array filter values without blocking SQL rendering', () => {
+        const nestedValue = ["coupon') OR TRUE --"];
+        const filterRule: FilterRule = {
+            id: 'filter-rule',
+            target: { fieldId: 'payments_payment_method' },
+            operator: FilterOperator.EQUALS,
+            values: [nestedValue],
+            caseSensitive: true,
+        };
+
+        const sql = renderFilterRuleSql(
+            filterRule,
+            DimensionType.STRING,
+            stringFilterDimension,
+            "'",
+            (value) => value.replaceAll("'", "''"),
+            WeekDay.MONDAY,
+            SupportedDbtAdapter.POSTGRES,
+            'UTC',
+            true,
+        );
+
+        expect(sql).toContain("coupon') OR TRUE --");
+    });
+
+    test('should allow date object filter values before rendering date SQL', () => {
+        expect(
+            renderFilterRuleSql(
+                {
+                    id: 'filter-rule',
+                    target: { fieldId: 'customers_created_date' },
+                    operator: FilterOperator.EQUALS,
+                    values: [new Date('2026-04-10T00:00:00.000Z')],
+                },
+                DimensionType.DATE,
+                DimensionSqlMock,
+                "'",
+                (value) => value.replaceAll("'", "''"),
+                WeekDay.MONDAY,
+                SupportedDbtAdapter.POSTGRES,
+            ),
+        ).toBe(`(${DimensionSqlMock}) = ('2026-04-10')`);
+    });
 });
 
 describe('case sensitivity', () => {
