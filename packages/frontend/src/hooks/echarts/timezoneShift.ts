@@ -27,8 +27,19 @@ export type TimezoneShiftedField = {
     flipAxes: boolean;
 };
 
+type DetectedTimezoneAxisField = TimezoneShiftedField & {
+    timeInterval: TimeFrames;
+};
+
+const SUB_DAY_TIME_INTERVALS = new Set<TimeFrames>([
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+]);
+
 // Exactly one of axisTimezone / axisDisplayTimezone is set: axisDisplayTimezone
-// when values are shifted to wall-clock, axisTimezone otherwise.
+// when values are shifted to wall-clock, axisTimezone when raw UTC instants
+// should be formatted in the project timezone.
 export type AxisTimezoneConfig = {
     shiftedField: TimezoneShiftedField | undefined;
     axisTimezone: string | undefined;
@@ -59,7 +70,7 @@ const detectTimezoneShiftedField = ({
     validCartesianConfig: CartesianChart | undefined;
     itemsMap: ItemsMap | undefined;
     resolvedTimezone: string | undefined;
-}): TimezoneShiftedField | undefined => {
+}): DetectedTimezoneAxisField | undefined => {
     if (
         !resolvedTimezone ||
         resolvedTimezone === 'UTC' ||
@@ -85,7 +96,12 @@ const detectTimezoneShiftedField = ({
     ) {
         return undefined;
     }
-    return { fieldId: timeFieldId, timezone: resolvedTimezone, flipAxes };
+    return {
+        fieldId: timeFieldId,
+        timezone: resolvedTimezone,
+        flipAxes,
+        timeInterval,
+    };
 };
 
 export const resolveAxisTimezone = (params: {
@@ -93,12 +109,26 @@ export const resolveAxisTimezone = (params: {
     itemsMap: ItemsMap | undefined;
     resolvedTimezone: string | undefined;
 }): AxisTimezoneConfig => {
-    const shiftedField = detectTimezoneShiftedField(params);
-    if (shiftedField) {
+    const detectedField = detectTimezoneShiftedField(params);
+    if (
+        detectedField &&
+        SUB_DAY_TIME_INTERVALS.has(detectedField.timeInterval)
+    ) {
         return {
-            shiftedField,
+            shiftedField: undefined,
+            axisTimezone: detectedField.timezone,
+            axisDisplayTimezone: undefined,
+        };
+    }
+    if (detectedField) {
+        return {
+            shiftedField: {
+                fieldId: detectedField.fieldId,
+                timezone: detectedField.timezone,
+                flipAxes: detectedField.flipAxes,
+            },
             axisTimezone: undefined,
-            axisDisplayTimezone: shiftedField.timezone,
+            axisDisplayTimezone: detectedField.timezone,
         };
     }
     return {

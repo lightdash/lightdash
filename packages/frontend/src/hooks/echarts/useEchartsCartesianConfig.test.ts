@@ -20,6 +20,7 @@ import {
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
     getMinAndMaxValues,
+    getSubDayTimeAxisConfig,
     getStackTotalSeries,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
@@ -828,6 +829,99 @@ describe('getCategoryDateAxisConfig', () => {
                 expect(result.data).toEqual(expectedMonthlyRange(tz, years));
             });
         });
+    });
+});
+
+describe('getSubDayTimeAxisConfig', () => {
+    const axisId = 'hour_axis';
+
+    const createRows = (dates: string[]): ResultRow[] =>
+        dates.map((d) => ({
+            [axisId]: { value: { raw: d, formatted: d } },
+        }));
+
+    const createAxisField = (timeInterval: TimeFrames) =>
+        ({
+            fieldType: FieldType.DIMENSION,
+            timeInterval,
+            name: 'test_time',
+            table: 'test_table',
+            type: DimensionType.TIMESTAMP,
+        }) as unknown as Field;
+
+    test('returns empty object when axisType is not time', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createAxisField(TimeFrames.HOUR),
+            createRows([
+                '2024-10-26T23:00:00.000Z',
+                '2024-10-27T02:00:00.000Z',
+            ]),
+            'category',
+            'Europe/London',
+        );
+
+        expect(result).toEqual({});
+    });
+
+    test('returns empty object for day intervals', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createAxisField(TimeFrames.DAY),
+            createRows([
+                '2024-10-26T23:00:00.000Z',
+                '2024-10-27T02:00:00.000Z',
+            ]),
+            'time',
+            'Europe/London',
+        );
+
+        expect(result).toEqual({});
+    });
+
+    test('uses raw UTC instants as custom tick values across DST fall-back', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createAxisField(TimeFrames.HOUR),
+            createRows([
+                '2024-10-26T23:00:00.000Z',
+                '2024-10-27T00:00:00.000Z',
+                '2024-10-27T01:00:00.000Z',
+                '2024-10-27T02:00:00.000Z',
+            ]),
+            'time',
+            'Europe/London',
+        );
+
+        expect(result.axisTick?.customValues).toEqual([
+            Date.parse('2024-10-26T23:00:00.000Z'),
+            Date.parse('2024-10-27T00:00:00.000Z'),
+            Date.parse('2024-10-27T01:00:00.000Z'),
+            Date.parse('2024-10-27T02:00:00.000Z'),
+        ]);
+        expect(result.axisLabel?.customValues).toEqual(
+            result.axisTick?.customValues,
+        );
+    });
+
+    test('preserves fractional-offset bucket boundaries for hourly ticks', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createAxisField(TimeFrames.HOUR),
+            createRows([
+                '2024-01-01T00:15:00.000Z',
+                '2024-01-01T01:15:00.000Z',
+                '2024-01-01T02:15:00.000Z',
+            ]),
+            'time',
+            'Asia/Kathmandu',
+        );
+
+        expect(result.axisTick?.customValues).toEqual([
+            Date.parse('2024-01-01T00:15:00.000Z'),
+            Date.parse('2024-01-01T01:15:00.000Z'),
+            Date.parse('2024-01-01T02:15:00.000Z'),
+        ]);
     });
 });
 
