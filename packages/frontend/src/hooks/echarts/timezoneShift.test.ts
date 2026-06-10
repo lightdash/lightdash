@@ -171,18 +171,31 @@ describe('resolveAxisTimezone', () => {
         expect(result.axisTimezone).toBe(TZ);
     });
 
-    test.each([
-        TimeFrames.SECOND,
-        TimeFrames.MINUTE,
-        TimeFrames.HOUR,
-        TimeFrames.DAY,
-    ])('shifts for time-axis interval %s', (interval) => {
-        const fieldId = `orders_created_${interval.toLowerCase()}`;
+    test.each([TimeFrames.SECOND, TimeFrames.MINUTE, TimeFrames.HOUR])(
+        'keeps raw UTC positioning for sub-day interval %s',
+        (interval) => {
+            const fieldId = `orders_created_${interval.toLowerCase()}`;
+            const result = resolveAxisTimezone({
+                validCartesianConfig: makeCartesian({ xField: fieldId }),
+                itemsMap: {
+                    ...itemsMap,
+                    [fieldId]: makeTimeDimension(fieldId, interval),
+                },
+                resolvedTimezone: TZ,
+            });
+            expect(result.shiftedField).toBeUndefined();
+            expect(result.axisTimezone).toBe(TZ);
+            expect(result.axisDisplayTimezone).toBeUndefined();
+        },
+    );
+
+    test('shifts day buckets to wall-clock for time-axis interval DAY', () => {
+        const fieldId = 'orders_created_day';
         const result = resolveAxisTimezone({
             validCartesianConfig: makeCartesian({ xField: fieldId }),
             itemsMap: {
                 ...itemsMap,
-                [fieldId]: makeTimeDimension(fieldId, interval),
+                [fieldId]: makeTimeDimension(fieldId, TimeFrames.DAY),
             },
             resolvedTimezone: TZ,
         });
