@@ -21,6 +21,7 @@ const FIELDS = {
 type Data = ReturnType<typeof transformSankeyData>;
 
 const nodeIds = (data: Data) => data.nodes.map((n) => n.name).sort();
+const nodeLabels = (data: Data) => data.nodes.map((n) => n.label).sort();
 const sourceTargets = (data: Data) =>
     data.links.map((l) => `${l.source}→${l.target}`).sort();
 
@@ -69,6 +70,8 @@ describe('transformSankeyData', () => {
                 'C - Step 1',
                 'C - Step 2',
             ]);
+            // both "Step" instances still display as plain "C"
+            expect(nodeLabels(data)).toEqual(['A', 'B', 'C', 'C']);
         });
     });
 
@@ -94,6 +97,39 @@ describe('transformSankeyData', () => {
             expect(data.hasCycle).toBe(true);
             expect(data.nodes.some((n) => / - Step \d+$/.test(n.name))).toBe(
                 true,
+            );
+        });
+    });
+
+    describe('direct', () => {
+        it('renders a bipartite source→target view with no chaining', () => {
+            const data = transformSankeyData(diamond, FIELDS, {
+                nodeLayout: 'direct',
+            });
+
+            expect(data.maxDepth).toBe(1);
+            expect(data.links).toHaveLength(3);
+
+            // no node is both a link source and a link target (strict 2 columns)
+            const sources = new Set(data.links.map((l) => l.source));
+            const targets = new Set(data.links.map((l) => l.target));
+            expect([...sources].some((s) => targets.has(s))).toBe(false);
+
+            // "B" is both a source and a target, so it appears on both sides
+            expect(nodeLabels(data)).toEqual(['A', 'B', 'B', 'C']);
+        });
+
+        it('handles cyclic data without error', () => {
+            const data = transformSankeyData(
+                [row('A', 'B', 1), row('B', 'A', 1)],
+                FIELDS,
+                { nodeLayout: 'direct' },
+            );
+
+            expect(data.hasCycle).toBe(true);
+            expect(data.links).toHaveLength(2);
+            expect(data.nodes.some((n) => / - Step \d+$/.test(n.name))).toBe(
+                false,
             );
         });
     });

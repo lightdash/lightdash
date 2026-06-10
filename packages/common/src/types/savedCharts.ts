@@ -205,8 +205,9 @@ export type GaugeChart = {
  * How nodes are laid out:
  * - `multi-step`: depth-unrolled journeys (default)
  * - `merged`: one node per label, journeys preserved (acyclic flows only)
+ * - `direct`: two-column source→target pairs, no chaining
  */
-export type SankeyNodeLayout = 'multi-step' | 'merged';
+export type SankeyNodeLayout = 'multi-step' | 'merged' | 'direct';
 
 export type SankeyChart = {
     /** Field ID for the source node dimension */

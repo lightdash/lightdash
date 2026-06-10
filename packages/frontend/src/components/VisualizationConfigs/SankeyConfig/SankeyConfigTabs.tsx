@@ -217,42 +217,6 @@ export const ConfigTabs: FC = memo(() => {
                         </Config>
                         <Config>
                             <Config.Section>
-                                <Config.Heading>Node alignment</Config.Heading>
-                                <SegmentedControl
-                                    value={nodeAlign}
-                                    data={[
-                                        {
-                                            value: 'left',
-                                            label:
-                                                orient === 'vertical'
-                                                    ? 'Top'
-                                                    : 'Left',
-                                        },
-                                        {
-                                            value: 'right',
-                                            label:
-                                                orient === 'vertical'
-                                                    ? 'Bottom'
-                                                    : 'Right',
-                                        },
-                                        {
-                                            value: 'justify',
-                                            label: 'Justify',
-                                        },
-                                    ]}
-                                    onChange={(value) =>
-                                        onNodeAlignChange(
-                                            value as
-                                                | 'left'
-                                                | 'right'
-                                                | 'justify',
-                                        )
-                                    }
-                                />
-                            </Config.Section>
-                        </Config>
-                        <Config>
-                            <Config.Section>
                                 <Config.Heading>Node layout</Config.Heading>
                                 <SegmentedControl
                                     value={effectiveLayout}
@@ -265,6 +229,10 @@ export const ConfigTabs: FC = memo(() => {
                                             value: 'merged',
                                             label: 'Merged',
                                             disabled: data.hasCycle,
+                                        },
+                                        {
+                                            value: 'direct',
+                                            label: 'Direct',
                                         },
                                     ]}
                                     onChange={(value) =>
@@ -281,6 +249,46 @@ export const ConfigTabs: FC = memo(() => {
                                 )}
                             </Config.Section>
                         </Config>
+                        {effectiveLayout !== 'direct' && (
+                            <Config>
+                                <Config.Section>
+                                    <Config.Heading>
+                                        Node alignment
+                                    </Config.Heading>
+                                    <SegmentedControl
+                                        value={nodeAlign}
+                                        data={[
+                                            {
+                                                value: 'left',
+                                                label:
+                                                    orient === 'vertical'
+                                                        ? 'Top'
+                                                        : 'Left',
+                                            },
+                                            {
+                                                value: 'right',
+                                                label:
+                                                    orient === 'vertical'
+                                                        ? 'Bottom'
+                                                        : 'Right',
+                                            },
+                                            {
+                                                value: 'justify',
+                                                label: 'Justify',
+                                            },
+                                        ]}
+                                        onChange={(value) =>
+                                            onNodeAlignChange(
+                                                value as
+                                                    | 'left'
+                                                    | 'right'
+                                                    | 'justify',
+                                            )
+                                        }
+                                    />
+                                </Config.Section>
+                            </Config>
+                        )}
                     </Stack>
                 </Tabs.Panel>
             </Tabs>
