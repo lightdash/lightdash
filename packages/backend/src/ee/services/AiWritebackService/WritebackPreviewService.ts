@@ -152,6 +152,7 @@ export class WritebackPreviewService extends BaseService {
                     name: `Preview: ${pullRequest.headRef}`,
                     copyContent: true,
                     dbtConnectionOverrides: { branch: pullRequest.headRef },
+                    validateAfterCompile: true,
                 },
                 RequestMethod.BACKEND,
             );
