@@ -9,15 +9,14 @@ import {
     UserAttributeValueMap,
 } from '@lightdash/common';
 // eslint-disable-next-line import/extensions
-import type { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
+import { AuthInfo } from '@modelcontextprotocol/sdk/server/auth/types.js';
 // eslint-disable-next-line import/extensions
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import express, { type Router } from 'express';
 import { IncomingMessage } from 'http';
 import { validate as isValidUuid } from 'uuid';
 import { allowApiKeyAuthentication } from '../controllers/authentication';
-import type { ExtraContext } from '../ee/services/McpService/McpService';
-import { McpService } from '../ee/services/McpService/McpService';
+import { ExtraContext, McpService } from '../ee/services/McpService/McpService';
 import Logger from '../logging/logger';
 import { userAttributeOverridesSchema } from '../services/UserAttributesService/UserAttributeUtils';
 
@@ -167,13 +166,36 @@ mcpRouter.all(
             }
 
             if (req.method === 'POST') {
+                // SDK 1.26.0 requires a new server+transport per request in stateless mode
+                // to prevent cross-client response data leaks (CVE-2026-25536)
+                // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
                 const headerProjectUuid = extractProjectUuidFromHeader(req);
+                // Dark launch: the run_ai_writeback tool is only registered
+                // (and thus only listed/invocable) when the AiWriteback flag is
+                // enabled for this caller. Resolved here because tool
+                // registration in setupHandlers is synchronous (createServer
+                // only awaits to register skill resources afterwards).
+                const aiWritebackEnabled =
+                    await mcpService.isAiWritebackEnabled(req.user!);
+                const mcpServer = await mcpService.createServer({
+                    projectPinned: headerProjectUuid !== undefined,
+                    aiWritebackEnabled,
+                });
+                const transport = new StreamableHTTPServerTransport({
+                    enableJsonResponse: true,
+                    sessionIdGenerator: undefined,
+                });
+                await mcpServer.connect(transport);
+
+                // Extract user attributes from header (for row-level security)
                 const headerUserAttributes =
                     extractUserAttributesFromHeader(req);
+
+                // Add auth info to request for the transport
+                // The token details is loaded on the authentication middleware allowApiKeyAuthentication
                 const authReq: IncomingMessage & {
                     auth?: AuthInfo;
                 } = req;
-                let extraContext: ExtraContext | undefined;
 
                 if (req.user && req.account?.isOauthUser()) {
                     const oauthAuth = req.account as OauthAccount;
@@ -183,7 +205,6 @@ mcpRouter.all(
                         headerUserAttributes,
                         headerProjectUuid,
                     };
-                    extraContext = extra;
                     authReq.auth = {
                         token: oauthAuth.authentication.token,
                         clientId: oauthAuth.authentication.clientId,
@@ -200,7 +221,6 @@ mcpRouter.all(
                         headerUserAttributes,
                         headerProjectUuid,
                     };
-                    extraContext = extra;
                     authReq.auth = {
                         token: apiKeyAuth.authentication.source,
                         clientId: 'API key', // hardcoded client and scopes for PAT authentication
@@ -218,7 +238,6 @@ mcpRouter.all(
                         headerUserAttributes,
                         headerProjectUuid,
                     };
-                    extraContext = extra;
                     authReq.auth = {
                         token: serviceAccountAuth.authentication.source,
                         clientId: 'Service account', // hardcoded client and scopes for Service Account authentication
@@ -226,25 +245,6 @@ mcpRouter.all(
                         extra,
                     };
                 }
-
-                // SDK 1.26.0 requires a new server+transport per request in stateless mode
-                // to prevent cross-client response data leaks (CVE-2026-25536)
-                // See: https://github.com/advisories/GHSA-345p-7cg4-v4c7
-                // Tool registration uses the auth context so per-project tools
-                // can be hidden when the user lacks the underlying permission.
-                const aiWritebackEnabled =
-                    await mcpService.isAiWritebackEnabled(req.user!);
-                const mcpServer = await mcpService.createServer({
-                    projectPinned: headerProjectUuid !== undefined,
-                    aiWritebackEnabled,
-                    extraContext,
-                    contentToolsRequireAuthContext: true,
-                });
-                const transport = new StreamableHTTPServerTransport({
-                    enableJsonResponse: true,
-                    sessionIdGenerator: undefined,
-                });
-                await mcpServer.connect(transport);
 
                 return await transport.handleRequest(authReq, res, req.body);
             }
