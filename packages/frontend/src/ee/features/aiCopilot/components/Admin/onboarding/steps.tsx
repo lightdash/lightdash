@@ -12,7 +12,7 @@ export const REVIEWS_TOUR_STEPS: GuidedTourStep[] = [
     {
         target: '[data-tour="reviews-row"]',
         title: 'Each row is a finding',
-        body: 'One answer your agent likely got wrong, tagged by its cause. Two kinds, Semantic layer and Project context, you can fix without leaving this page. The rest tell you where to look.',
+        body: 'One answer your agent likely got wrong, tagged by its cause. Click the row to open the full review details and thread context. Semantic layer and Project context are the two kinds you can usually fix from here.',
     },
     {
         target: '[data-tour="reviews-create-pr"]',

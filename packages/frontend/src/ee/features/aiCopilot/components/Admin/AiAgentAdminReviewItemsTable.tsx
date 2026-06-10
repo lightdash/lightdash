@@ -1,39 +1,29 @@
 import {
-    type AiAgentRecommendationAction,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemSummary,
-    type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewSignalSummary,
     type AiAgentRootCause,
-    type AiAgentTargetRef,
     type AiAgentTurnSignal,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
-    Collapse,
     Divider,
     Group,
     HoverCard,
-    Loader,
-    SegmentedControl,
     Stack,
     Text,
     Tooltip,
-    UnstyledButton,
     useMantineTheme,
 } from '@mantine-8/core';
 import {
     IconArrowRight,
     IconBox,
-    IconChevronDown,
-    IconChevronRight,
     IconCircleCheck,
     IconCircleDashed,
     IconClock,
     IconFilterX,
-    IconGitPullRequest,
     IconHelpCircle,
     IconInfoCircle,
     IconListCheck,
@@ -52,7 +42,6 @@ import {
     useRef,
     useState,
 } from 'react';
-import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
     ContentTable,
@@ -67,63 +56,31 @@ import { useOnboardingMock } from '../../../../../hooks/useOnboardingMock';
 import { useProjects } from '../../../../../hooks/useProjects';
 import {
     useAiAgentAdminAgents,
-    useAiAgentAdminReviewItem,
     useAiAgentAdminReviewItems,
     useAiAgentAdminReviewSignals,
-    useCreateAiAgentReviewItemWriteback,
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
 import { EXAMPLE_REVIEW_ITEMS, isExampleReviewItem } from './onboarding';
-import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
+import { ReviewItemActions } from './ReviewItemActions';
+import {
+    formatReviewDate,
+    getActionLabel,
+    getIssueTitle,
+    getRecommendationActionLabel,
+    getSuggestedNextStep,
+    getWhatHappened,
+    getWhyText,
+    reviewRootCauseColors,
+    reviewRootCauseLabels,
+} from './reviewItemDetails';
 import { SearchFilter } from './SearchFilter';
 
 const ACTIVE_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
     'open',
     'in_progress',
 ];
-
-const rootCauseLabels: Record<AiAgentRootCause, string> = {
-    semantic_layer: 'Semantic layer',
-    project_context: 'Project context',
-    agent_configuration: 'Agent config',
-    data_gap: 'Data gap',
-    product_capability: 'Product',
-    runtime_reliability: 'Runtime',
-    feedback_quality: 'Feedback',
-    not_a_failure: 'Not failure',
-    ambiguous: 'Ambiguous',
-};
-
-const rootCauseColors: Record<AiAgentRootCause, string> = {
-    semantic_layer: 'indigo',
-    project_context: 'violet',
-    agent_configuration: 'cyan',
-    data_gap: 'orange',
-    product_capability: 'grape',
-    runtime_reliability: 'red',
-    feedback_quality: 'teal',
-    not_a_failure: 'gray',
-    ambiguous: 'gray',
-};
-
-const writebackBlockedReasonLabels: Record<
-    AiAgentReviewItemWritebackBlockedReason,
-    string
-> = {
-    reviews_disabled: 'Reviews are not enabled for this organization',
-    unsupported_root_cause: 'No writeback strategy for this root cause',
-    missing_project: 'No project is linked to this finding',
-    missing_project_context_entry: 'No project context entry was generated',
-    project_context_disabled: 'Project context is not enabled',
-    unsupported_source_control: 'Project is not connected to GitHub or GitLab',
-    git_app_not_installed: 'Git app is not installed',
-    missing_writeback_config: 'Writeback runtime is not configured',
-    pull_request_open: 'A pull request is already open',
-    terminal_state: 'Finding is already closed',
-    writeback_in_progress: 'Writeback is already in progress',
-};
 
 const signalLabels: Record<AiAgentTurnSignal, string> = {
     normal_refinement: 'Normal refinement',
@@ -136,33 +93,6 @@ const signalLabels: Record<AiAgentTurnSignal, string> = {
     product_capability_request: 'Capability request',
     human_intervention: 'Human intervention',
     ambiguous: 'Ambiguous',
-};
-
-const actionLabels: Record<AiAgentRecommendationAction, string> = {
-    update_semantic_yaml: 'Update semantic layer',
-    update_agent_instructions: 'Update instructions',
-    add_knowledge_document: 'Add knowledge doc',
-    enable_data_access: 'Enable data access',
-    enable_sql_mode: 'Enable SQL mode',
-    enable_self_improvement: 'Enable self-improvement',
-    configure_mcp_server: 'Configure MCP',
-    adjust_explore_tags: 'Adjust explore tags',
-    update_access: 'Update access',
-    route_to_product_work: 'Route to product',
-    request_more_evidence: 'Needs more evidence',
-    no_action: 'No action',
-};
-
-const formatLastSeenDate = (date: Date): string => {
-    const parsedDate = new Date(date);
-    const now = new Date();
-    const isCurrentYear = parsedDate.getFullYear() === now.getFullYear();
-
-    return parsedDate.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        ...(!isCurrentYear && { year: 'numeric' }),
-    });
 };
 
 type ReviewSurface = 'findings' | 'signals';
@@ -184,110 +114,9 @@ type AiAgentAdminReviewItemsTableProps = {
     showOnboardingExamples?: boolean;
 };
 
-const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
-    const targetRef = targetRefs[0];
-    if (!targetRef) return null;
-
-    switch (targetRef.type) {
-        case 'dimension':
-            return `${targetRef.modelName}.${targetRef.dimensionName}`;
-        case 'metric':
-            return `${targetRef.modelName}.${targetRef.metricName}`;
-        case 'model':
-            return targetRef.modelName;
-        case 'explore':
-            return `${targetRef.modelName}.${targetRef.exploreName}`;
-        case 'join':
-            return `${targetRef.modelName}.${targetRef.joinName}`;
-        case 'agent_config':
-            return targetRef.setting.replaceAll('_', ' ');
-        case 'product_capability':
-            return targetRef.capabilityKey;
-        case 'runtime':
-            return targetRef.key;
-        default:
-            return null;
-    }
-};
-
-const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
-    reviewItem.primaryRootCause === 'ambiguous' ||
-    reviewItem.latestFinding?.fixTargets.includes('feedback_needed') === true;
-
-const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
-    if (isTriageReviewItem(reviewItem)) {
-        return 'Triage correction signal';
-    }
-
-    const targetLabel = getTargetLabel(
-        reviewItem.latestFinding?.targetRefs ?? [],
-    );
-    if (targetLabel && reviewItem.primaryRootCause === 'semantic_layer') {
-        return `Review ${targetLabel}`;
-    }
-
-    return reviewItem.latestFinding?.recommendation?.title ?? reviewItem.title;
-};
-
-const getWhatHappened = (reviewItem: AiAgentReviewItemSummary): string => {
-    const evidence = reviewItem.latestFinding?.evidenceExcerpts ?? [];
-    const correction =
-        evidence.find((excerpt) => excerpt.source === 'next_user_prompt')
-            ?.text ??
-        evidence.find((excerpt) => excerpt.source === 'user_prompt')?.text;
-    const assistantAnswer = evidence.find(
-        (excerpt) => excerpt.source === 'assistant_answer',
-    )?.text;
-
-    if (correction && assistantAnswer) {
-        return `User correction: ${correction}`;
-    }
-
-    return correction ?? reviewItem.description;
-};
-
-const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
-    if (isTriageReviewItem(reviewItem)) {
-        return 'Could be a real failure or a normal change in user intent.';
-    }
-
-    return (
-        reviewItem.latestFinding?.recommendation?.rationale ??
-        `Review agent judged this as ${rootCauseLabels[reviewItem.primaryRootCause].toLowerCase()}.`
-    );
-};
-
-const getActionLabel = (reviewItem: AiAgentReviewItemSummary): string => {
-    const recommendation = reviewItem.latestFinding?.recommendation;
-    if (recommendation) {
-        return actionLabels[recommendation.actionType];
-    }
-
-    const fixTarget = reviewItem.latestFinding?.fixTargets[0];
-    if (fixTarget) {
-        return fixTarget.replaceAll('_', ' ');
-    }
-
-    return 'Review';
-};
-
-const getSuggestedNextStep = (reviewItem: AiAgentReviewItemSummary): string => {
-    const action = getActionLabel(reviewItem);
-
-    if (isTriageReviewItem(reviewItem)) {
-        return 'Review the backing thread before deciding whether this is actionable.';
-    }
-
-    if (action === 'No action') {
-        return 'No action suggested.';
-    }
-
-    return action;
-};
-
 const getSignalResultLabel = (signal: AiAgentReviewSignalSummary): string => {
     if (signal.finding) {
-        return rootCauseLabels[signal.finding.primaryRootCause];
+        return reviewRootCauseLabels[signal.finding.primaryRootCause];
     }
 
     return signal.promotedToFinding ? 'Finding pending' : 'Signal only';
@@ -300,7 +129,9 @@ const getSignalWhyText = (signal: AiAgentReviewSignalSummary): string =>
 
 const getSignalActionText = (signal: AiAgentReviewSignalSummary): string => {
     if (signal.finding?.recommendation) {
-        return actionLabels[signal.finding.recommendation.actionType];
+        return getRecommendationActionLabel(
+            signal.finding.recommendation.actionType,
+        );
     }
 
     if (signal.promotedToFinding) {
@@ -450,6 +281,15 @@ const rootCauseHelpOrder: AiAgentRootCause[] = [
     'ambiguous',
 ];
 
+const DEFAULT_HIDDEN_ROOT_CAUSES: AiAgentRootCause[] = [
+    'agent_configuration',
+    'runtime_reliability',
+];
+
+const DEFAULT_VISIBLE_ROOT_CAUSES = (
+    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[]
+).filter((rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause));
+
 const ReviewConceptHelp = () => (
     <HoverCard
         width={380}
@@ -471,15 +311,12 @@ const ReviewConceptHelp = () => (
                         <Text span fw={600} c="ldGray.9" fz="inherit">
                             turn
                         </Text>{' '}
-                        is one question and answer. A{' '}
-                        <Text span fw={600} c="ldGray.9" fz="inherit">
-                            signal
-                        </Text>{' '}
-                        is what the judge thought of it. A{' '}
+                        is one question and answer. When a turn shows a clear
+                        issue, it becomes a{' '}
                         <Text span fw={600} c="ldGray.9" fz="inherit">
                             finding
                         </Text>{' '}
-                        is one worth your attention.
+                        so you can review it here and decide what to fix next.
                     </Text>
                 </Stack>
                 <Divider />
@@ -497,8 +334,8 @@ const ReviewConceptHelp = () => (
                             <Box miw={110}>
                                 <CategoryBadge
                                     variant="dot"
-                                    label={rootCauseLabels[cause]}
-                                    color={rootCauseColors[cause]}
+                                    label={reviewRootCauseLabels[cause]}
+                                    color={reviewRootCauseColors[cause]}
                                 />
                             </Box>
                             <Text fz="xs" c="dimmed">
@@ -523,14 +360,6 @@ const ReviewConceptHelp = () => (
     </HoverCard>
 );
 
-const statusColors: Record<AiAgentReviewItemStatus, string> = {
-    open: 'gray',
-    in_progress: 'yellow',
-    resolved: 'green',
-    dismissed: 'gray',
-    duplicate: 'gray',
-};
-
 const isTerminalReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
     reviewItem.status === 'resolved' ||
     reviewItem.status === 'dismissed' ||
@@ -540,251 +369,11 @@ const FindingCell = ({
     reviewItem,
 }: {
     reviewItem: AiAgentReviewItemSummary;
-}) => {
-    const [showReasoning, setShowReasoning] = useState(false);
-    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
-    const reasoning = contextEntry
-        ? `${
-              contextEntry.op === 'update' ? 'Updates' : 'Adds'
-          } project context: ${contextEntry.content}`
-        : getWhyText(reviewItem);
-
-    return (
-        <Stack gap={2} miw={0}>
-            <Text fw={600} fz="sm" c="ldGray.9" lineClamp={1}>
-                {getIssueTitle(reviewItem)}
-            </Text>
-            <ExpandableText lineClamp={1}>
-                {getWhatHappened(reviewItem)}
-            </ExpandableText>
-            <Group justify="space-between" wrap="nowrap" gap="xs" mt={2}>
-                <UnstyledButton
-                    className={styles.reasoningToggle}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        setShowReasoning((shown) => !shown);
-                    }}
-                >
-                    <MantineIcon
-                        icon={
-                            showReasoning ? IconChevronDown : IconChevronRight
-                        }
-                        size="xs"
-                    />
-                    Agent&rsquo;s reasoning
-                </UnstyledButton>
-                <Group gap={6} wrap="nowrap">
-                    <Box
-                        className={styles.statusDot}
-                        bg={statusColors[reviewItem.status]}
-                    />
-                    <Text fz="xs" c="ldGray.5" tt="capitalize">
-                        {reviewItem.status.replaceAll('_', ' ')} ·{' '}
-                        {formatLastSeenDate(reviewItem.lastSeenAt)}
-                    </Text>
-                </Group>
-            </Group>
-            <Collapse in={showReasoning}>
-                <Box className={styles.reasoning}>
-                    <Text className={styles.reasoningLabel}>
-                        Why this was flagged
-                    </Text>
-                    <Text fz="xs" c="ldGray.7">
-                        {reasoning}
-                    </Text>
-                </Box>
-            </Collapse>
-        </Stack>
-    );
-};
-
-const ReviewItemPrCell = ({
-    reviewItem,
-}: {
-    reviewItem: AiAgentReviewItemSummary;
-}) => {
-    const createWriteback = useCreateAiAgentReviewItemWriteback();
-    const [previewOpen, setPreviewOpen] = useState(false);
-
-    const propInFlight =
-        reviewItem.prWritebackStatus === 'queued' ||
-        reviewItem.prWritebackStatus === 'running' ||
-        reviewItem.remediation?.status === 'pr_open';
-    // Poll the single item while writeback runs and while the preview thread is
-    // being discovered from the PR comments.
-    const { data: polled } = useAiAgentAdminReviewItem(reviewItem.fingerprint, {
-        enabled: propInFlight,
-        refetchInterval:
-            reviewItem.remediation?.status === 'pr_open' ? 10_000 : 2500,
-    });
-    const current = polled ?? reviewItem;
-
-    const isWritebackInFlight =
-        current.prWritebackStatus === 'queued' ||
-        current.prWritebackStatus === 'running';
-    const canCreatePr = current.writebackEligibility.eligible;
-    const blockedReason = current.writebackEligibility.eligible
-        ? null
-        : current.writebackEligibility.reason;
-    const blockedReasonLabel = blockedReason
-        ? writebackBlockedReasonLabels[blockedReason]
-        : null;
-    // project_context findings get a deterministic diff preview modal before the
-    // PR is opened; other strategies (sandbox) open the PR directly.
-    const previewsDiff = current.primaryRootCause === 'project_context';
-
-    const phase = current.prWritebackMessage ?? 'Opening pull request…';
-    const workThreadUrl =
-        current.remediation?.previewProjectUuid &&
-        current.remediation.previewAgentUuid &&
-        current.remediation.previewThreadUuid
-            ? `/projects/${current.remediation.previewProjectUuid}/ai-agents/${current.remediation.previewAgentUuid}/threads/${current.remediation.previewThreadUuid}?reviewItem=${encodeURIComponent(current.fingerprint)}`
-            : null;
-    const remediationError =
-        current.remediation?.status === 'failed'
-            ? current.remediation.errorMessage
-            : null;
-
-    return (
-        <>
-            {isWritebackInFlight ? (
-                <Tooltip label={phase} withArrow openDelay={300}>
-                    <Group gap={8} wrap="nowrap" maw={180}>
-                        <Loader size={12} color="ldGray.5" />
-                        <Text fz="xs" c="ldGray.6" lineClamp={1}>
-                            {phase}
-                        </Text>
-                    </Group>
-                </Tooltip>
-            ) : (
-                <Stack gap={6} align="flex-start">
-                    <Group gap="xs" wrap="nowrap">
-                        {current.linkedPrUrl && (
-                            <Button
-                                component="a"
-                                href={current.linkedPrUrl}
-                                target="_blank"
-                                onClick={(event) => event.stopPropagation()}
-                                size="compact-xs"
-                                fz="xs"
-                                loading={createWriteback.isLoading}
-                                variant="subtle"
-                                color="gray"
-                            >
-                                View PR
-                            </Button>
-                        )}
-
-                        {workThreadUrl && (
-                            <Button
-                                component="a"
-                                href={workThreadUrl}
-                                onClick={(event) => event.stopPropagation()}
-                                size="compact-xs"
-                                fz="xs"
-                                variant="default"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconMessages}
-                                        size="xs"
-                                    />
-                                }
-                            >
-                                Test fix
-                            </Button>
-                        )}
-
-                        {canCreatePr && (
-                            <Tooltip
-                                label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
-                                withArrow
-                                multiline
-                                maw={260}
-                            >
-                                <Button
-                                    data-tour="reviews-create-pr"
-                                    size="compact-xs"
-                                    radius="md"
-                                    variant="default"
-                                    loading={createWriteback.isLoading}
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        if (previewsDiff) {
-                                            setPreviewOpen(true);
-                                        } else {
-                                            createWriteback.mutate(
-                                                current.fingerprint,
-                                            );
-                                        }
-                                    }}
-                                >
-                                    Create PR
-                                </Button>
-                            </Tooltip>
-                        )}
-                    </Group>
-
-                    {canCreatePr && (
-                        <Group gap={0} wrap="nowrap">
-                            <Text fz="xs" c="ldGray.6" fw={500} lineClamp={1}>
-                                {getSuggestedNextStep(current)}
-                            </Text>
-                        </Group>
-                    )}
-
-                    {remediationError && (
-                        <Tooltip
-                            label={remediationError}
-                            withArrow
-                            openDelay={300}
-                        >
-                            <Group gap={4} wrap="nowrap" maw={220}>
-                                <MantineIcon icon={IconInfoCircle} size="xs" />
-                                <Text fz="xs" c="red.6" fw={500} lineClamp={1}>
-                                    {remediationError}
-                                </Text>
-                            </Group>
-                        </Tooltip>
-                    )}
-
-                    {!canCreatePr &&
-                        !current.linkedPrUrl &&
-                        !isWritebackInFlight &&
-                        blockedReasonLabel && (
-                            <Tooltip
-                                label={blockedReasonLabel}
-                                withArrow
-                                openDelay={300}
-                            >
-                                <Group gap={4} wrap="nowrap" maw={220}>
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        size="xs"
-                                    />
-                                    <Text
-                                        fz="xs"
-                                        c="ldGray.6"
-                                        fw={500}
-                                        lineClamp={1}
-                                    >
-                                        {blockedReasonLabel}
-                                    </Text>
-                                </Group>
-                            </Tooltip>
-                        )}
-                </Stack>
-            )}
-
-            {previewsDiff && (
-                <ProjectContextWritebackModal
-                    fingerprint={current.fingerprint}
-                    opened={previewOpen}
-                    onClose={() => setPreviewOpen(false)}
-                />
-            )}
-        </>
-    );
-};
+}) => (
+    <Text fw={700} fz="sm" c="ldGray.9" lineClamp={2}>
+        {getIssueTitle(reviewItem)}
+    </Text>
+);
 
 const AiAgentAdminReviewItemsTable = ({
     onReviewItemSelect,
@@ -793,14 +382,14 @@ const AiAgentAdminReviewItemsTable = ({
 }: AiAgentAdminReviewItemsTableProps) => {
     const theme = useMantineTheme();
     const [search, setSearch] = useState<string | undefined>(undefined);
-    const [reviewSurface, setReviewSurface] =
+    const [reviewSurface, _setReviewSurface] =
         useState<ReviewSurface>('findings');
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
         [],
     );
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
-    >([]);
+    >(DEFAULT_VISIBLE_ROOT_CAUSES);
     const [selectedSignals, setSelectedSignals] = useState<AiAgentTurnSignal[]>(
         [],
     );
@@ -858,7 +447,7 @@ const AiAgentAdminReviewItemsTable = ({
                 getWhyText(reviewItem),
                 getSuggestedNextStep(reviewItem),
                 getActionLabel(reviewItem),
-                rootCauseLabels[reviewItem.primaryRootCause],
+                reviewRootCauseLabels[reviewItem.primaryRootCause],
                 agent?.name,
                 project?.name,
                 reviewItem.latestFinding?.recommendation?.title,
@@ -1003,10 +592,10 @@ const AiAgentAdminReviewItemsTable = ({
                 (counts.get(item.primaryRootCause) ?? 0) + 1,
             );
         }
-        return (Object.keys(rootCauseLabels) as AiAgentRootCause[])
+        return (Object.keys(reviewRootCauseLabels) as AiAgentRootCause[])
             .map((rootCause) => ({
                 value: rootCause,
-                label: rootCauseLabels[rootCause],
+                label: reviewRootCauseLabels[rootCause],
                 count: counts.get(rootCause) ?? 0,
             }))
             .sort(
@@ -1014,7 +603,7 @@ const AiAgentAdminReviewItemsTable = ({
             );
     }, [projectFilteredReviewItems]);
 
-    const signalFacetOptions = useMemo((): FilterFacetOption[] => {
+    const _signalFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentTurnSignal, number>();
         for (const signal of projectFilteredReviewSignals) {
             counts.set(signal.signal, (counts.get(signal.signal) ?? 0) + 1);
@@ -1030,14 +619,20 @@ const AiAgentAdminReviewItemsTable = ({
             );
     }, [projectFilteredReviewSignals]);
 
+    const hasDefaultRootCauseSelection =
+        selectedRootCauses.length === DEFAULT_VISIBLE_ROOT_CAUSES.length &&
+        DEFAULT_VISIBLE_ROOT_CAUSES.every((rootCause) =>
+            selectedRootCauses.includes(rootCause),
+        );
+
     const hasActiveFilters =
         selectedProjectUuids.length > 0 ||
-        selectedRootCauses.length > 0 ||
+        !hasDefaultRootCauseSelection ||
         selectedSignals.length > 0;
 
     const clearAllFilters = useCallback(() => {
         setSelectedProjectUuids([]);
-        setSelectedRootCauses([]);
+        setSelectedRootCauses(DEFAULT_VISIBLE_ROOT_CAUSES);
         setSelectedSignals([]);
     }, []);
 
@@ -1067,7 +662,7 @@ const AiAgentAdminReviewItemsTable = ({
     }: {
         visibleCount: number;
         totalCount: number;
-        noun: 'item' | 'signal';
+        noun: 'finding' | 'turn';
         isLoading: boolean;
         surface: ReviewSurface;
         selectedCount?: number;
@@ -1082,31 +677,29 @@ const AiAgentAdminReviewItemsTable = ({
             : hasActiveFilters && visibleCount !== totalCount
               ? `${visibleCount} of ${totalCount} ${pluralised}`
               : `${visibleCount} ${pluralised}`;
+        const helperCopy =
+            'Findings are issues worth attention. Click a row to inspect details and thread context.';
 
         return (
             <Box>
                 <Group py="lg" px="xl" justify="space-between">
-                    <Group gap="xs" wrap="wrap">
+                    <Group gap="sm" wrap="wrap" className={styles.toolbarGroup}>
                         <SearchFilter
                             search={search}
                             setSearch={setSearch}
-                            placeholder="Search reviews"
+                            placeholder="Search findings"
                         />
 
-                        <Divider orientation="vertical" w={1} h={20} />
-                        <SegmentedControl
-                            size="xs"
-                            radius="md"
-                            value={reviewSurface}
-                            onChange={(value) =>
-                                setReviewSurface(value as ReviewSurface)
-                            }
-                            data={[
-                                { value: 'findings', label: 'Findings' },
-                                { value: 'signals', label: 'Signals' },
-                            ]}
-                        />
-                        <ReviewConceptHelp />
+                        <Group
+                            gap={6}
+                            wrap="nowrap"
+                            className={styles.toolbarHeading}
+                        >
+                            <Text fz="sm" fw={700} c="ldGray.9">
+                                Findings
+                            </Text>
+                            <ReviewConceptHelp />
+                        </Group>
 
                         <FilterFacet
                             label="Project"
@@ -1117,35 +710,19 @@ const AiAgentAdminReviewItemsTable = ({
                             emptyLabel="No projects in current view"
                             tooltipLabel="Filter by project"
                         />
-                        {surface === 'findings' ? (
-                            <FilterFacet
-                                label="Root cause"
-                                icon={IconTag}
-                                options={rootCauseFacetOptions}
-                                selected={selectedRootCauses}
-                                onChange={(values) =>
-                                    setSelectedRootCauses(
-                                        values as AiAgentRootCause[],
-                                    )
-                                }
-                                emptyLabel="No root causes in current view"
-                                tooltipLabel="Filter by root cause"
-                            />
-                        ) : (
-                            <FilterFacet
-                                label="Signal"
-                                icon={IconTag}
-                                options={signalFacetOptions}
-                                selected={selectedSignals}
-                                onChange={(values) =>
-                                    setSelectedSignals(
-                                        values as AiAgentTurnSignal[],
-                                    )
-                                }
-                                emptyLabel="No signals in current view"
-                                tooltipLabel="Filter by signal type"
-                            />
-                        )}
+                        <FilterFacet
+                            label="Cause"
+                            icon={IconTag}
+                            options={rootCauseFacetOptions}
+                            selected={selectedRootCauses}
+                            onChange={(values) =>
+                                setSelectedRootCauses(
+                                    values as AiAgentRootCause[],
+                                )
+                            }
+                            emptyLabel="No root causes in current view"
+                            tooltipLabel="Filter by root cause"
+                        />
                         {hasActiveFilters && (
                             <Button
                                 variant="subtle"
@@ -1203,6 +780,9 @@ const AiAgentAdminReviewItemsTable = ({
                         )}
                     </Group>
                 </Group>
+                <Text px="xl" pb="sm" fz="xs" c="dimmed">
+                    {helperCopy}
+                </Text>
                 <Divider color="ldGray.2" />
             </Box>
         );
@@ -1212,9 +792,9 @@ const AiAgentAdminReviewItemsTable = ({
         () => [
             {
                 accessorKey: 'primaryRootCause',
-                header: 'Type',
+                header: 'Cause',
                 enableSorting: false,
-                size: 220,
+                size: 170,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconTag} color="ldGray.6" />
@@ -1224,10 +804,6 @@ const AiAgentAdminReviewItemsTable = ({
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
                     const isExample = isExampleReviewItem(reviewItem.uuid);
-                    const subcategory =
-                        reviewItem.latestFinding?.subcategories[0];
-                    const contextEntry =
-                        reviewItem.latestFinding?.projectContextEntry ?? null;
                     return (
                         <Stack gap={7} align="flex-start">
                             {isExample && (
@@ -1240,27 +816,16 @@ const AiAgentAdminReviewItemsTable = ({
                             <CategoryBadge
                                 variant="dot"
                                 label={
-                                    rootCauseLabels[reviewItem.primaryRootCause]
+                                    reviewRootCauseLabels[
+                                        reviewItem.primaryRootCause
+                                    ]
                                 }
                                 color={
-                                    rootCauseColors[reviewItem.primaryRootCause]
+                                    reviewRootCauseColors[
+                                        reviewItem.primaryRootCause
+                                    ]
                                 }
                             />
-                            {contextEntry ? (
-                                <CategoryBadge
-                                    variant="dot"
-                                    label={contextEntry.kind}
-                                    color="gray"
-                                />
-                            ) : (
-                                subcategory && (
-                                    <CategoryBadge
-                                        variant="dot"
-                                        label={subcategory.replaceAll('_', ' ')}
-                                        color="gray"
-                                    />
-                                )
-                            )}
                         </Stack>
                     );
                 },
@@ -1269,7 +834,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'title',
                 header: 'Finding',
                 enableSorting: false,
-                size: 650,
+                size: 700,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconListCheck} color="ldGray.6" />
@@ -1282,80 +847,13 @@ const AiAgentAdminReviewItemsTable = ({
                 },
             },
             {
-                accessorKey: 'agentUuid',
-                header: 'Context',
-                enableSorting: false,
-                size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconMessages} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const reviewItem = row.original;
-                    const latestFinding = reviewItem.latestFinding;
-                    const agentUuid =
-                        latestFinding?.agentUuid ?? reviewItem.agentUuid;
-                    const projectUuid =
-                        latestFinding?.projectUuid ?? reviewItem.projectUuid;
-                    const agent = agentUuid
-                        ? agentsMap.get(agentUuid)
-                        : undefined;
-                    const project = projectUuid
-                        ? projectsMap.get(projectUuid)
-                        : undefined;
-                    const contextName =
-                        agent?.name ?? project?.name ?? 'Organization';
-                    const imageUrl = agent?.imageUrl ?? null;
-
-                    return (
-                        <Group gap="xs" wrap="nowrap">
-                            <Tooltip label={contextName} withArrow>
-                                <Box>
-                                    <LightdashUserAvatar
-                                        size={18}
-                                        name={contextName}
-                                        src={imageUrl}
-                                    />
-                                </Box>
-                            </Tooltip>
-                            {latestFinding && (
-                                <Button
-                                    size="compact-xs"
-                                    variant="subtle"
-                                    color="gray"
-                                    px={0}
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        onReviewItemSelect?.({
-                                            projectUuid:
-                                                latestFinding.projectUuid,
-                                            agentUuid: latestFinding.agentUuid,
-                                            threadUuid:
-                                                latestFinding.threadUuid,
-                                            reviewItemUuid: reviewItem.uuid,
-                                        });
-                                    }}
-                                >
-                                    View thread
-                                </Button>
-                            )}
-                        </Group>
-                    );
-                },
-            },
-            {
                 accessorKey: 'prWritebackStatus',
-                header: 'PR',
+                header: 'Action',
                 enableSorting: false,
-                size: 170,
+                size: 190,
                 Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon
-                            icon={IconGitPullRequest}
-                            color="ldGray.6"
-                        />
+                    <Group gap={4}>
+                        <MantineIcon icon={IconArrowRight} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
@@ -1372,11 +870,11 @@ const AiAgentAdminReviewItemsTable = ({
                             </Button>
                         </Box>
                     ) : (
-                        <ReviewItemPrCell reviewItem={row.original} />
+                        <ReviewItemActions reviewItem={row.original} />
                     ),
             },
         ],
-        [agentsMap, onReviewItemSelect, projectsMap],
+        [],
     );
 
     const signalColumns: ContentTableColumnDef<AiAgentReviewSignalSummary>[] =
@@ -1405,7 +903,7 @@ const AiAgentAdminReviewItemsTable = ({
                                     label={getSignalResultLabel(signal)}
                                     color={
                                         signal.finding
-                                            ? rootCauseColors[
+                                            ? reviewRootCauseColors[
                                                   signal.finding
                                                       .primaryRootCause
                                               ]
@@ -1572,7 +1070,7 @@ const AiAgentAdminReviewItemsTable = ({
                                 justify="space-between"
                             >
                                 <Text fz="xs" c="ldGray.7" fw={500}>
-                                    {formatLastSeenDate(signal.createdAt)}
+                                    {formatReviewDate(signal.createdAt)}
                                 </Text>
                                 <Tooltip
                                     label="Open AI thread preview"
@@ -1659,7 +1157,7 @@ const AiAgentAdminReviewItemsTable = ({
         },
         mantineTableBodyCellProps: {
             style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 borderRight: 'none',
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
@@ -1681,14 +1179,25 @@ const AiAgentAdminReviewItemsTable = ({
             }
 
             const isSelected = selectedReviewItemUuid === reviewItem.uuid;
+            const latestFinding = reviewItem.latestFinding;
 
             return {
                 className: styles.bodyRow,
                 style: {
+                    cursor: latestFinding ? 'pointer' : 'default',
                     backgroundColor: isSelected
-                        ? theme.colors.ldGray[1]
+                        ? theme.colors.ldGray[0]
                         : undefined,
                 },
+                onClick: latestFinding
+                    ? () =>
+                          onReviewItemSelect?.({
+                              projectUuid: latestFinding.projectUuid,
+                              agentUuid: latestFinding.agentUuid,
+                              threadUuid: latestFinding.threadUuid,
+                              reviewItemUuid: reviewItem.uuid,
+                          })
+                    : undefined,
                 ...rowAnchor,
             };
         },
@@ -1713,7 +1222,7 @@ const AiAgentAdminReviewItemsTable = ({
             return renderReviewsToolbar({
                 visibleCount: filteredReviewItems.length,
                 totalCount: searchFilteredReviewItems.length,
-                noun: 'item',
+                noun: 'finding',
                 isLoading,
                 surface: 'findings',
                 selectedCount: selectedRows.length,
@@ -1724,9 +1233,9 @@ const AiAgentAdminReviewItemsTable = ({
             });
         },
         emptyState: {
-            entityName: 'reviews',
+            entityName: 'findings',
             emptyMessage:
-                'Nothing to review yet. When an agent gets an answer wrong, it shows up here.',
+                'Nothing to review yet. When an agent answer looks wrong, it shows up here.',
             search,
             hasActiveFilters,
             onClearFilters: clearAllFilters,
@@ -1745,7 +1254,7 @@ const AiAgentAdminReviewItemsTable = ({
         },
     });
 
-    const signalTable = useContentTable({
+    const _signalTable = useContentTable({
         columns: signalColumns,
         data: filteredReviewSignals,
         enableColumnResizing: false,
@@ -1812,7 +1321,7 @@ const AiAgentAdminReviewItemsTable = ({
             renderReviewsToolbar({
                 visibleCount: filteredReviewSignals.length,
                 totalCount: searchFilteredReviewSignals.length,
-                noun: 'signal',
+                noun: 'turn',
                 isLoading: isSignalsLoading,
                 surface: 'signals',
             }),
@@ -1830,11 +1339,7 @@ const AiAgentAdminReviewItemsTable = ({
 
     return (
         <Box>
-            {reviewSurface === 'findings' ? (
-                <ContentTable table={table} />
-            ) : (
-                <ContentTable table={signalTable} />
-            )}
+            <ContentTable table={table} />
         </Box>
     );
 };

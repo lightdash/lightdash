@@ -108,8 +108,9 @@ export const AiReviewsSettingsPage = () => {
                 </Group>
 
                 <Text c="dimmed" fz="sm" maw={760}>
-                    Answers your agents probably got wrong, grouped by what
-                    caused them.{' '}
+                    An actionable queue of answers your agents probably got
+                    wrong. Click a finding to inspect the thread, metadata, and
+                    suggested fix.{' '}
                     <Text span fw={600} fz="inherit">
                         Semantic layer
                     </Text>{' '}

@@ -3,6 +3,10 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentRootCause,
 } from '@lightdash/common';
+import {
+    reviewRootCauseColors,
+    reviewRootCauseLabels,
+} from './reviewItemDetails';
 
 export const THREAD_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
     'open',
@@ -12,29 +16,11 @@ export const THREAD_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
     'duplicate',
 ];
 
-export const threadReviewRootCauseLabels: Record<AiAgentRootCause, string> = {
-    semantic_layer: 'Semantic layer',
-    project_context: 'Project context',
-    agent_configuration: 'Agent config',
-    data_gap: 'Data gap',
-    product_capability: 'Product',
-    runtime_reliability: 'Runtime',
-    feedback_quality: 'Feedback',
-    not_a_failure: 'Not failure',
-    ambiguous: 'Ambiguous',
-};
+export const threadReviewRootCauseLabels: Record<AiAgentRootCause, string> =
+    reviewRootCauseLabels;
 
-export const threadReviewRootCauseColors: Record<AiAgentRootCause, string> = {
-    semantic_layer: 'indigo',
-    project_context: 'violet',
-    agent_configuration: 'cyan',
-    data_gap: 'orange',
-    product_capability: 'grape',
-    runtime_reliability: 'red',
-    feedback_quality: 'teal',
-    not_a_failure: 'gray',
-    ambiguous: 'gray',
-};
+export const threadReviewRootCauseColors: Record<AiAgentRootCause, string> =
+    reviewRootCauseColors;
 
 export const threadReviewStatusColors: Record<AiAgentReviewItemStatus, string> =
     {
