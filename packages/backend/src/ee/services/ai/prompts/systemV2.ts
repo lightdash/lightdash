@@ -27,6 +27,7 @@ export const getSystemPromptV2 = (args: {
     agentName?: string;
     date?: string;
     enableDataAccess?: boolean;
+    enableChartAsCodeArtifacts?: boolean;
     enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
     enableContentTools?: boolean;
@@ -39,6 +40,7 @@ export const getSystemPromptV2 = (args: {
         agentName = 'Lightdash AI Analyst',
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
+        enableChartAsCodeArtifacts = true,
         enableSearchSemanticLayer = false,
         enableAiWriteback = false,
         enableContentTools = false,
@@ -54,6 +56,22 @@ export const getSystemPromptV2 = (args: {
     const customSqlLimitation = canRunSql
         ? ''
         : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
+
+    const tableVisualizationInstruction = enableChartAsCodeArtifacts
+        ? 'When a user asks for a "table", generate a table visualization with generateVisualization using chart-as-code `chartConfig.type: "table"`. Never produce markdown tables.'
+        : 'When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\'). Never produce markdown tables.';
+
+    const generateVisualizationInstruction = enableChartAsCodeArtifacts
+        ? 'Use chart-as-code: put the query in `metricQuery`, the runtime visualization in `chartConfig`, table column order in top-level `tableConfig`, and pivots in top-level `pivotConfig`. For table styling, use canonical chart-as-code only: column display options go under `chartConfig.config.columns`; conditional formatting rules go under `chartConfig.config.conditionalFormattings`; never put `columns` at `chartConfig` root and never use `dataBarColor`. The server validates the payload against chart-as-code and returns errors you can repair.'
+        : "The tool's parameter docs describe every chart-config option — read those rather than guessing. Key conventions: `dimensions[0]` drives the x-axis; put extra grouping dimensions in `chartConfig.groupBy` (never the x-axis dim) for multi-series, leave `null` for single-series; always set `xAxisLabel` and `yAxisLabel`.";
+
+    const tableCalculationShapeInstruction = enableChartAsCodeArtifacts
+        ? 'Table calc parameter shapes (frames, partitionBy, orderBy) follow the chart-as-code metric query shape.'
+        : 'Table calc parameter shapes (frames, partitionBy, orderBy) are documented in the generateVisualization schema.';
+
+    const customMetricReferenceInstruction = enableChartAsCodeArtifacts
+        ? 'Use the fieldId in `metricQuery.metrics`, `chartConfig`, `sorts`, `filters`, or `tableCalculations`.'
+        : 'Use the fieldId in `queryConfig.metrics`, `chartConfig.yAxisMetrics`, `sorts`, `filters`, or `tableCalculations`.';
 
     const renderKnowledgeDocument = (doc: AiAgentDocumentSummary): string => {
         const { summary } = doc;
@@ -141,6 +159,22 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{content_tools_section}}',
             enableContentTools ? CONTENT_TOOLS_SECTION : '',
+        )
+        .replace(
+            '{{table_visualization_instruction}}',
+            tableVisualizationInstruction,
+        )
+        .replace(
+            '{{generate_visualization_instruction}}',
+            generateVisualizationInstruction,
+        )
+        .replace(
+            '{{table_calculation_shape_instruction}}',
+            tableCalculationShapeInstruction,
+        )
+        .replace(
+            '{{custom_metric_reference_instruction}}',
+            customMetricReferenceInstruction,
         )
         .replace('{{cross_explore_join_rule}}', crossExploreJoinRule)
         .replace('{{custom_sql_limitation}}', customSqlLimitation)

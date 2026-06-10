@@ -213,6 +213,7 @@ const getAgentTools = (
         validateContent: dependencies.validateContent,
         maxLimit: args.maxQueryLimit,
         enableDataAccess: args.enableDataAccess,
+        enableChartAsCodeArtifacts: args.enableChartAsCodeArtifacts,
     });
 
     const runSavedChart = getRunSavedChart({
@@ -393,6 +394,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             knowledgeDocuments: args.knowledgeDocuments,
             hasProjectContext,
             enableDataAccess: args.enableDataAccess,
+            enableChartAsCodeArtifacts: args.enableChartAsCodeArtifacts,
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
             enableContentTools:
