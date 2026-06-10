@@ -14,7 +14,7 @@ import {
     type SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { CommandExitError, Sandbox, TimeoutError } from 'e2b';
+import { ALL_TRAFFIC, CommandExitError, Sandbox, TimeoutError } from 'e2b';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
@@ -218,6 +218,10 @@ export class AiWritebackService extends BaseService {
             timeoutMs: SANDBOX_TIMEOUT_MS,
             apiKey: this.getE2bApiKey(),
             lifecycle: { onTimeout: 'pause' },
+            network: {
+                allowOut: ['api.anthropic.com', 'github.com', 'gitlab.com'],
+                denyOut: [ALL_TRAFFIC],
+            },
         });
         const durationMs = AiWritebackService.elapsed(start);
         this.logger.info('AI writeback sandbox created', {
