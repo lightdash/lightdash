@@ -19379,6 +19379,19 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    CiMergeState: {
+        dataType: 'refEnum',
+        enums: [
+            'ready',
+            'unstable',
+            'blocked',
+            'conflicts',
+            'behind',
+            'draft',
+            'unknown',
+        ],
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     CiCheck: {
         dataType: 'refAlias',
         type: {
@@ -19409,6 +19422,7 @@ const models: TsoaRoute.Models = {
                     array: { dataType: 'refAlias', ref: 'CiCheck' },
                     required: true,
                 },
+                mergeState: { ref: 'CiMergeState', required: true },
                 overall: { ref: 'CiCheckState', required: true },
                 provider: { ref: 'CiProviderType', required: true },
             },

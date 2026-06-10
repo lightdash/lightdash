@@ -1,4 +1,9 @@
-import { CiCheckState, type ApiError, type CiChecks } from '@lightdash/common';
+import {
+    CiCheckState,
+    CiMergeState,
+    type ApiError,
+    type CiChecks,
+} from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 
@@ -15,14 +20,14 @@ const getPullRequestCiChecks = (
         body: undefined,
     });
 
-// While any check is still running we re-poll; once everything has concluded
-// the status is stable, so we stop.
+// While any check is still running — or GitHub is still computing
+// mergeability — we re-poll; once both have settled the status is stable.
 const CI_POLL_INTERVAL_MS = 15_000;
 
 /**
  * Resolve (and poll for) the live CI status of a write-back pull request.
- * Disabled until both a project and a PR URL are known; keeps polling while the
- * rolled-up state is pending, then stops once all checks have concluded.
+ * Disabled until both a project and a PR URL are known; keeps polling while
+ * checks are pending or the merge verdict is still unknown, then stops.
  */
 export const usePullRequestCiChecks = (
     projectUuid: string | undefined,
@@ -33,7 +38,9 @@ export const usePullRequestCiChecks = (
         queryFn: () => getPullRequestCiChecks(projectUuid!, prUrl!),
         enabled: !!projectUuid && !!prUrl,
         refetchInterval: (data) =>
-            data && data.overall === CiCheckState.PENDING
+            data &&
+            (data.overall === CiCheckState.PENDING ||
+                data.mergeState === CiMergeState.UNKNOWN)
                 ? CI_POLL_INTERVAL_MS
                 : false,
         refetchOnWindowFocus: false,

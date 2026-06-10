@@ -1,14 +1,26 @@
-.checkItem {
-    padding: 2px var(--mantine-spacing-xs);
-    border-radius: var(--mantine-radius-sm);
+.table {
     border: 1px solid var(--mantine-color-default-border);
-    text-decoration: none;
-    transition:
-        background-color 100ms ease,
-        border-color 100ms ease;
+    border-radius: var(--mantine-radius-sm);
+    overflow: hidden;
 }
 
-.checkItem:hover {
+.row {
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    text-decoration: none;
+    transition: background-color 100ms ease;
+}
+
+.row:not(:last-of-type) {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.row:hover {
     background-color: var(--mantine-color-default-hover);
-    border-color: var(--mantine-color-gray-outline);
+}
+
+/* Name grows to push the state label + external-link affordance to the right. */
+.name {
+    flex: 1;
+    min-width: 0;
 }

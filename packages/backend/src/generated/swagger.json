@@ -19927,6 +19927,19 @@
                 ],
                 "type": "string"
             },
+            "CiMergeState": {
+                "description": "Whether the PR may actually be merged, per the repo's own policy (branch\nprotection: required checks + required reviews). This is distinct from the\nCI roll-up: a check can fail yet the PR still be mergeable when that check\nisn't *required* — so the merge verdict must come from the provider, never\nbe inferred from check states. Maps GitHub's `mergeable_state`.",
+                "enum": [
+                    "ready",
+                    "unstable",
+                    "blocked",
+                    "conflicts",
+                    "behind",
+                    "draft",
+                    "unknown"
+                ],
+                "type": "string"
+            },
             "CiCheck": {
                 "properties": {
                     "url": {
@@ -19953,15 +19966,19 @@
                         },
                         "type": "array"
                     },
+                    "mergeState": {
+                        "$ref": "#/components/schemas/CiMergeState",
+                        "description": "Whether the PR can actually be merged per the repo's policy — resolved\nfrom the provider, NOT inferred from `overall`. Drives the merge-\nreadiness verdict so a failing-but-not-required check doesn't read as\n\"blocked\"."
+                    },
                     "overall": {
                         "$ref": "#/components/schemas/CiCheckState",
-                        "description": "Rollup: failure ≻ pending ≻ success ≻ neutral."
+                        "description": "CI-only rollup of the check states. Drives the summary bar."
                     },
                     "provider": {
                         "$ref": "#/components/schemas/CiProviderType"
                     }
                 },
-                "required": ["checks", "overall", "provider"],
+                "required": ["checks", "mergeState", "overall", "provider"],
                 "type": "object",
                 "description": "The CI checks for a pull request, plus a single rolled-up state for an\nat-a-glance summary. `checks` is empty when the ref has no CI configured."
             },

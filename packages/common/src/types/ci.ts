@@ -34,13 +34,44 @@ export type CiCheck = {
 };
 
 /**
+ * Whether the PR may actually be merged, per the repo's own policy (branch
+ * protection: required checks + required reviews). This is distinct from the
+ * CI roll-up: a check can fail yet the PR still be mergeable when that check
+ * isn't *required* — so the merge verdict must come from the provider, never
+ * be inferred from check states. Maps GitHub's `mergeable_state`.
+ */
+export enum CiMergeState {
+    /** All requirements met — safe to merge. */
+    READY = 'ready',
+    /** Mergeable, but some non-required checks are failing or still running. */
+    UNSTABLE = 'unstable',
+    /** Blocked by the repo policy — a required check failed or a review is missing. */
+    BLOCKED = 'blocked',
+    /** Merge conflicts must be resolved first. */
+    CONFLICTS = 'conflicts',
+    /** The branch is behind its base and must be updated first. */
+    BEHIND = 'behind',
+    /** The PR is still a draft. */
+    DRAFT = 'draft',
+    /** The provider hasn't finished computing mergeability yet. */
+    UNKNOWN = 'unknown',
+}
+
+/**
  * The CI checks for a pull request, plus a single rolled-up state for an
  * at-a-glance summary. `checks` is empty when the ref has no CI configured.
  */
 export type CiChecks = {
     provider: CiProviderType;
-    /** Rollup: failure ≻ pending ≻ success ≻ neutral. */
+    /** CI-only rollup of the check states. Drives the summary bar. */
     overall: CiCheckState;
+    /**
+     * Whether the PR can actually be merged per the repo's policy — resolved
+     * from the provider, NOT inferred from `overall`. Drives the merge-
+     * readiness verdict so a failing-but-not-required check doesn't read as
+     * "blocked".
+     */
+    mergeState: CiMergeState;
     checks: CiCheck[];
 };
 

@@ -846,6 +846,15 @@ export const getPullRequest = async ({
     headRef: string;
     /** Full name (`owner/repo`) of the PR's head — differs from the base when the PR comes from a fork. */
     headRepoFullName: string | null;
+    /** GitHub's mergeability (null until GitHub finishes computing it). */
+    mergeable: boolean | null;
+    /**
+     * GitHub's `mergeable_state` — the policy verdict (clean/unstable/blocked/
+     * dirty/behind/draft/has_hooks/unknown). Authoritative for whether a merge
+     * is actually allowed; only populated on a single-PR GET like this one.
+     */
+    mergeableState: string;
+    draft: boolean;
 }> => {
     const { octokit, headers } = getOctokit(installationId, token);
 
@@ -862,6 +871,9 @@ export const getPullRequest = async ({
             merged: response.data.merged === true,
             headRef: response.data.head.ref,
             headRepoFullName: response.data.head.repo?.full_name ?? null,
+            mergeable: response.data.mergeable,
+            mergeableState: response.data.mergeable_state,
+            draft: response.data.draft === true,
         };
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));

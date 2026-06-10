@@ -1,4 +1,9 @@
-import { CiCheckState, CiProviderType, type CiCheck } from '@lightdash/common';
+import {
+    CiCheckState,
+    CiMergeState,
+    CiProviderType,
+    type CiCheck,
+} from '@lightdash/common';
 // Type-only import: the concrete client fn is injected so it can be faked in
 // tests without module mocking (mirrors WritebackPreviewService).
 import type * as GithubClient from '../../clients/github/Github';
@@ -27,6 +32,40 @@ export const mapCheckRunToState = (
         // neutral, action_required, stale, or null (no conclusion recorded)
         default:
             return CiCheckState.NEUTRAL;
+    }
+};
+
+/**
+ * Map GitHub's `mergeable_state` onto the provider-agnostic merge verdict.
+ * `mergeable_state` already reflects the repo's branch protection (required
+ * checks + reviews), so `unstable` (failing non-required checks) stays
+ * mergeable while `blocked` does not — which is exactly the distinction the
+ * naive "any check failed → can't merge" heuristic gets wrong.
+ */
+export const mapGithubMergeState = (
+    mergeableState: string,
+    draft: boolean,
+): CiMergeState => {
+    if (draft) {
+        return CiMergeState.DRAFT;
+    }
+    switch (mergeableState) {
+        case 'clean':
+        case 'has_hooks': // clean, just has pre-receive hooks — still mergeable
+            return CiMergeState.READY;
+        case 'unstable':
+            return CiMergeState.UNSTABLE;
+        case 'blocked':
+            return CiMergeState.BLOCKED;
+        case 'dirty':
+            return CiMergeState.CONFLICTS;
+        case 'behind':
+            return CiMergeState.BEHIND;
+        case 'draft':
+            return CiMergeState.DRAFT;
+        // 'unknown' (GitHub still computing) or anything unexpected
+        default:
+            return CiMergeState.UNKNOWN;
     }
 };
 

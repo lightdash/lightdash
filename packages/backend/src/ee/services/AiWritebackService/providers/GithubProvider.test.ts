@@ -41,6 +41,9 @@ const openPr = {
     merged: false,
     headRef: 'feature/x',
     headRepoFullName: 'acme/analytics',
+    mergeable: true,
+    mergeableState: 'clean',
+    draft: false,
 };
 
 const adopt = (prUrl: string) =>

@@ -13,7 +13,7 @@ import type { GithubAppInstallationsModel } from '../../models/GithubAppInstalla
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../BaseService';
 import type { CiProvider } from './CiProvider';
-import { GithubCiProvider } from './GithubCiProvider';
+import { GithubCiProvider, mapGithubMergeState } from './GithubCiProvider';
 
 /** The slice of the GitHub client this service needs, injected for testability. */
 export type CiServiceGithubClient = Pick<
@@ -154,6 +154,14 @@ export class CiService extends BaseService {
             return {
                 provider: provider.provider,
                 overall: rollUpCiState(checks),
+                // The merge verdict comes from the repo's policy
+                // (mergeable_state), never from the check roll-up — a failing
+                // non-required check is `unstable` (still mergeable), not
+                // `blocked`.
+                mergeState: mapGithubMergeState(
+                    pullRequest.mergeableState,
+                    pullRequest.draft,
+                ),
                 checks,
             };
         } catch (error) {
