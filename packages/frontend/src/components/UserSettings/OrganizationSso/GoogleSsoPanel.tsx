@@ -103,14 +103,17 @@ const GoogleSsoPanel: FC = () => {
     ]);
 
     const handleSubmit = form.onSubmit((values) => {
-        upsert.mutate({
-            enabled: values.enabled,
-            overrideEmailDomains: values.overrideEmailDomains,
-            emailDomains: values.emailDomains.map((d) =>
-                d.trim().toLowerCase(),
-            ),
-            allowPassword: values.allowPassword,
-        });
+        upsert.mutate(
+            {
+                enabled: values.enabled,
+                overrideEmailDomains: values.overrideEmailDomains,
+                emailDomains: values.emailDomains.map((d) =>
+                    d.trim().toLowerCase(),
+                ),
+                allowPassword: values.allowPassword,
+            },
+            { onSuccess: () => toggleOpen(false) },
+        );
     });
 
     // Once configured, the Enabled toggle persists immediately so it can be

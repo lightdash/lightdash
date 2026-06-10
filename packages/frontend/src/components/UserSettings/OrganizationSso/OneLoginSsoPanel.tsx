@@ -33,6 +33,7 @@ import { SettingsCard } from '../../common/Settings/SettingsCard';
 import { ONELOGIN_LOGO } from '../../common/ThirdPartySignInButton/ssoProviderLogos';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
 import SsoMethodDomainsField from './SsoMethodDomainsField';
+import SsoMissingDomainsWarning from './SsoMissingDomainsWarning';
 
 type FormValues = {
     oauth2Issuer: string;
@@ -101,19 +102,22 @@ const OneLoginSsoPanel: FC = () => {
     ]);
 
     const handleSubmit = form.onSubmit((values) => {
-        upsert.mutate({
-            oauth2Issuer: values.oauth2Issuer.trim(),
-            oauth2ClientId: values.oauth2ClientId.trim(),
-            enabled: values.enabled,
-            overrideEmailDomains: values.overrideEmailDomains,
-            emailDomains: values.emailDomains.map((d) =>
-                d.trim().toLowerCase(),
-            ),
-            allowPassword: values.allowPassword,
-            ...(values.oauth2ClientSecret.trim().length > 0
-                ? { oauth2ClientSecret: values.oauth2ClientSecret.trim() }
-                : {}),
-        });
+        upsert.mutate(
+            {
+                oauth2Issuer: values.oauth2Issuer.trim(),
+                oauth2ClientId: values.oauth2ClientId.trim(),
+                enabled: values.enabled,
+                overrideEmailDomains: values.overrideEmailDomains,
+                emailDomains: values.emailDomains.map((d) =>
+                    d.trim().toLowerCase(),
+                ),
+                allowPassword: values.allowPassword,
+                ...(values.oauth2ClientSecret.trim().length > 0
+                    ? { oauth2ClientSecret: values.oauth2ClientSecret.trim() }
+                    : {}),
+            },
+            { onSuccess: () => toggleOpen(false) },
+        );
     });
 
     // The Enabled toggle persists immediately (secret omitted = preserved), so
@@ -207,6 +211,10 @@ const OneLoginSsoPanel: FC = () => {
                                 Set up OneLogin
                             </Button>
                         )
+                    )}
+
+                    {isConfigured && form.values.enabled && !isOpen && (
+                        <SsoMissingDomainsWarning providerLabel="OneLogin" />
                     )}
 
                     <FormSection isOpen={isOpen} name="onelogin-configuration">

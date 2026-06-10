@@ -33,6 +33,7 @@ import MantineModal from '../../common/MantineModal';
 import { SettingsCard } from '../../common/Settings/SettingsCard';
 import FormSection from '../../ProjectConnection/Inputs/FormSection';
 import SsoMethodDomainsField from './SsoMethodDomainsField';
+import SsoMissingDomainsWarning from './SsoMissingDomainsWarning';
 
 type FormValues = {
     clientId: string;
@@ -107,20 +108,24 @@ const GenericOidcSsoPanel: FC = () => {
     ]);
 
     const handleSubmit = form.onSubmit((values) => {
-        upsert.mutate({
-            clientId: values.clientId.trim(),
-            metadataDocumentEndpoint: values.metadataDocumentEndpoint.trim(),
-            scopes: values.scopes.trim() || null,
-            enabled: values.enabled,
-            overrideEmailDomains: values.overrideEmailDomains,
-            emailDomains: values.emailDomains.map((d) =>
-                d.trim().toLowerCase(),
-            ),
-            allowPassword: values.allowPassword,
-            ...(values.clientSecret.trim().length > 0
-                ? { clientSecret: values.clientSecret.trim() }
-                : {}),
-        });
+        upsert.mutate(
+            {
+                clientId: values.clientId.trim(),
+                metadataDocumentEndpoint:
+                    values.metadataDocumentEndpoint.trim(),
+                scopes: values.scopes.trim() || null,
+                enabled: values.enabled,
+                overrideEmailDomains: values.overrideEmailDomains,
+                emailDomains: values.emailDomains.map((d) =>
+                    d.trim().toLowerCase(),
+                ),
+                allowPassword: values.allowPassword,
+                ...(values.clientSecret.trim().length > 0
+                    ? { clientSecret: values.clientSecret.trim() }
+                    : {}),
+            },
+            { onSuccess: () => toggleOpen(false) },
+        );
     });
 
     // The Enabled toggle persists immediately (secret omitted = preserved), so
@@ -216,6 +221,10 @@ const GenericOidcSsoPanel: FC = () => {
                                 Set up OpenID Connect
                             </Button>
                         )
+                    )}
+
+                    {isConfigured && form.values.enabled && !isOpen && (
+                        <SsoMissingDomainsWarning providerLabel="OpenID Connect" />
                     )}
 
                     <FormSection isOpen={isOpen} name="oidc-configuration">
