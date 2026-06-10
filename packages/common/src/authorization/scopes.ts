@@ -39,6 +39,19 @@ const addAccessCondition = (context: ScopeContext, role?: SpaceMemberRole) => ({
 /** Applies the UUID condition as the only condition for a scope. */
 const addDefaultUuidCondition = flow(addUuidCondition, Array.of);
 
+/**
+ * Project-wide grant, but only when the role assignment's project is a
+ * preview created by the current user. Returns null (no rule) otherwise —
+ * including for org-level assignments, where there is no project context.
+ */
+const addSelfPreviewCondition = (context: ScopeContext) =>
+    context.projectUuid &&
+    context.projectType === ProjectType.PREVIEW &&
+    context.userUuid &&
+    context.projectCreatedByUserUuid === context.userUuid
+        ? [{ projectUuid: context.projectUuid }]
+        : null;
+
 const scopes: Scope[] = [
     {
         name: 'view:Dashboard',
@@ -69,6 +82,14 @@ const scopes: Scope[] = [
         ],
     },
     {
+        name: 'manage:Dashboard@selfPreview',
+        description:
+            'Create, edit, and delete dashboards in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: addSelfPreviewCondition,
+    },
+    {
         name: 'view:SavedChart',
         description: 'View saved charts',
         isEnterprise: false,
@@ -95,6 +116,14 @@ const scopes: Scope[] = [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
             addAccessCondition(context, SpaceMemberRole.ADMIN),
         ],
+    },
+    {
+        name: 'manage:SavedChart@selfPreview',
+        description:
+            'Create, edit, and delete saved charts in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: addSelfPreviewCondition,
     },
     {
         name: 'view:Space',
@@ -137,6 +166,14 @@ const scopes: Scope[] = [
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.ADMIN),
         ],
+    },
+    {
+        name: 'manage:Space@selfPreview',
+        description:
+            'Create, edit, and delete spaces in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: addSelfPreviewCondition,
     },
     {
         name: 'view:DashboardComments',

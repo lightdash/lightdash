@@ -1,4 +1,5 @@
 import { type AbilityBuilder } from '@casl/ability';
+import { type ProjectType } from '../types/projects';
 import { type ScopeContext } from '../types/scopes';
 import { parseScope, parseScopes } from './parseScopes';
 import { getAllScopeMap } from './scopes';
@@ -44,6 +45,11 @@ const applyScopeAbilities = (
         const [action, subject] = parseScope(scopeName);
         const conditionsList = scope.getConditions(context);
 
+        // null = scope does not apply in this context (e.g. @selfPreview
+        // outside a self-created preview project). Skip entirely — an empty
+        // array still means an unconditional grant.
+        if (conditionsList === null) return;
+
         // Apply each condition set if there are any
         if (conditionsList.length === 0) {
             builder.can(action, subject);
@@ -61,10 +67,14 @@ type OptionalIdContext =
     | {
           organizationUuid: string;
           projectUuid?: never;
+          projectType?: never;
+          projectCreatedByUserUuid?: never;
       }
     | {
           projectUuid: string;
           organizationUuid?: never;
+          projectType?: ProjectType;
+          projectCreatedByUserUuid?: string | null;
       };
 
 type BuilderOptions = {
