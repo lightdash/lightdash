@@ -11,22 +11,17 @@ import {
     type Dashboard,
     type Field,
     type Metric,
-    type SchedulerCsvOptions,
     type TableCalculation,
 } from '@lightdash/common';
 import {
     Anchor,
     Badge,
     Box,
-    Button,
     Checkbox,
-    Collapse,
     Group,
     HoverCard,
     Input,
     MultiSelect,
-    NumberInput,
-    Radio,
     SegmentedControl,
     Select,
     Space,
@@ -36,14 +31,7 @@ import {
     TextInput,
     Tooltip,
 } from '@mantine-8/core';
-import {
-    IconChevronDown,
-    IconChevronUp,
-    IconHelpCircle,
-    IconMail,
-    IconPercentage,
-    IconSettings,
-} from '@tabler/icons-react';
+import { IconHelpCircle, IconMail, IconPercentage } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useMemo, useState, type FC } from 'react';
 import FieldSelect from '../../../../components/common/FieldSelect';
@@ -58,7 +46,8 @@ import { useActiveProjectUuid } from '../../../../hooks/useActiveProject';
 import { useProject } from '../../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import SlackSvg from '../../../../svgs/slack.svg?react';
-import { Limit, SlackStates, Values } from '../types';
+import { CsvFormattingOptions } from '../CsvFormattingOptions';
+import { SlackStates } from '../types';
 import { useSchedulerFormContext } from './schedulerFormContext';
 import { SchedulerFormGoogleChatInput } from './SchedulerFormGoogleChatInput';
 import { SchedulerFormMicrosoftTeamsInput } from './SchedulerFormMicrosoftTeamsInput';
@@ -123,13 +112,9 @@ export const SchedulerFormSetupTab: FC<Props> = ({
     const [emailValidationError, setEmailValidationError] = useState<
         string | undefined
     >();
-    const [showFormatting, setShowFormatting] = useState(false);
-
     const isAddSlackDisabled = slackState !== SlackStates.SUCCESS;
     const isAddEmailDisabled = !health.data?.hasEmailClient;
     const isImageDisabled = !health.data?.hasHeadlessBrowser;
-
-    const limit = form.values?.options?.limit;
 
     const projectDefaultOffsetString = useMemo(() => {
         if (!project) {
@@ -400,201 +385,49 @@ export const SchedulerFormSetupTab: FC<Props> = ({
                                     </Box>
                                 </Tooltip>
                             )}
-                            <Button
-                                variant="subtle"
-                                size="compact-sm"
-                                style={{
-                                    alignSelf: 'start',
-                                }}
-                                leftSection={
-                                    <MantineIcon icon={IconSettings} />
+                            <CsvFormattingOptions
+                                format={
+                                    form.values.format as
+                                        | SchedulerFormat.CSV
+                                        | SchedulerFormat.XLSX
                                 }
-                                rightSection={
-                                    <MantineIcon
-                                        icon={
-                                            showFormatting
-                                                ? IconChevronUp
-                                                : IconChevronDown
-                                        }
-                                    />
+                                formatted={form.values.options.formatted}
+                                onFormattedChange={(value) =>
+                                    form.setFieldValue(
+                                        'options.formatted',
+                                        value,
+                                    )
                                 }
-                                onClick={() => setShowFormatting((old) => !old)}
-                            >
-                                Formatting options
-                            </Button>
-                            <Collapse in={showFormatting} pl="md">
-                                <Group align="start" gap="xxl">
-                                    {form.values.format ===
-                                        SchedulerFormat.XLSX && (
-                                        <Radio.Group
-                                            label={
-                                                <>
-                                                    XLSX output
-                                                    <Tooltip
-                                                        withinPortal
-                                                        maw={300}
-                                                        multiline
-                                                        label="Separate files puts each dashboard tile in its own XLSX file inside a ZIP. Single workbook puts each tile on its own sheet in one XLSX file."
-                                                        position="top"
-                                                    >
-                                                        <MantineIcon
-                                                            icon={
-                                                                IconHelpCircle
-                                                            }
-                                                            size="md"
-                                                            display="inline"
-                                                            color="gray"
-                                                            style={{
-                                                                marginLeft:
-                                                                    '4px',
-                                                                marginBottom:
-                                                                    '-4px',
-                                                            }}
-                                                        />
-                                                    </Tooltip>
-                                                </>
-                                            }
-                                            value={
-                                                form.values.options
-                                                    .xlsxFileLayout
-                                            }
-                                            onChange={(value) =>
-                                                form.setFieldValue(
-                                                    'options.xlsxFileLayout',
-                                                    value as NonNullable<
-                                                        SchedulerCsvOptions['xlsxFileLayout']
-                                                    >,
-                                                )
-                                            }
-                                        >
-                                            <Stack gap="xxs" pt="xs">
-                                                <Radio
-                                                    label="Separate files (ZIP)"
-                                                    value="zip"
-                                                />
-                                                <Radio
-                                                    label="Single workbook"
-                                                    value="workbook"
-                                                />
-                                            </Stack>
-                                        </Radio.Group>
-                                    )}
-                                    <Radio.Group
-                                        label="Values"
-                                        {...form.getInputProps(
-                                            'options.formatted',
-                                        )}
-                                    >
-                                        <Stack gap="xxs" pt="xs">
-                                            <Radio
-                                                label="Formatted"
-                                                value={Values.FORMATTED}
-                                            />
-                                            <Radio
-                                                label="Raw"
-                                                value={Values.RAW}
-                                            />
-                                        </Stack>
-                                    </Radio.Group>
-                                    <Stack gap="xs">
-                                        <Radio.Group
-                                            label="Limit"
-                                            {...form.getInputProps(
-                                                'options.limit',
-                                            )}
-                                        >
-                                            <Stack gap="xxs" pt="xs">
-                                                <Radio
-                                                    label="Results in Table"
-                                                    value={Limit.TABLE}
-                                                />
-                                                <Radio
-                                                    label="All Results"
-                                                    value={Limit.ALL}
-                                                />
-                                                <Radio
-                                                    label="Custom..."
-                                                    value={Limit.CUSTOM}
-                                                />
-                                            </Stack>
-                                        </Radio.Group>
-                                        {limit === Limit.CUSTOM && (
-                                            <NumberInput
-                                                w={150}
-                                                min={1}
-                                                required
-                                                {...form.getInputProps(
-                                                    'options.customLimit',
-                                                )}
-                                            />
-                                        )}
-
-                                        {(form.values?.options?.limit ===
-                                            Limit.ALL ||
-                                            form.values?.options?.limit ===
-                                                Limit.CUSTOM) && (
-                                            <i>
-                                                Results are limited to{' '}
-                                                {Number(
-                                                    health.data?.query
-                                                        .csvCellsLimit ||
-                                                        100000,
-                                                ).toLocaleString()}{' '}
-                                                cells for each file
-                                            </i>
-                                        )}
-                                    </Stack>
-                                    <Radio.Group
-                                        label={
-                                            <>
-                                                Layout
-                                                <Tooltip
-                                                    withinPortal
-                                                    maw={300}
-                                                    multiline
-                                                    label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query."
-                                                    position="top"
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconHelpCircle}
-                                                        size="md"
-                                                        display="inline"
-                                                        color="gray"
-                                                        style={{
-                                                            marginLeft: '4px',
-                                                            marginBottom:
-                                                                '-4px',
-                                                        }}
-                                                    />
-                                                </Tooltip>
-                                            </>
-                                        }
-                                        value={
-                                            form.values.options
-                                                .exportPivotedData
-                                                ? 'pivoted'
-                                                : 'unpivoted'
-                                        }
-                                        onChange={(value) =>
-                                            form.setFieldValue(
-                                                'options.exportPivotedData',
-                                                value === 'pivoted',
-                                            )
-                                        }
-                                    >
-                                        <Stack gap="xxs" pt="xs">
-                                            <Radio
-                                                label="Grouped"
-                                                value="pivoted"
-                                            />
-                                            <Radio
-                                                label="Flat"
-                                                value="unpivoted"
-                                            />
-                                        </Stack>
-                                    </Radio.Group>
-                                </Group>
-                            </Collapse>
+                                limit={form.values.options.limit}
+                                onLimitChange={(value) =>
+                                    form.setFieldValue('options.limit', value)
+                                }
+                                customLimit={form.values.options.customLimit}
+                                onCustomLimitChange={(value) =>
+                                    form.setFieldValue(
+                                        'options.customLimit',
+                                        value,
+                                    )
+                                }
+                                exportPivotedData={
+                                    form.values.options.exportPivotedData
+                                }
+                                onExportPivotedDataChange={(value) =>
+                                    form.setFieldValue(
+                                        'options.exportPivotedData',
+                                        value,
+                                    )
+                                }
+                                xlsxFileLayout={
+                                    form.values.options.xlsxFileLayout
+                                }
+                                onXlsxFileLayoutChange={(value) =>
+                                    form.setFieldValue(
+                                        'options.xlsxFileLayout',
+                                        value,
+                                    )
+                                }
+                            />
                         </Stack>
                     )}
                 </Stack>
