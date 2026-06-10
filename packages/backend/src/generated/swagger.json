@@ -14722,10 +14722,10 @@
                                                                         "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "tableName": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "name": {
@@ -14734,8 +14734,8 @@
                                                                     },
                                                                     "required": [
                                                                         "fieldType",
-                                                                        "tableName",
                                                                         "label",
+                                                                        "tableName",
                                                                         "name"
                                                                     ],
                                                                     "type": "object"
@@ -14749,8 +14749,8 @@
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "metric",
                                                                     "dimension",
+                                                                    "metric",
                                                                     null
                                                                 ],
                                                                 "nullable": true
@@ -38272,7 +38272,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3122.2",
+        "version": "0.3124.2",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -58902,6 +58902,14 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "resolved",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ]
             }
@@ -58931,7 +58939,7 @@
                         }
                     }
                 },
-                "description": "Resolves a comment on a dashboard",
+                "description": "Resolves or unresolves a comment on a dashboard",
                 "summary": "Resolve comment",
                 "tags": ["Comments"],
                 "security": [],
@@ -58954,7 +58962,25 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "description": "whether the comment should be resolved",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "resolved": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["resolved"],
+                                "type": "object",
+                                "description": "whether the comment should be resolved"
+                            }
+                        }
+                    }
+                }
             },
             "delete": {
                 "operationId": "deleteComment",
@@ -62792,6 +62818,14 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "resolved",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]

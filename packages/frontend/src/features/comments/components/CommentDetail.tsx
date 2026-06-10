@@ -11,7 +11,13 @@ import {
     Tooltip,
 } from '@mantine-8/core';
 import { useHover } from '@mantine/hooks';
-import { IconDotsVertical, IconMessage, IconTrash } from '@tabler/icons-react';
+import {
+    IconArrowBackUp,
+    IconCircleCheck,
+    IconDotsVertical,
+    IconMessage,
+    IconTrash,
+} from '@tabler/icons-react';
 import { useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { getNameInitials } from '../utils';
@@ -22,8 +28,12 @@ type Props = {
     comment: Comment;
     canRemove: boolean;
     canReply: boolean;
+    canResolve: boolean;
+    canUnresolve: boolean;
     onRemove: () => void;
     onReply?: () => void;
+    onResolve?: () => void;
+    onUnresolve?: () => void;
 };
 
 export const CommentDetail: FC<Props> = ({
@@ -32,6 +42,10 @@ export const CommentDetail: FC<Props> = ({
     onRemove,
     canReply,
     onReply,
+    canResolve,
+    onResolve,
+    canUnresolve,
+    onUnresolve,
 }) => {
     const { ref, hovered } = useHover();
 
@@ -78,7 +92,9 @@ export const CommentDetail: FC<Props> = ({
                                     </ActionIcon>
                                 </Tooltip>
                             )}
-                            {canRemove && (
+                            {(canRemove ||
+                                (canResolve && onResolve) ||
+                                (canUnresolve && onUnresolve)) && (
                                 <Menu
                                     position="right"
                                     withArrow
@@ -100,19 +116,50 @@ export const CommentDetail: FC<Props> = ({
                                         p={0}
                                         onMouseDown={(e) => e.stopPropagation()}
                                     >
-                                        <Menu.Item
-                                            p="xs"
-                                            fz="xs"
-                                            leftSection={
-                                                <MantineIcon
-                                                    color="red"
-                                                    icon={IconTrash}
-                                                />
-                                            }
-                                            onClick={() => onRemove()}
-                                        >
-                                            Delete
-                                        </Menu.Item>
+                                        {canResolve && onResolve && (
+                                            <Menu.Item
+                                                p="xs"
+                                                fz="xs"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        color="green"
+                                                        icon={IconCircleCheck}
+                                                    />
+                                                }
+                                                onClick={() => onResolve()}
+                                            >
+                                                Resolve
+                                            </Menu.Item>
+                                        )}
+                                        {canUnresolve && onUnresolve && (
+                                            <Menu.Item
+                                                p="xs"
+                                                fz="xs"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconArrowBackUp}
+                                                    />
+                                                }
+                                                onClick={() => onUnresolve()}
+                                            >
+                                                Unresolve
+                                            </Menu.Item>
+                                        )}
+                                        {canRemove && (
+                                            <Menu.Item
+                                                p="xs"
+                                                fz="xs"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        color="red"
+                                                        icon={IconTrash}
+                                                    />
+                                                }
+                                                onClick={() => onRemove()}
+                                            >
+                                                Delete
+                                            </Menu.Item>
+                                        )}
                                     </Menu.Dropdown>
                                 </Menu>
                             )}
