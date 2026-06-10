@@ -132,6 +132,14 @@ export const isMomentInput = (value: unknown): value is MomentInput =>
     value instanceof moment ||
     value instanceof dayjs;
 
+// A string carrying both a date and a time component (e.g. "2024-01-02T03:04…"
+// or "2024-01-02 03:04…") — as opposed to a bare date, a number, or text.
+// Unlike a parse-validity check, this requires a time part, so date-only values
+// are excluded (they must not be timezone-shifted).
+export const isTimestampString = (value: unknown): value is string =>
+    typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(value);
+
 export function formatDate(
     date: MomentInput,
     timeInterval: TimeFrames = TimeFrames.DAY,
@@ -1114,17 +1122,31 @@ export function formatItemValue(
                           )
                         : 'NaT';
                 case MetricType.MAX:
-                case MetricType.MIN:
-                    if (value instanceof Date && customFormat === undefined) {
+                case MetricType.MIN: {
+                    // MIN/MAX inherit the aggregated column's type. A temporal
+                    // result must render in the resolved project timezone like
+                    // a dimension does — whether it arrives as a Date (fresh
+                    // query) or an ISO datetime string (rehydrated from cached
+                    // results). The auto-derived numeric format must not
+                    // suppress this; a user-chosen display format still wins.
+                    const formatType = customFormat?.type;
+                    const userChoseDisplayFormat =
+                        formatType === CustomFormatType.DATE ||
+                        formatType === CustomFormatType.TIMESTAMP ||
+                        formatType === CustomFormatType.CUSTOM;
+                    const isTimestampValue =
+                        value instanceof Date || isTimestampString(value);
+                    if (isTimestampValue && !userChoseDisplayFormat) {
                         return formatTimestamp(
                             value,
-                            isDimension(item) ? item.timeInterval : undefined,
+                            undefined,
                             convertToUTC,
                             effectiveTimezone,
                             displayTimezone,
                         );
                     }
                     break;
+                }
                 case DimensionType.NUMBER:
                     if (
                         isDimension(item) &&
