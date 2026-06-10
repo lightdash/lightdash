@@ -911,7 +911,6 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             name: 'is_privileged',
             description: 'PII access',
             attributeDefault: null,
-            managed: true,
             groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
         };
 
@@ -951,7 +950,6 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
                 name: 'is_privileged',
                 description: 'PII access',
                 attributeDefault: null,
-                managed: true,
                 users: [],
                 groups: [{ groupUuid: 'grp-1', value: 'true' }],
             });

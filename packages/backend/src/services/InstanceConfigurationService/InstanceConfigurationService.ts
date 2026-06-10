@@ -835,7 +835,6 @@ export class InstanceConfigurationService extends BaseService {
                 name: entry.name,
                 description: entry.description,
                 attributeDefault: entry.attributeDefault,
-                managed: entry.managed,
                 users: [],
                 groups,
             };

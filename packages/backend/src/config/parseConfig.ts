@@ -466,7 +466,6 @@ const userAttributeSetupEntrySchema = z.object({
     name: z.string().min(1),
     description: z.string().optional(),
     attributeDefault: z.string().nullable().default(null),
-    managed: z.boolean().default(false),
     groups: z
         .array(
             z.object({

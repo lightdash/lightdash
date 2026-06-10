@@ -31,12 +31,6 @@ export type CreateUserAttribute = Pick<
 > & {
     users: CreateUserAttributeValue[];
     groups: CreateGroupAttributeValue[];
-    /**
-     * Provenance flag: true when declared via instance config
-     * (`LD_SETUP_USER_ATTRIBUTES`). Defaults to false (UI-created). Enforcement
-     * of read-only-in-UI is deferred — see [[user attributes as code]].
-     */
-    managed?: boolean;
 };
 
 /**
@@ -57,7 +51,6 @@ export type UserAttributeSetupEntry = {
     name: string;
     description?: string;
     attributeDefault: string | null;
-    managed: boolean;
     groups: UserAttributeSetupGroupMapping[];
 };
 

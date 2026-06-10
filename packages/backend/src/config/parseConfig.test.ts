@@ -669,7 +669,6 @@ describe('getUserAttributesSetupConfig', () => {
                 name: 'is_privileged',
                 description: 'PII access',
                 attributeDefault: null,
-                managed: true,
                 groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
             },
         ]);
@@ -678,13 +677,12 @@ describe('getUserAttributesSetupConfig', () => {
                 name: 'is_privileged',
                 description: 'PII access',
                 attributeDefault: null,
-                managed: true,
                 groups: [{ group: 'Privileged Data Analyst', value: 'true' }],
             },
         ]);
     });
 
-    test('defaults groups to [], managed to false, attributeDefault to null when omitted', () => {
+    test('defaults groups to [] and attributeDefault to null when omitted', () => {
         process.env.LD_SETUP_USER_ATTRIBUTES = JSON.stringify([
             { name: 'region' },
         ]);
@@ -692,7 +690,6 @@ describe('getUserAttributesSetupConfig', () => {
             {
                 name: 'region',
                 attributeDefault: null,
-                managed: false,
                 groups: [],
             },
         ]);
@@ -734,7 +731,6 @@ describe('getUpdateSetupConfig userAttributes', () => {
             {
                 name: 'is_privileged',
                 attributeDefault: null,
-                managed: false,
                 groups: [{ group: 'G', value: 'true' }],
             },
         ]);
