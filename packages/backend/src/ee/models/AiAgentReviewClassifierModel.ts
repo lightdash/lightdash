@@ -67,7 +67,30 @@ type ReviewItemAggregateRow = {
 
 type ReviewRemediationRow = DbAiAgentReviewRemediation & {
     linked_pr_url: string | null;
+    updated_at_age_ms: number;
 };
+
+type ReviewItemRow = DbAiAgentReviewItem & {
+    updated_at_age_ms: number;
+};
+
+// Longer than the worker's 30-min job timeout — past this, a queued/running
+// writeback has lost its worker and is reported as failed so the UI recovers
+// and retries. Ages are computed in SQL (now() - updated_at) so the check is
+// immune to the driver parsing tz-less timestamps in the process's local
+// timezone and to app/DB clock drift.
+export const WRITEBACK_STALE_MS = 35 * 60 * 1000;
+
+const WRITEBACK_TIMED_OUT_MESSAGE = 'Writeback timed out';
+
+const isStaleWritebackStatus = (
+    status:
+        | AiAgentReviewItemWritebackStatus
+        | AiAgentReviewRemediationStatus
+        | null,
+    ageMs: number,
+): boolean =>
+    (status === 'queued' || status === 'running') && ageMs > WRITEBACK_STALE_MS;
 
 const defaultWritebackEligibility: AiAgentReviewItemWritebackEligibility = {
     eligible: false,
@@ -85,29 +108,32 @@ const ACTIVE_REMEDIATION_STATUSES: AiAgentReviewRemediationStatus[] = [
 
 const mapReviewRemediation = (
     row: ReviewRemediationRow,
-): AiAgentReviewRemediation => ({
-    uuid: row.ai_agent_review_remediation_uuid,
-    fingerprint: row.fingerprint,
-    organizationUuid: row.organization_uuid,
-    sourceFindingUuid: row.source_ai_agent_review_turn_signal_uuid,
-    sourcePromptUuid: row.source_prompt_uuid,
-    sourceThreadUuid: row.source_thread_uuid,
-    sourceProjectUuid: row.source_project_uuid,
-    sourceAgentUuid: row.source_agent_uuid,
-    pullRequestUuid: row.pull_request_uuid,
-    linkedPrUrl: row.linked_pr_url,
-    previewProjectUuid: row.preview_project_uuid,
-    previewAgentUuid: row.preview_agent_uuid,
-    previewThreadUuid: row.preview_thread_uuid,
-    status: row.status,
-    errorMessage: row.error_message,
-    retryPrompt: row.retry_prompt,
-    createdByUserUuid: row.created_by_user_uuid,
-    resolvedByUserUuid: row.resolved_by_user_uuid,
-    resolvedAt: row.resolved_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-});
+): AiAgentReviewRemediation => {
+    const stale = isStaleWritebackStatus(row.status, row.updated_at_age_ms);
+    return {
+        uuid: row.ai_agent_review_remediation_uuid,
+        fingerprint: row.fingerprint,
+        organizationUuid: row.organization_uuid,
+        sourceFindingUuid: row.source_ai_agent_review_turn_signal_uuid,
+        sourcePromptUuid: row.source_prompt_uuid,
+        sourceThreadUuid: row.source_thread_uuid,
+        sourceProjectUuid: row.source_project_uuid,
+        sourceAgentUuid: row.source_agent_uuid,
+        pullRequestUuid: row.pull_request_uuid,
+        linkedPrUrl: row.linked_pr_url,
+        previewProjectUuid: row.preview_project_uuid,
+        previewAgentUuid: row.preview_agent_uuid,
+        previewThreadUuid: row.preview_thread_uuid,
+        status: stale ? 'failed' : row.status,
+        errorMessage: stale ? WRITEBACK_TIMED_OUT_MESSAGE : row.error_message,
+        retryPrompt: row.retry_prompt,
+        createdByUserUuid: row.created_by_user_uuid,
+        resolvedByUserUuid: row.resolved_by_user_uuid,
+        resolvedAt: row.resolved_at,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
+};
 
 type CreateRunArgs = {
     organizationUuid: string;
@@ -1029,6 +1055,12 @@ export class AiAgentReviewClassifierModel {
                 const item = persisted.get(fingerprint) ?? null;
                 const remediation =
                     remediationByFingerprint.get(fingerprint) ?? null;
+                const writebackStale =
+                    item !== null &&
+                    isStaleWritebackStatus(
+                        item.pr_writeback_status,
+                        item.updated_at_age_ms,
+                    );
                 return {
                     uuid: fingerprint,
                     fingerprint,
@@ -1051,8 +1083,12 @@ export class AiAgentReviewClassifierModel {
                     linkedIssueUrl: item?.linked_issue_url ?? null,
                     linkedPrUrl: item?.linked_pr_url ?? null,
                     prState: item?.pr_state ?? null,
-                    prWritebackStatus: item?.pr_writeback_status ?? null,
-                    prWritebackMessage: item?.pr_writeback_message ?? null,
+                    prWritebackStatus: writebackStale
+                        ? 'failed'
+                        : (item?.pr_writeback_status ?? null),
+                    prWritebackMessage: writebackStale
+                        ? WRITEBACK_TIMED_OUT_MESSAGE
+                        : (item?.pr_writeback_message ?? null),
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
                     remediation,
@@ -1085,13 +1121,20 @@ export class AiAgentReviewClassifierModel {
 
     async getReviewItemsByFingerprint(
         fingerprints: string[],
-    ): Promise<Map<string, DbAiAgentReviewItem>> {
+    ): Promise<Map<string, ReviewItemRow>> {
         if (fingerprints.length === 0) {
             return new Map();
         }
-        const items = await this.database<AiAgentReviewItemTable>(
+        const items = (await this.database<AiAgentReviewItemTable>(
             AiAgentReviewItemTableName,
-        ).whereIn('fingerprint', fingerprints);
+        )
+            .whereIn('fingerprint', fingerprints)
+            .select<ReviewItemRow[]>(
+                '*',
+                this.database.raw(
+                    '(extract(epoch from (now() - updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )) as ReviewItemRow[];
         return new Map(items.map((item) => [item.fingerprint, item]));
     }
 
@@ -1113,9 +1156,15 @@ export class AiAgentReviewClassifierModel {
             )
             .where('remediation.organization_uuid', args.organizationUuid)
             .whereIn('remediation.fingerprint', args.fingerprints)
-            .select<ReviewRemediationRow[]>('remediation.*', {
-                linked_pr_url: 'pull_request.pr_url',
-            })
+            .select<ReviewRemediationRow[]>(
+                'remediation.*',
+                {
+                    linked_pr_url: 'pull_request.pr_url',
+                },
+                this.database.raw(
+                    '(extract(epoch from (now() - remediation.updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )
             .orderBy('remediation.fingerprint')
             .orderByRaw(
                 `CASE WHEN remediation.status IN (${ACTIVE_REMEDIATION_STATUSES.map(
@@ -1154,9 +1203,15 @@ export class AiAgentReviewClassifierModel {
                 'remediation.ai_agent_review_remediation_uuid',
                 args.remediationUuid,
             )
-            .select<ReviewRemediationRow>('remediation.*', {
-                linked_pr_url: 'pull_request.pr_url',
-            })
+            .select<ReviewRemediationRow>(
+                'remediation.*',
+                {
+                    linked_pr_url: 'pull_request.pr_url',
+                },
+                this.database.raw(
+                    '(extract(epoch from (now() - remediation.updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )
             .first()) as ReviewRemediationRow | undefined;
 
         return row ? mapReviewRemediation(row) : null;
@@ -1181,7 +1236,11 @@ export class AiAgentReviewClassifierModel {
             })
             .returning('*');
 
-        return mapReviewRemediation({ ...row, linked_pr_url: null });
+        return mapReviewRemediation({
+            ...row,
+            linked_pr_url: null,
+            updated_at_age_ms: 0,
+        });
     }
 
     async updateReviewRemediationStatus(
@@ -1203,6 +1262,33 @@ export class AiAgentReviewClassifierModel {
                     args.status === 'resolved'
                         ? (this.database.fn.now() as never)
                         : null,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    /**
+     * Persists a stale (queued/running past WRITEBACK_STALE_MS) remediation as
+     * failed so the one-active-per-fingerprint index allows a retry. The age
+     * check runs in SQL against the DB clock, so it agrees with the stale
+     * presentation in mapReviewRemediation. No-op when the remediation is
+     * still fresh or already terminal.
+     */
+    async failStaleReviewRemediation(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn('status', ['queued', 'running'])
+            .whereRaw('updated_at < now() - make_interval(secs => ?)', [
+                WRITEBACK_STALE_MS / 1000,
+            ])
+            .update({
+                status: 'failed',
+                error_message: WRITEBACK_TIMED_OUT_MESSAGE,
                 updated_at: this.database.fn.now() as never,
             });
     }

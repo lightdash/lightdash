@@ -9,6 +9,7 @@ import {
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
+    AlreadyExistsError,
     DbtProjectType,
     extractPreviewProjectUuidFromUrl,
     extractPreviewUrlFromComments,
@@ -39,6 +40,7 @@ import {
     getPullRequestComments,
 } from '../../clients/github/Github';
 import { type LightdashConfig } from '../../config/parseConfig';
+import { isUniqueConstraintViolation } from '../../database/errors';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type GitlabAppInstallationsModel } from '../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -85,9 +87,6 @@ const parsePullRequestUrl = (
     }
     return { owner: match[1], repo: match[2], pullNumber: Number(match[3]) };
 };
-
-// Longer than the worker's 30-min job timeout — past this, a queued/running writeback has lost its worker and is treated as failed so the UI recovers and retries.
-const WRITEBACK_STALE_MS = 35 * 60 * 1000;
 
 type ProjectWritebackAccess =
     | {
@@ -253,56 +252,6 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
     };
 };
 
-const isWritebackStale = (
-    item: AiAgentReviewItemSummary,
-    now: number,
-): boolean =>
-    (item.prWritebackStatus === 'queued' ||
-        item.prWritebackStatus === 'running') &&
-    now - new Date(item.updatedAt).getTime() > WRITEBACK_STALE_MS;
-
-// queued/running are worker-bound states; jobs run with maxAttempts: 1, so a
-// crashed worker would otherwise leave the remediation active forever and the
-// eligibility gate (plus the one-active-per-fingerprint index) would block any
-// retry. pr_open/preview_ready are deliberately excluded — a PR can stay open
-// for a long time legitimately.
-const isRemediationStale = (
-    remediation: NonNullable<AiAgentReviewItemSummary['remediation']>,
-    now: number,
-): boolean =>
-    (remediation.status === 'queued' || remediation.status === 'running') &&
-    now - new Date(remediation.updatedAt).getTime() > WRITEBACK_STALE_MS;
-
-const withStaleWritebackOverride = (
-    item: AiAgentReviewItemSummary,
-    now: number,
-): AiAgentReviewItemSummary => {
-    const writebackStale = isWritebackStale(item, now);
-    const remediationStale =
-        item.remediation !== null && isRemediationStale(item.remediation, now);
-    if (!writebackStale && !remediationStale) {
-        return item;
-    }
-    return {
-        ...item,
-        ...(writebackStale
-            ? {
-                  prWritebackStatus: 'failed',
-                  prWritebackMessage: 'Writeback timed out',
-              }
-            : {}),
-        ...(remediationStale && item.remediation
-            ? {
-                  remediation: {
-                      ...item.remediation,
-                      status: 'failed',
-                      errorMessage: 'Writeback timed out',
-                  },
-              }
-            : {}),
-    };
-};
-
 export class AiAgentAdminService extends BaseService {
     private readonly analytics: LightdashAnalytics;
 
@@ -446,21 +395,17 @@ export class AiAgentAdminService extends BaseService {
                 .filter((uuid): uuid is string => uuid !== null),
         );
 
-        const now = Date.now();
         const reconciled = items.map((item) => {
             const override = overrides.get(item.fingerprint);
-            const staleAwareItem = withStaleWritebackOverride(
-                { ...item, ...(override ?? {}) },
-                now,
-            );
+            const reconciledItem = { ...item, ...(override ?? {}) };
             const writebackEligibility =
                 getAiAgentReviewItemWritebackEligibility({
-                    item: staleAwareItem,
+                    item: reconciledItem,
                     reviewsEnabled,
                     projectContextEnabled,
-                    projectAccess: staleAwareItem.projectUuid
+                    projectAccess: reconciledItem.projectUuid
                         ? (projectAccessByUuid.get(
-                              staleAwareItem.projectUuid,
+                              reconciledItem.projectUuid,
                           ) ?? null)
                         : null,
                     hasSemanticWritebackConfig:
@@ -468,7 +413,7 @@ export class AiAgentAdminService extends BaseService {
                 });
 
             return {
-                ...staleAwareItem,
+                ...reconciledItem,
                 writebackEligible: writebackEligibility.eligible,
                 writebackEligibility,
             };
@@ -916,20 +861,16 @@ export class AiAgentAdminService extends BaseService {
                 ? this.isProjectContextFeatureEnabled(user)
                 : false,
         ]);
-        const staleAwareItem = withStaleWritebackOverride(
-            reviewItem,
-            Date.now(),
-        );
         const projectAccessByUuid = await this.getProjectWritebackAccessByUuid(
             organizationUuid,
-            staleAwareItem.projectUuid ? [staleAwareItem.projectUuid] : [],
+            reviewItem.projectUuid ? [reviewItem.projectUuid] : [],
         );
         const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
-            item: staleAwareItem,
+            item: reviewItem,
             reviewsEnabled,
             projectContextEnabled,
-            projectAccess: staleAwareItem.projectUuid
-                ? (projectAccessByUuid.get(staleAwareItem.projectUuid) ?? null)
+            projectAccess: reviewItem.projectUuid
+                ? (projectAccessByUuid.get(reviewItem.projectUuid) ?? null)
                 : null,
             hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
         });
@@ -946,21 +887,15 @@ export class AiAgentAdminService extends BaseService {
             throw new NotFoundError('Review item not found');
         }
 
-        // The stale override above only relaxes the eligibility check; the
-        // partial unique index still sees the old remediation as active, so it
-        // must be persisted as failed before a new one can be inserted.
-        if (
-            reviewItem.remediation &&
-            isRemediationStale(reviewItem.remediation, Date.now())
-        ) {
-            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
-                {
-                    remediationUuid: reviewItem.remediation.uuid,
-                    organizationUuid,
-                    status: 'failed',
-                    errorMessage: 'Writeback timed out',
-                },
-            );
+        // The model presents a stale remediation as failed, which relaxes the
+        // eligibility check above — but the partial unique index still sees
+        // the row as active, so it must be persisted as failed (the model
+        // re-checks staleness in SQL) before a new one can be inserted.
+        if (reviewItem.remediation) {
+            await this.aiAgentReviewClassifierModel.failStaleReviewRemediation({
+                remediationUuid: reviewItem.remediation.uuid,
+                organizationUuid,
+            });
         }
 
         const retryPrompt =
@@ -968,18 +903,33 @@ export class AiAgentAdminService extends BaseService {
                 organizationUuid,
                 promptUuid: finding.promptUuid,
             });
-        const remediation =
-            await this.aiAgentReviewClassifierModel.createReviewRemediation({
-                fingerprint,
-                organizationUuid,
-                sourceFindingUuid: finding.uuid,
-                sourcePromptUuid: finding.promptUuid,
-                sourceThreadUuid: finding.threadUuid,
-                sourceProjectUuid: finding.projectUuid,
-                sourceAgentUuid: finding.agentUuid,
-                retryPrompt,
-                createdByUserUuid: user.userUuid,
-            });
+        // The one-active-per-fingerprint index can still reject the insert in
+        // a race (concurrent retry, or a worker reviving the row between the
+        // read and the stale update) — surface that as a conflict, not a 500.
+        let remediation: AiAgentReviewRemediation;
+        try {
+            remediation =
+                await this.aiAgentReviewClassifierModel.createReviewRemediation(
+                    {
+                        fingerprint,
+                        organizationUuid,
+                        sourceFindingUuid: finding.uuid,
+                        sourcePromptUuid: finding.promptUuid,
+                        sourceThreadUuid: finding.threadUuid,
+                        sourceProjectUuid: finding.projectUuid,
+                        sourceAgentUuid: finding.agentUuid,
+                        retryPrompt,
+                        createdByUserUuid: user.userUuid,
+                    },
+                );
+        } catch (error) {
+            if (isUniqueConstraintViolation(error)) {
+                throw new AlreadyExistsError(
+                    'A writeback for this review item is already in progress',
+                );
+            }
+            throw error;
+        }
 
         await this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
             fingerprint,
@@ -1511,22 +1461,18 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             reviewItem.projectUuid ? [reviewItem.projectUuid] : [],
         );
-        const staleAwareItem = withStaleWritebackOverride(
-            reviewItem,
-            Date.now(),
-        );
         const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
-            item: staleAwareItem,
+            item: reviewItem,
             reviewsEnabled,
             projectContextEnabled,
-            projectAccess: staleAwareItem.projectUuid
-                ? (projectAccessByUuid.get(staleAwareItem.projectUuid) ?? null)
+            projectAccess: reviewItem.projectUuid
+                ? (projectAccessByUuid.get(reviewItem.projectUuid) ?? null)
                 : null,
             hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
         });
 
         return {
-            ...staleAwareItem,
+            ...reviewItem,
             writebackEligible: writebackEligibility.eligible,
             writebackEligibility,
         };

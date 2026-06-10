@@ -7,7 +7,10 @@ import {
     AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
 } from '../database/entities/aiAgentReviewClassifier';
-import { AiAgentReviewClassifierModel } from './AiAgentReviewClassifierModel';
+import {
+    AiAgentReviewClassifierModel,
+    WRITEBACK_STALE_MS,
+} from './AiAgentReviewClassifierModel';
 
 const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
@@ -148,6 +151,7 @@ const makeRemediationRow = (
     resolved_at: null,
     created_at: SEEN_AT,
     updated_at: SEEN_AT,
+    updated_at_age_ms: 0,
     ...overrides,
 });
 
@@ -393,6 +397,7 @@ describe('AiAgentReviewClassifierModel', () => {
                     status_updated_by_user_uuid: null,
                     created_at: SEEN_AT,
                     updated_at: SEEN_AT,
+                    updated_at_age_ms: 0,
                 },
             ]);
             tracker.on
@@ -458,6 +463,229 @@ describe('AiAgentReviewClassifierModel', () => {
             });
 
             expect(result).toHaveLength(0);
+        });
+
+        const makeReviewItemRow = (
+            overrides: Partial<Record<string, unknown>> = {},
+        ) => ({
+            ai_agent_review_item_uuid: '00000000-0000-0000-0000-000000000099',
+            fingerprint: FINGERPRINT,
+            organization_uuid: ORGANIZATION_UUID,
+            project_uuid: PROJECT_UUID,
+            agent_uuid: AGENT_UUID,
+            status: 'open',
+            dismissed_reason: null,
+            assigned_to_user_uuid: null,
+            linked_issue_url: null,
+            linked_pr_url: null,
+            pr_writeback_thread_uuid: null,
+            pr_state: null,
+            pr_writeback_status: 'running',
+            pr_writeback_message: 'Compiling project',
+            status_updated_at: SEEN_AT,
+            created_at: SEEN_AT,
+            updated_at: SEEN_AT,
+            updated_at_age_ms: 2 * 60 * 1000,
+            ...overrides,
+        });
+
+        const stubListQueries = (
+            itemRows: Record<string, unknown>[],
+            remediationRows: Record<string, unknown>[],
+        ) => {
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                {
+                    fingerprint: FINGERPRINT,
+                    first_seen_at: SEEN_AT,
+                    last_seen_at: SEEN_AT,
+                    finding_count: '1',
+                },
+            ]);
+            tracker.on
+                .select(AiAgentTurnSignalTableName)
+                .responseOnce([makeTurnSignalRow()]);
+            tracker.on
+                .select(AiAgentReviewItemTableName)
+                .responseOnce(itemRows);
+            tracker.on
+                .select(AiAgentReviewRemediationTableName)
+                .responseOnce(remediationRows);
+        };
+
+        it('keeps a fresh running writeback as running', async () => {
+            stubListQueries([makeReviewItemRow()], []);
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0]).toEqual(
+                expect.objectContaining({
+                    prWritebackStatus: 'running',
+                    prWritebackMessage: 'Compiling project',
+                }),
+            );
+        });
+
+        it('keeps a running writeback at exactly the stale threshold as running', async () => {
+            stubListQueries(
+                [makeReviewItemRow({ updated_at_age_ms: WRITEBACK_STALE_MS })],
+                [],
+            );
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0]).toEqual(
+                expect.objectContaining({
+                    prWritebackStatus: 'running',
+                    prWritebackMessage: 'Compiling project',
+                }),
+            );
+        });
+
+        it('presents a stale running writeback as timed out using the SQL-computed age', async () => {
+            stubListQueries(
+                [
+                    makeReviewItemRow({
+                        updated_at_age_ms: WRITEBACK_STALE_MS + 1,
+                    }),
+                ],
+                [],
+            );
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0]).toEqual(
+                expect.objectContaining({
+                    prWritebackStatus: 'failed',
+                    prWritebackMessage: 'Writeback timed out',
+                }),
+            );
+        });
+
+        it('presents a stale queued writeback as timed out', async () => {
+            stubListQueries(
+                [
+                    makeReviewItemRow({
+                        pr_writeback_status: 'queued',
+                        pr_writeback_message: 'Queued',
+                        updated_at_age_ms: WRITEBACK_STALE_MS + 1,
+                    }),
+                ],
+                [],
+            );
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0]).toEqual(
+                expect.objectContaining({
+                    prWritebackStatus: 'failed',
+                    prWritebackMessage: 'Writeback timed out',
+                }),
+            );
+        });
+
+        it('presents a stale running remediation as failed', async () => {
+            stubListQueries(
+                [],
+                [
+                    makeRemediationRow({
+                        status: 'running',
+                        updated_at_age_ms: WRITEBACK_STALE_MS + 1,
+                    }),
+                ],
+            );
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0].remediation).toEqual(
+                expect.objectContaining({
+                    status: 'failed',
+                    errorMessage: 'Writeback timed out',
+                }),
+            );
+        });
+
+        it('never presents a stale pr_open remediation as failed', async () => {
+            stubListQueries(
+                [],
+                [
+                    makeRemediationRow({
+                        status: 'pr_open',
+                        updated_at_age_ms: WRITEBACK_STALE_MS + 1,
+                    }),
+                ],
+            );
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0].remediation).toEqual(
+                expect.objectContaining({
+                    status: 'pr_open',
+                    errorMessage: null,
+                }),
+            );
+        });
+
+        it('keeps a fresh running remediation as running', async () => {
+            stubListQueries(
+                [],
+                [
+                    makeRemediationRow({
+                        status: 'running',
+                        updated_at_age_ms: 2 * 60 * 1000,
+                    }),
+                ],
+            );
+
+            const result = await model.listReviewItems({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            expect(result[0].remediation).toEqual(
+                expect.objectContaining({
+                    status: 'running',
+                    errorMessage: null,
+                }),
+            );
+        });
+    });
+
+    describe('failStaleReviewRemediation', () => {
+        it('fails the remediation in SQL only when active and past the stale threshold', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce(0);
+
+            await model.failStaleReviewRemediation({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [update] = tracker.history.update;
+            expect(update.sql).toContain('make_interval');
+            expect(update.sql).toMatch(/"status" in \(\$\d+, \$\d+\)/);
+            expect(update.bindings).toEqual(
+                expect.arrayContaining([
+                    'failed',
+                    'Writeback timed out',
+                    'queued',
+                    'running',
+                    WRITEBACK_STALE_MS / 1000,
+                    REMEDIATION_UUID,
+                    ORGANIZATION_UUID,
+                ]),
+            );
         });
     });
 
