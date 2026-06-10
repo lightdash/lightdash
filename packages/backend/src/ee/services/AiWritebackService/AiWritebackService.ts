@@ -37,6 +37,7 @@ import type {
 import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
+    CLAUDE_SKILLS_DIR,
     COMPILE_STRIPPED_ENV_VARS,
     COMPILE_TIMINGS_PATH,
     COMPILE_WRAPPER_PATH,
@@ -1202,7 +1203,9 @@ export class AiWritebackService extends BaseService {
                     // back to the repo root) unless /tmp is an added directory.
                     // The skills dir is outside the repo too, so it likewise needs
                     // to be added or the agent's Read of warehouse.md is refused.
-                    `--add-dir /tmp --add-dir ${SKILLS_DIR} ` +
+                    // CLAUDE_SKILLS_DIR holds the installed Agent Skills, added for
+                    // the same reason — the agent reads their resource files from there.
+                    `--add-dir /tmp --add-dir ${SKILLS_DIR} --add-dir ${CLAUDE_SKILLS_DIR} ` +
                     `--allowedTools "${ALLOWED_TOOLS}"`,
                 {
                     cwd: CWD,

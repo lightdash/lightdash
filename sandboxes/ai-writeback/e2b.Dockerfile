@@ -26,4 +26,8 @@ RUN sfw npm install -g @anthropic-ai/claude-code
 
 RUN sfw npm install -g @lightdash/cli
 
+# Install Lightdash skills into /home/user/.claude/skills (HOME at runtime) so
+# the Claude Code agent discovers them, and outside the cloned repo at /home/user/repo.
+RUN lightdash install-skills --path /home/user
+
 WORKDIR /home/user
