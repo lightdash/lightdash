@@ -1,3 +1,10 @@
+## [0.3126.2](https://github.com/lightdash/lightdash/compare/0.3126.1...0.3126.2) (2026-06-10)
+
+
+### Bug Fixes
+
+* format count metrics in Excel exports ([#24118](https://github.com/lightdash/lightdash/issues/24118)) ([4a4a8b9](https://github.com/lightdash/lightdash/commit/4a4a8b9af240e7ec6d6f63f0655e7b25c8745b1f)), closes [#24112](https://github.com/lightdash/lightdash/issues/24112)
+
 ## [0.3126.1](https://github.com/lightdash/lightdash/compare/0.3126.0...0.3126.1) (2026-06-10)
 
 
