@@ -30,6 +30,7 @@ import {
     usePullRequestPreview,
 } from '../../../hooks/usePullRequestPreview';
 import styles from './AiEditDbtProjectToolCall.module.css';
+import { PullRequestCiChecks } from './PullRequestCiChecks';
 
 type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
@@ -251,92 +252,104 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
 
     return (
         <Paper withBorder p="sm" radius="md" className={styles.card}>
-            <Group
-                gap="sm"
-                align="center"
-                justify="space-between"
-                wrap="nowrap"
-            >
-                <Group gap="xs" align="center" wrap="nowrap">
-                    <ThemeIcon
-                        variant="light"
-                        color="green"
-                        radius="md"
-                        size="md"
-                    >
-                        <MantineIcon icon={IconGitPullRequest} size={16} />
-                    </ThemeIcon>
-                    <Stack gap={0}>
-                        <Text size="sm" fw={500}>
-                            {title}
-                        </Text>
-                        {summary && (
-                            <Text size="xs" c="ldGray.6">
-                                {summary}
+            <Stack gap="xs">
+                <Group
+                    gap="sm"
+                    align="center"
+                    justify="space-between"
+                    wrap="nowrap"
+                >
+                    <Group gap="xs" align="center" wrap="nowrap">
+                        <ThemeIcon
+                            variant="light"
+                            color="green"
+                            radius="md"
+                            size="md"
+                        >
+                            <MantineIcon icon={IconGitPullRequest} size={16} />
+                        </ThemeIcon>
+                        <Stack gap={0}>
+                            <Text size="sm" fw={500}>
+                                {title}
                             </Text>
-                        )}
-                    </Stack>
-                </Group>
-                <Box className={styles.actions}>
-                    {isPreviewDeploySetup ? null : preview?.previewUrl ? (
+                            {summary && (
+                                <Text size="xs" c="ldGray.6">
+                                    {summary}
+                                </Text>
+                            )}
+                        </Stack>
+                    </Group>
+                    <Box className={styles.actions}>
+                        {isPreviewDeploySetup ? null : preview?.previewUrl ? (
+                            <Button
+                                component="a"
+                                href={preview.previewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                variant="default"
+                                size="compact-sm"
+                                leftSection={
+                                    <MantineIcon icon={IconEye} size={14} />
+                                }
+                            >
+                                View preview
+                            </Button>
+                        ) : previewDeployConfigured && !previewTimedOut ? (
+                            // A preview deploy is configured but its URL hasn't been
+                            // posted yet — surface that it's on the way rather than
+                            // showing nothing.
+                            <Button
+                                variant="default"
+                                size="compact-sm"
+                                disabled
+                                leftSection={<Loader size={14} />}
+                            >
+                                Preparing preview…
+                            </Button>
+                        ) : previewDeployConfigured && previewTimedOut ? (
+                            // Configured but no preview URL after ~10 min — the
+                            // deploy likely failed or was skipped. Tell the user
+                            // rather than spinning forever.
+                            <Tooltip
+                                withinPortal
+                                multiline
+                                w={220}
+                                label="The preview deploy didn't post a URL within 10 minutes. It may have failed or been skipped — check the pull request."
+                            >
+                                <Group gap={4} wrap="nowrap" c="ldGray.6">
+                                    <MantineIcon
+                                        icon={IconInfoCircle}
+                                        size={14}
+                                    />
+                                    <Text size="xs" c="ldGray.6">
+                                        Preview didn't appear
+                                    </Text>
+                                </Group>
+                            </Tooltip>
+                        ) : null}
                         <Button
                             component="a"
-                            href={preview.previewUrl}
+                            href={metadata.prUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            variant="default"
+                            variant="filled"
                             size="compact-sm"
-                            leftSection={
-                                <MantineIcon icon={IconEye} size={14} />
+                            rightSection={
+                                <MantineIcon
+                                    icon={IconExternalLink}
+                                    size={14}
+                                />
                             }
                         >
-                            View preview
+                            View pull request
                         </Button>
-                    ) : previewDeployConfigured && !previewTimedOut ? (
-                        // A preview deploy is configured but its URL hasn't been
-                        // posted yet — surface that it's on the way rather than
-                        // showing nothing.
-                        <Button
-                            variant="default"
-                            size="compact-sm"
-                            disabled
-                            leftSection={<Loader size={14} />}
-                        >
-                            Preparing preview…
-                        </Button>
-                    ) : previewDeployConfigured && previewTimedOut ? (
-                        // Configured but no preview URL after ~10 min — the
-                        // deploy likely failed or was skipped. Tell the user
-                        // rather than spinning forever.
-                        <Tooltip
-                            withinPortal
-                            multiline
-                            w={220}
-                            label="The preview deploy didn't post a URL within 10 minutes. It may have failed or been skipped — check the pull request."
-                        >
-                            <Group gap={4} wrap="nowrap" c="ldGray.6">
-                                <MantineIcon icon={IconInfoCircle} size={14} />
-                                <Text size="xs" c="ldGray.6">
-                                    Preview didn't appear
-                                </Text>
-                            </Group>
-                        </Tooltip>
-                    ) : null}
-                    <Button
-                        component="a"
-                        href={metadata.prUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        variant="filled"
-                        size="compact-sm"
-                        rightSection={
-                            <MantineIcon icon={IconExternalLink} size={14} />
-                        }
-                    >
-                        View pull request
-                    </Button>
-                </Box>
-            </Group>
+                    </Box>
+                </Group>
+                <PullRequestCiChecks
+                    projectUuid={projectUuid}
+                    prUrl={metadata.prUrl}
+                />
+            </Stack>
         </Paper>
     );
 };

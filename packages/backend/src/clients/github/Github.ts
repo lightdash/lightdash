@@ -533,6 +533,52 @@ export const getRepoDefaultBranch = async ({
     }
 };
 
+/** A single GitHub Actions check run on a ref, in the API's native vocabulary. */
+export type GithubCheckRun = {
+    name: string;
+    status: 'queued' | 'in_progress' | 'completed';
+    conclusion: string | null;
+    htmlUrl: string | null;
+    /** When the run started, used to pick the latest run per check name. */
+    startedAt: string | null;
+};
+
+/**
+ * List the GitHub Actions check runs for a ref (branch name or SHA). Used to
+ * surface a PR's CI status. Paginates so all check runs are returned, not just
+ * the first page.
+ */
+export const listCheckRunsForRef = async ({
+    owner,
+    repo,
+    ref,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    ref: string;
+    installationId?: string;
+    token?: string;
+}): Promise<GithubCheckRun[]> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const checkRuns = await octokit.paginate(
+            octokit.rest.checks.listForRef,
+            { owner, repo, ref, per_page: 100, headers },
+        );
+        return checkRuns.map((run) => ({
+            name: run.name,
+            status: run.status as GithubCheckRun['status'],
+            conclusion: run.conclusion,
+            htmlUrl: run.html_url ?? null,
+            startedAt: run.started_at ?? null,
+        }));
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export type GithubFileChanges = {
     /** `contents` is the base64-encoded file content, as required by the API. */
     additions: { path: string; contents: string }[];

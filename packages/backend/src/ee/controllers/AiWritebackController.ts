@@ -3,6 +3,7 @@ import {
     ParameterError,
     type AiWritebackRequestBody,
     type ApiAiWritebackResponse,
+    type ApiCiChecksResponse,
     type ApiErrorPayload,
     type ApiProjectCiStatusResponse,
 } from '@lightdash/common';
@@ -14,6 +15,7 @@ import {
     OperationId,
     Path,
     Post,
+    Query,
     Request,
     Response,
     Route,
@@ -105,6 +107,37 @@ export class AiWritebackController extends BaseController {
                 toSessionUser(req.account),
                 projectUuid,
             );
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get the live CI status of a write-back pull request — the GitHub Actions
+     * check runs on its head branch, mapped onto provider-agnostic states and
+     * rolled up to a single overall state. Returns null when CI status can't be
+     * resolved (unsupported source control, no app installation, PR not found).
+     * @summary Get pull request CI checks
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/ci-checks')
+    @OperationId('getPullRequestCiChecks')
+    async getPullRequestCiChecks(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() prUrl: string,
+    ): Promise<ApiCiChecksResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getCiService()
+            .getPullRequestChecks({
+                user: toSessionUser(req.account),
+                projectUuid,
+                prUrl,
+            });
         return {
             status: 'ok',
             results,

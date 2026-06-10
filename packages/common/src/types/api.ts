@@ -86,6 +86,7 @@ import {
     type ApiUpdateMetricsTreeResponse,
 } from './catalog';
 import { type ApiGetChangeResponse } from './changeset';
+import { type CiChecks } from './ci';
 import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
@@ -999,6 +1000,7 @@ type ApiResults =
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
+    | CiChecks
     | GitBranch
     | GitBranch[]
     | GitFileOrDirectory

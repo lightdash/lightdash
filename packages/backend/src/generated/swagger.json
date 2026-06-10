@@ -14089,6 +14089,19 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -19896,6 +19909,81 @@
                 "required": ["results", "status"],
                 "type": "object",
                 "description": "CI status for a project, or null when the project has never been scanned\n(e.g. no AI writeback has run yet). A null result means \"unknown\", which is\ndistinct from a record with `hasPreviewDeployWorkflow: false` (\"scanned, no\npreview workflow\")."
+            },
+            "CiProviderType": {
+                "description": "Continuous-integration status for a pull request, abstracted across CI\nproviders. GitHub Actions is the first (and currently only) adapter, but the\nvocabulary here is deliberately host-agnostic so GitLab pipelines, Buildkite,\netc. can be added behind the same interface without changing consumers.",
+                "enum": ["github"],
+                "type": "string"
+            },
+            "CiCheckState": {
+                "description": "Provider-agnostic outcome of a single CI check. Each host's native states are\nmapped onto these by its adapter (e.g. GitHub's `queued`/`in_progress` →\n`pending`; `timed_out` → `failure`).",
+                "enum": [
+                    "success",
+                    "failure",
+                    "pending",
+                    "cancelled",
+                    "skipped",
+                    "neutral"
+                ],
+                "type": "string"
+            },
+            "CiCheck": {
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Link to the run on the provider, when available."
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/CiCheckState"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["url", "state", "name"],
+                "type": "object",
+                "description": "A single CI check (one GitHub Actions job/check run, or equivalent)."
+            },
+            "CiChecks": {
+                "properties": {
+                    "checks": {
+                        "items": {
+                            "$ref": "#/components/schemas/CiCheck"
+                        },
+                        "type": "array"
+                    },
+                    "overall": {
+                        "$ref": "#/components/schemas/CiCheckState",
+                        "description": "Rollup: failure ≻ pending ≻ success ≻ neutral."
+                    },
+                    "provider": {
+                        "$ref": "#/components/schemas/CiProviderType"
+                    }
+                },
+                "required": ["checks", "overall", "provider"],
+                "type": "object",
+                "description": "The CI checks for a pull request, plus a single rolled-up state for an\nat-a-glance summary. `checks` is empty when the ref has no CI configured."
+            },
+            "ApiCiChecksResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CiChecks"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "CI checks for a PR, or null when CI status can't be resolved (project isn't\nconnected to a supported provider, no app installation, PR not found, etc.) —\ndistinct from a resolved result with an empty `checks` array (\"no CI runs\")."
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -30968,6 +31056,14 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "corsAllowedDomains": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Exact origins, wildcard subdomain origins, and regex patterns this org\ncontributes to the instance CORS allow-list. Regex entries use `/.../`\nsyntax."
+                    },
                     "csvCellsLimit": {
                         "type": "number",
                         "format": "double",
@@ -31027,6 +31123,7 @@
                     }
                 },
                 "required": [
+                    "corsAllowedDomains",
                     "csvCellsLimit",
                     "queryLimit",
                     "scheduledDeliveryExpirationSecondsGoogleChat",
@@ -31113,6 +31210,14 @@
                         "format": "double",
                         "nullable": true,
                         "description": "Max number of cells (rows × columns) a CSV/Excel export may contain for\nthis org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by\n`LIGHTDASH_CSV_MAX_LIMIT` (the ceiling); `null` inherits the\ndefault. Always resolved to an effective number in API responses."
+                    },
+                    "corsAllowedDomains": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Exact origins, wildcard subdomain origins, and regex patterns this org\ncontributes to the instance CORS allow-list. Regex entries use `/.../`\nsyntax."
                     }
                 },
                 "type": "object",

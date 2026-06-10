@@ -119,6 +119,7 @@ export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';
 export * from './types/field';
+export * from './types/ci';
 export * from './types/fieldMatch';
 export * from './types/filter';
 export * from './types/funnel';
