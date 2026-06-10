@@ -19,6 +19,7 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -41,6 +42,7 @@ import {
 } from '../utils/inputValidation';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -62,11 +64,21 @@ export class SchedulerController extends BaseController {
      * @param statuses filter by log statuses (comma-separated)
      * @param createdByUserUuids filter by creator user UUIDs (comma-separated)
      * @param destinations filter by destination types (comma-separated: email, slack, msteams, googlechat)
+     *
+     * @deprecated Use GET /api/v1/schedulers/{projectUuid}/runs instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use GET /api/v1/schedulers/{projectUuid}/runs instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/{projectUuid}/logs')
     @OperationId('getSchedulerLogs')
+    @Deprecated()
     async getLogs(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -539,11 +551,21 @@ export class SchedulerController extends BaseController {
      * @summary Get scheduled jobs
      * @param schedulerUuid The uuid of the scheduler to update
      * @param req express request
+     *
+     * @deprecated This endpoint will be removed; there is no replacement
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'This endpoint will be removed; there is no replacement.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{schedulerUuid}/jobs')
     @OperationId('getScheduledJobs')
+    @Deprecated()
     async getJobs(
         @Path() schedulerUuid: string,
         @Request() req: express.Request,

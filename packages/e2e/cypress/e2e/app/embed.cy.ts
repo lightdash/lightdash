@@ -8,7 +8,7 @@ const EMBED_API_PREFIX = `/api/v1/embed/${SEED_PROJECT.project_uuid}`;
 
 const updateEmbedConfigDashboards = (dashboardUuids: string[]) =>
     cy.request({
-        url: `${EMBED_API_PREFIX}/config/dashboards`,
+        url: `${EMBED_API_PREFIX}/config`,
         headers: { 'Content-type': 'application/json' },
         method: 'PATCH',
         body: {

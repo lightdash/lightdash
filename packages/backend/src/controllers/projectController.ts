@@ -228,15 +228,21 @@ export class ProjectController extends BaseController {
      * There may be users that have access to the project via their organization membership.
      * @summary Get project member access
      *
-     * NOTE:
-     * We don't use the API on the frontend. Instead, we can call the API
-     * so that we make sure of the user's access to the project.
+     * @deprecated Use GET /api/v2/projects/{projectId}/roles/assignments instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use GET /api/v2/projects/{projectId}/roles/assignments instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/user/{userUuid}')
     @OperationId('GetProjectMemberAccess')
     @Tags('Roles & Permissions')
+    @Deprecated()
     async getProjectMember(
         @Path() projectUuid: string,
         @Path() userUuid: string,

@@ -155,11 +155,24 @@ export class EmbedController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    /**
+     * Update the dashboards allowed in the project embed config
+     * @summary Update embedded dashboards
+     *
+     * @deprecated Use PATCH /api/v1/embed/{projectUuid}/config instead
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use PATCH /api/v1/embed/{projectUuid}/config instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/config/dashboards')
     @OperationId('updateEmbeddedDashboards')
-    @Deprecated() // Use /config endpoint below instead
+    @Deprecated()
     async updateEmbeddedDashboards(
         @Request() req: express.Request,
         @Path() projectUuid: string,

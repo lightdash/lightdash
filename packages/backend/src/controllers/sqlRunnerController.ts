@@ -119,15 +119,22 @@ export class SqlRunnerController extends BaseController {
     /**
      * Run a SQL query
      * @summary Run SQL query
+     *
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/sql instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/sql instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/run')
     @OperationId('runSql')
+    @Deprecated()
     async runSql(
         @Path() projectUuid: string,
         @Body() body: SqlRunnerBody,
@@ -152,15 +159,22 @@ export class SqlRunnerController extends BaseController {
     /**
      * Run a SQL pivot query
      * @summary Run SQL pivot query
+     *
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/sql with pivotConfiguration instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/sql with pivotConfiguration instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/runPivotQuery')
     @OperationId('runSqlPivotQuery')
+    @Deprecated()
     async runSqlPivotQuery(
         @Path() projectUuid: string,
         @Body() body: SqlRunnerPivotQueryBody,
