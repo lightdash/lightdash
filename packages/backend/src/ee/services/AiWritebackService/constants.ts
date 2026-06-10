@@ -12,6 +12,14 @@ export const SKILLS_DIR = '/home/user/.lightdash-skills';
 export const WAREHOUSE_SKILL_PATH = `${SKILLS_DIR}/warehouse.md`;
 export const SHARED_SKILL_PATH = `${SKILLS_DIR}/shared.md`;
 
+// Claude Code Agent Skills baked into the sandbox image at build time via
+// `lightdash install-skills` (see sandboxes/ai-writeback/e2b.Dockerfile). The
+// agent runs as `user`, so this matches the runtime ~/.claude/skills location
+// Claude Code auto-discovers. Distinct from SKILLS_DIR above (the host-pushed
+// warehouse markdown). The agent reads a skill's resource files from here, so
+// it must be both allowlisted (ALLOWED_TOOLS) and passed via --add-dir.
+export const CLAUDE_SKILLS_DIR = '/home/user/.claude/skills';
+
 // Files the agent writes for the host to open a PR from. Kept as a fallback
 // — the primary channel is now structured output blocks in the agent's stdout
 // (see PR_TITLE_OPEN/CLOSE etc.).
@@ -103,6 +111,11 @@ export const ALLOWED_TOOLS = [
     // skills dir also has to be passed via `--add-dir` (see runAgentInSandbox)
     // or Claude Code confines reads to the cwd workspace and refuses these.
     `Read(/${SKILLS_DIR}/**)`,
+    // Invoke the Lightdash Agent Skills installed in the image, and read the
+    // resource files they reference. Like the dirs above, CLAUDE_SKILLS_DIR is
+    // outside the cwd workspace so it must also be passed via `--add-dir`.
+    'Skill',
+    `Read(/${CLAUDE_SKILLS_DIR}/**)`,
     // PR metadata files live directly in /tmp. This permission alone is not
     // enough: Claude Code also confines Write/Edit to the cwd workspace, so
     // /tmp must additionally be passed via `--add-dir /tmp` (see
