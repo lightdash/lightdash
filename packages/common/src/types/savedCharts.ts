@@ -201,6 +201,13 @@ export type GaugeChart = {
     customPercentageLabel?: string;
 };
 
+/**
+ * How nodes are laid out:
+ * - `multi-step`: depth-unrolled journeys (default)
+ * - `merged`: one node per label, journeys preserved (acyclic flows only)
+ */
+export type SankeyNodeLayout = 'multi-step' | 'merged';
+
 export type SankeyChart = {
     /** Field ID for the source node dimension */
     sourceFieldId?: string;
@@ -212,6 +219,8 @@ export type SankeyChart = {
     nodeAlign?: 'left' | 'right' | 'justify';
     /** Orientation of the diagram */
     orient?: 'horizontal' | 'vertical';
+    /** How nodes are laid out across steps */
+    nodeLayout?: SankeyNodeLayout;
 };
 
 export enum MapChartLocation {
