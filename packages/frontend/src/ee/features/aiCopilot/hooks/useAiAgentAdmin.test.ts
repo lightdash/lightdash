@@ -1,5 +1,50 @@
+import { type AiAgentReviewItemSummary } from '@lightdash/common';
+import { QueryClient } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
-import { getReviewItemWritebackSuccessToast } from './useAiAgentAdmin';
+import {
+    getReviewItemWritebackSuccessToast,
+    updateCachedReviewItemLists,
+} from './useAiAgentAdmin';
+
+const makeReviewItem = (
+    overrides: Partial<AiAgentReviewItemSummary> = {},
+): AiAgentReviewItemSummary =>
+    ({
+        uuid: 'fingerprint-1',
+        fingerprint: 'fingerprint-1',
+        organizationUuid: 'org-1',
+        projectUuid: 'project-1',
+        agentUuid: 'agent-1',
+        title: 'Review revenue metric',
+        description: 'The answer picked the wrong metric',
+        primaryRootCause: 'semantic_layer',
+        status: 'open',
+        dismissedReason: null,
+        ownerType: 'semantic_layer_owner',
+        assignedToUserUuid: null,
+        firstSeenAt: new Date('2026-06-10T09:00:00.000Z'),
+        lastSeenAt: new Date('2026-06-10T09:00:00.000Z'),
+        findingCount: 1,
+        statusUpdatedAt: new Date('2026-06-10T09:00:00.000Z'),
+        statusUpdatedByUserUuid: null,
+        linkedIssueUrl: null,
+        linkedPrUrl: null,
+        prState: null,
+        prWritebackStatus: null,
+        prWritebackMessage: null,
+        createdAt: new Date('2026-06-10T09:00:00.000Z'),
+        updatedAt: new Date('2026-06-10T09:00:00.000Z'),
+        writebackEligible: false,
+        writebackEligibility: {
+            eligible: false,
+            reason: 'unsupported_root_cause',
+            provider: null,
+            strategy: null,
+        },
+        remediation: null,
+        latestFinding: null,
+        ...overrides,
+    }) as AiAgentReviewItemSummary;
 
 describe('getReviewItemWritebackSuccessToast', () => {
     it('shows queued copy when the async writeback request has no PR yet', () => {
@@ -48,5 +93,43 @@ describe('getReviewItemWritebackSuccessToast', () => {
             title: 'Writeback completed',
             subtitle: 'Writeback ran - no changes were needed',
         });
+    });
+});
+
+describe('updateCachedReviewItemLists', () => {
+    it('removes dismissed items from active review item queries', () => {
+        const queryClient = new QueryClient();
+        const openItem = makeReviewItem();
+        const dismissedItem = makeReviewItem({
+            status: 'dismissed',
+            dismissedReason: 'not_actionable',
+        });
+
+        queryClient.setQueryData(
+            ['ai-agent-admin-review-items', { statuses: ['open'] }],
+            [openItem],
+        );
+        queryClient.setQueryData(
+            [
+                'ai-agent-admin-review-items',
+                { statuses: ['open', 'dismissed'] },
+            ],
+            [openItem],
+        );
+
+        updateCachedReviewItemLists(queryClient, dismissedItem);
+
+        expect(
+            queryClient.getQueryData([
+                'ai-agent-admin-review-items',
+                { statuses: ['open'] },
+            ]),
+        ).toEqual([]);
+        expect(
+            queryClient.getQueryData([
+                'ai-agent-admin-review-items',
+                { statuses: ['open', 'dismissed'] },
+            ]),
+        ).toEqual([dismissedItem]);
     });
 });

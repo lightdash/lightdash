@@ -19,6 +19,7 @@ import {
     useMutation,
     useQuery,
     useQueryClient,
+    type QueryClient,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
@@ -132,6 +133,47 @@ const getAiAgentAdminReviewItems = async (args: {
     });
 };
 
+const AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY = 'ai-agent-admin-review-items';
+
+export const updateCachedReviewItemLists = (
+    queryClient: QueryClient,
+    updatedItem: AiAgentReviewItemSummary,
+) => {
+    queryClient
+        .getQueryCache()
+        .findAll({
+            queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+        })
+        .forEach((query) => {
+            const [, args] = query.queryKey as [
+                string,
+                { statuses?: AiAgentReviewItemStatus[] } | undefined,
+            ];
+            const matchesStatus =
+                !args?.statuses || args.statuses.includes(updatedItem.status);
+
+            queryClient.setQueryData<ApiAiAgentReviewItemsResponse['results']>(
+                query.queryKey,
+                (current) => {
+                    if (!current) return current;
+
+                    if (!matchesStatus) {
+                        return current.filter(
+                            (item) =>
+                                item.fingerprint !== updatedItem.fingerprint,
+                        );
+                    }
+
+                    return current.map((item) =>
+                        item.fingerprint === updatedItem.fingerprint
+                            ? updatedItem
+                            : item,
+                    );
+                },
+            );
+        });
+};
+
 export const useAiAgentAdminReviewItems = (
     args: { statuses?: AiAgentReviewItemStatus[] },
     options?: {
@@ -146,7 +188,7 @@ export const useAiAgentAdminReviewItems = (
         ApiError,
         ApiAiAgentReviewItemsResponse['results']
     >({
-        queryKey: ['ai-agent-admin-review-items', args],
+        queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY, args],
         queryFn: () => getAiAgentAdminReviewItems(args),
         keepPreviousData: true,
         enabled: options?.enabled ?? true,
@@ -232,8 +274,9 @@ export const useUpdateAiAgentReviewItemStatus = () => {
                 ['ai-agent-admin-review-item', fingerprint],
                 updatedItem,
             );
+            updateCachedReviewItemLists(queryClient, updatedItem);
             void queryClient.invalidateQueries({
-                queryKey: ['ai-agent-admin-review-items'],
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
             });
         },
         onError: ({ error }) => {
