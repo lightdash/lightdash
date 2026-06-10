@@ -1,0 +1,14 @@
+.checkItem {
+    padding: 2px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
+    border: 1px solid var(--mantine-color-default-border);
+    text-decoration: none;
+    transition:
+        background-color 100ms ease,
+        border-color 100ms ease;
+}
+
+.checkItem:hover {
+    background-color: var(--mantine-color-default-hover);
+    border-color: var(--mantine-color-gray-outline);
+}

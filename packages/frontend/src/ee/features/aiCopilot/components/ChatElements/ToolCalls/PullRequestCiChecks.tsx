@@ -1,12 +1,5 @@
 import { CiCheckState, type CiCheck } from '@lightdash/common';
-import {
-    Anchor,
-    Badge,
-    type DefaultMantineColor,
-    Group,
-    Loader,
-    Text,
-} from '@mantine-8/core';
+import { type DefaultMantineColor, Group, Loader, Text } from '@mantine-8/core';
 import {
     IconCircleCheck,
     IconCircleMinus,
@@ -16,7 +9,9 @@ import {
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
+import { PolymorphicGroupButton } from '../../../../../../components/common/PolymorphicGroupButton';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
+import styles from './PullRequestCiChecks.module.css';
 
 type StateStyle = {
     color: DefaultMantineColor;
@@ -25,7 +20,8 @@ type StateStyle = {
 };
 
 // Provider-agnostic state → colour/icon/label. Keeps the UI host-neutral: a
-// GitLab pipeline mapped onto the same CiCheckState renders identically.
+// GitLab pipeline mapped onto the same CiCheckState renders identically. Only
+// the status icon carries colour — names stay neutral so the row reads calmly.
 const STATE_STYLE: Record<CiCheckState, StateStyle> = {
     [CiCheckState.SUCCESS]: {
         color: 'green',
@@ -39,17 +35,17 @@ const STATE_STYLE: Record<CiCheckState, StateStyle> = {
     },
     [CiCheckState.PENDING]: { color: 'yellow', icon: null, label: 'running' },
     [CiCheckState.CANCELLED]: {
-        color: 'gray',
+        color: 'ldGray.6',
         icon: IconCircleMinus,
         label: 'cancelled',
     },
     [CiCheckState.SKIPPED]: {
-        color: 'gray',
+        color: 'ldGray.6',
         icon: IconPlayerSkipForward,
         label: 'skipped',
     },
     [CiCheckState.NEUTRAL]: {
-        color: 'gray',
+        color: 'ldGray.6',
         icon: IconCircleMinus,
         label: 'neutral',
     },
@@ -58,48 +54,36 @@ const STATE_STYLE: Record<CiCheckState, StateStyle> = {
 const StateIcon: FC<{ state: CiCheckState }> = ({ state }) => {
     const { color, icon } = STATE_STYLE[state];
     if (icon === null) {
-        return <Loader size={12} color={color} />;
+        return <Loader size={14} color={color} />;
     }
-    return <MantineIcon icon={icon} size={12} color={color} />;
+    return <MantineIcon icon={icon} size={14} color={color} />;
 };
 
-const CheckChip: FC<{ check: CiCheck }> = ({ check }) => {
-    const { color, label } = STATE_STYLE[check.state];
-    const badge = (
-        <Badge
-            variant="light"
-            color={color}
-            radius="sm"
-            tt="none"
-            fw={500}
-            leftSection={<StateIcon state={check.state} />}
-        >
+const CheckItem: FC<{ check: CiCheck }> = ({ check }) => (
+    <PolymorphicGroupButton
+        component="a"
+        href={check.url ?? undefined}
+        target="_blank"
+        rel="noopener noreferrer"
+        gap={6}
+        wrap="nowrap"
+        className={styles.checkItem}
+    >
+        <StateIcon state={check.state} />
+        <Text size="xs" fw={500} c="default">
             {check.name}
-            <Text span inherit c="dimmed" ml={4}>
-                {label}
-            </Text>
-        </Badge>
-    );
-
-    return check.url ? (
-        <Anchor
-            href={check.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            underline="never"
-        >
-            {badge}
-        </Anchor>
-    ) : (
-        badge
-    );
-};
+        </Text>
+        <Text size="xs" c="dimmed">
+            {STATE_STYLE[check.state].label}
+        </Text>
+    </PolymorphicGroupButton>
+);
 
 /**
- * Inline CI status for a write-back PR: one state-tinted, clickable chip per
- * check (linking to its run on the provider). Renders nothing while loading,
- * when CI can't be resolved, or when the ref has no checks — so the PR card
- * stays clean for projects without CI.
+ * Inline CI status for a write-back PR: one subtle, clickable item per check
+ * (linking to its run on the provider), with the status icon carrying the only
+ * colour. Renders nothing while loading, when CI can't be resolved, or when the
+ * ref has no checks — so the PR card stays clean for projects without CI.
  */
 export const PullRequestCiChecks: FC<{
     projectUuid: string;
@@ -114,7 +98,7 @@ export const PullRequestCiChecks: FC<{
     return (
         <Group gap="xs" wrap="wrap">
             {ciChecks.checks.map((check) => (
-                <CheckChip key={check.name} check={check} />
+                <CheckItem key={check.name} check={check} />
             ))}
         </Group>
     );
