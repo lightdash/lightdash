@@ -6,6 +6,7 @@ import {
 import {
     ActionIcon,
     Alert,
+    Button,
     Center,
     Drawer,
     Group,
@@ -34,6 +35,7 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
+import { Link } from 'react-router';
 import { CategoryBadge } from '../../../components/common/CategoryBadge/CategoryBadge';
 import {
     ContentTable,
@@ -43,14 +45,21 @@ import {
 import MantineIcon from '../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../components/common/Page/constants';
 import { ThreadPreviewSidebar } from '../../../ee/features/aiCopilot/components/Admin/ThreadPreviewSidebar';
+import {
+    threadReviewRootCauseColors,
+    threadReviewRootCauseLabels,
+} from '../../../ee/features/aiCopilot/components/Admin/threadReviewContext';
 import { usePullRequestsTable } from '../hooks/usePullRequestsTable';
 import { type PullRequestRow } from '../types';
 import {
     getProviderLabel,
+    getReviewPath,
     getSourceColor,
     getSourceLabel,
     getStateColor,
     getThreadPath,
+    getThreadPreviewTarget,
+    type PullRequestThreadPreviewTarget,
 } from '../utils';
 import classes from './PullRequestsPage.module.css';
 
@@ -100,7 +109,8 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
     } = usePullRequestsTable(projectUuid);
 
     const [stateFilter, setStateFilter] = useState<StateFilter>('open');
-    const [previewPr, setPreviewPr] = useState<PullRequestRow | null>(null);
+    const [previewTarget, setPreviewTarget] =
+        useState<PullRequestThreadPreviewTarget | null>(null);
 
     const filteredRows = useMemo(
         () => rows.filter((row) => matchesStateFilter(row, stateFilter)),
@@ -140,6 +150,8 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 size: 620,
                 Cell: ({ row }) => {
                     const pr = row.original;
+                    const reviewPath = getReviewPath(pr);
+                    const threadPreviewTarget = getThreadPreviewTarget(pr);
                     // title/state are both null when the live lookup from the
                     // provider failed (PR deleted, access revoked, API down).
                     const liveLookupFailed =
@@ -224,6 +236,95 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                         )}
                                     </Text>
                                 </Tooltip>
+
+                                {pr.reviewContext && (
+                                    <Stack
+                                        gap={6}
+                                        mt={4}
+                                        className={classes.reviewContext}
+                                    >
+                                        <Group gap="xs" wrap="wrap">
+                                            <Text fz="xs" fw={600} c="ldGray.6">
+                                                Fixes review:
+                                            </Text>
+                                            <Tooltip
+                                                label={
+                                                    pr.reviewContext.reviewTitle
+                                                }
+                                                openDelay={300}
+                                                withinPortal
+                                            >
+                                                <Text
+                                                    fz="xs"
+                                                    fw={600}
+                                                    truncate
+                                                    className={
+                                                        classes.reviewTitle
+                                                    }
+                                                >
+                                                    {
+                                                        pr.reviewContext
+                                                            .reviewTitle
+                                                    }
+                                                </Text>
+                                            </Tooltip>
+                                            <CategoryBadge
+                                                variant="token"
+                                                label={
+                                                    threadReviewRootCauseLabels[
+                                                        pr.reviewContext
+                                                            .primaryRootCause
+                                                    ]
+                                                }
+                                                color={
+                                                    threadReviewRootCauseColors[
+                                                        pr.reviewContext
+                                                            .primaryRootCause
+                                                    ]
+                                                }
+                                            />
+                                        </Group>
+
+                                        <Group gap="xs" wrap="wrap">
+                                            {reviewPath && (
+                                                <Button
+                                                    component={Link}
+                                                    to={reviewPath}
+                                                    size="compact-xs"
+                                                    variant="subtle"
+                                                    color="gray"
+                                                >
+                                                    View review
+                                                </Button>
+                                            )}
+                                            {threadPreviewTarget && (
+                                                <Button
+                                                    size="compact-xs"
+                                                    variant="subtle"
+                                                    color="gray"
+                                                    onClick={() =>
+                                                        setPreviewTarget(
+                                                            threadPreviewTarget,
+                                                        )
+                                                    }
+                                                >
+                                                    View thread
+                                                </Button>
+                                            )}
+                                            <Button
+                                                component="a"
+                                                href={pr.prUrl}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                                size="compact-xs"
+                                                variant="subtle"
+                                                color="gray"
+                                            >
+                                                View PR
+                                            </Button>
+                                        </Group>
+                                    </Stack>
+                                )}
                             </Stack>
                         </Group>
                     );
@@ -270,9 +371,10 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
         renderRowActions: ({ row }) => {
             const pr = row.original;
             const threadPath = getThreadPath(pr);
+            const threadTarget = getThreadPreviewTarget(pr);
             return (
                 <Group gap="two" wrap="nowrap" className={classes.rowActions}>
-                    {threadPath !== null ? (
+                    {threadPath !== null && threadTarget ? (
                         <Tooltip
                             label="Preview thread"
                             openDelay={300}
@@ -282,7 +384,7 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                                 variant="subtle"
                                 color="gray"
                                 aria-label="Preview thread"
-                                onClick={() => setPreviewPr(pr)}
+                                onClick={() => setPreviewTarget(threadTarget)}
                             >
                                 <MantineIcon icon={IconMessageCircle} />
                             </ActionIcon>
@@ -421,8 +523,8 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
             )}
 
             <Drawer
-                opened={previewPr !== null}
-                onClose={() => setPreviewPr(null)}
+                opened={previewTarget !== null}
+                onClose={() => setPreviewTarget(null)}
                 position="right"
                 size="lg"
                 withCloseButton={false}
@@ -433,13 +535,16 @@ const PullRequestsPage: FC<Props> = ({ projectUuid }) => {
                 }}
                 __vars={{ '--drawer-top-offset': `${NAVBAR_HEIGHT}px` }}
             >
-                {previewPr?.aiAgentUuid && previewPr?.aiThreadUuid ? (
+                {previewTarget ? (
                     <ThreadPreviewSidebar
-                        projectUuid={previewPr.projectUuid}
-                        agentUuid={previewPr.aiAgentUuid}
-                        threadUuid={previewPr.aiThreadUuid}
-                        isOpen={previewPr !== null}
-                        onClose={() => setPreviewPr(null)}
+                        projectUuid={previewTarget.projectUuid}
+                        agentUuid={previewTarget.agentUuid}
+                        threadUuid={previewTarget.threadUuid}
+                        selectedReviewItemUuid={
+                            previewTarget.reviewItemUuid ?? undefined
+                        }
+                        isOpen={previewTarget !== null}
+                        onClose={() => setPreviewTarget(null)}
                     />
                 ) : null}
             </Drawer>

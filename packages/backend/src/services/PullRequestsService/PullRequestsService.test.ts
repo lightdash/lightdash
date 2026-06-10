@@ -66,6 +66,7 @@ const makePullRequest = (provider: PullRequestProvider): PullRequest => ({
     prUrl: 'https://gitlab.com/my-group/my-repo/-/merge_requests/42',
     aiThreadUuid: null,
     aiAgentUuid: null,
+    reviewContext: null,
     createdAt: new Date(),
 });
 
