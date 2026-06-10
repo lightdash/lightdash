@@ -40,6 +40,48 @@ export const getGithubApp = () => {
     return githubApp;
 };
 
+/** Build the GitHub OAuth authorize URL for linking a user's personal GitHub
+ * account (user-to-server token). Uses the same GitHub App OAuth client as the
+ * installation flow, so no extra app registration is needed. Without
+ * GITHUB_OAUTH_REDIRECT_URI, GitHub redirects to the app's first configured
+ * callback URL — set the env var (and register the URL on the app) when the
+ * instance is served somewhere else, e.g. a non-default local dev port. */
+export const getGithubUserAuthorizeUrl = (state: string): string => {
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    if (!clientId) {
+        throw new Error('Github integration not configured');
+    }
+    const url = new URL('https://github.com/login/oauth/authorize');
+    url.searchParams.set('client_id', clientId);
+    url.searchParams.set('state', state);
+    const redirectUri = process.env.GITHUB_OAUTH_REDIRECT_URI;
+    if (redirectUri) {
+        url.searchParams.set('redirect_uri', redirectUri);
+    }
+    return url.href;
+};
+
+/** Check whether a user OAuth token can access a repo. A user-to-server token
+ * is scoped to (repos the user can access) ∩ (repos the app is installed on),
+ * so this can be false even when the app installation has access. */
+export const userTokenHasRepoAccess = async (
+    token: string,
+    owner: string,
+    repo: string,
+): Promise<boolean> => {
+    const octokit = new OctokitRest();
+    try {
+        await octokit.rest.repos.get({
+            owner,
+            repo,
+            headers: { authorization: `Bearer ${token}` },
+        });
+        return true;
+    } catch {
+        return false;
+    }
+};
+
 export const getOctokitRestForUser = (
     authToken: string,
 ): { octokit: OctokitRest; headers: { authorization: string } } => {
@@ -491,6 +533,52 @@ export const getRepoDefaultBranch = async ({
     }
 };
 
+/** A single GitHub Actions check run on a ref, in the API's native vocabulary. */
+export type GithubCheckRun = {
+    name: string;
+    status: 'queued' | 'in_progress' | 'completed';
+    conclusion: string | null;
+    htmlUrl: string | null;
+    /** When the run started, used to pick the latest run per check name. */
+    startedAt: string | null;
+};
+
+/**
+ * List the GitHub Actions check runs for a ref (branch name or SHA). Used to
+ * surface a PR's CI status. Paginates so all check runs are returned, not just
+ * the first page.
+ */
+export const listCheckRunsForRef = async ({
+    owner,
+    repo,
+    ref,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    ref: string;
+    installationId?: string;
+    token?: string;
+}): Promise<GithubCheckRun[]> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const checkRuns = await octokit.paginate(
+            octokit.rest.checks.listForRef,
+            { owner, repo, ref, per_page: 100, headers },
+        );
+        return checkRuns.map((run) => ({
+            name: run.name,
+            status: run.status as GithubCheckRun['status'],
+            conclusion: run.conclusion,
+            htmlUrl: run.html_url ?? null,
+            startedAt: run.started_at ?? null,
+        }));
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export type GithubFileChanges = {
     /** `contents` is the base64-encoded file content, as required by the API. */
     additions: { path: string; contents: string }[];
@@ -758,6 +846,15 @@ export const getPullRequest = async ({
     headRef: string;
     /** Full name (`owner/repo`) of the PR's head — differs from the base when the PR comes from a fork. */
     headRepoFullName: string | null;
+    /** GitHub's mergeability (null until GitHub finishes computing it). */
+    mergeable: boolean | null;
+    /**
+     * GitHub's `mergeable_state` — the policy verdict (clean/unstable/blocked/
+     * dirty/behind/draft/has_hooks/unknown). Authoritative for whether a merge
+     * is actually allowed; only populated on a single-PR GET like this one.
+     */
+    mergeableState: string;
+    draft: boolean;
 }> => {
     const { octokit, headers } = getOctokit(installationId, token);
 
@@ -774,6 +871,9 @@ export const getPullRequest = async ({
             merged: response.data.merged === true,
             headRef: response.data.head.ref,
             headRepoFullName: response.data.head.repo?.full_name ?? null,
+            mergeable: response.data.mergeable,
+            mergeableState: response.data.mergeable_state,
+            draft: response.data.draft === true,
         };
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));

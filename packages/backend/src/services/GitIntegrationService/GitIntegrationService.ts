@@ -46,6 +46,7 @@ import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import type { GithubAppService } from '../GithubAppService/GithubAppService';
 
 type GitIntegrationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -53,6 +54,7 @@ type GitIntegrationServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    githubAppService: GithubAppService;
     pullRequestsModel: PullRequestsModel;
     analytics: LightdashAnalytics;
 };
@@ -85,6 +87,8 @@ export class GitIntegrationService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly githubAppService: GithubAppService;
+
     private readonly pullRequestsModel: PullRequestsModel;
 
     private readonly analytics: LightdashAnalytics;
@@ -96,6 +100,7 @@ export class GitIntegrationService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
+        this.githubAppService = args.githubAppService;
         this.pullRequestsModel = args.pullRequestsModel;
         this.analytics = args.analytics;
     }
@@ -550,7 +555,9 @@ Affected charts:
     ) {
         const { branch, path } = await this.getProjectRepo(projectUuid);
         const { owner, repo, hostDomain, type, token, installationId } =
-            await this.getGitCredentials(user, projectUuid);
+            await this.getGitCredentials(user, projectUuid, {
+                preferUserToken: true,
+            });
 
         const userName = `${snakeCaseName(
             user.firstName[0] || '',
@@ -1226,6 +1233,7 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
     async getGitCredentials(
         user: SessionUser,
         projectUuid: string,
+        options?: { preferUserToken?: boolean },
     ): Promise<{
         owner: string;
         repo: string;
@@ -1240,6 +1248,34 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         let installationId: string | undefined;
 
         if (type === DbtProjectType.GITHUB) {
+            if (options?.preferUserToken && user.organizationUuid) {
+                // When the user has linked their personal GitHub account, act
+                // as them so commits and PRs are attributed to the real
+                // author. A user-to-server token only reaches repos the user
+                // can access AND the app is installed on, so verify repo
+                // access first and fall back to the app bot when it's missing.
+                const userToken = await this.githubAppService.getValidUserToken(
+                    user.userUuid,
+                    user.organizationUuid,
+                );
+                if (
+                    userToken &&
+                    (await GithubClient.userTokenHasRepoAccess(
+                        userToken,
+                        owner,
+                        repo,
+                    ))
+                ) {
+                    return {
+                        owner,
+                        repo,
+                        token: userToken,
+                        installationId: undefined,
+                        hostDomain,
+                        type,
+                    };
+                }
+            }
             try {
                 installationId = await this.getInstallationId(user);
                 token = await this.getOrUpdateToken(user.organizationUuid!);
@@ -1444,7 +1480,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             );
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
         const commitMessage =
             message || (sha ? `Update ${path}` : `Create ${path}`);
 
@@ -1544,7 +1582,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             );
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
         const commitMessage = message || `Delete ${path}`;
 
         const deleteFile =
@@ -1593,7 +1633,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             throw new ForbiddenError();
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
 
         // Get the latest commit from the source branch
         const getLastCommit =
@@ -1665,7 +1707,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             throw new ForbiddenError();
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
         const protectedBranch = await this.getProtectedBranch(projectUuid);
 
         Logger.debug(

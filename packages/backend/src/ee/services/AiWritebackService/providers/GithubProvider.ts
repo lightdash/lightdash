@@ -21,8 +21,10 @@ import {
     getInstallationToken,
     getPullRequest,
     updatePullRequest,
+    userTokenHasRepoAccess,
 } from '../../../../clients/github/Github';
 import type { GithubAppInstallationsModel } from '../../../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import type { GithubAppService } from '../../../../services/GithubAppService/GithubAppService';
 import {
     CO_AUTHOR_TRAILER,
     COMMIT_AUTHOR_EMAIL,
@@ -76,17 +78,19 @@ const asGithubInstallation = (
     return installation;
 };
 
-// The PR is always opened, and commits signed, as the Lightdash GitHub App
-// installation — never a user OAuth token (which belongs to whoever connected
-// the app, not whoever triggered the writeback).
+// Route every GitHub API call (branch, commit, PR) through the triggering
+// user's token when one was resolved — so the PR and its signed commits are
+// authored as that user — otherwise act as the Lightdash GitHub App bot.
 const githubAuth = (
     installation: GithubInstallation,
-): { installationId: string } => ({
-    installationId: installation.installationId,
-});
+): { installationId: string } | { token: string } =>
+    installation.userToken
+        ? { token: installation.userToken }
+        : { installationId: installation.installationId };
 
 type GithubProviderDeps = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    githubAppService: GithubAppService;
     logger: Logger;
 };
 
@@ -95,11 +99,57 @@ export class GithubProvider implements GitProvider {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly githubAppService: GithubAppService;
+
     private readonly logger: Logger;
 
-    constructor({ githubAppInstallationsModel, logger }: GithubProviderDeps) {
+    constructor({
+        githubAppInstallationsModel,
+        githubAppService,
+        logger,
+    }: GithubProviderDeps) {
         this.githubAppInstallationsModel = githubAppInstallationsModel;
+        this.githubAppService = githubAppService;
         this.logger = logger;
+    }
+
+    /**
+     * Resolve the triggering user's user-to-server token when they have linked
+     * their GitHub account (feature-flagged in getValidUserToken) and it can
+     * reach the target repo. Returns null to fall back to bot auth — never
+     * throws, so a missing/revoked link silently degrades to today's behaviour.
+     */
+    private async resolveUserToken(
+        user: SessionUser | undefined,
+        connection: GitConnection | undefined,
+    ): Promise<string | null> {
+        if (!user?.organizationUuid || !connection) {
+            return null;
+        }
+        const github = asGithubConnection(connection);
+        try {
+            const userToken = await this.githubAppService.getValidUserToken(
+                user.userUuid,
+                user.organizationUuid,
+            );
+            if (
+                userToken &&
+                (await userTokenHasRepoAccess(
+                    userToken,
+                    github.owner,
+                    github.repo,
+                ))
+            ) {
+                return userToken;
+            }
+        } catch (error) {
+            this.logger.warn(
+                `AiWriteback: could not resolve a linked GitHub user token; falling back to the app bot. ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+        return null;
     }
 
     resolveConnection(dbtConnection: DbtProjectConfig): GitConnection {
@@ -111,24 +161,28 @@ export class GithubProvider implements GitProvider {
         installation: GitInstallation,
     ): CloneTarget {
         // buildCloneTarget emits the `x-access-token` username GitHub expects.
+        // Clone read-only with the user's token when acting as them, else the
+        // installation token.
+        const github = asGithubInstallation(installation);
         return buildCloneTarget(
             asGithubConnection(connection),
-            asGithubInstallation(installation).token,
+            github.userToken ?? github.token,
         );
     }
 
     /**
-     * Resolve GitHub auth for the organization. The installation access token
-     * authenticates the in-sandbox clone, and the pull request is opened — and
-     * the signed commits authored — as the Lightdash GitHub App itself. We
-     * deliberately do not attribute the PR to a GitHub user: the only user token
-     * we hold belongs to whoever connected the app for the org, which is almost
-     * never the person who triggered the writeback (e.g. via Slack). The
-     * triggering user is credited as a commit co-author instead. Throws only
-     * when no installation exists at all.
+     * Resolve GitHub auth for the run. A GitHub App installation must exist —
+     * the installation access token authenticates the (read-only) in-sandbox
+     * clone and is the fallback identity. When `options.user` has linked their
+     * personal GitHub account (feature-flagged) and it can reach the repo, a
+     * user-to-server token is also resolved: the PR is then opened — and its
+     * commits signed — as that user. Otherwise commits/PR are authored as the
+     * Lightdash GitHub App and the triggering user is credited as a commit
+     * co-author. Throws only when no installation exists at all.
      */
     async resolveInstallation(
         organizationUuid: string,
+        options?: { user?: SessionUser; connection?: GitConnection },
     ): Promise<GitInstallation> {
         const installationId =
             await this.githubAppInstallationsModel.findInstallationId(
@@ -141,6 +195,11 @@ export class GithubProvider implements GitProvider {
             );
         }
         const token = await getInstallationToken(installationId);
+
+        const userToken = await this.resolveUserToken(
+            options?.user,
+            options?.connection,
+        );
 
         const commitAuthor: GitCommitAuthor = {
             name: COMMIT_AUTHOR_NAME,
@@ -163,6 +222,7 @@ export class GithubProvider implements GitProvider {
             provider: PullRequestProvider.GITHUB,
             installationId,
             token,
+            userToken,
             commitAuthor,
             coAuthorTrailer,
         };
@@ -355,13 +415,21 @@ export class GithubProvider implements GitProvider {
         await commitLocal(sandbox, title, installation.commitAuthor);
 
         setStage('push');
-        const userTrailer = buildUserCoAuthorTrailer(user);
-        const coAuthorTrailer = userTrailer
-            ? `${installation.coAuthorTrailer}\n${userTrailer}`
-            : installation.coAuthorTrailer;
-        const body = description
-            ? `${description}\n\n${coAuthorTrailer}`
-            : coAuthorTrailer;
+        // When acting as the user (their token signs the commit), the commit is
+        // already authored by them — no co-author trailer. Otherwise the commit
+        // is the app bot's, so credit both the bot and the triggering user.
+        let body: string;
+        if (installation.userToken) {
+            body = description;
+        } else {
+            const userTrailer = buildUserCoAuthorTrailer(user);
+            const coAuthorTrailer = userTrailer
+                ? `${installation.coAuthorTrailer}\n${userTrailer}`
+                : installation.coAuthorTrailer;
+            body = description
+                ? `${description}\n\n${coAuthorTrailer}`
+                : coAuthorTrailer;
+        }
         await createSignedCommitOnBranch({
             owner: connection.owner,
             repo: connection.repo,

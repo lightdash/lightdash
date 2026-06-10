@@ -1,0 +1,26 @@
+.table {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-sm);
+    overflow: hidden;
+}
+
+.row {
+    width: 100%;
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    text-decoration: none;
+    transition: background-color 100ms ease;
+}
+
+.row:not(:last-of-type) {
+    border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.row:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+/* Name grows to push the state label + external-link affordance to the right. */
+.name {
+    flex: 1;
+    min-width: 0;
+}

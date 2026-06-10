@@ -30,6 +30,7 @@ import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
 import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
+import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
@@ -109,6 +110,7 @@ type AiWritebackServiceDeps = {
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    githubAppService: GithubAppService;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
     pullRequestsModel: PullRequestsModel;
@@ -140,6 +142,7 @@ export class AiWritebackService extends BaseService {
         projectModel,
         featureFlagModel,
         githubAppInstallationsModel,
+        githubAppService,
         gitlabAppInstallationsModel,
         aiWritebackThreadModel,
         pullRequestsModel,
@@ -155,6 +158,7 @@ export class AiWritebackService extends BaseService {
         this.prometheusMetrics = prometheusMetrics;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
+            githubAppService,
             logger: this.logger,
         });
         this.gitlabProvider = new GitlabProvider({
@@ -546,6 +550,7 @@ export class AiWritebackService extends BaseService {
         try {
             const installation = await turn.provider.resolveInstallation(
                 turn.organizationUuid,
+                { user, connection: turn.gitConnection },
             );
 
             const adoptedPr =

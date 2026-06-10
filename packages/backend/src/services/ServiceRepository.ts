@@ -2,6 +2,11 @@ import { BulkActionable, MissingConfigError } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
+import {
+    getInstallationToken,
+    getPullRequest,
+    listCheckRunsForRef,
+} from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
@@ -14,6 +19,7 @@ import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { ChangesetService } from './ChangesetService';
+import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
@@ -83,6 +89,7 @@ interface ServiceManifest {
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
     gitIntegrationService: GitIntegrationService;
+    ciService: CiService;
     pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
@@ -432,8 +439,26 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    githubAppService: this.getGithubAppService(),
                     pullRequestsModel: this.models.getPullRequestsModel(),
                     analytics: this.context.lightdashAnalytics,
+                }),
+        );
+    }
+
+    public getCiService(): CiService {
+        return this.getService(
+            'ciService',
+            () =>
+                new CiService({
+                    projectModel: this.models.getProjectModel(),
+                    githubAppInstallationsModel:
+                        this.models.getGithubAppInstallationsModel(),
+                    githubClient: {
+                        getInstallationToken,
+                        getPullRequest,
+                        listCheckRunsForRef,
+                    },
                 }),
         );
     }
@@ -458,9 +483,12 @@ export class ServiceRepository
                 new GithubAppService({
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    gitUserCredentialsModel:
+                        this.models.getGitUserCredentialsModel(),
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }

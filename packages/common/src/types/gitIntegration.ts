@@ -90,6 +90,20 @@ export type PullRequestWithStatus = PullRequest & {
     state: PullRequestState | null;
 };
 
+/**
+ * A user's personally linked GitHub account. When present, write-backs are
+ * authored as this user instead of the Lightdash GitHub App bot.
+ */
+export type GithubUserCredential = {
+    githubLogin: string;
+    createdAt: Date;
+};
+
+export type ApiGithubUserCredentialResponse = {
+    status: 'ok';
+    results: GithubUserCredential | null;
+};
+
 export type ApiGitFileContent = {
     content: string;
     sha: string;

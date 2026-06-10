@@ -13,6 +13,9 @@ const mockGetPullRequest = getPullRequest as jest.MockedFunction<
 
 const provider = new GithubProvider({
     githubAppInstallationsModel: {} as never,
+    githubAppService: {
+        getValidUserToken: jest.fn().mockResolvedValue(undefined),
+    } as never,
     logger: { info: jest.fn(), warn: jest.fn() } as never,
 });
 
@@ -28,6 +31,7 @@ const installation: GithubInstallation = {
     provider: PullRequestProvider.GITHUB,
     installationId: 'inst-1',
     token: 'tok',
+    userToken: null,
     commitAuthor: { name: 'a', email: 'a@b.c' },
     coAuthorTrailer: '',
 };
@@ -37,6 +41,9 @@ const openPr = {
     merged: false,
     headRef: 'feature/x',
     headRepoFullName: 'acme/analytics',
+    mergeable: true,
+    mergeableState: 'clean',
+    draft: false,
 };
 
 const adopt = (prUrl: string) =>

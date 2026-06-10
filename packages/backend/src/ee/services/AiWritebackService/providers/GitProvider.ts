@@ -45,7 +45,17 @@ export interface GitProvider {
     readonly provider: PullRequestProvider;
 
     resolveConnection(dbtConnection: DbtProjectConfig): GitConnection;
-    resolveInstallation(organizationUuid: string): Promise<GitInstallation>;
+    /**
+     * Resolve auth for the run's git host. When `options.user` and
+     * `options.connection` are supplied and the user has linked their personal
+     * account (feature-flagged) with access to the repo, the installation is
+     * resolved to act as that user; otherwise it acts as the app/bot. Callers
+     * that only read (e.g. repoShell) may omit the options for bot auth.
+     */
+    resolveInstallation(
+        organizationUuid: string,
+        options?: { user?: SessionUser; connection?: GitConnection },
+    ): Promise<GitInstallation>;
     getCloneTarget(
         connection: GitConnection,
         installation: GitInstallation,

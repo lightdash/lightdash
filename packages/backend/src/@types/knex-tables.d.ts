@@ -95,6 +95,10 @@ import {
     GitlabAppInstallationTableName,
 } from '../database/entities/gitlabAppInstallation';
 import {
+    GitUserCredentialsTable,
+    GitUserCredentialsTableName,
+} from '../database/entities/gitUserCredentials';
+import {
     GroupMembershipTable,
     GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
@@ -529,6 +533,7 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;

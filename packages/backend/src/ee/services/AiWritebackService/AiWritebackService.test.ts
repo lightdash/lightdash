@@ -58,6 +58,9 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         projectModel: { get: jest.fn() } as AnyType,
         featureFlagModel: { get: jest.fn() } as AnyType,
         githubAppInstallationsModel: {} as AnyType,
+        githubAppService: {
+            getValidUserToken: jest.fn().mockResolvedValue(undefined),
+        } as AnyType,
         gitlabAppInstallationsModel: {} as AnyType,
         aiWritebackThreadModel: { findByAiThreadUuid: jest.fn() } as AnyType,
         pullRequestsModel: {} as AnyType,
