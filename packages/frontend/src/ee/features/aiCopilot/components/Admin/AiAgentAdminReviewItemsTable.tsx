@@ -79,12 +79,9 @@ import { EXAMPLE_REVIEW_ITEMS, isExampleReviewItem } from './onboarding';
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
 import { SearchFilter } from './SearchFilter';
 
-const ALL_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
+const ACTIVE_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
     'open',
     'in_progress',
-    'resolved',
-    'dismissed',
-    'duplicate',
 ];
 
 const rootCauseLabels: Record<AiAgentRootCause, string> = {
@@ -819,7 +816,7 @@ const AiAgentAdminReviewItemsTable = ({
         showOnboardingExamples,
     );
     const { data: reviewItems = [], isLoading } = useAiAgentAdminReviewItems(
-        { statuses: ALL_REVIEW_ITEM_STATUSES },
+        { statuses: ACTIVE_REVIEW_ITEM_STATUSES },
         { select: selectReviewItems },
     );
     const { data: reviewSignals = [], isLoading: isSignalsLoading } =
