@@ -1,11 +1,13 @@
 import {
+    assertUnreachable,
     type ResultRow,
     type ResultValue,
     type SankeyNodeLayout,
 } from '@lightdash/common';
 
 export type SankeySeriesDataPoint = {
-    nodes: { name: string }[];
+    /** `name` is the unique node id (links reference it); `label` is what's shown */
+    nodes: { name: string; label: string }[];
     links: {
         source: string;
         target: string;
@@ -146,14 +148,44 @@ const buildMergedSankey = (
     }
 
     return {
-        nodes: Array.from(names).map((name) => ({ name })),
+        nodes: Array.from(names).map((name) => ({ name, label: name })),
         links,
         maxDepth,
     };
 };
 
+// Direct flows only: a strict two-column source→target view. Source and target
+// identities are kept separate so ECharts never chains them into extra steps,
+// which also means cyclic data renders fine (the bipartite output is acyclic).
+const buildDirectSankey = (
+    aggregated: Map<string, AggregatedLink>,
+): SankeyBuild => {
+    const nodes = new Map<string, string>(); // node id -> label
+    const links: SankeyBuild['links'] = [];
+
+    for (const link of aggregated.values()) {
+        const sourceId = `source:${link.source}`;
+        const targetId = `target:${link.target}`;
+        nodes.set(sourceId, link.source);
+        nodes.set(targetId, link.target);
+        links.push({
+            source: sourceId,
+            target: targetId,
+            value: link.value,
+            meta: link.meta,
+        });
+    }
+
+    return {
+        nodes: Array.from(nodes, ([name, label]) => ({ name, label })),
+        links,
+        maxDepth: 1,
+    };
+};
+
 // Unroll into depth layers via BFS so cyclic flows can render as a DAG: a label
-// seen at multiple depths splits into "Label - Step N" nodes.
+// seen at multiple depths splits into "Label - Step N" nodes (the node id),
+// while its label stays the base name.
 const buildSteppedSankey = (
     aggregated: Map<string, AggregatedLink>,
 ): SankeyBuild => {
@@ -222,21 +254,21 @@ const buildSteppedSankey = (
     for (const [name, depths] of nodeDepthMap) {
         if (depths.size > 1) multiDepthNodes.add(name);
     }
-    const getLabel = (name: string, depth: number) =>
+    const getNodeId = (name: string, depth: number) =>
         multiDepthNodes.has(name) ? `${name} - Step ${depth}` : name;
 
-    const nodeSet = new Set<string>();
+    const nodes = new Map<string, string>(); // node id -> label
     const links: SankeyBuild['links'] = [];
     const placedLinks = new Set<string>();
 
     for (const edge of edgeInstances) {
-        const sourceLabel = getLabel(edge.source, edge.sourceDepth);
-        const targetLabel = getLabel(edge.target, edge.targetDepth);
+        const sourceId = getNodeId(edge.source, edge.sourceDepth);
+        const targetId = getNodeId(edge.target, edge.targetDepth);
 
-        nodeSet.add(sourceLabel);
-        nodeSet.add(targetLabel);
+        nodes.set(sourceId, edge.source);
+        nodes.set(targetId, edge.target);
 
-        const key = linkKey(sourceLabel, targetLabel);
+        const key = linkKey(sourceId, targetId);
         if (placedLinks.has(key)) continue;
         placedLinks.add(key);
 
@@ -244,15 +276,15 @@ const buildSteppedSankey = (
         if (!aggLink) continue;
 
         links.push({
-            source: sourceLabel,
-            target: targetLabel,
+            source: sourceId,
+            target: targetId,
             value: aggLink.value,
             meta: aggLink.meta,
         });
     }
 
     return {
-        nodes: Array.from(nodeSet).map((name) => ({ name })),
+        nodes: Array.from(nodes, ([name, label]) => ({ name, label })),
         links,
         maxDepth,
     };
@@ -260,6 +292,7 @@ const buildSteppedSankey = (
 
 /**
  * Build Sankey nodes & links according to the chosen layout:
+ * - `direct`: two-column source→target pairs (no chaining)
  * - `merged`: one node per label (acyclic only; falls back to multi-step)
  * - `multi-step`: depth-unrolled journeys with "Step N" instances
  */
@@ -273,10 +306,26 @@ export const transformSankeyData = (
 
     const { hasCycle, maxDepth } = analyzeFlowGraph(aggregated);
 
-    const build: SankeyBuild =
-        nodeLayout === 'merged' && !hasCycle
-            ? buildMergedSankey(aggregated, maxDepth)
-            : buildSteppedSankey(aggregated);
+    let build: SankeyBuild;
+    switch (nodeLayout) {
+        case 'direct':
+            build = buildDirectSankey(aggregated);
+            break;
+        case 'merged':
+            // merging needs a DAG, so cyclic data falls back to multi-step
+            build = hasCycle
+                ? buildSteppedSankey(aggregated)
+                : buildMergedSankey(aggregated, maxDepth);
+            break;
+        case 'multi-step':
+            build = buildSteppedSankey(aggregated);
+            break;
+        default:
+            return assertUnreachable(
+                nodeLayout,
+                `Unknown sankey node layout: ${nodeLayout}`,
+            );
+    }
 
     return { ...build, hasCycle };
 };
