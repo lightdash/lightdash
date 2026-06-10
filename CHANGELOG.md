@@ -1,3 +1,16 @@
+# [0.3130.0](https://github.com/lightdash/lightdash/compare/0.3129.1...0.3130.0) (2026-06-10)
+
+
+### Bug Fixes
+
+* **ai-review:** compute writeback staleness in SQL to avoid timezone skew ([#24143](https://github.com/lightdash/lightdash/issues/24143)) ([dc7e7c9](https://github.com/lightdash/lightdash/commit/dc7e7c980d2da88936089b424dd0b6af547fd988))
+* use bedrock for data app questions when configured ([#24135](https://github.com/lightdash/lightdash/issues/24135)) ([eb9e5ad](https://github.com/lightdash/lightdash/commit/eb9e5ad02781c0bbbbb4170ad07375397f978858))
+
+
+### Features
+
+* **ai-agents:** surface review findings on AI threads ([#24121](https://github.com/lightdash/lightdash/issues/24121)) ([6caddeb](https://github.com/lightdash/lightdash/commit/6caddebcc041f6449762e07b7a643e70e4a24083))
+
 ## [0.3129.1](https://github.com/lightdash/lightdash/compare/0.3129.0...0.3129.1) (2026-06-10)
 
 
