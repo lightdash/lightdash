@@ -6,6 +6,7 @@ import {
     QueryHistoryStatus,
 } from '@lightdash/common';
 import * as runQueryTool from '../ai/tools/runQuery';
+import type { ExtraContext } from './McpService';
 import { McpService, McpToolName } from './McpService';
 
 type RegisteredToolCallback = (
@@ -82,6 +83,29 @@ const user = {
         relevantRuleFor: jest.fn(() => undefined),
         rules: [],
     },
+};
+
+type TestCaslSubject = string | { __caslSubjectType__?: string };
+
+const getTestCaslSubjectName = (subject: TestCaslSubject) =>
+    typeof subject === 'string' ? subject : subject.__caslSubjectType__;
+
+const makeUserWithoutSubjectAccess = (subjectName: string) => {
+    const can = jest.fn(
+        (_action: string, subject: TestCaslSubject) =>
+            getTestCaslSubjectName(subject) !== subjectName,
+    );
+    return {
+        ...user,
+        ability: {
+            ...user.ability,
+            can,
+            cannot: jest.fn(
+                (action: string, subject: TestCaslSubject) =>
+                    !can(action, subject),
+            ),
+        },
+    };
 };
 
 const makeExplore = ({
@@ -494,6 +518,97 @@ describe('MCP async query polling', () => {
 
     afterEach(() => {
         jest.restoreAllMocks();
+    });
+
+    it('hides content tools when auth context is required but unavailable', async () => {
+        const { service } = makeMcpService();
+
+        mockRegisteredMcpTools.clear();
+        await service.createServer({
+            aiWritebackEnabled: false,
+            projectPinned: false,
+            contentToolsRequireAuthContext: true,
+        });
+
+        expect(
+            mockRegisteredMcpTools.has(McpToolName.GET_LIGHTDASH_VERSION),
+        ).toBe(true);
+        expect(mockRegisteredMcpTools.has(McpToolName.LIST_EXPLORES)).toBe(
+            true,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.FIND_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.LIST_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.READ_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.CREATE_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.EDIT_CONTENT)).toBe(
+            false,
+        );
+    });
+
+    it('hides content-as-code tools when the user cannot access content as code', async () => {
+        const restrictedUser = makeUserWithoutSubjectAccess('ContentAsCode');
+        const { service } = makeMcpService();
+
+        mockRegisteredMcpTools.clear();
+        await service.createServer({
+            aiWritebackEnabled: false,
+            projectPinned: false,
+            extraContext: {
+                user: restrictedUser,
+                account,
+            } as unknown as ExtraContext,
+        });
+
+        expect(mockRegisteredMcpTools.has(McpToolName.FIND_CONTENT)).toBe(true);
+        expect(mockRegisteredMcpTools.has(McpToolName.LIST_CONTENT)).toBe(true);
+        expect(mockRegisteredMcpTools.has(McpToolName.READ_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.CREATE_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.EDIT_CONTENT)).toBe(
+            false,
+        );
+    });
+
+    it('hides project-scoped content tools when the user cannot access the project', async () => {
+        const restrictedUser = makeUserWithoutSubjectAccess('Project');
+        const { service } = makeMcpService();
+
+        mockRegisteredMcpTools.clear();
+        await service.createServer({
+            aiWritebackEnabled: false,
+            projectPinned: false,
+            extraContext: {
+                user: restrictedUser,
+                account,
+            } as unknown as ExtraContext,
+        });
+
+        expect(mockRegisteredMcpTools.has(McpToolName.FIND_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.LIST_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.READ_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.CREATE_CONTENT)).toBe(
+            false,
+        );
+        expect(mockRegisteredMcpTools.has(McpToolName.EDIT_CONTENT)).toBe(
+            false,
+        );
     });
 
     it('returns running with heartbeatAt from run_sql', async () => {

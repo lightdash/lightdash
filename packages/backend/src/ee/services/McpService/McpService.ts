@@ -233,6 +233,18 @@ type McpEffectiveScope = {
     agentName: string | null;
 };
 
+type McpContentToolAccess = {
+    canViewProject: boolean;
+    canViewContentAsCode: boolean;
+    canManageContentAsCode: boolean;
+};
+
+const NO_MCP_CONTENT_TOOL_ACCESS: McpContentToolAccess = {
+    canViewProject: false,
+    canViewContentAsCode: false,
+    canManageContentAsCode: false,
+};
+
 // Narrows the SDK's loosely-typed `RequestHandlerExtra` into the shape the
 // McpService methods expect. The MCP router (mcpRouter.ts) populates
 // `authInfo.extra` with ExtraContext before the SDK invokes any tool
@@ -1085,11 +1097,22 @@ export class McpService extends BaseService {
     }
 
     setupHandlers(
-        options: { projectPinned: boolean; aiWritebackEnabled: boolean } = {
+        options: {
+            projectPinned: boolean;
+            aiWritebackEnabled: boolean;
+            contentToolAccess?: McpContentToolAccess;
+        } = {
             projectPinned: false,
             aiWritebackEnabled: false,
         },
     ): void {
+        const canViewProject =
+            options.contentToolAccess?.canViewProject ?? true;
+        const canViewContentAsCode =
+            options.contentToolAccess?.canViewContentAsCode ?? true;
+        const canManageContentAsCode =
+            options.contentToolAccess?.canManageContentAsCode ?? true;
+
         this.mcpServer.registerTool(
             mcpGetLightdashVersionTool.name,
             {
@@ -1263,211 +1286,245 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
-            mcpFindContentTool.name,
-            {
-                title: mcpFindContentTool.title,
-                description: mcpFindContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpFindContentTool.inputSchema,
-                ),
-                annotations: mcpFindContentTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
+        if (canViewProject) {
+            this.mcpServer.registerTool(
+                mcpFindContentTool.name,
+                {
+                    title: mcpFindContentTool.title,
+                    description: mcpFindContentTool.description,
+                    inputSchema: this.getMcpCompatibleSchema(
+                        mcpFindContentTool.inputSchema,
+                    ),
+                    annotations: mcpFindContentTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
 
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+                    const argsWithProject = { ...args, projectUuid };
 
-                this.trackToolCall(ctx, McpToolName.FIND_CONTENT, projectUuid);
+                    this.trackToolCall(
+                        ctx,
+                        McpToolName.FIND_CONTENT,
+                        projectUuid,
+                    );
 
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                    );
 
-                const findContentTool = getFindContent({
-                    findContent: toolsRuntime.findContent,
-                    siteUrl: this.lightdashConfig.siteUrl,
-                    trackCoverage: () => {},
-                });
-                const result = await findContentTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                    const findContentTool = getFindContent({
+                        findContent: toolsRuntime.findContent,
+                        siteUrl: this.lightdashConfig.siteUrl,
+                        trackCoverage: () => {},
+                    });
+                    const result = await findContentTool.execute!(
+                        argsWithProject,
+                        {
+                            toolCallId: '',
+                            messages: [],
+                        },
+                    );
 
-                return this.buildScopedResponse(
-                    ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
-                    projectUuid,
-                );
-            },
-        );
+                    return this.buildScopedResponse(
+                        ctx,
+                        await McpService.streamToolResult(result),
+                        undefined,
+                        projectUuid,
+                    );
+                },
+            );
 
-        this.mcpServer.registerTool(
-            mcpListContentTool.name,
-            {
-                title: mcpListContentTool.title,
-                description: mcpListContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpListContentTool.inputSchema,
-                ),
-                annotations: mcpListContentTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
+            this.mcpServer.registerTool(
+                mcpListContentTool.name,
+                {
+                    title: mcpListContentTool.title,
+                    description: mcpListContentTool.description,
+                    inputSchema: this.getMcpCompatibleSchema(
+                        mcpListContentTool.inputSchema,
+                    ),
+                    annotations: mcpListContentTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
 
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+                    const argsWithProject = { ...args, projectUuid };
 
-                this.trackToolCall(ctx, McpToolName.LIST_CONTENT, projectUuid);
+                    this.trackToolCall(
+                        ctx,
+                        McpToolName.LIST_CONTENT,
+                        projectUuid,
+                    );
 
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                    );
 
-                const listContentTool = getListContent({
-                    listContent: toolsRuntime.listContent,
-                });
-                const result = await listContentTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                    const listContentTool = getListContent({
+                        listContent: toolsRuntime.listContent,
+                    });
+                    const result = await listContentTool.execute!(
+                        argsWithProject,
+                        {
+                            toolCallId: '',
+                            messages: [],
+                        },
+                    );
 
-                return this.buildScopedResponse(
-                    ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
-                    projectUuid,
-                );
-            },
-        );
+                    return this.buildScopedResponse(
+                        ctx,
+                        await McpService.streamToolResult(result),
+                        undefined,
+                        projectUuid,
+                    );
+                },
+            );
+        }
 
-        this.mcpServer.registerTool(
-            mcpReadContentTool.name,
-            {
-                title: mcpReadContentTool.title,
-                description: mcpReadContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpReadContentTool.inputSchema,
-                ),
-                annotations: mcpReadContentTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
+        if (canViewProject && canViewContentAsCode) {
+            this.mcpServer.registerTool(
+                mcpReadContentTool.name,
+                {
+                    title: mcpReadContentTool.title,
+                    description: mcpReadContentTool.description,
+                    inputSchema: this.getMcpCompatibleSchema(
+                        mcpReadContentTool.inputSchema,
+                    ),
+                    annotations: mcpReadContentTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+                    const argsWithProject = { ...args, projectUuid };
 
-                this.trackToolCall(ctx, McpToolName.READ_CONTENT, projectUuid);
+                    this.trackToolCall(
+                        ctx,
+                        McpToolName.READ_CONTENT,
+                        projectUuid,
+                    );
 
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                    );
 
-                const readContentTool = getReadContent({
-                    readContent: toolsRuntime.readContent,
-                });
-                const result = await readContentTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                    const readContentTool = getReadContent({
+                        readContent: toolsRuntime.readContent,
+                    });
+                    const result = await readContentTool.execute!(
+                        argsWithProject,
+                        {
+                            toolCallId: '',
+                            messages: [],
+                        },
+                    );
 
-                return this.buildScopedResponse(
-                    ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
-                    projectUuid,
-                );
-            },
-        );
+                    return this.buildScopedResponse(
+                        ctx,
+                        await McpService.streamToolResult(result),
+                        undefined,
+                        projectUuid,
+                    );
+                },
+            );
+        }
 
-        this.mcpServer.registerTool(
-            mcpCreateContentTool.name,
-            {
-                title: mcpCreateContentTool.title,
-                description: mcpCreateContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpCreateContentTool.inputSchema,
-                ),
-                annotations: mcpCreateContentTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
+        if (canViewProject && canManageContentAsCode) {
+            this.mcpServer.registerTool(
+                mcpCreateContentTool.name,
+                {
+                    title: mcpCreateContentTool.title,
+                    description: mcpCreateContentTool.description,
+                    inputSchema: this.getMcpCompatibleSchema(
+                        mcpCreateContentTool.inputSchema,
+                    ),
+                    annotations: mcpCreateContentTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+                    const argsWithProject = { ...args, projectUuid };
 
-                this.trackToolCall(
-                    ctx,
-                    McpToolName.CREATE_CONTENT,
-                    projectUuid,
-                );
+                    this.trackToolCall(
+                        ctx,
+                        McpToolName.CREATE_CONTENT,
+                        projectUuid,
+                    );
 
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                    );
 
-                const createContentTool = getCreateContent({
-                    createContent: toolsRuntime.createContent,
-                });
-                const result = await createContentTool.execute!(
-                    argsWithProject,
-                    {
-                        toolCallId: '',
-                        messages: [],
-                    },
-                );
+                    const createContentTool = getCreateContent({
+                        createContent: toolsRuntime.createContent,
+                    });
+                    const result = await createContentTool.execute!(
+                        argsWithProject,
+                        {
+                            toolCallId: '',
+                            messages: [],
+                        },
+                    );
 
-                return this.buildScopedResponse(
-                    ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
-                    projectUuid,
-                );
-            },
-        );
+                    return this.buildScopedResponse(
+                        ctx,
+                        await McpService.streamToolResult(result),
+                        undefined,
+                        projectUuid,
+                    );
+                },
+            );
 
-        this.mcpServer.registerTool(
-            mcpEditContentTool.name,
-            {
-                title: mcpEditContentTool.title,
-                description: mcpEditContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpEditContentTool.inputSchema,
-                ),
-                annotations: mcpEditContentTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
+            this.mcpServer.registerTool(
+                mcpEditContentTool.name,
+                {
+                    title: mcpEditContentTool.title,
+                    description: mcpEditContentTool.description,
+                    inputSchema: this.getMcpCompatibleSchema(
+                        mcpEditContentTool.inputSchema,
+                    ),
+                    annotations: mcpEditContentTool.annotations,
+                },
+                async (args, extra) => {
+                    const ctx = getMcpContext(extra);
+                    const projectUuid = await this.resolveProjectUuid(ctx);
+                    const argsWithProject = { ...args, projectUuid };
 
-                this.trackToolCall(ctx, McpToolName.EDIT_CONTENT, projectUuid);
+                    this.trackToolCall(
+                        ctx,
+                        McpToolName.EDIT_CONTENT,
+                        projectUuid,
+                    );
 
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
+                    const toolsRuntime = await this.getToolsRuntime(
+                        ctx,
+                        projectUuid,
+                    );
 
-                const editContentTool = getEditContent({
-                    editContent: toolsRuntime.editContent,
-                });
-                const result = await editContentTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
+                    const editContentTool = getEditContent({
+                        editContent: toolsRuntime.editContent,
+                    });
+                    const result = await editContentTool.execute!(
+                        argsWithProject,
+                        {
+                            toolCallId: '',
+                            messages: [],
+                        },
+                    );
 
-                return this.buildScopedResponse(
-                    ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
-                    projectUuid,
-                );
-            },
-        );
+                    return this.buildScopedResponse(
+                        ctx,
+                        await McpService.streamToolResult(result),
+                        undefined,
+                        projectUuid,
+                    );
+                },
+            );
+        }
 
         // When the project is pinned via header, hide the project-selection
         // tools so clients can't change context for a request-scoped pin.
@@ -2844,6 +2901,60 @@ export class McpService extends BaseService {
         return this.mcpServer;
     }
 
+    private async getContentToolAccess(
+        extraContext: ExtraContext,
+    ): Promise<McpContentToolAccess | undefined> {
+        const context = mcpProtocolContextSchema.parse({
+            authInfo: { extra: extraContext },
+        });
+        const projectUuid = await this.getProjectUuidFromContext(context);
+        if (!projectUuid) {
+            return NO_MCP_CONTENT_TOOL_ACCESS;
+        }
+
+        const { user, account } = McpService.getAccount(context);
+        let project: Awaited<ReturnType<ProjectService['getProject']>>;
+        try {
+            project = await this.projectService.getProject(
+                projectUuid,
+                account,
+            );
+        } catch (error) {
+            if (
+                error instanceof ForbiddenError ||
+                error instanceof NotFoundError
+            ) {
+                return NO_MCP_CONTENT_TOOL_ACCESS;
+            }
+            throw error;
+        }
+        const auditedAbility = this.createAuditedAbility(user);
+        const contentAsCodeSubject = subject('ContentAsCode', {
+            projectUuid,
+            organizationUuid: project.organizationUuid,
+            type: project.type,
+            createdByUserUuid: project.createdByUserUuid,
+        });
+
+        return {
+            canViewProject: auditedAbility.can(
+                'view',
+                subject('Project', {
+                    projectUuid,
+                    organizationUuid: project.organizationUuid,
+                }),
+            ),
+            canViewContentAsCode: auditedAbility.can(
+                'view',
+                contentAsCodeSubject,
+            ),
+            canManageContentAsCode: auditedAbility.can(
+                'manage',
+                contentAsCodeSubject,
+            ),
+        };
+    }
+
     /**
      * Creates a new McpServer instance with all handlers registered.
      * Required for SDK 1.26.0+ stateful mode where each session needs its own server.
@@ -2852,7 +2963,18 @@ export class McpService extends BaseService {
     public async createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
+        extraContext?: ExtraContext;
+        contentToolsRequireAuthContext?: boolean;
     }): Promise<McpServer> {
+        let contentToolAccess: McpContentToolAccess | undefined;
+        if (options?.extraContext) {
+            contentToolAccess = await this.getContentToolAccess(
+                options.extraContext,
+            );
+        } else if (options?.contentToolsRequireAuthContext) {
+            contentToolAccess = NO_MCP_CONTENT_TOOL_ACCESS;
+        }
+
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
                 name: 'Lightdash MCP Server',
@@ -2885,6 +3007,7 @@ export class McpService extends BaseService {
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
+            contentToolAccess,
         });
         this.mcpServer = originalServer;
 
