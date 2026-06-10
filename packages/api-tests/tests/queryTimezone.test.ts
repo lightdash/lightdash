@@ -2,6 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient } from '../helpers/api-client';
 import { login } from '../helpers/auth';
 import {
+    bigqueryWarehouseConfig,
+    createAndRefreshProject,
+    deleteProjectsByName,
+    hasBigqueryCredentials,
+} from '../helpers/projects';
+import {
     getRowCount,
     getTotalCount,
     runTimezoneTestQuery,
@@ -439,3 +445,104 @@ describe('Query timezone (timezone-aware DATE_TRUNC)', () => {
         await updateDataTimezone(admin, undefined);
     });
 });
+
+// Warehouse-parity check: the fractional-offset DATE_TRUNC has to be emitted in
+// each dialect's SQL, so re-run the discriminating sub-day assertions against a
+// real BigQuery project. The staging dataset holds the same timezone_test rows
+// as the Postgres seed, so the expected counts are identical.
+describe.skipIf(!hasBigqueryCredentials())(
+    'Query timezone — BigQuery fractional offsets',
+    () => {
+        const projectName = 'bigQuery timezone fractional test';
+        // Cold BigQuery queries can exceed the default 15s poll window.
+        const BIGQUERY_MAX_ATTEMPTS = 120;
+        let bqAdmin: ApiClient;
+        let bigqueryProjectUuid: string;
+
+        beforeAll(async () => {
+            bqAdmin = await login();
+            // Clean up any project leaked by a previously interrupted run
+            // before creating a fresh one (names are not unique).
+            await deleteProjectsByName(bqAdmin, [projectName]);
+            bigqueryProjectUuid = await createAndRefreshProject(
+                bqAdmin,
+                projectName,
+                bigqueryWarehouseConfig(),
+            );
+        }, 180_000);
+
+        afterAll(async () => {
+            if (bqAdmin) {
+                await deleteProjectsByName(bqAdmin, [projectName]);
+            }
+        });
+
+        it('Asia/Kathmandu (+05:45): groups into 10 hourly buckets', async () => {
+            const rows = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Asia/Kathmandu',
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(rows).toHaveLength(10);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(10);
+        });
+
+        it('Asia/Kathmandu (+05:45): bucket aligns to :15, not :00 or :30', async () => {
+            const aligned = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Asia/Kathmandu',
+                filters: HOUR_EQUALS_FILTER('2024-01-15T07:15:00.000Z'),
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(getTotalCount(aligned, METRIC_KEY)).toBe(1);
+
+            const wholeHour = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Asia/Kathmandu',
+                filters: HOUR_EQUALS_FILTER('2024-01-15T07:30:00.000Z'),
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(getTotalCount(wholeHour, METRIC_KEY)).toBe(0);
+        });
+
+        it('Pacific/Marquesas (-09:30): groups into 10 hourly buckets', async () => {
+            const rows = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Pacific/Marquesas',
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(rows).toHaveLength(10);
+            expect(getTotalCount(rows, METRIC_KEY)).toBe(10);
+        });
+
+        it('Pacific/Marquesas (-09:30): bucket aligns to :30, not :00', async () => {
+            const aligned = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Pacific/Marquesas',
+                filters: HOUR_EQUALS_FILTER('2024-01-15T07:30:00.000Z'),
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(getTotalCount(aligned, METRIC_KEY)).toBe(1);
+
+            const wholeHour = await runTimezoneTestQuery(bqAdmin, {
+                dimensions: [HOUR_DIMENSION_KEY],
+                metrics: METRICS,
+                timezone: 'Pacific/Marquesas',
+                filters: HOUR_EQUALS_FILTER('2024-01-15T08:00:00.000Z'),
+                projectUuid: bigqueryProjectUuid,
+                maxAttempts: BIGQUERY_MAX_ATTEMPTS,
+            });
+            expect(getTotalCount(wholeHour, METRIC_KEY)).toBe(0);
+        });
+    },
+);
