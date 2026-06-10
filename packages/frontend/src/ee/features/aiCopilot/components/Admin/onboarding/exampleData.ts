@@ -40,6 +40,7 @@ const makeExampleReviewItem = (
         provider: null,
         strategy: null,
     },
+    remediation: null,
     createdAt: EXAMPLE_SEEN_AT,
     updatedAt: EXAMPLE_SEEN_AT,
     latestFinding: null,

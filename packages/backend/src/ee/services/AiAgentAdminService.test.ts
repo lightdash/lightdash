@@ -40,6 +40,7 @@ const makeReviewItem = (
         provider: null,
         strategy: null,
     },
+    remediation: null,
     latestFinding: null,
     ...overrides,
 });

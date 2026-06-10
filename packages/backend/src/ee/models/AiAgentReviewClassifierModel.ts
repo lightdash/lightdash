@@ -21,12 +21,15 @@ import type {
     AiAgentReviewItemSummary,
     AiAgentReviewItemWritebackEligibility,
     AiAgentReviewItemWritebackStatus,
+    AiAgentReviewRemediation,
+    AiAgentReviewRemediationStatus,
     AiAgentReviewSignalSummary,
     AiAgentRootCause,
     AiAgentTargetRef,
     AiAgentTurnSignal,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { PullRequestsTableName } from '../../database/entities/pullRequests';
 import { QueryHistoryTableName } from '../../database/entities/queryHistory';
 import {
     AiAgentToolCallTableName,
@@ -39,12 +42,15 @@ import {
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTableName,
+    AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
     type AiAgentReviewClassifierRunTable,
     type AiAgentReviewItemTable,
+    type AiAgentReviewRemediationTable,
     type AiAgentTurnSignalTable,
     type DbAiAgentReviewClassifierRun,
     type DbAiAgentReviewItem,
+    type DbAiAgentReviewRemediation,
     type DbAiAgentTurnSignal,
 } from '../database/entities/aiAgentReviewClassifier';
 
@@ -59,12 +65,49 @@ type ReviewItemAggregateRow = {
     finding_count: string | number;
 };
 
+type ReviewRemediationRow = DbAiAgentReviewRemediation & {
+    linked_pr_url: string | null;
+};
+
 const defaultWritebackEligibility: AiAgentReviewItemWritebackEligibility = {
     eligible: false,
     reason: 'reviews_disabled',
     provider: null,
     strategy: null,
 };
+
+const ACTIVE_REMEDIATION_STATUSES: AiAgentReviewRemediationStatus[] = [
+    'queued',
+    'running',
+    'pr_open',
+    'preview_ready',
+];
+
+const mapReviewRemediation = (
+    row: ReviewRemediationRow,
+): AiAgentReviewRemediation => ({
+    uuid: row.ai_agent_review_remediation_uuid,
+    fingerprint: row.fingerprint,
+    organizationUuid: row.organization_uuid,
+    sourceFindingUuid: row.source_ai_agent_review_turn_signal_uuid,
+    sourcePromptUuid: row.source_prompt_uuid,
+    sourceThreadUuid: row.source_thread_uuid,
+    sourceProjectUuid: row.source_project_uuid,
+    sourceAgentUuid: row.source_agent_uuid,
+    pullRequestUuid: row.pull_request_uuid,
+    linkedPrUrl: row.linked_pr_url,
+    previewProjectUuid: row.preview_project_uuid,
+    previewAgentUuid: row.preview_agent_uuid,
+    previewThreadUuid: row.preview_thread_uuid,
+    status: row.status,
+    errorMessage: row.error_message,
+    retryPrompt: row.retry_prompt,
+    createdByUserUuid: row.created_by_user_uuid,
+    resolvedByUserUuid: row.resolved_by_user_uuid,
+    resolvedAt: row.resolved_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+});
 
 type CreateRunArgs = {
     organizationUuid: string;
@@ -118,6 +161,40 @@ type UpsertReviewItemStateArgs = {
     status: AiAgentReviewItemStatus;
     dismissedReason: AiAgentReviewItemDismissedReason | null;
     statusUpdatedByUserUuid: string | null;
+};
+
+type CreateReviewRemediationArgs = {
+    fingerprint: string;
+    organizationUuid: string;
+    sourceFindingUuid: string;
+    sourcePromptUuid: string;
+    sourceThreadUuid: string;
+    sourceProjectUuid: string;
+    sourceAgentUuid: string;
+    retryPrompt: string | null;
+    createdByUserUuid: string | null;
+};
+
+type UpdateReviewRemediationStatusArgs = {
+    remediationUuid: string;
+    organizationUuid: string;
+    status: AiAgentReviewRemediationStatus;
+    errorMessage?: string | null;
+    resolvedByUserUuid?: string | null;
+};
+
+type SetReviewRemediationPullRequestArgs = {
+    remediationUuid: string;
+    organizationUuid: string;
+    pullRequestUuid: string;
+};
+
+type SetReviewRemediationPreviewThreadArgs = {
+    remediationUuid: string;
+    organizationUuid: string;
+    previewProjectUuid: string;
+    previewAgentUuid: string;
+    previewThreadUuid: string;
 };
 
 type ListReviewSignalsArgs = {
@@ -920,7 +997,13 @@ export class AiAgentReviewClassifierModel {
         const aggregateByFingerprint = new Map(
             aggregateRows.map((row) => [row.fingerprint, row]),
         );
-        const persisted = await this.getReviewItemsByFingerprint(fingerprints);
+        const [persisted, remediationByFingerprint] = await Promise.all([
+            this.getReviewItemsByFingerprint(fingerprints),
+            this.getLatestReviewRemediationsByFingerprint({
+                organizationUuid: args.organizationUuid,
+                fingerprints,
+            }),
+        ]);
 
         const reviewItems = fingerprints
             .map((fingerprint): AiAgentReviewItemSummary | null => {
@@ -932,6 +1015,8 @@ export class AiAgentReviewClassifierModel {
                 const firstSeenAt = new Date(aggregate.first_seen_at);
                 const lastSeenAt = new Date(aggregate.last_seen_at);
                 const item = persisted.get(fingerprint) ?? null;
+                const remediation =
+                    remediationByFingerprint.get(fingerprint) ?? null;
                 return {
                     uuid: fingerprint,
                     fingerprint,
@@ -958,6 +1043,7 @@ export class AiAgentReviewClassifierModel {
                     prWritebackMessage: item?.pr_writeback_message ?? null,
                     writebackEligible: false,
                     writebackEligibility: defaultWritebackEligibility,
+                    remediation,
                     createdAt: item?.created_at ?? firstSeenAt,
                     updatedAt: item?.updated_at ?? lastSeenAt,
                     latestFinding: {
@@ -995,6 +1081,127 @@ export class AiAgentReviewClassifierModel {
             AiAgentReviewItemTableName,
         ).whereIn('fingerprint', fingerprints);
         return new Map(items.map((item) => [item.fingerprint, item]));
+    }
+
+    async getLatestReviewRemediationsByFingerprint(args: {
+        organizationUuid: string;
+        fingerprints: string[];
+    }): Promise<Map<string, AiAgentReviewRemediation>> {
+        if (args.fingerprints.length === 0) {
+            return new Map();
+        }
+
+        const rows = (await this.database<AiAgentReviewRemediationTable>(
+            `${AiAgentReviewRemediationTableName} as remediation`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'remediation.pull_request_uuid',
+            )
+            .where('remediation.organization_uuid', args.organizationUuid)
+            .whereIn('remediation.fingerprint', args.fingerprints)
+            .select<ReviewRemediationRow[]>('remediation.*', {
+                linked_pr_url: 'pull_request.pr_url',
+            })
+            .orderBy('remediation.fingerprint')
+            .orderByRaw(
+                `CASE WHEN remediation.status IN (${ACTIVE_REMEDIATION_STATUSES.map(
+                    () => '?',
+                ).join(', ')}) THEN 0 ELSE 1 END`,
+                ACTIVE_REMEDIATION_STATUSES,
+            )
+            .orderBy(
+                'remediation.updated_at',
+                'desc',
+            )) as ReviewRemediationRow[];
+
+        const remediations = new Map<string, AiAgentReviewRemediation>();
+        rows.forEach((row) => {
+            if (!remediations.has(row.fingerprint)) {
+                remediations.set(row.fingerprint, mapReviewRemediation(row));
+            }
+        });
+        return remediations;
+    }
+
+    async createReviewRemediation(
+        args: CreateReviewRemediationArgs,
+    ): Promise<AiAgentReviewRemediation> {
+        const [row] = await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                source_ai_agent_review_turn_signal_uuid: args.sourceFindingUuid,
+                source_prompt_uuid: args.sourcePromptUuid,
+                source_thread_uuid: args.sourceThreadUuid,
+                source_project_uuid: args.sourceProjectUuid,
+                source_agent_uuid: args.sourceAgentUuid,
+                retry_prompt: args.retryPrompt,
+                created_by_user_uuid: args.createdByUserUuid,
+            })
+            .returning('*');
+
+        return mapReviewRemediation({ ...row, linked_pr_url: null });
+    }
+
+    async updateReviewRemediationStatus(
+        args: UpdateReviewRemediationStatusArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                status: args.status,
+                error_message: args.errorMessage ?? null,
+                resolved_by_user_uuid:
+                    args.status === 'resolved'
+                        ? (args.resolvedByUserUuid ?? null)
+                        : null,
+                resolved_at:
+                    args.status === 'resolved'
+                        ? (this.database.fn.now() as never)
+                        : null,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    async setReviewRemediationPullRequest(
+        args: SetReviewRemediationPullRequestArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                pull_request_uuid: args.pullRequestUuid,
+                status: 'pr_open',
+                error_message: null,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    async setReviewRemediationPreviewThread(
+        args: SetReviewRemediationPreviewThreadArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                preview_project_uuid: args.previewProjectUuid,
+                preview_agent_uuid: args.previewAgentUuid,
+                preview_thread_uuid: args.previewThreadUuid,
+                status: 'preview_ready',
+                error_message: null,
+                updated_at: this.database.fn.now() as never,
+            });
     }
 
     async getReviewItem(

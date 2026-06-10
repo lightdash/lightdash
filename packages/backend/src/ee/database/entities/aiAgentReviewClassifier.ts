@@ -15,6 +15,7 @@ import type {
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemWritebackStatus,
+    AiAgentReviewRemediationStatus,
     AiAgentRootCause,
     AiAgentRuntimeContextSnapshot,
     AiAgentTargetRef,
@@ -169,6 +170,7 @@ export type AiAgentTurnSignalTable = Knex.CompositeTableType<
 >;
 
 export const AiAgentReviewItemTableName = 'ai_agent_review_item';
+export const AiAgentReviewRemediationTableName = 'ai_agent_review_remediation';
 
 export type DbAiAgentReviewItem = {
     ai_agent_review_item_uuid: string;
@@ -213,6 +215,64 @@ export type AiAgentReviewItemTable = Knex.CompositeTableType<
         Omit<
             DbAiAgentReviewItem,
             'ai_agent_review_item_uuid' | 'fingerprint' | 'created_at'
+        >
+    >
+>;
+
+export type DbAiAgentReviewRemediation = {
+    ai_agent_review_remediation_uuid: string;
+    fingerprint: string;
+    organization_uuid: string;
+    source_ai_agent_review_turn_signal_uuid: string;
+    source_prompt_uuid: string;
+    source_thread_uuid: string;
+    source_project_uuid: string;
+    source_agent_uuid: string;
+    pull_request_uuid: string | null;
+    preview_project_uuid: string | null;
+    preview_agent_uuid: string | null;
+    preview_thread_uuid: string | null;
+    status: AiAgentReviewRemediationStatus;
+    error_message: string | null;
+    retry_prompt: string | null;
+    created_by_user_uuid: string | null;
+    resolved_by_user_uuid: string | null;
+    resolved_at: Date | null;
+    created_at: Date;
+    updated_at: Date;
+};
+
+export type AiAgentReviewRemediationTable = Knex.CompositeTableType<
+    DbAiAgentReviewRemediation,
+    Pick<
+        DbAiAgentReviewRemediation,
+        | 'fingerprint'
+        | 'organization_uuid'
+        | 'source_ai_agent_review_turn_signal_uuid'
+        | 'source_prompt_uuid'
+        | 'source_thread_uuid'
+        | 'source_project_uuid'
+        | 'source_agent_uuid'
+    > &
+        Partial<
+            Omit<
+                DbAiAgentReviewRemediation,
+                | 'ai_agent_review_remediation_uuid'
+                | 'created_at'
+                | 'updated_at'
+                | 'fingerprint'
+                | 'organization_uuid'
+                | 'source_ai_agent_review_turn_signal_uuid'
+                | 'source_prompt_uuid'
+                | 'source_thread_uuid'
+                | 'source_project_uuid'
+                | 'source_agent_uuid'
+            >
+        >,
+    Partial<
+        Omit<
+            DbAiAgentReviewRemediation,
+            'ai_agent_review_remediation_uuid' | 'fingerprint' | 'created_at'
         >
     >
 >;
