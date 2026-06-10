@@ -131,5 +131,14 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
                 'https://lightdash.example.com/projects/preview-project-1/home',
             compileJobUuid: 'compile-job-1',
         });
+        expect(projectService.createPreview).toHaveBeenCalledWith(
+            expect.anything(),
+            PROJECT,
+            expect.objectContaining({
+                copyContent: true,
+                validateAfterCompile: true,
+            }),
+            expect.anything(),
+        );
     });
 });

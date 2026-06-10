@@ -705,6 +705,7 @@ export type CompileProjectPayload = TraceTaskBase & {
     requestMethod: string;
     jobUuid: string;
     isPreview: boolean;
+    validateAfterCompile?: boolean;
 };
 
 export type PreAggregateMaterializationTrigger =

@@ -6020,6 +6020,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         requestMethod: RequestMethod,
         skipPermissionCheck: boolean = false,
+        validateAfterCompile: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -6063,6 +6064,7 @@ export class ProjectService extends BaseService {
             requestMethod,
             jobUuid: job.jobUuid,
             isPreview: type === ProjectType.PREVIEW,
+            validateAfterCompile,
             userUuid: user.userUuid,
         });
 
@@ -7773,6 +7775,7 @@ export class ProjectService extends BaseService {
                 manifest?: string;
             };
             warehouseConnectionOverrides?: { schema?: string };
+            validateAfterCompile?: boolean;
         },
         context: RequestMethod,
     ): Promise<ApiCreatePreviewResults> {
@@ -7818,6 +7821,7 @@ export class ProjectService extends BaseService {
             previewProject.project.projectUuid,
             context,
             true, // Skip permission check
+            data.validateAfterCompile ?? false,
         );
         return {
             projectUuid: previewProject.project.projectUuid,

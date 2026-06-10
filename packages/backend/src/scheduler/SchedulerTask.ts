@@ -1900,7 +1900,10 @@ export default class SchedulerTask {
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });
-            if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
+            if (
+                process.env.IS_PULL_REQUEST !== 'true' &&
+                (!payload.isPreview || payload.validateAfterCompile === true)
+            ) {
                 void this.schedulerClient.generateValidation({
                     projectUuid: payload.projectUuid,
                     context: 'dbt_refresh',

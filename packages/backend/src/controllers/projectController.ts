@@ -1037,14 +1037,17 @@ export class ProjectController extends BaseController {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
 
-        const results = await this.services
-            .getProjectService()
-            .createPreview(
-                toSessionUser(req.account),
-                projectUuid,
-                body,
-                RequestMethod.WEB_APP,
-            );
+        const results = await this.services.getProjectService().createPreview(
+            toSessionUser(req.account),
+            projectUuid,
+            {
+                name: body.name,
+                copyContent: body.copyContent,
+                dbtConnectionOverrides: body.dbtConnectionOverrides,
+                warehouseConnectionOverrides: body.warehouseConnectionOverrides,
+            },
+            RequestMethod.WEB_APP,
+        );
 
         return {
             status: 'ok',
