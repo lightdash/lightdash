@@ -59,6 +59,12 @@ In the controller, on the route handler:
 ```ts
 import { getDeprecatedRouteMiddleware } from './authentication';
 
+/**
+ * Get role assignments for a project
+ * @summary Get role assignments
+ *
+ * @deprecated Use GET /api/v2/.../roleAssignments instead
+ */
 @Middlewares([
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -68,6 +74,10 @@ import { getDeprecatedRouteMiddleware } from './authentication';
 ])
 @Deprecated()
 ```
+
+Keep the existing description and `@summary` lines in the JSDoc (lint requires
+`@summary` on every endpoint) and append the `@deprecated` line after a blank
+line.
 
 - `new Date(...)` is the date you are deprecating it (today). The removal/sunset
   date **defaults to deprecatedOn + 3 months**; only pass `{ removeOn: ... }` when
