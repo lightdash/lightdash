@@ -32,3 +32,28 @@ describe('getSystemPromptV2 project context', () => {
         expect(content).not.toContain('{{project_context}}');
     });
 });
+
+describe('getSystemPromptV2 chart-as-code artifacts', () => {
+    test('advertises chart-as-code instructions when enabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableChartAsCodeArtifacts: true,
+        });
+
+        expect(content).toContain('using chart-as-code');
+        expect(content).toContain('`metricQuery`');
+        expect(content).toContain('`chartConfig.config.columns`');
+    });
+
+    test('uses legacy visualization instructions when disabled', () => {
+        const content = promptText({
+            availableExplores: [],
+            enableChartAsCodeArtifacts: false,
+        });
+
+        expect(content).toContain("defaultVizType: 'table'");
+        expect(content).toContain('`queryConfig.metrics`');
+        expect(content).not.toContain('using chart-as-code');
+        expect(content).not.toContain('`metricQuery`');
+    });
+});

@@ -59,7 +59,11 @@ const sharedAgentToolDefinitionNames = agentToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('agent').name,
 );
 
-const makeAgentTools = () => {
+const makeAgentTools = ({
+    enableChartAsCodeArtifacts = true,
+}: {
+    enableChartAsCodeArtifacts?: boolean;
+} = {}) => {
     const noop = jest.fn();
     const noopAsync = jest.fn().mockResolvedValue(undefined);
 
@@ -159,6 +163,7 @@ const makeAgentTools = () => {
         generateVisualization: getGenerateVisualization({
             createOrUpdateArtifact: noop,
             enableDataAccess: true,
+            enableChartAsCodeArtifacts,
             getPrompt: noop,
             maxLimit: 500,
             runAsyncQuery: noop,
@@ -201,6 +206,19 @@ describe('AI agent tool contracts', () => {
         expect(
             Object.entries(agentTools).map(([name, definition]) =>
                 agentToolSnapshot(name, definition as SnapshotTool),
+            ),
+        ).toMatchSnapshot();
+    });
+
+    it('matches the legacy generateVisualization contract snapshot when chart-as-code artifacts are disabled', () => {
+        const agentTools = makeAgentTools({
+            enableChartAsCodeArtifacts: false,
+        });
+
+        expect(
+            agentToolSnapshot(
+                'generateVisualization',
+                agentTools.generateVisualization as SnapshotTool,
             ),
         ).toMatchSnapshot();
     });

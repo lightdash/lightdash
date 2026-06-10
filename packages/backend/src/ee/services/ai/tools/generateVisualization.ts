@@ -6,11 +6,12 @@ import {
     getTotalFilterRules,
     isPeriodOverPeriodAdditionalMetric,
     isSlackPrompt,
+    runQueryToolDefinition,
     toolGenerateVisualizationArgsSchemaTransformed,
     type ChartAsCode,
     type ChartAsCodeMetricQueryInput,
 } from '@lightdash/common';
-import { tool } from 'ai';
+import { tool, type ToolSet } from 'ai';
 import { NO_RESULTS_RETRY_PROMPT } from '../prompts/noResultsRetry';
 import type {
     CreateOrUpdateArtifactFn,
@@ -34,6 +35,7 @@ import {
     validateSelectedFieldsExistence,
     validateSortFieldsAreSelected,
 } from '../utils/validators';
+import { getRunQuery } from './runQuery';
 
 type Dependencies = {
     updateProgress: UpdateProgressFn;
@@ -44,9 +46,15 @@ type Dependencies = {
     validateContent: ValidateContentFn;
     maxLimit: number;
     enableDataAccess: boolean;
+    enableChartAsCodeArtifacts: boolean;
 };
 
 const toolDefinition = generateVisualizationToolDefinition.for('agent');
+const legacyToolDefinition = {
+    ...runQueryToolDefinition.for('agent'),
+    name: generateVisualizationToolDefinition.name,
+    title: generateVisualizationToolDefinition.title,
+};
 
 export const getGenerateVisualization = ({
     updateProgress,
@@ -57,8 +65,24 @@ export const getGenerateVisualization = ({
     validateContent,
     maxLimit,
     enableDataAccess,
-}: Dependencies) =>
-    tool({
+    enableChartAsCodeArtifacts,
+}: Dependencies): ToolSet[string] => {
+    if (!enableChartAsCodeArtifacts) {
+        return {
+            ...getRunQuery({
+                updateProgress,
+                runAsyncQuery,
+                getPrompt,
+                sendFile,
+                createOrUpdateArtifact,
+                maxLimit,
+                enableDataAccess,
+            }),
+            ...legacyToolDefinition,
+        };
+    }
+
+    return tool({
         ...toolDefinition,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
@@ -225,3 +249,4 @@ export const getGenerateVisualization = ({
         },
         toModelOutput: ({ output }) => toModelOutput(output),
     });
+};
