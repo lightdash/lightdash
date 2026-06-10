@@ -22,6 +22,7 @@ import {
     Body,
     Delete,
     Deprecated,
+    Extension,
     Get,
     Middlewares,
     OperationId,
@@ -55,14 +56,24 @@ import { ApiRunQueryResponse } from './runQueryController';
 @Tags('Charts')
 export class SavedChartController extends BaseController {
     /**
-     * Run a query for a chart
+     * Deprecated — use the v2 Execute saved chart endpoint instead.
+     *
+     * This endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.
      * @summary Run chart query
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/chart instead
      * @param chartUuid chartUuid for the chart to run
      * @param body
      * @param body.dashboardFilters dashboard filters
      * @param body.invalidateCache invalidate cache
      * @param req express request
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (\`POST /api/v2/projects/{projectUuid}/query/chart\`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).
+</Warning>`,
+    })
     @Deprecated()
     @Middlewares([
         allowApiKeyAuthentication,
@@ -113,9 +124,19 @@ export class SavedChartController extends BaseController {
     }
 
     /**
-     * Get chart and run query with dashboard filters
+     * Deprecated — use the v2 Execute dashboard chart endpoint instead.
+     *
+     * This endpoint was deprecated on 20 March 2025 and is past its sunset date (20 June 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute dashboard chart, then Get results.
      * @summary Get chart and results
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/dashboard-chart instead
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (20 June 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute dashboard chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-chart) (\`POST /api/v2/projects/{projectUuid}/query/dashboard-chart\`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).
+</Warning>`,
+    })
     @Deprecated()
     @Middlewares([
         allowApiKeyAuthentication,
@@ -208,12 +229,22 @@ export class SavedChartController extends BaseController {
     }
 
     /**
-     * Run a query for a chart version
+     * Deprecated — use the v2 Execute saved chart endpoint instead.
+     *
+     * This endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.
      * @summary Get chart version results
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/chart instead
      * @param chartUuid chartUuid for the chart to run
      * @param versionUuid versionUuid for the chart version
      * @param req express request
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (\`POST /api/v2/projects/{projectUuid}/query/chart\`) to run the chart's latest version, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. Running a query for a specific chart version has no v2 equivalent.
+</Warning>`,
+    })
     @Deprecated()
     @Middlewares([
         allowApiKeyAuthentication,
