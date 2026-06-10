@@ -53,6 +53,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                     projectName,
                     repository,
                     previewDeployConfigured,
+                    previewUrl,
                     steps,
                 } = await editDbtProject({
                     prompt,
@@ -71,14 +72,18 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                     ? `${prVerb} a pull request against ${target}. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply — just summarise the change and which project/repository it targeted.\n\nAgent summary:\n${output}`
                     : `Ran against ${target} but made no file changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
 
-                // Deterministic offer: when the repo has no Lightdash
-                // preview-deploy GitHub Actions, instruct the assistant to
-                // offer setting it up. This must be relayed reliably rather
-                // than left to the agent to infer from the sandbox output.
-                const result =
-                    previewDeployConfigured === false
-                        ? `${base}\n\nIMPORTANT — also tell the user: this project does NOT have Lightdash preview deploys set up via GitHub Actions. Offer to set it up by opening a pull request that adds the preview workflow (a preview Lightdash project per PR, torn down on close). If they agree, call the \`setupPreviewDeploy\` tool. Do not call it unless they say yes.`
-                        : base;
+                // Server-side preview: Lightdash built a preview project from
+                // the PR's head branch and posted its URL on the PR — relay it
+                // deterministically so the user can review the change before
+                // merging. When no preview could be built and the repo has no
+                // Lightdash preview-deploy GitHub Actions either, instruct the
+                // assistant to offer setting that up instead.
+                let result = base;
+                if (prUrl && previewUrl) {
+                    result += `\n\nA Lightdash preview environment was created from the pull request's branch: ${previewUrl} — include this link in your reply so the user can review the change in Lightdash before merging. Explores may take a minute to appear while the preview compiles.`;
+                } else if (previewDeployConfigured === false) {
+                    result += `\n\nIMPORTANT — also tell the user: this project does NOT have Lightdash preview deploys set up via GitHub Actions. Offer to set it up by opening a pull request that adds the preview workflow (a preview Lightdash project per PR, torn down on close). If they agree, call the \`setupPreviewDeploy\` tool. Do not call it unless they say yes.`;
+                }
 
                 return {
                     result,

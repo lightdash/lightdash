@@ -14080,19 +14080,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -14592,6 +14579,15 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "prAction": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "opened",
+                                                            "updated",
+                                                            null
+                                                        ],
+                                                        "nullable": true
+                                                    },
                                                     "steps": {
                                                         "items": {
                                                             "properties": {
@@ -14616,15 +14612,6 @@
                                                             "type": "object"
                                                         },
                                                         "type": "array",
-                                                        "nullable": true
-                                                    },
-                                                    "prAction": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "opened",
-                                                            "updated",
-                                                            null
-                                                        ],
                                                         "nullable": true
                                                     },
                                                     "prUrl": {
@@ -14706,6 +14693,10 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -14742,10 +14733,6 @@
                                                                 },
                                                                 "type": "array"
                                                             },
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
@@ -14757,8 +14744,8 @@
                                                             }
                                                         },
                                                         "required": [
-                                                            "fields",
                                                             "searchQuery",
+                                                            "fields",
                                                             "type"
                                                         ],
                                                         "type": "object"
@@ -14766,8 +14753,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -25692,7 +25679,6 @@
                     "generateArtifactQuestion",
                     "appGeneratePipeline",
                     "sweepStaleAppLocks",
-                    "pollWritebackPreview",
                     "handleScheduledDelivery",
                     "sendSlackNotification",
                     "sendEmailNotification",

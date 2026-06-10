@@ -7,7 +7,6 @@ import {
     EE_SCHEDULER_TASKS,
     EmbedArtifactVersionJobPayload,
     GenerateArtifactQuestionJobPayload,
-    PollWritebackPreviewJobPayload,
     SlackPromptJobPayload,
 } from '@lightdash/common';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
@@ -33,28 +32,6 @@ export const aiAgentReviewRunAt = (
         : now;
 
 export class CommercialSchedulerClient extends SchedulerClient {
-    /**
-     * Enqueue (or re-enqueue) a poll for a write-back PR's preview URL. Keyed by
-     * prompt so a re-enqueue replaces the pending poll rather than stacking. Pass
-     * a future `runAt` to delay the next poll.
-     */
-    async pollWritebackPreview(
-        payload: PollWritebackPreviewJobPayload,
-        runAt: Date = new Date(),
-    ) {
-        const graphileClient = await this.graphileUtils;
-        const { id: jobId } = await graphileClient.addJob(
-            EE_SCHEDULER_TASKS.POLL_WRITEBACK_PREVIEW,
-            payload,
-            {
-                runAt,
-                maxAttempts: 1,
-                jobKey: `poll-writeback-preview:${payload.promptUuid}`,
-            },
-        );
-        return { jobId };
-    }
-
     async slackAiPrompt(payload: SlackPromptJobPayload) {
         const graphileClient = await this.graphileUtils;
         const now = new Date();

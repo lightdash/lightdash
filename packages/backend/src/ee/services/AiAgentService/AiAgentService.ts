@@ -48,7 +48,6 @@ import {
     ContentType,
     derivePivotConfigurationFromChart,
     Explore,
-    extractPreviewUrlFromComments,
     FeatureFlags,
     followUpToolsText,
     ForbiddenError,
@@ -71,7 +70,6 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
-    PollWritebackPreviewJobPayload,
     ProjectType,
     QueryExecutionContext,
     ReadinessScore,
@@ -132,10 +130,7 @@ import {
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
-import {
-    getInstallationToken,
-    getPullRequestComments,
-} from '../../../clients/github/Github';
+import { getInstallationToken } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
@@ -240,7 +235,6 @@ import {
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
-    getWritebackPreviewReplyBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
@@ -253,6 +247,7 @@ import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService'
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPrompt';
 import type { AiWritebackSource } from '../AiWritebackService/types';
+import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
 import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
@@ -309,6 +304,7 @@ type AiAgentServiceDependencies = {
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
     previewDeploySetupService: PreviewDeploySetupService;
+    writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     aiAgentToolsService: AiAgentToolsService;
     prometheusMetrics?: PrometheusMetrics;
@@ -527,6 +523,8 @@ export class AiAgentService extends BaseService {
 
     private readonly previewDeploySetupService: PreviewDeploySetupService;
 
+    private readonly writebackPreviewService: WritebackPreviewService;
+
     private readonly aiAgentToolsService: AiAgentToolsService;
 
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
@@ -636,6 +634,7 @@ export class AiAgentService extends BaseService {
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
         this.previewDeploySetupService = dependencies.previewDeploySetupService;
+        this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
         this.aiAgentToolsService = dependencies.aiAgentToolsService;
@@ -4972,14 +4971,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     });
             }
             // Resolve the repo's preview-deploy CI status once (best-effort,
-            // gated by the ai-preview-deploy-setup flag). It drives two things:
-            // the deterministic "offer to set it up" instruction the
-            // editDbtProject tool relays when it's not configured, and the
-            // Slack preview-URL poll below when it is. Owned by the sibling
-            // PreviewDeploySetupService — writeback no longer detects this
-            // itself. Never fails the writeback result.
+            // gated by the ai-preview-deploy-setup flag). It drives the
+            // deterministic "offer to set it up" instruction the editDbtProject
+            // tool relays when no server-side preview could be built. Owned by
+            // the sibling PreviewDeploySetupService — writeback no longer
+            // detects this itself. Never fails the writeback result.
             let previewDeployConfigured: boolean | null = null;
-            let hasPreviewWorkflow = false;
             try {
                 const { enabled: previewDeploySetupEnabled } =
                     await this.featureFlagService.get({
@@ -4995,8 +4992,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     previewDeployConfigured = ciStatus
                         ? ciStatus.hasPreviewDeployWorkflow
                         : null;
-                    hasPreviewWorkflow =
-                        ciStatus?.hasPreviewDeployWorkflow ?? false;
                 }
             } catch (err) {
                 Logger.debug(
@@ -5005,28 +5000,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
             }
 
-            // If the repo deploys Lightdash previews, kick off a background poll
-            // that adds a "View preview" follow-up in the Slack thread once the
-            // preview URL is published on the PR. Best-effort — never blocks the
-            // writeback result.
-            if (result.prUrl && isSlackPrompt(prompt) && hasPreviewWorkflow) {
-                try {
-                    await this.schedulerClient.pollWritebackPreview({
-                        organizationUuid,
-                        projectUuid,
-                        userUuid: user.userUuid,
-                        promptUuid: prompt.promptUuid,
-                        prUrl: result.prUrl,
-                        startedAt: Date.now(),
-                    });
-                } catch (err) {
-                    Logger.debug(
-                        'Failed to schedule writeback preview poll:',
-                        err,
+            // Server-side preview: for GitHub-connected projects, build the
+            // preview ourselves from the PR's head branch and post its URL on
+            // the PR — no CI in the customer repo required. The URL is returned
+            // to the editDbtProject tool so the agent's reply (web chat and
+            // Slack alike) links the preview directly; this replaced the old
+            // pollWritebackPreview job that scanned PR comments for a
+            // CI-posted URL. Returns null for unsupported projects (e.g.
+            // CLI-deployed) or on any failure — those surface no preview.
+            let previewUrl: string | null = null;
+            if (result.prUrl) {
+                const preview =
+                    await this.writebackPreviewService.createPreviewForPullRequest(
+                        { user, projectUuid, prUrl: result.prUrl },
                     );
-                }
+                previewUrl = preview?.previewUrl ?? null;
             }
-            return { ...result, previewDeployConfigured };
+
+            return { ...result, previewDeployConfigured, previewUrl };
         };
 
         // Read-only repo virtual filesystem for the repoShell tool. Resolve the
@@ -5847,123 +5838,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         }
 
         return [uuid, createdThread];
-    }
-
-    /**
-     * Background poll (Graphile Worker) that surfaces a write-back PR's Lightdash
-     * preview environment in the Slack thread. The preview URL is published
-     * asynchronously by the dbt repo's CI as a PR comment, so we poll the PR's
-     * comments and, once found, post a "View preview" follow-up in the thread.
-     * Re-enqueues itself every ~25s until the URL appears or the ~10 min window
-     * elapses. Only scheduled when the project's repo deploys previews.
-     */
-    async pollSlackWritebackPreview(
-        payload: PollWritebackPreviewJobPayload,
-    ): Promise<void> {
-        const PREVIEW_POLL_INTERVAL_MS = 25_000;
-        const PREVIEW_WAIT_TIMEOUT_MS = 10 * 60_000;
-        const { promptUuid, prUrl, startedAt, organizationUuid, projectUuid } =
-            payload;
-
-        // Past the wait window — give up (the PR link stays in the message).
-        if (Date.now() - startedAt > PREVIEW_WAIT_TIMEOUT_MS) {
-            Logger.info(
-                `AiAgent: writeback preview poll timed out for prompt ${promptUuid}`,
-            );
-            return;
-        }
-
-        // Re-verify the triggering user can still view the project's source code
-        // before delivering — they may have lost access during the wait window.
-        // (Authorize against the project's organization, taken from the payload.)
-        const user = await this.userModel.findSessionUserByUUID(
-            payload.userUuid,
-        );
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('SourceCode', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
-        // Not a Slack prompt (or gone) — nothing to deliver to.
-        if (!slackPrompt) {
-            return;
-        }
-
-        // Wait until the agent's reply is actually posted, then resolve the URL.
-        const previewUrl = slackPrompt.response_slack_ts
-            ? await this.resolveWritebackPreviewUrl(organizationUuid, prUrl)
-            : null;
-
-        if (!previewUrl) {
-            await this.schedulerClient.pollWritebackPreview(
-                payload,
-                new Date(Date.now() + PREVIEW_POLL_INTERVAL_MS),
-            );
-            return;
-        }
-
-        await this.slackClient.postMessage({
-            organizationUuid,
-            channel: slackPrompt.slackChannelId,
-            thread_ts: slackPrompt.slackThreadTs,
-            text: `Preview environment ready: ${previewUrl}`,
-            unfurl_links: false,
-            blocks: [
-                ...getMarkdownBlocks(
-                    ':white_check_mark: Preview environment ready',
-                ),
-                ...getWritebackPreviewReplyBlocks(previewUrl),
-            ],
-        });
-    }
-
-    /**
-     * Resolve the Lightdash preview URL for a write-back PR by reading its
-     * comments via the org's GitHub App installation. Returns null when no
-     * preview comment is present yet, or on any failure — so the caller keeps
-     * polling rather than erroring.
-     */
-    private async resolveWritebackPreviewUrl(
-        organizationUuid: string,
-        prUrl: string,
-    ): Promise<string | null> {
-        try {
-            const url = new URL(prUrl);
-            const [owner, repo, , pullNumberStr] = url.pathname
-                .split('/')
-                .filter(Boolean);
-            const pullNumber = Number(pullNumberStr);
-            if (!owner || !repo || !Number.isInteger(pullNumber)) {
-                return null;
-            }
-            const installationId =
-                await this.githubAppInstallationsModel.getInstallationId(
-                    organizationUuid,
-                );
-            const comments = await getPullRequestComments({
-                owner,
-                repo,
-                pullNumber,
-                installationId,
-            });
-            return extractPreviewUrlFromComments(
-                comments,
-                this.lightdashConfig.siteUrl,
-            );
-        } catch (error) {
-            Logger.warn(
-                `AiAgent: failed to resolve writeback preview URL for ${prUrl}: ${getErrorMessage(
-                    error,
-                )}`,
-            );
-            return null;
-        }
     }
 
     // TODO: user permissions

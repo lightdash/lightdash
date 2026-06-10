@@ -55,6 +55,7 @@ import {
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
 import { type AiWritebackService } from './AiWritebackService/AiWritebackService';
+import { type WritebackPreviewService } from './AiWritebackService/WritebackPreviewService';
 import { type ProjectContextService } from './ProjectContextService/ProjectContextService';
 
 type AiAgentAdminServiceDependencies = {
@@ -72,6 +73,7 @@ type AiAgentAdminServiceDependencies = {
     schedulerClient: CommercialSchedulerClient;
     userModel: UserModel;
     lightdashConfig: LightdashConfig;
+    writebackPreviewService: WritebackPreviewService;
 };
 
 const parsePullRequestUrl = (
@@ -330,6 +332,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly userModel: UserModel;
 
+    private readonly writebackPreviewService: WritebackPreviewService;
+
     constructor(dependencies: AiAgentAdminServiceDependencies) {
         super();
         this.analytics = dependencies.analytics;
@@ -350,6 +354,7 @@ export class AiAgentAdminService extends BaseService {
         this.schedulerClient = dependencies.schedulerClient;
         this.userModel = dependencies.userModel;
         this.lightdashConfig = dependencies.lightdashConfig;
+        this.writebackPreviewService = dependencies.writebackPreviewService;
     }
 
     private checkOrganizationAdminAccess(user: SessionUser): void {
@@ -1176,6 +1181,7 @@ export class AiAgentAdminService extends BaseService {
                     linkedPrUrl: prUrl,
                     prState: 'open',
                 });
+                let terminalMessage = 'Opened pull request';
                 if (remediationUuid && pullRequest) {
                     await this.aiAgentReviewClassifierModel.setReviewRemediationPullRequest(
                         {
@@ -1184,18 +1190,10 @@ export class AiAgentAdminService extends BaseService {
                             pullRequestUuid: pullRequest.pullRequestUuid,
                         },
                     );
-                    await this.scheduleReviewRemediationPreviewPoll({
-                        remediationUuid,
-                        fingerprint,
-                        organizationUuid,
-                        projectUuid,
-                        userUuid,
-                        prUrl,
-                    });
                 } else if (remediationUuid) {
                     // The PR exists (e.g. a non-GitHub URL we cannot record in
                     // pull_requests) — keep the lifecycle truthful instead of
-                    // failing a successful writeback. Preview polling is
+                    // failing a successful writeback. Preview creation is
                     // skipped without a recorded pull request.
                     await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
                         {
@@ -1205,7 +1203,25 @@ export class AiAgentAdminService extends BaseService {
                         },
                     );
                 }
-                await setTerminal('completed', 'Opened pull request');
+                if (plan.strategy === 'prompt') {
+                    await setProgress('Creating preview environment…');
+                    const preview =
+                        await this.writebackPreviewService.createPreviewForPullRequest(
+                            { user, projectUuid, prUrl },
+                        );
+                    if (preview) {
+                        terminalMessage = `Opened pull request · Preview: ${preview.previewUrl}`;
+                        if (remediationUuid && pullRequest) {
+                            await this.setReviewRemediationPreviewFromProject({
+                                organizationUuid,
+                                remediationUuid,
+                                previewProjectUuid: preview.previewProjectUuid,
+                                userUuid,
+                            });
+                        }
+                    }
+                }
+                await setTerminal('completed', terminalMessage);
             } else {
                 if (remediationUuid) {
                     // No PR means nothing was wrong to fix — a legitimate
@@ -1261,37 +1277,6 @@ export class AiAgentAdminService extends BaseService {
                 },
             });
             throw error;
-        }
-    }
-
-    private async scheduleReviewRemediationPreviewPoll(args: {
-        remediationUuid: string;
-        fingerprint: string;
-        organizationUuid: string;
-        projectUuid: string;
-        userUuid: string;
-        prUrl: string;
-    }): Promise<void> {
-        if (!parsePullRequestUrl(args.prUrl)) {
-            return;
-        }
-
-        try {
-            await this.schedulerClient.aiAgentReviewRemediationPreview({
-                organizationUuid: args.organizationUuid,
-                projectUuid: args.projectUuid,
-                userUuid: args.userUuid,
-                fingerprint: args.fingerprint,
-                remediationUuid: args.remediationUuid,
-                prUrl: args.prUrl,
-                startedAt: Date.now(),
-            });
-        } catch (error) {
-            this.logger.warn(
-                `Failed to schedule review remediation preview poll: ${getErrorMessage(
-                    error,
-                )}`,
-            );
         }
     }
 
@@ -1362,6 +1347,63 @@ export class AiAgentAdminService extends BaseService {
         return threadUuid;
     }
 
+    private async setReviewRemediationPreviewFromProject({
+        organizationUuid,
+        remediationUuid,
+        previewProjectUuid,
+        userUuid,
+    }: {
+        organizationUuid: string;
+        remediationUuid: string;
+        previewProjectUuid: string;
+        userUuid: string;
+    }): Promise<void> {
+        const remediation =
+            await this.aiAgentReviewClassifierModel.getReviewRemediation({
+                organizationUuid,
+                remediationUuid,
+            });
+        if (!remediation || remediation.status !== 'pr_open') {
+            return;
+        }
+
+        const previewAgentUuid = await this.projectModel.getPreviewAiAgentUuid({
+            projectUuid: remediation.sourceProjectUuid,
+            previewProjectUuid,
+            aiAgentUuid: remediation.sourceAgentUuid,
+        });
+        if (!previewAgentUuid) {
+            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
+                {
+                    remediationUuid,
+                    organizationUuid,
+                    status: 'failed',
+                    errorMessage: 'Preview did not copy the source AI agent',
+                },
+            );
+            return;
+        }
+
+        const previewThreadUuid =
+            await this.createReviewRemediationPreviewThread({
+                remediation,
+                organizationUuid,
+                previewProjectUuid,
+                previewAgentUuid,
+                userUuid,
+            });
+
+        await this.aiAgentReviewClassifierModel.setReviewRemediationPreviewThread(
+            {
+                remediationUuid,
+                organizationUuid,
+                previewProjectUuid,
+                previewAgentUuid,
+                previewThreadUuid,
+            },
+        );
+    }
+
     async pollReviewRemediationPreview(
         payload: AiAgentReviewRemediationPreviewJobPayload,
     ): Promise<void> {
@@ -1426,41 +1468,12 @@ export class AiAgentAdminService extends BaseService {
             return;
         }
 
-        const previewAgentUuid = await this.projectModel.getPreviewAiAgentUuid({
-            projectUuid: remediation.sourceProjectUuid,
+        await this.setReviewRemediationPreviewFromProject({
+            organizationUuid,
+            remediationUuid,
             previewProjectUuid,
-            aiAgentUuid: remediation.sourceAgentUuid,
+            userUuid,
         });
-        if (!previewAgentUuid) {
-            await this.aiAgentReviewClassifierModel.updateReviewRemediationStatus(
-                {
-                    remediationUuid,
-                    organizationUuid,
-                    status: 'failed',
-                    errorMessage: 'Preview did not copy the source AI agent',
-                },
-            );
-            return;
-        }
-
-        const previewThreadUuid =
-            await this.createReviewRemediationPreviewThread({
-                remediation,
-                organizationUuid,
-                previewProjectUuid,
-                previewAgentUuid,
-                userUuid,
-            });
-
-        await this.aiAgentReviewClassifierModel.setReviewRemediationPreviewThread(
-            {
-                remediationUuid,
-                organizationUuid,
-                previewProjectUuid,
-                previewAgentUuid,
-                previewThreadUuid,
-            },
-        );
     }
 
     async failReviewItemWritebackJob(args: {
