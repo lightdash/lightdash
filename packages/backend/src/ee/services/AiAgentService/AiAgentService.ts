@@ -5326,22 +5326,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 })),
             ),
         });
-        const { enabled: agentRevampEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiAgentRevamp,
-            });
-        const { enabled: searchSemanticLayerEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.SearchSemanticLayer,
-            });
-        let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.AiWriteback,
-            },
+        const [
+            { enabled: agentRevampEnabled },
+            { enabled: chartAsCodeArtifactsEnabled },
+            { enabled: searchSemanticLayerEnabled },
+            { enabled: aiWritebackFlag },
+            { enabled: aiPreviewDeploySetupFlag },
+        ] = await Promise.all(
+            [
+                FeatureFlags.AiAgentRevamp,
+                FeatureFlags.AiAgentChartAsCodeArtifacts,
+                FeatureFlags.SearchSemanticLayer,
+                FeatureFlags.AiWriteback,
+                FeatureFlags.AiPreviewDeploySetup,
+            ].map((featureFlagId) =>
+                this.featureFlagService.get({ user, featureFlagId }),
+            ),
         );
+
+        let aiWritebackEnabled = aiWritebackFlag;
         if (aiWritebackEnabled && !hasTrustedPromptUserIdentity) {
             this.logger.info(
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
@@ -5360,11 +5363,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // Preview-deploy setup rides the writeback infra, so it requires both
         // the writeback flag (and trusted identity, applied above) and its own
         // ai-preview-deploy-setup flag.
-        const { enabled: aiPreviewDeploySetupFlag } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-            });
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled && aiPreviewDeploySetupFlag;
 
@@ -5446,6 +5444,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableDataAccess: agentSettings.enableDataAccess,
             enableSelfImprovement: agentSettings.enableSelfImprovement,
             enableContentTools: canUseContentTools,
+            enableChartAsCodeArtifacts: chartAsCodeArtifactsEnabled,
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,

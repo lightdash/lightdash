@@ -110,6 +110,13 @@ export enum FeatureFlags {
     AiAgentRevamp = 'ai-agent-revamp',
 
     /**
+     * Enable chart-as-code payloads for AI-generated visualization artifacts.
+     * When disabled, the agent falls back to the legacy generateVisualization
+     * schema while existing chart-as-code artifacts continue to render.
+     */
+    AiAgentChartAsCodeArtifacts = 'ai-agent-chart-as-code-artifacts',
+
+    /**
      * Enable the Hexbin (H3 hexagonal binning) layer type for Map charts.
      * Gates the option in the Map Type segmented control. Existing charts
      * already saved with the hexbin layer continue to render either way.

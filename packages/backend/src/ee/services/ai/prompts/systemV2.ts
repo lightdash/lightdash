@@ -19,6 +19,29 @@ import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
 import { SYSTEM_PROMPT_TEMPLATE } from './systemV2Template';
 
+const CHART_AS_CODE_VISUALIZATION_INSTRUCTIONS = {
+    '{{table_visualization_instruction}}':
+        'When a user asks for a "table", generate a table visualization with generateVisualization using chart-as-code `chartConfig.type: "table"`. Never produce markdown tables.',
+    '{{generate_visualization_instruction}}':
+        'Use chart-as-code: put the query in `metricQuery`, the runtime visualization in `chartConfig`, table column order in top-level `tableConfig`, and pivots in top-level `pivotConfig`. For table styling, use canonical chart-as-code only: column display options go under `chartConfig.config.columns`; conditional formatting rules go under `chartConfig.config.conditionalFormattings`; never put `columns` at `chartConfig` root and never use `dataBarColor`. The server validates the payload against chart-as-code and returns errors you can repair.',
+    '{{table_calculation_shape_instruction}}':
+        'Table calc parameter shapes (frames, partitionBy, orderBy) follow the chart-as-code metric query shape.',
+    '{{custom_metric_reference_instruction}}':
+        'Use the fieldId in `metricQuery.metrics`, `chartConfig`, `sorts`, `filters`, or `tableCalculations`.',
+};
+
+const LEGACY_VISUALIZATION_INSTRUCTIONS: typeof CHART_AS_CODE_VISUALIZATION_INSTRUCTIONS =
+    {
+        '{{table_visualization_instruction}}':
+            'When a user asks for a "table", generate a table visualization with generateVisualization (defaultVizType: \'table\'). Never produce markdown tables.',
+        '{{generate_visualization_instruction}}':
+            "The tool's parameter docs describe every chart-config option — read those rather than guessing. Key conventions: `dimensions[0]` drives the x-axis; put extra grouping dimensions in `chartConfig.groupBy` (never the x-axis dim) for multi-series, leave `null` for single-series; always set `xAxisLabel` and `yAxisLabel`.",
+        '{{table_calculation_shape_instruction}}':
+            'Table calc parameter shapes (frames, partitionBy, orderBy) are documented in the generateVisualization schema.',
+        '{{custom_metric_reference_instruction}}':
+            'Use the fieldId in `queryConfig.metrics`, `chartConfig.yAxisMetrics`, `sorts`, `filters`, or `tableCalculations`.',
+    };
+
 export const getSystemPromptV2 = (args: {
     availableExplores: Explore[];
     availableSkills?: AiAgentSkillReference[];
@@ -28,6 +51,7 @@ export const getSystemPromptV2 = (args: {
     agentName?: string;
     date?: string;
     enableDataAccess?: boolean;
+    enableChartAsCodeArtifacts?: boolean;
     enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
     enableRepoFs?: boolean;
@@ -42,6 +66,7 @@ export const getSystemPromptV2 = (args: {
         agentName = 'Lightdash AI Analyst',
         date = moment().utc().format('YYYY-MM-DD'),
         enableDataAccess = false,
+        enableChartAsCodeArtifacts = false,
         enableSearchSemanticLayer = false,
         enableAiWriteback = false,
         enableRepoFs = false,
@@ -59,6 +84,10 @@ export const getSystemPromptV2 = (args: {
     const customSqlLimitation = canRunSql
         ? ''
         : '\n- You cannot execute raw SQL or add custom SQL expressions to a query.';
+
+    const visualizationInstructions = enableChartAsCodeArtifacts
+        ? CHART_AS_CODE_VISUALIZATION_INSTRUCTIONS
+        : LEGACY_VISUALIZATION_INSTRUCTIONS;
 
     const renderKnowledgeDocument = (doc: AiAgentDocumentSummary): string => {
         const { summary } = doc;
@@ -121,10 +150,13 @@ export const getSystemPromptV2 = (args: {
         availableExploresContent = `This agent has access to ${args.availableExplores.length} explores. Use findExplores to discover the relevant one for each request.`;
     }
 
-    const content = SYSTEM_PROMPT_TEMPLATE.replace(
-        '{{self_improvement_section}}',
-        '',
-    )
+    const content = Object.entries(visualizationInstructions)
+        .reduce(
+            (template, [placeholder, instruction]) =>
+                template.replace(placeholder, instruction),
+            SYSTEM_PROMPT_TEMPLATE,
+        )
+        .replace('{{self_improvement_section}}', '')
         .replace(
             '{{ai_writeback_section}}',
             enableAiWriteback ? AI_WRITEBACK_SECTION : '',
