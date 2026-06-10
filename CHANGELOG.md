@@ -1,3 +1,15 @@
+# [0.3126.0](https://github.com/lightdash/lightdash/compare/0.3125.2...0.3126.0) (2026-06-10)
+
+
+### Features
+
+* **ai-agents:** add review retry and fixed actions ([#24020](https://github.com/lightdash/lightdash/issues/24020)) ([37a3d0b](https://github.com/lightdash/lightdash/commit/37a3d0bd7d055c9c23c9bac9ce8d01711178d9a7))
+* **ai-agents:** create preview work threads ([#24015](https://github.com/lightdash/lightdash/issues/24015)) ([5b863f5](https://github.com/lightdash/lightdash/commit/5b863f58966e0a898e72b4d4736b95ef56eec721))
+* **ai-agents:** create remediation from review writeback ([#24014](https://github.com/lightdash/lightdash/issues/24014)) ([c57dd1e](https://github.com/lightdash/lightdash/commit/c57dd1ef4f7196f21a086ea03f9ce855c1806139))
+* **ai-agents:** model review remediations ([#24011](https://github.com/lightdash/lightdash/issues/24011)) ([119bcf0](https://github.com/lightdash/lightdash/commit/119bcf068667708162bc6e14024d8fd274da65de))
+* **sankey:** add direct (two-column) node layout ([#24105](https://github.com/lightdash/lightdash/issues/24105)) ([e651e49](https://github.com/lightdash/lightdash/commit/e651e49bf30651d5adbd0107ca293049a4315a27)), closes [#22175](https://github.com/lightdash/lightdash/issues/22175) [#24085](https://github.com/lightdash/lightdash/issues/24085)
+* **sankey:** node layout option  ([#24085](https://github.com/lightdash/lightdash/issues/24085)) ([4e04176](https://github.com/lightdash/lightdash/commit/4e0417663ee8dd55cf7901d2d44cbe771664ac5e)), closes [#23563](https://github.com/lightdash/lightdash/issues/23563) [#22175](https://github.com/lightdash/lightdash/issues/22175)
+
 ## [0.3125.2](https://github.com/lightdash/lightdash/compare/0.3125.1...0.3125.2) (2026-06-10)
 
 
