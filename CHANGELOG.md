@@ -1,3 +1,10 @@
+# [0.3132.0](https://github.com/lightdash/lightdash/compare/0.3131.0...0.3132.0) (2026-06-10)
+
+
+### Features
+
+* **ai-review:** validate writeback preview projects after compile ([#24148](https://github.com/lightdash/lightdash/issues/24148)) ([8038ec8](https://github.com/lightdash/lightdash/commit/8038ec8f07e7b571af7e4e8edf584e25bf3eb437))
+
 # [0.3131.0](https://github.com/lightdash/lightdash/compare/0.3130.0...0.3131.0) (2026-06-10)
 
 
