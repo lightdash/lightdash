@@ -611,11 +611,14 @@ const ReviewItemPrCell = ({
 
     const propInFlight =
         reviewItem.prWritebackStatus === 'queued' ||
-        reviewItem.prWritebackStatus === 'running';
-    // Poll the single item while writeback runs so live phase messages surface.
+        reviewItem.prWritebackStatus === 'running' ||
+        reviewItem.remediation?.status === 'pr_open';
+    // Poll the single item while writeback runs and while the preview thread is
+    // being discovered from the PR comments.
     const { data: polled } = useAiAgentAdminReviewItem(reviewItem.fingerprint, {
         enabled: propInFlight,
-        refetchInterval: propInFlight ? 2500 : false,
+        refetchInterval:
+            reviewItem.remediation?.status === 'pr_open' ? 10_000 : 2500,
     });
     const current = polled ?? reviewItem;
 
@@ -634,6 +637,16 @@ const ReviewItemPrCell = ({
     const previewsDiff = current.primaryRootCause === 'project_context';
 
     const phase = current.prWritebackMessage ?? 'Opening pull request…';
+    const workThreadUrl =
+        current.remediation?.previewProjectUuid &&
+        current.remediation.previewAgentUuid &&
+        current.remediation.previewThreadUuid
+            ? `/projects/${current.remediation.previewProjectUuid}/ai-agents/${current.remediation.previewAgentUuid}/threads/${current.remediation.previewThreadUuid}?reviewItem=${encodeURIComponent(current.fingerprint)}`
+            : null;
+    const remediationError =
+        current.remediation?.status === 'failed'
+            ? current.remediation.errorMessage
+            : null;
 
     return (
         <>
@@ -662,6 +675,25 @@ const ReviewItemPrCell = ({
                                 color="gray"
                             >
                                 View PR
+                            </Button>
+                        )}
+
+                        {workThreadUrl && (
+                            <Button
+                                component="a"
+                                href={workThreadUrl}
+                                onClick={(event) => event.stopPropagation()}
+                                size="compact-xs"
+                                fz="xs"
+                                variant="default"
+                                leftSection={
+                                    <MantineIcon
+                                        icon={IconMessages}
+                                        size="xs"
+                                    />
+                                }
+                            >
+                                Test fix
                             </Button>
                         )}
 
@@ -701,6 +733,21 @@ const ReviewItemPrCell = ({
                                 {getSuggestedNextStep(current)}
                             </Text>
                         </Group>
+                    )}
+
+                    {remediationError && (
+                        <Tooltip
+                            label={remediationError}
+                            withArrow
+                            openDelay={300}
+                        >
+                            <Group gap={4} wrap="nowrap" maw={220}>
+                                <MantineIcon icon={IconInfoCircle} size="xs" />
+                                <Text fz="xs" c="red.6" fw={500} lineClamp={1}>
+                                    {remediationError}
+                                </Text>
+                            </Group>
+                        </Tooltip>
                     )}
 
                     {!canCreatePr &&

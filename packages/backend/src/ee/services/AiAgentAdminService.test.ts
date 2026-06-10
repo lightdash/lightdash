@@ -1,7 +1,11 @@
+import { Ability } from '@casl/ability';
 import {
     AiAgentReviewRemediation,
+    OrganizationMemberRole,
     PullRequestProvider,
     type AiAgentReviewItemSummary,
+    type PossibleAbilities,
+    type SessionUser,
 } from '@lightdash/common';
 import { getPullRequestComments } from '../../clients/github/Github';
 import {
@@ -94,18 +98,47 @@ const makeRemediation = (
     ...overrides,
 });
 
+const makeAdminUser = (): SessionUser => ({
+    userUuid: USER_UUID,
+    email: 'admin@example.com',
+    firstName: 'Admin',
+    lastName: 'User',
+    organizationUuid: ORGANIZATION_UUID,
+    organizationName: 'Acme',
+    organizationCreatedAt: NOW,
+    userId: 1,
+    role: OrganizationMemberRole.ADMIN,
+    isTrackingAnonymized: false,
+    isMarketingOptedIn: false,
+    isSetupComplete: true,
+    isActive: true,
+    createdAt: NOW,
+    updatedAt: NOW,
+    timezone: null,
+    ability: new Ability<PossibleAbilities>([
+        { action: 'manage', subject: 'Organization' },
+    ]),
+    abilityRules: [],
+});
+
 const makeService = ({
     aiAgentModel = {},
     aiAgentReviewClassifierModel = {},
+    featureFlagService = {},
+    aiOrganizationSettingsService = {},
     projectModel = {},
     schedulerClient = {},
     githubAppInstallationsModel = {},
+    gitlabAppInstallationsModel = {},
 }: {
     aiAgentModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
+    featureFlagService?: Record<string, unknown>;
+    aiOrganizationSettingsService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     schedulerClient?: Record<string, unknown>;
     githubAppInstallationsModel?: Record<string, unknown>;
+    gitlabAppInstallationsModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentAdminService({
         analytics: { track: jest.fn() },
@@ -131,8 +164,16 @@ const makeService = ({
                 .mockResolvedValue(undefined),
             ...aiAgentReviewClassifierModel,
         },
-        featureFlagService: {},
+        featureFlagService: {
+            get: jest.fn().mockResolvedValue({ enabled: true }),
+            ...featureFlagService,
+        },
+        aiOrganizationSettingsService: {
+            isAiAgentReviewsEnabled: jest.fn().mockResolvedValue(true),
+            ...aiOrganizationSettingsService,
+        },
         projectModel: {
+            get: jest.fn().mockRejectedValue(new Error('Project not found')),
             getPreviewAiAgentUuid: jest
                 .fn()
                 .mockResolvedValue(PREVIEW_AGENT_UUID),
@@ -143,9 +184,13 @@ const makeService = ({
         pullRequestsModel: {},
         githubAppInstallationsModel: {
             getInstallationId: jest.fn().mockResolvedValue('installation-1'),
+            findInstallationId: jest.fn().mockResolvedValue(undefined),
             ...githubAppInstallationsModel,
         },
-        gitlabAppInstallationsModel: {},
+        gitlabAppInstallationsModel: {
+            findInstallationId: jest.fn().mockResolvedValue(undefined),
+            ...gitlabAppInstallationsModel,
+        },
         schedulerClient: {
             aiAgentReviewRemediationPreview: jest
                 .fn()
@@ -153,7 +198,11 @@ const makeService = ({
             ...schedulerClient,
         },
         userModel: {},
-        lightdashConfig: { siteUrl: SITE_URL },
+        lightdashConfig: {
+            siteUrl: SITE_URL,
+            appRuntime: { e2bApiKey: 'e2b-api-key' },
+            aiWriteback: { anthropicApiKey: 'anthropic-api-key' },
+        },
     } as unknown as ConstructorParameters<typeof AiAgentAdminService>[0]);
 
 describe('getAiAgentReviewItemWritebackEligibility', () => {
@@ -305,6 +354,58 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
     });
 });
 
+describe('AiAgentAdminService.updateReviewItemStatus', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('resolves the linked remediation when the review item is resolved', async () => {
+        const resolvedReviewItem = makeReviewItem({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            status: 'resolved',
+            remediation: makeRemediation({ status: 'pr_open' }),
+        });
+        const aiAgentReviewClassifierModel = {
+            getPromotedFingerprintScope: jest.fn().mockResolvedValue({
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+            }),
+            getReviewItem: jest
+                .fn()
+                .mockResolvedValueOnce(
+                    makeReviewItem({
+                        organizationUuid: ORGANIZATION_UUID,
+                        projectUuid: PROJECT_UUID,
+                        agentUuid: AGENT_UUID,
+                        status: 'open',
+                    }),
+                )
+                .mockResolvedValue(resolvedReviewItem),
+            upsertReviewItemState: jest.fn().mockResolvedValue(undefined),
+            updateReviewRemediationStatus: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        await service.updateReviewItemStatus(makeAdminUser(), 'fingerprint-1', {
+            status: 'resolved',
+            dismissedReason: null,
+        });
+
+        expect(
+            aiAgentReviewClassifierModel.updateReviewRemediationStatus,
+        ).toHaveBeenCalledWith({
+            remediationUuid: REMEDIATION_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            status: 'resolved',
+            resolvedByUserUuid: USER_UUID,
+        });
+    });
+});
+
 describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
     beforeEach(() => {
         jest.clearAllMocks();
@@ -380,5 +481,44 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
             previewAgentUuid: PREVIEW_AGENT_UUID,
             previewThreadUuid: PREVIEW_THREAD_UUID,
         });
+    });
+
+    it('marks remediation failed when no preview URL is published in time', async () => {
+        const aiAgentReviewClassifierModel = {
+            updateReviewRemediationStatus: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const schedulerClient = {
+            aiAgentReviewRemediationPreview: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            aiAgentReviewClassifierModel,
+            schedulerClient,
+        });
+
+        await service.pollReviewRemediationPreview({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            userUuid: USER_UUID,
+            fingerprint: 'fingerprint-1',
+            remediationUuid: REMEDIATION_UUID,
+            prUrl: 'https://github.com/acme/dbt/pull/42',
+            startedAt: Date.now() - 11 * 60_000,
+        });
+
+        expect(
+            aiAgentReviewClassifierModel.updateReviewRemediationStatus,
+        ).toHaveBeenCalledWith({
+            remediationUuid: REMEDIATION_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            status: 'failed',
+            errorMessage: 'Preview URL was not published in time',
+        });
+        expect(
+            schedulerClient.aiAgentReviewRemediationPreview,
+        ).not.toHaveBeenCalled();
     });
 });
