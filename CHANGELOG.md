@@ -1,3 +1,10 @@
+## [0.3129.1](https://github.com/lightdash/lightdash/compare/0.3129.0...0.3129.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* **ai-agents:** hide dismissed review findings ([#24136](https://github.com/lightdash/lightdash/issues/24136)) ([f3005aa](https://github.com/lightdash/lightdash/commit/f3005aa74a196e3b4a90c7de50d29b369db0eb88))
+
 # [0.3129.0](https://github.com/lightdash/lightdash/compare/0.3128.0...0.3129.0) (2026-06-10)
 
 
