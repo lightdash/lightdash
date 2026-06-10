@@ -153,16 +153,16 @@ describe('Filter SQL', () => {
         (unitOfTime) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheCurrentFilterBase,
                         settings: { unitOfTime },
                     },
-                    adapterType.default,
-                    'UTC',
-                    formatTimestamp,
-                ),
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(ExpectedInTheCurrentFilterSQL[unitOfTime]);
         },
     );
@@ -171,16 +171,16 @@ describe('Filter SQL', () => {
         (unitOfTime) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheCurrentFilterBase,
                         settings: { unitOfTime },
                     },
-                    adapterType.trino,
-                    'UTC',
-                    formatTimestamp,
-                ),
+                    adapterType: adapterType.trino,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(TrinoExpectedInTheCurrentFilterSQL[unitOfTime]);
         },
     );
@@ -189,16 +189,16 @@ describe('Filter SQL', () => {
         (unitOfTime) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheNextFilterBase,
                         settings: { unitOfTime },
                     },
-                    adapterType.default,
-                    'UTC',
-                    formatTimestamp,
-                ),
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(ExpectedInTheNextFilterSQL[unitOfTime]);
         },
     );
@@ -207,16 +207,16 @@ describe('Filter SQL', () => {
         (unitOfTime) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheNextFilterBase,
                         settings: { unitOfTime },
                     },
-                    adapterType.trino,
-                    'UTC',
-                    formatTimestamp,
-                ),
+                    adapterType: adapterType.trino,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(TrinoExpectedInTheNextFilterSQL[unitOfTime]);
         },
     );
@@ -225,16 +225,16 @@ describe('Filter SQL', () => {
         (unitOfTime) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheNextFilterBase,
                         settings: { unitOfTime, completed: true },
                     },
-                    adapterType.default,
-                    'UTC',
-                    formatTimestamp,
-                ),
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(ExpectedInTheNextCompleteFilterSQL[unitOfTime]);
         },
     );
@@ -243,16 +243,16 @@ describe('Filter SQL', () => {
         (unitOfTime) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheNextFilterBase,
                         settings: { unitOfTime, completed: true },
                     },
-                    adapterType.trino,
-                    'UTC',
-                    formatTimestamp,
-                ),
+                    adapterType: adapterType.trino,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(
                 TrinoExpectedInTheNextCompleteFilterSQL[unitOfTime],
             );
@@ -267,14 +267,14 @@ describe('Filter SQL', () => {
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
             };
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
                     filter,
-                    adapterType.default,
-                    'UTC',
-                    formatTimestamp,
-                    weekDay,
-                ),
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: weekDay,
+                }),
             ).toStrictEqual(
                 ExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek[
                     weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
@@ -291,14 +291,14 @@ describe('Filter SQL', () => {
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
             };
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
                     filter,
-                    adapterType.trino,
-                    'UTC',
-                    formatTimestamp,
-                    weekDay,
-                ),
+                    adapterType: adapterType.trino,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: weekDay,
+                }),
             ).toStrictEqual(
                 TrinoExpectedInTheNextCompleteWeekFilterSQLWithCustomStartOfWeek[
                     weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
@@ -315,14 +315,14 @@ describe('Filter SQL', () => {
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
             };
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
                     filter,
-                    adapterType.default,
-                    'UTC',
-                    formatTimestamp,
-                    weekDay,
-                ),
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: weekDay,
+                }),
             ).toStrictEqual(
                 ExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek[
                     weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
@@ -339,14 +339,14 @@ describe('Filter SQL', () => {
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
             };
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
                     filter,
-                    adapterType.trino,
-                    'UTC',
-                    formatTimestamp,
-                    weekDay,
-                ),
+                    adapterType: adapterType.trino,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: weekDay,
+                }),
             ).toStrictEqual(
                 TrinoExpectedInThePastCompleteWeekFilterSQLWithCustomStartOfWeek[
                     weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
@@ -363,14 +363,14 @@ describe('Filter SQL', () => {
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
             };
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
                     filter,
-                    adapterType.default,
-                    'UTC',
-                    formatTimestamp,
-                    weekDay,
-                ),
+                    adapterType: adapterType.default,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: weekDay,
+                }),
             ).toStrictEqual(
                 ExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek[
                     weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
@@ -387,14 +387,14 @@ describe('Filter SQL', () => {
                 settings: { unitOfTime: UnitOfTime.weeks, completed: true },
             };
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
                     filter,
-                    adapterType.trino,
-                    'UTC',
-                    formatTimestamp,
-                    weekDay,
-                ),
+                    adapterType: adapterType.trino,
+                    timezone: 'UTC',
+                    boundaryDateFormatter: formatTimestamp,
+                    startOfWeek: weekDay,
+                }),
             ).toStrictEqual(
                 TrinoExpectedInTheCurrentWeekFilterSQLWithCustomStartOfWeek[
                     weekDay as WeekDay.MONDAY | WeekDay.SUNDAY
@@ -404,262 +404,262 @@ describe('Filter SQL', () => {
     );
     test('should return in the last date filter sql', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1DayFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1DayFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InTheLast1DayFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1WeekFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1WeekFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InTheLast1WeekFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1MonthFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1MonthFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InTheLast1MonthFilterSQL);
 
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1YearFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1YearFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InTheLast1YearFilterSQL);
     });
     test('should return in the last date filter sql for trino adapter', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1DayFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1DayFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInTheLast1DayFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1WeekFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1WeekFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInTheLast1WeekFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1MonthFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1MonthFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInTheLast1MonthFilterSQL);
 
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1YearFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1YearFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInTheLast1YearFilterSQL);
     });
 
     test('should return in the last completed date filter sql ', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedDayFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedDayFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InTheLast1CompletedDayFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedWeekFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedWeekFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InTheLast1CompletedWeekFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedMonthFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedMonthFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InTheLast1CompletedMonthFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedYearFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedYearFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InTheLast1CompletedYearFilterSQL);
     });
     test('should return in the last completed date filter sql for trino adapter', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedDayFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedDayFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInTheLast1CompletedDayFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedWeekFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedWeekFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInTheLast1CompletedWeekFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedMonthFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedMonthFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInTheLast1CompletedMonthFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedYearFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedYearFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInTheLast1CompletedYearFilterSQL);
     });
 
     test('should return in the last date filter sql for timestamps', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1HourFilter,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1HourFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(InTheLast1HourFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedHourFilter,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedHourFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(InTheLast1CompletedHourFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1MinuteFilter,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1MinuteFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(InTheLast1MinuteFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedMinuteFilter,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedMinuteFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(InTheLast1CompletedMinuteFilterSQL);
     });
     test('should return in the last date filter sql for timestamps for trino adapter', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1HourFilter,
-                adapterType.trino,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1HourFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(TrinoInTheLast1HourFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedHourFilter,
-                adapterType.trino,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedHourFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(TrinoInTheLast1CompletedHourFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1MinuteFilter,
-                adapterType.trino,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1MinuteFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(TrinoInTheLast1MinuteFilterSQL);
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InTheLast1CompletedMinuteFilter,
-                adapterType.trino,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InTheLast1CompletedMinuteFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(TrinoInTheLast1CompletedMinuteFilterSQL);
     });
 
     test('should return in between date filter sql', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InBetweenPastTwoYearsFilter,
-                adapterType.default,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InBetweenPastTwoYearsFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(InBetweenPastTwoYearsFilterSQL);
     });
     test('should return in between date filter sql for trino adapter', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                InBetweenPastTwoYearsFilter,
-                adapterType.trino,
-                'UTC',
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InBetweenPastTwoYearsFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+            }),
         ).toStrictEqual(TrinoInBetweenPastTwoYearsFilterSQL);
     });
 
     test('should return in between date filter sql for timestamps', () => {
         expect(
-            renderTimestampFilterSql(
-                DimensionSqlMock,
-                InBetweenPastTwoYearsFilter,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderTimestampFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InBetweenPastTwoYearsFilter,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                timestampFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(InBetweenPastTwoYearsTimestampFilterSQL);
     });
     test('should return in between date filter sql for timestamps for trino adapter', () => {
         expect(
-            renderTimestampFilterSql(
-                DimensionSqlMock,
-                InBetweenPastTwoYearsFilter,
-                adapterType.trino,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderTimestampFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: InBetweenPastTwoYearsFilter,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+                timestampFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(TrinoInBetweenPastTwoYearsTimestampFilterSQL);
     });
 
@@ -667,157 +667,157 @@ describe('Filter SQL', () => {
     // April 4 2020: dayOfYear=95, dayOfMonth=4, dayInQuarter=3 (Apr1->Apr4), Saturday (dayInWeek=5 with Monday start)
     test('should return year to date filter sql', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                YearToDateFilterBase,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: YearToDateFilterBase,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
     });
 
     test('should return year to date filter sql for bigquery', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                YearToDateFilterBase,
-                SupportedDbtAdapter.BIGQUERY,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: YearToDateFilterBase,
+                adapterType: SupportedDbtAdapter.BIGQUERY,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DAYOFYEAR FROM ${DimensionSqlMock}) <= 95)`);
     });
 
     test('should return year to date filter sql for clickhouse', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                YearToDateFilterBase,
-                SupportedDbtAdapter.CLICKHOUSE,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: YearToDateFilterBase,
+                adapterType: SupportedDbtAdapter.CLICKHOUSE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(toDayOfYear(${DimensionSqlMock}) <= 95)`);
     });
 
     test('should return year to date filter sql for trino', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                YearToDateFilterBase,
-                SupportedDbtAdapter.TRINO,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: YearToDateFilterBase,
+                adapterType: SupportedDbtAdapter.TRINO,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
     });
 
     test('should return year to date filter sql for snowflake', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                YearToDateFilterBase,
-                SupportedDbtAdapter.SNOWFLAKE,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: YearToDateFilterBase,
+                adapterType: SupportedDbtAdapter.SNOWFLAKE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
     });
 
     test('should return year to date filter sql for databricks', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                YearToDateFilterBase,
-                SupportedDbtAdapter.DATABRICKS,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: YearToDateFilterBase,
+                adapterType: SupportedDbtAdapter.DATABRICKS,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
     });
 
     test('should return year to date filter sql for redshift', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                YearToDateFilterBase,
-                SupportedDbtAdapter.REDSHIFT,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: YearToDateFilterBase,
+                adapterType: SupportedDbtAdapter.REDSHIFT,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DOY FROM ${DimensionSqlMock}) <= 95)`);
     });
 
     test('should return month to date filter sql', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                MonthToDateFilterBase,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MonthToDateFilterBase,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DAY FROM ${DimensionSqlMock}) <= 4)`);
     });
 
     test('should return month to date filter sql for bigquery', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                MonthToDateFilterBase,
-                SupportedDbtAdapter.BIGQUERY,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MonthToDateFilterBase,
+                adapterType: SupportedDbtAdapter.BIGQUERY,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DAY FROM ${DimensionSqlMock}) <= 4)`);
     });
 
     test('should return month to date filter sql for clickhouse', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                MonthToDateFilterBase,
-                SupportedDbtAdapter.CLICKHOUSE,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MonthToDateFilterBase,
+                adapterType: SupportedDbtAdapter.CLICKHOUSE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(toDayOfMonth(${DimensionSqlMock}) <= 4)`);
     });
 
     test('should return month to date filter sql for trino', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                MonthToDateFilterBase,
-                SupportedDbtAdapter.TRINO,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MonthToDateFilterBase,
+                adapterType: SupportedDbtAdapter.TRINO,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DAY FROM ${DimensionSqlMock}) <= 4)`);
     });
 
     test('should return month to date filter sql for snowflake', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                MonthToDateFilterBase,
-                SupportedDbtAdapter.SNOWFLAKE,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: MonthToDateFilterBase,
+                adapterType: SupportedDbtAdapter.SNOWFLAKE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(`(EXTRACT(DAY FROM ${DimensionSqlMock}) <= 4)`);
     });
 
     test('should return quarter to date filter sql', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                QuarterToDateFilterBase,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: QuarterToDateFilterBase,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('QUARTER', ${DimensionSqlMock})) <= 3)`,
         );
@@ -825,13 +825,13 @@ describe('Filter SQL', () => {
 
     test('should return quarter to date filter sql for trino', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                QuarterToDateFilterBase,
-                adapterType.trino,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: QuarterToDateFilterBase,
+                adapterType: adapterType.trino,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(DATE_DIFF('day', DATE_TRUNC('quarter', ${DimensionSqlMock}), ${DimensionSqlMock}) <= 3)`,
         );
@@ -839,13 +839,13 @@ describe('Filter SQL', () => {
 
     test('should return quarter to date filter sql for bigquery', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                QuarterToDateFilterBase,
-                SupportedDbtAdapter.BIGQUERY,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: QuarterToDateFilterBase,
+                adapterType: SupportedDbtAdapter.BIGQUERY,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(DATE_DIFF(${DimensionSqlMock}, DATE_TRUNC(${DimensionSqlMock}, QUARTER), DAY) <= 3)`,
         );
@@ -853,13 +853,13 @@ describe('Filter SQL', () => {
 
     test('should return quarter to date filter sql for clickhouse', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                QuarterToDateFilterBase,
-                SupportedDbtAdapter.CLICKHOUSE,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: QuarterToDateFilterBase,
+                adapterType: SupportedDbtAdapter.CLICKHOUSE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(dateDiff('day', toStartOfQuarter(${DimensionSqlMock}), ${DimensionSqlMock}) <= 3)`,
         );
@@ -867,13 +867,13 @@ describe('Filter SQL', () => {
 
     test('should return quarter to date filter sql for athena', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                QuarterToDateFilterBase,
-                SupportedDbtAdapter.ATHENA,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: QuarterToDateFilterBase,
+                adapterType: SupportedDbtAdapter.ATHENA,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(DATE_DIFF('day', DATE_TRUNC('quarter', ${DimensionSqlMock}), ${DimensionSqlMock}) <= 3)`,
         );
@@ -881,13 +881,13 @@ describe('Filter SQL', () => {
 
     test('should return quarter to date filter sql for snowflake', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                QuarterToDateFilterBase,
-                SupportedDbtAdapter.SNOWFLAKE,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: QuarterToDateFilterBase,
+                adapterType: SupportedDbtAdapter.SNOWFLAKE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('QUARTER', ${DimensionSqlMock})) <= 3)`,
         );
@@ -895,13 +895,13 @@ describe('Filter SQL', () => {
 
     test('should return week to date filter sql (monday start)', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                WeekToDateFilterBase,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: WeekToDateFilterBase,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 5)`,
         );
@@ -909,13 +909,13 @@ describe('Filter SQL', () => {
 
     test('should return week to date filter sql for bigquery (sunday start default)', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                WeekToDateFilterBase,
-                SupportedDbtAdapter.BIGQUERY,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: WeekToDateFilterBase,
+                adapterType: SupportedDbtAdapter.BIGQUERY,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(DATE_DIFF(${DimensionSqlMock}, DATE_TRUNC(${DimensionSqlMock}, WEEK(SUNDAY)), DAY) <= 6)`,
         );
@@ -923,13 +923,13 @@ describe('Filter SQL', () => {
 
     test('should return week to date filter sql for clickhouse (sunday start default)', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                WeekToDateFilterBase,
-                SupportedDbtAdapter.CLICKHOUSE,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: WeekToDateFilterBase,
+                adapterType: SupportedDbtAdapter.CLICKHOUSE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(dateDiff('day', toStartOfWeek(${DimensionSqlMock}, 0), ${DimensionSqlMock}) <= 6)`,
         );
@@ -937,13 +937,13 @@ describe('Filter SQL', () => {
 
     test('should return week to date filter sql for trino', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                WeekToDateFilterBase,
-                SupportedDbtAdapter.TRINO,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: WeekToDateFilterBase,
+                adapterType: SupportedDbtAdapter.TRINO,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(DATE_DIFF('day', DATE_TRUNC('week', ${DimensionSqlMock}), ${DimensionSqlMock}) <= 5)`,
         );
@@ -951,13 +951,13 @@ describe('Filter SQL', () => {
 
     test('should return week to date filter sql for snowflake', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                WeekToDateFilterBase,
-                SupportedDbtAdapter.SNOWFLAKE,
-                'UTC',
-                formatTimestamp,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: WeekToDateFilterBase,
+                adapterType: SupportedDbtAdapter.SNOWFLAKE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+            }),
         ).toStrictEqual(
             `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 5)`,
         );
@@ -967,14 +967,14 @@ describe('Filter SQL', () => {
     // April 4, 2020 is Saturday. Monday start: dayInWeek=5 (Mon=0..Sat=5). Sunday start: dayInWeek=6 (Sun=0..Sat=6).
     test('should return week to date filter sql for postgres with sunday start', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                WeekToDateFilterBase,
-                adapterType.default,
-                'UTC',
-                formatTimestamp,
-                WeekDay.SUNDAY,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: WeekToDateFilterBase,
+                adapterType: adapterType.default,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+                startOfWeek: WeekDay.SUNDAY,
+            }),
         ).toStrictEqual(
             `(EXTRACT(DAY FROM ${DimensionSqlMock} - DATE_TRUNC('WEEK', ${DimensionSqlMock})) <= 6)`,
         );
@@ -982,14 +982,14 @@ describe('Filter SQL', () => {
 
     test('should return week to date filter sql for bigquery with monday start', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                WeekToDateFilterBase,
-                SupportedDbtAdapter.BIGQUERY,
-                'UTC',
-                formatTimestamp,
-                WeekDay.MONDAY,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: WeekToDateFilterBase,
+                adapterType: SupportedDbtAdapter.BIGQUERY,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+                startOfWeek: WeekDay.MONDAY,
+            }),
         ).toStrictEqual(
             `(DATE_DIFF(${DimensionSqlMock}, DATE_TRUNC(${DimensionSqlMock}, WEEK(MONDAY)), DAY) <= 5)`,
         );
@@ -997,14 +997,14 @@ describe('Filter SQL', () => {
 
     test('should return week to date filter sql for clickhouse with monday start', () => {
         expect(
-            renderDateFilterSql(
-                DimensionSqlMock,
-                WeekToDateFilterBase,
-                SupportedDbtAdapter.CLICKHOUSE,
-                'UTC',
-                formatTimestamp,
-                WeekDay.MONDAY,
-            ),
+            renderDateFilterSql({
+                dimensionSql: DimensionSqlMock,
+                filter: WeekToDateFilterBase,
+                adapterType: SupportedDbtAdapter.CLICKHOUSE,
+                timezone: 'UTC',
+                boundaryDateFormatter: formatTimestamp,
+                startOfWeek: WeekDay.MONDAY,
+            }),
         ).toStrictEqual(
             `(dateDiff('day', toStartOfWeek(${DimensionSqlMock}, 1), ${DimensionSqlMock}) <= 5)`,
         );
@@ -1015,13 +1015,13 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    InTheCurrentFilterBase,
-                    adapterType.default,
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: InTheCurrentFilterBase,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -1031,19 +1031,19 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InThePastFilterBase,
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: true,
                         },
                     },
-                    adapterType.default,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -1053,19 +1053,19 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheNextFilterBase,
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: true,
                         },
                     },
-                    adapterType.default,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -1075,19 +1075,19 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InThePastFilterBase,
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: true,
                         },
                     },
-                    adapterType.default,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -1097,19 +1097,19 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('07 Mar 2020 05:00:00 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheNextFilterBase,
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: true,
                         },
                     },
-                    adapterType.default,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -1119,19 +1119,19 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InThePastFilterBase,
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: false,
                         },
                     },
-                    adapterType.default,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -1141,19 +1141,19 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('04 Apr 2020 06:12:30 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheNextFilterBase,
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: false,
                         },
                     },
-                    adapterType.default,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -1163,19 +1163,19 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('09 Mar 2020 05:00:00 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InThePastFilterBase,
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: false,
                         },
                     },
-                    adapterType.default,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -1185,19 +1185,19 @@ describe('Filter SQL', () => {
         (timezone, expected) => {
             jest.setSystemTime(new Date('08 Mar 2020 06:00:00 GMT').getTime());
             expect(
-                renderDateFilterSql(
-                    DimensionSqlMock,
-                    {
+                renderDateFilterSql({
+                    dimensionSql: DimensionSqlMock,
+                    filter: {
                         ...InTheNextFilterBase,
                         settings: {
                             unitOfTime: UnitOfTime.days,
                             completed: false,
                         },
                     },
-                    adapterType.default,
+                    adapterType: adapterType.default,
                     timezone,
-                    formatTimestamp,
-                ),
+                    boundaryDateFormatter: formatTimestamp,
+                }),
             ).toStrictEqual(expected);
         },
     );
@@ -2298,19 +2298,20 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InThePastFilterBase,
                             settings: {
                                 unitOfTime: UnitOfTime.days,
                                 completed: true,
                             },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
@@ -2322,16 +2323,17 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InTheCurrentFilterBase,
                             settings: { unitOfTime: UnitOfTime.days },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
@@ -2343,19 +2345,20 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InThePastFilterBase,
                             settings: {
                                 unitOfTime: UnitOfTime.days,
                                 completed: false,
                             },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
@@ -2367,19 +2370,20 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InTheNextFilterBase,
                             settings: {
                                 unitOfTime: UnitOfTime.days,
                                 completed: true,
                             },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
@@ -2391,19 +2395,20 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 06:12:30 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InTheNextFilterBase,
                             settings: {
                                 unitOfTime: UnitOfTime.days,
                                 completed: false,
                             },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
@@ -2417,16 +2422,17 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 02:00:00 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InTheCurrentFilterBase,
                             settings: { unitOfTime: UnitOfTime.days },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
@@ -2438,19 +2444,20 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 02:00:00 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InThePastFilterBase,
                             settings: {
                                 unitOfTime: UnitOfTime.days,
                                 completed: true,
                             },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
@@ -2464,16 +2471,17 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 22:00:00 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InTheCurrentFilterBase,
                             settings: { unitOfTime: UnitOfTime.days },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
@@ -2485,19 +2493,20 @@ describe('Number Filter SQL Injection Prevention', () => {
                     new Date('04 Apr 2020 22:00:00 GMT').getTime(),
                 );
                 expect(
-                    renderDateFilterSql(
-                        DimensionSqlMock,
-                        {
+                    renderDateFilterSql({
+                        dimensionSql: DimensionSqlMock,
+                        filter: {
                             ...InThePastFilterBase,
                             settings: {
                                 unitOfTime: UnitOfTime.days,
                                 completed: true,
                             },
                         },
-                        adapterType.default,
+                        adapterType: adapterType.default,
                         timezone,
-                        createBoundaryDateFormatter(timezone),
-                    ),
+                        boundaryDateFormatter:
+                            createBoundaryDateFormatter(timezone),
+                    }),
                 ).toStrictEqual(expected);
             },
         );
