@@ -311,15 +311,12 @@ const ReviewConceptHelp = () => (
                         <Text span fw={600} c="ldGray.9" fz="inherit">
                             turn
                         </Text>{' '}
-                        is one question and answer. A{' '}
-                        <Text span fw={600} c="ldGray.9" fz="inherit">
-                            signal
-                        </Text>{' '}
-                        is what the judge thought of it. A{' '}
+                        is one question and answer. When a turn shows a clear
+                        issue, it becomes a{' '}
                         <Text span fw={600} c="ldGray.9" fz="inherit">
                             finding
                         </Text>{' '}
-                        is one worth your attention.
+                        so you can review it here and decide what to fix next.
                     </Text>
                 </Stack>
                 <Divider />
