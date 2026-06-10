@@ -1,5 +1,6 @@
-import { Ability, AbilityBuilder } from '@casl/ability';
+import { Ability, AbilityBuilder, subject } from '@casl/ability';
 import { OrganizationMemberRole } from '../types/organizationMemberProfile';
+import { ProjectType } from '../types/projects';
 import { getUserAbilityBuilder } from './index';
 import applyOrganizationMemberAbilities from './organizationMemberAbility';
 import { type MemberAbility } from './types';
@@ -196,6 +197,67 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
             const { rules } = builder.build();
             // Org member abilities (minimal) plus project admin abilities
             expect(rules.length).toBeGreaterThan(0);
+        });
+    });
+
+    describe('selfPreview scopes via project profiles', () => {
+        it('grants manage:Dashboard@selfPreview only in self-created preview projects', () => {
+            const { builder } = getUserAbilityBuilder({
+                user: {
+                    role: OrganizationMemberRole.MEMBER,
+                    organizationUuid: ORG_UUID,
+                    userUuid: USER_UUID,
+                    roleUuid: undefined,
+                },
+                projectProfiles: [
+                    {
+                        projectUuid: 'prod-project',
+                        role: 'viewer' as never, // ProjectMemberRole.VIEWER
+                        userUuid: USER_UUID,
+                        roleUuid: CUSTOM_ROLE_UUID,
+                        projectType: ProjectType.DEFAULT,
+                        projectCreatedByUserUuid: null,
+                    },
+                    {
+                        projectUuid: 'preview-project',
+                        role: 'viewer' as never, // ProjectMemberRole.VIEWER
+                        userUuid: USER_UUID,
+                        roleUuid: CUSTOM_ROLE_UUID,
+                        projectType: ProjectType.PREVIEW,
+                        projectCreatedByUserUuid: USER_UUID,
+                    },
+                ],
+                permissionsConfig: PERMISSIONS_CONFIG,
+                customRoleScopes: {
+                    [CUSTOM_ROLE_UUID]: ['manage:Dashboard@selfPreview'],
+                },
+                customRolesEnabled: true,
+                isEnterprise: true,
+            });
+            const ability = builder.build();
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: 'preview-project',
+                        isPrivate: true,
+                        access: [],
+                    }),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: 'prod-project',
+                        isPrivate: false,
+                        access: [],
+                    }),
+                ),
+            ).toBe(false);
         });
     });
 });

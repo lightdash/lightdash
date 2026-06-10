@@ -1,6 +1,7 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import { NotFoundError } from '../types/errors';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import { type ProjectType } from '../types/projects';
 import { type Role, type RoleWithScopes } from '../types/roles';
 import { type LightdashUser } from '../types/user';
 import applyOrganizationMemberAbilities, {
@@ -10,15 +11,24 @@ import { projectMemberAbilities } from './projectMemberAbility';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
 
+/**
+ * Project membership plus the project metadata needed by @selfPreview scope
+ * conditions (resolved at ability-build time, not per permission check).
+ */
+export type ProjectAbilityProfile = Pick<
+    ProjectMemberProfile,
+    'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
+> & {
+    projectType?: ProjectType;
+    projectCreatedByUserUuid?: string | null;
+};
+
 type UserAbilityBuilderArgs = {
     user: Pick<
         LightdashUser,
         'role' | 'organizationUuid' | 'userUuid' | 'roleUuid'
     >;
-    projectProfiles: Pick<
-        ProjectMemberProfile,
-        'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
-    >[];
+    projectProfiles: ProjectAbilityProfile[];
     permissionsConfig: OrganizationMemberAbilitiesArgs['permissionsConfig'];
     customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>;
     customRolesEnabled?: boolean;
@@ -100,6 +110,9 @@ export const getUserAbilityBuilder = ({
                     ...buildAbilityFromScopes(
                         {
                             projectUuid: projectProfile.projectUuid,
+                            projectType: projectProfile.projectType,
+                            projectCreatedByUserUuid:
+                                projectProfile.projectCreatedByUserUuid,
                             userUuid: user.userUuid,
                             scopes,
                             isEnterprise,
@@ -126,10 +139,7 @@ export const defineUserAbility = (
         LightdashUser,
         'role' | 'organizationUuid' | 'userUuid' | 'roleUuid'
     >,
-    projectProfiles: Pick<
-        ProjectMemberProfile,
-        'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
-    >[],
+    projectProfiles: ProjectAbilityProfile[],
     customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>,
 ): MemberAbility => {
     const { builder } = getUserAbilityBuilder({
