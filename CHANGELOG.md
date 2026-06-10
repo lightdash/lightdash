@@ -1,3 +1,10 @@
+## [0.3124.1](https://github.com/lightdash/lightdash/compare/0.3124.0...0.3124.1) (2026-06-10)
+
+
+### Bug Fixes
+
+* reject nested filter values ([#24043](https://github.com/lightdash/lightdash/issues/24043)) ([f616458](https://github.com/lightdash/lightdash/commit/f616458e2b513b30836e34154dc0be90ae37867f)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 # [0.3124.0](https://github.com/lightdash/lightdash/compare/0.3123.0...0.3124.0) (2026-06-09)
 
 
