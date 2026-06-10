@@ -74,6 +74,15 @@ export class GitUserCredentialsModel {
     }
 
     async upsertCredential(credential: UpsertGitUserCredential): Promise<void> {
+        // Encrypt once and reuse for both the insert and the conflict-merge —
+        // each encrypt() call uses a fresh IV, so calling it twice would store
+        // two different ciphertexts for the same value.
+        const encryptedAuthToken = this.encryptionUtil.encrypt(
+            credential.token,
+        );
+        const encryptedRefreshToken = this.encryptionUtil.encrypt(
+            credential.refreshToken,
+        );
         await this.database(GitUserCredentialsTableName)
             .insert({
                 user_uuid: credential.userUuid,
@@ -81,23 +90,15 @@ export class GitUserCredentialsModel {
                 provider: credential.provider,
                 provider_login: credential.providerLogin,
                 provider_user_id: credential.providerUserId,
-                encrypted_auth_token: this.encryptionUtil.encrypt(
-                    credential.token,
-                ),
-                encrypted_refresh_token: this.encryptionUtil.encrypt(
-                    credential.refreshToken,
-                ),
+                encrypted_auth_token: encryptedAuthToken,
+                encrypted_refresh_token: encryptedRefreshToken,
             })
             .onConflict(['user_uuid', 'organization_uuid', 'provider'])
             .merge({
                 provider_login: credential.providerLogin,
                 provider_user_id: credential.providerUserId,
-                encrypted_auth_token: this.encryptionUtil.encrypt(
-                    credential.token,
-                ),
-                encrypted_refresh_token: this.encryptionUtil.encrypt(
-                    credential.refreshToken,
-                ),
+                encrypted_auth_token: encryptedAuthToken,
+                encrypted_refresh_token: encryptedRefreshToken,
                 updated_at: new Date(),
             });
     }

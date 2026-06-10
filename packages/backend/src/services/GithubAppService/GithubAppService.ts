@@ -539,6 +539,10 @@ export class GithubAppService extends BaseService {
         };
     }
 
+    // Intentionally NOT gated on the GithubUserCredentials feature flag: if an
+    // org disables the flag after users have linked, those users must still be
+    // able to revoke their stored token. Unlink only ever removes the caller's
+    // own credential, so there is no exposure in leaving it always available.
     async unlinkUser(user: SessionUser): Promise<void> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
