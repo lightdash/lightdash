@@ -82,7 +82,7 @@ const mapDbPullRequest = (
     createdAt: row.created_at,
 });
 
-const toPullRequestReviewContext = ({
+export const toPullRequestReviewContext = ({
     fingerprint,
     reviewStatus,
     reviewItemTitle,
@@ -91,15 +91,9 @@ const toPullRequestReviewContext = ({
     sourceThreadUuid,
     sourceProjectUuid,
     sourceAgentUuid,
-}: {
+}: ReviewSourceInfo & {
     fingerprint: string;
     reviewStatus: AiAgentReviewItemStatus | null;
-    reviewItemTitle: string | null;
-    primaryRootCause: AiAgentRootCause | null;
-    sourceFindingUuid: string;
-    sourceThreadUuid: string;
-    sourceProjectUuid: string;
-    sourceAgentUuid: string;
 }): PullRequestReviewContext => ({
     reviewItemUuid: fingerprint,
     reviewItemFingerprint: fingerprint,

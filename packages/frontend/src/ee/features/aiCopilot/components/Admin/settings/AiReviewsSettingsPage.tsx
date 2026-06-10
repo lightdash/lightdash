@@ -1,6 +1,6 @@
 import { Button, Drawer, Group, Stack, Text } from '@mantine-8/core';
 import { IconRoute } from '@tabler/icons-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { GuidedTour } from '../../../../../../components/common/GuidedTour';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
@@ -20,11 +20,10 @@ export const AiReviewsSettingsPage = () => {
     const { data: settings } = useAiOrganizationSettings();
     const [searchParams, setSearchParams] = useSearchParams();
 
-    const [selectedReviewItem, setSelectedReviewItem] =
-        useState<AiAgentAdminReviewItemPreviewTarget | null>(null);
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-    const reviewItemFromSearchParams = useMemo(() => {
+    // The selected review item and the sidebar's open state are derived
+    // directly from the URL — every mutation (deep-link, row select, close)
+    // goes through `setSearchParams`, so there's no separate state to sync.
+    const selectedReviewItem = useMemo(() => {
         const projectUuid = searchParams.get('reviewProjectUuid');
         const agentUuid = searchParams.get('reviewAgentUuid');
         const threadUuid = searchParams.get('reviewThreadUuid');
@@ -42,6 +41,8 @@ export const AiReviewsSettingsPage = () => {
         };
     }, [searchParams]);
 
+    const isSidebarOpen = selectedReviewItem !== null;
+
     // While the tour is running, the table always shows sample rows so it
     // highlights the same findings every time. Closing it flips to real data.
     const {
@@ -49,15 +50,6 @@ export const AiReviewsSettingsPage = () => {
         startTour,
         closeTour,
     } = useGuidedTour({ storageKey: 'ld.aiReviews.tour.v1' });
-
-    useEffect(() => {
-        if (!reviewItemFromSearchParams) {
-            return;
-        }
-
-        setSelectedReviewItem(reviewItemFromSearchParams);
-        setIsSidebarOpen(true);
-    }, [reviewItemFromSearchParams]);
 
     const updateReviewSearchParams = (
         reviewItem: AiAgentAdminReviewItemPreviewTarget | null,
@@ -84,14 +76,10 @@ export const AiReviewsSettingsPage = () => {
     const handleReviewItemSelect = (
         reviewItem: AiAgentAdminReviewItemPreviewTarget,
     ): void => {
-        setSelectedReviewItem(reviewItem);
-        setIsSidebarOpen(true);
         updateReviewSearchParams(reviewItem);
     };
 
     const handleCloseSidebar = () => {
-        setIsSidebarOpen(false);
-        setSelectedReviewItem(null);
         updateReviewSearchParams(null);
     };
 
@@ -148,7 +136,7 @@ export const AiReviewsSettingsPage = () => {
             />
 
             <Drawer
-                opened={isSidebarOpen && !!selectedReviewItem}
+                opened={isSidebarOpen}
                 onClose={handleCloseSidebar}
                 position="right"
                 size="lg"
