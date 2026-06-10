@@ -1,3 +1,10 @@
+# [0.3133.0](https://github.com/lightdash/lightdash/compare/0.3132.1...0.3133.0) (2026-06-10)
+
+
+### Features
+
+* link personal GitHub account for user-attributed write-backs ([#24138](https://github.com/lightdash/lightdash/issues/24138)) ([c945dc0](https://github.com/lightdash/lightdash/commit/c945dc043d7212c95293b153ea91b070f179581e))
+
 ## [0.3132.1](https://github.com/lightdash/lightdash/compare/0.3132.0...0.3132.1) (2026-06-10)
 
 
