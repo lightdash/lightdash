@@ -3,6 +3,10 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentReviewBatchReportResponse,
+    ApiAiAgentReviewBatchRunResponse,
+    ApiAiAgentReviewBatchRunsResponse,
+    ApiAiAgentReviewBatchStartedResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemResponse,
@@ -13,6 +17,7 @@ import {
     ApiErrorPayload,
     ApiUpdateAiOrganizationSettingsResponse,
     assertRegisteredAccount,
+    CreateAiAgentReviewBatch,
     KnexPaginateArgs,
     UpdateAiAgentReviewItemStatus,
     UpdateAiOrganizationSettings,
@@ -429,6 +434,99 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: settings,
+        };
+    }
+
+    /**
+     * Start a new AI agent review batch analysis run
+     * @summary Start AI agent review batch
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/review-runs')
+    @OperationId('startAiAgentReviewBatch')
+    async startReviewBatch(
+        @Request() req: express.Request,
+        @Body() body: CreateAiAgentReviewBatch,
+    ): Promise<ApiAiAgentReviewBatchStartedResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().startReviewBatch(
+                toSessionUser(req.account),
+                body,
+            ),
+        };
+    }
+
+    /**
+     * List AI agent review batch runs
+     * @summary List AI agent review batch runs
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-runs')
+    @OperationId('listAiAgentReviewBatchRuns')
+    async listReviewBatchRuns(
+        @Request() req: express.Request,
+        @Query() projectUuid?: string,
+        @Query() agentUuid?: string,
+    ): Promise<ApiAiAgentReviewBatchRunsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().listReviewBatchRuns(
+                toSessionUser(req.account),
+                { projectUuid, agentUuid },
+            ),
+        };
+    }
+
+    /**
+     * Get a single AI agent review batch run (for polling status)
+     * @summary Get AI agent review batch run
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-runs/{runUuid}')
+    @OperationId('getAiAgentReviewBatchRun')
+    async getReviewBatchRun(
+        @Request() req: express.Request,
+        @Path() runUuid: string,
+    ): Promise<ApiAiAgentReviewBatchRunResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getReviewBatchRun(
+                toSessionUser(req.account),
+                runUuid,
+            ),
+        };
+    }
+
+    /**
+     * Get the full report for a completed AI agent review batch run
+     * @summary Get AI agent review batch report
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-runs/{runUuid}/report')
+    @OperationId('getAiAgentReviewBatchReport')
+    async getReviewBatchReport(
+        @Request() req: express.Request,
+        @Path() runUuid: string,
+    ): Promise<ApiAiAgentReviewBatchReportResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getReviewBatchReport(
+                toSessionUser(req.account),
+                runUuid,
+            ),
         };
     }
 
