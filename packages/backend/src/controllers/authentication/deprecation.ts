@@ -65,5 +65,5 @@ export const getDeprecatedRouteMiddleware = (
 export const deprecatedResultsRoute: RequestHandler =
     getDeprecatedRouteMiddleware(new Date('2025-03-20'), {
         removeOn: new Date('2025-04-30'),
-        suffixMessage: `Please use 'POST /api/v2/projects/{projectUuid}/query' in conjuntion with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.`,
+        suffixMessage: `Please use 'POST /api/v2/projects/{projectUuid}/query' in conjunction with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.`,
     });
