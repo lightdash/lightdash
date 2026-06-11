@@ -121,10 +121,10 @@ const BASE_ROLE_SCOPES = {
         // Redundant for developers (covered by broader content manage
         // scopes) but surfaced so cloned custom roles can drop production
         // edit rights and keep editing inside previews the user created.
-        'manage:Dashboard@selfPreview',
-        'manage:SavedChart@selfPreview',
-        'manage:Space@selfPreview',
-        'manage:Explore@selfPreview',
+        'manage:Dashboard@self',
+        'manage:SavedChart@self',
+        'manage:Space@self',
+        'manage:Explore@self',
         'view:JobStatus', // All jobs in project
         'view:SourceCode',
         'manage:SourceCode',

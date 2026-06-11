@@ -201,7 +201,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
     });
 
     describe('selfPreview scopes via project profiles', () => {
-        it('grants manage:Dashboard@selfPreview only in self-created preview projects', () => {
+        it('grants manage:Dashboard@self only in self-created preview projects', () => {
             const { builder } = getUserAbilityBuilder({
                 user: {
                     role: OrganizationMemberRole.MEMBER,
@@ -229,7 +229,7 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
                 ],
                 permissionsConfig: PERMISSIONS_CONFIG,
                 customRoleScopes: {
-                    [CUSTOM_ROLE_UUID]: ['manage:Dashboard@selfPreview'],
+                    [CUSTOM_ROLE_UUID]: ['manage:Dashboard@self'],
                 },
                 customRolesEnabled: true,
                 isEnterprise: true,

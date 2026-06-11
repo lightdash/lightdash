@@ -45,7 +45,7 @@ const applyScopeAbilities = (
         const [action, subject] = parseScope(scopeName);
         const conditionsList = scope.getConditions(context);
 
-        // null = scope does not apply in this context (e.g. @selfPreview
+        // null = scope does not apply in this context (e.g. @self
         // outside a self-created preview project). Skip entirely — an empty
         // array still means an unconditional grant.
         if (conditionsList === null) return;

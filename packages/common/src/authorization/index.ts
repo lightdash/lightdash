@@ -12,7 +12,7 @@ import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
 
 /**
- * Project membership plus the project metadata needed by @selfPreview scope
+ * Project membership plus the project metadata needed by @self scope
  * conditions (resolved at ability-build time, not per permission check).
  */
 export type ProjectAbilityProfile = Pick<

@@ -82,7 +82,7 @@ const scopes: Scope[] = [
         ],
     },
     {
-        name: 'manage:Dashboard@selfPreview',
+        name: 'manage:Dashboard@self',
         description:
             'Create, edit, and delete dashboards in preview projects created by the user',
         isEnterprise: false,
@@ -118,7 +118,7 @@ const scopes: Scope[] = [
         ],
     },
     {
-        name: 'manage:SavedChart@selfPreview',
+        name: 'manage:SavedChart@self',
         description:
             'Create, edit, and delete saved charts in preview projects created by the user',
         isEnterprise: false,
@@ -168,7 +168,7 @@ const scopes: Scope[] = [
         ],
     },
     {
-        name: 'manage:Space@selfPreview',
+        name: 'manage:Space@self',
         description:
             'Create, edit, and delete spaces in preview projects created by the user',
         isEnterprise: false,
@@ -608,7 +608,7 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
-        name: 'manage:Explore@selfPreview',
+        name: 'manage:Explore@self',
         description:
             'Explore and query data in preview projects created by the user',
         isEnterprise: false,

@@ -2362,9 +2362,9 @@ describe('scopeAbilityBuilder', () => {
             return builder.build();
         };
 
-        it('manage:Dashboard@selfPreview grants manage on any dashboard in own preview project', () => {
+        it('manage:Dashboard@self grants manage on any dashboard in own preview project', () => {
             const ability = buildWith(selfPreviewContext, [
-                'manage:Dashboard@selfPreview',
+                'manage:Dashboard@self',
             ]);
 
             // Bypasses space access entirely — even private spaces with no access entries
@@ -2394,9 +2394,9 @@ describe('scopeAbilityBuilder', () => {
             ).toBe(false);
         });
 
-        it('manage:SavedChart@selfPreview grants manage on charts in own preview project', () => {
+        it('manage:SavedChart@self grants manage on charts in own preview project', () => {
             const ability = buildWith(selfPreviewContext, [
-                'manage:SavedChart@selfPreview',
+                'manage:SavedChart@self',
             ]);
 
             expect(
@@ -2424,9 +2424,9 @@ describe('scopeAbilityBuilder', () => {
             ).toBe(false);
         });
 
-        it('manage:Space@selfPreview grants manage on spaces in own preview project', () => {
+        it('manage:Space@self grants manage on spaces in own preview project', () => {
             const ability = buildWith(selfPreviewContext, [
-                'manage:Space@selfPreview',
+                'manage:Space@self',
             ]);
 
             expect(
@@ -2442,9 +2442,9 @@ describe('scopeAbilityBuilder', () => {
             ).toBe(true);
         });
 
-        it('manage:Explore@selfPreview grants explore/query access in own preview project', () => {
+        it('manage:Explore@self grants explore/query access in own preview project', () => {
             const ability = buildWith(selfPreviewContext, [
-                'manage:Explore@selfPreview',
+                'manage:Explore@self',
             ]);
 
             expect(
@@ -2475,7 +2475,7 @@ describe('scopeAbilityBuilder', () => {
                     projectType: ProjectType.DEFAULT,
                     projectCreatedByUserUuid: 'user1',
                 },
-                ['manage:Dashboard@selfPreview'],
+                ['manage:Dashboard@self'],
             );
 
             expect(
@@ -2499,7 +2499,7 @@ describe('scopeAbilityBuilder', () => {
                     projectType: ProjectType.PREVIEW,
                     projectCreatedByUserUuid: 'someone-else',
                 },
-                ['manage:Dashboard@selfPreview'],
+                ['manage:Dashboard@self'],
             );
 
             expect(
@@ -2516,9 +2516,7 @@ describe('scopeAbilityBuilder', () => {
         });
 
         it('grants nothing when project metadata is absent from context', () => {
-            const ability = buildWith(baseContext, [
-                'manage:Dashboard@selfPreview',
-            ]);
+            const ability = buildWith(baseContext, ['manage:Dashboard@self']);
 
             expect(
                 ability.can(
@@ -2538,7 +2536,7 @@ describe('scopeAbilityBuilder', () => {
             buildAbilityFromScopes(
                 {
                     ...baseContextWithOrg,
-                    scopes: ['manage:Dashboard@selfPreview'],
+                    scopes: ['manage:Dashboard@self'],
                 },
                 builder,
             );

@@ -43,9 +43,9 @@ type OrganizationScopeContext = BaseScopeContext & {
 type ProjectScopeContext = BaseScopeContext & {
     projectUuid: string;
     organizationUuid?: never;
-    /** Type of the project this role assignment belongs to (for @selfPreview scopes) */
+    /** Type of the project this role assignment belongs to (for @self scopes) */
     projectType?: ProjectType;
-    /** Creator of the project this role assignment belongs to (for @selfPreview scopes) */
+    /** Creator of the project this role assignment belongs to (for @self scopes) */
     projectCreatedByUserUuid?: string | null;
 };
 
@@ -54,13 +54,7 @@ type ProjectScopeContext = BaseScopeContext & {
  */
 export type ScopeContext = OrganizationScopeContext | ProjectScopeContext;
 
-export type ScopeModifer =
-    | 'self'
-    | 'public'
-    | 'assigned'
-    | 'space'
-    | 'preview'
-    | 'selfPreview';
+export type ScopeModifer = 'self' | 'public' | 'assigned' | 'space' | 'preview';
 type OptionalModifier = `${'' | `@${ScopeModifer}`}`;
 
 /**
