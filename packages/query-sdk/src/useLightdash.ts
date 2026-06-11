@@ -16,7 +16,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTransport } from './LightdashProvider';
 import type { QueryBuilder } from './query';
-import type { Column, FormatFunction, Row } from './types';
+import type {
+    Column,
+    FormatFunction,
+    Row,
+    UnderlyingDataOptions,
+    UnderlyingDataResult,
+} from './types';
 
 const noopFormat: FormatFunction = (_row, _fieldId) => '';
 
@@ -33,6 +39,12 @@ type UseLightdashResult = {
     error: Error | null;
     /** Re-run the query */
     refetch: () => void;
+    /** Async query UUID for the source query, once loaded. */
+    queryUuid: string | null;
+    /** Fetch raw rows behind an aggregated metric value from this query result. */
+    getUnderlyingData: (
+        options: UnderlyingDataOptions,
+    ) => Promise<UnderlyingDataResult>;
 };
 
 export function useLightdash(query: QueryBuilder): UseLightdashResult {
@@ -43,6 +55,14 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
     const [fetchCount, setFetchCount] = useState(0);
+    const [queryUuid, setQueryUuid] = useState<string | null>(null);
+    const [getUnderlyingData, setGetUnderlyingData] = useState<
+        UseLightdashResult['getUnderlyingData']
+    >(() => async () => {
+        throw new Error(
+            'Underlying data is not available before the query loads.',
+        );
+    });
 
     const queryKey = useMemo(() => JSON.stringify(query.build()), [query]);
 
@@ -54,6 +74,12 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         let cancelled = false;
         setLoading(true);
         setError(null);
+        setQueryUuid(null);
+        setGetUnderlyingData(() => async () => {
+            throw new Error(
+                'Underlying data is not available before the query loads.',
+            );
+        });
 
         const definition = query.build();
 
@@ -64,6 +90,17 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
                     setData(res.rows);
                     setColumns(res.columns);
                     setFormat(() => res.format);
+                    setQueryUuid(res.queryUuid ?? null);
+                    setGetUnderlyingData(
+                        () => async (options: UnderlyingDataOptions) => {
+                            if (!res.getUnderlyingData) {
+                                throw new Error(
+                                    'Underlying data is not supported by this Lightdash transport.',
+                                );
+                            }
+                            return res.getUnderlyingData(options);
+                        },
+                    );
                     setLoading(false);
                 }
             })
@@ -72,6 +109,7 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
                     setError(
                         err instanceof Error ? err : new Error(String(err)),
                     );
+                    setQueryUuid(null);
                     setLoading(false);
                 }
             });
@@ -82,5 +120,14 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         // queryKey tracks query identity. query is intentionally omitted.
     }, [queryKey, transport, fetchCount]); // eslint-disable-line
 
-    return { data, columns, format, loading, error, refetch };
+    return {
+        data,
+        columns,
+        format,
+        loading,
+        error,
+        refetch,
+        queryUuid,
+        getUnderlyingData,
+    };
 }

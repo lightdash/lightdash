@@ -435,6 +435,52 @@ Parameters are independent of `.filters()` — a filter restricts which rows are
 | `loading` | `boolean` | True while query is in flight. |
 | `error` | `Error \| null` | Query error. |
 | `refetch` | `() => void` | Re-run the query on demand. |
+| `queryUuid` | `string \| null` | The async Lightdash query UUID for the loaded source query. Rarely needed directly. |
+| `getUnderlyingData` | `({ row, metric, limit? }) => Promise<{ rows, columns, format, queryUuid }>` | Fetch raw rows behind an aggregated metric value. Call from a user action, never on initial render. |
+
+### Underlying data
+
+Use `getUnderlyingData()` when the user asks to inspect the rows behind a metric in a chart, KPI, or table. It runs Lightdash's native "View underlying data" query for the already-loaded result row.
+
+Rules:
+
+- Only call it from an explicit user action such as a button, menu item, or row click. Do not auto-fetch underlying rows on page load.
+- Pass `row` directly from the `data` array returned by `useLightdash()`.
+- Pass `metric` using the same short metric name you used in `.metrics([...])`.
+- Show results in a `Dialog`, `Sheet`, or detail panel with loading/error states.
+- This works for grouped SDK query rows. If you have heavily transformed or pivoted data client-side, keep the original source row around and pass that original row.
+
+```tsx
+const revenueQuery = query('orders')
+    .dimensions(['customer_segment'])
+    .metrics(['total_revenue'])
+    .limit(25);
+
+function RevenueTable() {
+    const { data, columns, format, loading, error, getUnderlyingData } =
+        useLightdash(revenueQuery);
+    const [detail, setDetail] = useState(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+
+    async function openUnderlying(row) {
+        setDetailLoading(true);
+        try {
+            const result = await getUnderlyingData({
+                row,
+                metric: 'total_revenue',
+                limit: 500,
+            });
+            setDetail(result);
+        } finally {
+            setDetailLoading(false);
+        }
+    }
+
+    // Render your main table. In the row action:
+    // <Button onClick={() => openUnderlying(row)}>View underlying data</Button>
+    // In a Dialog, render detail.columns and detail.rows when detail is set.
+}
+```
 
 ### Formatting
 
