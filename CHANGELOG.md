@@ -1,3 +1,10 @@
+# [0.3142.0](https://github.com/lightdash/lightdash/compare/0.3141.0...0.3142.0) (2026-06-11)
+
+
+### Features
+
+* **ai-writeback:** discreet PR card pinned per commit + @-mention project files ([#24197](https://github.com/lightdash/lightdash/issues/24197)) ([77391b0](https://github.com/lightdash/lightdash/commit/77391b00a224e1d1c26a7fe333d5b0bacc41cd46))
+
 # [0.3141.0](https://github.com/lightdash/lightdash/compare/0.3140.0...0.3141.0) (2026-06-11)
 
 
