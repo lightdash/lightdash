@@ -958,6 +958,7 @@ export class EmbedService extends BaseService {
                 context: QueryExecutionContext.EMBED,
                 warehouseClient,
                 metricQuery,
+                resolvedTimezone: timezone,
                 query: compiledQuery.query,
                 queryTags,
                 invalidateCache: false,
@@ -1454,12 +1455,12 @@ export class EmbedService extends BaseService {
             userTimezone: null,
             isUserTimezoneEnabled: false,
         });
-
         const isTimezoneSupportEnabled =
             await this.projectService.isTimezoneSupportEnabled({
                 userUuid: user?.userUuid ?? account.user.id,
                 organizationUuid,
             });
+
         const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
 
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
@@ -2089,7 +2090,6 @@ export class EmbedService extends BaseService {
             userTimezone: null,
             isUserTimezoneEnabled: false,
         });
-
         const useTimezoneAwareDateTrunc =
             await this.projectService.isTimezoneSupportEnabled({
                 userUuid: user?.userUuid ?? account.user.id,
