@@ -20,7 +20,10 @@ import {
     useCreateAiAgentReviewItemWriteback,
 } from '../../hooks/useAiAgentAdmin';
 import { ProjectContextWritebackModal } from './ProjectContextWritebackModal';
-import { writebackBlockedReasonLabels } from './reviewItemDetails';
+import {
+    shouldShowWritebackBlockedReason,
+    writebackBlockedReasonLabels,
+} from './reviewItemDetails';
 
 type ReviewItemActionsProps = {
     reviewItem: AiAgentReviewItemSummary;
@@ -52,7 +55,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     const blockedReason = current.writebackEligibility.eligible
         ? null
         : current.writebackEligibility.reason;
-    const blockedReasonLabel = blockedReason
+    const blockedReasonLabel = shouldShowWritebackBlockedReason(blockedReason)
         ? writebackBlockedReasonLabels[blockedReason]
         : null;
     const previewsDiff = current.primaryRootCause === 'project_context';

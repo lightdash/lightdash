@@ -11,6 +11,7 @@ import {
     Text,
     Title,
     Tooltip,
+    UnstyledButton,
     useMantineTheme,
 } from '@mantine-8/core';
 import {
@@ -114,15 +115,12 @@ const ExpandableReviewText = ({
                 {text}
             </Text>
             {canExpand && (
-                <Button
-                    variant="subtle"
-                    color="gray"
-                    size="compact-xs"
-                    px={0}
+                <UnstyledButton
+                    className={styles.sectionToggle}
                     onClick={() => setExpanded((open) => !open)}
                 >
                     {expanded ? 'Show less' : 'Show more'}
-                </Button>
+                </UnstyledButton>
             )}
         </Stack>
     );
@@ -332,53 +330,43 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         </Box>
                                     </Group>
 
-                                    <Group gap="xs" wrap="wrap">
-                                        <Button
-                                            variant={
-                                                showDetails ? 'light' : 'subtle'
-                                            }
-                                            color="gray"
-                                            size="compact-xs"
-                                            radius="xl"
-                                            rightSection={
-                                                <MantineIcon
-                                                    icon={
-                                                        showDetails
-                                                            ? IconChevronDown
-                                                            : IconChevronRight
-                                                    }
-                                                    size="xs"
-                                                />
-                                            }
+                                    <Group gap="md" wrap="wrap">
+                                        <UnstyledButton
+                                            className={styles.sectionToggle}
+                                            data-active={showDetails || undefined}
                                             onClick={() =>
                                                 setShowDetails((open) => !open)
                                             }
+                                            aria-expanded={showDetails}
                                         >
-                                            Details
-                                        </Button>
-                                        <Button
-                                            variant={
-                                                showWhy ? 'light' : 'subtle'
-                                            }
-                                            color="gray"
-                                            size="compact-xs"
-                                            radius="xl"
-                                            rightSection={
-                                                <MantineIcon
-                                                    icon={
-                                                        showWhy
-                                                            ? IconChevronDown
-                                                            : IconChevronRight
-                                                    }
-                                                    size="xs"
-                                                />
-                                            }
+                                            <span>Details</span>
+                                            <MantineIcon
+                                                icon={
+                                                    showDetails
+                                                        ? IconChevronDown
+                                                        : IconChevronRight
+                                                }
+                                                size="xs"
+                                            />
+                                        </UnstyledButton>
+                                        <UnstyledButton
+                                            className={styles.sectionToggle}
+                                            data-active={showWhy || undefined}
                                             onClick={() =>
                                                 setShowWhy((open) => !open)
                                             }
+                                            aria-expanded={showWhy}
                                         >
-                                            Why flagged
-                                        </Button>
+                                            <span>Why flagged</span>
+                                            <MantineIcon
+                                                icon={
+                                                    showWhy
+                                                        ? IconChevronDown
+                                                        : IconChevronRight
+                                                }
+                                                size="xs"
+                                            />
+                                        </UnstyledButton>
                                     </Group>
 
                                     <Collapse in={showDetails}>
