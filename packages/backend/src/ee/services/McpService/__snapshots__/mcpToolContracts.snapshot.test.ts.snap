@@ -277,6 +277,248 @@ Usage tips:
     },
     {
       "agentName": null,
+      "description": "Read a dashboard or chart as JSON using its slug. Call this before editing.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "description": "Slug of the dashboard or chart to read.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "description": "Type of Lightdash content to read.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "type",
+        ],
+        "type": "object",
+      },
+      "name": "read_content",
+      "title": "Read content",
+    },
+    {
+      "agentName": null,
+      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "description": "Full Dashboard JSON to create.",
+                "properties": {
+                  "config": {},
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "description": ", ",
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "filters": {},
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "parameters": {},
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "tabs": {
+                    "items": {},
+                    "type": "array",
+                  },
+                  "tiles": {
+                    "items": {},
+                    "type": "array",
+                  },
+                  "updatedAt": {},
+                  "verification": {},
+                  "verified": {
+                    "type": "boolean",
+                  },
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "version",
+                  "contentType",
+                  "verified",
+                  "tiles",
+                  "tabs",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": true,
+                "description": "Full Chart JSON to create.",
+                "properties": {
+                  "chartConfig": {},
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "dashboardSlug": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "description": ", ",
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "metricQuery": {
+                    "additionalProperties": true,
+                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                    "properties": {
+                      "dimensions": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "exploreName": {},
+                      "filters": {},
+                      "limit": {},
+                      "metrics": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "sorts": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "tableCalculations": {
+                        "items": {},
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "dimensions",
+                      "metrics",
+                      "sorts",
+                      "tableCalculations",
+                    ],
+                    "type": "object",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "parameters": {},
+                  "pivotConfig": {},
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "tableConfig": {},
+                  "tableName": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "updatedAt": {},
+                  "verification": {},
+                  "verified": {
+                    "type": "boolean",
+                  },
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "version",
+                  "contentType",
+                  "verified",
+                  "tableName",
+                  "metricQuery",
+                  "dashboardSlug",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "type": {
+            "description": "Type of Lightdash content to create.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "type",
+          "content",
+        ],
+        "type": "object",
+      },
+      "name": "create_content",
+      "title": "Create content",
+    },
+    {
+      "agentName": null,
+      "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "patch": {
+            "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+            "items": {},
+            "type": "array",
+          },
+          "slug": {
+            "description": "Slug of the dashboard or chart to edit",
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "description": "Type of Lightdash content to edit",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "type",
+          "patch",
+        ],
+        "type": "object",
+      },
+      "name": "edit_content",
+      "title": "Edit content",
+    },
+    {
+      "agentName": null,
       "description": "List all accessible projects in the organization. Projects contain explores, fields, and content. Use this to discover available projects before calling set_project to select one as the active context for subsequent operations.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7829,6 +8071,9 @@ exports[`MCP tool contracts matches the shared MCP tool definition names snapsho
   "run_sql",
   "get_query_result",
   "render_chart",
+  "read_content",
+  "edit_content",
+  "create_content",
   "list_content",
   "get_lightdash_version",
   "list_explores",
