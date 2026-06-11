@@ -18,6 +18,7 @@ import { useExplore } from '../useExplore';
 import { useQueryRetryConfig } from '../useQueryRetry';
 import { useSavedQuery } from '../useSavedQuery';
 import useSearchParams from '../useSearchParams';
+import { useSessionTimezone } from '../useSessionTimezone';
 import useDashboardFiltersForTile from './useDashboardFiltersForTile';
 
 const executeAsyncDashboardChartQuery = async (
@@ -36,6 +37,7 @@ const postEmbedDashboardTileQuery = async (
     projectUuid: string,
     data: {
         tileUuid: string;
+        timezone?: string;
     } & Pick<
         ExecuteAsyncDashboardChartRequestParams,
         | 'dashboardFilters'
@@ -101,6 +103,7 @@ export const useDashboardChartReadyQuery = (
             ?.join(',') || '';
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    const sessionTimezone = useSessionTimezone();
     const chartQuery = useSavedQuery({
         uuidOrSlug: chartUuid ?? undefined,
         projectUuid,
@@ -178,6 +181,7 @@ export const useDashboardChartReadyQuery = (
             isZoomLikelyApplied ? granularity : null,
             invalidateCache,
             chartParameterValues,
+            sessionTimezone,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -193,6 +197,7 @@ export const useDashboardChartReadyQuery = (
             granularity,
             invalidateCache,
             chartParameterValues,
+            sessionTimezone,
         ],
     );
 
@@ -225,6 +230,7 @@ export const useDashboardChartReadyQuery = (
                           invalidateCache,
                           parameters: parameterValues,
                           pivotResults: true,
+                          timezone: sessionTimezone ?? undefined,
                       },
                   )
                 : await executeAsyncDashboardChartQuery(

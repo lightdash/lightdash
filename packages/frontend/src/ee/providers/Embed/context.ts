@@ -15,6 +15,7 @@ const EmbedProviderContext = createContext<EmbedContext>({
     mode: 'direct',
     theme: 'light',
     backgroundColor: null,
+    timezone: null,
 });
 
 export default EmbedProviderContext;

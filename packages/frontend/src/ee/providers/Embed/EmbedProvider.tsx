@@ -13,6 +13,7 @@ import { LightdashEventType } from '../../features/embed/events/types';
 import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
+import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
 import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
 
 type Props = {
@@ -45,6 +46,12 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
 
     // Parse theme params from URL once on mount (before hash is stripped)
     const [embedThemeParams] = useState(parseEmbedThemeParams);
+    // Parse the session timezone (?timezone=) once on mount, alongside the theme.
+    // Only the direct/iframe embed owns its URL; in SDK mode window.location is
+    // the host app's URL, so we must not scrape ?timezone= from it.
+    const [embedTimezone] = useState(() =>
+        encodedToken ? null : parseEmbedTimezoneParam(),
+    );
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
@@ -112,6 +119,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             mode,
             theme: embedThemeParams.theme,
             backgroundColor: embedThemeParams.backgroundColor,
+            timezone: embedTimezone,
         };
     }, [
         embed?.projectUuid,
@@ -128,6 +136,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         mode,
         embedThemeParams.theme,
         embedThemeParams.backgroundColor,
+        embedTimezone,
     ]);
 
     return (
