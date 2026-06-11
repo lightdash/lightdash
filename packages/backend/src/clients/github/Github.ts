@@ -688,6 +688,9 @@ export const updateFile = async ({
     try {
         // GitHub API uses `branch` param for target branch
         // @see https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents
+        // No explicit author/committer: GitHub attributes the commit to the
+        // token identity — the linked user when acting as them, or the app bot
+        // otherwise — matching createFile's behaviour.
         const response = await octokit.rest.repos.createOrUpdateFileContents({
             owner,
             repo,
@@ -697,14 +700,6 @@ export const updateFile = async ({
             sha: fileSha,
             branch,
             headers,
-            committer: {
-                name: 'Lightdash',
-                email: 'developers@glightdash.com',
-            },
-            author: {
-                name: 'Lightdash',
-                email: 'developers@glightdash.com',
-            },
         });
         return response;
     } catch (e) {
@@ -1262,6 +1257,9 @@ export const deleteFile = async ({
 > => {
     const { octokit, headers } = getOctokit(installationId, token);
     try {
+        // No explicit committer: attribute the commit to the token identity
+        // (linked user when acting as them, app bot otherwise), consistent
+        // with createFile/updateFile.
         const response = await octokit.rest.repos.deleteFile({
             owner,
             repo,
@@ -1270,10 +1268,6 @@ export const deleteFile = async ({
             branch,
             message,
             headers,
-            committer: {
-                name: 'Lightdash',
-                email: 'developers@lightdash.com',
-            },
         });
         return response;
     } catch (error) {

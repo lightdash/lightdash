@@ -6,6 +6,7 @@ import {
     getErrorMessage,
     type CiCheck,
     type CiChecks,
+    type DbtGithubProjectConfig,
     type SessionUser,
 } from '@lightdash/common';
 import type * as GithubClient from '../../clients/github/Github';
@@ -122,6 +123,26 @@ export class CiService extends BaseService {
         try {
             const parsed = parseGithubPullRequestUrl(prUrl);
             if (!parsed) {
+                return null;
+            }
+
+            // The PR URL is caller-supplied. Before querying GitHub with the
+            // org installation token, confirm it points at this project's own
+            // configured repository — otherwise a user with view:SourceCode on
+            // one project could read CI status of any other repo the app is
+            // installed on.
+            const [configuredOwner, configuredRepo] = (
+                project.dbtConnection as DbtGithubProjectConfig
+            ).repository.split('/');
+            if (
+                !configuredOwner ||
+                !configuredRepo ||
+                configuredOwner.toLowerCase() !== parsed.owner.toLowerCase() ||
+                configuredRepo.toLowerCase() !== parsed.repo.toLowerCase()
+            ) {
+                this.logger.warn(
+                    `Refusing to resolve CI checks for ${prUrl}: it does not match project ${projectUuid}'s configured repository`,
+                );
                 return null;
             }
 
