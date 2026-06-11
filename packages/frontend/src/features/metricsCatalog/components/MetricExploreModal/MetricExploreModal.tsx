@@ -58,12 +58,26 @@ import { SaveChartButton } from './SaveChartButton';
 
 type Props = Pick<ModalProps, 'opened' | 'onClose'> & {
     metrics: CatalogField[];
-};
+} & (
+        | {
+              // List view: metric comes from the URL; prev/next and close
+              // navigate the URL.
+              navigation: 'url';
+          }
+        | {
+              // Canvas: metric comes from Redux state; prev/next updates state
+              // and close does not navigate (stays on the canvas).
+              navigation: 'state';
+              selectedMetric: Pick<CatalogField, 'name' | 'tableName'>;
+              onSelectMetric: (metric: CatalogField) => void;
+          }
+    );
 
 /**
  * MetricExploreModal implementation using echarts via VisualizationProvider
  */
-export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
+export const MetricExploreModal: FC<Props> = (props) => {
+    const { opened, onClose, metrics } = props;
     const { track } = useTracking();
     const { data: organization } = useOrganization();
 
@@ -80,10 +94,19 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
         (state) => state.metricsCatalog.abilities.canManageExplore,
     );
 
-    const { tableName, metricName } = useParams<{
+    const params = useParams<{
         tableName: string;
         metricName: string;
     }>();
+
+    const tableName =
+        props.navigation === 'state'
+            ? props.selectedMetric.tableName
+            : params.tableName;
+    const metricName =
+        props.navigation === 'state'
+            ? props.selectedMetric.name
+            : params.metricName;
 
     const navigate = useNavigate();
     const location = useLocation();
@@ -108,14 +131,21 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
     const nextMetricInList = metrics[currentMetricIndex + 1];
     const previousMetricInList = metrics[currentMetricIndex - 1];
 
+    const onSelectMetric =
+        props.navigation === 'state' ? props.onSelectMetric : undefined;
+
     const navigateToMetric = useCallback(
         (metric: CatalogField) => {
+            if (onSelectMetric) {
+                onSelectMetric(metric);
+                return;
+            }
             void navigate({
                 pathname: `/projects/${projectUuid}/metrics/peek/${metric.tableName}/${metric.name}`,
                 search: location.search,
             });
         },
-        [navigate, projectUuid, location.search],
+        [navigate, projectUuid, location.search, onSelectMetric],
     );
 
     // State for time dimension override (granularity changes)
@@ -171,12 +201,14 @@ export const MetricExploreModal: FC<Props> = ({ opened, onClose, metrics }) => {
     }, [navigateToMetricWithReset, previousMetricInList]);
 
     const handleClose = useCallback(() => {
-        void navigate({
-            pathname: `/projects/${projectUuid}/metrics`,
-            search: location.search,
-        });
+        if (props.navigation === 'url') {
+            void navigate({
+                pathname: `/projects/${projectUuid}/metrics`,
+                search: location.search,
+            });
+        }
         onClose();
-    }, [navigate, onClose, projectUuid, location.search]);
+    }, [navigate, onClose, projectUuid, location.search, props.navigation]);
 
     const filterDimensionsQuery = useCatalogFilterDimensions({
         projectUuid,

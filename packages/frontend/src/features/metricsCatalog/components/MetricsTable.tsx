@@ -619,6 +619,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             opened={isMetricExploreModalOpen}
                             onClose={onCloseMetricExploreModal}
                             metrics={flatData}
+                            navigation="url"
                         />
                     )}
                 </>
