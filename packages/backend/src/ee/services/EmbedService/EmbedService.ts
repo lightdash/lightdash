@@ -1066,10 +1066,12 @@ export class EmbedService extends BaseService {
         parameters,
         pivotResults,
         limit,
+        timezone,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
         tileUuid: string;
+        timezone?: string;
     } & Pick<
         ExecuteAsyncDashboardChartRequestParams,
         | 'dashboardFilters'
@@ -1170,6 +1172,7 @@ export class EmbedService extends BaseService {
             context: QueryExecutionContext.EMBED,
             parameters: combinedParameters,
             pivotResults,
+            sessionTimezone: timezone ?? null,
         });
     }
 
@@ -1981,6 +1984,7 @@ export class EmbedService extends BaseService {
         forceRefresh,
         tableName: fallbackTableName,
         fieldId: fallbackFieldId,
+        timezone: sessionTimezoneParam,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
@@ -1991,6 +1995,7 @@ export class EmbedService extends BaseService {
         forceRefresh: boolean;
         tableName?: string;
         fieldId?: string;
+        timezone?: string;
     }): Promise<FieldValueSearchResult> {
         const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
@@ -2084,7 +2089,7 @@ export class EmbedService extends BaseService {
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone({
-            sessionTimezone: null,
+            sessionTimezone: sessionTimezoneParam ?? null,
             metricQuery,
             projectTimezone,
             userTimezone: null,

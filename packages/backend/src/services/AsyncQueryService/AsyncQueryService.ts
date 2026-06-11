@@ -2802,12 +2802,14 @@ export class AsyncQueryService extends ProjectService {
         organizationUuid,
         userUuid,
         userTimezone,
+        sessionTimezone,
         metricQuery,
     }: {
         projectUuid: string | null;
         organizationUuid: string;
         userUuid: string;
         userTimezone: string | null;
+        sessionTimezone: string | null;
         metricQuery: MetricQuery;
     }): Promise<{
         resolvedTimezone: string;
@@ -2822,7 +2824,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         });
         const resolvedTimezone = resolveQueryTimezone({
-            sessionTimezone: null,
+            sessionTimezone,
             metricQuery,
             projectTimezone,
             userTimezone,
@@ -3196,6 +3198,7 @@ export class AsyncQueryService extends ProjectService {
         userAttributeOverrides,
         materializationRole,
         columnTimezone,
+        sessionTimezone,
         applyDateZoomToFilters,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
@@ -3211,6 +3214,7 @@ export class AsyncQueryService extends ProjectService {
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
         columnTimezone?: string;
+        sessionTimezone?: string | null;
         /**
          * Opt-in: rewrite WHERE filter LHS to use the zoom-grain dimension
          * for the filter that targets the zoom-rewritten field. Only the
@@ -3249,6 +3253,7 @@ export class AsyncQueryService extends ProjectService {
                 materializationRole !== undefined
                     ? null
                     : getAccountUserTimezone(account),
+            sessionTimezone: sessionTimezone ?? null,
             metricQuery,
         });
 
@@ -4765,6 +4770,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
         pivotResults,
+        sessionTimezone,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -4951,6 +4957,7 @@ export class AsyncQueryService extends ProjectService {
             projectUuid,
             pivotConfiguration,
             columnTimezone: getColumnTimezone(warehouseCredentials),
+            sessionTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
