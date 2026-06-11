@@ -1,3 +1,15 @@
+# [0.3137.0](https://github.com/lightdash/lightdash/compare/0.3136.1...0.3137.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* omnibar created-by filter loses selection when searching ([#24178](https://github.com/lightdash/lightdash/issues/24178)) ([61b5bc5](https://github.com/lightdash/lightdash/commit/61b5bc5c994d7a679ad8165af5f8c4d89f1b7400))
+
+
+### Features
+
+* add [@self](https://github.com/self) scopes for editing content in previews you created ([#24153](https://github.com/lightdash/lightdash/issues/24153)) ([c5ec74f](https://github.com/lightdash/lightdash/commit/c5ec74f1e23df47d546584080d214b62435e664f))
+
 ## [0.3136.1](https://github.com/lightdash/lightdash/compare/0.3136.0...0.3136.1) (2026-06-11)
 
 
