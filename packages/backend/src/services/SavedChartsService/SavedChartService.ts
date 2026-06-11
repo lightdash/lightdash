@@ -2,7 +2,7 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     Account,
-    AnonymousAccount,
+    assertRegisteredAccount,
     assertUnreachable,
     BulkActionable,
     ChartHistory,
@@ -67,6 +67,7 @@ import {
     LightdashAnalytics,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -1501,6 +1502,77 @@ export class SavedChartService
             inheritsFromOrgOrProject,
             access,
         };
+    }
+
+    async createFromAccount(
+        account: Account,
+        projectUuid: string,
+        savedChart: CreateSavedChart,
+    ): Promise<SavedChart> {
+        if (!isJwtUser(account)) {
+            assertRegisteredAccount(account);
+            return this.create(toSessionUser(account), projectUuid, savedChart);
+        }
+
+        if (projectUuid !== account.embed.projectUuid) {
+            throw new ForbiddenError(
+                'Embed token cannot create charts in this project',
+            );
+        }
+
+        const { writeActions } = account.authentication.data;
+        const actorUserUuid =
+            writeActions?.userUuid ?? writeActions?.serviceAccountUserUuid;
+
+        if (!writeActions?.spaceUuid || !actorUserUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow write actions',
+            );
+        }
+
+        const actor = await this.userService.getSessionByUserUuidAndOrg(
+            actorUserUuid,
+            account.embed.organization.organizationUuid,
+        );
+        const savedChartWithJwtSpace = {
+            ...savedChart,
+            dashboardUuid: undefined,
+            spaceUuid: writeActions.spaceUuid,
+        };
+
+        if (writeActions.userUuid !== undefined) {
+            if (!actor.isActive) {
+                throw new ForbiddenError(
+                    'Embed token actor is not active for this organization',
+                );
+            }
+
+            return this.create(actor, projectUuid, savedChartWithJwtSpace);
+        }
+
+        const serviceAccount =
+            await this.userService.findServiceAccountByUserUuid(actorUserUuid);
+        if (
+            serviceAccount === undefined ||
+            serviceAccount.organizationUuid !==
+                account.embed.organization.organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'Embed token service account is not valid for this organization',
+            );
+        }
+
+        return this.create(
+            {
+                ...actor,
+                serviceAccount: {
+                    uuid: serviceAccount.uuid,
+                    description: serviceAccount.description,
+                },
+            },
+            projectUuid,
+            savedChartWithJwtSpace,
+        );
     }
 
     async duplicate(

@@ -1,5 +1,5 @@
 import {
-    assertEmbeddedAuth,
+    assertRegisteredAccount,
     ForbiddenError,
     getObjectValue,
     getRequestMethod,
@@ -7,11 +7,10 @@ import {
     NotFoundError,
     ProjectCatalog,
     TablesConfiguration,
-    type CreateSavedChart,
-    type SessionUser,
 } from '@lightdash/common';
 import express, { type Router } from 'express';
 import path from 'path';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -21,89 +20,6 @@ import {
 const fs = require('fs');
 
 export const projectRouter: Router = express.Router({ mergeParams: true });
-
-const getSessionUser = (req: express.Request): SessionUser => {
-    if (!req.user) {
-        throw new ForbiddenError('User is required');
-    }
-    return req.user;
-};
-
-const getCreateSavedChartContext = async (
-    req: express.Request,
-    projectUuid: string,
-): Promise<{ actor: SessionUser; savedChart: CreateSavedChart }> => {
-    if (req.account?.authentication.type !== 'jwt') {
-        return {
-            actor: getSessionUser(req),
-            savedChart: req.body as CreateSavedChart,
-        };
-    }
-
-    assertEmbeddedAuth(req.account);
-
-    if (projectUuid !== req.account.embed.projectUuid) {
-        throw new ForbiddenError(
-            'Embed token cannot create charts in this project',
-        );
-    }
-
-    const { writeActions } = req.account.authentication.data;
-    const actorUserUuid =
-        writeActions?.userUuid ?? writeActions?.serviceAccountUserUuid;
-
-    if (!writeActions?.spaceUuid || !actorUserUuid) {
-        throw new ForbiddenError('Embed token does not allow write actions');
-    }
-
-    const savedChart = {
-        ...(req.body as CreateSavedChart),
-        dashboardUuid: undefined,
-        spaceUuid: writeActions.spaceUuid,
-    };
-
-    const userService = req.services.getUserService();
-    const actor = await userService.getSessionByUserUuidAndOrg(
-        actorUserUuid,
-        req.account.embed.organization.organizationUuid,
-    );
-
-    if (writeActions.userUuid !== undefined) {
-        if (!actor.isActive) {
-            throw new ForbiddenError(
-                'Embed token actor is not active for this organization',
-            );
-        }
-
-        return {
-            actor,
-            savedChart,
-        };
-    }
-
-    const serviceAccount =
-        await userService.findServiceAccountByUserUuid(actorUserUuid);
-    if (
-        serviceAccount === undefined ||
-        serviceAccount.organizationUuid !==
-            req.account.embed.organization.organizationUuid
-    ) {
-        throw new ForbiddenError(
-            'Embed token service account is not valid for this organization',
-        );
-    }
-
-    return {
-        actor: {
-            ...actor,
-            serviceAccount: {
-                uuid: serviceAccount.uuid,
-                description: serviceAccount.description,
-            },
-        },
-        savedChart,
-    };
-};
 
 projectRouter.patch(
     '/',
@@ -255,8 +171,9 @@ projectRouter.post(
                     );
                 }
 
+                assertRegisteredAccount(req.account);
                 const results = await savedChartsService.duplicate(
-                    getSessionUser(req),
+                    toSessionUser(req.account),
                     projectUuid,
                     req.query.duplicateFrom.toString(),
                     req.body,
@@ -269,14 +186,10 @@ projectRouter.post(
                 return;
             }
 
-            const { actor, savedChart } = await getCreateSavedChartContext(
-                req,
+            const results = await savedChartsService.createFromAccount(
+                req.account!,
                 projectUuid,
-            );
-            const results = await savedChartsService.create(
-                actor,
-                projectUuid,
-                savedChart,
+                req.body,
             );
 
             res.json({
@@ -295,10 +208,11 @@ projectRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
+        assertRegisteredAccount(req.account);
         req.services
             .getSavedChartService()
             .updateMultiple(
-                getSessionUser(req),
+                toSessionUser(req.account),
                 getObjectValue(req.params, 'projectUuid'),
                 req.body,
             )
