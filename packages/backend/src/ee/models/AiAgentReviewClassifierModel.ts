@@ -5,6 +5,9 @@ import type {
     AiAgentFixTarget,
     AiAgentImplicitSignalSource,
     AiAgentRecommendation,
+    AiAgentReviewBatchAction,
+    AiAgentReviewBatchReport,
+    AiAgentReviewBatchRunSummary,
     AiAgentReviewClassifierConfidence,
     AiAgentReviewClassifierContextTurn,
     AiAgentReviewClassifierQueryHistorySummary,
@@ -16,6 +19,7 @@ import type {
     AiAgentReviewClassifierTurnCandidate,
     AiAgentReviewClassifierTurnSignal,
     AiAgentReviewItemDismissedReason,
+    AiAgentReviewItemOwnerType,
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
@@ -432,6 +436,58 @@ type CreateTurnSignalArgs = {
     turnSignal: AiAgentReviewClassifierTurnSignal;
     finding?: AiAgentReviewClassifierSignalFinding | null;
 };
+
+type BackfillTurnSignalRow = {
+    ai_agent_review_turn_signal_uuid: string;
+    ai_prompt_uuid: string;
+    ai_thread_uuid: string;
+    signal: AiAgentTurnSignal;
+    confidence: AiAgentReviewClassifierConfidence;
+    promoted_to_finding: boolean;
+    primary_root_cause: AiAgentRootCause | null;
+    owner_type: AiAgentReviewItemOwnerType | null;
+    fix_targets: AiAgentFixTarget[] | null;
+    review_item_title: string | null;
+    created_at: Date;
+};
+
+export function buildRunReportActions(
+    rows: BackfillTurnSignalRow[],
+): AiAgentReviewBatchAction[] {
+    const promoted = rows.filter((r) => r.promoted_to_finding);
+    const counts = new Map<
+        string,
+        AiAgentReviewBatchAction & { key: string }
+    >();
+
+    for (const row of promoted) {
+        const primaryRootCause = row.primary_root_cause ?? 'ambiguous';
+        const ownerType = row.owner_type ?? 'unknown';
+        const fixTarget = row.fix_targets?.[0] ?? null;
+        const key = `${primaryRootCause}::${ownerType}::${fixTarget ?? ''}`;
+        const existing = counts.get(key);
+        if (existing) {
+            existing.count += 1;
+        } else {
+            counts.set(key, {
+                key,
+                primaryRootCause,
+                ownerType,
+                fixTarget,
+                count: 1,
+            });
+        }
+    }
+
+    return Array.from(counts.values())
+        .sort((a, b) => b.count - a.count)
+        .map(({ primaryRootCause, ownerType, fixTarget, count }) => ({
+            primaryRootCause,
+            ownerType,
+            fixTarget,
+            count,
+        }));
+}
 
 export class AiAgentReviewClassifierModel {
     private readonly database: Knex;
@@ -1873,6 +1929,239 @@ export class AiAgentReviewClassifierModel {
             }
 
             return inserted[0].ai_agent_review_turn_signal_uuid;
+        });
+    }
+
+    async countTurnReviewCandidates(args: {
+        organizationUuid: string;
+        projectUuid?: string;
+        agentUuid?: string;
+        startedAt: Date;
+        endedAt: Date;
+    }): Promise<number> {
+        const query = this.database(`${AiPromptTableName} as prompt`)
+            .join(
+                `${AiThreadTableName} as thread`,
+                'thread.ai_thread_uuid',
+                'prompt.ai_thread_uuid',
+            )
+            .where('thread.organization_uuid', args.organizationUuid)
+            .whereNotNull('thread.agent_uuid')
+            .whereIn('thread.created_from', ['web_app', 'slack'])
+            .where((builder) => {
+                void builder
+                    .whereNotNull('prompt.response')
+                    .orWhereNotNull('prompt.error_message');
+            })
+            .where('prompt.created_at', '>=', args.startedAt)
+            .where('prompt.created_at', '<', args.endedAt)
+            .count<[{ count: string }]>('prompt.ai_prompt_uuid as count');
+
+        if (args.projectUuid) {
+            void query.where('thread.project_uuid', args.projectUuid);
+        }
+        if (args.agentUuid) {
+            void query.where('thread.agent_uuid', args.agentUuid);
+        }
+
+        const [row] = await query;
+        return parseInt(row.count, 10);
+    }
+
+    async createQueuedBackfillRun(args: {
+        organizationUuid: string;
+        projectUuid?: string;
+        agentUuid?: string;
+        startedAt: Date;
+        endedAt: Date;
+        totalTurns: number;
+        reviewAgentVersion: string;
+        judgePromptHash: string;
+    }): Promise<string> {
+        const runScope: AiAgentReviewClassifierRunScope = {
+            type: 'backfill',
+            startedAt: args.startedAt.toISOString(),
+            endedAt: args.endedAt.toISOString(),
+            projectUuid: args.projectUuid,
+            agentUuid: args.agentUuid,
+        };
+
+        const [row] = await this.database<AiAgentReviewClassifierRunTable>(
+            AiAgentReviewClassifierRunTableName,
+        )
+            .insert({
+                organization_uuid: args.organizationUuid,
+                review_agent_version: args.reviewAgentVersion,
+                judge_prompt_hash: args.judgePromptHash,
+                run_scope: this.jsonb(runScope) as never,
+                status: 'queued',
+                total_turns: args.totalTurns,
+                processed_turns: 0,
+                signal_count: 0,
+                finding_count: 0,
+                review_item_count: 0,
+            })
+            .returning('ai_agent_review_run_uuid');
+
+        return row.ai_agent_review_run_uuid;
+    }
+
+    async getRunReport(runUuid: string): Promise<AiAgentReviewBatchReport> {
+        const runRow = await this.database<AiAgentReviewClassifierRunTable>(
+            AiAgentReviewClassifierRunTableName,
+        )
+            .where('ai_agent_review_run_uuid', runUuid)
+            .first<
+                Pick<
+                    DbAiAgentReviewClassifierRun,
+                    'ai_agent_review_run_uuid' | 'run_scope'
+                >
+            >('ai_agent_review_run_uuid', 'run_scope');
+
+        if (!runRow) {
+            throw new Error(`Run not found: ${runUuid}`);
+        }
+
+        const scope = runRow.run_scope;
+        const window =
+            scope.type === 'backfill'
+                ? {
+                      startedAt: new Date(scope.startedAt),
+                      endedAt: new Date(scope.endedAt),
+                  }
+                : { startedAt: new Date(0), endedAt: new Date(0) };
+
+        const reportScope = {
+            projectUuid:
+                scope.type === 'backfill' ? (scope.projectUuid ?? null) : null,
+            agentUuid:
+                scope.type === 'backfill' ? (scope.agentUuid ?? null) : null,
+        };
+
+        const signalRows = await this.database<AiAgentTurnSignalTable>(
+            AiAgentTurnSignalTableName,
+        )
+            .where('ai_agent_review_run_uuid', runUuid)
+            .select<BackfillTurnSignalRow[]>(
+                'ai_agent_review_turn_signal_uuid',
+                'ai_prompt_uuid',
+                'ai_thread_uuid',
+                'signal',
+                'confidence',
+                'promoted_to_finding',
+                'primary_root_cause',
+                'owner_type',
+                'fix_targets',
+                'review_item_title',
+                'created_at',
+            );
+
+        const turnsReviewed = signalRows.length;
+        const flaggedTurns = signalRows.filter(
+            (r) => r.promoted_to_finding,
+        ).length;
+        const flaggedRate =
+            turnsReviewed > 0 ? flaggedTurns / turnsReviewed : 0;
+
+        const signalsByType: Partial<Record<AiAgentTurnSignal, number>> = {};
+        for (const row of signalRows) {
+            signalsByType[row.signal] = (signalsByType[row.signal] ?? 0) + 1;
+        }
+
+        const confidenceOrder: Record<
+            AiAgentReviewClassifierConfidence,
+            number
+        > = { high: 0, medium: 1, low: 2 };
+
+        const topExamples = signalRows
+            .filter((r) => r.promoted_to_finding)
+            .sort((a, b) => {
+                const cmp =
+                    confidenceOrder[a.confidence] -
+                    confidenceOrder[b.confidence];
+                if (cmp !== 0) return cmp;
+                return (
+                    new Date(b.created_at).getTime() -
+                    new Date(a.created_at).getTime()
+                );
+            })
+            .slice(0, 10)
+            .map((r) => ({
+                promptUuid: r.ai_prompt_uuid,
+                threadUuid: r.ai_thread_uuid,
+                title: r.review_item_title ?? '',
+                primaryRootCause: r.primary_root_cause ?? 'ambiguous',
+                confidence: r.confidence,
+            }));
+
+        return {
+            runUuid,
+            window,
+            scope: reportScope,
+            turnsReviewed,
+            flaggedTurns,
+            flaggedRate,
+            actions: buildRunReportActions(signalRows),
+            signalsByType,
+            topExamples,
+        };
+    }
+
+    async listBackfillRuns(args: {
+        organizationUuid: string;
+        projectUuid?: string;
+        agentUuid?: string;
+    }): Promise<AiAgentReviewBatchRunSummary[]> {
+        const rows = await this.database<AiAgentReviewClassifierRunTable>(
+            AiAgentReviewClassifierRunTableName,
+        )
+            .where('organization_uuid', args.organizationUuid)
+            .whereRaw(`run_scope->>'type' = ?`, ['backfill'])
+            .modify((query) => {
+                if (args.projectUuid) {
+                    void query.whereRaw(`run_scope->>'projectUuid' = ?`, [
+                        args.projectUuid,
+                    ]);
+                }
+                if (args.agentUuid) {
+                    void query.whereRaw(`run_scope->>'agentUuid' = ?`, [
+                        args.agentUuid,
+                    ]);
+                }
+            })
+            .select<DbAiAgentReviewClassifierRun[]>('*')
+            .orderBy('created_at', 'desc');
+
+        return rows.map((row): AiAgentReviewBatchRunSummary => {
+            const scope = row.run_scope;
+            const window =
+                scope.type === 'backfill'
+                    ? {
+                          startedAt: new Date(scope.startedAt),
+                          endedAt: new Date(scope.endedAt),
+                      }
+                    : { startedAt: new Date(0), endedAt: new Date(0) };
+            return {
+                runUuid: row.ai_agent_review_run_uuid,
+                status: row.status,
+                window,
+                scope: {
+                    projectUuid:
+                        scope.type === 'backfill'
+                            ? (scope.projectUuid ?? null)
+                            : null,
+                    agentUuid:
+                        scope.type === 'backfill'
+                            ? (scope.agentUuid ?? null)
+                            : null,
+                },
+                totalTurns: row.total_turns,
+                processedTurns: row.processed_turns,
+                findingCount: row.finding_count,
+                errorMessage: row.error_message,
+                createdAt: row.created_at,
+                completedAt: row.completed_at,
+            };
         });
     }
 }
