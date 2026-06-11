@@ -63,6 +63,35 @@ type Args = {
     tableCalculationsMetadata?: TableCalculationMetadata[];
 };
 
+const getReferenceLineKey = ({ fieldId, data }: ReferenceLineField) =>
+    [
+        fieldId,
+        data.uuid,
+        data.value,
+        data.name,
+        data.type,
+        data.dynamicValue,
+        data.xAxis,
+        data.yAxis,
+        data.label?.formatter,
+        data.label?.position,
+        data.lineStyle?.color,
+    ]
+        .map((value) => value ?? '')
+        .join('|');
+
+const dedupeReferenceLines = (referenceLines: ReferenceLineField[]) => {
+    const seen = new Set<string>();
+
+    return referenceLines.filter((referenceLine) => {
+        const key = getReferenceLineKey(referenceLine);
+        if (seen.has(key)) return false;
+
+        seen.add(key);
+        return true;
+    });
+};
+
 const applyReferenceLines = (
     series: Series[],
     dirtyLayout: Partial<Partial<CompleteCartesianChartLayout>> | undefined,
@@ -70,6 +99,7 @@ const applyReferenceLines = (
 ): Series[] => {
     // Track which reference lines have been applied to visible series
     let appliedReferenceLines: string[] = [];
+    const uniqueReferenceLines = dedupeReferenceLines(referenceLines);
 
     return series.map((serie) => {
         // If series is filtered out or hidden, ensure it has no markLine
@@ -78,7 +108,7 @@ const applyReferenceLines = (
             return { ...serie, markLine: undefined };
         }
 
-        const referenceLinesForSerie = referenceLines.filter(
+        const referenceLinesForSerie = uniqueReferenceLines.filter(
             (referenceLine) => {
                 if (referenceLine.fieldId === undefined) return false;
                 if (appliedReferenceLines.includes(referenceLine.fieldId))
@@ -96,9 +126,9 @@ const applyReferenceLines = (
         const markLineData: MarkLineData[] = referenceLinesForSerie.map(
             (line) => {
                 if (line.fieldId === undefined) return line.data;
+                appliedReferenceLines.push(line.fieldId);
                 const value = line.data.xAxis || line.data.yAxis;
                 if (value === undefined) return line.data;
-                appliedReferenceLines.push(line.fieldId);
 
                 const axis = getMarkLineAxis(
                     dirtyLayout?.xField,
@@ -1017,34 +1047,36 @@ const useCartesianChartConfig = ({
 
     const selectedReferenceLines: ReferenceLineField[] = useMemo(() => {
         if (dirtyEchartsConfig?.series === undefined) return [];
-        return dirtyEchartsConfig.series.reduce<ReferenceLineField[]>(
-            (acc, serie) => {
-                const data = serie.markLine?.data;
-                if (data !== undefined) {
-                    const referenceLine = data.map((markData) => {
-                        const axis =
-                            markData.xAxis !== undefined
-                                ? dirtyLayout?.flipAxes
-                                    ? serie.encode.yRef
-                                    : serie.encode.xRef
-                                : dirtyLayout?.flipAxes
-                                  ? serie.encode.xRef
-                                  : serie.encode.yRef;
-                        return {
-                            fieldId: axis.field,
-                            data: {
-                                label: serie.markLine?.label,
-                                lineStyle: serie.markLine?.lineStyle,
-                                ...markData,
-                            },
-                        };
-                    });
+        return dedupeReferenceLines(
+            dirtyEchartsConfig.series.reduce<ReferenceLineField[]>(
+                (acc, serie) => {
+                    const data = serie.markLine?.data;
+                    if (data !== undefined) {
+                        const referenceLine = data.map((markData) => {
+                            const axis =
+                                markData.xAxis !== undefined
+                                    ? dirtyLayout?.flipAxes
+                                        ? serie.encode.yRef
+                                        : serie.encode.xRef
+                                    : dirtyLayout?.flipAxes
+                                      ? serie.encode.xRef
+                                      : serie.encode.yRef;
+                            return {
+                                fieldId: axis.field,
+                                data: {
+                                    label: serie.markLine?.label,
+                                    lineStyle: serie.markLine?.lineStyle,
+                                    ...markData,
+                                },
+                            };
+                        });
 
-                    return [...acc, ...referenceLine];
-                }
-                return acc;
-            },
-            [],
+                        return [...acc, ...referenceLine];
+                    }
+                    return acc;
+                },
+                [],
+            ),
         );
     }, [dirtyEchartsConfig?.series, dirtyLayout?.flipAxes]);
 
