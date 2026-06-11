@@ -1405,27 +1405,30 @@ describe('AiAgentReviewClassifierModel', () => {
                 }),
             ]);
 
-            const report = await model.getRunReport(RUN_UUID);
+            const report = await model.getRunReport({
+                organizationUuid: ORGANIZATION_UUID,
+                runUuid: RUN_UUID,
+            });
 
-            expect(report.runUuid).toBe(RUN_UUID);
-            expect(report.turnsReviewed).toBe(2);
-            expect(report.flaggedTurns).toBe(1);
-            expect(report.flaggedRate).toBe(0.5);
-            expect(report.actions).toHaveLength(1);
-            expect(report.actions[0]).toEqual(
+            expect(report?.runUuid).toBe(RUN_UUID);
+            expect(report?.turnsReviewed).toBe(2);
+            expect(report?.flaggedTurns).toBe(1);
+            expect(report?.flaggedRate).toBe(0.5);
+            expect(report?.actions).toHaveLength(1);
+            expect(report?.actions[0]).toEqual(
                 expect.objectContaining({
                     primaryRootCause: 'semantic_layer',
                     count: 1,
                 }),
             );
-            expect(report.signalsByType).toEqual(
+            expect(report?.signalsByType).toEqual(
                 expect.objectContaining({
                     implicit_correction: 1,
                     new_question: 1,
                 }),
             );
-            expect(report.topExamples).toHaveLength(1);
-            expect(report.topExamples[0].promptUuid).toBe(PROMPT_UUID);
+            expect(report?.topExamples).toHaveLength(1);
+            expect(report?.topExamples[0].promptUuid).toBe(PROMPT_UUID);
         });
     });
 });

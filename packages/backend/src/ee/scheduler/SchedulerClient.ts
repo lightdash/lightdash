@@ -1,5 +1,6 @@
 import {
     AiAgentEvalRunJobPayload,
+    AiAgentReviewBatchJobPayload,
     AiAgentReviewClassifierJobPayload,
     AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
@@ -72,6 +73,20 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt,
                 maxAttempts: 1,
                 jobKey: `ai-agent-review:${payload.eventType}:${payload.promptUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiAgentReviewBatch(payload: AiAgentReviewBatchJobPayload) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_BATCH,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-agent-review-batch:${payload.runUuid}`,
             },
         );
         return { jobId };

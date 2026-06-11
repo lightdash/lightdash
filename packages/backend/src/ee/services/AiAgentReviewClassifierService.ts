@@ -11,6 +11,7 @@ import {
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
     type AiAgentEvidenceExcerpt,
+    type AiAgentReviewBatchJobPayload,
     type AiAgentReviewClassifierEventType,
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierRunScope,
@@ -37,8 +38,8 @@ import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettin
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
 
-const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
+export const REVIEW_AGENT_VERSION = 'llm-judge-v1';
+export const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -1292,6 +1293,36 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
             : '';
 
         return `${subagentPrefix}: ${evidence.toolName} (${evidence.toolCallId}).${args}${result}`;
+    }
+
+    async runReviewBatchJob(
+        payload: AiAgentReviewBatchJobPayload,
+    ): Promise<void> {
+        await this.run({
+            runUuid: payload.runUuid,
+            organizationUuid: payload.organizationUuid,
+            projectUuid: payload.projectUuid,
+            agentUuid: payload.agentUuid,
+            startedAt: new Date(payload.startedAt),
+            endedAt: new Date(payload.endedAt),
+            limit: payload.limit,
+            requestedByUserUuid: payload.requestedByUserUuid,
+            dryRun: false,
+            persistSignals: true,
+            persistFindings: true,
+            promoteFindingsToReviewItems: false,
+        });
+    }
+
+    async failReviewBatchRun(args: {
+        runUuid: string;
+        message: string;
+    }): Promise<void> {
+        await this.aiAgentReviewClassifierModel.updateRun({
+            runUuid: args.runUuid,
+            status: 'failed',
+            errorMessage: args.message,
+        });
     }
 
     private static getRelevantCatalogMatches({

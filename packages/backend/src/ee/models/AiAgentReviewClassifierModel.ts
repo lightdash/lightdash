@@ -2006,11 +2006,15 @@ export class AiAgentReviewClassifierModel {
         return row.ai_agent_review_run_uuid;
     }
 
-    async getRunReport(runUuid: string): Promise<AiAgentReviewBatchReport> {
+    async getRunReport(args: {
+        organizationUuid: string;
+        runUuid: string;
+    }): Promise<AiAgentReviewBatchReport | null> {
         const runRow = await this.database<AiAgentReviewClassifierRunTable>(
             AiAgentReviewClassifierRunTableName,
         )
-            .where('ai_agent_review_run_uuid', runUuid)
+            .where('ai_agent_review_run_uuid', args.runUuid)
+            .where('organization_uuid', args.organizationUuid)
             .first<
                 Pick<
                     DbAiAgentReviewClassifierRun,
@@ -2019,8 +2023,10 @@ export class AiAgentReviewClassifierModel {
             >('ai_agent_review_run_uuid', 'run_scope');
 
         if (!runRow) {
-            throw new Error(`Run not found: ${runUuid}`);
+            return null;
         }
+
+        const { runUuid } = args;
 
         const scope = runRow.run_scope;
         const window =
@@ -2107,6 +2113,54 @@ export class AiAgentReviewClassifierModel {
         };
     }
 
+    private static mapBackfillRunRow(
+        row: DbAiAgentReviewClassifierRun,
+    ): AiAgentReviewBatchRunSummary {
+        const scope = row.run_scope;
+        const window =
+            scope.type === 'backfill'
+                ? {
+                      startedAt: new Date(scope.startedAt),
+                      endedAt: new Date(scope.endedAt),
+                  }
+                : { startedAt: new Date(0), endedAt: new Date(0) };
+        return {
+            runUuid: row.ai_agent_review_run_uuid,
+            status: row.status,
+            window,
+            scope: {
+                projectUuid:
+                    scope.type === 'backfill'
+                        ? (scope.projectUuid ?? null)
+                        : null,
+                agentUuid:
+                    scope.type === 'backfill'
+                        ? (scope.agentUuid ?? null)
+                        : null,
+            },
+            totalTurns: row.total_turns,
+            processedTurns: row.processed_turns,
+            findingCount: row.finding_count,
+            errorMessage: row.error_message,
+            createdAt: row.created_at,
+            completedAt: row.completed_at,
+        };
+    }
+
+    async getBackfillRun(args: {
+        organizationUuid: string;
+        runUuid: string;
+    }): Promise<AiAgentReviewBatchRunSummary | null> {
+        const row = await this.database<AiAgentReviewClassifierRunTable>(
+            AiAgentReviewClassifierRunTableName,
+        )
+            .where('ai_agent_review_run_uuid', args.runUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .first<DbAiAgentReviewClassifierRun>();
+
+        return row ? AiAgentReviewClassifierModel.mapBackfillRunRow(row) : null;
+    }
+
     async listBackfillRuns(args: {
         organizationUuid: string;
         projectUuid?: string;
@@ -2132,36 +2186,6 @@ export class AiAgentReviewClassifierModel {
             .select<DbAiAgentReviewClassifierRun[]>('*')
             .orderBy('created_at', 'desc');
 
-        return rows.map((row): AiAgentReviewBatchRunSummary => {
-            const scope = row.run_scope;
-            const window =
-                scope.type === 'backfill'
-                    ? {
-                          startedAt: new Date(scope.startedAt),
-                          endedAt: new Date(scope.endedAt),
-                      }
-                    : { startedAt: new Date(0), endedAt: new Date(0) };
-            return {
-                runUuid: row.ai_agent_review_run_uuid,
-                status: row.status,
-                window,
-                scope: {
-                    projectUuid:
-                        scope.type === 'backfill'
-                            ? (scope.projectUuid ?? null)
-                            : null,
-                    agentUuid:
-                        scope.type === 'backfill'
-                            ? (scope.agentUuid ?? null)
-                            : null,
-                },
-                totalTurns: row.total_turns,
-                processedTurns: row.processed_turns,
-                findingCount: row.finding_count,
-                errorMessage: row.error_message,
-                createdAt: row.created_at,
-                completedAt: row.completed_at,
-            };
-        });
+        return rows.map(AiAgentReviewClassifierModel.mapBackfillRunRow);
     }
 }

@@ -30,6 +30,9 @@ import {
     PullRequestProvider,
     PullRequestSource,
     UpdateAiAgentReviewItemStatus,
+    type AiAgentReviewBatchReport,
+    type AiAgentReviewBatchRunSummary,
+    type AiAgentReviewBatchStarted,
     type AiAgentReviewItemWritebackBlockedReason,
     type AiAgentReviewItemWritebackEligibility,
     type AiAgentReviewItemWritebackPreview,
@@ -39,6 +42,7 @@ import {
     type AiAgentReviewRemediationEventType,
     type AiAgentReviewRemediationLiveState,
     type AiAgentReviewRemediationStatus,
+    type CreateAiAgentReviewBatch,
     type PullRequest,
     type SessionUser,
 } from '@lightdash/common';
@@ -67,6 +71,10 @@ import {
     buildYmlPathByModel,
     planReviewWriteback,
 } from './ai/reviewWriteback/buildReviewWritebackPrompt';
+import {
+    JUDGE_PROMPT_HASH,
+    REVIEW_AGENT_VERSION,
+} from './AiAgentReviewClassifierService';
 import { type AiOrganizationSettingsService } from './AiOrganizationSettingsService';
 import { type AiWritebackService } from './AiWritebackService/AiWritebackService';
 import { type WritebackPreviewService } from './AiWritebackService/WritebackPreviewService';
@@ -130,6 +138,7 @@ const REVIEW_PREVIEW_POLL_INTERVAL_MS = 25_000;
 const REVIEW_PREVIEW_WAIT_TIMEOUT_MS = 10 * 60_000;
 const PREVIEW_COMPILE_POLL_INTERVAL_MS = 10_000;
 const PREVIEW_COMPILE_WAIT_TIMEOUT_MS = 10 * 60_000;
+const REVIEW_BATCH_MAX_TURNS = 500;
 
 const unavailableWritebackEligibility = (
     reason: AiAgentReviewItemWritebackBlockedReason,
@@ -1979,6 +1988,109 @@ export class AiAgentAdminService extends BaseService {
         });
         trackPreviewViewed(true, toReviewWritebackStrategy(plan.strategy));
         return { available: true, ...preview };
+    }
+
+    async startReviewBatch(
+        user: SessionUser,
+        args: CreateAiAgentReviewBatch,
+    ): Promise<AiAgentReviewBatchStarted> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkOrganizationAdminAccess(user);
+
+        const estimatedTurns =
+            await this.aiAgentReviewClassifierModel.countTurnReviewCandidates({
+                organizationUuid,
+                projectUuid: args.projectUuid ?? undefined,
+                agentUuid: args.agentUuid ?? undefined,
+                startedAt: args.startedAt,
+                endedAt: args.endedAt,
+            });
+        if (estimatedTurns > REVIEW_BATCH_MAX_TURNS) {
+            throw new ParameterError(
+                `This window has ~${estimatedTurns} turns, which exceeds the ${REVIEW_BATCH_MAX_TURNS} cap. Narrow the window.`,
+            );
+        }
+
+        const runUuid =
+            await this.aiAgentReviewClassifierModel.createQueuedBackfillRun({
+                organizationUuid,
+                projectUuid: args.projectUuid ?? undefined,
+                agentUuid: args.agentUuid ?? undefined,
+                startedAt: args.startedAt,
+                endedAt: args.endedAt,
+                totalTurns: estimatedTurns,
+                reviewAgentVersion: REVIEW_AGENT_VERSION,
+                judgePromptHash: JUDGE_PROMPT_HASH,
+            });
+
+        await this.schedulerClient.aiAgentReviewBatch({
+            runUuid,
+            organizationUuid,
+            ...(args.projectUuid != null && { projectUuid: args.projectUuid }),
+            ...(args.agentUuid != null && { agentUuid: args.agentUuid }),
+            startedAt: args.startedAt.toISOString(),
+            endedAt: args.endedAt.toISOString(),
+            limit: REVIEW_BATCH_MAX_TURNS,
+            requestedByUserUuid: user.userUuid,
+        } as Parameters<typeof this.schedulerClient.aiAgentReviewBatch>[0]);
+
+        return { runUuid, estimatedTurns };
+    }
+
+    async getReviewBatchRun(
+        user: SessionUser,
+        runUuid: string,
+    ): Promise<AiAgentReviewBatchRunSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkOrganizationAdminAccess(user);
+
+        const run = await this.aiAgentReviewClassifierModel.getBackfillRun({
+            organizationUuid,
+            runUuid,
+        });
+        if (!run) {
+            throw new NotFoundError('Review batch run not found');
+        }
+        return run;
+    }
+
+    async getReviewBatchReport(
+        user: SessionUser,
+        runUuid: string,
+    ): Promise<AiAgentReviewBatchReport> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkOrganizationAdminAccess(user);
+
+        const report = await this.aiAgentReviewClassifierModel.getRunReport({
+            organizationUuid,
+            runUuid,
+        });
+        if (!report) {
+            throw new NotFoundError('Review batch run not found');
+        }
+        return report;
+    }
+
+    async listReviewBatchRuns(
+        user: SessionUser,
+        filters: { projectUuid?: string; agentUuid?: string },
+    ): Promise<AiAgentReviewBatchRunSummary[]> {
+        const { organizationUuid } = user;
+        if (!organizationUuid)
+            throw new ForbiddenError('Organization not found');
+        this.checkOrganizationAdminAccess(user);
+
+        return this.aiAgentReviewClassifierModel.listBackfillRuns({
+            organizationUuid,
+            projectUuid: filters.projectUuid,
+            agentUuid: filters.agentUuid,
+        });
     }
 
     /**
