@@ -62,7 +62,10 @@ import {
     TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
-import { WritebackGitNotConnectedError } from './errors';
+import {
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from './errors';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
@@ -852,6 +855,26 @@ export class AiWritebackService extends BaseService {
         const existingRow = aiThreadUuid
             ? await this.aiWritebackThreadModel.findByAiThreadUuid(aiThreadUuid)
             : null;
+
+        // A thread is bound to its first PR. If that PR has since been merged or
+        // closed (from the chat card or directly on the host), editing it again
+        // would push onto a dead branch and silently orphan the change. Bail
+        // before spinning up the sandbox and tell the user to start a new
+        // thread. (Pasted-link turns are validated separately in adoptPullRequest.)
+        if (existingRow?.pr_url) {
+            const installation = await provider.resolveInstallation(
+                user.organizationUuid,
+                { user, connection: gitConnection },
+            );
+            const editState = await provider.getPullRequestEditState({
+                prUrl: existingRow.pr_url,
+                connection: gitConnection,
+                installation,
+            });
+            if (!editState.editable && editState.reason) {
+                throw new WritebackThreadPrClosedError(editState.reason);
+            }
+        }
 
         // `get()` returns the (de-sensitised) warehouse credentials with the
         // discriminant `type` intact. Null when the project has no warehouse

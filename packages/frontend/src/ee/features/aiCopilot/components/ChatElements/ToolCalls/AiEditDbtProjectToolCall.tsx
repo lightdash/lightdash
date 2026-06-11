@@ -4,6 +4,7 @@ import {
     type ToolEditDbtProjectOutput,
 } from '@lightdash/common';
 import {
+    Box,
     Button,
     Group,
     Menu,
@@ -32,6 +33,7 @@ import MantineModal from '../../../../../../components/common/MantineModal';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
+import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 import { WritebackDiffModal } from './WritebackDiffModal';
@@ -394,6 +396,38 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 </Paper>
             );
         }
+        // The thread's pull request was already merged or closed, so further
+        // edits can't be added here. Not a failure — guide the user to a new
+        // thread rather than show a red error.
+        if (metadata.errorCode === 'pull_request_not_open') {
+            return (
+                <Paper withBorder p="sm" radius="md">
+                    <Group gap="xs" align="flex-start" wrap="nowrap">
+                        <ThemeIcon
+                            variant="light"
+                            color="ldGray"
+                            radius="md"
+                            size="md"
+                        >
+                            <MantineIcon
+                                icon={IconGitPullRequestClosed}
+                                size={16}
+                            />
+                        </ThemeIcon>
+                        <Stack gap={2}>
+                            <Text size="sm" fw={500}>
+                                This thread's pull request is closed
+                            </Text>
+                            <Text size="xs" c="ldGray.6">
+                                Its pull request has already been merged or
+                                closed, so further changes can't be added here.
+                                Start a new thread to request more changes.
+                            </Text>
+                        </Stack>
+                    </Group>
+                </Paper>
+            );
+        }
         return (
             <Paper withBorder p="sm" radius="md" bg="red.0">
                 <Group gap="xs" align="center" wrap="nowrap">
@@ -455,7 +489,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const title = 'Edited semantic layer';
 
     return (
-        <Paper withBorder p="sm" radius="md">
+        <Paper withBorder p="sm" radius="md" className={styles.card}>
             <Stack gap="xs">
                 <Group
                     gap="sm"
@@ -522,12 +556,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             )}
                         </Stack>
                     </Group>
-                    <Group gap="xs" wrap="nowrap">
+                    <Box className={styles.actions}>
                         {/* View (preview / PR / diff) stands alone; the Close and
                             Merge terminal actions are joined in their own group.
                             Preview URL is generated server-side during the run
                             and carried in the tool metadata — a setup PR never
-                            previews itself. */}
+                            previews itself. Stacks vertically in the narrow
+                            minimized chat bubble (see the module's container query). */}
                         <PullRequestViewMenu
                             projectUuid={projectUuid}
                             prUrl={metadata.prUrl}
@@ -545,7 +580,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             commitSha={metadata.commitSha ?? null}
                             ciChecks={ciChecks ?? null}
                         />
-                    </Group>
+                    </Box>
                 </Group>
                 <PullRequestCiChecks
                     prUrl={metadata.prUrl}

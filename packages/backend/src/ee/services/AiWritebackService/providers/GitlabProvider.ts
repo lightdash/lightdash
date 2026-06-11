@@ -289,6 +289,34 @@ export class GitlabProvider implements GitProvider {
         return landed;
     }
 
+    async getPullRequestEditState(args: {
+        prUrl: string;
+        connection: GitConnection;
+        installation: GitInstallation;
+    }): Promise<{ editable: boolean; reason: 'merged' | 'closed' | null }> {
+        const connection = asGitlabConnection(args.connection);
+        const installation = asGitlabInstallation(args.installation);
+        assertSameHost(connection, installation);
+        const { mergeRequestIid } = parseMergeRequestUrl(
+            args.prUrl,
+            connection.hostDomain,
+        );
+        const mr = await getMergeRequest({
+            owner: connection.owner,
+            repo: connection.repo,
+            iid: mergeRequestIid,
+            token: installation.token,
+            hostDomain: connection.hostDomain,
+        });
+        if (mr.merged) {
+            return { editable: false, reason: 'merged' };
+        }
+        if (mr.state === 'closed') {
+            return { editable: false, reason: 'closed' };
+        }
+        return { editable: true, reason: null };
+    }
+
     async adoptPullRequest(
         args: AdoptPullRequestArgs,
     ): Promise<AdoptedPullRequest> {
