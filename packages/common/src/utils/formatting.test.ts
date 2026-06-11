@@ -1149,6 +1149,47 @@ describe('Formatting', () => {
             ).toEqual('2018-10-31');
         });
 
+        test('formatItemValue shifts a custom-format timestamp into the project tz (GLITCH-492)', () => {
+            // A TIMESTAMP field with a custom date format expression must still
+            // render in the project timezone — the expression controls HOW the
+            // value is rendered, not WHICH zone it is rendered in.
+            const tsWithFormat = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+                format: 'yyyy-mm-dd hh:mm:ss',
+            };
+            const value = new Date('2024-01-14T20:00:00.000Z'); // 15:00 in NY (EST)
+
+            expect(
+                formatItemValue(
+                    tsWithFormat,
+                    value,
+                    false,
+                    undefined,
+                    'America/New_York',
+                ),
+            ).toEqual('2024-01-14 15:00:00');
+        });
+
+        test('formatItemValue custom-format timestamp stays UTC when flag is off (GLITCH-492)', () => {
+            // Flag-off orgs receive no timezone (the API sends a null
+            // resolvedTimezone), and an explicit UTC project must also not
+            // shift — output stays bit-identical to the raw value.
+            const tsWithFormat = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+                format: 'yyyy-mm-dd hh:mm:ss',
+            };
+            const value = new Date('2024-01-14T20:00:00.000Z');
+
+            expect(
+                formatItemValue(tsWithFormat, value, false, undefined),
+            ).toEqual('2024-01-14 20:00:00');
+            expect(
+                formatItemValue(tsWithFormat, value, false, undefined, 'UTC'),
+            ).toEqual('2024-01-14 20:00:00');
+        });
+
         describe('formatItemValue timestamp handling', () => {
             const mockTimestampField = {
                 type: DimensionType.TIMESTAMP,
