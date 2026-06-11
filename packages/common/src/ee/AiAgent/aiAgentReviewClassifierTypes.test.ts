@@ -1,11 +1,31 @@
 import {
     aiAgentJudgeProjectContextEntrySchema,
+    aiAgentReviewClassifierJudgeOutputSchema,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
     getAiAgentReviewItemFingerprintScope,
     type AiAgentConfigSnapshot,
     type AiAgentReviewItemFingerprintInput,
 } from './aiAgentReviewClassifierTypes';
+
+const baseJudgeOutput = {
+    signal: 'implicit_correction' as const,
+    implicitSignalSources: ['next_user_correction' as const],
+    confidence: 'high' as const,
+    promotedToFinding: true,
+    promotionReason: 'Found a semantic-layer correction.',
+    primaryRootCause: 'semantic_layer' as const,
+    secondaryRootCauses: [],
+    subcategories: [],
+    fixTargets: [],
+    targetRefs: [],
+    agentConfigurationSettings: [],
+    ownerType: 'semantic_layer_owner' as const,
+    evidenceExcerpts: [],
+    recommendation: null,
+    reviewItem: { title: 'Fix metric', description: 'why' },
+    projectContextEntry: null,
+};
 
 const baseInput: AiAgentReviewItemFingerprintInput = {
     organizationUuid: 'org-1',
@@ -134,6 +154,34 @@ describe('aiAgentJudgeProjectContextEntrySchema', () => {
             objects: [],
         });
         expect(result.success).toBe(false);
+    });
+});
+
+describe('aiAgentReviewClassifierJudgeOutputSchema', () => {
+    it('accepts a promoted finding with an actionable root cause', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse(baseJudgeOutput)
+                .success,
+        ).toBe(true);
+    });
+
+    it('rejects a promoted finding with primaryRootCause not_a_failure', () => {
+        const result = aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+            ...baseJudgeOutput,
+            promotedToFinding: true,
+            primaryRootCause: 'not_a_failure',
+        });
+        expect(result.success).toBe(false);
+    });
+
+    it('accepts not_a_failure when not promoted', () => {
+        expect(
+            aiAgentReviewClassifierJudgeOutputSchema.safeParse({
+                ...baseJudgeOutput,
+                promotedToFinding: false,
+                primaryRootCause: 'not_a_failure',
+            }).success,
+        ).toBe(true);
     });
 });
 

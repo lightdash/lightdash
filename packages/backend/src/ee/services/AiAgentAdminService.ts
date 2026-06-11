@@ -175,6 +175,7 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
     projectContextEnabled: boolean;
     projectAccess: ProjectWritebackAccess | null;
     hasSemanticWritebackConfig: boolean;
+    sourceThreadHasWritebackPr: boolean;
 }): AiAgentReviewItemWritebackEligibility => {
     const {
         item,
@@ -182,6 +183,7 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
         projectContextEnabled,
         projectAccess,
         hasSemanticWritebackConfig,
+        sourceThreadHasWritebackPr,
     } = args;
 
     if (!reviewsEnabled) {
@@ -204,6 +206,13 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
         item.prWritebackStatus === 'running'
     ) {
         return unavailableWritebackEligibility('writeback_in_progress');
+    }
+    // The agent already opened a writeback PR in the thread this finding came
+    // from — remediating would open a second PR for the same issue.
+    if (sourceThreadHasWritebackPr && !item.linkedPrUrl) {
+        return unavailableWritebackEligibility(
+            'source_thread_writeback_exists',
+        );
     }
 
     const strategyResult = getWritebackStrategy(item, projectContextEnabled);
@@ -397,6 +406,13 @@ export class AiAgentAdminService extends BaseService {
                 .filter((uuid): uuid is string => uuid !== null),
         );
 
+        const writebackPrByThread =
+            await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                items
+                    .map((item) => item.latestFinding?.threadUuid)
+                    .filter((uuid): uuid is string => !!uuid),
+            );
+
         const reconciled = items.map((item) => {
             const override = overrides.get(item.fingerprint);
             const reconciledItem = { ...item, ...(override ?? {}) };
@@ -412,6 +428,11 @@ export class AiAgentAdminService extends BaseService {
                         : null,
                     hasSemanticWritebackConfig:
                         this.hasSemanticWritebackConfig(),
+                    sourceThreadHasWritebackPr:
+                        !!reconciledItem.latestFinding?.threadUuid &&
+                        (writebackPrByThread.get(
+                            reconciledItem.latestFinding.threadUuid,
+                        )?.length ?? 0) > 0,
                 });
 
             return {
@@ -583,6 +604,10 @@ export class AiAgentAdminService extends BaseService {
             case 'pull_request_open':
                 throw new ParameterError(
                     'A pull request is already open for this review item',
+                );
+            case 'source_thread_writeback_exists':
+                throw new ParameterError(
+                    'The agent already opened a pull request in the source thread for this finding',
                 );
             case 'writeback_in_progress':
                 throw new ParameterError(
@@ -867,6 +892,12 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             reviewItem.projectUuid ? [reviewItem.projectUuid] : [],
         );
+        const writebackPrByThread =
+            await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                [finding.threadUuid],
+            );
+        const sourceThreadHasWritebackPr =
+            (writebackPrByThread.get(finding.threadUuid)?.length ?? 0) > 0;
         const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
             item: reviewItem,
             reviewsEnabled,
@@ -875,6 +906,7 @@ export class AiAgentAdminService extends BaseService {
                 ? (projectAccessByUuid.get(reviewItem.projectUuid) ?? null)
                 : null,
             hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
+            sourceThreadHasWritebackPr,
         });
         if (!writebackEligibility.eligible) {
             AiAgentAdminService.throwWritebackBlocked(writebackEligibility);
@@ -1609,6 +1641,13 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             reviewItem.projectUuid ? [reviewItem.projectUuid] : [],
         );
+        const sourceThreadHasWritebackPr = reviewItem.latestFinding
+            ? ((
+                  await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                      [reviewItem.latestFinding.threadUuid],
+                  )
+              ).get(reviewItem.latestFinding.threadUuid)?.length ?? 0) > 0
+            : false;
         const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
             item: reviewItem,
             reviewsEnabled,
@@ -1617,6 +1656,7 @@ export class AiAgentAdminService extends BaseService {
                 ? (projectAccessByUuid.get(reviewItem.projectUuid) ?? null)
                 : null,
             hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
+            sourceThreadHasWritebackPr,
         });
 
         return {

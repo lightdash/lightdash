@@ -126,6 +126,9 @@ type AiAgentReviewJudgeEvidencePacket = {
         summary: string;
     })[];
     suggestedEvidenceExcerpts: AiAgentEvidenceExcerpt[];
+    // PRs the agent already opened in this thread via writeback tools. Non-empty
+    // means a real PR exists — the judge should only promote if it failed/was wrong.
+    threadWritebackPullRequests: { prUrl: string | null; createdAt: Date }[];
 };
 
 type AiAgentReviewAgentConfigEvidence =
@@ -773,6 +776,12 @@ export class AiAgentReviewClassifierService extends BaseService {
         agentConfig: AiAgentReviewAgentConfigEvidence;
     }> {
         const semanticContext = await this.buildSemanticContext(candidate);
+        const threadWritebackPullRequests =
+            (
+                await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                    [candidate.subject.threadUuid],
+                )
+            ).get(candidate.subject.threadUuid) ?? [];
 
         return {
             agentConfig,
@@ -781,6 +790,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     candidate,
                     agentConfig,
                     semanticContext,
+                    threadWritebackPullRequests,
                 }),
         };
     }
@@ -993,7 +1003,7 @@ Decision rules — apply in order:
 
 1. First, populate implicitSignalSources by inspecting the evidence packet. Do not skip this step.
 
-2. If the evidence shows the assistant successfully called a writeback tool (for example editDbtProject or runAiWriteback) and opened or updated a pull request, do not promote this as a semantic_layer or project_context finding. The remediation is already in progress; use promotedToFinding=false, signal=acceptance_or_continuation, primaryRootCause=not_a_failure, and promotionReason=writeback_tool_already_started. Only consider writeback turns promotable when the tool failed, opened no pull request despite a clear requested change, or the user later says the PR is wrong.
+2. If the evidence shows the assistant successfully called a writeback tool (for example editDbtProject or runAiWriteback) and opened or updated a pull request, do not promote this as a semantic_layer or project_context finding. The remediation is already in progress; use promotedToFinding=false, signal=acceptance_or_continuation, primaryRootCause=not_a_failure, and promotionReason=writeback_tool_already_started. The evidence packet field threadWritebackPullRequests lists PRs the agent has already opened in this thread — when it is non-empty a real pull request exists, so do not infer from prose that the assistant fabricated it. Only consider writeback turns promotable when the tool failed, opened no pull request despite a clear requested change, or the user later says the PR is wrong.
 
 3. Treat implicitSignalSources as strong evidence of unresolved user intent, not as decoration. Promote when the implicit signal points to likely assistant failure:
    - Always promote assistant_no_answer, next_user_dispute, tool_error, product_capability_request, and human_intervention.
@@ -1023,6 +1033,7 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
 7. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
 
 When promotedToFinding=true, provide concise evidence excerpts copied or summarized from the packet and a practical recommendation.
+Never set promotedToFinding=true together with primaryRootCause=not_a_failure — they are mutually exclusive; a promoted finding always has an actionable root cause.
 Use one primaryRootCause. Secondary causes are optional.
 For targetRefs, return compact refs:
 - type: one of the allowed target types.
@@ -1176,10 +1187,12 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
         candidate,
         agentConfig,
         semanticContext,
+        threadWritebackPullRequests,
     }: {
         candidate: AiAgentReviewClassifierTurnCandidate;
         agentConfig: AiAgentReviewJudgeEvidencePacket['agentConfig'];
         semanticContext: AiAgentReviewJudgeEvidencePacket['semanticContext'];
+        threadWritebackPullRequests: AiAgentReviewJudgeEvidencePacket['threadWritebackPullRequests'];
     }): AiAgentReviewJudgeEvidencePacket {
         return {
             subject: candidate.subject,
@@ -1217,6 +1230,7 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
             ),
             suggestedEvidenceExcerpts:
                 AiAgentReviewClassifierService.buildEvidenceExcerpts(candidate),
+            threadWritebackPullRequests,
         };
     }
 
