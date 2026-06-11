@@ -1,3 +1,10 @@
+## [0.3138.2](https://github.com/lightdash/lightdash/compare/0.3138.1...0.3138.2) (2026-06-11)
+
+
+### Bug Fixes
+
+* support Okta issuer initiated login ([#24171](https://github.com/lightdash/lightdash/issues/24171)) ([3488f85](https://github.com/lightdash/lightdash/commit/3488f8591c73822ee4366eefb4bab3bde3d300cc)), closes [#24139](https://github.com/lightdash/lightdash/issues/24139)
+
 ## [0.3138.1](https://github.com/lightdash/lightdash/compare/0.3138.0...0.3138.1) (2026-06-11)
 
 
