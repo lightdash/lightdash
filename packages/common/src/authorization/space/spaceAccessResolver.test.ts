@@ -483,46 +483,11 @@ describe('resolveSpaceAccess', () => {
                             spaceUuid: 'child-space',
                             role: ProjectMemberRole.EDITOR,
                             from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
-                            hasCustomRoleWithSpaceAccess: false,
                         },
                     ],
                 }),
             );
             expect(result).toHaveLength(0);
-        });
-
-        it('marks project custom roles that have space-scoped permissions', () => {
-            const result = resolveSpaceAccess(
-                makeChainInput({
-                    chainDirectAccess: [
-                        {
-                            spaceUuid: 'child-space',
-                            directAccess: [
-                                {
-                                    userUuid: 'user-1',
-                                    spaceUuid: 'child-space',
-                                    role: SpaceMemberRole.EDITOR,
-                                    groupUuid: null,
-                                    from: DirectSpaceAccessOrigin.USER_ACCESS,
-                                },
-                            ],
-                        },
-                    ],
-                    projectAccess: [
-                        {
-                            userUuid: 'user-1',
-                            spaceUuid: 'child-space',
-                            role: ProjectMemberRole.VIEWER,
-                            from: ProjectSpaceAccessOrigin.PROJECT_MEMBERSHIP,
-                            hasCustomRoleWithSpaceAccess: true,
-                        },
-                    ],
-                }),
-            );
-
-            expect(result).toHaveLength(1);
-            expect(result[0].projectRole).toBe(ProjectMemberRole.VIEWER);
-            expect(result[0].hasCustomProjectRoleWithSpaceAccess).toBe(true);
         });
 
         it('admin without direct access is excluded (CASL handles admin access)', () => {

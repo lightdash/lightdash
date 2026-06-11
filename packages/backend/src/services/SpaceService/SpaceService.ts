@@ -169,8 +169,6 @@ export class SpaceService
                 userUuid: admin.userUuid,
                 role: SpaceMemberRole.ADMIN,
                 hasDirectAccess: false,
-                // Admin powers come via CASL, not a viewer-shaped custom role.
-                hasCustomProjectRoleWithSpaceAccess: false,
                 projectRole: ProjectMemberRole.ADMIN,
                 inheritedRole:
                     admin.source === 'organization'

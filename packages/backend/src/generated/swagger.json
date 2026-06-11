@@ -2698,9 +2698,6 @@
                     "projectRole": {
                         "$ref": "#/components/schemas/ProjectMemberRole"
                     },
-                    "hasCustomProjectRoleWithSpaceAccess": {
-                        "type": "boolean"
-                    },
                     "hasDirectAccess": {
                         "type": "boolean"
                     },
@@ -2711,12 +2708,7 @@
                         "type": "string"
                     }
                 },
-                "required": [
-                    "hasCustomProjectRoleWithSpaceAccess",
-                    "hasDirectAccess",
-                    "role",
-                    "userUuid"
-                ],
+                "required": ["hasDirectAccess", "role", "userUuid"],
                 "type": "object"
             },
             "DateGranularity": {

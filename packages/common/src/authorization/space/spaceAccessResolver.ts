@@ -24,14 +24,6 @@ import {
     getHighestSpaceRole,
 } from '../../utils/projectMemberRole';
 
-type ProjectRoleWithCustomSpaceAccess = ProjectRole & {
-    hasCustomRoleWithSpaceAccess: boolean;
-};
-
-type GroupRoleWithCustomSpaceAccess = GroupRole & {
-    hasCustomRoleWithSpaceAccess: boolean;
-};
-
 const getUserOrganizationRole = (
     organizationAccess: OrganizationSpaceAccess[],
     userUuid: string,
@@ -51,7 +43,7 @@ const getUserOrganizationRole = (
 const getUserProjectRole = (
     projectAccess: ProjectSpaceAccess[],
     userUuid: string,
-): ProjectRoleWithCustomSpaceAccess => {
+): ProjectRole => {
     const userProjectAccess = projectAccess.filter(
         (a) =>
             a.userUuid === userUuid &&
@@ -64,16 +56,13 @@ const getUserProjectRole = (
             userProjectAccess.length > 0
                 ? userProjectAccess[0].role
                 : undefined,
-        hasCustomRoleWithSpaceAccess: userProjectAccess.some(
-            (a) => a.hasCustomRoleWithSpaceAccess,
-        ),
     };
 };
 
 const getUserProjectGroupRoles = (
     projectAccess: ProjectSpaceAccess[],
     userUuid: string,
-): GroupRoleWithCustomSpaceAccess[] => {
+): GroupRole[] => {
     const userProjectGroups = projectAccess.filter(
         (a) =>
             a.userUuid === userUuid &&
@@ -83,7 +72,6 @@ const getUserProjectGroupRoles = (
     return userProjectGroups.map((entry) => ({
         type: 'group',
         role: entry.role,
-        hasCustomRoleWithSpaceAccess: entry.hasCustomRoleWithSpaceAccess,
     }));
 };
 
@@ -169,9 +157,6 @@ const resolveUserSpaceAccess = (
     );
     const projectRole = getUserProjectRole(projectAccess, userUuid);
     const groupRoles = getUserProjectGroupRoles(projectAccess, userUuid);
-    const hasCustomProjectRoleWithSpaceAccess =
-        projectRole.hasCustomRoleWithSpaceAccess ||
-        groupRoles.some((role) => role.hasCustomRoleWithSpaceAccess);
 
     // Flatten all direct access for group role computation at project level
     const allDirectAccess = chainDirectAccess.flatMap((c) => c.directAccess);
@@ -227,7 +212,6 @@ const resolveUserSpaceAccess = (
         inheritedRole: highestRole.role,
         inheritedFrom,
         projectRole: highestProjectRole?.role,
-        hasCustomProjectRoleWithSpaceAccess,
     };
 };
 

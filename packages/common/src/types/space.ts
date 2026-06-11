@@ -34,7 +34,6 @@ export type ProjectSpaceAccess = {
     spaceUuid: string;
     role: ProjectMemberRole;
     from: ProjectSpaceAccessOrigin;
-    hasCustomRoleWithSpaceAccess: boolean;
 };
 
 export type ChainSpaceDirectAccess = {
@@ -151,7 +150,6 @@ export type SpaceAccess = {
     userUuid: string;
     role: SpaceMemberRole;
     hasDirectAccess: boolean;
-    hasCustomProjectRoleWithSpaceAccess: boolean;
     projectRole: ProjectMemberRole | undefined;
     inheritedRole: OrganizationMemberRole | ProjectMemberRole | undefined;
     inheritedFrom:
