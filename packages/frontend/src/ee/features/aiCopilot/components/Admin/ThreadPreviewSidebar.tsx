@@ -43,6 +43,7 @@ import {
     getReviewReasoningText,
     getReviewSecondaryDetail,
 } from './reviewItemDetails';
+import { ReviewValidationList } from './ReviewValidationList';
 import styles from './ThreadPreviewSidebar.module.css';
 import {
     getThreadReviewHeadline,
@@ -199,6 +200,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
     const reasoningText = selectedReviewItem
         ? getReviewReasoningText(selectedReviewItem)
         : null;
+    const [showValidation, setShowValidation] = useState(false);
+    const previewProjectUuid =
+        selectedReviewItem?.remediation?.previewProjectUuid ?? null;
 
     if (!isOpen || !threadUuid) {
         return null;
@@ -369,6 +373,30 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 size="xs"
                                             />
                                         </UnstyledButton>
+                                        {previewProjectUuid && (
+                                            <UnstyledButton
+                                                className={styles.sectionToggle}
+                                                data-active={
+                                                    showValidation || undefined
+                                                }
+                                                onClick={() =>
+                                                    setShowValidation(
+                                                        (open) => !open,
+                                                    )
+                                                }
+                                                aria-expanded={showValidation}
+                                            >
+                                                <span>Validation</span>
+                                                <MantineIcon
+                                                    icon={
+                                                        showValidation
+                                                            ? IconChevronDown
+                                                            : IconChevronRight
+                                                    }
+                                                    size="xs"
+                                                />
+                                            </UnstyledButton>
+                                        )}
                                     </Group>
 
                                     <Collapse in={showDetails}>
@@ -425,6 +453,16 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                             )}
                                         </Stack>
                                     </Collapse>
+
+                                    {previewProjectUuid && (
+                                        <Collapse in={showValidation}>
+                                            <ReviewValidationList
+                                                previewProjectUuid={
+                                                    previewProjectUuid
+                                                }
+                                            />
+                                        </Collapse>
+                                    )}
                                 </Stack>
                             </Stack>
 
