@@ -1,3 +1,11 @@
+## [0.3138.1](https://github.com/lightdash/lightdash/compare/0.3138.0...0.3138.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* calculate data app full height for screenshots ([#24170](https://github.com/lightdash/lightdash/issues/24170)) ([fd9f4d8](https://github.com/lightdash/lightdash/commit/fd9f4d8d35f069014ad50b8f665333ab471fb762))
+* improve data apps screenshot ready indicator ([#24145](https://github.com/lightdash/lightdash/issues/24145)) ([421458e](https://github.com/lightdash/lightdash/commit/421458ee011ce2512c8ba195f601658a7d97afad))
+
 # [0.3138.0](https://github.com/lightdash/lightdash/compare/0.3137.0...0.3138.0) (2026-06-11)
 
 
