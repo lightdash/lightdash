@@ -38,6 +38,7 @@ type Props = {
     tableName: string;
     metricName: string;
     projectUuid: string;
+    showExploreButton: boolean;
     children: ReactNode;
     compiledQueryConfig?: CompiledQueryConfig;
 };
@@ -120,6 +121,7 @@ type MetricDetailContentProps = {
     metric: MetricWithAssociatedTimeDimension;
     tableName: string;
     metricName: string;
+    showExploreButton: boolean;
     projectUuid: string;
     compiledQueryConfig?: CompiledQueryConfig;
     isOpen: boolean;
@@ -129,6 +131,7 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
     metric,
     tableName,
     metricName,
+    showExploreButton,
     projectUuid,
     compiledQueryConfig,
     isOpen,
@@ -216,14 +219,16 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                 />
             )}
 
-            <Button
-                variant="dark"
-                size="xs"
-                fullWidth
-                onClick={() => exploreMetric({ tableName, metricName })}
-            >
-                Explore
-            </Button>
+            {showExploreButton && (
+                <Button
+                    variant="dark"
+                    size="xs"
+                    fullWidth
+                    onClick={() => exploreMetric({ tableName, metricName })}
+                >
+                    Explore
+                </Button>
+            )}
         </Stack>
     );
 };
@@ -232,6 +237,7 @@ export const MetricDetailPopover: FC<Props> = ({
     tableName,
     metricName,
     projectUuid,
+    showExploreButton,
     children,
     compiledQueryConfig,
 }) => {
@@ -270,6 +276,7 @@ export const MetricDetailPopover: FC<Props> = ({
                         metric={metric}
                         tableName={tableName}
                         metricName={metricName}
+                        showExploreButton={showExploreButton}
                         projectUuid={projectUuid}
                         compiledQueryConfig={compiledQueryConfig}
                         isOpen={opened}
