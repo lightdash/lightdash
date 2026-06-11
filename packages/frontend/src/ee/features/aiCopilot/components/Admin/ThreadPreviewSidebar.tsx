@@ -353,9 +353,7 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         </UnstyledButton>
                                         <UnstyledButton
                                             className={styles.sectionToggle}
-                                            data-active={
-                                                showWhy || undefined
-                                            }
+                                            data-active={showWhy || undefined}
                                             onClick={() =>
                                                 setShowWhy((open) => !open)
                                             }
