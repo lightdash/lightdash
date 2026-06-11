@@ -1,3 +1,10 @@
+# [0.3136.0](https://github.com/lightdash/lightdash/compare/0.3135.0...0.3136.0) (2026-06-11)
+
+
+### Features
+
+* **ai:** scope content tools by agent spaces ([#24166](https://github.com/lightdash/lightdash/issues/24166)) ([066329f](https://github.com/lightdash/lightdash/commit/066329fe6571863ede2ffcff1674aff769b5b827))
+
 # [0.3135.0](https://github.com/lightdash/lightdash/compare/0.3134.0...0.3135.0) (2026-06-11)
 
 
