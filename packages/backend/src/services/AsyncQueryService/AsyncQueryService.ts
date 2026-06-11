@@ -2822,6 +2822,7 @@ export class AsyncQueryService extends ProjectService {
             organizationUuid,
         });
         const resolvedTimezone = resolveQueryTimezone({
+            sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone,

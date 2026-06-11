@@ -1448,6 +1448,7 @@ export class EmbedService extends BaseService {
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
             metricQuery: metricQueryWithDashboardOverrides,
             projectTimezone,
             userTimezone: null,
@@ -2082,6 +2083,7 @@ export class EmbedService extends BaseService {
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: null,
