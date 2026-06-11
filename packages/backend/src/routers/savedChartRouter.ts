@@ -1,6 +1,5 @@
-import { assertRegisteredAccount, getObjectValue } from '@lightdash/common';
+import { getObjectValue } from '@lightdash/common';
 import express, { type Router } from 'express';
-import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -41,11 +40,10 @@ savedChartRouter.get(
     allowApiKeyAuthentication,
     isAuthenticated,
     async (req, res, next) => {
-        assertRegisteredAccount(req.account);
         req.services
             .getSavedChartService()
             .getViewStats(
-                toSessionUser(req.account),
+                req.user!,
                 getObjectValue(req.params, 'savedQueryUuid'),
             )
             .then((results) => {
@@ -84,13 +82,9 @@ savedChartRouter.delete(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        assertRegisteredAccount(req.account);
         req.services
             .getSavedChartService()
-            .delete(
-                toSessionUser(req.account),
-                getObjectValue(req.params, 'savedQueryUuid'),
-            )
+            .delete(req.user!, getObjectValue(req.params, 'savedQueryUuid'))
             .then(() => {
                 res.json({
                     status: 'ok',
@@ -107,11 +101,10 @@ savedChartRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        assertRegisteredAccount(req.account);
         req.services
             .getSavedChartService()
             .update(
-                toSessionUser(req.account),
+                req.user!,
                 getObjectValue(req.params, 'savedQueryUuid'),
                 req.body,
             )
@@ -131,11 +124,10 @@ savedChartRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        assertRegisteredAccount(req.account);
         req.services
             .getSavedChartService()
             .togglePinning(
-                toSessionUser(req.account),
+                req.user!,
                 getObjectValue(req.params, 'savedQueryUuid'),
             )
             .then((results) => {
@@ -154,11 +146,10 @@ savedChartRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        assertRegisteredAccount(req.account);
         req.services
             .getSavedChartService()
             .createVersion(
-                toSessionUser(req.account),
+                req.user!,
                 getObjectValue(req.params, 'savedQueryUuid'),
                 req.body,
             )

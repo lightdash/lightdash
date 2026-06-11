@@ -1,0 +1,4 @@
+.scrollableDropdown {
+    max-height: min(22rem, calc(100vh - 8rem));
+    overflow-y: auto;
+}

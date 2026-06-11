@@ -98,6 +98,10 @@ export async function jwtAuthMiddleware(
             embedToken,
         );
         req.account.requestContext = requestContextFromExpress(req);
+        if (req.account.embedWriteUser) {
+            req.account.embedWriteUser.requestContext =
+                req.account.requestContext;
+        }
 
         // Not the greatest, but passport expects this to return a typeguard: this is AuthenticatedRequest.
         // AuthenticatedRequest is not defined and TS won't let us use `this` in a typeguard outside of a class.

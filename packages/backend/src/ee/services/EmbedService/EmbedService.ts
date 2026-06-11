@@ -65,6 +65,7 @@ import {
     UserAttributeValueMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SessionUser,
 } from '@lightdash/common';
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
@@ -82,6 +83,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { UserModel } from '../../../models/UserModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
@@ -107,6 +109,7 @@ type Dependencies = {
     savedSqlModel: SavedSqlModel;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
+    userModel: UserModel;
     projectService: ProjectService;
     asyncQueryService: AsyncQueryService;
     permissionsService: PermissionsService;
@@ -133,6 +136,8 @@ export class EmbedService extends BaseService {
 
     private readonly userAttributesModel: UserAttributesModel;
 
+    private readonly userModel: UserModel;
+
     private readonly projectService: ProjectService;
 
     private readonly featureFlagModel: FeatureFlagModel;
@@ -156,6 +161,7 @@ export class EmbedService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
         this.userAttributesModel = dependencies.userAttributesModel;
+        this.userModel = dependencies.userModel;
         this.projectService = dependencies.projectService;
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
@@ -2170,10 +2176,16 @@ export class EmbedService extends BaseService {
                     decodedToken,
                     projectUuid,
                 );
-                const [content, userAttributes] = await Promise.all([
-                    contentPromise,
-                    userAttributesPromise,
-                ]);
+                const embedWriteUserPromise = this.getEmbedWriteUser(
+                    decodedToken,
+                    embed.organization.organizationUuid,
+                );
+                const [content, userAttributes, embedWriteUser] =
+                    await Promise.all([
+                        contentPromise,
+                        userAttributesPromise,
+                        embedWriteUserPromise,
+                    ]);
 
                 if (!content) {
                     throw new NotFoundError(
@@ -2187,8 +2199,61 @@ export class EmbedService extends BaseService {
                     embed,
                     content,
                     userAttributes,
+                    embedWriteUser,
                 });
             },
         );
+    }
+
+    private async getEmbedWriteUser(
+        decodedToken: CreateEmbedJwt,
+        organizationUuid: string,
+    ): Promise<SessionUser | undefined> {
+        const { writeActions } = decodedToken;
+        const actorUserUuid =
+            writeActions?.userUuid ?? writeActions?.serviceAccountUserUuid;
+
+        if (!writeActions) {
+            return undefined;
+        }
+
+        if (!writeActions.spaceUuid || !actorUserUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow write actions',
+            );
+        }
+
+        const actor = await this.userModel.findSessionUserAndOrgByUuid(
+            actorUserUuid,
+            organizationUuid,
+        );
+
+        if (writeActions.userUuid !== undefined) {
+            if (!actor.isActive) {
+                throw new ForbiddenError(
+                    'Embed token actor is not active for this organization',
+                );
+            }
+            return actor;
+        }
+
+        const serviceAccount =
+            await this.userModel.findServiceAccountByUserUuid(actorUserUuid);
+        if (
+            serviceAccount === undefined ||
+            serviceAccount.organizationUuid !== organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'Embed token service account is not valid for this organization',
+            );
+        }
+
+        return {
+            ...actor,
+            serviceAccount: {
+                uuid: serviceAccount.uuid,
+                description: serviceAccount.description,
+            },
+        };
     }
 }

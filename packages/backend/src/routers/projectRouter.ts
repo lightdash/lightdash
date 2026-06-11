@@ -1,8 +1,8 @@
 import {
-    assertRegisteredAccount,
     ForbiddenError,
     getObjectValue,
     getRequestMethod,
+    isJwtUser,
     LightdashRequestMethodHeader,
     NotFoundError,
     ProjectCatalog,
@@ -10,7 +10,6 @@ import {
 } from '@lightdash/common';
 import express, { type Router } from 'express';
 import path from 'path';
-import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -165,15 +164,8 @@ projectRouter.post(
             const projectUuid = getObjectValue(req.params, 'projectUuid');
 
             if (req.query.duplicateFrom) {
-                if (req.account?.authentication.type === 'jwt') {
-                    throw new ForbiddenError(
-                        'Embed token cannot duplicate charts',
-                    );
-                }
-
-                assertRegisteredAccount(req.account);
                 const results = await savedChartsService.duplicate(
-                    toSessionUser(req.account),
+                    req.user!,
                     projectUuid,
                     req.query.duplicateFrom.toString(),
                     req.body,
@@ -186,11 +178,34 @@ projectRouter.post(
                 return;
             }
 
-            const results = await savedChartsService.createFromAccount(
-                req.account!,
-                projectUuid,
-                req.body,
-            );
+            let results;
+            if (isJwtUser(req.account)) {
+                const { embedWriteUser } = req.account;
+                const { spaceUuid } =
+                    req.account.authentication.data.writeActions ?? {};
+
+                if (!embedWriteUser || !spaceUuid) {
+                    throw new ForbiddenError(
+                        'Embed token does not allow write actions',
+                    );
+                }
+
+                results = await savedChartsService.create(
+                    embedWriteUser,
+                    projectUuid,
+                    {
+                        ...req.body,
+                        dashboardUuid: undefined,
+                        spaceUuid,
+                    },
+                );
+            } else {
+                results = await savedChartsService.create(
+                    req.user!,
+                    projectUuid,
+                    req.body,
+                );
+            }
 
             res.json({
                 status: 'ok',
@@ -208,11 +223,10 @@ projectRouter.patch(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        assertRegisteredAccount(req.account);
         req.services
             .getSavedChartService()
             .updateMultiple(
-                toSessionUser(req.account),
+                req.user!,
                 getObjectValue(req.params, 'projectUuid'),
                 req.body,
             )

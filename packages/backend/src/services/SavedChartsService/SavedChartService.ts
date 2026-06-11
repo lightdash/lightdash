@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     Account,
-    assertRegisteredAccount,
     assertUnreachable,
     BulkActionable,
     ChartHistory,
@@ -67,7 +66,6 @@ import {
     LightdashAnalytics,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
-import { toSessionUser } from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -1345,9 +1343,6 @@ export class SavedChartService
                     user.userUuid,
                     resolvedSpaceUuid,
                 );
-            if (spaceAccessContext.projectUuid !== projectUuid) {
-                throw new ForbiddenError();
-            }
             inheritsFromOrgOrProject =
                 spaceAccessContext.inheritsFromOrgOrProject;
             access = spaceAccessContext.access;
@@ -1360,9 +1355,6 @@ export class SavedChartService
                     user.userUuid,
                     dashboard.spaceUuid,
                 );
-            if (dashboardSpaceAccessContext.projectUuid !== projectUuid) {
-                throw new ForbiddenError();
-            }
             inheritsFromOrgOrProject =
                 dashboardSpaceAccessContext.inheritsFromOrgOrProject;
             access = dashboardSpaceAccessContext.access;
@@ -1502,80 +1494,6 @@ export class SavedChartService
             inheritsFromOrgOrProject,
             access,
         };
-    }
-
-    async createFromAccount(
-        account: Account,
-        projectUuid: string,
-        savedChart: CreateSavedChart,
-    ): Promise<SavedChart> {
-        if (!isJwtUser(account)) {
-            assertRegisteredAccount(account);
-            return this.create(toSessionUser(account), projectUuid, savedChart);
-        }
-
-        if (projectUuid !== account.embed.projectUuid) {
-            throw new ForbiddenError(
-                'Embed token cannot create charts in this project',
-            );
-        }
-
-        const { writeActions } = account.authentication.data;
-        const actorUserUuid =
-            writeActions?.userUuid ?? writeActions?.serviceAccountUserUuid;
-
-        if (!writeActions?.spaceUuid || !actorUserUuid) {
-            throw new ForbiddenError(
-                'Embed token does not allow write actions',
-            );
-        }
-
-        const actor = await this.userService.getSessionByUserUuidAndOrg(
-            actorUserUuid,
-            account.embed.organization.organizationUuid,
-        );
-        const savedChartWithJwtSpace = {
-            ...savedChart,
-            dashboardUuid: undefined,
-            spaceUuid: writeActions.spaceUuid,
-        };
-
-        let writeActionActor = actor;
-        if (writeActions.userUuid !== undefined) {
-            if (!actor.isActive) {
-                throw new ForbiddenError(
-                    'Embed token actor is not active for this organization',
-                );
-            }
-        } else {
-            const serviceAccount =
-                await this.userService.findServiceAccountByUserUuid(
-                    actorUserUuid,
-                );
-            if (
-                serviceAccount === undefined ||
-                serviceAccount.organizationUuid !==
-                    account.embed.organization.organizationUuid
-            ) {
-                throw new ForbiddenError(
-                    'Embed token service account is not valid for this organization',
-                );
-            }
-
-            writeActionActor = {
-                ...actor,
-                serviceAccount: {
-                    uuid: serviceAccount.uuid,
-                    description: serviceAccount.description,
-                },
-            };
-        }
-
-        return this.create(
-            writeActionActor,
-            projectUuid,
-            savedChartWithJwtSpace,
-        );
     }
 
     async duplicate(

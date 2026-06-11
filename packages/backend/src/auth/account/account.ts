@@ -80,12 +80,14 @@ export const fromJwt = ({
     source,
     userAttributes,
     content,
+    embedWriteUser,
 }: {
     decodedToken: CreateEmbedJwt;
     embed: OssEmbed;
     source: string;
     userAttributes: UserAccessControls;
     content: EmbedContent;
+    embedWriteUser?: SessionUser;
 }): AnonymousAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const externalId = getExternalId(decodedToken, source, embed.organization);
@@ -107,6 +109,7 @@ export const fromJwt = ({
             parameters: decodedToken.content.parameterInteractivity,
             controls: userAttributes,
         },
+        embedWriteUser,
         // Create the fields we're able to set from the JWT
         user: {
             id: externalId,

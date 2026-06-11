@@ -35,6 +35,7 @@ import {
 } from '../../../../hooks/useSpaces';
 import { useCustomRoles } from '../../customRoles/useCustomRoles';
 import { useServiceAccounts } from '../../serviceAccounts/useServiceAccounts';
+import styles from './EmbedWriteActionsForm.module.css';
 
 const SYSTEM_ROLE_OPTIONS = [
     { value: ServiceAccountScope.SYSTEM_ADMIN, label: 'Admin' },
@@ -271,7 +272,9 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                                         : 'Select service account'}
                                 </Button>
                             </Menu.Target>
-                            <Menu.Dropdown>
+                            <Menu.Dropdown
+                                className={styles.scrollableDropdown}
+                            >
                                 {serviceAccounts.map((account) => (
                                     <Menu.Item
                                         key={account.uuid}
@@ -350,7 +353,9 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                                         : 'Select space'}
                                 </Button>
                             </Menu.Target>
-                            <Menu.Dropdown>
+                            <Menu.Dropdown
+                                className={styles.scrollableDropdown}
+                            >
                                 {spaces.map((space) => (
                                     <Menu.Item
                                         key={space.uuid}

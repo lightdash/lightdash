@@ -168,6 +168,7 @@ export type SessionAccount = BaseAccountWithHelpers & {
 export type AnonymousAccount = BaseAccountWithHelpers & {
     authentication: JwtAuth;
     user: ExternalUser;
+    embedWriteUser?: SessionUser;
     /** The access permissions the account has */
     access: EmbedAccess;
     /** The embed configuration associated with the JWT */

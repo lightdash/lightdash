@@ -115,6 +115,46 @@ const languageStringArray = (
     }
 };
 
+const languageWriteActionsSnippet = (
+    language: SnippetLanguage,
+    value?: CreateEmbedJwt['writeActions'],
+): string => {
+    if (!value) {
+        return '';
+    }
+
+    switch (language) {
+        case SnippetLanguage.NODE:
+            return `    // To override the selected service account, use userUuid instead of serviceAccountUserUuid.
+    writeActions: ${JSON.stringify(value)},`;
+        case SnippetLanguage.PYTHON:
+            return `    # To override the selected service account, use userUuid instead of serviceAccountUserUuid.
+    "writeActions": ${JSON.stringify(value)},`;
+        case SnippetLanguage.GO:
+            return '';
+        default:
+            return assertUnreachable(language, `Unknown language ${language}`);
+    }
+};
+
+const goWriteActions = (
+    writeActions?: CreateEmbedJwt['writeActions'],
+): string => {
+    if (!writeActions) {
+        return 'nil';
+    }
+
+    return `&struct {
+            ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
+            UserUuid               string \`json:"userUuid,omitempty"\`
+            SpaceUuid              string \`json:"spaceUuid"\`
+        }{
+            ServiceAccountUserUuid: "${writeActions.serviceAccountUserUuid ?? ''}",
+            UserUuid:               "${writeActions.userUuid ?? ''}",
+            SpaceUuid:              "${writeActions.spaceUuid}",
+        }`;
+};
+
 const chartIframeCodeTemplates: Record<SnippetLanguage, string> = {
     [SnippetLanguage.NODE]: `import jwt from 'jsonwebtoken';
 const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
@@ -133,6 +173,7 @@ const data = {
         email: {{email}}
     },
     userAttributes: {{userAttributes}},
+{{writeActionsSnippet}}
 };
 const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
 const url = \`{{siteUrl}}/embed/\${projectUuid}#\${token}\`;
@@ -159,6 +200,7 @@ data = {
         "email": {{email}}
     },
     "userAttributes": {{userAttributes}},
+{{writeActionsSnippet}}
 };
 token = jwt.encode(data, key, algorithm="HS256")
 url = f"{{siteUrl}}/embed/{projectUuid}#{token}"
@@ -191,6 +233,11 @@ func main() {
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
+        WriteActions *struct {
+            ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
+            UserUuid               string \`json:"userUuid,omitempty"\`
+            SpaceUuid              string \`json:"spaceUuid"\`
+        } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
         User *struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -223,6 +270,8 @@ func main() {
             Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
+        // To override the selected service account, use UserUuid instead of ServiceAccountUserUuid.
+        WriteActions: {{writeActionsGo}},
         StandardClaims: jwt.StandardClaims{
             ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
         },
@@ -275,6 +324,7 @@ const data = {
         email: {{email}}
     },
     userAttributes: {{userAttributes}},
+{{writeActionsSnippet}}
 };
 const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
 const url = \`{{siteUrl}}/embed/\${projectUuid}#\${token}\`;
@@ -313,6 +363,7 @@ data = {
         "email": {{email}}
     },
     "userAttributes": {{userAttributes}},
+{{writeActionsSnippet}}
 };
 token = jwt.encode(data, key, algorithm="HS256")
 url = f"{{siteUrl}}/embed/{projectUuid}#{token}"
@@ -357,6 +408,11 @@ func main() {
             CanViewDataApps bool \`json:"canViewDataApps"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
+        WriteActions *struct {
+            ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
+            UserUuid               string \`json:"userUuid,omitempty"\`
+            SpaceUuid              string \`json:"spaceUuid"\`
+        } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
         User *struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -419,6 +475,8 @@ func main() {
             Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
+        // To override the selected service account, use UserUuid instead of ServiceAccountUserUuid.
+        WriteActions: {{writeActionsGo}},
         StandardClaims: jwt.StandardClaims{
             ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
         },
@@ -459,6 +517,7 @@ const data = {
         email: {{email}}
     },
     userAttributes: {{userAttributes}},
+{{writeActionsSnippet}}
 };
 const embedJwt = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
 `,
@@ -484,6 +543,7 @@ data = {
         "email": {{email}}
     },
     "userAttributes": {{userAttributes}},
+{{writeActionsSnippet}}
 };
 embedJwt = jwt.encode(data, key, algorithm="HS256")
 `,
@@ -514,6 +574,11 @@ func main() {
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
+        WriteActions *struct {
+            ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
+            UserUuid               string \`json:"userUuid,omitempty"\`
+            SpaceUuid              string \`json:"spaceUuid"\`
+        } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
         User *struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -545,6 +610,8 @@ func main() {
             Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
+        // To override the selected service account, use UserUuid instead of ServiceAccountUserUuid.
+        WriteActions: {{writeActionsGo}},
         StandardClaims: jwt.StandardClaims{
             ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
         },
@@ -591,6 +658,7 @@ const data = {
         email: {{email}}
     },
     userAttributes: {{userAttributes}},
+{{writeActionsSnippet}}
 };
 const embedJwt = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
 `,
@@ -628,6 +696,7 @@ data = {
         "email": {{email}}
     },
     "userAttributes": {{userAttributes}},
+{{writeActionsSnippet}}
 };
 embedJwt = jwt.encode(data, key, algorithm="HS256")
 `,
@@ -670,6 +739,11 @@ func main() {
             CanViewDataApps bool \`json:"canViewDataApps"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
+        WriteActions *struct {
+            ServiceAccountUserUuid string \`json:"serviceAccountUserUuid,omitempty"\`
+            UserUuid               string \`json:"userUuid,omitempty"\`
+            SpaceUuid              string \`json:"spaceUuid"\`
+        } \`json:"writeActions,omitempty"\`
         jwt.StandardClaims
         User *struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -731,6 +805,8 @@ func main() {
             Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
+        // To override the selected service account, use UserUuid instead of ServiceAccountUserUuid.
+        WriteActions: {{writeActionsGo}},
         StandardClaims: jwt.StandardClaims{
             ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
         },
@@ -789,6 +865,11 @@ const getBackendCodeSnippet = (
             '{{userAttributes}}',
             JSON.stringify(data.userAttributes || {}),
         )
+        .replace(
+            '{{writeActionsSnippet}}',
+            languageWriteActionsSnippet(language, data.writeActions),
+        )
+        .replace('{{writeActionsGo}}', goWriteActions(data.writeActions))
         .replace(
             '{{externalId}}',
             languageString(language, data.user?.externalId),
