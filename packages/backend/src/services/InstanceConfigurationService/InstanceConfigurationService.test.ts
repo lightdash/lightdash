@@ -1387,5 +1387,96 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
 
             expect(getGroupProjectAccess).not.toHaveBeenCalled();
         });
+
+        test('updates an existing access to a custom role with the viewer+role_uuid payload', async () => {
+            const updateProjectAccess = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [
+                        {
+                            groupName: 'Data Analyst',
+                            projectName: 'Production',
+                            role: 'PII Analyst',
+                        },
+                    ],
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue(['proj-1']),
+                    getSummary: jest.fn(),
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [{ uuid: 'grp-2', name: 'Data Analyst' }],
+                    }),
+                    addProjectAccess: jest.fn(),
+                    updateProjectAccess,
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest
+                        .fn()
+                        .mockResolvedValue([
+                            { roleUuid: 'role-uuid-7', name: 'PII Analyst' },
+                        ]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([
+                        {
+                            groupUuid: 'grp-2',
+                            projectUuid: 'proj-1',
+                            roleUuid: 'developer',
+                        },
+                    ]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(updateProjectAccess).toHaveBeenCalledWith(
+                { groupUuid: 'grp-2', projectUuid: 'proj-1' },
+                { role: 'viewer', role_uuid: 'role-uuid-7' },
+            );
+        });
+
+        test('skips (no throw) when getSummary rejects for a given projectUuid', async () => {
+            const addProjectAccess = jest.fn();
+            const find = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [
+                        {
+                            groupName: 'Core Data Developer',
+                            projectUuid: 'missing-proj',
+                            role: 'developer',
+                        },
+                    ],
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest.fn(),
+                    getSummary: jest
+                        .fn()
+                        .mockRejectedValue(new Error('not found')),
+                },
+                groupsModel: {
+                    find,
+                    addProjectAccess,
+                    updateProjectAccess: jest.fn(),
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(addProjectAccess).not.toHaveBeenCalled();
+            expect(find).not.toHaveBeenCalled();
+        });
     });
 });
