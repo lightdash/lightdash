@@ -1,3 +1,10 @@
+# [0.3143.0](https://github.com/lightdash/lightdash/compare/0.3142.0...0.3143.0) (2026-06-11)
+
+
+### Features
+
+* view underlying data in Data Apps ([#24146](https://github.com/lightdash/lightdash/issues/24146)) ([c0902ea](https://github.com/lightdash/lightdash/commit/c0902ea081bde34af84dd63db76cd28fac1d5c5b))
+
 # [0.3142.0](https://github.com/lightdash/lightdash/compare/0.3141.0...0.3142.0) (2026-06-11)
 
 
