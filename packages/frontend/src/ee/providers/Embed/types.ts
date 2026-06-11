@@ -1,4 +1,9 @@
-import { type LanguageMap, type SavedChart } from '@lightdash/common';
+import {
+    type AnonymousAccount,
+    type CreateEmbedJwt,
+    type LanguageMap,
+    type SavedChart,
+} from '@lightdash/common';
 import { type SdkFilter } from '../../features/embed/EmbedDashboard/types';
 
 export const EMBED_KEY = 'lightdash-embed';
@@ -19,6 +24,12 @@ export interface EmbedContext {
     filters?: SdkFilter[];
     // The project UUID of the project the JWT user is embedded in
     projectUuid?: string;
+    // The content claim decoded from the JWT
+    content?: CreateEmbedJwt['content'];
+    // Write-action configuration decoded from the JWT
+    writeActions?: CreateEmbedJwt['writeActions'];
+    // Server-computed permissions for the write-action actor
+    embedWriteContext?: AnonymousAccount['embedWriteContext'];
     // An optional org palette override for SDK dashboards
     paletteUuid?: string;
     // Powers localization of the dashboard

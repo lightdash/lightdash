@@ -157,37 +157,37 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        const savedChartsService = req.services.getSavedChartService();
+        try {
+            const savedChartsService = req.services.getSavedChartService();
+            const projectUuid = getObjectValue(req.params, 'projectUuid');
 
-        if (req.query.duplicateFrom) {
-            savedChartsService
-                .duplicate(
+            if (req.query.duplicateFrom) {
+                const results = await savedChartsService.duplicate(
                     req.user!,
-                    getObjectValue(req.params, 'projectUuid'),
+                    projectUuid,
                     req.query.duplicateFrom.toString(),
                     req.body,
-                )
-                .then((results) => {
-                    res.json({
-                        status: 'ok',
-                        results,
-                    });
-                })
-                .catch(next);
-        } else {
-            savedChartsService
-                .create(
-                    req.user!,
-                    getObjectValue(req.params, 'projectUuid'),
-                    req.body,
-                )
-                .then((results) => {
-                    res.json({
-                        status: 'ok',
-                        results,
-                    });
-                })
-                .catch(next);
+                );
+
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+                return;
+            }
+
+            const results = await savedChartsService.create(
+                req.account!,
+                projectUuid,
+                req.body,
+            );
+
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (error) {
+            next(error);
         }
     },
 );

@@ -29,6 +29,7 @@ import {
     NotFoundError,
     ParameterError,
     PossibleAbilities,
+    RegisteredAccount,
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerRun,
@@ -58,6 +59,7 @@ import {
     LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { toSessionUser } from '../../auth/account';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
@@ -2324,10 +2326,11 @@ export class DashboardService
     }
 
     async createDashboardWithCharts(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         data: CreateDashboardWithCharts,
     ): Promise<Dashboard> {
+        const user = toSessionUser(account);
         // 1. Create empty dashboard
         const emptyDashboard: CreateDashboard = {
             name: data.name,
@@ -2350,7 +2353,7 @@ export class DashboardService
                     };
 
                     return this.savedChartService.create(
-                        user,
+                        account,
                         projectUuid,
                         chartDataWithDashboard,
                     );

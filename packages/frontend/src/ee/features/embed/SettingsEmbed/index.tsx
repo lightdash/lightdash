@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type CreateEmbedJwt,
     type DecodedEmbed,
     type UpdateEmbed,
 } from '@lightdash/common';
@@ -15,7 +16,7 @@ import {
 } from '@mantine-8/core';
 import { IconAlertCircle, IconKey } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { lightdashApi } from '../../../../api';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -31,6 +32,7 @@ import useApp from '../../../../providers/App/useApp';
 import EmbedAllowListForm from './EmbedAllowListForm';
 import EmbedPreviewChartForm from './EmbedPreviewChartForm';
 import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
+import EmbedWriteActionsForm from './EmbedWriteActionsForm';
 
 const useEmbedConfig = (projectUuid: string) => {
     return useQuery<DecodedEmbed, ApiError>({
@@ -128,6 +130,11 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         useEmbedConfigCreateMutation(projectUuid);
     const { mutate: updateEmbedConfig, isLoading: isUpdating } =
         useEmbedConfigUpdateMutation(projectUuid);
+    const [writeActions, setWriteActions] =
+        useState<CreateEmbedJwt['writeActions']>();
+    const [activeTab, setActiveTab] = useState<'dashboards' | 'charts'>(
+        'dashboards',
+    );
 
     const isSaving = isCreating || isUpdating;
     const allowedDashboards = useMemo(() => {
@@ -256,7 +263,15 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                         embed code for your integration method.
                     </Text>
                 </Stack>
-                <Tabs defaultValue="dashboards" keepMounted>
+                <Tabs
+                    value={activeTab}
+                    onChange={(value) =>
+                        setActiveTab(
+                            value === 'charts' ? 'charts' : 'dashboards',
+                        )
+                    }
+                    keepMounted
+                >
                     <Tabs.List>
                         <Tabs.Tab value="dashboards">Dashboards</Tabs.Tab>
                         <Tabs.Tab value="charts">Charts</Tabs.Tab>
@@ -267,6 +282,16 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 projectUuid={projectUuid}
                                 siteUrl={health.data.siteUrl}
                                 dashboards={allowedDashboards}
+                                writeActions={writeActions}
+                                writeActionsPanel={
+                                    activeTab === 'dashboards' ? (
+                                        <EmbedWriteActionsForm
+                                            projectUuid={projectUuid}
+                                            value={writeActions}
+                                            onChange={setWriteActions}
+                                        />
+                                    ) : null
+                                }
                             />
                         </Stack>
                     </Tabs.Panel>
@@ -276,6 +301,16 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 projectUuid={projectUuid}
                                 siteUrl={health.data.siteUrl}
                                 charts={charts || []}
+                                writeActions={writeActions}
+                                writeActionsPanel={
+                                    activeTab === 'charts' ? (
+                                        <EmbedWriteActionsForm
+                                            projectUuid={projectUuid}
+                                            value={writeActions}
+                                            onChange={setWriteActions}
+                                        />
+                                    ) : null
+                                }
                             />
                         </Stack>
                     </Tabs.Panel>
