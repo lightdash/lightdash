@@ -11,6 +11,10 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
+    ApiAiAgentReviewBatchReportResponse,
+    ApiAiAgentReviewBatchRunResponse,
+    ApiAiAgentReviewBatchRunsResponse,
+    ApiAiAgentReviewBatchStartedResponse,
     ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
@@ -1104,6 +1108,10 @@ type ApiResults =
     | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentReviewItemActivityResponse['results']
     | ApiAiAgentThreadPullRequestResponse['results']
+    | ApiAiAgentReviewBatchStartedResponse['results']
+    | ApiAiAgentReviewBatchRunResponse['results']
+    | ApiAiAgentReviewBatchRunsResponse['results']
+    | ApiAiAgentReviewBatchReportResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']

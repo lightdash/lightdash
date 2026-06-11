@@ -11,6 +11,7 @@ import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSetti
 import AiAgentAdminReviewItemsTable, {
     type AiAgentAdminReviewItemPreviewTarget,
 } from '../AiAgentAdminReviewItemsTable';
+import { BatchAnalysisPanel } from '../BatchAnalysisPanel';
 import { REVIEWS_TOUR_STEPS } from '../onboarding';
 import { ThreadPreviewSidebar } from '../ThreadPreviewSidebar';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
@@ -123,6 +124,8 @@ export const AiReviewsSettingsPage = () => {
             </Stack>
 
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
+
+            <BatchAnalysisPanel projectUuid={null} agentUuid={null} />
 
             <AiAgentAdminReviewItemsTable
                 selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
