@@ -27,7 +27,7 @@
 }
 
 .summaryText {
-    max-width: 56ch;
+    max-width: none;
     line-height: 1.55;
 }
 
@@ -35,11 +35,20 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
+    padding: 0;
     font-size: 12px;
     font-weight: 600;
+    line-height: 1.2;
     color: light-dark(
         var(--mantine-color-ldGray-7),
         var(--mantine-color-dark-2)
+    );
+}
+
+.sectionToggle[data-active='true'] {
+    color: light-dark(
+        var(--mantine-color-ldGray-9),
+        var(--mantine-color-dark-0)
     );
 }
 

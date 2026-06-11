@@ -47,6 +47,13 @@ export const writebackBlockedReasonLabels: Record<
     writeback_in_progress: 'Writeback is already in progress',
 };
 
+export const shouldShowWritebackBlockedReason = (
+    reason: AiAgentReviewItemWritebackBlockedReason | null,
+): reason is Exclude<
+    AiAgentReviewItemWritebackBlockedReason,
+    'unsupported_root_cause'
+> => reason !== null && reason !== 'unsupported_root_cause';
+
 const actionLabels: Record<AiAgentRecommendationAction, string> = {
     update_semantic_yaml: 'Update semantic layer',
     update_agent_instructions: 'Update instructions',
