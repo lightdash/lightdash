@@ -1,3 +1,17 @@
+# [0.3141.0](https://github.com/lightdash/lightdash/compare/0.3140.0...0.3141.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* **frontend:** render temporal metric cells in resolved tz in results grid (GLITCH-491) ([#24186](https://github.com/lightdash/lightdash/issues/24186)) ([cb02b61](https://github.com/lightdash/lightdash/commit/cb02b61e170a1b58df2d37016757cfeb854cccec))
+* **perf:** deduplicate getUserAttributes() in dashboard chart query path ([#21546](https://github.com/lightdash/lightdash/issues/21546)) ([2d60073](https://github.com/lightdash/lightdash/commit/2d600732d00516dfbfa69000cc1dc59265937102))
+* **skills:** cli-reference.md references non-existing cli command 'lightdash delete' ([#21889](https://github.com/lightdash/lightdash/issues/21889)) ([d03d8a0](https://github.com/lightdash/lightdash/commit/d03d8a00df2b271ef0c80774f89c682416cf756b))
+
+
+### Features
+
+* **ai-review:** show preview validation errors in the review sidebar ([#24150](https://github.com/lightdash/lightdash/issues/24150)) ([1e6005d](https://github.com/lightdash/lightdash/commit/1e6005d168c44aef6ad539b03f51417c95b66003))
+
 # [0.3140.0](https://github.com/lightdash/lightdash/compare/0.3139.0...0.3140.0) (2026-06-11)
 
 
