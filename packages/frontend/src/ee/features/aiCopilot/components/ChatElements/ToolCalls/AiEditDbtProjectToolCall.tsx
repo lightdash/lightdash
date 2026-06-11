@@ -46,9 +46,10 @@ type Props = {
     isPreviewDeploySetup: boolean;
 };
 
-// Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle #29"
-// so the user can verify where the PR landed at a glance. Best-effort — any
-// non-GitHub host or malformed path falls back to the raw hostname.
+// Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle"
+// so the user can verify which repo the PR landed in at a glance. The PR number
+// itself lives on the link button. Best-effort — any non-GitHub host or
+// malformed path falls back to the raw hostname.
 const summarisePrUrl = (prUrl: string): string | null => {
     try {
         const url = new URL(prUrl);
@@ -58,8 +59,8 @@ const summarisePrUrl = (prUrl: string): string | null => {
             segments.length >= 4 &&
             segments[2] === 'pull'
         ) {
-            const [owner, repo, , number] = segments;
-            return `${owner}/${repo} #${number}`;
+            const [owner, repo] = segments;
+            return `${owner}/${repo}`;
         }
         return url.hostname;
     } catch {
@@ -248,6 +249,22 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     }
 
     const summary = summarisePrUrl(metadata.prUrl);
+    // The commit this card is pinned to — shown so the user can see each turn's
+    // card tracks its own commit (and its CI), not just the PR's live head.
+    const shortCommitSha = metadata.commitSha
+        ? metadata.commitSha.slice(0, 7)
+        : null;
+    // This turn's line delta, shown colour-coded next to the commit.
+    const additions = metadata.additions ?? null;
+    const deletions = metadata.deletions ?? null;
+    const hasDiffStat = additions !== null || deletions !== null;
+    // Short PR/MR reference for the link button (e.g. "#123").
+    const prNumberMatch = metadata.prUrl.match(
+        /\/(?:pull|merge_requests)\/(\d+)/,
+    );
+    const prLinkLabel = prNumberMatch
+        ? `#${prNumberMatch[1]}`
+        : 'View pull request';
     const title = 'Edited semantic layer';
 
     return (
@@ -260,22 +277,61 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     wrap="nowrap"
                 >
                     <Group gap="xs" align="center" wrap="nowrap">
-                        <ThemeIcon
-                            variant="light"
-                            color="green"
-                            radius="md"
-                            size="md"
-                        >
-                            <MantineIcon icon={IconGitPullRequest} size={16} />
-                        </ThemeIcon>
+                        <MantineIcon
+                            icon={IconGitPullRequest}
+                            size={18}
+                            color="ldGray.7"
+                        />
                         <Stack gap={0}>
                             <Text size="sm" fw={500}>
                                 {title}
                             </Text>
                             {summary && (
-                                <Text size="xs" c="ldGray.6">
-                                    {summary}
-                                </Text>
+                                <Group gap={6} wrap="nowrap">
+                                    <Text size="xs" c="ldGray.6">
+                                        {summary}
+                                    </Text>
+                                    {shortCommitSha && (
+                                        <>
+                                            <Text size="xs" c="ldGray.4">
+                                                ·
+                                            </Text>
+                                            <Text
+                                                size="xs"
+                                                c="ldGray.6"
+                                                ff="monospace"
+                                                title={
+                                                    metadata.commitSha ??
+                                                    undefined
+                                                }
+                                            >
+                                                {shortCommitSha}
+                                            </Text>
+                                        </>
+                                    )}
+                                    {hasDiffStat && (
+                                        <Group gap={4} wrap="nowrap">
+                                            {additions !== null && (
+                                                <Text
+                                                    size="xs"
+                                                    c="green"
+                                                    ff="monospace"
+                                                >
+                                                    +{additions}
+                                                </Text>
+                                            )}
+                                            {deletions !== null && (
+                                                <Text
+                                                    size="xs"
+                                                    c="red"
+                                                    ff="monospace"
+                                                >
+                                                    −{deletions}
+                                                </Text>
+                                            )}
+                                        </Group>
+                                    )}
+                                </Group>
                             )}
                         </Stack>
                     </Group>
@@ -332,7 +388,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             href={metadata.prUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            variant="filled"
+                            variant="default"
                             size="compact-sm"
                             rightSection={
                                 <MantineIcon
@@ -341,13 +397,14 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                 />
                             }
                         >
-                            View pull request
+                            {prLinkLabel}
                         </Button>
                     </Box>
                 </Group>
                 <PullRequestCiChecks
                     projectUuid={projectUuid}
                     prUrl={metadata.prUrl}
+                    commitSha={metadata.commitSha ?? null}
                 />
             </Stack>
         </Paper>

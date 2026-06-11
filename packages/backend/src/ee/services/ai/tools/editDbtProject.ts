@@ -49,6 +49,9 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                 const {
                     prUrl,
                     prAction,
+                    commitSha,
+                    additions,
+                    deletions,
                     output,
                     projectName,
                     repository,
@@ -91,6 +94,9 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                         status: 'success' as const,
                         prUrl: prUrl ?? null,
                         prAction: prAction ?? null,
+                        commitSha: commitSha ?? null,
+                        additions: additions ?? null,
+                        deletions: deletions ?? null,
                         steps,
                     },
                 };

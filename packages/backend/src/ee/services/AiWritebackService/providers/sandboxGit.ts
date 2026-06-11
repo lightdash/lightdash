@@ -68,6 +68,34 @@ export const collectFileChanges = async (
     return { additions, deletions };
 };
 
+/** Total line additions/deletions in a turn's staged change. */
+export type DiffStat = { additions: number; deletions: number };
+
+/**
+ * Sum the staged diff's added/removed line counts via `--numstat`. Must run
+ * while the changes are still staged (before the local commit clears the
+ * index). Binary files report `-` for both counts and contribute nothing.
+ * Best-effort: any parse failure for a row is skipped rather than throwing, so
+ * a single odd line can't break the writeback.
+ */
+export const collectDiffStat = async (sandbox: Sandbox): Promise<DiffStat> => {
+    const { stdout } = await sandbox.commands.run(
+        `git -C ${CWD} diff --cached --numstat`,
+    );
+    return stdout.split('\n').reduce<DiffStat>(
+        (acc, line) => {
+            const [added, removed] = line.split('\t');
+            const a = Number(added);
+            const d = Number(removed);
+            return {
+                additions: acc.additions + (Number.isFinite(a) ? a : 0),
+                deletions: acc.deletions + (Number.isFinite(d) ? d : 0),
+            };
+        },
+        { additions: 0, deletions: 0 },
+    );
+};
+
 /** Make a local commit (never pushed by itself) to advance the sandbox HEAD. */
 export const commitLocal = async (
     sandbox: Sandbox,

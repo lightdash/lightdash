@@ -38,6 +38,16 @@ export const toolEditDbtProjectOutputSchema = z.object({
             // rendered from rows written before this field existed must still
             // parse. Absent/null is treated as 'opened' by the renderer.
             prAction: z.enum(['opened', 'updated']).nullish(),
+            // Head commit SHA this turn pushed. The card pins its CI checks to
+            // this SHA so a follow-up turn's commit doesn't retroactively change
+            // an earlier card. Nullish: absent on rows persisted before this
+            // existed (and when no commit was made) — the card then falls back
+            // to the PR's live head.
+            commitSha: z.string().nullish(),
+            // Lines this turn's commit added/removed, shown colour-coded on the
+            // card. Nullish for back-compat and no-commit turns.
+            additions: z.number().nullish(),
+            deletions: z.number().nullish(),
             // Ordered actions the sandbox took, surfaced as persistent step
             // rows under the writeback tool call. Generic shape (kind + label)
             // so the chat UI can group/render them without writeback knowledge.

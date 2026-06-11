@@ -133,6 +133,7 @@ import {
     type GithubUserCredential,
     type GitIntegrationConfiguration,
     type GitRepo,
+    type ProjectFiles,
     type PullRequestCreated,
     type PullRequestPreview,
 } from './gitIntegration';
@@ -996,6 +997,7 @@ type ApiResults =
     | Array<GitRepo>
     | PullRequestCreated
     | PullRequestPreview
+    | ProjectFiles
     | ProjectCiStatus
     | ApiGitFileContent
     | GitIntegrationConfiguration

@@ -196,6 +196,23 @@ export type ApiPullRequestPreviewResponse = {
     results: PullRequestPreview;
 };
 
+/**
+ * The project's source files, read from the read-only repo virtual file system
+ * (the same VFS the agent's repoShell sees). Used by the chat input's
+ * `@`-mention file picker. Paths are relative to the project's dbt sub-folder,
+ * so an @-mentioned path is one the agent can act on directly. `truncated` is
+ * true when the file tree exceeded the listing cap.
+ */
+export type ProjectFiles = {
+    files: string[];
+    truncated: boolean;
+};
+
+export type ApiProjectFilesResponse = {
+    status: 'ok';
+    results: ProjectFiles;
+};
+
 const PREVIEW_PROJECT_UUID =
     '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 

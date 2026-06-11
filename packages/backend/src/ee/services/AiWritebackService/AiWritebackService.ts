@@ -21,7 +21,10 @@ import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
-import { getRepoDefaultBranch } from '../../../clients/github/Github';
+import {
+    getRepoDefaultBranch,
+    getRepoTree,
+} from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -262,6 +265,49 @@ export class AiWritebackService extends BaseService {
             // can't expose secrets/other files elsewhere in the repo. '.' (repo
             // root) means no scoping.
             subPath: connection.projectSubPath,
+        };
+    }
+
+    /**
+     * List the project's source files for the chat input's `@`-mention file
+     * picker. Reuses the same gated, GitHub-only read access as repoShell, and
+     * returns paths relative to the dbt sub-folder — the same root the agent's
+     * repoShell sees — so a mentioned path is one the agent can act on directly.
+     * Capped so a huge monorepo can't return an unbounded payload; the client
+     * fetches once and filters as the user types.
+     */
+    async listProjectFiles({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{ files: string[]; truncated: boolean }> {
+        const MAX_FILES = 1000;
+        const access = await this.getRepoReadAccess({ user, projectUuid });
+        const { files, truncated } = await getRepoTree({
+            owner: access.owner,
+            repo: access.repo,
+            branch: access.branch,
+            token: access.token,
+        });
+
+        const scoped =
+            access.subPath && access.subPath !== '.'
+                ? files
+                      .filter((f) => f.path.startsWith(`${access.subPath}/`))
+                      .map((f) => f.path.slice(access.subPath.length + 1))
+                : files.map((f) => f.path);
+
+        // Shorter (shallower) paths first — dbt models the user is likely to
+        // reference live near the top — then alphabetical for stability.
+        const sorted = scoped.sort(
+            (a, b) => a.length - b.length || a.localeCompare(b),
+        );
+
+        return {
+            files: sorted.slice(0, MAX_FILES),
+            truncated: truncated || sorted.length > MAX_FILES,
         };
     }
 
@@ -655,8 +701,12 @@ export class AiWritebackService extends BaseService {
                     exitCode: agent.exitCode,
                     prUrl: crashPrUrl,
                     // The agent crashed before pushing changes, so any PR here
-                    // is a pre-existing one — never newly opened.
+                    // is a pre-existing one — never newly opened, and this turn
+                    // pushed no commit to pin to.
                     prAction: crashPrUrl ? 'updated' : null,
+                    commitSha: null,
+                    additions: null,
+                    deletions: null,
                     projectName: turn.projectName,
                     repository,
                     steps: stepLog,
@@ -708,6 +758,9 @@ export class AiWritebackService extends BaseService {
                 exitCode: agent.exitCode,
                 prUrl: applied.prUrl,
                 prAction: getPrAction(applied),
+                commitSha: applied.commitSha,
+                additions: applied.additions,
+                deletions: applied.deletions,
                 projectName: turn.projectName,
                 repository,
                 steps: stepLog,
@@ -1402,6 +1455,10 @@ export class AiWritebackService extends BaseService {
                 prUrl: turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null,
                 prCreated: false,
                 pauseOnExit: turn.isResume,
+                // No file changes this turn → no commit to pin the card to.
+                commitSha: null,
+                additions: null,
+                deletions: null,
             };
         }
 
@@ -1414,20 +1471,21 @@ export class AiWritebackService extends BaseService {
                     'Cannot update pull request: the writeback thread is not linked to a pull request',
                 );
             }
-            await turn.provider.updatePullRequest({
-                sandbox,
-                connection: turn.gitConnection,
-                installation,
-                prUrl: targetPrUrl,
-                title: await this.resolvePrTitle(sandbox, prTitle, true),
-                description: await this.resolvePrDescription(
+            const { commitSha, additions, deletions } =
+                await turn.provider.updatePullRequest({
                     sandbox,
-                    prDescription,
-                    true,
-                ),
-                user,
-                setStage,
-            });
+                    connection: turn.gitConnection,
+                    installation,
+                    prUrl: targetPrUrl,
+                    title: await this.resolvePrTitle(sandbox, prTitle, true),
+                    description: await this.resolvePrDescription(
+                        sandbox,
+                        prDescription,
+                        true,
+                    ),
+                    user,
+                    setStage,
+                });
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
             );
@@ -1451,22 +1509,26 @@ export class AiWritebackService extends BaseService {
                 pauseOnExit: turn.existingRow
                     ? true
                     : aiThreadUuid !== undefined,
+                commitSha,
+                additions,
+                deletions,
             };
         }
 
-        const prUrl = await turn.provider.openPullRequest({
-            sandbox,
-            connection: turn.gitConnection,
-            installation,
-            title: await this.resolvePrTitle(sandbox, prTitle, false),
-            description: await this.resolvePrDescription(
+        const { prUrl, commitSha, additions, deletions } =
+            await turn.provider.openPullRequest({
                 sandbox,
-                prDescription,
-                false,
-            ),
-            user,
-            setStage,
-        });
+                connection: turn.gitConnection,
+                installation,
+                title: await this.resolvePrTitle(sandbox, prTitle, false),
+                description: await this.resolvePrDescription(
+                    sandbox,
+                    prDescription,
+                    false,
+                ),
+                user,
+                setStage,
+            });
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,
         );
@@ -1484,6 +1546,9 @@ export class AiWritebackService extends BaseService {
             prUrl,
             prCreated: true,
             pauseOnExit: aiThreadUuid !== undefined,
+            commitSha,
+            additions,
+            deletions,
         };
     }
 
