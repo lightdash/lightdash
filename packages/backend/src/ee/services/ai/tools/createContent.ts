@@ -1,7 +1,7 @@
 import { createContentToolDefinition } from '@lightdash/common';
 import { tool } from 'ai';
 import type { CreateContentFn } from '../types/aiAgentDependencies';
-import { getChartContentWarnings } from '../utils/contentWarnings';
+import { getContentWarnings } from '../utils/contentWarnings';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 
@@ -40,10 +40,7 @@ export const getCreateContent = ({ createContent }: Dependencies) =>
                     type,
                     content,
                 } as Parameters<CreateContentFn>[0]);
-                const warnings =
-                    result.type === 'chart'
-                        ? getChartContentWarnings(result.content)
-                        : [];
+                const warnings = getContentWarnings(result);
                 const metadata = {
                     status: 'success' as const,
                     slug: result.content.slug,
