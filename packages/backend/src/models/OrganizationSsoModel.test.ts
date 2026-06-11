@@ -168,4 +168,30 @@ describe('OrganizationSsoModel', () => {
             ]);
         });
     });
+
+    describe('findEnabledOktaMethodByStoredIssuer', () => {
+        it('selects only fields needed to finish the Okta OAuth flow', async () => {
+            tracker.on
+                .select(OrganizationSsoConfigurationsTableName)
+                .responseOnce([]);
+
+            await model.findEnabledOktaMethodByStoredIssuer(
+                'https://example.okta.com',
+            );
+
+            const { sql, bindings } = tracker.history.select[0];
+            const lowered = sql.toLowerCase();
+            const selectList = lowered.slice(0, lowered.indexOf(' from '));
+            expect(bindings).toContain(OrganizationSsoProvider.OKTA);
+            expect(bindings).toContain(true);
+            expect(selectList).toContain('"organization_uuid"');
+            expect(selectList).toContain('"config"');
+            expect(selectList).not.toContain('"provider"');
+            expect(selectList).not.toContain('"enabled"');
+            expect(selectList).not.toContain('"override_email_domains"');
+            expect(selectList).not.toContain('"email_domains"');
+            expect(selectList).not.toContain('"allow_password"');
+            expect(lowered).not.toContain('select *');
+        });
+    });
 });

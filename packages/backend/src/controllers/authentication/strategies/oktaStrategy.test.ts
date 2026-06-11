@@ -77,14 +77,27 @@ const perOrgMethod = {
     allowPassword: true,
 };
 
-const makeReq = (
-    loginHint: string | undefined,
-    findEnabledMethodForEmail: jest.Mock,
-): Request =>
+const makeReq = ({
+    loginHint,
+    issuer,
+    findEnabledMethodForEmail = jest.fn(),
+    findEnabledOktaMethodForIssuer = jest.fn(),
+}: {
+    loginHint?: string;
+    issuer?: string;
+    findEnabledMethodForEmail?: jest.Mock;
+    findEnabledOktaMethodForIssuer?: jest.Mock;
+}): Request =>
     ({
-        query: loginHint ? { login_hint: loginHint } : {},
+        query: {
+            ...(loginHint ? { login_hint: loginHint } : {}),
+            ...(issuer ? { iss: issuer } : {}),
+        },
         services: {
-            getOrganizationSsoService: () => ({ findEnabledMethodForEmail }),
+            getOrganizationSsoService: () => ({
+                findEnabledMethodForEmail,
+                findEnabledOktaMethodForIssuer,
+            }),
         },
     }) as unknown as Request;
 
@@ -117,7 +130,10 @@ describe('resolveOktaConfig', () => {
         const findEnabledMethodForEmail = jest
             .fn()
             .mockResolvedValue(undefined);
-        const req = makeReq('user@env-customer.com', findEnabledMethodForEmail);
+        const req = makeReq({
+            loginHint: 'user@env-customer.com',
+            findEnabledMethodForEmail,
+        });
 
         const resolved = await resolveOktaConfig(req);
         expect(resolved).toEqual({
@@ -136,7 +152,7 @@ describe('resolveOktaConfig', () => {
     test('no login hint + env present → env config', async () => {
         setEnv(FULL_ENV);
         const findEnabledMethodForEmail = jest.fn();
-        const req = makeReq(undefined, findEnabledMethodForEmail);
+        const req = makeReq({ findEnabledMethodForEmail });
 
         const resolved = await resolveOktaConfig(req);
         expect(resolved?.organizationUuid).toBeNull();
@@ -150,7 +166,13 @@ describe('resolveOktaConfig', () => {
         const findEnabledMethodForEmail = jest
             .fn()
             .mockResolvedValue(perOrgMethod);
-        const req = makeReq('user@acme.com', findEnabledMethodForEmail);
+        const findEnabledOktaMethodForIssuer = jest.fn();
+        const req = makeReq({
+            loginHint: 'user@acme.com',
+            issuer: 'https://env.okta.com',
+            findEnabledMethodForEmail,
+            findEnabledOktaMethodForIssuer,
+        });
 
         const resolved = await resolveOktaConfig(req);
         expect(findEnabledMethodForEmail).toHaveBeenCalledWith(
@@ -161,6 +183,50 @@ describe('resolveOktaConfig', () => {
             config: perOrgMethod.config,
             organizationUuid: 'org-1',
         });
+        expect(findEnabledOktaMethodForIssuer).not.toHaveBeenCalled();
+    });
+
+    test('per-org issuer match supports Okta dashboard launch', async () => {
+        setEnv({});
+        const findEnabledMethodForEmail = jest.fn();
+        const findEnabledOktaMethodForIssuer = jest
+            .fn()
+            .mockResolvedValue(perOrgMethod);
+        const req = makeReq({
+            issuer: 'https://acme.okta.com',
+            findEnabledMethodForEmail,
+            findEnabledOktaMethodForIssuer,
+        });
+
+        const resolved = await resolveOktaConfig(req);
+
+        expect(findEnabledMethodForEmail).not.toHaveBeenCalled();
+        expect(findEnabledOktaMethodForIssuer).toHaveBeenCalledWith(
+            'https://acme.okta.com',
+        );
+        expect(resolved).toEqual({
+            config: perOrgMethod.config,
+            organizationUuid: 'org-1',
+        });
+    });
+
+    test('issuer miss falls back to env config', async () => {
+        setEnv(FULL_ENV);
+        const findEnabledOktaMethodForIssuer = jest
+            .fn()
+            .mockResolvedValue(undefined);
+        const req = makeReq({
+            issuer: 'https://unknown.okta.com',
+            findEnabledOktaMethodForIssuer,
+        });
+
+        const resolved = await resolveOktaConfig(req);
+
+        expect(findEnabledOktaMethodForIssuer).toHaveBeenCalledWith(
+            'https://unknown.okta.com',
+        );
+        expect(resolved?.organizationUuid).toBeNull();
+        expect(resolved?.config.oauth2ClientId).toBe('env-client');
     });
 
     test('no per-org match and no env config → undefined', async () => {
@@ -168,7 +234,10 @@ describe('resolveOktaConfig', () => {
         const findEnabledMethodForEmail = jest
             .fn()
             .mockResolvedValue(undefined);
-        const req = makeReq('user@nowhere.com', findEnabledMethodForEmail);
+        const req = makeReq({
+            loginHint: 'user@nowhere.com',
+            findEnabledMethodForEmail,
+        });
 
         expect(await resolveOktaConfig(req)).toBeUndefined();
     });
