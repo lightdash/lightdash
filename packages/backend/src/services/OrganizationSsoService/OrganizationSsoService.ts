@@ -30,6 +30,7 @@ import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel
 import { OrganizationAllowedEmailDomainsModel } from '../../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationDomainVerificationModel } from '../../models/OrganizationDomainVerificationModel';
 import {
+    OrganizationSsoConfigLookup,
     OrganizationSsoMethod,
     OrganizationSsoModel,
 } from '../../models/OrganizationSsoModel';
@@ -106,6 +107,18 @@ const toGoogleSummary = (
     emailDomains: method.emailDomains,
     allowPassword: method.allowPassword,
 });
+
+// Okta dashboard tile launches identify the provider with an `iss` URL.
+const normalizeIssuerUrl = (issuer: string) => {
+    try {
+        const url = new URL(issuer);
+        url.hash = '';
+        url.search = '';
+        return url.href.replace(/\/$/, '').toLowerCase();
+    } catch {
+        return undefined;
+    }
+};
 
 export class OrganizationSsoService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -404,8 +417,13 @@ export class OrganizationSsoService extends BaseService {
             throw new ParameterError('oauth2ClientSecret is required');
         }
 
+        const oauth2Issuer = normalizeIssuerUrl(data.oauth2Issuer);
+        if (!oauth2Issuer) {
+            throw new ParameterError('oauth2Issuer must be a valid URL');
+        }
+
         const config: OktaSsoConfig = {
-            oauth2Issuer: data.oauth2Issuer.trim(),
+            oauth2Issuer,
             oktaDomain: data.oktaDomain.trim(),
             oauth2ClientId: data.oauth2ClientId.trim(),
             oauth2ClientSecret: clientSecret,
@@ -799,6 +817,18 @@ export class OrganizationSsoService extends BaseService {
         const matches = await this.findEnabledMethodsForEmail(email);
         return matches.find(
             (m): m is OrganizationSsoMethod<P> => m.provider === provider,
+        );
+    }
+
+    async findEnabledOktaMethodForIssuer(
+        issuer: string,
+    ): Promise<
+        OrganizationSsoConfigLookup<OrganizationSsoProvider.OKTA> | undefined
+    > {
+        const normalizedIssuer = normalizeIssuerUrl(issuer);
+        if (!normalizedIssuer) return undefined;
+        return this.organizationSsoModel.findEnabledOktaMethodByStoredIssuer(
+            normalizedIssuer,
         );
     }
 }

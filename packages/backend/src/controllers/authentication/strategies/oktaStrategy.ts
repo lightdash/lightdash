@@ -10,12 +10,16 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Request, RequestHandler } from 'express';
+import isString from 'lodash/isString';
 import { generators, Issuer, UserinfoResponse } from 'openid-client';
 import { Strategy } from 'passport-strategy';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import Logger from '../../../logging/logger';
 import { getLoginHint } from '../utils';
+
+const getIssuerHint = (req: Request) =>
+    isString(req.query?.iss) ? req.query.iss : undefined;
 
 const createOpenIdUserFromUserInfo = (
     userInfo: UserinfoResponse,
@@ -126,6 +130,18 @@ export const resolveOktaConfig = async (
         const method = await req.services
             .getOrganizationSsoService()
             .findEnabledMethodForEmail(email, OrganizationSsoProvider.OKTA);
+        if (method) {
+            return {
+                config: method.config,
+                organizationUuid: method.organizationUuid,
+            };
+        }
+    }
+    const issuer = getIssuerHint(req);
+    if (issuer) {
+        const method = await req.services
+            .getOrganizationSsoService()
+            .findEnabledOktaMethodForIssuer(issuer);
         if (method) {
             return {
                 config: method.config,

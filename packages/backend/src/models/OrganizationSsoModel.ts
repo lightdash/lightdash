@@ -32,6 +32,9 @@ export type OrganizationSsoMethod<P extends OrganizationSsoProvider> = {
     config: ProviderConfigTypeMap[P];
 } & OrganizationSsoMethodFlags;
 
+export type OrganizationSsoConfigLookup<P extends OrganizationSsoProvider> =
+    Pick<OrganizationSsoMethod<P>, 'organizationUuid' | 'config'>;
+
 /**
  * Lightweight projection of a per-org Google policy row. Google has no
  * credentials, so only the flags matter — and unlike the credential
@@ -172,6 +175,36 @@ export class OrganizationSsoModel {
             emailDomains: row.email_domains ?? [],
             allowPassword: row.allow_password,
         }));
+    }
+
+    async findEnabledOktaMethodByStoredIssuer(
+        oauth2Issuer: string,
+    ): Promise<
+        OrganizationSsoConfigLookup<OrganizationSsoProvider.OKTA> | undefined
+    > {
+        const rows = await this.database(OrganizationSsoConfigurationsTableName)
+            .where(
+                `${OrganizationSsoConfigurationsTableName}.provider`,
+                OrganizationSsoProvider.OKTA,
+            )
+            .where(`${OrganizationSsoConfigurationsTableName}.enabled`, true)
+            .select(
+                `${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                `${OrganizationSsoConfigurationsTableName}.config`,
+            );
+
+        return rows
+            .map(
+                (
+                    row,
+                ): OrganizationSsoConfigLookup<OrganizationSsoProvider.OKTA> => ({
+                    organizationUuid: row.organization_uuid,
+                    config: this.decryptConfig<OrganizationSsoProvider.OKTA>(
+                        row.config,
+                    ),
+                }),
+            )
+            .find((method) => method.config.oauth2Issuer === oauth2Issuer);
     }
 
     /**

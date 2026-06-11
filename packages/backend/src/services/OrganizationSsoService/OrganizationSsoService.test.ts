@@ -26,6 +26,7 @@ const buildService = () => {
     const organizationSsoModel = {
         findMethod: jest.fn(),
         findEnabledMethodsForEmailDomain: jest.fn(),
+        findEnabledOktaMethodByStoredIssuer: jest.fn(),
         findGoogleMethodsForEmailDomain: jest.fn(),
         upsert: jest.fn(),
         delete: jest.fn(),
@@ -345,6 +346,39 @@ describe('OrganizationSsoService', () => {
             await expect(
                 service.findEnabledMethodsForEmail('user@acme.com'),
             ).resolves.toEqual([ownOrgMethod]);
+        });
+    });
+
+    describe('findEnabledOktaMethodForIssuer', () => {
+        it('normalizes issuer lookup before querying the SSO model', async () => {
+            const { service, organizationSsoModel } = buildService();
+            const method = enabledMethodForOrg(
+                ORG_UUID,
+                OrganizationSsoProvider.OKTA,
+            );
+            organizationSsoModel.findEnabledOktaMethodByStoredIssuer.mockResolvedValue(
+                method,
+            );
+
+            await expect(
+                service.findEnabledOktaMethodForIssuer(
+                    'https://EXAMPLE.okta.com/?from=dashboard',
+                ),
+            ).resolves.toEqual(method);
+            expect(
+                organizationSsoModel.findEnabledOktaMethodByStoredIssuer,
+            ).toHaveBeenCalledWith('https://example.okta.com');
+        });
+
+        it('returns undefined without querying when issuer is invalid', async () => {
+            const { service, organizationSsoModel } = buildService();
+
+            await expect(
+                service.findEnabledOktaMethodForIssuer('not-a-url'),
+            ).resolves.toBeUndefined();
+            expect(
+                organizationSsoModel.findEnabledOktaMethodByStoredIssuer,
+            ).not.toHaveBeenCalled();
         });
     });
 });
