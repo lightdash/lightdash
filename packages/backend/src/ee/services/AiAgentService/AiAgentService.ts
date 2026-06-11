@@ -5043,6 +5043,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                                                 event.outcome,
                                             );
                                         }
+                                        // Track GitHub request volume per org/app
+                                        // installation to watch rate-limit usage.
+                                        this.prometheusMetrics?.incrementRepoFsGithubRequest(
+                                            {
+                                                organizationUuid,
+                                                installationId:
+                                                    access.installationId,
+                                                kind: event.kind,
+                                                outcome: event.outcome,
+                                            },
+                                        );
                                     },
                                 }),
                             ),

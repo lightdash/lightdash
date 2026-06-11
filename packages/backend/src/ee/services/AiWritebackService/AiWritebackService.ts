@@ -205,6 +205,7 @@ export class AiWritebackService extends BaseService {
         branch: string;
         token: string;
         subPath: string;
+        installationId: string;
     }> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
@@ -262,6 +263,9 @@ export class AiWritebackService extends BaseService {
             // can't expose secrets/other files elsewhere in the repo. '.' (repo
             // root) means no scoping.
             subPath: connection.projectSubPath,
+            // Surfaced so callers can segment GitHub request metrics by the
+            // app installation whose rate-limit budget the reads consume.
+            installationId: installation.installationId,
         };
     }
 
