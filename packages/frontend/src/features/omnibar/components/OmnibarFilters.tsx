@@ -101,6 +101,15 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
         );
     }, [filters]);
 
+    const userOptions = useMemo(
+        () =>
+            organizationUsers?.map((user) => ({
+                value: user.userUuid,
+                label: `${user.firstName} ${user.lastName}`,
+            })) || [],
+        [organizationUsers],
+    );
+
     return (
         <Group px="md" py="sm">
             <Menu
@@ -249,20 +258,21 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     <Select
                         placeholder="Select a user"
                         searchable
-                        value={filters?.createdByUuid}
+                        // null keeps the Select controlled; if uncontrolled, Mantine resets the search text mid-click
+                        value={filters?.createdByUuid ?? null}
                         clearable
-                        data={
-                            organizationUsers?.map((user) => ({
-                                value: user.userUuid,
-                                label: `${user.firstName} ${user.lastName}`,
-                            })) || []
-                        }
+                        allowDeselect={false}
+                        // keep options inside the Menu so clicking one isn't an outside click that closes it
+                        comboboxProps={{ withinPortal: false }}
+                        data={userOptions}
                         onChange={(value) => {
                             onSearchFilterChange({
                                 ...filters,
                                 createdByUuid: value || undefined,
                             });
-
+                        }}
+                        // onChange doesn't fire when re-selecting the current value
+                        onOptionSubmit={() => {
                             createdByMenuHelpers.close();
                         }}
                     />
