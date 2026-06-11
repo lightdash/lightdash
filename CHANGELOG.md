@@ -1,3 +1,10 @@
+## [0.3136.1](https://github.com/lightdash/lightdash/compare/0.3136.0...0.3136.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* **github:** harden source-code editor and user-token auth paths ([#24175](https://github.com/lightdash/lightdash/issues/24175)) ([81ac744](https://github.com/lightdash/lightdash/commit/81ac744eb74f56e246e381ea6a6a1b933bc52be1))
+
 # [0.3136.0](https://github.com/lightdash/lightdash/compare/0.3135.0...0.3136.0) (2026-06-11)
 
 
