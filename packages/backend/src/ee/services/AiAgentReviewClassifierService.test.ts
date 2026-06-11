@@ -146,7 +146,7 @@ const makeSemanticJudgeOutput = (): AiAgentReviewClassifierJudgeOutput =>
         promotedToFinding: true,
         promotionReason: 'LLM judge found a semantic-layer correction.',
         primaryRootCause: 'semantic_layer',
-        secondaryRootCauses: ['data_gap'],
+        secondaryRootCauses: ['project_context'],
         subcategories: ['missing_dimension'],
         fixTargets: ['semantic_yaml_patch'],
         targetRefs: [
@@ -440,7 +440,7 @@ describe('AiAgentReviewClassifierService', () => {
                 runUuid: RUN_UUID,
                 finding: expect.objectContaining({
                     primaryRootCause: 'semantic_layer',
-                    secondaryRootCauses: ['data_gap'],
+                    secondaryRootCauses: ['project_context'],
                     reviewItem: expect.objectContaining({
                         fingerprint: expect.stringContaining(
                             'ai_agent_review_item:',
