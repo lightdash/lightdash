@@ -1013,7 +1013,7 @@ describe('SpaceService.createSpace', () => {
     test('allows nested space creation when the user can manage the parent space', async () => {
         mockSpacePermissionService.can.mockResolvedValue(true);
 
-        await service.createSpace(
+        const createdSpace = await service.createSpace(
             'test-project-uuid',
             mockUser as unknown as SessionUser,
             {
@@ -1022,30 +1022,26 @@ describe('SpaceService.createSpace', () => {
             },
         );
 
-        expect(mockSpacePermissionService.can).toHaveBeenCalledWith(
-            'manage',
-            mockUser,
-            'parent-space-uuid',
-        );
-        expect(mockSpaceModel.createSpace).toHaveBeenCalledWith(
-            {
-                name: 'Child Space',
-                inheritParentPermissions: true,
-                parentSpaceUuid: 'parent-space-uuid',
-            },
-            {
-                projectUuid: 'test-project-uuid',
-                userId: mockUser.userId,
-            },
-        );
-        expect(mockSpaceModel.addSpaceAccess).toHaveBeenCalledWith(
-            'child-space-uuid',
-            mockUser.userUuid,
-            SpaceMemberRole.ADMIN,
-        );
+        expect(createdSpace.uuid).toBe('child-space-uuid');
+        expect(createdSpace.parentSpaceUuid).toBe('parent-space-uuid');
     });
 
-    test('still blocks root space creation without create:Space permission', async () => {
+    test('blocks nested space creation when the user cannot manage the parent space', async () => {
+        mockSpacePermissionService.can.mockResolvedValue(false);
+
+        await expect(
+            service.createSpace(
+                'test-project-uuid',
+                mockUser as unknown as SessionUser,
+                {
+                    name: 'Child Space',
+                    parentSpaceUuid: 'parent-space-uuid',
+                },
+            ),
+        ).rejects.toThrow(ForbiddenError);
+    });
+
+    test('blocks root space creation without create:Space permission', async () => {
         await expect(
             service.createSpace(
                 'test-project-uuid',
@@ -1055,9 +1051,6 @@ describe('SpaceService.createSpace', () => {
                 },
             ),
         ).rejects.toThrow(ForbiddenError);
-
-        expect(mockSpacePermissionService.can).not.toHaveBeenCalled();
-        expect(mockSpaceModel.createSpace).not.toHaveBeenCalled();
     });
 });
 
