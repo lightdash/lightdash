@@ -2,7 +2,7 @@ import { FeatureFlags } from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine-8/hooks';
 import { IconAppsOff } from '@tabler/icons-react';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navigate, useParams } from 'react-router';
 import ScreenshotReadyIndicator from '../components/common/ScreenshotReadyIndicator';
 import SuboptimalState from '../components/common/SuboptimalState/SuboptimalState';
@@ -15,12 +15,22 @@ import { usePreviewOrigin } from '../features/apps/previewOrigin';
 import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 
 /**
- * How long the app must be quiet (iframe loaded, zero in-flight queries) before
+ * How long the app must be quiet (SDK alive, zero in-flight queries) before
  * we consider it ready for screenshot. Apps that fire a series of queries can
  * briefly hit zero in-flight between requests; this debounce avoids signalling
  * ready in those gaps.
  */
 const APP_QUIET_DEBOUNCE_MS = 1_500;
+
+/**
+ * Fallback: when the iframe has been loaded this long without the SDK
+ * announcing `lightdash:sdk:screenshot-available`, treat it as alive
+ * anyway. Covers apps generated before that announce shipped in the
+ * template — their bundle still loads and runs queries, it just never
+ * tells us. Without this fallback those scheduled deliveries would time
+ * out at 60s every run.
+ */
+const SDK_ALIVE_FALLBACK_MS = 8_000;
 
 /**
  * Chrome-stripped variant of AppPreviewTest used by the headless browser
@@ -53,12 +63,18 @@ export default function MinimalApp() {
     const previewOrigin = usePreviewOrigin();
 
     const [iframeLoaded, setIframeLoaded] = useState(false);
+    const [sdkAlive, setSdkAlive] = useState(false);
+    const [sdkAliveFallback, setSdkAliveFallback] = useState(false);
     const [activeQueryIds, setActiveQueryIds] = useState<Set<string>>(
         () => new Set(),
     );
 
     const handleIframeLoad = useCallback(() => {
         setIframeLoaded(true);
+    }, []);
+
+    const handleScreenshotAvailable = useCallback((available: boolean) => {
+        setSdkAlive(available);
     }, []);
 
     const handleQueryEvent = useCallback((event: QueryEvent) => {
@@ -74,12 +90,28 @@ export default function MinimalApp() {
         });
     }, []);
 
-    // Debounced ready signal: only true once the iframe has loaded AND
-    // in-flight query count has been zero for APP_QUIET_DEBOUNCE_MS. Apps
-    // that fire a series of queries can briefly hit zero in-flight between
-    // requests; the debounce avoids signalling ready in those gaps.
+    // Start the fallback clock once the iframe load event fires. The
+    // about:blank load fires first and we accept that — the fallback is
+    // a long backstop, not a precise SDK-bootstrap proxy. If the SDK
+    // announces before the timer fires, sdkAlive carries us; if not,
+    // sdkAliveFallback kicks in for old-template apps that never announce.
+    useEffect(() => {
+        if (!iframeLoaded) return;
+        const timer = setTimeout(
+            () => setSdkAliveFallback(true),
+            SDK_ALIVE_FALLBACK_MS,
+        );
+        return () => clearTimeout(timer);
+    }, [iframeLoaded]);
+
+    // Debounced ready signal: only true once the SDK has announced (or the
+    // fallback timer has elapsed) AND in-flight query count has been zero
+    // for APP_QUIET_DEBOUNCE_MS. Gating on the SDK announce — not the
+    // iframe load — keeps the indicator from mounting in the window
+    // between iframe HTML load and the SDK bundle bootstrapping, which
+    // was the root cause of blank/mid-animation screenshots.
     const [isReady] = useDebouncedValue(
-        iframeLoaded && activeQueryIds.size === 0,
+        (sdkAlive || sdkAliveFallback) && activeQueryIds.size === 0,
         APP_QUIET_DEBOUNCE_MS,
     );
 
@@ -159,6 +191,7 @@ export default function MinimalApp() {
                 identityKey={`${appUuid}:${latestReadyVersion}`}
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}
+                onScreenshotAvailabilityChange={handleScreenshotAvailable}
             />
             {isReady && (
                 <ScreenshotReadyIndicator
