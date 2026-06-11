@@ -17,17 +17,13 @@ import {
     Switch,
     Text,
     TextInput,
-    ThemeIcon,
     Title,
 } from '@mantine-8/core';
 import {
-    IconCalendarShare,
-    IconChartBar,
     IconChevronDown,
     IconFolder,
     IconKey,
     IconPlus,
-    IconUserShield,
 } from '@tabler/icons-react';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import Callout from '../../../../components/common/Callout';
@@ -70,24 +66,6 @@ const WRITABLE_SERVICE_ACCOUNT_SCOPES = [
     ServiceAccountScope.SYSTEM_EDITOR,
     ServiceAccountScope.ORG_ADMIN,
     ServiceAccountScope.ORG_EDIT,
-];
-
-const WRITE_ACTIONS = [
-    {
-        label: 'Scheduled deliveries',
-        description: 'Create and manage delivery schedules from embedded views',
-        icon: IconCalendarShare,
-    },
-    {
-        label: 'Saved charts',
-        description: 'Save new charts created from embed explore flows',
-        icon: IconChartBar,
-    },
-    {
-        label: 'Write-backed actions',
-        description: 'Run future embed actions that need a Lightdash actor',
-        icon: IconUserShield,
-    },
 ];
 
 type Props = {
@@ -436,27 +414,6 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                             .
                         </Text>
                     </Callout>
-
-                    <Stack gap="xs">
-                        <Text size="sm" fw={500}>
-                            Write actions covered
-                        </Text>
-                        {WRITE_ACTIONS.map((action) => (
-                            <Group key={action.label} gap="sm" wrap="nowrap">
-                                <ThemeIcon variant="light" color="blue">
-                                    <MantineIcon icon={action.icon} />
-                                </ThemeIcon>
-                                <Stack gap={0}>
-                                    <Text fz="sm" fw={500}>
-                                        {action.label}
-                                    </Text>
-                                    <Text c="dimmed" fz="xs">
-                                        {action.description}
-                                    </Text>
-                                </Stack>
-                            </Group>
-                        ))}
-                    </Stack>
                 </Stack>
             )}
 
