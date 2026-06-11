@@ -115,7 +115,7 @@ describe('Embedded dashboard', () => {
 
                     cy.intercept(
                         'POST',
-                        `${EMBED_API_PREFIX}/query/dashboard-tile`,
+                        `${EMBED_API_PREFIX}/query/dashboard-tile*`,
                     ).as('tileQuery');
 
                     // The session timezone is set via ?timezone= before the JWT
@@ -149,7 +149,7 @@ describe('Embedded dashboard', () => {
 
                     cy.intercept(
                         'POST',
-                        `${EMBED_API_PREFIX}/query/dashboard-tile`,
+                        `${EMBED_API_PREFIX}/query/dashboard-tile*`,
                     ).as('tileQuery');
 
                     cy.visit(resp.body.results.url);
