@@ -24,6 +24,8 @@ describe('account', () => {
             allowAllDashboards: false,
             chartUuids: [],
             allowAllCharts: false,
+            allowAllApps: false,
+            appUuids: [],
             createdAt: '2021-01-01',
             user: {
                 userUuid: 'test-user-uuid',

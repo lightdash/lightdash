@@ -1318,6 +1318,7 @@ export type LightdashConfig = {
         allowAll: {
             dashboards: boolean;
             charts: boolean;
+            apps: boolean;
         };
         events?: {
             enabled: boolean;
@@ -2417,6 +2418,7 @@ export const parseConfig = (): LightdashConfig => {
                     'true',
                 charts:
                     process.env.EMBED_ALLOW_ALL_CHARTS_BY_DEFAULT === 'true',
+                apps: process.env.EMBED_ALLOW_ALL_APPS_BY_DEFAULT === 'true',
             },
             events: {
                 enabled: process.env.EMBED_EVENT_SYSTEM_ENABLED === 'true',

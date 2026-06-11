@@ -17,6 +17,7 @@ export type DecodedEmbed = Omit<Embed, 'encodedSecret'> & {
 export type CreateEmbedRequestBody = {
     dashboardUuids?: string[];
     chartUuids?: string[];
+    appUuids?: string[];
 };
 
 export type UpdateEmbed = {
@@ -25,6 +26,8 @@ export type UpdateEmbed = {
     // TODO: Make these required in Settings UI PR
     chartUuids?: string[];
     allowAllCharts?: boolean;
+    allowAllApps?: boolean;
+    appUuids?: string[];
 };
 
 export type GetEmbedDashboardRequest = {
@@ -162,6 +165,12 @@ export const EmbedJwtSchema = z
                     isPreview: z.boolean().optional(),
                 })
                 .merge(ChartInteractivityOptionsSchema),
+            z.object({
+                type: z.literal('dataApp'),
+                projectUuid: z.string().optional(),
+                appUuid: z.string(),
+                isPreview: z.boolean().optional(),
+            }),
         ]),
         writeActions: EmbedWriteActionsSchema.optional(),
         iat: z.number().optional(),
@@ -221,11 +230,28 @@ export type EmbedJwtContentChart = CommonChartEmbedJwtContent & {
     contentId: string;
 };
 
+// A standalone data app embed: the JWT names a single app and self-authorizes
+// it (no dashboard). v1 carries no interactivity flags — filters/export are out
+// of scope. `dashboardFiltersInteractivity`/`parameterInteractivity` are typed
+// as `undefined` so the shared `fromJwt` reads stay assignable (matches chart).
+type CommonDataAppEmbedJwtContent = {
+    type: 'dataApp';
+    projectUuid?: string;
+    isPreview?: boolean;
+    dashboardFiltersInteractivity?: undefined;
+    parameterInteractivity?: undefined;
+};
+
+export type EmbedJwtContentDataApp = CommonDataAppEmbedJwtContent & {
+    appUuid: string;
+};
+
 export type CreateEmbedJwt = {
     content:
         | EmbedJwtContentDashboardUuid
         | EmbedJwtContentDashboardSlug
-        | EmbedJwtContentChart;
+        | EmbedJwtContentChart
+        | EmbedJwtContentDataApp;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
     user?: {
