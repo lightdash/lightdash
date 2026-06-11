@@ -39,4 +39,6 @@ export interface EmbedContext {
     theme: EmbedTheme;
     // Custom background color for the embed, set via ?backgroundColor=<css-color> URL param
     backgroundColor: string | null;
+    // Session query timezone (IANA), set via ?timezone=<IANA> URL param; overrides the chart pin
+    timezone: string | null;
 }
