@@ -333,7 +333,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                     <Group gap="md" wrap="wrap">
                                         <UnstyledButton
                                             className={styles.sectionToggle}
-                                            data-active={showDetails || undefined}
+                                            data-active={
+                                                showDetails || undefined
+                                            }
                                             onClick={() =>
                                                 setShowDetails((open) => !open)
                                             }
@@ -351,7 +353,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         </UnstyledButton>
                                         <UnstyledButton
                                             className={styles.sectionToggle}
-                                            data-active={showWhy || undefined}
+                                            data-active={
+                                                showWhy || undefined
+                                            }
                                             onClick={() =>
                                                 setShowWhy((open) => !open)
                                             }
