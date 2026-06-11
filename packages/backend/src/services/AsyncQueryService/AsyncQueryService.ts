@@ -127,6 +127,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import type { INatsClient } from '../../clients/NatsClient';
 import { createLocalParquetUploadStream } from '../../clients/ResultsFileStorageClients/LocalParquetUploadStream';
 import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import { getDuckdbRuntimeConfig } from '../../ee/services/AsyncQueryService/getDuckdbRuntimeConfig';
 import Logger from '../../logging/logger';
 import { measureTime } from '../../logging/measureTime';
@@ -3207,6 +3208,7 @@ export class AsyncQueryService extends ProjectService {
         sessionTimezone,
         applyDateZoomToFilters,
         preloadedUserAccessControls,
+        preloadedProjectParameters,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -3229,6 +3231,7 @@ export class AsyncQueryService extends ProjectService {
          */
         applyDateZoomToFilters?: boolean;
         preloadedUserAccessControls?: UserAccessControls;
+        preloadedProjectParameters?: DbProjectParameter[];
     }) {
         assertIsAccountWithOrg(account);
 
@@ -3246,6 +3249,7 @@ export class AsyncQueryService extends ProjectService {
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
+            preloadedProjectParameters,
         );
 
         const {
@@ -4926,12 +4930,17 @@ export class AsyncQueryService extends ProjectService {
         );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
+        // Load project parameters once and pass to both combineParameters and prepareMetricQueryAsyncQueryArgs
+        const projectParameters =
+            await this.projectParametersModel.find(projectUuid);
+
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
             projectUuid,
             explore,
             parameters,
             dashboardParameters,
+            projectParameters,
         );
 
         const { fields, dateZoomApplied } = await this.getMetricQueryFields({
@@ -4974,6 +4983,7 @@ export class AsyncQueryService extends ProjectService {
             columnTimezone: getColumnTimezone(warehouseCredentials),
             sessionTimezone,
             preloadedUserAccessControls: userAccessControls,
+            preloadedProjectParameters: projectParameters,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
