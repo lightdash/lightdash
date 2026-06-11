@@ -166,6 +166,11 @@ import {
     toolReadContentOutputSchema,
 } from './toolReadContentArgs';
 import {
+    TOOL_READ_PINNED_THREAD_DESCRIPTION,
+    toolReadPinnedThreadArgsSchema,
+    toolReadPinnedThreadOutputSchema,
+} from './toolReadPinnedThreadArgs';
+import {
     TOOL_REPO_SHELL_DESCRIPTION,
     toolRepoShellArgsSchema,
     toolRepoShellOutputSchema,
@@ -623,6 +628,15 @@ export const getKnowledgeDocumentContentToolDefinition = defineTool({
     agent: { outputSchema: toolGetKnowledgeDocumentContentOutputSchema },
 });
 
+export const readPinnedThreadToolDefinition = defineTool({
+    name: 'readPinnedThread',
+    title: 'Read pinned conversation',
+    description: TOOL_READ_PINNED_THREAD_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolReadPinnedThreadArgsSchema,
+    agent: { outputSchema: toolReadPinnedThreadOutputSchema },
+});
+
 /** @deprecated Legacy agent tool kept for historical tool calls. */
 export const findChartsToolDefinition = defineTool({
     name: 'findCharts',
@@ -860,6 +874,7 @@ type AgentToolDefinitionsByName = {
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
+    readPinnedThread: typeof readPinnedThreadToolDefinition;
     findCharts: typeof findChartsToolDefinition;
     findDashboards: typeof findDashboardsToolDefinition;
     generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
@@ -900,6 +915,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     describeWarehouseTable: describeWarehouseTableToolDefinition,
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
+    readPinnedThread: readPinnedThreadToolDefinition,
     findCharts: findChartsToolDefinition,
     findDashboards: findDashboardsToolDefinition,
     generateBarVizConfig: generateBarVizConfigToolDefinition,
@@ -942,6 +958,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     describeWarehouseTableToolDefinition,
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
+    readPinnedThreadToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
     generateBarVizConfigToolDefinition,
