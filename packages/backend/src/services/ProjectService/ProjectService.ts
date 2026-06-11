@@ -3858,6 +3858,7 @@ export class ProjectService extends BaseService {
             organizationUuid: account.organization.organizationUuid,
         });
         const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: getAccountUserTimezone(account),
@@ -4547,6 +4548,7 @@ export class ProjectService extends BaseService {
                     organizationUuid: account.organization.organizationUuid,
                 });
                 const resolvedTimezone = resolveQueryTimezone({
+                    sessionTimezone: null,
                     metricQuery,
                     projectTimezone,
                     userTimezone: getAccountUserTimezone(account),
@@ -4895,6 +4897,7 @@ export class ProjectService extends BaseService {
                                 account.organization.organizationUuid,
                         });
                     const timezone = resolveQueryTimezone({
+                        sessionTimezone: null,
                         metricQuery: metricQueryWithLimit,
                         projectTimezone,
                         userTimezone: getAccountUserTimezone(account),
@@ -5502,6 +5505,7 @@ export class ProjectService extends BaseService {
             await this.getQueryTimezoneForProject(projectUuid);
         const isUserTimezoneEnabled = await this.isUserTimezoneEnabled(user);
         const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: user.timezone,
