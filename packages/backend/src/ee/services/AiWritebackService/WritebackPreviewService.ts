@@ -45,6 +45,19 @@ const parseGithubPullRequestUrl = (
     return { owner: match[1], repo: match[2], pullNumber: Number(match[3]) };
 };
 
+const parseProjectRepository = (
+    repository: string | undefined,
+): { owner: string; repo: string } | null => {
+    if (!repository) {
+        return null;
+    }
+    const [owner, repo] = repository.split('/');
+    if (!owner || !repo) {
+        return null;
+    }
+    return { owner, repo };
+};
+
 /**
  * Creates Lightdash preview projects for writeback PRs server-side, instead of
  * relying on the customer repo's CI to deploy one and post its URL as a PR
@@ -121,6 +134,22 @@ export class WritebackPreviewService extends BaseService {
             if (project.dbtConnection.type !== DbtProjectType.GITHUB) {
                 return null;
             }
+            const configuredRepo = parseProjectRepository(
+                project.dbtConnection.repository,
+            );
+            const expectedRepo = configuredRepo
+                ? `${configuredRepo.owner}/${configuredRepo.repo}`.toLowerCase()
+                : null;
+            if (
+                !configuredRepo ||
+                expectedRepo !==
+                    `${parsed.owner}/${parsed.repo}`.toLowerCase()
+            ) {
+                this.logger.warn(
+                    `Refusing to create writeback preview for ${prUrl}: it does not match project ${projectUuid}'s configured repository`,
+                );
+                return null;
+            }
             if (!user.organizationUuid) {
                 return null;
             }
@@ -142,6 +171,18 @@ export class WritebackPreviewService extends BaseService {
                 token,
             });
             if (pullRequest.state !== 'open') {
+                return null;
+            }
+            if (
+                !pullRequest.headRepoFullName ||
+                pullRequest.headRepoFullName.toLowerCase() !== expectedRepo
+            ) {
+                this.logger.warn(
+                    `Refusing to create writeback preview for ${prUrl}: head branch is from ${
+                        pullRequest.headRepoFullName ??
+                        'an unknown repository'
+                    }, not ${expectedRepo}`,
+                );
                 return null;
             }
 

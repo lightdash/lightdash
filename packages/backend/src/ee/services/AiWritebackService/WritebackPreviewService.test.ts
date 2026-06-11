@@ -42,6 +42,7 @@ const githubProject = (): AnyType => ({
     projectUuid: PROJECT,
     dbtConnection: {
         type: DbtProjectType.GITHUB,
+        repository: 'acme/analytics',
     },
 });
 
@@ -51,6 +52,7 @@ const makeGithubClient = (): jest.Mocked<WritebackPreviewGithubClient> =>
         getPullRequest: jest.fn().mockResolvedValue({
             state: 'open',
             headRef: 'feature/writeback',
+            headRepoFullName: 'acme/analytics',
         }),
         createPullRequestComment: jest.fn().mockResolvedValue(undefined),
     }) as AnyType;
@@ -140,5 +142,53 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
             }),
             expect.anything(),
         );
+    });
+
+    it('returns null when the PR URL repo does not match the project repo', async () => {
+        const githubClient = makeGithubClient();
+        const projectService = {
+            createPreview: jest.fn(),
+        };
+        const service = buildService({
+            githubClient,
+            projectService: projectService as AnyType,
+        });
+
+        const result = await service.createPreviewForPullRequest({
+            user: userWithSourceCodeAccess(true),
+            projectUuid: PROJECT,
+            prUrl: 'https://github.com/acme/other-repo/pull/42',
+        });
+
+        expect(result).toBeNull();
+        expect(githubClient.getPullRequest).not.toHaveBeenCalled();
+        expect(githubClient.createPullRequestComment).not.toHaveBeenCalled();
+        expect(projectService.createPreview).not.toHaveBeenCalled();
+    });
+
+    it('returns null when the PR branch comes from a fork', async () => {
+        const githubClient = makeGithubClient();
+        githubClient.getPullRequest.mockResolvedValue({
+            state: 'open',
+            headRef: 'feature/writeback',
+            headRepoFullName: 'fork/analytics',
+        });
+        const projectService = {
+            createPreview: jest.fn(),
+        };
+        const service = buildService({
+            githubClient,
+            projectService: projectService as AnyType,
+        });
+
+        const result = await service.createPreviewForPullRequest({
+            user: userWithSourceCodeAccess(true),
+            projectUuid: PROJECT,
+            prUrl: PR_URL,
+        });
+
+        expect(result).toBeNull();
+        expect(githubClient.createPullRequestComment).not.toHaveBeenCalled();
+        expect(projectService.createPreview).not.toHaveBeenCalled();
     });
 });
