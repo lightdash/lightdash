@@ -903,97 +903,111 @@ export class InstanceConfigurationService extends BaseService {
 
         /* eslint-disable no-await-in-loop */
         for (const entry of config.groupProjectAccess) {
-            // Resolve the project — projectUuid wins over projectName.
-            let projectUuid: string | undefined;
-            if (entry.projectUuid) {
-                try {
-                    await this.projectModel.getSummary(entry.projectUuid);
-                    projectUuid = entry.projectUuid;
-                } catch {
-                    projectUuid = undefined;
-                }
-            } else if (entry.projectName) {
-                const [firstUuid] =
-                    await this.projectModel.getDefaultProjectUuidsByName(
-                        entry.projectName,
-                    );
-                projectUuid = firstUuid;
-            }
-
-            if (!projectUuid) {
-                this.logger.warn(
-                    `Update instance: project "${
-                        entry.projectUuid ?? entry.projectName
-                    }" for group "${entry.groupName}" not found; skipping`,
-                );
-            } else {
-                // Resolve the group by name.
-                const { data: groups } = await this.groupsModel.find({
-                    organizationUuid,
-                    name: entry.groupName,
-                });
-                const group = groups.find((g) => g.name === entry.groupName);
-
-                if (!group) {
-                    this.logger.warn(
-                        `Update instance: group "${entry.groupName}" not found (not yet synced?); skipping`,
-                    );
-                } else {
-                    // Resolve the role: system role as-is, else custom role by name.
-                    let resolvedRole: string | undefined;
-                    if (isSystemRole(entry.role)) {
-                        resolvedRole = entry.role;
-                    } else {
-                        const customRole = customRoles.find(
-                            (r) => r.name === entry.role,
-                        );
-                        if (!customRole) {
-                            this.logger.warn(
-                                `Update instance: role "${entry.role}" for group "${entry.groupName}" not found as a system or custom role; skipping`,
-                            );
-                        } else {
-                            resolvedRole = customRole.roleUuid;
-                        }
-                    }
-
-                    if (resolvedRole !== undefined) {
-                        // Upsert (non-destructive): add if absent, update if role differs.
-                        const existingAccess =
-                            await this.rolesModel.getGroupProjectAccess(
-                                projectUuid,
-                            );
-                        const existing = existingAccess.find(
-                            (a) => a.groupUuid === group.uuid,
-                        );
-
-                        if (!existing) {
-                            await this.groupsModel.addProjectAccess({
-                                groupUuid: group.uuid,
-                                projectUuid,
-                                role: resolvedRole,
-                            });
-                            this.logger.info(
-                                `Update instance: Added "${entry.role}" access for group "${entry.groupName}" on project ${projectUuid}`,
-                            );
-                        } else if (existing.roleUuid !== resolvedRole) {
-                            await this.groupsModel.updateProjectAccess(
-                                { groupUuid: group.uuid, projectUuid },
-                                isSystemRole(resolvedRole)
-                                    ? { role: resolvedRole, role_uuid: null }
-                                    : {
-                                          role: ProjectMemberRole.VIEWER,
-                                          role_uuid: resolvedRole,
-                                      },
-                            );
-                            this.logger.info(
-                                `Update instance: Updated group "${entry.groupName}" access on project ${projectUuid} to "${entry.role}"`,
-                            );
-                        }
-                    }
-                }
-            }
+            await this.reconcileGroupProjectAccessEntry(
+                entry,
+                organizationUuid,
+                customRoles,
+            );
         }
         /* eslint-enable no-await-in-loop */
+    }
+
+    /**
+     * Reconcile a single LD_SETUP_GROUP_PROJECT_ACCESS entry. Resolves project,
+     * group and role; any that can't be resolved are warned-and-skipped (never
+     * fatal). Adds access when absent, updates it when the role differs, and is
+     * a no-op when it already matches.
+     */
+    private async reconcileGroupProjectAccessEntry(
+        entry: NonNullable<
+            NonNullable<LightdashConfig['updateSetup']>['groupProjectAccess']
+        >[number],
+        organizationUuid: string,
+        customRoles: Awaited<
+            ReturnType<RolesModel['getRolesByOrganizationUuid']>
+        >,
+    ) {
+        // Resolve the project — projectUuid wins over projectName.
+        let projectUuid: string | undefined;
+        if (entry.projectUuid) {
+            try {
+                await this.projectModel.getSummary(entry.projectUuid);
+                projectUuid = entry.projectUuid;
+            } catch {
+                projectUuid = undefined;
+            }
+        } else if (entry.projectName) {
+            const [firstUuid] =
+                await this.projectModel.getDefaultProjectUuidsByName(
+                    entry.projectName,
+                );
+            projectUuid = firstUuid;
+        }
+        if (!projectUuid) {
+            this.logger.warn(
+                `Update instance: project "${
+                    entry.projectUuid ?? entry.projectName
+                }" for group "${entry.groupName}" not found; skipping`,
+            );
+            return;
+        }
+
+        // Resolve the group by name.
+        const { data: groups } = await this.groupsModel.find({
+            organizationUuid,
+            name: entry.groupName,
+        });
+        const group = groups.find((g) => g.name === entry.groupName);
+        if (!group) {
+            this.logger.warn(
+                `Update instance: group "${entry.groupName}" not found (not yet synced?); skipping`,
+            );
+            return;
+        }
+
+        // Resolve the role: system role as-is, else custom role by name.
+        let resolvedRole: string;
+        if (isSystemRole(entry.role)) {
+            resolvedRole = entry.role;
+        } else {
+            const customRole = customRoles.find((r) => r.name === entry.role);
+            if (!customRole) {
+                this.logger.warn(
+                    `Update instance: role "${entry.role}" for group "${entry.groupName}" not found as a system or custom role; skipping`,
+                );
+                return;
+            }
+            resolvedRole = customRole.roleUuid;
+        }
+
+        // Upsert (non-destructive): add if absent, update if role differs.
+        const existingAccess =
+            await this.rolesModel.getGroupProjectAccess(projectUuid);
+        const existing = existingAccess.find((a) => a.groupUuid === group.uuid);
+
+        if (!existing) {
+            await this.groupsModel.addProjectAccess({
+                groupUuid: group.uuid,
+                projectUuid,
+                role: resolvedRole,
+            });
+            this.logger.info(
+                `Update instance: Added "${entry.role}" access for group "${entry.groupName}" on project ${projectUuid}`,
+            );
+        } else if (existing.roleUuid !== resolvedRole) {
+            await this.groupsModel.updateProjectAccess(
+                { groupUuid: group.uuid, projectUuid },
+                isSystemRole(resolvedRole)
+                    ? { role: resolvedRole, role_uuid: null }
+                    : {
+                          role: ProjectMemberRole.VIEWER,
+                          role_uuid: resolvedRole,
+                      },
+            );
+            this.logger.info(
+                `Update instance: Updated group "${entry.groupName}" access on project ${projectUuid} to "${entry.role}"`,
+            );
+        }
     }
 
     async updateInstanceConfiguration() {
