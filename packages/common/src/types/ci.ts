@@ -72,6 +72,17 @@ export type CiChecks = {
      * "blocked".
      */
     mergeState: CiMergeState;
+    /**
+     * Whether the PR is already merged. Once merged the provider's
+     * `mergeState` is no longer meaningful, so consumers show a terminal
+     * "Merged" state and suppress the merge action.
+     */
+    merged: boolean;
+    /**
+     * Whether the PR is open or closed. A closed-but-not-merged PR is terminal
+     * too, so the card shows "Closed" and offers neither merge nor close.
+     */
+    state: 'open' | 'closed';
     checks: CiCheck[];
 };
 
@@ -83,4 +94,55 @@ export type CiChecks = {
 export type ApiCiChecksResponse = {
     status: 'ok';
     results: CiChecks | null;
+};
+
+/** Body for merging a write-back pull request from the chat PR card. */
+export type MergePullRequestRequestBody = {
+    /** The PR/MR URL of the write-back pull request to merge. */
+    prUrl: string;
+    /**
+     * The commit the card is pinned to. When set the merge only proceeds if the
+     * PR's head still points at this SHA, so a user never merges a commit they
+     * haven't seen (a later turn may have pushed a newer head).
+     */
+    sha?: string;
+};
+
+/** Outcome of a pull request merge. */
+export type MergePullRequestResult = {
+    merged: boolean;
+    /** The resulting merge commit SHA, when the provider returns one. */
+    sha: string | null;
+};
+
+export type ApiMergePullRequestResponse = {
+    status: 'ok';
+    results: MergePullRequestResult;
+};
+
+/** Body for closing a write-back pull request from the chat PR card. */
+export type ClosePullRequestRequestBody = {
+    /** The PR/MR URL of the write-back pull request to close. */
+    prUrl: string;
+};
+
+/** Outcome of closing a pull request. */
+export type ClosePullRequestResult = {
+    state: 'open' | 'closed';
+};
+
+export type ApiClosePullRequestResponse = {
+    status: 'ok';
+    results: ClosePullRequestResult;
+};
+
+/**
+ * The raw unified diff of a write-back pull request (or a single pinned commit
+ * within it), for the chat card's diff viewer. Null when it can't be resolved
+ * (unsupported source control, no app installation, PR not found, diff too
+ * large for the provider to return).
+ */
+export type ApiPullRequestDiffResponse = {
+    status: 'ok';
+    results: { diff: string } | null;
 };

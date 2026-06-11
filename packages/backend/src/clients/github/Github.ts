@@ -875,6 +875,141 @@ export const getPullRequest = async ({
     }
 };
 
+export const mergePullRequest = async ({
+    owner,
+    repo,
+    pullNumber,
+    sha,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    /**
+     * Expected head SHA. When set GitHub rejects the merge (409) if the PR head
+     * has moved on since, so the caller never merges a commit it didn't intend.
+     */
+    sha?: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{ merged: boolean; sha: string | null }> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.merge({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            sha,
+            headers,
+        });
+
+        return {
+            merged: response.data.merged === true,
+            sha: response.data.sha ?? null,
+        };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+// Closes a PR without merging it (sets state to `closed`). Reversible — it can
+// be reopened on the provider.
+export const closePullRequest = async ({
+    owner,
+    repo,
+    pullNumber,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    installationId?: string;
+    token?: string;
+}): Promise<{ state: 'open' | 'closed' }> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.update({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            state: 'closed',
+            headers,
+        });
+        return {
+            state: response.data.state === 'closed' ? 'closed' : 'open',
+        };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+// Returns the PR's changes as a raw unified diff. The `diff` media type makes
+// GitHub respond with the patch text itself, so the runtime body is a string
+// even though Octokit types it as the PR object.
+export const getPullRequestDiff = async ({
+    owner,
+    repo,
+    pullNumber,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    installationId?: string;
+    token?: string;
+}): Promise<string> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            headers,
+            mediaType: { format: 'diff' },
+        });
+        return response.data as unknown as string;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+// As above, but scoped to a single commit's changes — used to show the diff of
+// the exact commit a write-back card is pinned to, rather than the whole PR.
+export const getCommitDiff = async ({
+    owner,
+    repo,
+    ref,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    ref: string;
+    installationId?: string;
+    token?: string;
+}): Promise<string> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.repos.getCommit({
+            owner,
+            repo,
+            ref,
+            headers,
+            mediaType: { format: 'diff' },
+        });
+        return response.data as unknown as string;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export const createPullRequestComment = async ({
     owner,
     repo,
