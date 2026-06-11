@@ -29,23 +29,6 @@ const getSessionUser = (req: express.Request): SessionUser => {
     return req.user;
 };
 
-const assertEmbedTargetSpace = async (
-    req: express.Request,
-    actor: SessionUser,
-    projectUuid: string,
-    spaceUuid: string,
-) => {
-    const spaceAccessContext = await req.services
-        .getSpacePermissionService()
-        .getSpaceAccessContext(actor.userUuid, spaceUuid);
-
-    if (spaceAccessContext.projectUuid !== projectUuid) {
-        throw new ForbiddenError(
-            'Embed token cannot create charts in this space',
-        );
-    }
-};
-
 const getCreateSavedChartContext = async (
     req: express.Request,
     projectUuid: string,
@@ -92,13 +75,6 @@ const getCreateSavedChartContext = async (
             );
         }
 
-        await assertEmbedTargetSpace(
-            req,
-            actor,
-            projectUuid,
-            writeActions.spaceUuid,
-        );
-
         return {
             actor,
             savedChart,
@@ -116,13 +92,6 @@ const getCreateSavedChartContext = async (
             'Embed token service account is not valid for this organization',
         );
     }
-
-    await assertEmbedTargetSpace(
-        req,
-        actor,
-        projectUuid,
-        writeActions.spaceUuid,
-    );
 
     return {
         actor: {

@@ -1344,6 +1344,9 @@ export class SavedChartService
                     user.userUuid,
                     resolvedSpaceUuid,
                 );
+            if (spaceAccessContext.projectUuid !== projectUuid) {
+                throw new ForbiddenError();
+            }
             inheritsFromOrgOrProject =
                 spaceAccessContext.inheritsFromOrgOrProject;
             access = spaceAccessContext.access;
@@ -1356,6 +1359,9 @@ export class SavedChartService
                     user.userUuid,
                     dashboard.spaceUuid,
                 );
+            if (dashboardSpaceAccessContext.projectUuid !== projectUuid) {
+                throw new ForbiddenError();
+            }
             inheritsFromOrgOrProject =
                 dashboardSpaceAccessContext.inheritsFromOrgOrProject;
             access = dashboardSpaceAccessContext.access;
