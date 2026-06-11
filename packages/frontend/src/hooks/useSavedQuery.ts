@@ -49,25 +49,6 @@ const createSavedQuery = async (
     });
 };
 
-const createEmbedSavedQuery = async (
-    projectUuid: string,
-    payload: CreateSavedChart,
-): Promise<SavedChart> => {
-    const timezoneFixPayload: CreateSavedChart = {
-        ...payload,
-        metricQuery: {
-            ...payload.metricQuery,
-            filters: convertDateFilters(payload.metricQuery.filters),
-        },
-        parameters: payload.parameters,
-    };
-    return lightdashApi<SavedChart>({
-        url: `/embed/${projectUuid}/saved`,
-        method: 'POST',
-        body: JSON.stringify(timezoneFixPayload),
-    });
-};
-
 const duplicateSavedQuery = async (
     projectUuid: string,
     chartUuid: string,
@@ -375,11 +356,11 @@ export const useUpdateMutation = (
 export const useCreateMutation = ({
     redirectOnSuccess = true,
     showToastOnSuccess = true,
-    useEmbedEndpoint = false,
+    showViewChartAction = true,
 }: {
     redirectOnSuccess?: boolean;
     showToastOnSuccess?: boolean;
-    useEmbedEndpoint?: boolean;
+    showViewChartAction?: boolean;
 } = {}) => {
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
@@ -389,12 +370,10 @@ export const useCreateMutation = ({
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
         (data) =>
             projectUuid
-                ? useEmbedEndpoint
-                    ? createEmbedSavedQuery(projectUuid, data)
-                    : createSavedQuery(projectUuid, data)
+                ? createSavedQuery(projectUuid, data)
                 : Promise.reject(),
         {
-            mutationKey: ['saved_query_create', projectUuid, useEmbedEndpoint],
+            mutationKey: ['saved_query_create', projectUuid],
             onSuccess: (data) => {
                 const navigateUrl = `/projects/${projectUuid}/saved/${data.uuid}/view`;
                 queryClient.setQueryData(
@@ -405,7 +384,7 @@ export const useCreateMutation = ({
                     showToastSuccess({
                         title: `Success! Chart was saved.`,
                         action:
-                            redirectOnSuccess || useEmbedEndpoint
+                            redirectOnSuccess || !showViewChartAction
                                 ? undefined
                                 : {
                                       children: 'View chart',

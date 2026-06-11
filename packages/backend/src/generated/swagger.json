@@ -3055,6 +3055,848 @@
                 },
                 "type": "object"
             },
+            "Record_string.number-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "items": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "type": "array"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "DimensionType.STRING": {
+                "enum": ["string"],
+                "type": "string"
+            },
+            "DimensionType.NUMBER": {
+                "enum": ["number"],
+                "type": "string"
+            },
+            "DimensionType.DATE": {
+                "enum": ["date"],
+                "type": "string"
+            },
+            "DimensionType.TIMESTAMP": {
+                "enum": ["timestamp"],
+                "type": "string"
+            },
+            "DimensionType.BOOLEAN": {
+                "enum": ["boolean"],
+                "type": "string"
+            },
+            "FieldType.DIMENSION": {
+                "enum": ["dimension"],
+                "type": "string"
+            },
+            "Record_string.string-or-string-Array_": {
+                "properties": {},
+                "additionalProperties": {
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "items": {
+                                "type": "string"
+                            },
+                            "type": "array"
+                        }
+                    ]
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "TimeFrames": {
+                "enum": [
+                    "RAW",
+                    "YEAR",
+                    "QUARTER",
+                    "MONTH",
+                    "WEEK",
+                    "DAY",
+                    "HOUR",
+                    "MINUTE",
+                    "SECOND",
+                    "MILLISECOND",
+                    "DAY_OF_WEEK_INDEX",
+                    "DAY_OF_MONTH_NUM",
+                    "DAY_OF_YEAR_NUM",
+                    "WEEK_NUM",
+                    "MONTH_NUM",
+                    "QUARTER_NUM",
+                    "YEAR_NUM",
+                    "DAY_OF_WEEK_NAME",
+                    "MONTH_NAME",
+                    "QUARTER_NAME",
+                    "HOUR_OF_DAY_NUM",
+                    "MINUTE_OF_HOUR_NUM"
+                ],
+                "type": "string"
+            },
+            "Record_string.string_": {
+                "properties": {},
+                "additionalProperties": {
+                    "type": "string"
+                },
+                "type": "object",
+                "description": "Construct a type with a set of properties K of type T"
+            },
+            "CustomFormatType": {
+                "enum": [
+                    "default",
+                    "percent",
+                    "currency",
+                    "number",
+                    "id",
+                    "date",
+                    "timestamp",
+                    "bytes_si",
+                    "bytes_iec",
+                    "custom"
+                ],
+                "type": "string"
+            },
+            "NumberSeparator": {
+                "enum": [
+                    "default",
+                    "commaPeriod",
+                    "spacePeriod",
+                    "periodComma",
+                    "noSeparatorPeriod",
+                    "apostrophePeriod"
+                ],
+                "type": "string"
+            },
+            "Compact": {
+                "enum": [
+                    "thousands",
+                    "millions",
+                    "billions",
+                    "trillions",
+                    "kilobytes",
+                    "megabytes",
+                    "gigabytes",
+                    "terabytes",
+                    "petabytes",
+                    "kibibytes",
+                    "mebibytes",
+                    "gibibytes",
+                    "tebibytes",
+                    "pebibytes"
+                ],
+                "type": "string"
+            },
+            "CompactOrAlias": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/Compact"
+                    },
+                    {
+                        "type": "string",
+                        "enum": [
+                            "K",
+                            "thousand",
+                            "M",
+                            "million",
+                            "B",
+                            "billion",
+                            "T",
+                            "trillion",
+                            "KB",
+                            "kilobyte",
+                            "MB",
+                            "megabyte",
+                            "GB",
+                            "gigabyte",
+                            "TB",
+                            "terabyte",
+                            "PB",
+                            "petabyte",
+                            "KiB",
+                            "kibibyte",
+                            "MiB",
+                            "mebibyte",
+                            "GiB",
+                            "gibibyte",
+                            "TiB",
+                            "tebibyte",
+                            "PiB",
+                            "pebibyte"
+                        ]
+                    }
+                ]
+            },
+            "CustomFormat": {
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/CustomFormatType",
+                        "description": "Format type"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Number of decimal places"
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "description": "Currency code (e.g., USD, GBP, EUR)"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias",
+                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
+                    },
+                    "prefix": {
+                        "type": "string",
+                        "description": "Prefix to prepend to formatted values"
+                    },
+                    "suffix": {
+                        "type": "string",
+                        "description": "Suffix to append to formatted values"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames",
+                        "description": "Time interval for date formatting"
+                    },
+                    "custom": {
+                        "type": "string",
+                        "description": "Custom format string"
+                    }
+                },
+                "required": ["type"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "FieldType": {
+                "enum": ["metric", "dimension"],
+                "type": "string"
+            },
+            "SourcePosition": {
+                "properties": {
+                    "character": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "line": {
+                        "type": "number",
+                        "format": "double"
+                    }
+                },
+                "required": ["character", "line"],
+                "type": "object"
+            },
+            "Source": {
+                "properties": {
+                    "content": {
+                        "type": "string"
+                    },
+                    "highlight": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "range": {
+                        "properties": {
+                            "end": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            },
+                            "start": {
+                                "$ref": "#/components/schemas/SourcePosition"
+                            }
+                        },
+                        "required": ["end", "start"],
+                        "type": "object"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": ["content", "range", "path"],
+                "type": "object"
+            },
+            "Format": {
+                "enum": [
+                    "km",
+                    "mi",
+                    "usd",
+                    "gbp",
+                    "eur",
+                    "jpy",
+                    "dkk",
+                    "id",
+                    "percent"
+                ],
+                "type": "string"
+            },
+            "FieldUrl": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "url": {
+                        "type": "string"
+                    }
+                },
+                "required": ["label", "url"],
+                "type": "object"
+            },
+            "FilterableDimension": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType.DIMENSION"
+                    },
+                    "type": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/DimensionType.STRING"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DimensionType.NUMBER"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DimensionType.DATE"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DimensionType.TIMESTAMP"
+                            },
+                            {
+                                "$ref": "#/components/schemas/DimensionType.BOOLEAN"
+                            }
+                        ]
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/Source"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "format": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
+                    },
+                    "groupLabel": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "urls": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldUrl"
+                        },
+                        "type": "array"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "group": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "anyAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "timeInterval": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "timeIntervalBaseDimensionName": {
+                        "type": "string"
+                    },
+                    "timeIntervalBaseDimensionType": {
+                        "$ref": "#/components/schemas/DimensionType"
+                    },
+                    "customTimeInterval": {
+                        "type": "string"
+                    },
+                    "isAdditionalDimension": {
+                        "type": "boolean"
+                    },
+                    "skipTimezoneConversion": {
+                        "type": "boolean"
+                    },
+                    "colors": {
+                        "$ref": "#/components/schemas/Record_string.string_"
+                    },
+                    "isIntervalBase": {
+                        "type": "boolean"
+                    },
+                    "aiHint": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean"
+                    },
+                    "image": {
+                        "properties": {
+                            "fit": {
+                                "type": "string"
+                            },
+                            "height": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "width": {
+                                "type": "number",
+                                "format": "double"
+                            },
+                            "url": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["url"],
+                        "type": "object"
+                    },
+                    "richText": {
+                        "type": "string"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "segmentBy": {
+                                "type": "boolean"
+                            },
+                            "filterBy": {
+                                "type": "boolean"
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "required": [
+                    "fieldType",
+                    "type",
+                    "name",
+                    "label",
+                    "table",
+                    "tableLabel",
+                    "sql",
+                    "hidden"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "FieldType.METRIC": {
+                "enum": ["metric"],
+                "type": "string"
+            },
+            "MetricType": {
+                "enum": [
+                    "percentile",
+                    "average",
+                    "count",
+                    "count_distinct",
+                    "sum",
+                    "sum_distinct",
+                    "average_distinct",
+                    "min",
+                    "max",
+                    "percent_of_previous",
+                    "percent_of_total",
+                    "running_total",
+                    "number",
+                    "median",
+                    "string",
+                    "date",
+                    "timestamp",
+                    "boolean"
+                ],
+                "type": "string"
+            },
+            "MetricFilterRule": {
+                "description": "Filter rule for metrics, targeting fields by reference",
+                "properties": {
+                    "values": {
+                        "items": {
+                            "$ref": "#/components/schemas/AnyType"
+                        },
+                        "type": "array",
+                        "description": "Values to filter by"
+                    },
+                    "operator": {
+                        "$ref": "#/components/schemas/FilterOperator",
+                        "description": "Filter operator"
+                    },
+                    "id": {
+                        "type": "string",
+                        "description": "Unique identifier for the filter"
+                    },
+                    "target": {
+                        "properties": {
+                            "fieldRef": {
+                                "type": "string",
+                                "description": "Field reference to filter on (e.g., 'table_name.field_name')"
+                            }
+                        },
+                        "required": ["fieldRef"],
+                        "type": "object",
+                        "description": "Target field for the filter"
+                    },
+                    "settings": {
+                        "$ref": "#/components/schemas/AnyType",
+                        "description": "Additional settings for date/time filters"
+                    },
+                    "disabled": {
+                        "type": "boolean",
+                        "description": "Whether this filter is disabled"
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "Whether this filter is required"
+                    },
+                    "caseSensitive": {
+                        "type": "boolean",
+                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
+                    }
+                },
+                "required": ["operator", "id", "target"],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DefaultTimeDimension": {
+                "properties": {
+                    "interval": {
+                        "$ref": "#/components/schemas/TimeFrames"
+                    },
+                    "field": {
+                        "type": "string"
+                    }
+                },
+                "required": ["interval", "field"],
+                "type": "object"
+            },
+            "Metric": {
+                "properties": {
+                    "fieldType": {
+                        "$ref": "#/components/schemas/FieldType.METRIC"
+                    },
+                    "type": {
+                        "$ref": "#/components/schemas/MetricType"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "table": {
+                        "type": "string"
+                    },
+                    "tableLabel": {
+                        "type": "string"
+                    },
+                    "sql": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/Source"
+                    },
+                    "hidden": {
+                        "type": "boolean"
+                    },
+                    "compact": {
+                        "$ref": "#/components/schemas/CompactOrAlias"
+                    },
+                    "round": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "format": {
+                        "anyOf": [
+                            {
+                                "$ref": "#/components/schemas/Format"
+                            },
+                            {
+                                "type": "string"
+                            }
+                        ]
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
+                    },
+                    "groupLabel": {
+                        "type": "string",
+                        "deprecated": true
+                    },
+                    "groups": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "urls": {
+                        "items": {
+                            "$ref": "#/components/schemas/FieldUrl"
+                        },
+                        "type": "array"
+                    },
+                    "index": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "tags": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "parameterReferences": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "showUnderlyingValues": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "filters": {
+                        "items": {
+                            "$ref": "#/components/schemas/MetricFilterRule"
+                        },
+                        "type": "array"
+                    },
+                    "percentile": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "distinctKeys": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "formatOptions": {
+                        "$ref": "#/components/schemas/CustomFormat"
+                    },
+                    "dimensionReference": {
+                        "type": "string"
+                    },
+                    "requiredAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "anyAttributes": {
+                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
+                    },
+                    "defaultTimeDimension": {
+                        "$ref": "#/components/schemas/DefaultTimeDimension"
+                    },
+                    "spotlight": {
+                        "properties": {
+                            "owner": {
+                                "type": "string"
+                            },
+                            "defaultFilter": {
+                                "$ref": "#/components/schemas/MetricFilterRule"
+                            },
+                            "defaultSegment": {
+                                "type": "string"
+                            },
+                            "segmentBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "filterBy": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "categories": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            },
+                            "visibility": {
+                                "type": "string",
+                                "enum": ["show", "hide"]
+                            }
+                        },
+                        "required": ["visibility"],
+                        "type": "object"
+                    },
+                    "drivers": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    },
+                    "aiHint": {
+                        "anyOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        ]
+                    },
+                    "richText": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "fieldType",
+                    "type",
+                    "name",
+                    "label",
+                    "table",
+                    "tableLabel",
+                    "sql",
+                    "hidden"
+                ],
+                "type": "object",
+                "additionalProperties": true
+            },
+            "DashboardAvailableFilters": {
+                "properties": {
+                    "savedQueryMetricFilters": {
+                        "$ref": "#/components/schemas/Record_string.number-Array_"
+                    },
+                    "allFilterableMetrics": {
+                        "items": {
+                            "$ref": "#/components/schemas/Metric"
+                        },
+                        "type": "array"
+                    },
+                    "allFilterableFields": {
+                        "items": {
+                            "$ref": "#/components/schemas/FilterableDimension"
+                        },
+                        "type": "array"
+                    },
+                    "savedQueryFilters": {
+                        "$ref": "#/components/schemas/Record_string.number-Array_"
+                    }
+                },
+                "required": [
+                    "savedQueryMetricFilters",
+                    "allFilterableMetrics",
+                    "allFilterableFields",
+                    "savedQueryFilters"
+                ],
+                "type": "object"
+            },
+            "ApiEmbedDashboardAvailableFiltersResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/DashboardAvailableFilters"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "SavedChartsInfoForDashboardAvailableFilters": {
+                "items": {
+                    "properties": {
+                        "savedChartUuid": {
+                            "type": "string"
+                        },
+                        "tileUuid": {
+                            "type": "string"
+                        }
+                    },
+                    "required": ["savedChartUuid", "tileUuid"],
+                    "type": "object"
+                },
+                "type": "array"
+            },
             "FieldId": {
                 "type": "string"
             },
@@ -3230,162 +4072,6 @@
                 },
                 "required": ["descending", "fieldId"],
                 "type": "object"
-            },
-            "CustomFormatType": {
-                "enum": [
-                    "default",
-                    "percent",
-                    "currency",
-                    "number",
-                    "id",
-                    "date",
-                    "timestamp",
-                    "bytes_si",
-                    "bytes_iec",
-                    "custom"
-                ],
-                "type": "string"
-            },
-            "NumberSeparator": {
-                "enum": [
-                    "default",
-                    "commaPeriod",
-                    "spacePeriod",
-                    "periodComma",
-                    "noSeparatorPeriod",
-                    "apostrophePeriod"
-                ],
-                "type": "string"
-            },
-            "Compact": {
-                "enum": [
-                    "thousands",
-                    "millions",
-                    "billions",
-                    "trillions",
-                    "kilobytes",
-                    "megabytes",
-                    "gigabytes",
-                    "terabytes",
-                    "petabytes",
-                    "kibibytes",
-                    "mebibytes",
-                    "gibibytes",
-                    "tebibytes",
-                    "pebibytes"
-                ],
-                "type": "string"
-            },
-            "CompactOrAlias": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/Compact"
-                    },
-                    {
-                        "type": "string",
-                        "enum": [
-                            "K",
-                            "thousand",
-                            "M",
-                            "million",
-                            "B",
-                            "billion",
-                            "T",
-                            "trillion",
-                            "KB",
-                            "kilobyte",
-                            "MB",
-                            "megabyte",
-                            "GB",
-                            "gigabyte",
-                            "TB",
-                            "terabyte",
-                            "PB",
-                            "petabyte",
-                            "KiB",
-                            "kibibyte",
-                            "MiB",
-                            "mebibyte",
-                            "GiB",
-                            "gibibyte",
-                            "TiB",
-                            "tebibyte",
-                            "PiB",
-                            "pebibyte"
-                        ]
-                    }
-                ]
-            },
-            "TimeFrames": {
-                "enum": [
-                    "RAW",
-                    "YEAR",
-                    "QUARTER",
-                    "MONTH",
-                    "WEEK",
-                    "DAY",
-                    "HOUR",
-                    "MINUTE",
-                    "SECOND",
-                    "MILLISECOND",
-                    "DAY_OF_WEEK_INDEX",
-                    "DAY_OF_MONTH_NUM",
-                    "DAY_OF_YEAR_NUM",
-                    "WEEK_NUM",
-                    "MONTH_NUM",
-                    "QUARTER_NUM",
-                    "YEAR_NUM",
-                    "DAY_OF_WEEK_NAME",
-                    "MONTH_NAME",
-                    "QUARTER_NAME",
-                    "HOUR_OF_DAY_NUM",
-                    "MINUTE_OF_HOUR_NUM"
-                ],
-                "type": "string"
-            },
-            "CustomFormat": {
-                "properties": {
-                    "type": {
-                        "$ref": "#/components/schemas/CustomFormatType",
-                        "description": "Format type"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Number of decimal places"
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style"
-                    },
-                    "currency": {
-                        "type": "string",
-                        "description": "Currency code (e.g., USD, GBP, EUR)"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias",
-                        "description": "Compact format for large numbers (K, M, B, T) or byte units"
-                    },
-                    "prefix": {
-                        "type": "string",
-                        "description": "Prefix to prepend to formatted values"
-                    },
-                    "suffix": {
-                        "type": "string",
-                        "description": "Suffix to append to formatted values"
-                    },
-                    "timeInterval": {
-                        "$ref": "#/components/schemas/TimeFrames",
-                        "description": "Time interval for date formatting"
-                    },
-                    "custom": {
-                        "type": "string",
-                        "description": "Custom format string"
-                    }
-                },
-                "required": ["type"],
-                "type": "object",
-                "additionalProperties": true
             },
             "TableCalculationType": {
                 "enum": ["number", "string", "date", "timestamp", "boolean"],
@@ -3749,93 +4435,6 @@
                         "$ref": "#/components/schemas/FormulaTableCalculation"
                     }
                 ]
-            },
-            "MetricType": {
-                "enum": [
-                    "percentile",
-                    "average",
-                    "count",
-                    "count_distinct",
-                    "sum",
-                    "sum_distinct",
-                    "average_distinct",
-                    "min",
-                    "max",
-                    "percent_of_previous",
-                    "percent_of_total",
-                    "running_total",
-                    "number",
-                    "median",
-                    "string",
-                    "date",
-                    "timestamp",
-                    "boolean"
-                ],
-                "type": "string"
-            },
-            "Format": {
-                "enum": [
-                    "km",
-                    "mi",
-                    "usd",
-                    "gbp",
-                    "eur",
-                    "jpy",
-                    "dkk",
-                    "id",
-                    "percent"
-                ],
-                "type": "string"
-            },
-            "MetricFilterRule": {
-                "description": "Filter rule for metrics, targeting fields by reference",
-                "properties": {
-                    "values": {
-                        "items": {
-                            "$ref": "#/components/schemas/AnyType"
-                        },
-                        "type": "array",
-                        "description": "Values to filter by"
-                    },
-                    "operator": {
-                        "$ref": "#/components/schemas/FilterOperator",
-                        "description": "Filter operator"
-                    },
-                    "id": {
-                        "type": "string",
-                        "description": "Unique identifier for the filter"
-                    },
-                    "target": {
-                        "properties": {
-                            "fieldRef": {
-                                "type": "string",
-                                "description": "Field reference to filter on (e.g., 'table_name.field_name')"
-                            }
-                        },
-                        "required": ["fieldRef"],
-                        "type": "object",
-                        "description": "Target field for the filter"
-                    },
-                    "settings": {
-                        "$ref": "#/components/schemas/AnyType",
-                        "description": "Additional settings for date/time filters"
-                    },
-                    "disabled": {
-                        "type": "boolean",
-                        "description": "Whether this filter is disabled"
-                    },
-                    "required": {
-                        "type": "boolean",
-                        "description": "Whether this filter is required"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean",
-                        "description": "Overrides the field/explore case-sensitivity for this rule only.\nUsed by internal features like autocomplete search that must always\nmatch case-insensitively regardless of the field's configured setting."
-                    }
-                },
-                "required": ["operator", "id", "target"],
-                "type": "object",
-                "additionalProperties": true
             },
             "AdditionalMetric": {
                 "properties": {
@@ -4713,11 +5312,6 @@
             "ChartType.CARTESIAN": {
                 "enum": ["cartesian"],
                 "type": "string"
-            },
-            "Record_string.string_": {
-                "properties": {},
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
             },
             "Partial_CompleteCartesianChartLayout_": {
                 "properties": {
@@ -6547,728 +7141,6 @@
                 ],
                 "type": "object"
             },
-            "ApiEmbedSavedChartCreateResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/SavedChart"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_": {
-                "properties": {
-                    "description": {
-                        "type": "string",
-                        "description": "Optional description of what this chart displays"
-                    },
-                    "name": {
-                        "type": "string",
-                        "description": "Display name of the chart"
-                    },
-                    "tableName": {
-                        "type": "string",
-                        "description": "The explore/table name this chart queries from"
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery",
-                        "description": "The query configuration defining what data to fetch"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object",
-                        "description": "Pivot table configuration"
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig",
-                        "description": "Visualization configuration for the chart"
-                    },
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object",
-                        "description": "Table view configuration"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for the chart query"
-                    }
-                },
-                "required": [
-                    "name",
-                    "tableName",
-                    "metricQuery",
-                    "chartConfig",
-                    "tableConfig"
-                ],
-                "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "CreateChartBase": {
-                "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_"
-            },
-            "CreateChartInSpace": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CreateChartBase"
-                    },
-                    {
-                        "properties": {
-                            "dashboardUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            },
-                            "spaceUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "type": "object"
-                    }
-                ]
-            },
-            "CreateChartInDashboard": {
-                "allOf": [
-                    {
-                        "$ref": "#/components/schemas/CreateChartBase"
-                    },
-                    {
-                        "properties": {
-                            "spaceUuid": {
-                                "type": "number",
-                                "enum": [null],
-                                "nullable": true
-                            },
-                            "dashboardUuid": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["dashboardUuid"],
-                        "type": "object"
-                    }
-                ]
-            },
-            "CreateSavedChart": {
-                "anyOf": [
-                    {
-                        "$ref": "#/components/schemas/CreateChartInSpace"
-                    },
-                    {
-                        "$ref": "#/components/schemas/CreateChartInDashboard"
-                    }
-                ]
-            },
-            "Record_string.number-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "items": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "type": "array"
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "DimensionType.STRING": {
-                "enum": ["string"],
-                "type": "string"
-            },
-            "DimensionType.NUMBER": {
-                "enum": ["number"],
-                "type": "string"
-            },
-            "DimensionType.DATE": {
-                "enum": ["date"],
-                "type": "string"
-            },
-            "DimensionType.TIMESTAMP": {
-                "enum": ["timestamp"],
-                "type": "string"
-            },
-            "DimensionType.BOOLEAN": {
-                "enum": ["boolean"],
-                "type": "string"
-            },
-            "FieldType.DIMENSION": {
-                "enum": ["dimension"],
-                "type": "string"
-            },
-            "Record_string.string-or-string-Array_": {
-                "properties": {},
-                "additionalProperties": {
-                    "anyOf": [
-                        {
-                            "type": "string"
-                        },
-                        {
-                            "items": {
-                                "type": "string"
-                            },
-                            "type": "array"
-                        }
-                    ]
-                },
-                "type": "object",
-                "description": "Construct a type with a set of properties K of type T"
-            },
-            "FieldType": {
-                "enum": ["metric", "dimension"],
-                "type": "string"
-            },
-            "SourcePosition": {
-                "properties": {
-                    "character": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "line": {
-                        "type": "number",
-                        "format": "double"
-                    }
-                },
-                "required": ["character", "line"],
-                "type": "object"
-            },
-            "Source": {
-                "properties": {
-                    "content": {
-                        "type": "string"
-                    },
-                    "highlight": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "range": {
-                        "properties": {
-                            "end": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            },
-                            "start": {
-                                "$ref": "#/components/schemas/SourcePosition"
-                            }
-                        },
-                        "required": ["end", "start"],
-                        "type": "object"
-                    },
-                    "path": {
-                        "type": "string"
-                    }
-                },
-                "required": ["content", "range", "path"],
-                "type": "object"
-            },
-            "FieldUrl": {
-                "properties": {
-                    "label": {
-                        "type": "string"
-                    },
-                    "url": {
-                        "type": "string"
-                    }
-                },
-                "required": ["label", "url"],
-                "type": "object"
-            },
-            "FilterableDimension": {
-                "properties": {
-                    "fieldType": {
-                        "$ref": "#/components/schemas/FieldType.DIMENSION"
-                    },
-                    "type": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/DimensionType.STRING"
-                            },
-                            {
-                                "$ref": "#/components/schemas/DimensionType.NUMBER"
-                            },
-                            {
-                                "$ref": "#/components/schemas/DimensionType.DATE"
-                            },
-                            {
-                                "$ref": "#/components/schemas/DimensionType.TIMESTAMP"
-                            },
-                            {
-                                "$ref": "#/components/schemas/DimensionType.BOOLEAN"
-                            }
-                        ]
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "table": {
-                        "type": "string"
-                    },
-                    "tableLabel": {
-                        "type": "string"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/Source"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "format": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/Format"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ]
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
-                    },
-                    "groupLabel": {
-                        "type": "string",
-                        "deprecated": true
-                    },
-                    "groups": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "urls": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldUrl"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "parameterReferences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "group": {
-                        "type": "string",
-                        "deprecated": true
-                    },
-                    "requiredAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                    },
-                    "anyAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                    },
-                    "timeInterval": {
-                        "$ref": "#/components/schemas/TimeFrames"
-                    },
-                    "timeIntervalBaseDimensionName": {
-                        "type": "string"
-                    },
-                    "timeIntervalBaseDimensionType": {
-                        "$ref": "#/components/schemas/DimensionType"
-                    },
-                    "customTimeInterval": {
-                        "type": "string"
-                    },
-                    "isAdditionalDimension": {
-                        "type": "boolean"
-                    },
-                    "skipTimezoneConversion": {
-                        "type": "boolean"
-                    },
-                    "colors": {
-                        "$ref": "#/components/schemas/Record_string.string_"
-                    },
-                    "isIntervalBase": {
-                        "type": "boolean"
-                    },
-                    "aiHint": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        ]
-                    },
-                    "formatOptions": {
-                        "$ref": "#/components/schemas/CustomFormat"
-                    },
-                    "caseSensitive": {
-                        "type": "boolean"
-                    },
-                    "image": {
-                        "properties": {
-                            "fit": {
-                                "type": "string"
-                            },
-                            "height": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "width": {
-                                "type": "number",
-                                "format": "double"
-                            },
-                            "url": {
-                                "type": "string"
-                            }
-                        },
-                        "required": ["url"],
-                        "type": "object"
-                    },
-                    "richText": {
-                        "type": "string"
-                    },
-                    "spotlight": {
-                        "properties": {
-                            "segmentBy": {
-                                "type": "boolean"
-                            },
-                            "filterBy": {
-                                "type": "boolean"
-                            }
-                        },
-                        "type": "object"
-                    }
-                },
-                "required": [
-                    "fieldType",
-                    "type",
-                    "name",
-                    "label",
-                    "table",
-                    "tableLabel",
-                    "sql",
-                    "hidden"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "FieldType.METRIC": {
-                "enum": ["metric"],
-                "type": "string"
-            },
-            "DefaultTimeDimension": {
-                "properties": {
-                    "interval": {
-                        "$ref": "#/components/schemas/TimeFrames"
-                    },
-                    "field": {
-                        "type": "string"
-                    }
-                },
-                "required": ["interval", "field"],
-                "type": "object"
-            },
-            "Metric": {
-                "properties": {
-                    "fieldType": {
-                        "$ref": "#/components/schemas/FieldType.METRIC"
-                    },
-                    "type": {
-                        "$ref": "#/components/schemas/MetricType"
-                    },
-                    "name": {
-                        "type": "string"
-                    },
-                    "label": {
-                        "type": "string"
-                    },
-                    "table": {
-                        "type": "string"
-                    },
-                    "tableLabel": {
-                        "type": "string"
-                    },
-                    "sql": {
-                        "type": "string"
-                    },
-                    "description": {
-                        "type": "string"
-                    },
-                    "source": {
-                        "$ref": "#/components/schemas/Source"
-                    },
-                    "hidden": {
-                        "type": "boolean"
-                    },
-                    "compact": {
-                        "$ref": "#/components/schemas/CompactOrAlias"
-                    },
-                    "round": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "format": {
-                        "anyOf": [
-                            {
-                                "$ref": "#/components/schemas/Format"
-                            },
-                            {
-                                "type": "string"
-                            }
-                        ]
-                    },
-                    "separator": {
-                        "$ref": "#/components/schemas/NumberSeparator",
-                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
-                    },
-                    "groupLabel": {
-                        "type": "string",
-                        "deprecated": true
-                    },
-                    "groups": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "urls": {
-                        "items": {
-                            "$ref": "#/components/schemas/FieldUrl"
-                        },
-                        "type": "array"
-                    },
-                    "index": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "tags": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "parameterReferences": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "showUnderlyingValues": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "filters": {
-                        "items": {
-                            "$ref": "#/components/schemas/MetricFilterRule"
-                        },
-                        "type": "array"
-                    },
-                    "percentile": {
-                        "type": "number",
-                        "format": "double"
-                    },
-                    "distinctKeys": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "formatOptions": {
-                        "$ref": "#/components/schemas/CustomFormat"
-                    },
-                    "dimensionReference": {
-                        "type": "string"
-                    },
-                    "requiredAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                    },
-                    "anyAttributes": {
-                        "$ref": "#/components/schemas/Record_string.string-or-string-Array_"
-                    },
-                    "defaultTimeDimension": {
-                        "$ref": "#/components/schemas/DefaultTimeDimension"
-                    },
-                    "spotlight": {
-                        "properties": {
-                            "owner": {
-                                "type": "string"
-                            },
-                            "defaultFilter": {
-                                "$ref": "#/components/schemas/MetricFilterRule"
-                            },
-                            "defaultSegment": {
-                                "type": "string"
-                            },
-                            "segmentBy": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "filterBy": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "categories": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            },
-                            "visibility": {
-                                "type": "string",
-                                "enum": ["show", "hide"]
-                            }
-                        },
-                        "required": ["visibility"],
-                        "type": "object"
-                    },
-                    "drivers": {
-                        "items": {
-                            "type": "string"
-                        },
-                        "type": "array"
-                    },
-                    "aiHint": {
-                        "anyOf": [
-                            {
-                                "type": "string"
-                            },
-                            {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        ]
-                    },
-                    "richText": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "fieldType",
-                    "type",
-                    "name",
-                    "label",
-                    "table",
-                    "tableLabel",
-                    "sql",
-                    "hidden"
-                ],
-                "type": "object",
-                "additionalProperties": true
-            },
-            "DashboardAvailableFilters": {
-                "properties": {
-                    "savedQueryMetricFilters": {
-                        "$ref": "#/components/schemas/Record_string.number-Array_"
-                    },
-                    "allFilterableMetrics": {
-                        "items": {
-                            "$ref": "#/components/schemas/Metric"
-                        },
-                        "type": "array"
-                    },
-                    "allFilterableFields": {
-                        "items": {
-                            "$ref": "#/components/schemas/FilterableDimension"
-                        },
-                        "type": "array"
-                    },
-                    "savedQueryFilters": {
-                        "$ref": "#/components/schemas/Record_string.number-Array_"
-                    }
-                },
-                "required": [
-                    "savedQueryMetricFilters",
-                    "allFilterableMetrics",
-                    "allFilterableFields",
-                    "savedQueryFilters"
-                ],
-                "type": "object"
-            },
-            "ApiEmbedDashboardAvailableFiltersResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/DashboardAvailableFilters"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "SavedChartsInfoForDashboardAvailableFilters": {
-                "items": {
-                    "properties": {
-                        "savedChartUuid": {
-                            "type": "string"
-                        },
-                        "tileUuid": {
-                            "type": "string"
-                        }
-                    },
-                    "required": ["savedChartUuid", "tileUuid"],
-                    "type": "object"
-                },
-                "type": "array"
-            },
             "DbtModelJoinType": {
                 "type": "string",
                 "enum": ["inner", "full", "left", "right"]
@@ -8695,6 +8567,12 @@
                 "additionalProperties": {
                     "anyOf": [
                         {
+                            "$ref": "#/components/schemas/Field"
+                        },
+                        {
+                            "$ref": "#/components/schemas/Metric"
+                        },
+                        {
                             "$ref": "#/components/schemas/TableCalculation"
                         },
                         {
@@ -8702,12 +8580,6 @@
                         },
                         {
                             "$ref": "#/components/schemas/CustomDimension"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Metric"
-                        },
-                        {
-                            "$ref": "#/components/schemas/Field"
                         }
                     ]
                 },
@@ -8798,16 +8670,16 @@
                 "additionalProperties": {
                     "anyOf": [
                         {
-                            "$ref": "#/components/schemas/TableCalculation"
-                        },
-                        {
-                            "$ref": "#/components/schemas/CustomDimension"
+                            "$ref": "#/components/schemas/Field"
                         },
                         {
                             "$ref": "#/components/schemas/Metric"
                         },
                         {
-                            "$ref": "#/components/schemas/Field"
+                            "$ref": "#/components/schemas/TableCalculation"
+                        },
+                        {
+                            "$ref": "#/components/schemas/CustomDimension"
                         }
                     ]
                 },
@@ -8867,9 +8739,6 @@
             },
             "Pick_ExecuteAsyncDashboardChartRequestParams.dashboardFilters-or-dashboardSorts-or-pivotResults-or-invalidateCache-or-dateZoom-or-parameters-or-limit_": {
                 "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
                     "dashboardFilters": {
                         "$ref": "#/components/schemas/DashboardFilters"
                     },
@@ -8887,6 +8756,9 @@
                     },
                     "dateZoom": {
                         "$ref": "#/components/schemas/DateZoom"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
                     },
                     "limit": {
                         "type": "number",
@@ -9493,9 +9365,6 @@
             },
             "Pick_ExecuteAsyncDashboardSqlChartRequestParams.dashboardFilters-or-dashboardSorts-or-invalidateCache-or-parameters-or-limit_": {
                 "properties": {
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap"
-                    },
                     "dashboardFilters": {
                         "$ref": "#/components/schemas/DashboardFilters"
                     },
@@ -9507,6 +9376,9 @@
                     },
                     "invalidateCache": {
                         "type": "boolean"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap"
                     },
                     "limit": {
                         "type": "number",
@@ -24403,44 +24275,6 @@
                     "uuid": {
                         "type": "string"
                     },
-                    "tableName": {
-                        "type": "string",
-                        "description": "The explore/table name this chart queries from"
-                    },
-                    "metricQuery": {
-                        "$ref": "#/components/schemas/MetricQuery",
-                        "description": "The query configuration defining what data to fetch"
-                    },
-                    "pivotConfig": {
-                        "properties": {
-                            "columns": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columns"],
-                        "type": "object",
-                        "description": "Pivot table configuration"
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig",
-                        "description": "Visualization configuration for the chart"
-                    },
-                    "tableConfig": {
-                        "properties": {
-                            "columnOrder": {
-                                "items": {
-                                    "type": "string"
-                                },
-                                "type": "array"
-                            }
-                        },
-                        "required": ["columnOrder"],
-                        "type": "object",
-                        "description": "Table view configuration"
-                    },
                     "parameters": {
                         "$ref": "#/components/schemas/ParametersValuesMap",
                         "description": "Parameter values for the chart query"
@@ -24462,6 +24296,10 @@
                         "type": "string",
                         "format": "date-time",
                         "description": "Timestamp when the chart was last updated"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
                     },
                     "spaceUuid": {
                         "type": "string"
@@ -24509,6 +24347,40 @@
                         "type": "object",
                         "nullable": true
                     },
+                    "tableName": {
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "description": "Pivot table configuration"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object",
+                        "description": "Table view configuration"
+                    },
                     "dashboardName": {
                         "type": "string",
                         "nullable": true
@@ -24530,19 +24402,19 @@
                     "projectUuid",
                     "organizationUuid",
                     "uuid",
-                    "tableName",
-                    "metricQuery",
-                    "chartConfig",
-                    "tableConfig",
                     "pinnedListUuid",
                     "pinnedListOrder",
                     "slug",
                     "updatedAt",
+                    "chartConfig",
                     "spaceUuid",
                     "dashboardUuid",
                     "verification",
                     "spaceName",
                     "colorPaletteUuid",
+                    "tableName",
+                    "metricQuery",
+                    "tableConfig",
                     "dashboardName",
                     "colorPalette",
                     "resolvedColorPalette"
@@ -28514,6 +28386,123 @@
                 "required": ["results", "status"],
                 "type": "object"
             },
+            "Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_": {
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Optional description of what this chart displays"
+                    },
+                    "name": {
+                        "type": "string",
+                        "description": "Display name of the chart"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
+                    },
+                    "tableName": {
+                        "type": "string",
+                        "description": "The explore/table name this chart queries from"
+                    },
+                    "metricQuery": {
+                        "$ref": "#/components/schemas/MetricQuery",
+                        "description": "The query configuration defining what data to fetch"
+                    },
+                    "pivotConfig": {
+                        "properties": {
+                            "columns": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columns"],
+                        "type": "object",
+                        "description": "Pivot table configuration"
+                    },
+                    "tableConfig": {
+                        "properties": {
+                            "columnOrder": {
+                                "items": {
+                                    "type": "string"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "required": ["columnOrder"],
+                        "type": "object",
+                        "description": "Table view configuration"
+                    }
+                },
+                "required": [
+                    "name",
+                    "chartConfig",
+                    "tableName",
+                    "metricQuery",
+                    "tableConfig"
+                ],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "CreateChartBase": {
+                "$ref": "#/components/schemas/Pick_SavedChart.name-or-description-or-tableName-or-metricQuery-or-pivotConfig-or-chartConfig-or-tableConfig-or-parameters_"
+            },
+            "CreateChartInSpace": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateChartBase"
+                    },
+                    {
+                        "properties": {
+                            "dashboardUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "spaceUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ]
+            },
+            "CreateChartInDashboard": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateChartBase"
+                    },
+                    {
+                        "properties": {
+                            "spaceUuid": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "dashboardUuid": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["dashboardUuid"],
+                        "type": "object"
+                    }
+                ]
+            },
+            "CreateSavedChart": {
+                "anyOf": [
+                    {
+                        "$ref": "#/components/schemas/CreateChartInSpace"
+                    },
+                    {
+                        "$ref": "#/components/schemas/CreateChartInDashboard"
+                    }
+                ]
+            },
             "CreateDashboardWithCharts": {
                 "properties": {
                     "charts": {
@@ -28788,6 +28777,18 @@
                         "type": "string",
                         "description": "Display name of the chart"
                     },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
+                    },
+                    "chartConfig": {
+                        "$ref": "#/components/schemas/ChartConfig",
+                        "description": "Visualization configuration for the chart"
+                    },
                     "tableName": {
                         "type": "string",
                         "description": "The explore/table name this chart queries from"
@@ -28804,21 +28805,9 @@
                         "required": ["columns"],
                         "type": "object",
                         "description": "Pivot table configuration"
-                    },
-                    "chartConfig": {
-                        "$ref": "#/components/schemas/ChartConfig",
-                        "description": "Visualization configuration for the chart"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for the chart query"
-                    },
-                    "slug": {
-                        "type": "string",
-                        "description": "Unique identifier slug for this chart"
                     }
                 },
-                "required": ["name", "tableName", "chartConfig", "slug"],
+                "required": ["name", "slug", "chartConfig", "tableName"],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
@@ -29801,6 +29790,33 @@
                         "type": "string",
                         "description": "Display name of the chart"
                     },
+                    "parameters": {
+                        "$ref": "#/components/schemas/ParametersValuesMap",
+                        "description": "Parameter values for the chart query"
+                    },
+                    "slug": {
+                        "type": "string",
+                        "description": "Unique identifier slug for this chart"
+                    },
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
+                    },
+                    "version": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Schema version for this chart configuration"
+                    },
+                    "verification": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ContentVerificationInfo"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
+                    },
                     "tableName": {
                         "type": "string",
                         "description": "The explore/table name this chart queries from"
@@ -29847,33 +29863,6 @@
                         "type": "object",
                         "description": "Table configuration. Defaults to empty column order if omitted."
                     },
-                    "parameters": {
-                        "$ref": "#/components/schemas/ParametersValuesMap",
-                        "description": "Parameter values for the chart query"
-                    },
-                    "slug": {
-                        "type": "string",
-                        "description": "Unique identifier slug for this chart"
-                    },
-                    "updatedAt": {
-                        "type": "string",
-                        "format": "date-time",
-                        "description": "Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted."
-                    },
-                    "version": {
-                        "type": "number",
-                        "format": "double",
-                        "description": "Schema version for this chart configuration"
-                    },
-                    "verification": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ContentVerificationInfo"
-                            }
-                        ],
-                        "nullable": true,
-                        "description": "Detailed verification info (who/when). Read-only; ignored on upload."
-                    },
                     "dashboardSlug": {
                         "type": "string",
                         "description": "Slug of the dashboard this chart belongs to (if any)"
@@ -29898,10 +29887,10 @@
                 },
                 "required": [
                     "name",
-                    "tableName",
-                    "metricQuery",
                     "slug",
                     "version",
+                    "tableName",
+                    "metricQuery",
                     "spaceSlug"
                 ],
                 "type": "object",
@@ -33889,12 +33878,6 @@
                     "type": {
                         "$ref": "#/components/schemas/ExploreType"
                     },
-                    "label": {
-                        "type": "string"
-                    },
-                    "parameters": {
-                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
-                    },
                     "spotlight": {
                         "properties": {
                             "owner": {
@@ -33913,6 +33896,12 @@
                         },
                         "required": ["visibility"],
                         "type": "object"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "parameters": {
+                        "$ref": "#/components/schemas/Record_string.LightdashProjectParameter_"
                     },
                     "tags": {
                         "items": {

@@ -248,7 +248,7 @@ const SaveChartButton: FC<{
                     forceSpaceOrDashboardChoice={isSaveAsModal}
                     isSaveAs={isSaveAsModal}
                     redirectOnSuccess={!isEmbedded}
-                    useEmbedEndpoint={isEmbedded}
+                    showViewChartAction={!isEmbedded}
                     forcedSpaceUuid={
                         isEmbedded
                             ? embed.modifiableActions?.spaceUuid

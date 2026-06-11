@@ -29,7 +29,7 @@ interface ChartCreateModalProps extends Pick<
      */
     isSaveAs?: boolean;
     redirectOnSuccess?: boolean;
-    useEmbedEndpoint?: boolean;
+    showViewChartAction?: boolean;
     forcedSpaceUuid?: string;
 }
 
@@ -48,7 +48,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     forceSpaceOrDashboardChoice = false,
     isSaveAs = false,
     redirectOnSuccess = true,
-    useEmbedEndpoint = false,
+    showViewChartAction = true,
     forcedSpaceUuid,
 }) => {
     // Store it in the state to avoid losing the param when the user switches between tables
@@ -132,7 +132,7 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     originatingDashboard={originatingDashboard}
                     chartMetadata={chartMetadata}
                     redirectOnSuccess={redirectOnSuccess}
-                    useEmbedEndpoint={useEmbedEndpoint}
+                    showViewChartAction={showViewChartAction}
                 />
             )}
         </MantineModal>

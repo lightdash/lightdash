@@ -1,10 +1,14 @@
 import {
+    assertEmbeddedAuth,
+    ForbiddenError,
     getObjectValue,
     getRequestMethod,
     LightdashRequestMethodHeader,
     NotFoundError,
     ProjectCatalog,
     TablesConfiguration,
+    type CreateSavedChart,
+    type SessionUser,
 } from '@lightdash/common';
 import express, { type Router } from 'express';
 import path from 'path';
@@ -17,6 +21,94 @@ import {
 const fs = require('fs');
 
 export const projectRouter: Router = express.Router({ mergeParams: true });
+
+const getSessionUser = (req: express.Request): SessionUser => {
+    if (!req.user) {
+        throw new ForbiddenError('User is required');
+    }
+    return req.user;
+};
+
+const getCreateSavedChartContext = async (
+    req: express.Request,
+    projectUuid: string,
+): Promise<{ actor: SessionUser; savedChart: CreateSavedChart }> => {
+    if (req.account?.authentication.type !== 'jwt') {
+        return {
+            actor: getSessionUser(req),
+            savedChart: req.body as CreateSavedChart,
+        };
+    }
+
+    assertEmbeddedAuth(req.account);
+
+    if (projectUuid !== req.account.embed.projectUuid) {
+        throw new ForbiddenError(
+            'Embed token cannot create charts in this project',
+        );
+    }
+
+    const { modifiableActions } = req.account.authentication.data;
+    const actorUserUuid =
+        modifiableActions?.userUuid ??
+        modifiableActions?.serviceAccountUserUuid;
+
+    if (!modifiableActions?.spaceUuid || !actorUserUuid) {
+        throw new ForbiddenError(
+            'Embed token does not allow modifiable actions',
+        );
+    }
+
+    const userService = req.services.getUserService();
+    const actor = await userService.getSessionByUserUuidAndOrg(
+        actorUserUuid,
+        req.account.embed.organization.organizationUuid,
+    );
+
+    if (modifiableActions.userUuid !== undefined) {
+        if (!actor.isActive) {
+            throw new ForbiddenError(
+                'Embed token actor is not active for this organization',
+            );
+        }
+
+        return {
+            actor,
+            savedChart: {
+                ...(req.body as CreateSavedChart),
+                dashboardUuid: undefined,
+                spaceUuid: modifiableActions.spaceUuid,
+            },
+        };
+    }
+
+    const serviceAccount =
+        await userService.findServiceAccountByUserUuid(actorUserUuid);
+    if (
+        serviceAccount === undefined ||
+        serviceAccount.organizationUuid !==
+            req.account.embed.organization.organizationUuid
+    ) {
+        throw new ForbiddenError(
+            'Embed token service account is not valid for this organization',
+        );
+    }
+
+    return {
+        actor: {
+            ...actor,
+            serviceAccount: {
+                uuid: serviceAccount.uuid,
+                description: serviceAccount.description,
+            },
+        },
+        savedChart: {
+            ...(req.body as CreateSavedChart),
+            dashboardUuid: undefined,
+            spaceUuid: modifiableActions.spaceUuid,
+        },
+    };
+};
 
 projectRouter.patch(
     '/',
@@ -157,37 +249,47 @@ projectRouter.post(
     isAuthenticated,
     unauthorisedInDemo,
     async (req, res, next) => {
-        const savedChartsService = req.services.getSavedChartService();
+        try {
+            const savedChartsService = req.services.getSavedChartService();
+            const projectUuid = getObjectValue(req.params, 'projectUuid');
 
-        if (req.query.duplicateFrom) {
-            savedChartsService
-                .duplicate(
-                    req.user!,
-                    getObjectValue(req.params, 'projectUuid'),
+            if (req.query.duplicateFrom) {
+                if (req.account?.authentication.type === 'jwt') {
+                    throw new ForbiddenError(
+                        'Embed token cannot duplicate charts',
+                    );
+                }
+
+                const results = await savedChartsService.duplicate(
+                    getSessionUser(req),
+                    projectUuid,
                     req.query.duplicateFrom.toString(),
                     req.body,
-                )
-                .then((results) => {
-                    res.json({
-                        status: 'ok',
-                        results,
-                    });
-                })
-                .catch(next);
-        } else {
-            savedChartsService
-                .create(
-                    req.user!,
-                    getObjectValue(req.params, 'projectUuid'),
-                    req.body,
-                )
-                .then((results) => {
-                    res.json({
-                        status: 'ok',
-                        results,
-                    });
-                })
-                .catch(next);
+                );
+
+                res.json({
+                    status: 'ok',
+                    results,
+                });
+                return;
+            }
+
+            const { actor, savedChart } = await getCreateSavedChartContext(
+                req,
+                projectUuid,
+            );
+            const results = await savedChartsService.create(
+                actor,
+                projectUuid,
+                savedChart,
+            );
+
+            res.json({
+                status: 'ok',
+                results,
+            });
+        } catch (error) {
+            next(error);
         }
     },
 );

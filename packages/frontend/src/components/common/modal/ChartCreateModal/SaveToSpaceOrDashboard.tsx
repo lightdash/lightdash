@@ -94,7 +94,7 @@ type Props = {
     forcedSpaceUuid?: string | undefined;
     chartMetadata?: ChartMetadata;
     redirectOnSuccess?: boolean;
-    useEmbedEndpoint?: boolean;
+    showViewChartAction?: boolean;
 };
 
 export const SaveToSpaceOrDashboard: FC<Props> = ({
@@ -108,14 +108,14 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     forcedSpaceUuid,
     chartMetadata = DEFAULT_CHART_METADATA,
     redirectOnSuccess = true,
-    useEmbedEndpoint = false,
+    showViewChartAction = true,
 }) => {
     const { user } = useApp();
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
 
     const { mutateAsync: createChart, isLoading: isSavingChart } =
-        useCreateMutation({ redirectOnSuccess, useEmbedEndpoint });
+        useCreateMutation({ redirectOnSuccess, showViewChartAction });
 
     const {
         clearIsEditingDashboardChart,
