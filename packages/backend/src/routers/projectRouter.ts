@@ -29,6 +29,23 @@ const getSessionUser = (req: express.Request): SessionUser => {
     return req.user;
 };
 
+const assertEmbedTargetSpace = async (
+    req: express.Request,
+    actor: SessionUser,
+    projectUuid: string,
+    spaceUuid: string,
+) => {
+    const spaceAccessContext = await req.services
+        .getSpacePermissionService()
+        .getSpaceAccessContext(actor.userUuid, spaceUuid);
+
+    if (spaceAccessContext.projectUuid !== projectUuid) {
+        throw new ForbiddenError(
+            'Embed token cannot create charts in this space',
+        );
+    }
+};
+
 const getCreateSavedChartContext = async (
     req: express.Request,
     projectUuid: string,
@@ -56,6 +73,12 @@ const getCreateSavedChartContext = async (
         throw new ForbiddenError('Embed token does not allow write actions');
     }
 
+    const savedChart = {
+        ...(req.body as CreateSavedChart),
+        dashboardUuid: undefined,
+        spaceUuid: writeActions.spaceUuid,
+    };
+
     const userService = req.services.getUserService();
     const actor = await userService.getSessionByUserUuidAndOrg(
         actorUserUuid,
@@ -69,13 +92,16 @@ const getCreateSavedChartContext = async (
             );
         }
 
+        await assertEmbedTargetSpace(
+            req,
+            actor,
+            projectUuid,
+            writeActions.spaceUuid,
+        );
+
         return {
             actor,
-            savedChart: {
-                ...(req.body as CreateSavedChart),
-                dashboardUuid: undefined,
-                spaceUuid: writeActions.spaceUuid,
-            },
+            savedChart,
         };
     }
 
@@ -91,6 +117,13 @@ const getCreateSavedChartContext = async (
         );
     }
 
+    await assertEmbedTargetSpace(
+        req,
+        actor,
+        projectUuid,
+        writeActions.spaceUuid,
+    );
+
     return {
         actor: {
             ...actor,
@@ -99,11 +132,7 @@ const getCreateSavedChartContext = async (
                 description: serviceAccount.description,
             },
         },
-        savedChart: {
-            ...(req.body as CreateSavedChart),
-            dashboardUuid: undefined,
-            spaceUuid: writeActions.spaceUuid,
-        },
+        savedChart,
     };
 };
 

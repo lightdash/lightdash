@@ -72,7 +72,7 @@ const WRITABLE_SERVICE_ACCOUNT_SCOPES = [
     ServiceAccountScope.ORG_EDIT,
 ];
 
-const MODIFIABLE_ACTIONS = [
+const WRITE_ACTIONS = [
     {
         label: 'Scheduled deliveries',
         description: 'Create and manage delivery schedules from embedded views',
@@ -441,7 +441,7 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                         <Text size="sm" fw={500}>
                             Write actions covered
                         </Text>
-                        {MODIFIABLE_ACTIONS.map((action) => (
+                        {WRITE_ACTIONS.map((action) => (
                             <Group key={action.label} gap="sm" wrap="nowrap">
                                 <ThemeIcon variant="light" color="blue">
                                     <MantineIcon icon={action.icon} />
