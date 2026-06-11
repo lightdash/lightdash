@@ -97,6 +97,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                         commitSha: commitSha ?? null,
                         additions: additions ?? null,
                         deletions: deletions ?? null,
+                        previewUrl: previewUrl ?? null,
                         steps,
                     },
                 };

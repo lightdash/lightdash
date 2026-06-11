@@ -48,6 +48,11 @@ export const toolEditDbtProjectOutputSchema = z.object({
             // card. Nullish for back-compat and no-commit turns.
             additions: z.number().nullish(),
             deletions: z.number().nullish(),
+            // Lightdash preview-environment URL, generated server-side for the
+            // PR and surfaced as the card's "View preview" button. Nullish: the
+            // run made no preview (non-GitHub, or creation failed) or the row
+            // predates this field. Replaces the old PR-comment scraping.
+            previewUrl: z.string().nullish(),
             // Ordered actions the sandbox took, surfaced as persistent step
             // rows under the writeback tool call. Generic shape (kind + label)
             // so the chat UI can group/render them without writeback knowledge.

@@ -3,12 +3,10 @@ import {
     Box,
     Button,
     Group,
-    Loader,
     Paper,
     Stack,
     Text,
     ThemeIcon,
-    Tooltip,
 } from '@mantine-8/core';
 import {
     IconAlertTriangle,
@@ -17,26 +15,18 @@ import {
     IconExternalLink,
     IconEye,
     IconGitPullRequest,
-    IconInfoCircle,
     IconSettings,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { useProjectCiStatus } from '../../../hooks/useProjectCiStatus';
-import {
-    isPreviewWaitTimedOut,
-    usePullRequestPreview,
-} from '../../../hooks/usePullRequestPreview';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 
 type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
     projectUuid: string;
-    /** When the write-back PR was opened — anchors the ~10 min preview wait. */
-    prCreatedAt: string;
     /**
      * True when this card belongs to a `setupPreviewDeploy` PR (one that adds
      * the preview-deploy workflow) rather than a data-change `editDbtProject`
@@ -116,30 +106,8 @@ const InstallAppButton: FC<{
 export const AiEditDbtProjectToolCall: FC<Props> = ({
     metadata,
     projectUuid,
-    prCreatedAt,
     isPreviewDeploySetup,
 }) => {
-    const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
-
-    // Does this project's repo deploy Lightdash previews? `false` means it was
-    // scanned and has no preview workflow; `undefined`/null means unknown.
-    const { data: ciStatus } = useProjectCiStatus(projectUuid);
-    const previewDeployConfigured = ciStatus?.hasPreviewDeployWorkflow;
-
-    // Only wait for a preview URL when one is actually expected — poll unless we
-    // positively know the repo has no preview workflow (avoids polling forever
-    // on repos that never produce a preview). The poll also stops ~10 min after
-    // the PR was opened. A preview-deploy *setup* PR never previews itself, so
-    // never poll for one.
-    const { data: preview } = usePullRequestPreview(
-        projectUuid,
-        isPreviewDeploySetup || previewDeployConfigured === false
-            ? null
-            : prUrl,
-        prCreatedAt,
-    );
-    const previewTimedOut = isPreviewWaitTimedOut(prCreatedAt);
-
     if (metadata.status === 'error') {
         // When the project just needs its git app installed, the agent's reply
         // already explains it — surface only the one-click install action.
@@ -336,10 +304,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         </Stack>
                     </Group>
                     <Box className={styles.actions}>
-                        {isPreviewDeploySetup ? null : preview?.previewUrl ? (
+                        {/* Preview URL is generated server-side during the run
+                            and carried in the tool metadata — no PR-comment
+                            lookup. A setup PR never previews itself. */}
+                        {!isPreviewDeploySetup && metadata.previewUrl && (
                             <Button
                                 component="a"
-                                href={preview.previewUrl}
+                                href={metadata.previewUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 variant="default"
@@ -350,39 +321,7 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             >
                                 View preview
                             </Button>
-                        ) : previewDeployConfigured && !previewTimedOut ? (
-                            // A preview deploy is configured but its URL hasn't been
-                            // posted yet — surface that it's on the way rather than
-                            // showing nothing.
-                            <Button
-                                variant="default"
-                                size="compact-sm"
-                                disabled
-                                leftSection={<Loader size={14} />}
-                            >
-                                Preparing preview…
-                            </Button>
-                        ) : previewDeployConfigured && previewTimedOut ? (
-                            // Configured but no preview URL after ~10 min — the
-                            // deploy likely failed or was skipped. Tell the user
-                            // rather than spinning forever.
-                            <Tooltip
-                                withinPortal
-                                multiline
-                                w={220}
-                                label="The preview deploy didn't post a URL within 10 minutes. It may have failed or been skipped — check the pull request."
-                            >
-                                <Group gap={4} wrap="nowrap" c="ldGray.6">
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        size={14}
-                                    />
-                                    <Text size="xs" c="ldGray.6">
-                                        Preview didn't appear
-                                    </Text>
-                                </Group>
-                            </Tooltip>
-                        ) : null}
+                        )}
                         <Button
                             component="a"
                             href={metadata.prUrl}
