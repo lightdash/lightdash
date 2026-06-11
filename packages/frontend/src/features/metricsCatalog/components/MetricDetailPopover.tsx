@@ -8,6 +8,7 @@ import {
 import {
     Badge,
     Box,
+    Button,
     Divider,
     Group,
     HoverCard,
@@ -20,6 +21,7 @@ import { Prism } from '@mantine/prism';
 import { IconCode, IconTable } from '@tabler/icons-react';
 import { useState, type FC, type ReactNode } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useExploreMetric } from '../hooks/useExploreMetric';
 import { useMetric } from '../hooks/useMetricsCatalog';
 import { useCompileMetricTotalQuery } from '../hooks/useRunMetricExplorerQuery';
 import classes from './MetricDetailPopover.module.css';
@@ -116,6 +118,8 @@ const CompiledQuerySection: FC<{
 
 type MetricDetailContentProps = {
     metric: MetricWithAssociatedTimeDimension;
+    tableName: string;
+    metricName: string;
     projectUuid: string;
     compiledQueryConfig?: CompiledQueryConfig;
     isOpen: boolean;
@@ -123,10 +127,13 @@ type MetricDetailContentProps = {
 
 const MetricDetailContent: FC<MetricDetailContentProps> = ({
     metric,
+    tableName,
+    metricName,
     projectUuid,
     compiledQueryConfig,
     isOpen,
 }) => {
+    const exploreMetric = useExploreMetric();
     const [showCompiled, setShowCompiled] = useState(false);
     const sqlToShow = showCompiled ? metric.compiledSql : metric.sql;
 
@@ -208,6 +215,15 @@ const MetricDetailContent: FC<MetricDetailContentProps> = ({
                     isOpen={isOpen}
                 />
             )}
+
+            <Button
+                variant="dark"
+                size="xs"
+                fullWidth
+                onClick={() => exploreMetric({ tableName, metricName })}
+            >
+                Explore
+            </Button>
         </Stack>
     );
 };
@@ -252,6 +268,8 @@ export const MetricDetailPopover: FC<Props> = ({
                 {metric && (
                     <MetricDetailContent
                         metric={metric}
+                        tableName={tableName}
+                        metricName={metricName}
                         projectUuid={projectUuid}
                         compiledQueryConfig={compiledQueryConfig}
                         isOpen={opened}
