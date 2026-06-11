@@ -1010,6 +1010,124 @@ export const getCommitDiff = async ({
     }
 };
 
+const PR_DIFF_MAX_FILES = 20;
+const PR_DIFF_MAX_FILE_BYTES = 200_000;
+
+export type PullRequestDiffFile = {
+    path: string;
+    status: string;
+    additions: number;
+    deletions: number;
+    before: string;
+    after: string;
+};
+
+// Structured per-file before/after contents — used for side-by-side diff
+// rendering, unlike getPullRequestDiff which returns the raw unified diff.
+export const getPullRequestDiffFiles = async ({
+    owner,
+    repo,
+    pullNumber,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    installationId?: string;
+    token?: string;
+}): Promise<{
+    files: PullRequestDiffFile[];
+    totalAdditions: number;
+    totalDeletions: number;
+    truncated: boolean;
+}> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const pr = await octokit.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            headers,
+        });
+        const baseSha = pr.data.base.sha;
+        const headSha = pr.data.head.sha;
+
+        const filesResponse = await octokit.rest.pulls.listFiles({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            per_page: 100,
+            headers,
+        });
+
+        const allFiles = filesResponse.data;
+        const includedFiles = allFiles.slice(0, PR_DIFF_MAX_FILES);
+
+        const fetchContents = async (
+            path: string,
+            ref: string,
+        ): Promise<string> => {
+            try {
+                const response = await octokit.rest.repos.getContent({
+                    owner,
+                    repo,
+                    path,
+                    ref,
+                    headers,
+                });
+                if (
+                    !Array.isArray(response.data) &&
+                    response.data.type === 'file' &&
+                    'content' in response.data
+                ) {
+                    const content = Buffer.from(
+                        response.data.content,
+                        'base64',
+                    ).toString('utf-8');
+                    return content.length > PR_DIFF_MAX_FILE_BYTES
+                        ? `${content.slice(0, PR_DIFF_MAX_FILE_BYTES)}\n… (truncated)`
+                        : content;
+                }
+                return '';
+            } catch {
+                // Missing on this ref (added/removed file) — empty side.
+                return '';
+            }
+        };
+
+        const files = await Promise.all(
+            includedFiles.map(async (file) => {
+                const isAdded = file.status === 'added';
+                const isRemoved = file.status === 'removed';
+                const beforePath = file.previous_filename ?? file.filename;
+                const [before, after] = await Promise.all([
+                    isAdded ? '' : fetchContents(beforePath, baseSha),
+                    isRemoved ? '' : fetchContents(file.filename, headSha),
+                ]);
+                return {
+                    path: file.filename,
+                    status: file.status,
+                    additions: file.additions,
+                    deletions: file.deletions,
+                    before,
+                    after,
+                };
+            }),
+        );
+
+        return {
+            files,
+            totalAdditions: allFiles.reduce((acc, f) => acc + f.additions, 0),
+            totalDeletions: allFiles.reduce((acc, f) => acc + f.deletions, 0),
+            truncated: allFiles.length > includedFiles.length,
+        };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export const createPullRequestComment = async ({
     owner,
     repo,

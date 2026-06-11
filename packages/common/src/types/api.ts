@@ -11,6 +11,7 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
+    ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
@@ -1096,6 +1097,7 @@ type ApiResults =
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
+    | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']

@@ -656,6 +656,26 @@ export type AiAgentReviewItemWritebackPreview =
 export type ApiAiAgentReviewItemWritebackPreviewResponse =
     ApiSuccess<AiAgentReviewItemWritebackPreview>;
 
+export type AiAgentReviewItemPrDiffFile = {
+    path: string;
+    status: string;
+    additions: number;
+    deletions: number;
+    before: string;
+    after: string;
+};
+
+export type AiAgentReviewItemPrDiff = {
+    prUrl: string;
+    files: AiAgentReviewItemPrDiffFile[];
+    totalAdditions: number;
+    totalDeletions: number;
+    truncated: boolean;
+};
+
+export type ApiAiAgentReviewItemPrDiffResponse =
+    ApiSuccess<AiAgentReviewItemPrDiff>;
+
 export type AiAgentReviewSignalSummary = {
     uuid: string;
     runUuid: string;

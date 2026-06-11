@@ -65,7 +65,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
         current.remediation?.previewProjectUuid &&
         current.remediation.previewAgentUuid &&
         current.remediation.previewThreadUuid
-            ? `/projects/${current.remediation.previewProjectUuid}/ai-agents/${current.remediation.previewAgentUuid}/threads/${current.remediation.previewThreadUuid}?reviewItem=${encodeURIComponent(current.fingerprint)}`
+            ? `/projects/${current.remediation.previewProjectUuid}/ai-agents/${current.remediation.previewAgentUuid}/threads/${current.remediation.previewThreadUuid}`
             : null;
     const remediationError =
         current.remediation?.status === 'failed'
