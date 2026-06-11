@@ -549,6 +549,7 @@ export class EmbedService extends BaseService {
             canExplore,
             canViewUnderlyingData,
             canViewDataApps,
+            stickyHeader,
         } = decodedToken.content;
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
@@ -595,6 +596,7 @@ export class EmbedService extends BaseService {
                 canExportImages,
                 canExportPagePdf: canExportPagePdf ?? true,
                 canDateZoom,
+                stickyHeader,
                 ...(account.access.filtering
                     ? {
                           dashboardFiltersInteractivity: {
@@ -621,6 +623,7 @@ export class EmbedService extends BaseService {
             canExplore,
             canViewUnderlyingData,
             canViewDataApps,
+            stickyHeader,
             selectedPalette,
         };
     }

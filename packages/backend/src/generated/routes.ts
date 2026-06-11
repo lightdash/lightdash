@@ -1834,6 +1834,7 @@ const models: TsoaRoute.Models = {
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
+                stickyHeader: { dataType: 'boolean' },
                 canViewDataApps: { dataType: 'boolean' },
                 canViewUnderlyingData: { dataType: 'boolean' },
                 canExplore: { dataType: 'boolean' },
