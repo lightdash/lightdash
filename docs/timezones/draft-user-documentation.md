@@ -268,12 +268,13 @@ For most schedules, the cleanest setup is:
 
 ## Embedded charts
 
-When you embed a Lightdash chart in another product, the embed has no user — there's no profile timezone to fall back to. Embedded charts use:
+When you embed a Lightdash chart in another product, the embed has no user — there's no profile timezone to fall back to. Embedded sessions resolve their timezone as:
 
-1. The chart's pin, if set.
-2. Otherwise, the project timezone.
+1. The `?timezone=<IANA>` param on the embed page URL, if present. This is a per-session override the host sets when building the URL (e.g. `…/embed/<projectUuid>?timezone=America/Los_Angeles#<token>`), and it wins over the chart pin.
+2. Otherwise, the chart's pin, if set.
+3. Otherwise, the project timezone.
 
-If you need an embed in a specific timezone, pin the chart explicitly before embedding.
+For multi-tenant embeds, set `?timezone=` per session to render each tenant in its own zone — you don't need a separate chart per timezone. An unrecognised timezone value is rejected rather than silently ignored.
 
 ## Custom SQL with `${ldQueryTimezone}`
 

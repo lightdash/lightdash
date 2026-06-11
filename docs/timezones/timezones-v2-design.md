@@ -138,8 +138,8 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
 27. **The schedule's cron TZ is separate from the query's TZ; they don't interact.**
     ✅ Structurally separate.
 
-28. **Scheduled-report queries resolve TZ via the schedule owner's profile; embed queries fall through to project.**
-    ✅ Implemented; ❌ `gap-schedule-doc` *[qol]* — not documented for customers.
+28. **Scheduled-report queries resolve TZ via the schedule owner's profile; embed queries fall through to project unless a `?timezone=` URL param sets a per-session override.**
+    ⚠️ Implemented (embed `?timezone=` session override per GLITCH-488); `gap-schedule-doc` *[qol]* — scheduled-delivery TZ interaction not documented for customers.
 
 ---
 
