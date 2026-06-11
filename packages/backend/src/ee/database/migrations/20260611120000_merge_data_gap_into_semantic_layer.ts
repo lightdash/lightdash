@@ -42,9 +42,10 @@ export async function up(knex: Knex): Promise<void> {
     // Relabel data_gap primary findings as semantic_layer — the durable fix lives
     // in the semantic layer and the writeback agent decides whether to expose the
     // data or report that upstream modeling is needed.
-    await knex(TURN_SIGNAL_TABLE)
-        .where('primary_root_cause', 'data_gap')
-        .update({ primary_root_cause: 'semantic_layer' });
+    await knex.raw(
+        `UPDATE ?? SET primary_root_cause = ? WHERE primary_root_cause = ?`,
+        [TURN_SIGNAL_TABLE, 'semantic_layer', 'data_gap'],
+    );
 
     // Collapse data_gap out of secondary_root_causes arrays, de-duplicating.
     await knex.raw(
