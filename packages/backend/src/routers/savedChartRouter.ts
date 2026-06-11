@@ -1,4 +1,8 @@
-import { getObjectValue } from '@lightdash/common';
+import {
+    ForbiddenError,
+    getObjectValue,
+    type SessionUser,
+} from '@lightdash/common';
 import express, { type Router } from 'express';
 import {
     allowApiKeyAuthentication,
@@ -7,6 +11,13 @@ import {
 } from '../controllers/authentication';
 
 export const savedChartRouter: Router = express.Router();
+
+const getSessionUser = (req: express.Request): SessionUser => {
+    if (!req.user) {
+        throw new ForbiddenError('User is required');
+    }
+    return req.user;
+};
 
 savedChartRouter.get(
     '/:savedQueryUuidOrSlug',
@@ -43,7 +54,7 @@ savedChartRouter.get(
         req.services
             .getSavedChartService()
             .getViewStats(
-                req.user!,
+                getSessionUser(req),
                 getObjectValue(req.params, 'savedQueryUuid'),
             )
             .then((results) => {
@@ -84,7 +95,10 @@ savedChartRouter.delete(
     async (req, res, next) => {
         req.services
             .getSavedChartService()
-            .delete(req.user!, getObjectValue(req.params, 'savedQueryUuid'))
+            .delete(
+                getSessionUser(req),
+                getObjectValue(req.params, 'savedQueryUuid'),
+            )
             .then(() => {
                 res.json({
                     status: 'ok',
@@ -104,7 +118,7 @@ savedChartRouter.patch(
         req.services
             .getSavedChartService()
             .update(
-                req.user!,
+                getSessionUser(req),
                 getObjectValue(req.params, 'savedQueryUuid'),
                 req.body,
             )
@@ -127,7 +141,7 @@ savedChartRouter.patch(
         req.services
             .getSavedChartService()
             .togglePinning(
-                req.user!,
+                getSessionUser(req),
                 getObjectValue(req.params, 'savedQueryUuid'),
             )
             .then((results) => {
@@ -149,7 +163,7 @@ savedChartRouter.post(
         req.services
             .getSavedChartService()
             .createVersion(
-                req.user!,
+                getSessionUser(req),
                 getObjectValue(req.params, 'savedQueryUuid'),
                 req.body,
             )

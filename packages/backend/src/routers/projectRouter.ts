@@ -298,7 +298,7 @@ projectRouter.patch(
         req.services
             .getSavedChartService()
             .updateMultiple(
-                req.user!,
+                getSessionUser(req),
                 getObjectValue(req.params, 'projectUuid'),
                 req.body,
             )
