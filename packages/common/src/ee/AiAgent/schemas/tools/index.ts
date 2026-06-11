@@ -19,6 +19,7 @@ export * from './toolDescribeWarehouseTableArgs';
 export * from './toolFindChartsArgs';
 export * from './toolGetKnowledgeDocumentContentArgs';
 export * from './toolListKnowledgeDocumentsArgs';
+export * from './toolReadPinnedThreadArgs';
 export * from './toolCreateContentArgs';
 export * from './toolListContentArgs';
 export * from './toolFindContentArgs';

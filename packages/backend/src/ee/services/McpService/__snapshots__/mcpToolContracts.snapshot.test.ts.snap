@@ -29,7 +29,8 @@ exports[`MCP tool contracts matches the current MCP tool and prompt contract sna
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
 6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
-7. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
 ## Critical Rules
 
@@ -204,15 +205,16 @@ Usage tips:
       "agentName": null,
       "description": "Tool: "findContent"
 Purpose:
-Finds charts or dashboards by name or description within a project, returning detailed information about each.
+Finds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.
 
 Usage tips:
 - IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns").
 - The search engine understands natural language and context — more descriptive queries yield better results.
 - You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
+- Pass spaceSlug to search only inside that space and its descendants.
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
-- Returns chart and dashboard URLs when available.
+- Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
       "inputSchema": {
@@ -235,6 +237,10 @@ Usage tips:
             },
             "type": "array",
           },
+          "spaceSlug": {
+            "description": "Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned., ",
+            "type": "string",
+          },
         },
         "required": [
           "searchQueries",
@@ -243,6 +249,278 @@ Usage tips:
       },
       "name": "find_content",
       "title": "Find content",
+    },
+    {
+      "agentName": null,
+      "description": "Tool: "listContent"
+Purpose:
+Lists accessible Lightdash content in a project as a browsable hierarchy.
+
+Usage tips:
+- By default, lists root-level spaces.
+- Pass a spaceSlug to list direct children and content inside that space.
+- Use page for pagination. Page starts at 1.
+- Results include names, slugs, content types, and space content counts.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "description": "Use this to paginate through the results. Starts at 1., ",
+            "exclusiveMinimum": 0,
+            "type": "number",
+          },
+          "spaceSlug": {
+            "description": "Optional space slug/path to list. Use null to list root-level content., ",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "list_content",
+      "title": "List content",
+    },
+    {
+      "agentName": null,
+      "description": "Read a dashboard or chart as JSON using its slug. Call this before editing.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "description": "Slug of the dashboard or chart to read.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "description": "Type of Lightdash content to read.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "type",
+        ],
+        "type": "object",
+      },
+      "name": "read_content",
+      "title": "Read content",
+    },
+    {
+      "agentName": null,
+      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "description": "Full Dashboard JSON to create.",
+                "properties": {
+                  "config": {},
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "description": ", ",
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "filters": {},
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "parameters": {},
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "tabs": {
+                    "items": {},
+                    "type": "array",
+                  },
+                  "tiles": {
+                    "items": {},
+                    "type": "array",
+                  },
+                  "updatedAt": {},
+                  "verification": {},
+                  "verified": {
+                    "type": "boolean",
+                  },
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "version",
+                  "contentType",
+                  "verified",
+                  "tiles",
+                  "tabs",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": true,
+                "description": "Full Chart JSON to create.",
+                "properties": {
+                  "chartConfig": {},
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "dashboardSlug": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "description": ", ",
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "metricQuery": {
+                    "additionalProperties": true,
+                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                    "properties": {
+                      "dimensions": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "exploreName": {},
+                      "filters": {},
+                      "limit": {},
+                      "metrics": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "sorts": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "tableCalculations": {
+                        "items": {},
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "dimensions",
+                      "metrics",
+                      "sorts",
+                      "tableCalculations",
+                    ],
+                    "type": "object",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "parameters": {},
+                  "pivotConfig": {},
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "tableConfig": {},
+                  "tableName": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "updatedAt": {},
+                  "verification": {},
+                  "verified": {
+                    "type": "boolean",
+                  },
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "version",
+                  "contentType",
+                  "verified",
+                  "tableName",
+                  "metricQuery",
+                  "dashboardSlug",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "type": {
+            "description": "Type of Lightdash content to create.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "type",
+          "content",
+        ],
+        "type": "object",
+      },
+      "name": "create_content",
+      "title": "Create content",
+    },
+    {
+      "agentName": null,
+      "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "patch": {
+            "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+            "items": {},
+            "type": "array",
+          },
+          "slug": {
+            "description": "Slug of the dashboard or chart to edit",
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "description": "Type of Lightdash content to edit",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "type",
+          "patch",
+        ],
+        "type": "object",
+      },
+      "name": "edit_content",
+      "title": "Edit content",
     },
     {
       "agentName": null,
@@ -7798,6 +8076,10 @@ exports[`MCP tool contracts matches the shared MCP tool definition names snapsho
   "run_sql",
   "get_query_result",
   "render_chart",
+  "read_content",
+  "edit_content",
+  "create_content",
+  "list_content",
   "get_lightdash_version",
   "list_explores",
   "list_skills",

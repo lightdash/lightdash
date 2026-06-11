@@ -93,7 +93,7 @@ describe('GitlabProvider.openPullRequest', () => {
         });
         const sandbox = fakeSandbox();
 
-        const url = await provider.openPullRequest({
+        const result = await provider.openPullRequest({
             sandbox: sandbox as never,
             connection,
             installation,
@@ -103,7 +103,7 @@ describe('GitlabProvider.openPullRequest', () => {
             setStage: jest.fn(),
         });
 
-        expect(url).toBe(
+        expect(result.prUrl).toBe(
             'https://gitlab.com/acme/analytics/-/merge_requests/42',
         );
         expect(sandbox.git.push).toHaveBeenCalledWith(

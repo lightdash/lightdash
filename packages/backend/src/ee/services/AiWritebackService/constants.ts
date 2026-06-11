@@ -1,6 +1,13 @@
 // Where the repo is cloned inside the sandbox, and where the agent runs.
 export const CWD = '/home/user/repo';
 
+// Each supported dbt version is installed in its own venv at
+// `${DBT_VENV_BIN_PREFIX}<X.Y>/bin` in the sandbox image (see
+// sandboxes/ai-writeback/e2b.Dockerfile). The compile wrapper prepends the
+// project's venv bin to PATH so the bare `dbt` the Lightdash CLI invokes
+// resolves to the project's configured version. See `dbtSandboxVenvBin`.
+export const DBT_VENV_BIN_PREFIX = '/usr/local/dbt';
+
 export const PROMPT_PATH = '/tmp/prompt.txt';
 export const SYSTEM_PROMPT_PATH = '/tmp/system_prompt.txt';
 

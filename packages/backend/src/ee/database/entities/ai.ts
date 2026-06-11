@@ -278,7 +278,7 @@ export type AiAgentToolResultTable = Knex.CompositeTableType<
 
 export const AiPromptContextTableName = 'ai_prompt_context';
 
-export type AiPromptContextEntityType = 'chart' | 'dashboard';
+export type AiPromptContextEntityType = 'chart' | 'dashboard' | 'thread';
 
 export type DbAiPromptContext = {
     ai_prompt_context_uuid: string;

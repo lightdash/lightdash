@@ -1,4 +1,5 @@
 import {
+    type ApiCreateServiceAccountRequest,
     type ApiError,
     type ServiceAccount,
     type ServiceAccountWithProjectAccessCount,
@@ -27,10 +28,10 @@ export const useServiceAccounts = () => {
     const createAccount = useMutation<
         CreateServiceAccountResult,
         ApiError,
-        ServiceAccount
+        ApiCreateServiceAccountRequest
     >({
         mutationKey: [CACHE_KEY],
-        mutationFn: (newAccount: ServiceAccount) => {
+        mutationFn: (newAccount: ApiCreateServiceAccountRequest) => {
             return lightdashApi<CreateServiceAccountResult>({
                 method: 'POST',
                 url: '/service-accounts',

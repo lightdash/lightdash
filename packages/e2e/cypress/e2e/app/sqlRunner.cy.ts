@@ -307,7 +307,7 @@ describe('SQL Runner (new)', () => {
             .should('be.visible');
 
         // Intercept the API call we don't expect to happen
-        cy.intercept('POST', '**/api/v1/projects/*/sqlRunner/runPivotQuery').as(
+        cy.intercept('POST', '**/api/v2/projects/*/query/sql').as(
             'runPivotQuery',
         );
 

@@ -34,6 +34,16 @@ export type AdoptPullRequestArgs = {
     installation: GitInstallation;
 };
 
+/** A commit a provider just landed on a PR/MR branch. */
+export type LandedCommit = {
+    /** Head commit SHA pushed this turn — pins the card's CI checks. */
+    commitSha: string;
+    /** Lines this turn's staged change added. */
+    additions: number;
+    /** Lines this turn's staged change removed. */
+    deletions: number;
+};
+
 /**
  * A git host strategy. The service resolves one implementation from the dbt
  * connection type and then stays host-agnostic — every host-specific branch
@@ -61,10 +71,30 @@ export interface GitProvider {
         installation: GitInstallation,
     ): CloneTarget;
 
-    /** Land the agent's changes on a fresh branch and open a PR/MR; returns its URL. */
-    openPullRequest(args: OpenPullRequestArgs): Promise<string>;
-    /** Land changes on the checked-out branch and refresh the existing PR/MR. */
-    updatePullRequest(args: UpdatePullRequestArgs): Promise<void>;
+    /**
+     * Land the agent's changes on a fresh branch and open a PR/MR. Returns its
+     * URL plus this turn's landed commit (SHA + line stat), so the card can pin
+     * CI to the commit and show its diff stat.
+     */
+    openPullRequest(
+        args: OpenPullRequestArgs,
+    ): Promise<{ prUrl: string } & LandedCommit>;
+    /**
+     * Land changes on the checked-out branch and refresh the existing PR/MR.
+     * Returns this turn's landed commit (SHA + line stat).
+     */
+    updatePullRequest(args: UpdatePullRequestArgs): Promise<LandedCommit>;
     /** Validate a pasted PR/MR link before editing it on top of its branch. */
     adoptPullRequest(args: AdoptPullRequestArgs): Promise<AdoptedPullRequest>;
+    /**
+     * Whether a thread's stored PR/MR can still be edited. A resume turn reuses
+     * the PR recorded on the thread, which may have been merged or closed (here
+     * or on the host) since — editing it would push onto a dead branch and
+     * orphan the change, so the caller bails first.
+     */
+    getPullRequestEditState(args: {
+        prUrl: string;
+        connection: GitConnection;
+        installation: GitInstallation;
+    }): Promise<{ editable: boolean; reason: 'merged' | 'closed' | null }>;
 }

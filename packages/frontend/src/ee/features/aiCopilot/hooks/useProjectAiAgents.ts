@@ -28,6 +28,7 @@ import type {
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import { nanoid } from '@reduxjs/toolkit';
 import {
     useInfiniteQuery,
@@ -528,23 +529,40 @@ export const useAiAgentThread = (
  */
 const toOptimisticContextItem = (
     item: AiPromptContextItemInput,
-): AiPromptContextItem =>
-    item.type === 'chart'
-        ? {
-              type: 'chart',
-              chartUuid: item.chartUuid,
-              chartSlug: item.chartSlug ?? null,
-              displayName: null,
-              pinnedVersionUuid: null,
-              chartKind: null,
-              runtimeOverrides: item.runtimeOverrides ?? null,
-          }
-        : {
-              ...item,
-              dashboardSlug: item.dashboardSlug ?? null,
-              displayName: null,
-              pinnedVersionUuid: null,
-          };
+): AiPromptContextItem => {
+    switch (item.type) {
+        case 'chart':
+            return {
+                type: 'chart',
+                chartUuid: item.chartUuid,
+                chartSlug: item.chartSlug ?? null,
+                displayName: null,
+                pinnedVersionUuid: null,
+                chartKind: null,
+                runtimeOverrides: item.runtimeOverrides ?? null,
+            };
+        case 'dashboard':
+            return {
+                type: 'dashboard',
+                dashboardUuid: item.dashboardUuid,
+                dashboardSlug: item.dashboardSlug ?? null,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
+        case 'thread':
+            return {
+                type: 'thread',
+                threadUuid: item.threadUuid,
+                promptUuid: item.promptUuid ?? null,
+                displayName: null,
+            };
+        default:
+            return assertUnreachable(
+                item,
+                'Unknown AiPromptContextItemInput type',
+            );
+    }
+};
 
 const createOptimisticMessages = (
     threadUuid: string,

@@ -140,9 +140,47 @@ strings, numbers, or arrays of either. They are sent at the top level of the API
 | Field     | Type            | Description                                                      |
 | --------- | --------------- | ---------------------------------------------------------------- |
 | `data`    | `Row[]`         | Array of flat objects. Numbers are numbers, strings are strings. |
+| `columns` | `Column[]`      | Field metadata for returned rows.                                |
+| `format`  | `(row, fieldName) => string` | Server-formatted value for a field.                  |
 | `loading` | `boolean`       | True while the query is running.                                 |
 | `error`   | `Error \| null` | Error if the query failed.                                       |
 | `refetch` | `() => void`    | Re-run the query.                                                |
+| `queryUuid` | `string \| null` | Async query UUID for the loaded source query.                 |
+| `getUnderlyingData` | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>` | Fetch raw rows behind an aggregated metric value. |
+
+## Underlying data
+
+Use `getUnderlyingData()` to retrieve the raw rows behind a metric value from an
+already-loaded query result:
+
+```tsx
+function RevenueTable() {
+    const { data, getUnderlyingData } = useLightdash(
+        lightdash
+            .model('orders')
+            .dimensions(['customer_segment'])
+            .metrics(['total_revenue']),
+    );
+
+    async function openUnderlying(row) {
+        const result = await getUnderlyingData({
+            row,
+            metric: 'total_revenue',
+            limit: 500,
+        });
+        console.log(result.rows);
+    }
+
+    return data.map((row) => (
+        <button onClick={() => openUnderlying(row)}>
+            View {row.customer_segment}
+        </button>
+    ));
+}
+```
+
+Call it from a user action. Pass the original row from `data` and the same
+metric name used in `.metrics([...])`.
 
 ## User context
 

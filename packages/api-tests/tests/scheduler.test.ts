@@ -14,7 +14,6 @@ import {
     type Dashboard,
     type DashboardScheduler,
     type SavedChart,
-    type ScheduledJobs,
     type SchedulerAndTargets,
     type SchedulerSlackTarget,
     type UpdateSchedulerAndTargetsWithoutId,
@@ -173,15 +172,6 @@ describe('Lightdash scheduler endpoints', () => {
         );
         expect(schedulerIds).toContain(schedulerUuid);
 
-        // Get created jobs
-        const jobsResp = await admin.get<{ results: ScheduledJobs[] }>(
-            `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
-        );
-        expect(jobsResp.body.results).toHaveLength(1);
-        expect(`${jobsResp.body.results[0].date}`.split('T')[1]).toBe(
-            '23:59:00.000Z',
-        );
-
         // Update
         const updateResponse = await admin.patch<{
             results: SchedulerAndTargets;
@@ -210,12 +200,12 @@ describe('Lightdash scheduler endpoints', () => {
         );
         expect(deleteResponse.status).toBe(200);
 
-        // Jobs are deleted
-        const deletedJobsResp = await admin.get(
-            `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
+        // Scheduler is deleted
+        const deletedSchedulerResp = await admin.get(
+            `${apiUrl}/schedulers/${schedulerUuid}`,
             { failOnStatusCode: false },
         );
-        expect(deletedJobsResp.status).toBe(404);
+        expect(deletedSchedulerResp.status).toBe(404);
     });
 
     it('Should create/update/delete dashboard scheduler', async () => {
@@ -239,15 +229,6 @@ describe('Lightdash scheduler endpoints', () => {
         expect(createResponse.body.results.targets).toHaveLength(2);
 
         const { schedulerUuid, targets } = createResponse.body.results;
-
-        // Get created jobs
-        const jobsResp = await admin.get<{ results: ScheduledJobs[] }>(
-            `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
-        );
-        expect(jobsResp.body.results).toHaveLength(1);
-        expect(`${jobsResp.body.results[0].date}`.split('T')[1]).toBe(
-            '23:59:00.000Z',
-        );
 
         // Get all dashboard schedulers
         const dashSchedulersResp = await admin.get<{
@@ -288,12 +269,12 @@ describe('Lightdash scheduler endpoints', () => {
         );
         expect(deleteResponse.status).toBe(200);
 
-        // Jobs are deleted
-        const deletedJobsResp = await admin.get(
-            `${apiUrl}/schedulers/${schedulerUuid}/jobs`,
+        // Scheduler is deleted
+        const deletedSchedulerResp = await admin.get(
+            `${apiUrl}/schedulers/${schedulerUuid}`,
             { failOnStatusCode: false },
         );
-        expect(deletedJobsResp.status).toBe(404);
+        expect(deletedSchedulerResp.status).toBe(404);
     });
 
     it('Should search schedulers by full name substring instead of loose token matches', async () => {

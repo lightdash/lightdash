@@ -453,6 +453,7 @@ Since the sandboxed iframe has no API access, the parent page acts as a proxy:
 Allowed routes (defined in `packages/frontend/src/features/apps/hooks/useAppSdkBridge.ts`):
 
 - `POST /api/v2/projects/{uuid}/query/metric-query` — run metric queries
+- `POST /api/v2/projects/{uuid}/query/underlying-data` — run underlying-data queries for loaded SDK result rows
 - `GET /api/v2/projects/{uuid}/query/{queryId}` — poll for query results
 - `GET /api/v1/user` — get current user info
 

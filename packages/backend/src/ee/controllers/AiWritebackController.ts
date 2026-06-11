@@ -4,8 +4,14 @@ import {
     type AiWritebackRequestBody,
     type ApiAiWritebackResponse,
     type ApiCiChecksResponse,
+    type ApiClosePullRequestResponse,
     type ApiErrorPayload,
+    type ApiMergePullRequestResponse,
     type ApiProjectCiStatusResponse,
+    type ApiProjectFilesResponse,
+    type ApiPullRequestDiffResponse,
+    type ClosePullRequestRequestBody,
+    type MergePullRequestRequestBody,
 } from '@lightdash/common';
 import {
     Body,
@@ -37,6 +43,15 @@ import { PreviewDeploySetupService } from '../services/PreviewDeploySetupService
 // the project's dbt connection, so the body only carries the prompt.
 const aiWritebackBodySchema = z.object({
     prompt: z.string().trim().min(1, 'prompt is required'),
+});
+
+const mergePullRequestBodySchema = z.object({
+    prUrl: z.string().trim().url('prUrl must be a valid URL'),
+    sha: z.string().trim().min(1).optional(),
+});
+
+const closePullRequestBodySchema = z.object({
+    prUrl: z.string().trim().url('prUrl must be a valid URL'),
 });
 
 @Route('/api/v1/ee/projects/{projectUuid}/ai-writeback')
@@ -128,6 +143,7 @@ export class AiWritebackController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Query() prUrl: string,
+        @Query() commitSha?: string,
     ): Promise<ApiCiChecksResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -137,7 +153,141 @@ export class AiWritebackController extends BaseController {
                 user: toSessionUser(req.account),
                 projectUuid,
                 prUrl,
+                commitSha,
             });
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Close a write-back pull request without merging it. Requires
+     * manage:SourceCode. Reversible — the PR can be reopened on the provider.
+     * @summary Close a write-back pull request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/close-pull-request')
+    @OperationId('closeWritebackPullRequest')
+    async closeWritebackPullRequest(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: ClosePullRequestRequestBody,
+    ): Promise<ApiClosePullRequestResponse> {
+        assertRegisteredAccount(req.account);
+        const parsed = closePullRequestBodySchema.safeParse(body);
+        if (!parsed.success) {
+            throw new ParameterError(
+                parsed.error.errors[0]?.message ?? 'Invalid request parameters',
+            );
+        }
+        this.setStatus(200);
+        const results = await this.services.getCiService().closePullRequest({
+            user: toSessionUser(req.account),
+            projectUuid,
+            prUrl: parsed.data.prUrl,
+        });
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * Get the raw unified diff of a write-back pull request (or a single pinned
+     * commit within it) for the chat card's diff viewer. Returns null when the
+     * diff can't be resolved.
+     * @summary Get pull request diff
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/ci-diff')
+    @OperationId('getPullRequestDiff')
+    async getPullRequestDiff(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Query() prUrl: string,
+        @Query() commitSha?: string,
+    ): Promise<ApiPullRequestDiffResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const diff = await this.services.getCiService().getPullRequestDiff({
+            user: toSessionUser(req.account),
+            projectUuid,
+            prUrl,
+            commitSha,
+        });
+        return {
+            status: 'ok',
+            results: diff === null ? null : { diff },
+        };
+    }
+
+    /**
+     * Merge a write-back pull request from the chat PR card. Requires
+     * manage:SourceCode. Surfaces provider failures (merge conflicts, blocked
+     * branch, stale head) as errors so the card can explain why a merge didn't
+     * happen.
+     * @summary Merge a write-back pull request
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/merge-pull-request')
+    @OperationId('mergeWritebackPullRequest')
+    async mergeWritebackPullRequest(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: MergePullRequestRequestBody,
+    ): Promise<ApiMergePullRequestResponse> {
+        assertRegisteredAccount(req.account);
+        const parsed = mergePullRequestBodySchema.safeParse(body);
+        if (!parsed.success) {
+            throw new ParameterError(
+                parsed.error.errors[0]?.message ?? 'Invalid request parameters',
+            );
+        }
+        this.setStatus(200);
+        const results = await this.services.getCiService().mergePullRequest({
+            user: toSessionUser(req.account),
+            projectUuid,
+            prUrl: parsed.data.prUrl,
+            sha: parsed.data.sha,
+        });
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * List the project's source files (relative to its dbt sub-folder) for the
+     * chat input's `@`-mention file picker. Requires view:SourceCode and a
+     * GitHub-connected dbt project; the client fetches once and filters locally.
+     * @summary List project files
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/project-files')
+    @OperationId('listProjectFiles')
+    async listProjectFiles(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiProjectFilesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAiWritebackService().listProjectFiles({
+            user: toSessionUser(req.account),
+            projectUuid,
+        });
         return {
             status: 'ok',
             results,

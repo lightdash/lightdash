@@ -157,6 +157,31 @@ export type QueryResult = {
     rows: Row[];
     columns: Column[];
     format: FormatFunction;
+    /** Async query UUID for the source query. Useful for debugging and advanced flows. */
+    queryUuid?: string;
+    /**
+     * Fetch raw rows behind an aggregated metric value from this query result.
+     * Available when the transport supports Lightdash underlying-data queries.
+     */
+    getUnderlyingData?: (
+        options: UnderlyingDataOptions,
+    ) => Promise<UnderlyingDataResult>;
+};
+
+export type UnderlyingDataOptions = {
+    /** Row object from this query result. */
+    row: Row;
+    /** Metric from the source query, using the same field name passed to `.metrics()`. */
+    metric: string;
+    /** Maximum raw rows to return. Defaults to the backend's underlying-data limit. */
+    limit?: number | null;
+};
+
+export type UnderlyingDataResult = {
+    rows: Row[];
+    columns: Column[];
+    format: FormatFunction;
+    queryUuid: string;
 };
 
 // --- Client config ---

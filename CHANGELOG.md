@@ -1,3 +1,161 @@
+# [0.3146.0](https://github.com/lightdash/lightdash/compare/0.3145.0...0.3146.0) (2026-06-11)
+
+
+### Features
+
+* **ai-review:** add Validate link to the review verification panel ([#24207](https://github.com/lightdash/lightdash/issues/24207)) ([3799a3b](https://github.com/lightdash/lightdash/commit/3799a3b1c10352b6473223ecf5a52ad1b1298327)), closes [#24193](https://github.com/lightdash/lightdash/issues/24193) [#123](https://github.com/lightdash/lightdash/issues/123)
+* **ai-writeback:** guard follow-ups on merged/closed PRs + card polish ([#24209](https://github.com/lightdash/lightdash/issues/24209)) ([82af9dc](https://github.com/lightdash/lightdash/commit/82af9dc86642f84a3cbe9d372dccd9bb570818f8))
+
+# [0.3145.0](https://github.com/lightdash/lightdash/compare/0.3144.0...0.3145.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* **ai:** unblock server-side agent runs — pass autoApproveSql to runSql, guard empty cloneThread update ([#24189](https://github.com/lightdash/lightdash/issues/24189)) ([b0a31b3](https://github.com/lightdash/lightdash/commit/b0a31b3f2ac2346acf0b8469aac9beac549e9f11))
+* **backend:** add ?skipMigrationCheck opt-out to /api/v1/health (PROD-8271) ([#24205](https://github.com/lightdash/lightdash/issues/24205)) ([345e166](https://github.com/lightdash/lightdash/commit/345e1665499f85fd85c6199a9c4b4766b8f80096))
+
+
+### Features
+
+* **ai-writeback:** merge/close PR actions + diff viewer on the chat card ([#24206](https://github.com/lightdash/lightdash/issues/24206)) ([b55cc0a](https://github.com/lightdash/lightdash/commit/b55cc0a8b403ca48aa40832e4a1fa0a46db69301))
+* **ai:** durable verification footer — resolve review item by preview thread, mark as done in-thread ([#24193](https://github.com/lightdash/lightdash/issues/24193)) ([e038cd5](https://github.com/lightdash/lightdash/commit/e038cd5dfe4c745f0b064b6b7bf8014ce51748bf)), closes [#24190](https://github.com/lightdash/lightdash/issues/24190)
+* **ai:** verification flow for review remediations — seeded preview runs and pinned thread context ([#24190](https://github.com/lightdash/lightdash/issues/24190)) ([a182a91](https://github.com/lightdash/lightdash/commit/a182a911ad604184db49fc49e3ecbfbb284832fa)), closes [#24188](https://github.com/lightdash/lightdash/issues/24188) [#24189](https://github.com/lightdash/lightdash/issues/24189)
+
+# [0.3144.0](https://github.com/lightdash/lightdash/compare/0.3143.1...0.3144.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* **perf:** fire-and-forget analytics chart view event tracking ([#21548](https://github.com/lightdash/lightdash/issues/21548)) ([9a313f1](https://github.com/lightdash/lightdash/commit/9a313f12ff2e25f20dfbd0350de20b79c9d849d6))
+
+
+### Features
+
+* create new charts on embed ([#24172](https://github.com/lightdash/lightdash/issues/24172)) ([8529ea7](https://github.com/lightdash/lightdash/commit/8529ea7bc69ca8e33d2a16fd30c6b6978ca30618))
+* **embed:** support per-session timezone via ?timezone= URL param ([#24183](https://github.com/lightdash/lightdash/issues/24183)) ([63dcc7d](https://github.com/lightdash/lightdash/commit/63dcc7d3bd2862a13a378613fb5bd724eafdf94b))
+
+## [0.3143.1](https://github.com/lightdash/lightdash/compare/0.3143.0...0.3143.1) (2026-06-11)
+
+
+### Performance Improvements
+
+* deduplicate projectParametersModel.find() in dashboard chart query path ([#21547](https://github.com/lightdash/lightdash/issues/21547)) ([05f5e04](https://github.com/lightdash/lightdash/commit/05f5e04f464369439d5dbb540302b202f73c7f75))
+
+# [0.3143.0](https://github.com/lightdash/lightdash/compare/0.3142.0...0.3143.0) (2026-06-11)
+
+
+### Features
+
+* view underlying data in Data Apps ([#24146](https://github.com/lightdash/lightdash/issues/24146)) ([c0902ea](https://github.com/lightdash/lightdash/commit/c0902ea081bde34af84dd63db76cd28fac1d5c5b))
+
+# [0.3142.0](https://github.com/lightdash/lightdash/compare/0.3141.0...0.3142.0) (2026-06-11)
+
+
+### Features
+
+* **ai-writeback:** discreet PR card pinned per commit + @-mention project files ([#24197](https://github.com/lightdash/lightdash/issues/24197)) ([77391b0](https://github.com/lightdash/lightdash/commit/77391b00a224e1d1c26a7fe333d5b0bacc41cd46))
+
+# [0.3141.0](https://github.com/lightdash/lightdash/compare/0.3140.0...0.3141.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* **frontend:** render temporal metric cells in resolved tz in results grid (GLITCH-491) ([#24186](https://github.com/lightdash/lightdash/issues/24186)) ([cb02b61](https://github.com/lightdash/lightdash/commit/cb02b61e170a1b58df2d37016757cfeb854cccec))
+* **perf:** deduplicate getUserAttributes() in dashboard chart query path ([#21546](https://github.com/lightdash/lightdash/issues/21546)) ([2d60073](https://github.com/lightdash/lightdash/commit/2d600732d00516dfbfa69000cc1dc59265937102))
+* **skills:** cli-reference.md references non-existing cli command 'lightdash delete' ([#21889](https://github.com/lightdash/lightdash/issues/21889)) ([d03d8a0](https://github.com/lightdash/lightdash/commit/d03d8a00df2b271ef0c80774f89c682416cf756b))
+
+
+### Features
+
+* **ai-review:** show preview validation errors in the review sidebar ([#24150](https://github.com/lightdash/lightdash/issues/24150)) ([1e6005d](https://github.com/lightdash/lightdash/commit/1e6005d168c44aef6ad539b03f51417c95b66003))
+
+# [0.3140.0](https://github.com/lightdash/lightdash/compare/0.3139.0...0.3140.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* dedupe cartesian reference lines ([#24196](https://github.com/lightdash/lightdash/issues/24196)) ([da0c5ab](https://github.com/lightdash/lightdash/commit/da0c5abc2419612a9d9236789b83113dbe313004))
+
+
+### Features
+
+* **ai-writeback:** run writeback compile with project's dbt version ([#24194](https://github.com/lightdash/lightdash/issues/24194)) ([9fce8d0](https://github.com/lightdash/lightdash/commit/9fce8d096173d34945a8c5b1b049e0033ab29727))
+
+# [0.3139.0](https://github.com/lightdash/lightdash/compare/0.3138.2...0.3139.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* upgrade react-router 7.14.2→7.15.0 (security) ([#23849](https://github.com/lightdash/lightdash/issues/23849)) ([7462e6c](https://github.com/lightdash/lightdash/commit/7462e6c6b927c72224c8816031a5ba8b29e220fc))
+
+
+### Features
+
+* **embed:** thread session timezone into query resolution ([#24182](https://github.com/lightdash/lightdash/issues/24182)) ([645314d](https://github.com/lightdash/lightdash/commit/645314d623f660aec4b9312cddff22e311053418))
+
+## [0.3138.2](https://github.com/lightdash/lightdash/compare/0.3138.1...0.3138.2) (2026-06-11)
+
+
+### Bug Fixes
+
+* support Okta issuer initiated login ([#24171](https://github.com/lightdash/lightdash/issues/24171)) ([3488f85](https://github.com/lightdash/lightdash/commit/3488f8591c73822ee4366eefb4bab3bde3d300cc)), closes [#24139](https://github.com/lightdash/lightdash/issues/24139)
+
+## [0.3138.1](https://github.com/lightdash/lightdash/compare/0.3138.0...0.3138.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* calculate data app full height for screenshots ([#24170](https://github.com/lightdash/lightdash/issues/24170)) ([fd9f4d8](https://github.com/lightdash/lightdash/commit/fd9f4d8d35f069014ad50b8f665333ab471fb762))
+* improve data apps screenshot ready indicator ([#24145](https://github.com/lightdash/lightdash/issues/24145)) ([421458e](https://github.com/lightdash/lightdash/commit/421458ee011ce2512c8ba195f601658a7d97afad))
+
+# [0.3138.0](https://github.com/lightdash/lightdash/compare/0.3137.0...0.3138.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* CSV email attachments use correct filename extension ([#24184](https://github.com/lightdash/lightdash/issues/24184)) ([ecb97e9](https://github.com/lightdash/lightdash/commit/ecb97e9c27250e2767e0e3f6541ed330bf344b9a))
+
+
+### Features
+
+* **common:** add sessionTimezone slot to resolveQueryTimezone ([#24181](https://github.com/lightdash/lightdash/issues/24181)) ([a73ffd1](https://github.com/lightdash/lightdash/commit/a73ffd17958b0c616c85fe895c2cc18bbf13d86b))
+* **timezones:** default saved charts to project timezone (GLITCH-459) ([#24177](https://github.com/lightdash/lightdash/issues/24177)) ([22b2b4f](https://github.com/lightdash/lightdash/commit/22b2b4fd6279eee89c1e464612b46a97a6463362))
+
+# [0.3137.0](https://github.com/lightdash/lightdash/compare/0.3136.1...0.3137.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* omnibar created-by filter loses selection when searching ([#24178](https://github.com/lightdash/lightdash/issues/24178)) ([61b5bc5](https://github.com/lightdash/lightdash/commit/61b5bc5c994d7a679ad8165af5f8c4d89f1b7400))
+
+
+### Features
+
+* add [@self](https://github.com/self) scopes for editing content in previews you created ([#24153](https://github.com/lightdash/lightdash/issues/24153)) ([c5ec74f](https://github.com/lightdash/lightdash/commit/c5ec74f1e23df47d546584080d214b62435e664f))
+
+## [0.3136.1](https://github.com/lightdash/lightdash/compare/0.3136.0...0.3136.1) (2026-06-11)
+
+
+### Bug Fixes
+
+* **github:** harden source-code editor and user-token auth paths ([#24175](https://github.com/lightdash/lightdash/issues/24175)) ([81ac744](https://github.com/lightdash/lightdash/commit/81ac744eb74f56e246e381ea6a6a1b933bc52be1))
+
+# [0.3136.0](https://github.com/lightdash/lightdash/compare/0.3135.0...0.3136.0) (2026-06-11)
+
+
+### Features
+
+* **ai:** scope content tools by agent spaces ([#24166](https://github.com/lightdash/lightdash/issues/24166)) ([066329f](https://github.com/lightdash/lightdash/commit/066329fe6571863ede2ffcff1674aff769b5b827))
+
+# [0.3135.0](https://github.com/lightdash/lightdash/compare/0.3134.0...0.3135.0) (2026-06-11)
+
+
+### Features
+
+* **ai:** extend find content spaces ([#24104](https://github.com/lightdash/lightdash/issues/24104)) ([ebad0dd](https://github.com/lightdash/lightdash/commit/ebad0dd8673b6051dd757bb1c29a9cf932c70c3d)), closes [#24099](https://github.com/lightdash/lightdash/issues/24099)
+* **mcp:** add content-as-code tools ([#24099](https://github.com/lightdash/lightdash/issues/24099)) ([8da5bcf](https://github.com/lightdash/lightdash/commit/8da5bcf825643c69655c9168795d596844f247af)), closes [#23907](https://github.com/lightdash/lightdash/issues/23907) [#23307](https://github.com/lightdash/lightdash/issues/23307)
+* **mcp:** add list content tool ([#23907](https://github.com/lightdash/lightdash/issues/23907)) ([8c08c05](https://github.com/lightdash/lightdash/commit/8c08c05b8afb4f688938d8a853de2e639338f96c))
+
 # [0.3134.0](https://github.com/lightdash/lightdash/compare/0.3133.0...0.3134.0) (2026-06-10)
 
 

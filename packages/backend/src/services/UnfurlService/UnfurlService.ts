@@ -1501,13 +1501,63 @@ export class UnfurlService extends BaseService {
                                 (f) => f !== mainFrame,
                             );
                             if (appFrame) {
+                                // `scrollHeight` is unreliable: it
+                                // under-reports when ancestor overflow
+                                // hides content, and over-reports when
+                                // `min-height: 100vh` is set. Instead,
+                                // walk leaf elements and use
+                                // getBoundingClientRect, which reflects
+                                // actual rendered position regardless
+                                // of overflow.
                                 const contentHeight = await appFrame.evaluate(
-                                    () =>
-                                        Math.max(
-                                            document.documentElement
-                                                .scrollHeight,
-                                            document.body?.scrollHeight ?? 0,
-                                        ),
+                                    () => {
+                                        let maxBottom = 0;
+                                        const root =
+                                            document.querySelector('#root') ??
+                                            document.body;
+                                        if (root) {
+                                            const walker =
+                                                document.createTreeWalker(
+                                                    root,
+                                                    NodeFilter.SHOW_ELEMENT,
+                                                );
+                                            let node: Node | null =
+                                                walker.currentNode;
+                                            while (node) {
+                                                const el = node as Element;
+                                                if (el.children.length === 0) {
+                                                    const rect =
+                                                        el.getBoundingClientRect();
+                                                    if (
+                                                        rect.width > 0 &&
+                                                        rect.height > 0
+                                                    ) {
+                                                        maxBottom = Math.max(
+                                                            maxBottom,
+                                                            rect.bottom,
+                                                        );
+                                                    }
+                                                }
+                                                node = walker.nextNode();
+                                            }
+                                        }
+                                        // Empty body — shouldn't happen for a
+                                        // real app, but fall back to
+                                        // scrollHeight rather than collapsing
+                                        // the iframe to zero.
+                                        if (maxBottom === 0) {
+                                            return Math.max(
+                                                document.documentElement
+                                                    .scrollHeight,
+                                                document.body?.scrollHeight ??
+                                                    0,
+                                            );
+                                        }
+                                        return Math.ceil(maxBottom);
+                                    },
+                                );
+                                this.logger.info(
+                                    `App content measured at ${contentHeight}px - unfurlId: ${imageId}`,
                                 );
                                 if (contentHeight > 0) {
                                     await page!.evaluate((h) => {

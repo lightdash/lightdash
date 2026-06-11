@@ -6,11 +6,12 @@
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
+    align-items: center;
     gap: var(--mantine-spacing-xs);
 }
 
-/* In the narrow minimized chat bubble the two actions overflow side by side,
-   so stack them and let each fill the column width. */
+/* In the narrow minimized chat bubble, "View" + the Close/Merge group overflow
+   side by side, so stack them and let each fill the column width. */
 @container (max-width: 400px) {
     .actions {
         flex-direction: column;

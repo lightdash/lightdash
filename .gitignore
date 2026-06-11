@@ -6,6 +6,7 @@
 
 # dependencies
 node_modules/
+**/node_modules
 /.pnp
 .pnp.js
 
@@ -136,3 +137,6 @@ agent-harness/cloud/credentials.env
 .codex
 .claude/*.lock
 AGENTS.md
+
+# octarine
+.octarine/properties.json

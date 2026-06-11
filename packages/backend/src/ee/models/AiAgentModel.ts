@@ -2535,6 +2535,79 @@ export class AiAgentModel {
         };
     }
 
+    async findPinnedThreadContextUuids(threadUuid: string): Promise<string[]> {
+        const rows = await this.database(AiPromptContextTableName)
+            .join(
+                AiPromptTableName,
+                `${AiPromptContextTableName}.ai_prompt_uuid`,
+                `${AiPromptTableName}.ai_prompt_uuid`,
+            )
+            .where(`${AiPromptTableName}.ai_thread_uuid`, threadUuid)
+            .where(`${AiPromptContextTableName}.entity_type`, 'thread')
+            .distinct<{ entity_uuid: string }[]>(
+                `${AiPromptContextTableName}.entity_uuid`,
+            );
+        return rows.map((row) => row.entity_uuid);
+    }
+
+    async findThreadOwnership({
+        organizationUuid,
+        threadUuid,
+    }: {
+        organizationUuid: string;
+        threadUuid: string;
+    }): Promise<
+        | {
+              threadUuid: string;
+              projectUuid: string;
+              agentUuid: string | null;
+              ownerUserUuid: string | null;
+          }
+        | undefined
+    > {
+        const row = await this.database(AiThreadTableName)
+            .joinRaw(
+                `left join lateral (
+                    select created_by_user_uuid
+                    from ${AiPromptTableName}
+                    where ${AiPromptTableName}.ai_thread_uuid = ${AiThreadTableName}.ai_thread_uuid
+                    order by created_at asc
+                    limit 1
+                ) as first_prompt on true`,
+            )
+            .leftJoin(
+                AiWebAppThreadTableName,
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiWebAppThreadTableName}.ai_thread_uuid`,
+            )
+            .where(`${AiThreadTableName}.ai_thread_uuid`, threadUuid)
+            .where(`${AiThreadTableName}.organization_uuid`, organizationUuid)
+            .select<
+                {
+                    ai_thread_uuid: string;
+                    project_uuid: string;
+                    agent_uuid: string | null;
+                    owner_user_uuid: string | null;
+                }[]
+            >(
+                `${AiThreadTableName}.ai_thread_uuid`,
+                `${AiThreadTableName}.project_uuid`,
+                `${AiThreadTableName}.agent_uuid`,
+                this.database.raw(
+                    `COALESCE(first_prompt.created_by_user_uuid, ${AiWebAppThreadTableName}.user_uuid) as owner_user_uuid`,
+                ),
+            )
+            .first();
+
+        if (!row) return undefined;
+        return {
+            threadUuid: row.ai_thread_uuid,
+            projectUuid: row.project_uuid,
+            agentUuid: row.agent_uuid,
+            ownerUserUuid: row.owner_user_uuid,
+        };
+    }
+
     async findThreads({
         organizationUuid,
         agentUuid,
@@ -4504,6 +4577,27 @@ export class AiAgentModel {
         });
     }
 
+    // Atomic thread+prompt creation — a failed prompt insert rolls back the
+    // thread, so no promptless (unfetchable) thread is ever left behind.
+    async createWebAppThreadWithPrompt({
+        thread,
+        prompt,
+    }: {
+        thread: CreateWebAppThread;
+        prompt: Omit<CreateWebAppPrompt, 'threadUuid'>;
+    }): Promise<{ threadUuid: string; promptUuid: string }> {
+        return this.database.transaction(async (trx) => {
+            const threadUuid = await this.createWebAppThread(thread, {
+                db: trx,
+            });
+            const promptUuid = await this.createWebAppPrompt(
+                { ...prompt, threadUuid },
+                { db: trx },
+            );
+            return { threadUuid, promptUuid };
+        });
+    }
+
     private static async insertPromptContext(
         trx: Knex.Transaction,
         promptUuid: string,
@@ -4592,6 +4686,41 @@ export class AiAgentModel {
             ).map((r) => [r.dashboard_uuid, r] as const),
         );
 
+        const threadUuids = context.flatMap((c) =>
+            c.type === 'thread' ? [c.threadUuid] : [],
+        );
+        const threadLookup = new Map(
+            (
+                await trx(AiThreadTableName)
+                    .leftJoin(
+                        AiPromptTableName,
+                        `${AiThreadTableName}.ai_thread_uuid`,
+                        `${AiPromptTableName}.ai_thread_uuid`,
+                    )
+                    .whereIn(`${AiThreadTableName}.ai_thread_uuid`, threadUuids)
+                    .distinctOn(`${AiThreadTableName}.ai_thread_uuid`)
+                    .orderBy([
+                        { column: `${AiThreadTableName}.ai_thread_uuid` },
+                        {
+                            column: `${AiPromptTableName}.created_at`,
+                            order: 'asc',
+                            nulls: 'last',
+                        },
+                    ])
+                    .select<
+                        {
+                            ai_thread_uuid: string;
+                            title: string | null;
+                            first_prompt: string | null;
+                        }[]
+                    >({
+                        ai_thread_uuid: `${AiThreadTableName}.ai_thread_uuid`,
+                        title: `${AiThreadTableName}.title`,
+                        first_prompt: `${AiPromptTableName}.prompt`,
+                    })
+            ).map((r) => [r.ai_thread_uuid, r] as const),
+        );
+
         const rows = context.map((ctx) => {
             switch (ctx.type) {
                 case 'chart': {
@@ -4615,6 +4744,17 @@ export class AiAgentModel {
                         pinned_version_uuid:
                             dashboard?.dashboard_version_uuid ?? null,
                         display_name: dashboard?.name ?? null,
+                    };
+                }
+                case 'thread': {
+                    const thread = threadLookup.get(ctx.threadUuid);
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'thread' as AiPromptContextEntityType,
+                        entity_uuid: ctx.threadUuid,
+                        pinned_version_uuid: ctx.promptUuid ?? null,
+                        display_name:
+                            thread?.title ?? thread?.first_prompt ?? null,
                     };
                 }
                 default:
@@ -4725,6 +4865,13 @@ export class AiAgentModel {
                     dashboardSlug:
                         dashboardSlugByUuid.get(row.entity_uuid) ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
+                    displayName: row.display_name,
+                };
+            case 'thread':
+                return {
+                    type: 'thread',
+                    threadUuid: row.entity_uuid,
+                    promptUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };
             default:
@@ -6980,18 +7127,20 @@ export class AiAgentModel {
                 { db: trx },
             );
 
-            await trx(AiThreadTableName)
-                .where('ai_thread_uuid', newThreadUuid)
-                .update({
-                    ...(shareSourceThreadShareUuid && {
-                        share_source_thread_share_uuid:
-                            shareSourceThreadShareUuid,
-                    }),
-                    ...(copyTitle && {
-                        title: sourceThread.title,
-                        title_generated_at: sourceThread.title_generated_at,
-                    }),
-                });
+            if (shareSourceThreadShareUuid || copyTitle) {
+                await trx(AiThreadTableName)
+                    .where('ai_thread_uuid', newThreadUuid)
+                    .update({
+                        ...(shareSourceThreadShareUuid && {
+                            share_source_thread_share_uuid:
+                                shareSourceThreadShareUuid,
+                        }),
+                        ...(copyTitle && {
+                            title: sourceThread.title,
+                            title_generated_at: sourceThread.title_generated_at,
+                        }),
+                    });
+            }
 
             // Clone thread artifacts and get mapping
             const artifactMapping = await this.cloneThreadArtifacts({

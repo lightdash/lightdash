@@ -77,6 +77,10 @@ import type { SpacePermissionService } from '../../../services/SpaceService/Spac
 import type { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
 import { getModel } from '../ai/models';
 import {
+    classifyClaudeCliFailure,
+    ClaudeGenerationError,
+} from './claudeCliFailure';
+import {
     buildClaudeCodeEnv,
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
@@ -1521,18 +1525,49 @@ export class AppGenerateService extends BaseService {
                 return { durationMs, responseText, toolCallCount };
             }
 
-            this.logger.debug(
-                `App ${appUuid}: Claude stderr (tail): ${AppGenerateService.truncateEnd(result.stderr, 4000)}`,
+            const stderrTail = AppGenerateService.truncateEnd(
+                result.stderr,
+                4000,
             );
-            this.logger.debug(
-                `App ${appUuid}: Claude stdout (tail): ${AppGenerateService.truncateEnd(result.stdout, 4000)}`,
+            const stdoutTail = AppGenerateService.truncateEnd(
+                result.stdout,
+                4000,
             );
 
             if (attempt >= AppGenerateService.MAX_GENERATION_ATTEMPTS) {
-                throw new Error(
-                    `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`,
+                // On final failure, promote stderr+stdout to info so the
+                // upstream API error (often emitted to stdout in
+                // stream-json mode) is captured in production logs.
+                const classification = classifyClaudeCliFailure(
+                    result.stderr,
+                    result.stdout,
                 );
+                this.logger.info(
+                    `App ${appUuid}: Claude failure (category=${classification.category}, exit=${result.exitCode})`,
+                );
+                this.logger.info(
+                    `App ${appUuid}: Claude stderr (tail): ${stderrTail}`,
+                );
+                this.logger.info(
+                    `App ${appUuid}: Claude stdout (tail): ${stdoutTail}`,
+                );
+                const message = `Claude generation failed (exit ${result.exitCode}): ${result.stderr}`;
+                if (classification.category === 'unknown') {
+                    throw new Error(message);
+                }
+                throw new ClaudeGenerationError({
+                    message,
+                    userMessage: classification.userMessage,
+                    category: classification.category,
+                });
             }
+
+            this.logger.debug(
+                `App ${appUuid}: Claude stderr (tail): ${stderrTail}`,
+            );
+            this.logger.debug(
+                `App ${appUuid}: Claude stdout (tail): ${stdoutTail}`,
+            );
 
             this.logger.warn(
                 `App ${appUuid}: Claude generation failed (exit ${result.exitCode}), retrying (attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
@@ -2372,14 +2407,21 @@ export class AppGenerateService extends BaseService {
                 this.logger.error(
                     `App ${appUuid}: generation failed after ${totalMs}ms: ${getErrorMessage(error)}`,
                 );
-                // In Bedrock mode a generation failure is often the model not
-                // being enabled in the configured region (the call fails before
-                // any tool use) — point operators at that instead of the generic
-                // "try rephrasing".
-                const userMessage =
-                    claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1'
-                        ? 'Failed to generate the app. If this keeps happening, check that the selected model is enabled in your AWS Bedrock region (see server logs).'
-                        : 'Failed to generate app code. Try rephrasing your request.';
+                // Prefer a classified upstream-API message (quota /
+                // rate-limit / auth / overloaded). Otherwise fall back to
+                // the existing branches: Bedrock failures are often the
+                // model not being enabled in the configured region — point
+                // operators at that instead of the generic "try rephrasing".
+                let userMessage: string;
+                if (error instanceof ClaudeGenerationError) {
+                    userMessage = error.userMessage;
+                } else if (claudeCodeEnv.CLAUDE_CODE_USE_BEDROCK === '1') {
+                    userMessage =
+                        'Failed to generate the app. If this keeps happening, check that the selected model is enabled in your AWS Bedrock region (see server logs).';
+                } else {
+                    userMessage =
+                        'Failed to generate app code. Try rephrasing your request.';
+                }
                 const marked = await this.markError(
                     appUuid,
                     version,

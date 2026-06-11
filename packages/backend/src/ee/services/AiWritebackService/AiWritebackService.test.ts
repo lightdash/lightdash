@@ -2,9 +2,12 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AnyType,
     DbtProjectType,
+    DbtVersionOptionLatest,
     FeatureFlags,
     ForbiddenError,
+    getLatestSupportDbtVersion,
     PullRequestProvider,
+    SupportedDbtVersions,
     WarehouseTypes,
     type MemberAbility,
     type SessionUser,
@@ -20,6 +23,7 @@ import {
 } from '../../../clients/github/Github';
 import { AiWritebackService } from './AiWritebackService';
 import {
+    COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
@@ -37,7 +41,9 @@ jest.mock('e2b', () => ({
 jest.mock('../../../clients/github/Github', () => ({
     createBranch: jest.fn().mockResolvedValue(undefined),
     createPullRequest: jest.fn(),
-    createSignedCommitOnBranch: jest.fn().mockResolvedValue(undefined),
+    createSignedCommitOnBranch: jest
+        .fn()
+        .mockResolvedValue({ oid: 'sha-7', url: 'https://github.com/c/o' }),
     getAppBotIdentity: jest.fn(),
     getAuthenticatedUser: jest.fn(),
     getBranchHeadSha: jest.fn(),
@@ -50,6 +56,10 @@ const ORG = 'org-1';
 const PR_3 = 'https://github.com/acme/analytics/pull/3';
 const PR_7 = 'https://github.com/acme/analytics/pull/7';
 const PR_9 = 'https://github.com/acme/analytics/pull/9';
+
+// The commit a provider lands this turn (SHA + line stat). open/update return
+// it so the card can pin CI and show the diff stat; no-change turns return nulls.
+const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 
 const buildService = (overrides: Record<string, AnyType> = {}) =>
     new AiWritebackService({
@@ -75,8 +85,8 @@ const fakeProvider = (overrides: AnyType = {}): AnyType => ({
     resolveConnection: jest.fn(),
     resolveInstallation: jest.fn(),
     getCloneTarget: jest.fn(),
-    openPullRequest: jest.fn().mockResolvedValue(PR_7),
-    updatePullRequest: jest.fn().mockResolvedValue(undefined),
+    openPullRequest: jest.fn().mockResolvedValue({ prUrl: PR_7, ...LANDED }),
+    updatePullRequest: jest.fn().mockResolvedValue({ ...LANDED }),
     adoptPullRequest: jest.fn(),
     ...overrides,
 });
@@ -161,6 +171,9 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: null,
             prCreated: false,
             pauseOnExit: false,
+            commitSha: null,
+            additions: null,
+            deletions: null,
         });
         expect(open).not.toHaveBeenCalled();
         expect(update).not.toHaveBeenCalled();
@@ -176,6 +189,9 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: PR_3,
             prCreated: false,
             pauseOnExit: true,
+            commitSha: null,
+            additions: null,
+            deletions: null,
         });
     });
 
@@ -189,6 +205,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: PR_3,
             prCreated: false,
             pauseOnExit: true,
+            ...LANDED,
         });
         expect(update).toHaveBeenCalledTimes(1);
         expect(record).not.toHaveBeenCalled();
@@ -205,6 +222,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: PR_9,
             prCreated: false,
             pauseOnExit: true,
+            ...LANDED,
         });
         expect(update).toHaveBeenCalledTimes(1);
         expect(record).toHaveBeenCalledTimes(1);
@@ -230,6 +248,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: PR_7,
             prCreated: true,
             pauseOnExit: true,
+            ...LANDED,
         });
         expect(open).toHaveBeenCalledTimes(1);
         expect(update).not.toHaveBeenCalled();
@@ -260,7 +279,9 @@ describe('AiWritebackService.prepareTurn', () => {
         } as AnyType;
     };
 
-    const githubProject = (): AnyType => ({
+    const githubProject = (
+        dbtVersion: AnyType = SupportedDbtVersions.V1_9,
+    ): AnyType => ({
         organizationUuid: ORG,
         name: 'Analytics',
         dbtConnection: {
@@ -271,6 +292,7 @@ describe('AiWritebackService.prepareTurn', () => {
             project_sub_path: '/',
         },
         warehouseConnection: { type: WarehouseTypes.POSTGRES },
+        dbtVersion,
     });
 
     const gitlabProject = (): AnyType => ({
@@ -345,6 +367,53 @@ describe('AiWritebackService.prepareTurn', () => {
             existingRow: null,
             isResume: false,
             warehouseType: WarehouseTypes.POSTGRES,
+            dbtVersion: SupportedDbtVersions.V1_9,
+        });
+    });
+
+    it('resolves the project `latest` dbt version to the newest supported version', async () => {
+        const service = buildService({
+            featureFlagModel: {
+                get: jest.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: jest
+                    .fn()
+                    .mockResolvedValue(
+                        githubProject(DbtVersionOptionLatest.LATEST),
+                    ),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+            } as AnyType,
+        });
+        await expect(
+            prepareTurn(service, userWithOrg(true)),
+        ).resolves.toMatchObject({
+            dbtVersion: getLatestSupportDbtVersion(),
+        });
+    });
+
+    it('clamps a project pinned below the supported range to the oldest installed version', async () => {
+        const service = buildService({
+            featureFlagModel: {
+                get: jest.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: jest
+                    .fn()
+                    .mockResolvedValue(
+                        githubProject(SupportedDbtVersions.V1_5),
+                    ),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+            } as AnyType,
+        });
+        await expect(
+            prepareTurn(service, userWithOrg(true)),
+        ).resolves.toMatchObject({
+            dbtVersion: SupportedDbtVersions.V1_8,
         });
     });
 
@@ -466,6 +535,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         project_sub_path: '/',
                     },
                     warehouseConnection: null,
+                    dbtVersion: SupportedDbtVersions.V1_9,
                 }),
             } as AnyType,
             githubAppInstallationsModel: {
@@ -531,6 +601,15 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(createPullRequest).toHaveBeenCalledTimes(1);
         expect(sandbox.kill).toHaveBeenCalledTimes(1);
         expect(sandbox.pause).not.toHaveBeenCalled();
+
+        // The compile wrapper pins `dbt` to the project's version venv (V1_9)
+        // and still strips secrets from the compile child's environment.
+        const wrapperWrite = (sandbox.files.write as jest.Mock).mock.calls.find(
+            ([path]) => path === COMPILE_WRAPPER_PATH,
+        );
+        expect(wrapperWrite).toBeDefined();
+        expect(wrapperWrite[1]).toContain('PATH="/usr/local/dbt1.9/bin:$PATH"');
+        expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
 
     it('skips the PR when the agent exits non-zero', async () => {

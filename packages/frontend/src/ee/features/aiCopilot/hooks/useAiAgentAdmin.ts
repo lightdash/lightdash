@@ -4,6 +4,7 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentReviewItemPrDiffResponse,
     type ApiAiAgentReviewItemResponse,
     type ApiAiAgentReviewItemsResponse,
     type ApiAiAgentReviewItemWritebackPreviewResponse,
@@ -217,6 +218,63 @@ export const useAiAgentAdminReviewItem = (
     });
 };
 
+const getAiAgentReviewItemPrDiff = async (fingerprint: string) => {
+    return lightdashApi<ApiAiAgentReviewItemPrDiffResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/pr-diff`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentReviewItemPrDiff = (
+    fingerprint: string,
+    options?: { enabled?: boolean },
+) => {
+    return useQuery<ApiAiAgentReviewItemPrDiffResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-review-item-pr-diff', fingerprint],
+        queryFn: () => getAiAgentReviewItemPrDiff(fingerprint),
+        enabled: options?.enabled ?? true,
+        retry: false,
+        // Each fetch costs ~2 GitHub API calls per changed file — keep it warm.
+        staleTime: 5 * 60_000,
+    });
+};
+
+const getAiAgentReviewItemByPreviewThread = async (threadUuid: string) => {
+    return lightdashApi<ApiAiAgentReviewItemResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/by-preview-thread/${encodeURIComponent(
+            threadUuid,
+        )}`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+// Resolves the review item a preview work thread belongs to. Most threads
+// are not linked to one — a 404 means "regular thread", not an error.
+export const useAiAgentReviewItemByPreviewThread = (
+    threadUuid: string | undefined,
+    options?: { enabled?: boolean },
+) => {
+    return useQuery<ApiAiAgentReviewItemResponse['results'] | null, ApiError>({
+        queryKey: ['ai-agent-admin-review-item-by-preview-thread', threadUuid],
+        queryFn: async () => {
+            try {
+                return await getAiAgentReviewItemByPreviewThread(threadUuid!);
+            } catch (error) {
+                if ((error as ApiError).error?.statusCode === 404) return null;
+                throw error;
+            }
+        },
+        enabled: (options?.enabled ?? true) && !!threadUuid,
+        retry: false,
+    });
+};
+
 const getAiAgentReviewItemWritebackPreview = async (fingerprint: string) => {
     return lightdashApi<
         ApiAiAgentReviewItemWritebackPreviewResponse['results']
@@ -277,6 +335,9 @@ export const useUpdateAiAgentReviewItemStatus = () => {
             updateCachedReviewItemLists(queryClient, updatedItem);
             void queryClient.invalidateQueries({
                 queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+            });
+            void queryClient.invalidateQueries({
+                queryKey: ['ai-agent-admin-review-item-by-preview-thread'],
             });
         },
         onError: ({ error }) => {

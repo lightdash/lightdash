@@ -11,6 +11,7 @@ import {
     Text,
     Title,
     Tooltip,
+    UnstyledButton,
     useMantineTheme,
 } from '@mantine-8/core';
 import {
@@ -42,6 +43,7 @@ import {
     getReviewReasoningText,
     getReviewSecondaryDetail,
 } from './reviewItemDetails';
+import { ReviewValidationList } from './ReviewValidationList';
 import styles from './ThreadPreviewSidebar.module.css';
 import {
     getThreadReviewHeadline,
@@ -114,15 +116,12 @@ const ExpandableReviewText = ({
                 {text}
             </Text>
             {canExpand && (
-                <Button
-                    variant="subtle"
-                    color="gray"
-                    size="compact-xs"
-                    px={0}
+                <UnstyledButton
+                    className={styles.sectionToggle}
                     onClick={() => setExpanded((open) => !open)}
                 >
                     {expanded ? 'Show less' : 'Show more'}
-                </Button>
+                </UnstyledButton>
             )}
         </Stack>
     );
@@ -201,6 +200,9 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
     const reasoningText = selectedReviewItem
         ? getReviewReasoningText(selectedReviewItem)
         : null;
+    const [showValidation, setShowValidation] = useState(false);
+    const previewProjectUuid =
+        selectedReviewItem?.remediation?.previewProjectUuid ?? null;
 
     if (!isOpen || !threadUuid) {
         return null;
@@ -332,53 +334,69 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                         </Box>
                                     </Group>
 
-                                    <Group gap="xs" wrap="wrap">
-                                        <Button
-                                            variant={
-                                                showDetails ? 'light' : 'subtle'
-                                            }
-                                            color="gray"
-                                            size="compact-xs"
-                                            radius="xl"
-                                            rightSection={
-                                                <MantineIcon
-                                                    icon={
-                                                        showDetails
-                                                            ? IconChevronDown
-                                                            : IconChevronRight
-                                                    }
-                                                    size="xs"
-                                                />
+                                    <Group gap="md" wrap="wrap">
+                                        <UnstyledButton
+                                            className={styles.sectionToggle}
+                                            data-active={
+                                                showDetails || undefined
                                             }
                                             onClick={() =>
                                                 setShowDetails((open) => !open)
                                             }
+                                            aria-expanded={showDetails}
                                         >
-                                            Details
-                                        </Button>
-                                        <Button
-                                            variant={
-                                                showWhy ? 'light' : 'subtle'
+                                            <span>Details</span>
+                                            <MantineIcon
+                                                icon={
+                                                    showDetails
+                                                        ? IconChevronDown
+                                                        : IconChevronRight
+                                                }
+                                                size="xs"
+                                            />
+                                        </UnstyledButton>
+                                        <UnstyledButton
+                                            className={styles.sectionToggle}
+                                            data-active={showWhy || undefined}
+                                            onClick={() =>
+                                                setShowWhy((open) => !open)
                                             }
-                                            color="gray"
-                                            size="compact-xs"
-                                            radius="xl"
-                                            rightSection={
+                                            aria-expanded={showWhy}
+                                        >
+                                            <span>Why flagged</span>
+                                            <MantineIcon
+                                                icon={
+                                                    showWhy
+                                                        ? IconChevronDown
+                                                        : IconChevronRight
+                                                }
+                                                size="xs"
+                                            />
+                                        </UnstyledButton>
+                                        {previewProjectUuid && (
+                                            <UnstyledButton
+                                                className={styles.sectionToggle}
+                                                data-active={
+                                                    showValidation || undefined
+                                                }
+                                                onClick={() =>
+                                                    setShowValidation(
+                                                        (open) => !open,
+                                                    )
+                                                }
+                                                aria-expanded={showValidation}
+                                            >
+                                                <span>Validation</span>
                                                 <MantineIcon
                                                     icon={
-                                                        showWhy
+                                                        showValidation
                                                             ? IconChevronDown
                                                             : IconChevronRight
                                                     }
                                                     size="xs"
                                                 />
-                                            }
-                                            onClick={() =>
-                                                setShowWhy((open) => !open)
-                                            }
-                                        >
-                                            Why flagged
-                                        </Button>
+                                            </UnstyledButton>
+                                        )}
                                     </Group>
 
                                     <Collapse in={showDetails}>
@@ -435,6 +453,16 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                             )}
                                         </Stack>
                                     </Collapse>
+
+                                    {previewProjectUuid && (
+                                        <Collapse in={showValidation}>
+                                            <ReviewValidationList
+                                                previewProjectUuid={
+                                                    previewProjectUuid
+                                                }
+                                            />
+                                        </Collapse>
+                                    )}
                                 </Stack>
                             </Stack>
 

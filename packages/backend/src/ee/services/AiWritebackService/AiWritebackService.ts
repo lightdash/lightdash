@@ -9,6 +9,7 @@ import {
     ParameterError,
     PullRequestProvider,
     PullRequestSource,
+    SupportedDbtVersions,
     WarehouseTypes,
     type AiWritebackRunResult,
     type AiWritebackStep,
@@ -21,7 +22,10 @@ import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
-import { getRepoDefaultBranch } from '../../../clients/github/Github';
+import {
+    getRepoDefaultBranch,
+    getRepoTree,
+} from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
@@ -58,7 +62,10 @@ import {
     TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
-import { WritebackGitNotConnectedError } from './errors';
+import {
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from './errors';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
@@ -78,6 +85,7 @@ import type {
 } from './types';
 import {
     classifyToolStep,
+    dbtSandboxVenvBin,
     extractPrMetadata,
     formatWritebackStep,
     interpretAgentEvent,
@@ -85,6 +93,7 @@ import {
     parsePullNumber,
     progressTextForStage,
     resolvePrMetadataValue,
+    resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
     summarizeToolInput,
@@ -262,6 +271,49 @@ export class AiWritebackService extends BaseService {
             // can't expose secrets/other files elsewhere in the repo. '.' (repo
             // root) means no scoping.
             subPath: connection.projectSubPath,
+        };
+    }
+
+    /**
+     * List the project's source files for the chat input's `@`-mention file
+     * picker. Reuses the same gated, GitHub-only read access as repoShell, and
+     * returns paths relative to the dbt sub-folder — the same root the agent's
+     * repoShell sees — so a mentioned path is one the agent can act on directly.
+     * Capped so a huge monorepo can't return an unbounded payload; the client
+     * fetches once and filters as the user types.
+     */
+    async listProjectFiles({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{ files: string[]; truncated: boolean }> {
+        const MAX_FILES = 1000;
+        const access = await this.getRepoReadAccess({ user, projectUuid });
+        const { files, truncated } = await getRepoTree({
+            owner: access.owner,
+            repo: access.repo,
+            branch: access.branch,
+            token: access.token,
+        });
+
+        const scoped =
+            access.subPath && access.subPath !== '.'
+                ? files
+                      .filter((f) => f.path.startsWith(`${access.subPath}/`))
+                      .map((f) => f.path.slice(access.subPath.length + 1))
+                : files.map((f) => f.path);
+
+        // Shorter (shallower) paths first — dbt models the user is likely to
+        // reference live near the top — then alphabetical for stability.
+        const sorted = scoped.sort(
+            (a, b) => a.length - b.length || a.localeCompare(b),
+        );
+
+        return {
+            files: sorted.slice(0, MAX_FILES),
+            truncated: truncated || sorted.length > MAX_FILES,
         };
     }
 
@@ -607,6 +659,7 @@ export class AiWritebackService extends BaseService {
                 recordStep,
                 skillKey,
                 warehouseType: turn.warehouseType,
+                dbtVersion: turn.dbtVersion,
             });
 
             const {
@@ -655,8 +708,12 @@ export class AiWritebackService extends BaseService {
                     exitCode: agent.exitCode,
                     prUrl: crashPrUrl,
                     // The agent crashed before pushing changes, so any PR here
-                    // is a pre-existing one — never newly opened.
+                    // is a pre-existing one — never newly opened, and this turn
+                    // pushed no commit to pin to.
                     prAction: crashPrUrl ? 'updated' : null,
+                    commitSha: null,
+                    additions: null,
+                    deletions: null,
                     projectName: turn.projectName,
                     repository,
                     steps: stepLog,
@@ -708,6 +765,9 @@ export class AiWritebackService extends BaseService {
                 exitCode: agent.exitCode,
                 prUrl: applied.prUrl,
                 prAction: getPrAction(applied),
+                commitSha: applied.commitSha,
+                additions: applied.additions,
+                deletions: applied.deletions,
                 projectName: turn.projectName,
                 repository,
                 steps: stepLog,
@@ -796,10 +856,36 @@ export class AiWritebackService extends BaseService {
             ? await this.aiWritebackThreadModel.findByAiThreadUuid(aiThreadUuid)
             : null;
 
+        // A thread is bound to its first PR. If that PR has since been merged or
+        // closed (from the chat card or directly on the host), editing it again
+        // would push onto a dead branch and silently orphan the change. Bail
+        // before spinning up the sandbox and tell the user to start a new
+        // thread. (Pasted-link turns are validated separately in adoptPullRequest.)
+        if (existingRow?.pr_url) {
+            const installation = await provider.resolveInstallation(
+                user.organizationUuid,
+                { user, connection: gitConnection },
+            );
+            const editState = await provider.getPullRequestEditState({
+                prUrl: existingRow.pr_url,
+                connection: gitConnection,
+                installation,
+            });
+            if (!editState.editable && editState.reason) {
+                throw new WritebackThreadPrClosedError(editState.reason);
+            }
+        }
+
         // `get()` returns the (de-sensitised) warehouse credentials with the
         // discriminant `type` intact. Null when the project has no warehouse
         // connection — the agent then gets `shared.md` only.
         const warehouseType = project.warehouseConnection?.type ?? null;
+
+        // Resolve to a concrete, sandbox-installed version here so downstream
+        // (the compile wrapper's PATH prefix) always maps to an installed venv:
+        // `latest` becomes the newest version and pins older than the supported
+        // range clamp up. Never re-resolved downstream.
+        const dbtVersion = resolveSandboxDbtVersion(project.dbtVersion);
 
         return {
             organizationUuid: user.organizationUuid,
@@ -809,6 +895,7 @@ export class AiWritebackService extends BaseService {
             existingRow,
             isResume: existingRow !== null,
             warehouseType,
+            dbtVersion,
         };
     }
 
@@ -1060,6 +1147,7 @@ export class AiWritebackService extends BaseService {
         recordStep,
         skillKey,
         warehouseType,
+        dbtVersion,
     }: {
         sandbox: Sandbox;
         systemPrompt: string;
@@ -1069,6 +1157,7 @@ export class AiWritebackService extends BaseService {
         recordStep: (step: AiWritebackStep) => void;
         skillKey: WarehouseSkillKey | null;
         warehouseType: WarehouseTypes | null;
+        dbtVersion: SupportedDbtVersions;
     }): Promise<{ stdout: string; exitCode: number }> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
@@ -1082,6 +1171,12 @@ export class AiWritebackService extends BaseService {
         const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
             (name) => `-u ${name}`,
         ).join(' ');
+        // Prepend the project's dbt-version venv bin to PATH so the bare `dbt`
+        // the Lightdash CLI invokes resolves to the version the project is
+        // configured to use (the image installs every supported version in its
+        // own venv). `lightdash` still resolves via the inherited PATH. This is
+        // the only place `dbt` runs — the agent is allowlisted to this wrapper.
+        const dbtBin = dbtSandboxVenvBin(dbtVersion);
         // Time each compile and append `<elapsedMs> <exitCode>` to a log we read
         // after the run. We drop `exec` (one extra shell frame) so the timing
         // can be recorded after the child returns; secrets are still stripped via
@@ -1090,7 +1185,7 @@ export class AiWritebackService extends BaseService {
             COMPILE_WRAPPER_PATH,
             `#!/usr/bin/env bash\n` +
                 `__ld_start=$(date +%s%3N)\n` +
-                `env ${unsetFlags} lightdash compile "$@"\n` +
+                `env ${unsetFlags} PATH="${dbtBin}:$PATH" lightdash compile "$@"\n` +
                 `__ld_code=$?\n` +
                 `echo "$(( $(date +%s%3N) - __ld_start )) $__ld_code" >> ${COMPILE_TIMINGS_PATH}\n` +
                 `exit $__ld_code\n`,
@@ -1402,6 +1497,10 @@ export class AiWritebackService extends BaseService {
                 prUrl: turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null,
                 prCreated: false,
                 pauseOnExit: turn.isResume,
+                // No file changes this turn → no commit to pin the card to.
+                commitSha: null,
+                additions: null,
+                deletions: null,
             };
         }
 
@@ -1414,20 +1513,21 @@ export class AiWritebackService extends BaseService {
                     'Cannot update pull request: the writeback thread is not linked to a pull request',
                 );
             }
-            await turn.provider.updatePullRequest({
-                sandbox,
-                connection: turn.gitConnection,
-                installation,
-                prUrl: targetPrUrl,
-                title: await this.resolvePrTitle(sandbox, prTitle, true),
-                description: await this.resolvePrDescription(
+            const { commitSha, additions, deletions } =
+                await turn.provider.updatePullRequest({
                     sandbox,
-                    prDescription,
-                    true,
-                ),
-                user,
-                setStage,
-            });
+                    connection: turn.gitConnection,
+                    installation,
+                    prUrl: targetPrUrl,
+                    title: await this.resolvePrTitle(sandbox, prTitle, true),
+                    description: await this.resolvePrDescription(
+                        sandbox,
+                        prDescription,
+                        true,
+                    ),
+                    user,
+                    setStage,
+                });
             this.logger.info(
                 `AiWriteback: updated PR ${targetPrUrl} (sandboxId=${sandbox.sandboxId})`,
             );
@@ -1451,22 +1551,26 @@ export class AiWritebackService extends BaseService {
                 pauseOnExit: turn.existingRow
                     ? true
                     : aiThreadUuid !== undefined,
+                commitSha,
+                additions,
+                deletions,
             };
         }
 
-        const prUrl = await turn.provider.openPullRequest({
-            sandbox,
-            connection: turn.gitConnection,
-            installation,
-            title: await this.resolvePrTitle(sandbox, prTitle, false),
-            description: await this.resolvePrDescription(
+        const { prUrl, commitSha, additions, deletions } =
+            await turn.provider.openPullRequest({
                 sandbox,
-                prDescription,
-                false,
-            ),
-            user,
-            setStage,
-        });
+                connection: turn.gitConnection,
+                installation,
+                title: await this.resolvePrTitle(sandbox, prTitle, false),
+                description: await this.resolvePrDescription(
+                    sandbox,
+                    prDescription,
+                    false,
+                ),
+                user,
+                setStage,
+            });
         this.logger.info(
             `AiWriteback: opened PR ${prUrl} (sandboxId=${sandbox.sandboxId})`,
         );
@@ -1484,6 +1588,9 @@ export class AiWritebackService extends BaseService {
             prUrl,
             prCreated: true,
             pauseOnExit: aiThreadUuid !== undefined,
+            commitSha,
+            additions,
+            deletions,
         };
     }
 

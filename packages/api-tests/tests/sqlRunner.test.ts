@@ -8,7 +8,6 @@ import {
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ApiClient, SITE_URL } from '../helpers/api-client';
 import { login } from '../helpers/auth';
-import { waitForJobCompletion } from '../helpers/polling';
 import {
     bigqueryWarehouseConfig,
     createProject,
@@ -17,29 +16,39 @@ import {
 } from '../helpers/projects';
 
 const apiUrl = '/api/v1';
+const apiV2Url = '/api/v2';
 
 /**
- * Poll a job status until completed or error.
+ * Poll an async query until it is ready, then return the streamed JSONL rows.
  */
-async function pollJobStatus(
+async function getAsyncSqlQueryRows(
     client: ApiClient,
-    jobId: string,
-    maxRetries = 20,
-    interval = 500,
-): Promise<any> {
+    projectUuid: string,
+    queryUuid: string,
+    maxRetries = 60,
+    interval = 1000,
+): Promise<any[]> {
     for (let i = 0; i < maxRetries; i++) {
-        await new Promise((r) => setTimeout(r, interval));
         const resp = await client.get<any>(
-            `${apiUrl}/schedulers/job/${jobId}/status`,
+            `${apiV2Url}/projects/${projectUuid}/query/${queryUuid}`,
         );
         expect(resp.status).toBe(200);
         const { status } = resp.body.results;
-        if (status === 'completed' || status === 'error') {
-            return resp.body.results;
+        if (status === 'error') {
+            throw new Error(`Query failed: ${resp.body.results.error}`);
         }
+        if (status === 'ready') {
+            const fileResp = await client.get<any>(
+                `${apiV2Url}/projects/${projectUuid}/query/${queryUuid}/results`,
+            );
+            expect(fileResp.status).toBe(200);
+            const lines = (fileResp.body as string).trim().split('\n');
+            return lines.map((line: string) => JSON.parse(line));
+        }
+        await new Promise((r) => setTimeout(r, interval));
     }
     throw new Error(
-        `Reached max retries (${maxRetries}) without job completion`,
+        `Reached max retries (${maxRetries}) without query completion`,
     );
 }
 
@@ -48,9 +57,9 @@ const postgresConfig = {
     host: process.env.PGHOST || 'db-dev',
     user: process.env.PGUSER || 'postgres',
     password: process.env.PGPASSWORD || 'password',
-    dbname: 'postgres',
+    dbname: process.env.PGDATABASE || 'postgres',
     schema: 'jaffle',
-    port: 5432,
+    port: Number(process.env.PGPORT) || 5432,
     sslmode: 'disable',
     type: WarehouseTypes.POSTGRES,
 };
@@ -220,21 +229,17 @@ for (const [warehouseName, warehouseConfig] of warehouseEntries) {
                          ORDER BY payment_id asc LIMIT 2`;
 
             const runResp = await admin.post<any>(
-                `${apiUrl}/projects/${projectUuid}/sqlRunner/run`,
+                `${apiV2Url}/projects/${projectUuid}/query/sql`,
                 { sql },
             );
             expect(runResp.status).toBe(200);
-            const { jobId } = runResp.body.results;
+            const { queryUuid } = runResp.body.results;
 
-            const jobResult = await pollJobStatus(admin, jobId, 20, 500);
-            expect(jobResult.status).toBe('completed');
-
-            const { fileUrl } = jobResult.details;
-            const fileResp = await admin.get<any>(fileUrl);
-            expect(fileResp.status).toBe(200);
-
-            const lines = (fileResp.body as string).trim().split('\n');
-            const results = lines.map((line: string) => JSON.parse(line));
+            const results = await getAsyncSqlQueryRows(
+                admin,
+                projectUuid,
+                queryUuid,
+            );
 
             expect(results).toHaveLength(2);
             expect(results[0].payment_id).toBe(1);
@@ -253,27 +258,27 @@ for (const [warehouseName, warehouseConfig] of warehouseEntries) {
                     : `SELECT * FROM ${database}.${schema}.orders`;
             const pivotQueryPayload = {
                 sql,
-                indexColumn: { reference: 'status', type: 'category' },
-                valuesColumns: [{ reference: 'order_id', aggregation: 'sum' }],
+                pivotConfiguration: {
+                    indexColumn: { reference: 'status', type: 'category' },
+                    valuesColumns: [
+                        { reference: 'order_id', aggregation: 'sum' },
+                    ],
+                },
                 limit: 500,
             };
 
             const runResp = await admin.post<any>(
-                `${apiUrl}/projects/${projectUuid}/sqlRunner/runPivotQuery`,
+                `${apiV2Url}/projects/${projectUuid}/query/sql`,
                 pivotQueryPayload,
             );
             expect(runResp.status).toBe(200);
-            const { jobId } = runResp.body.results;
+            const { queryUuid } = runResp.body.results;
 
-            const jobResult = await pollJobStatus(admin, jobId, 50, 1000);
-            expect(jobResult.status).toBe('completed');
-
-            const { fileUrl } = jobResult.details;
-            const fileResp = await admin.get<any>(fileUrl);
-            expect(fileResp.status).toBe(200);
-
-            const lines = (fileResp.body as string).trim().split('\n');
-            const results = lines.map((line: string) => JSON.parse(line));
+            const results = await getAsyncSqlQueryRows(
+                admin,
+                projectUuid,
+                queryUuid,
+            );
 
             expect(results.length).toBeGreaterThan(0);
             expect(results[0]).toHaveProperty('status');

@@ -3,6 +3,7 @@ import {
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
     AiAgentAdminSort,
+    AiAgentReviewItemPrDiff,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
     AiAgentReviewRemediationPreviewJobPayload,
@@ -38,6 +39,7 @@ import {
     getInstallationToken,
     getPullRequest,
     getPullRequestComments,
+    getPullRequestDiffFiles,
 } from '../../clients/github/Github';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../database/errors';
@@ -173,6 +175,7 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
     projectContextEnabled: boolean;
     projectAccess: ProjectWritebackAccess | null;
     hasSemanticWritebackConfig: boolean;
+    sourceThreadHasWritebackPr: boolean;
 }): AiAgentReviewItemWritebackEligibility => {
     const {
         item,
@@ -180,6 +183,7 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
         projectContextEnabled,
         projectAccess,
         hasSemanticWritebackConfig,
+        sourceThreadHasWritebackPr,
     } = args;
 
     if (!reviewsEnabled) {
@@ -202,6 +206,13 @@ export const getAiAgentReviewItemWritebackEligibility = (args: {
         item.prWritebackStatus === 'running'
     ) {
         return unavailableWritebackEligibility('writeback_in_progress');
+    }
+    // The agent already opened a writeback PR in the thread this finding came
+    // from — remediating would open a second PR for the same issue.
+    if (sourceThreadHasWritebackPr && !item.linkedPrUrl) {
+        return unavailableWritebackEligibility(
+            'source_thread_writeback_exists',
+        );
     }
 
     const strategyResult = getWritebackStrategy(item, projectContextEnabled);
@@ -395,6 +406,13 @@ export class AiAgentAdminService extends BaseService {
                 .filter((uuid): uuid is string => uuid !== null),
         );
 
+        const writebackPrByThread =
+            await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                items
+                    .map((item) => item.latestFinding?.threadUuid)
+                    .filter((uuid): uuid is string => !!uuid),
+            );
+
         const reconciled = items.map((item) => {
             const override = overrides.get(item.fingerprint);
             const reconciledItem = { ...item, ...(override ?? {}) };
@@ -410,6 +428,11 @@ export class AiAgentAdminService extends BaseService {
                         : null,
                     hasSemanticWritebackConfig:
                         this.hasSemanticWritebackConfig(),
+                    sourceThreadHasWritebackPr:
+                        !!reconciledItem.latestFinding?.threadUuid &&
+                        (writebackPrByThread.get(
+                            reconciledItem.latestFinding.threadUuid,
+                        )?.length ?? 0) > 0,
                 });
 
             return {
@@ -581,6 +604,10 @@ export class AiAgentAdminService extends BaseService {
             case 'pull_request_open':
                 throw new ParameterError(
                     'A pull request is already open for this review item',
+                );
+            case 'source_thread_writeback_exists':
+                throw new ParameterError(
+                    'The agent already opened a pull request in the source thread for this finding',
                 );
             case 'writeback_in_progress':
                 throw new ParameterError(
@@ -865,6 +892,12 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             reviewItem.projectUuid ? [reviewItem.projectUuid] : [],
         );
+        const writebackPrByThread =
+            await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                [finding.threadUuid],
+            );
+        const sourceThreadHasWritebackPr =
+            (writebackPrByThread.get(finding.threadUuid)?.length ?? 0) > 0;
         const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
             item: reviewItem,
             reviewsEnabled,
@@ -873,6 +906,7 @@ export class AiAgentAdminService extends BaseService {
                 ? (projectAccessByUuid.get(reviewItem.projectUuid) ?? null)
                 : null,
             hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
+            sourceThreadHasWritebackPr,
         });
         if (!writebackEligibility.eligible) {
             AiAgentAdminService.throwWritebackBlocked(writebackEligibility);
@@ -1153,22 +1187,21 @@ export class AiAgentAdminService extends BaseService {
                         },
                     );
                 }
-                if (plan.strategy === 'prompt') {
-                    await setProgress('Creating preview environment…');
-                    const preview =
-                        await this.writebackPreviewService.createPreviewForPullRequest(
-                            { user, projectUuid, prUrl },
-                        );
-                    if (preview) {
-                        terminalMessage = `Opened pull request · Preview: ${preview.previewUrl}`;
-                        if (remediationUuid && pullRequest) {
-                            await this.setReviewRemediationPreviewFromProject({
-                                organizationUuid,
-                                remediationUuid,
-                                previewProjectUuid: preview.previewProjectUuid,
-                                userUuid,
-                            });
-                        }
+                // Both strategies verify against the PR's head branch in a preview env.
+                await setProgress('Creating preview environment…');
+                const preview =
+                    await this.writebackPreviewService.createPreviewForPullRequest(
+                        { user, projectUuid, prUrl },
+                    );
+                if (preview) {
+                    terminalMessage = `Opened pull request · Preview: ${preview.previewUrl}`;
+                    if (remediationUuid && pullRequest) {
+                        await this.setReviewRemediationPreviewFromProject({
+                            organizationUuid,
+                            remediationUuid,
+                            previewProjectUuid: preview.previewProjectUuid,
+                            userUuid,
+                        });
                     }
                 }
                 await setTerminal('completed', terminalMessage);
@@ -1264,6 +1297,18 @@ export class AiAgentAdminService extends BaseService {
         }
     }
 
+    private static buildReviewVerificationPrompt(
+        linkedPrUrl: string | null,
+    ): string {
+        return [
+            `A fix for this project was just applied from a pull request${
+                linkedPrUrl ? ` (${linkedPrUrl})` : ''
+            }. The conversation where the original question went wrong is attached as context.`,
+            '',
+            "Re-run the user's original question end-to-end against this project. Then compare the outcome with the attached conversation and state clearly whether the issue is resolved. Point out anything that still looks wrong.",
+        ].join('\n');
+    }
+
     private async createReviewRemediationPreviewThread({
         remediation,
         organizationUuid,
@@ -1277,13 +1322,56 @@ export class AiAgentAdminService extends BaseService {
         previewAgentUuid: string;
         userUuid: string;
     }): Promise<string> {
-        const threadUuid = await this.aiAgentModel.createWebAppThread({
+        // Seed the thread with a verification prompt that pins the source
+        // conversation as context — the agent re-runs the original question
+        // against the fixed project and reports whether the issue is
+        // resolved. Thread and prompt are created atomically; on failure the
+        // whole creation is retried with the flagged prompt's text verbatim.
+        const thread = {
             organizationUuid,
             projectUuid: previewProjectUuid,
             userUuid,
-            createdFrom: 'web_app',
+            createdFrom: 'web_app' as const,
             agentUuid: previewAgentUuid,
-        });
+        };
+        let threadUuid: string;
+        try {
+            ({ threadUuid } =
+                await this.aiAgentModel.createWebAppThreadWithPrompt({
+                    thread,
+                    prompt: {
+                        createdByUserUuid: userUuid,
+                        prompt: AiAgentAdminService.buildReviewVerificationPrompt(
+                            remediation.linkedPrUrl,
+                        ),
+                        context: [
+                            {
+                                type: 'thread',
+                                threadUuid: remediation.sourceThreadUuid,
+                                promptUuid: remediation.sourcePromptUuid,
+                            },
+                        ],
+                    },
+                }));
+        } catch (error) {
+            this.logger.warn(
+                `Failed to seed review verification prompt, falling back to the flagged prompt text: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            if (!remediation.retryPrompt) {
+                throw error;
+            }
+            ({ threadUuid } =
+                await this.aiAgentModel.createWebAppThreadWithPrompt({
+                    thread,
+                    prompt: {
+                        createdByUserUuid: userUuid,
+                        prompt: remediation.retryPrompt,
+                    },
+                }));
+        }
+
         const reviewItem =
             await this.aiAgentReviewClassifierModel.getReviewItem(
                 organizationUuid,
@@ -1334,14 +1422,25 @@ export class AiAgentAdminService extends BaseService {
             return;
         }
 
-        const previewThreadUuid =
-            await this.createReviewRemediationPreviewThread({
-                remediation,
-                organizationUuid,
-                previewProjectUuid,
-                previewAgentUuid,
-                userUuid,
-            });
+        let previewThreadUuid: string;
+        try {
+            previewThreadUuid = await this.createReviewRemediationPreviewThread(
+                {
+                    remediation,
+                    organizationUuid,
+                    previewProjectUuid,
+                    previewAgentUuid,
+                    userUuid,
+                },
+            );
+        } catch (error) {
+            this.logger.warn(
+                `Failed to create review verification thread: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return;
+        }
 
         await this.aiAgentReviewClassifierModel.setReviewRemediationPreviewThread(
             {
@@ -1352,6 +1451,16 @@ export class AiAgentAdminService extends BaseService {
                 previewThreadUuid,
             },
         );
+
+        await this.schedulerClient.aiAgentReviewRemediationRun({
+            organizationUuid,
+            projectUuid: previewProjectUuid,
+            userUuid,
+            fingerprint: remediation.fingerprint,
+            remediationUuid,
+            agentUuid: previewAgentUuid,
+            threadUuid: previewThreadUuid,
+        });
     }
 
     async pollReviewRemediationPreview(
@@ -1434,6 +1543,77 @@ export class AiAgentAdminService extends BaseService {
         await this.aiAgentReviewClassifierModel.failReviewItemWriteback(args);
     }
 
+    async getReviewItemPrDiff(
+        user: SessionUser,
+        fingerprint: string,
+    ): Promise<AiAgentReviewItemPrDiff> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!reviewItem?.linkedPrUrl) {
+            throw new NotFoundError(
+                'No pull request is linked to this review item',
+            );
+        }
+        const parsed = parsePullRequestUrl(reviewItem.linkedPrUrl);
+        if (!parsed) {
+            throw new NotFoundError(
+                'The linked pull request is not a GitHub pull request',
+            );
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.getInstallationId(
+                organizationUuid,
+            );
+        const diff = await getPullRequestDiffFiles({
+            owner: parsed.owner,
+            repo: parsed.repo,
+            pullNumber: parsed.pullNumber,
+            installationId,
+        });
+
+        return {
+            prUrl: reviewItem.linkedPrUrl,
+            ...diff,
+        };
+    }
+
+    // Resolves the review item a preview work thread belongs to, so the
+    // thread page can show the verification context without relying on
+    // query params surviving navigation.
+    async getReviewItemByPreviewThread(
+        user: SessionUser,
+        previewThreadUuid: string,
+    ): Promise<AiAgentReviewItemSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const remediation =
+            await this.aiAgentReviewClassifierModel.findReviewRemediationByPreviewThread(
+                {
+                    organizationUuid,
+                    previewThreadUuid,
+                },
+            );
+        if (!remediation) {
+            throw new NotFoundError('No review item is linked to this thread');
+        }
+
+        return this.getReviewItem(user, remediation.fingerprint);
+    }
+
     async getReviewItem(
         user: SessionUser,
         fingerprint: string,
@@ -1461,6 +1641,13 @@ export class AiAgentAdminService extends BaseService {
             organizationUuid,
             reviewItem.projectUuid ? [reviewItem.projectUuid] : [],
         );
+        const sourceThreadHasWritebackPr = reviewItem.latestFinding
+            ? ((
+                  await this.aiAgentReviewClassifierModel.getThreadWritebackPullRequests(
+                      [reviewItem.latestFinding.threadUuid],
+                  )
+              ).get(reviewItem.latestFinding.threadUuid)?.length ?? 0) > 0
+            : false;
         const writebackEligibility = getAiAgentReviewItemWritebackEligibility({
             item: reviewItem,
             reviewsEnabled,
@@ -1469,6 +1656,7 @@ export class AiAgentAdminService extends BaseService {
                 ? (projectAccessByUuid.get(reviewItem.projectUuid) ?? null)
                 : null,
             hasSemanticWritebackConfig: this.hasSemanticWritebackConfig(),
+            sourceThreadHasWritebackPr,
         });
 
         return {

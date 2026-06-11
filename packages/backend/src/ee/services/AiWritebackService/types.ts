@@ -1,6 +1,7 @@
 import type {
     PullRequestProvider,
     SessionUser,
+    SupportedDbtVersions,
     WarehouseTypes,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
@@ -117,12 +118,24 @@ export type TurnContext = {
      * warehouse slicing. `null` when the project has no warehouse connection.
      */
     warehouseType: WarehouseTypes | null;
+    /**
+     * The project's configured dbt version, resolved to a concrete version
+     * (`latest` is resolved to the newest supported version here, never passed
+     * downstream). The compile wrapper prepends this version's venv bin to PATH
+     * so the agent compiles with the version the project actually uses.
+     */
+    dbtVersion: SupportedDbtVersions;
 };
 
 export type AppliedChanges = {
     prUrl: string | null;
     prCreated: boolean;
     pauseOnExit: boolean;
+    /** Head commit SHA this turn pushed; null when no commit was made. */
+    commitSha: string | null;
+    /** Lines this turn's commit added/removed; null when no commit was made. */
+    additions: number | null;
+    deletions: number | null;
 };
 
 export type AiWritebackSource =

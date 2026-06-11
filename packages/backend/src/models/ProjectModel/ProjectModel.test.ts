@@ -33,7 +33,6 @@ import {
     SpaceUserAccessTableName,
 } from '../../database/entities/spaces';
 import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
-import { ChangesetModel } from '../ChangesetModel';
 import { ProjectModel } from './ProjectModel';
 import {
     CompletePostgresCredentials,
@@ -68,7 +67,6 @@ describe('ProjectModel', () => {
 
     const model = new ProjectModel({
         database,
-        changesetModel: new ChangesetModel({ database }),
         lightdashConfig: lightdashConfigMock,
         encryptionUtil: encryptionUtilMock,
     });

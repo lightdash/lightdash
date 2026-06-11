@@ -218,6 +218,7 @@ import { type FileStorageClient } from '../../clients/FileStorage/FileStorageCli
 import type { INatsClient } from '../../clients/NatsClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { normalizeDatabricksHostLenient } from '../../controllers/authentication/strategies/databricksStrategy';
+import type { DbProjectParameter } from '../../database/entities/projectParameters';
 import type { DbTagUpdate } from '../../database/entities/tags';
 import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preAggregates';
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
@@ -3750,9 +3751,11 @@ export class ProjectService extends BaseService {
     protected async getAvailableParameters(
         projectUuid: string,
         explore: Explore,
+        preloadedProjectParameters?: DbProjectParameter[],
     ): Promise<ParameterDefinitions> {
         const projectParameters =
-            await this.projectParametersModel.find(projectUuid);
+            preloadedProjectParameters ??
+            (await this.projectParametersModel.find(projectUuid));
 
         return getAvailableParameterDefinitions(projectParameters, explore);
     }
@@ -3858,6 +3861,7 @@ export class ProjectService extends BaseService {
             organizationUuid: account.organization.organizationUuid,
         });
         const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: getAccountUserTimezone(account),
@@ -4547,6 +4551,7 @@ export class ProjectService extends BaseService {
                     organizationUuid: account.organization.organizationUuid,
                 });
                 const resolvedTimezone = resolveQueryTimezone({
+                    sessionTimezone: null,
                     metricQuery,
                     projectTimezone,
                     userTimezone: getAccountUserTimezone(account),
@@ -4632,11 +4637,13 @@ export class ProjectService extends BaseService {
         warehouseClient,
         query,
         metricQuery,
+        resolvedTimezone,
         queryTags,
         invalidateCache,
     }: {
         projectUuid: string;
         userUuid: string | null;
+        resolvedTimezone: string;
         user: Pick<
             LightdashUser,
             'userUuid' | 'organizationUuid' | 'organizationName'
@@ -4655,8 +4662,15 @@ export class ProjectService extends BaseService {
             'ProjectService.getResultsFromCacheOrWarehouse',
             {},
             async (span) => {
-                const hashParts = [projectUuid, userUuid, query];
-                if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+                // Key on the resolved timezone (not the raw setting) so the
+                // cache reflects project/user fallbacks and invalidates when the
+                // project timezone changes.
+                const hashParts = [
+                    projectUuid,
+                    userUuid,
+                    query,
+                    resolvedTimezone,
+                ];
                 const queryHash = buildCacheHash(hashParts);
 
                 span.setAttribute('queryHash', queryHash);
@@ -4895,6 +4909,7 @@ export class ProjectService extends BaseService {
                                 account.organization.organizationUuid,
                         });
                     const timezone = resolveQueryTimezone({
+                        sessionTimezone: null,
                         metricQuery: metricQueryWithLimit,
                         projectTimezone,
                         userTimezone: getAccountUserTimezone(account),
@@ -5008,6 +5023,7 @@ export class ProjectService extends BaseService {
                             context,
                             warehouseClient,
                             metricQuery: metricQueryWithLimit,
+                            resolvedTimezone: timezone,
                             query,
                             queryTags,
                             invalidateCache,
@@ -5502,6 +5518,7 @@ export class ProjectService extends BaseService {
             await this.getQueryTimezoneForProject(projectUuid);
         const isUserTimezoneEnabled = await this.isUserTimezoneEnabled(user);
         const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: user.timezone,
@@ -5528,8 +5545,13 @@ export class ProjectService extends BaseService {
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
-        const hashParts = [projectUuid, userUuid, 'cache_autocomplete', query];
-        if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+        const hashParts = [
+            projectUuid,
+            userUuid,
+            'cache_autocomplete',
+            query,
+            timezone,
+        ];
         const queryHash = buildCacheHash(hashParts);
 
         if (!forceRefresh && isUserCacheEnabled) {
@@ -6364,18 +6386,36 @@ export class ProjectService extends BaseService {
         organizationUuid?: string,
         includeUnfilteredTables: boolean = true,
     ): Promise<Explore> {
+        const { explore } = await this.getExploreWithUserAccessControls(
+            account,
+            projectUuid,
+            exploreName,
+            organizationUuid,
+            includeUnfilteredTables,
+        );
+        return explore;
+    }
+
+    async getExploreWithUserAccessControls(
+        account: Account,
+        projectUuid: string,
+        exploreName: string,
+        organizationUuid?: string,
+        includeUnfilteredTables: boolean = true,
+    ): Promise<{ explore: Explore; userAccessControls: UserAccessControls }> {
         return Sentry.startSpan(
             {
                 op: 'ProjectService.getExplore',
                 name: 'ProjectService.getExplore',
             },
             async () => {
-                const exploresMap = await this.findExplores({
-                    account,
-                    projectUuid,
-                    exploreNames: [exploreName],
-                    organizationUuid,
-                });
+                const { explores: exploresMap, userAccessControls } =
+                    await this.findExploresWithUserAccessControls({
+                        account,
+                        projectUuid,
+                        exploreNames: [exploreName],
+                        organizationUuid,
+                    });
                 const explore = exploresMap[exploreName];
 
                 if (!explore) {
@@ -6390,10 +6430,10 @@ export class ProjectService extends BaseService {
                             .join(', ')}`,
                     );
                 }
-                if (includeUnfilteredTables) {
-                    return explore;
-                }
-                return { ...explore, unfilteredTables: undefined };
+                const finalExplore = includeUnfilteredTables
+                    ? explore
+                    : { ...explore, unfilteredTables: undefined };
+                return { explore: finalExplore, userAccessControls };
             },
         );
     }
@@ -6409,6 +6449,29 @@ export class ProjectService extends BaseService {
         exploreNames: string[];
         organizationUuid?: string;
     }): Promise<Record<string, Explore | ExploreError>> {
+        const { explores } = await this.findExploresWithUserAccessControls({
+            account,
+            projectUuid,
+            exploreNames,
+            organizationUuid,
+        });
+        return explores;
+    }
+
+    async findExploresWithUserAccessControls({
+        account,
+        projectUuid,
+        exploreNames,
+        organizationUuid,
+    }: {
+        account: Account;
+        projectUuid: string;
+        exploreNames: string[];
+        organizationUuid?: string;
+    }): Promise<{
+        explores: Record<string, Explore | ExploreError>;
+        userAccessControls: UserAccessControls;
+    }> {
         return Sentry.startSpan(
             {
                 op: 'ProjectService.findExplores',
@@ -6460,11 +6523,11 @@ export class ProjectService extends BaseService {
                         projectUuid,
                     );
 
-                const { userAttributes } = await this.getUserAttributes({
+                const userAccessControls = await this.getUserAttributes({
                     account,
                 });
 
-                return Object.values(explores).reduce<
+                const filteredExplores = Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
                 >((acc, explore) => {
                     if (
@@ -6483,12 +6546,17 @@ export class ProjectService extends BaseService {
                         } else {
                             acc[explore.name] = getFilteredExplore(
                                 explore,
-                                userAttributes,
+                                userAccessControls.userAttributes,
                             );
                         }
                     }
                     return acc;
                 }, {});
+
+                return {
+                    explores: filteredExplores,
+                    userAccessControls,
+                };
             },
         );
     }
@@ -9168,13 +9236,15 @@ export class ProjectService extends BaseService {
         explore?: Explore,
         requestParameters?: ParametersValuesMap,
         savedParameters?: ParametersValuesMap,
+        preloadedProjectParameters?: DbProjectParameter[],
     ): Promise<ParametersValuesMap> {
         // Get default values for parameters
         const projectDefaultParameterValues: ParametersValuesMap = {};
 
         // Fetch all parameters
         const parameterConfigs =
-            await this.projectParametersModel.find(projectUuid);
+            preloadedProjectParameters ??
+            (await this.projectParametersModel.find(projectUuid));
 
         for (const paramConfig of parameterConfigs) {
             if (paramConfig.config.default !== undefined) {

@@ -8,9 +8,9 @@ type Props = {
 };
 
 type ItemMeta = {
-    kind: 'chart' | 'dashboard';
+    kind: 'chart' | 'dashboard' | 'thread';
     label: string;
-    href: string;
+    href: string | null;
 };
 
 const getItemMeta = (
@@ -30,6 +30,14 @@ const getItemMeta = (
                 label: item.displayName ?? 'Dashboard',
                 href: `/projects/${projectUuid}/dashboards/${item.dashboardUuid}`,
             };
+        // A pinned thread can live in another project, so there is no
+        // reliable in-project URL to offer.
+        case 'thread':
+            return {
+                kind: 'thread',
+                label: item.displayName ?? 'Conversation',
+                href: null,
+            };
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -41,8 +49,9 @@ export const PinnedContextCard: FC<Props> = ({ item, projectUuid }) => {
         <ContentReferenceLink
             kind={meta.kind}
             rel="noreferrer"
-            to={meta.href}
-            target="_blank"
+            to={meta.href ?? undefined}
+            target={meta.href ? '_blank' : undefined}
+            showArrow={meta.href !== null}
         >
             {meta.label}
         </ContentReferenceLink>

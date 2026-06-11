@@ -41,6 +41,7 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     describeWarehouseTable: 'describe_warehouse_table',
     listKnowledgeDocuments: 'list_knowledge_documents',
     getKnowledgeDocumentContent: 'get_knowledge_document_content',
+    readPinnedThread: 'read_pinned_thread',
     generateDashboard: 'generate_dashboard',
     improveContext: 'improve_context',
     listProjects: 'list_projects',

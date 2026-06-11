@@ -10,6 +10,7 @@ import {
     AiAgentNotFoundError,
     AiAgentProjectThreadSummary,
     AiAgentReviewClassifierEventType,
+    AiAgentReviewRemediationRunJobPayload,
     AiAgentSummary,
     AiAgentThread,
     AiAgentThreadFilters,
@@ -542,7 +543,10 @@ export class AiAgentService extends BaseService {
             context?.filter((item) => item.type === 'chart').length ?? 0;
         const pinnedDashboardCount =
             context?.filter((item) => item.type === 'dashboard').length ?? 0;
-        const pinnedContextCount = pinnedChartCount + pinnedDashboardCount;
+        const pinnedThreadCount =
+            context?.filter((item) => item.type === 'thread').length ?? 0;
+        const pinnedContextCount =
+            pinnedChartCount + pinnedDashboardCount + pinnedThreadCount;
 
         return {
             hasPinnedContext: pinnedContextCount > 0,
@@ -561,10 +565,23 @@ export class AiAgentService extends BaseService {
 
         const seen = new Set<string>();
         const deduped = context.filter((item) => {
-            const key =
-                item.type === 'chart'
-                    ? `chart:${item.chartUuid}`
-                    : `dashboard:${item.dashboardUuid}`;
+            let key: string;
+            switch (item.type) {
+                case 'chart':
+                    key = `chart:${item.chartUuid}`;
+                    break;
+                case 'dashboard':
+                    key = `dashboard:${item.dashboardUuid}`;
+                    break;
+                case 'thread':
+                    key = `thread:${item.threadUuid}`;
+                    break;
+                default:
+                    return assertUnreachable(
+                        item,
+                        'Unknown AiPromptContextItemInput type',
+                    );
+            }
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -586,6 +603,10 @@ export class AiAgentService extends BaseService {
                     );
                 }
 
+                if (item.type === 'thread') {
+                    return this.validateThreadContextAccess(user, item);
+                }
+
                 return this.dashboardService.hasAccess(
                     'view',
                     { user, projectUuid: agent.projectUuid },
@@ -595,6 +616,43 @@ export class AiAgentService extends BaseService {
         );
 
         return deduped;
+    }
+
+    // A pinned thread may live in another project (e.g. verifying a fix in a
+    // preview environment against the original conversation), so access is
+    // checked against the source thread's own agent.
+    private async validateThreadContextAccess(
+        user: SessionUser,
+        item: { threadUuid: string },
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const ownership = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid,
+            threadUuid: item.threadUuid,
+        });
+        if (!ownership || !ownership.agentUuid) {
+            throw new NotFoundError(`Thread not found: ${item.threadUuid}`);
+        }
+        const threadAgent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid: ownership.agentUuid,
+        });
+        if (!threadAgent) {
+            throw new NotFoundError(`Thread not found: ${item.threadUuid}`);
+        }
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            threadAgent,
+            ownership.ownerUserUuid ?? '',
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to attach this conversation as context',
+            );
+        }
     }
 
     constructor(dependencies: AiAgentServiceDependencies) {
@@ -4352,7 +4410,6 @@ export class AiAgentService extends BaseService {
             agent.projectUuid,
             'name',
             originalChangeset.changes.map((c) => c.entityTableName),
-            { applyChangeset: false },
         );
 
         await this.changesetModel.revertChange(changeUuid, agent.projectUuid);
@@ -4573,6 +4630,12 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 }
                 case 'dashboard':
                     return `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
+                case 'thread':
+                    return `- Conversation "${name}" (threadUuid: ${item.threadUuid}${
+                        item.promptUuid
+                            ? `, the referenced turn is promptUuid: ${item.promptUuid}`
+                            : ''
+                    }) — a previous conversation attached as reference. Read it with the readPinnedThread tool. It may predate recent project changes, so verify any claims it contains against the current project instead of trusting them.`;
                 default:
                     return assertUnreachable(
                         item,
@@ -5491,6 +5554,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             describeWarehouseTable,
             listKnowledgeDocuments,
             getKnowledgeDocumentContent,
+            // Only conversations pinned as context on this thread are
+            // readable — the pin is the capability grant.
+            readPinnedThread: async ({ threadUuid }) => {
+                const pinnedThreadUuids =
+                    await this.aiAgentModel.findPinnedThreadContextUuids(
+                        prompt.threadUuid,
+                    );
+                if (!pinnedThreadUuids.includes(threadUuid)) {
+                    throw new ForbiddenError(
+                        'This conversation is not attached as context on this thread',
+                    );
+                }
+                const messages = await this.aiAgentModel.findThreadMessages({
+                    organizationUuid: user.organizationUuid!,
+                    threadUuid,
+                });
+                return messages.map((message) => ({
+                    role: message.role,
+                    message: message.message ?? '',
+                    createdAt: message.createdAt,
+                }));
+            },
             getSavedChart,
             getPrompt,
             sendFile,
@@ -9339,6 +9424,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             completedAt: new Date(),
         });
         await this.aiAgentModel.checkAndUpdateEvalRunCompletion(evalRunUuid);
+    }
+
+    async executeReviewRemediationRun({
+        userUuid,
+        organizationUuid,
+        agentUuid,
+        threadUuid,
+    }: AiAgentReviewRemediationRunJobPayload): Promise<void> {
+        const sessionUser = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+
+        await this.generateAgentThreadResponse(sessionUser, {
+            agentUuid,
+            threadUuid,
+            autoApproveSql: true,
+        });
     }
 
     async executeEvalResult({

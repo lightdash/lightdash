@@ -3,6 +3,7 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemResponse,
     ApiAiAgentReviewItemsResponse,
     ApiAiAgentReviewSignalsResponse,
@@ -183,6 +184,53 @@ export class AiAgentAdminController extends BaseController {
                 toSessionUser(req.account),
                 fingerprint,
             ),
+        };
+    }
+
+    /**
+     * Get the file diff of the pull request linked to a review item
+     * @summary Get AI agent review item PR diff
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-items/{fingerprint}/pr-diff')
+    @OperationId('getAiAgentReviewItemPrDiff')
+    async getReviewItemPrDiff(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+    ): Promise<ApiAiAgentReviewItemPrDiffResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getReviewItemPrDiff(
+                toSessionUser(req.account),
+                fingerprint,
+            ),
+        };
+    }
+
+    /**
+     * Get the review item linked to a remediation preview work thread
+     * @summary Get AI agent review item by preview thread
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-items/by-preview-thread/{threadUuid}')
+    @OperationId('getAiAgentReviewItemByPreviewThread')
+    async getReviewItemByPreviewThread(
+        @Request() req: express.Request,
+        @Path() threadUuid: string,
+    ): Promise<ApiAiAgentReviewItemResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results:
+                await this.getAiAgentAdminService().getReviewItemByPreviewThread(
+                    toSessionUser(req.account),
+                    threadUuid,
+                ),
         };
     }
 

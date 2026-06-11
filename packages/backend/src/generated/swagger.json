@@ -1994,6 +1994,21 @@
                     }
                 ]
             },
+            "EmbedWriteActions": {
+                "properties": {
+                    "spaceUuid": {
+                        "type": "string"
+                    },
+                    "userUuid": {
+                        "type": "string"
+                    },
+                    "serviceAccountUserUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["spaceUuid"],
+                "type": "object"
+            },
             "CreateEmbedJwt": {
                 "properties": {
                     "exp": {
@@ -2024,6 +2039,9 @@
                             "type": "string"
                         },
                         "type": "object"
+                    },
+                    "writeActions": {
+                        "$ref": "#/components/schemas/EmbedWriteActions"
                     },
                     "content": {
                         "anyOf": [
@@ -13755,6 +13773,33 @@
                             "type"
                         ],
                         "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "displayName": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "promptUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "displayName",
+                            "promptUuid",
+                            "threadUuid",
+                            "type"
+                        ],
+                        "type": "object"
                     }
                 ]
             },
@@ -13975,7 +14020,8 @@
                     "listWarehouseTables",
                     "describeWarehouseTable",
                     "listKnowledgeDocuments",
-                    "getKnowledgeDocumentContent"
+                    "getKnowledgeDocumentContent",
+                    "readPinnedThread"
                 ],
                 "description": "Exclude from T those types that are assignable to U"
             },
@@ -14089,19 +14135,6 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
                                                             "error",
                                                             "success"
                                                         ]
@@ -14158,16 +14191,16 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
                                                                             },
                                                                             "type": "array",
+                                                                            "nullable": true
+                                                                        },
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
                                                                             "nullable": true
                                                                         },
                                                                         "label": {
@@ -14315,19 +14348,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "status",
-                                                    "name"
+                                                    "name",
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14337,8 +14370,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "success",
-                                                            "not_found"
+                                                            "not_found",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -14368,6 +14401,66 @@
                                                                         "type": "string",
                                                                         "nullable": true
                                                                     },
+                                                                    "fields": {
+                                                                        "items": {
+                                                                            "properties": {
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
+                                                                                "isFromJoinedTable": {
+                                                                                    "type": "boolean"
+                                                                                },
+                                                                                "caseSensitiveFilters": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "false",
+                                                                                        "not_applicable",
+                                                                                        "true"
+                                                                                    ]
+                                                                                },
+                                                                                "fieldFilterType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldValueType": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldType": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "dimension",
+                                                                                        "metric"
+                                                                                    ]
+                                                                                },
+                                                                                "table": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "label": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "name": {
+                                                                                    "type": "string"
+                                                                                },
+                                                                                "fieldId": {
+                                                                                    "type": "string"
+                                                                                }
+                                                                            },
+                                                                            "required": [
+                                                                                "description",
+                                                                                "isFromJoinedTable",
+                                                                                "caseSensitiveFilters",
+                                                                                "fieldFilterType",
+                                                                                "fieldValueType",
+                                                                                "fieldType",
+                                                                                "table",
+                                                                                "label",
+                                                                                "name",
+                                                                                "fieldId"
+                                                                            ],
+                                                                            "type": "object"
+                                                                        },
+                                                                        "type": "array"
+                                                                    },
                                                                     "explore": {
                                                                         "properties": {
                                                                             "joinedTables": {
@@ -14394,66 +14487,6 @@
                                                                         ],
                                                                         "type": "object"
                                                                     },
-                                                                    "fields": {
-                                                                        "items": {
-                                                                            "properties": {
-                                                                                "isFromJoinedTable": {
-                                                                                    "type": "boolean"
-                                                                                },
-                                                                                "caseSensitiveFilters": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "true",
-                                                                                        "false",
-                                                                                        "not_applicable"
-                                                                                    ]
-                                                                                },
-                                                                                "fieldValueType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldFilterType": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
-                                                                                },
-                                                                                "fieldType": {
-                                                                                    "type": "string",
-                                                                                    "enum": [
-                                                                                        "metric",
-                                                                                        "dimension"
-                                                                                    ]
-                                                                                },
-                                                                                "table": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "fieldId": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
-                                                                                "name": {
-                                                                                    "type": "string"
-                                                                                }
-                                                                            },
-                                                                            "required": [
-                                                                                "isFromJoinedTable",
-                                                                                "caseSensitiveFilters",
-                                                                                "fieldValueType",
-                                                                                "fieldFilterType",
-                                                                                "description",
-                                                                                "fieldType",
-                                                                                "table",
-                                                                                "fieldId",
-                                                                                "label",
-                                                                                "name"
-                                                                            ],
-                                                                            "type": "object"
-                                                                        },
-                                                                        "type": "array"
-                                                                    },
                                                                     "status": {
                                                                         "type": "string",
                                                                         "enum": [
@@ -14464,8 +14497,8 @@
                                                                 },
                                                                 "required": [
                                                                     "rationale",
-                                                                    "explore",
                                                                     "fields",
+                                                                    "explore",
                                                                     "status"
                                                                 ],
                                                                 "type": "object"
@@ -14478,10 +14511,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -14489,8 +14522,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "exploreLabel",
                                                                                 "reason",
+                                                                                "exploreLabel",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -14573,6 +14606,12 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "uuid": {
+                                                        "type": "string"
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "slug": {
                                                         "type": "string"
                                                     },
@@ -14580,39 +14619,27 @@
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "uuid": {
-                                                        "type": "string"
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "versionUuids",
                                                     "warnings",
                                                     "href",
-                                                    "slug",
-                                                    "status",
                                                     "uuid",
-                                                    "name"
+                                                    "name",
+                                                    "slug",
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
                                             {
                                                 "properties": {
-                                                    "prAction": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "opened",
-                                                            "updated",
-                                                            null
-                                                        ],
-                                                        "nullable": true
-                                                    },
                                                     "steps": {
                                                         "items": {
                                                             "properties": {
+                                                                "label": {
+                                                                    "type": "string"
+                                                                },
                                                                 "kind": {
                                                                     "type": "string",
                                                                     "enum": [
@@ -14622,31 +14649,55 @@
                                                                         "compile",
                                                                         "stage"
                                                                     ]
-                                                                },
-                                                                "label": {
-                                                                    "type": "string"
                                                                 }
                                                             },
                                                             "required": [
-                                                                "kind",
-                                                                "label"
+                                                                "label",
+                                                                "kind"
                                                             ],
                                                             "type": "object"
                                                         },
                                                         "type": "array",
                                                         "nullable": true
                                                     },
-                                                    "prUrl": {
+                                                    "previewUrl": {
                                                         "type": "string",
+                                                        "nullable": true
+                                                    },
+                                                    "deletions": {
+                                                        "type": "number",
+                                                        "format": "double",
+                                                        "nullable": true
+                                                    },
+                                                    "additions": {
+                                                        "type": "number",
+                                                        "format": "double",
+                                                        "nullable": true
+                                                    },
+                                                    "commitSha": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
+                                                    "prAction": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "opened",
+                                                            "updated",
+                                                            null
+                                                        ],
                                                         "nullable": true
                                                     },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "prUrl": {
+                                                        "type": "string",
+                                                        "nullable": true
                                                     }
                                                 },
-                                                "required": ["prUrl", "status"],
+                                                "required": ["status", "prUrl"],
                                                 "type": "object"
                                             },
                                             {
@@ -14658,6 +14709,7 @@
                                                             "github_not_installed",
                                                             "gitlab_not_installed",
                                                             "unsupported_source_control",
+                                                            "pull_request_not_open",
                                                             null
                                                         ],
                                                         "nullable": true
@@ -14676,6 +14728,9 @@
                                                     "href": {
                                                         "type": "string"
                                                     },
+                                                    "name": {
+                                                        "type": "string"
+                                                    },
                                                     "slug": {
                                                         "type": "string"
                                                     },
@@ -14683,16 +14738,13 @@
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
-                                                    },
-                                                    "name": {
-                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "href",
+                                                    "name",
                                                     "slug",
-                                                    "status",
-                                                    "name"
+                                                    "status"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14702,8 +14754,8 @@
                                                         "type": "string",
                                                         "enum": [
                                                             "error",
-                                                            "success",
                                                             "rejected",
+                                                            "success",
                                                             "timeout"
                                                         ]
                                                     }
@@ -14715,10 +14767,6 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -14758,17 +14806,21 @@
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "metric",
                                                                     "dimension",
+                                                                    "metric",
                                                                     null
                                                                 ],
+                                                                "nullable": true
+                                                            },
+                                                            "searchQuery": {
+                                                                "type": "string",
                                                                 "nullable": true
                                                             }
                                                         },
                                                         "required": [
-                                                            "searchQuery",
                                                             "fields",
-                                                            "type"
+                                                            "type",
+                                                            "searchQuery"
                                                         ],
                                                         "type": "object"
                                                     },
@@ -15158,6 +15210,24 @@
                             }
                         },
                         "required": ["dashboardUuid", "type"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "promptUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "threadUuid": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string",
+                                "enum": ["thread"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["threadUuid", "type"],
                         "type": "object"
                     }
                 ]
@@ -19799,6 +19869,22 @@
                     "projectName": {
                         "type": "string"
                     },
+                    "deletions": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    },
+                    "additions": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true,
+                        "description": "Lines this turn's commit added/removed; null when no commit was made."
+                    },
+                    "commitSha": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Head commit SHA this turn pushed onto the PR's branch; null when no commit\nwas made (no file changes, or the agent crashed before pushing). Pins the\nPR card's CI checks to this turn's commit so a later turn's commit can't\nretroactively change what an earlier card shows."
+                    },
                     "prAction": {
                         "allOf": [
                             {
@@ -19823,6 +19909,9 @@
                     "steps",
                     "repository",
                     "projectName",
+                    "deletions",
+                    "additions",
+                    "commitSha",
                     "prAction",
                     "prUrl",
                     "exitCode",
@@ -19966,6 +20055,15 @@
                         },
                         "type": "array"
                     },
+                    "state": {
+                        "type": "string",
+                        "enum": ["open", "closed"],
+                        "description": "Whether the PR is open or closed. A closed-but-not-merged PR is terminal\ntoo, so the card shows \"Closed\" and offers neither merge nor close."
+                    },
+                    "merged": {
+                        "type": "boolean",
+                        "description": "Whether the PR is already merged. Once merged the provider's\n`mergeState` is no longer meaningful, so consumers show a terminal\n\"Merged\" state and suppress the merge action."
+                    },
                     "mergeState": {
                         "$ref": "#/components/schemas/CiMergeState",
                         "description": "Whether the PR can actually be merged per the repo's policy — resolved\nfrom the provider, NOT inferred from `overall`. Drives the merge-\nreadiness verdict so a failing-but-not-required check doesn't read as\n\"blocked\"."
@@ -19978,7 +20076,14 @@
                         "$ref": "#/components/schemas/CiProviderType"
                     }
                 },
-                "required": ["checks", "mergeState", "overall", "provider"],
+                "required": [
+                    "checks",
+                    "state",
+                    "merged",
+                    "mergeState",
+                    "overall",
+                    "provider"
+                ],
                 "type": "object",
                 "description": "The CI checks for a pull request, plus a single rolled-up state for an\nat-a-glance summary. `checks` is empty when the ref has no CI configured."
             },
@@ -20001,6 +20106,138 @@
                 "required": ["results", "status"],
                 "type": "object",
                 "description": "CI checks for a PR, or null when CI status can't be resolved (project isn't\nconnected to a supported provider, no app installation, PR not found, etc.) —\ndistinct from a resolved result with an empty `checks` array (\"no CI runs\")."
+            },
+            "ClosePullRequestResult": {
+                "properties": {
+                    "state": {
+                        "type": "string",
+                        "enum": ["open", "closed"]
+                    }
+                },
+                "required": ["state"],
+                "type": "object",
+                "description": "Outcome of closing a pull request."
+            },
+            "ApiClosePullRequestResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ClosePullRequestResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ClosePullRequestRequestBody": {
+                "properties": {
+                    "prUrl": {
+                        "type": "string",
+                        "description": "The PR/MR URL of the write-back pull request to close."
+                    }
+                },
+                "required": ["prUrl"],
+                "type": "object",
+                "description": "Body for closing a write-back pull request from the chat PR card."
+            },
+            "ApiPullRequestDiffResponse": {
+                "properties": {
+                    "results": {
+                        "properties": {
+                            "diff": {
+                                "type": "string"
+                            }
+                        },
+                        "required": ["diff"],
+                        "type": "object",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "The raw unified diff of a write-back pull request (or a single pinned commit\nwithin it), for the chat card's diff viewer. Null when it can't be resolved\n(unsupported source control, no app installation, PR not found, diff too\nlarge for the provider to return)."
+            },
+            "MergePullRequestResult": {
+                "properties": {
+                    "sha": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "The resulting merge commit SHA, when the provider returns one."
+                    },
+                    "merged": {
+                        "type": "boolean"
+                    }
+                },
+                "required": ["sha", "merged"],
+                "type": "object",
+                "description": "Outcome of a pull request merge."
+            },
+            "ApiMergePullRequestResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/MergePullRequestResult"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "MergePullRequestRequestBody": {
+                "properties": {
+                    "sha": {
+                        "type": "string",
+                        "description": "The commit the card is pinned to. When set the merge only proceeds if the\nPR's head still points at this SHA, so a user never merges a commit they\nhaven't seen (a later turn may have pushed a newer head)."
+                    },
+                    "prUrl": {
+                        "type": "string",
+                        "description": "The PR/MR URL of the write-back pull request to merge."
+                    }
+                },
+                "required": ["prUrl"],
+                "type": "object",
+                "description": "Body for merging a write-back pull request from the chat PR card."
+            },
+            "ProjectFiles": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "files": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
+                    }
+                },
+                "required": ["truncated", "files"],
+                "type": "object",
+                "description": "The project's source files, read from the read-only repo virtual file system\n(the same VFS the agent's repoShell sees). Used by the chat input's\n`@`-mention file picker. Paths are relative to the project's dbt sub-folder,\nso an"
+            },
+            "ApiProjectFilesResponse": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ProjectFiles"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -20210,7 +20447,6 @@
                     "semantic_layer",
                     "project_context",
                     "agent_configuration",
-                    "data_gap",
                     "product_capability",
                     "runtime_reliability",
                     "feedback_quality",
@@ -20407,6 +20643,7 @@
                     "git_app_not_installed",
                     "missing_writeback_config",
                     "pull_request_open",
+                    "source_thread_writeback_exists",
                     "terminal_state",
                     "writeback_in_progress"
                 ]
@@ -21095,6 +21332,88 @@
             },
             "ApiAiAgentReviewItemResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemSummary_"
+            },
+            "AiAgentReviewItemPrDiffFile": {
+                "properties": {
+                    "after": {
+                        "type": "string"
+                    },
+                    "before": {
+                        "type": "string"
+                    },
+                    "deletions": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "additions": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "path": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "after",
+                    "before",
+                    "deletions",
+                    "additions",
+                    "status",
+                    "path"
+                ],
+                "type": "object"
+            },
+            "AiAgentReviewItemPrDiff": {
+                "properties": {
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "totalDeletions": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "totalAdditions": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "files": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiAgentReviewItemPrDiffFile"
+                        },
+                        "type": "array"
+                    },
+                    "prUrl": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "truncated",
+                    "totalDeletions",
+                    "totalAdditions",
+                    "files",
+                    "prUrl"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentReviewItemPrDiff_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemPrDiff"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewItemPrDiffResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemPrDiff_"
             },
             "UpdateAiAgentReviewItemStatus": {
                 "properties": {
@@ -25790,6 +26109,7 @@
                     "aiAgentReviewClassifier",
                     "aiAgentReviewWriteback",
                     "aiAgentReviewRemediationPreview",
+                    "aiAgentReviewRemediationRun",
                     "embedArtifactVersion",
                     "generateArtifactQuestion",
                     "appGeneratePipeline",
@@ -26872,11 +27192,63 @@
                 ],
                 "type": "string"
             },
+            "PullRequestReviewContext": {
+                "properties": {
+                    "sourceAgentUuid": {
+                        "type": "string"
+                    },
+                    "sourceProjectUuid": {
+                        "type": "string"
+                    },
+                    "sourceThreadUuid": {
+                        "type": "string"
+                    },
+                    "sourceFindingUuid": {
+                        "type": "string"
+                    },
+                    "primaryRootCause": {
+                        "$ref": "#/components/schemas/AiAgentRootCause"
+                    },
+                    "reviewStatus": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                    },
+                    "reviewTitle": {
+                        "type": "string"
+                    },
+                    "reviewItemFingerprint": {
+                        "type": "string"
+                    },
+                    "reviewItemUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "sourceAgentUuid",
+                    "sourceProjectUuid",
+                    "sourceThreadUuid",
+                    "sourceFindingUuid",
+                    "primaryRootCause",
+                    "reviewStatus",
+                    "reviewTitle",
+                    "reviewItemFingerprint",
+                    "reviewItemUuid"
+                ],
+                "type": "object"
+            },
             "PullRequest": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "reviewContext": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PullRequestReviewContext"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Source review context for AI review remediation PRs. Present when the PR\nwas opened to address a review finding."
                     },
                     "aiAgentUuid": {
                         "type": "string",
@@ -26923,6 +27295,7 @@
                 },
                 "required": [
                     "createdAt",
+                    "reviewContext",
                     "aiAgentUuid",
                     "aiThreadUuid",
                     "prUrl",
@@ -27006,31 +27379,6 @@
                 "properties": {
                     "results": {
                         "$ref": "#/components/schemas/KnexPaginatedData_PullRequestWithStatus-Array_"
-                    },
-                    "status": {
-                        "type": "string",
-                        "enum": ["ok"],
-                        "nullable": false
-                    }
-                },
-                "required": ["results", "status"],
-                "type": "object"
-            },
-            "PullRequestPreview": {
-                "properties": {
-                    "previewUrl": {
-                        "type": "string",
-                        "nullable": true
-                    }
-                },
-                "required": ["previewUrl"],
-                "type": "object",
-                "description": "The Lightdash preview environment for a pull request. `previewUrl` is null\nuntil a preview has been published: the dbt repo's CI creates the preview\nproject asynchronously and comments its URL on the PR, so the URL can only be\ndiscovered after the fact (it is not predictable from the PR itself)."
-            },
-            "ApiPullRequestPreviewResponse": {
-                "properties": {
-                    "results": {
-                        "$ref": "#/components/schemas/PullRequestPreview"
                     },
                     "status": {
                         "type": "string",
@@ -29009,22 +29357,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -29584,22 +29932,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__description_63_-string-or-undefined--name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__content-string--title-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -38547,7 +38895,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3129.1",
+        "version": "0.3146.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -45003,6 +45351,7 @@
                 "description": "Add scopes to role",
                 "summary": "Add scopes to role",
                 "tags": ["v2", "Custom Roles"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -45062,6 +45411,7 @@
                 "description": "Remove scope from role",
                 "summary": "Remove scope from role",
                 "tags": ["v2", "Custom Roles"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -45393,6 +45743,86 @@
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/aiAgents/admin/review-items/{fingerprint}/pr-diff": {
+            "get": {
+                "operationId": "getAiAgentReviewItemPrDiff",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemPrDiffResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the file diff of the pull request linked to a review item",
+                "summary": "Get AI agent review item PR diff",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "fingerprint",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/aiAgents/admin/review-items/by-preview-thread/{threadUuid}": {
+            "get": {
+                "operationId": "getAiAgentReviewItemByPreviewThread",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the review item linked to a remediation preview work thread",
+                "summary": "Get AI agent review item by preview thread",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
             }
         },
         "/api/v1/aiAgents/admin/review-items/{fingerprint}/writeback": {
@@ -47101,6 +47531,7 @@
                 "description": "Run a SQL query",
                 "summary": "Run SQL query",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -47152,6 +47583,7 @@
                 "description": "Run a SQL pivot query",
                 "summary": "Run SQL pivot query",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -49267,6 +49699,7 @@
                 "description": "Get scheduled logs",
                 "summary": "Get scheduler logs",
                 "tags": ["Schedulers"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -50082,6 +50515,7 @@
                 "description": "Get scheduled jobs",
                 "summary": "Get scheduled jobs",
                 "tags": ["Schedulers"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -50249,7 +50683,7 @@
                         }
                     }
                 },
-                "description": "Run a query for underlying data results",
+                "description": "Deprecated — use the v2 Execute underlying data endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute underlying data, then Get results.",
                 "summary": "Run underlying data query",
                 "tags": ["Exploring"],
                 "deprecated": true,
@@ -50285,6 +50719,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute underlying data](https://docs.lightdash.com/api-reference/v2/execute-underlying-data) (`POST /api/v2/projects/{projectUuid}/query/underlying-data`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -50313,7 +50750,7 @@
                         }
                     }
                 },
-                "description": "Run a query for explore",
+                "description": "Deprecated — use the v2 Execute metric query endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute metric query, then Get results.",
                 "summary": "Run metric query",
                 "tags": ["Exploring"],
                 "deprecated": true,
@@ -50349,6 +50786,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute metric query](https://docs.lightdash.com/api-reference/v2/execute-metric-query) (`POST /api/v2/projects/{projectUuid}/query/metric-query`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -50377,7 +50817,7 @@
                         }
                     }
                 },
-                "description": "Run a query for a chart",
+                "description": "Deprecated — use the v2 Execute saved chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.",
                 "summary": "Run chart query",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -50407,6 +50847,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (`POST /api/v2/projects/{projectUuid}/query/chart`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -50435,7 +50878,7 @@
                         }
                     }
                 },
-                "description": "Get chart and run query with dashboard filters",
+                "description": "Deprecated — use the v2 Execute dashboard chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (20 June 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute dashboard chart, then Get results.",
                 "summary": "Get chart and results",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -50487,6 +50930,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (20 June 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute dashboard chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-chart) (`POST /api/v2/projects/{projectUuid}/query/dashboard-chart`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -50608,7 +51054,7 @@
                         }
                     }
                 },
-                "description": "Run a query for a chart version",
+                "description": "Deprecated — use the v2 Execute saved chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.",
                 "summary": "Get chart version results",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -50632,7 +51078,10 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (`POST /api/v2/projects/{projectUuid}/query/chart`) to run the chart's latest version, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. Running a query for a specific chart version has no v2 equivalent.\n</Warning>"
+                }
             }
         },
         "/api/v1/saved/{chartUuid}/rollback/{versionUuid}": {
@@ -51424,55 +51873,6 @@
                 ]
             }
         },
-        "/api/v1/projects/{projectUuid}/pull-requests/preview": {
-            "get": {
-                "operationId": "getPullRequestPreview",
-                "responses": {
-                    "200": {
-                        "description": "Success",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiPullRequestPreviewResponse"
-                                }
-                            }
-                        }
-                    },
-                    "default": {
-                        "description": "Error",
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/ApiErrorPayload"
-                                }
-                            }
-                        }
-                    }
-                },
-                "description": "Resolve the Lightdash preview environment URL for a write-back pull\nrequest. Returns `{ previewUrl: null }` until the preview is published,\nso the client can poll.",
-                "summary": "Get pull request preview",
-                "tags": ["Pull Requests"],
-                "security": [],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "projectUuid",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    },
-                    {
-                        "in": "query",
-                        "name": "prUrl",
-                        "required": true,
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                ]
-            }
-        },
         "/api/v1/projects/{projectUuid}": {
             "get": {
                 "operationId": "GetProject",
@@ -51724,8 +52124,9 @@
                     }
                 },
                 "description": "Get a project explicit member's access.\nThere may be users that have access to the project via their organization membership.",
-                "summary": "Get project member access\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "summary": "Get project member access",
                 "tags": ["Roles & Permissions", "Projects"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -51974,7 +52375,7 @@
                         }
                     }
                 },
-                "description": "Run a raw sql query against the project's warehouse connection",
+                "description": "Deprecated — use the v2 Execute SQL query endpoint instead.\n\nThis endpoint was deprecated on 17 February 2025 and is past its sunset date (17 May 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute SQL query, then Get results.",
                 "summary": "Run SQL query",
                 "tags": ["Exploring", "Projects"],
                 "deprecated": true,
@@ -52007,6 +52408,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (17 May 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.com/api-reference/v2/execute-sql-query) (`POST /api/v2/projects/{projectUuid}/query/sql`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -55306,6 +55710,7 @@
                 "description": "Get the member profile for a user in the current user's organization by email",
                 "summary": "Get organization member by email",
                 "tags": ["Organizations"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -56492,6 +56897,7 @@
                 "description": "Add a Lightdash user to a group",
                 "summary": "Add user to group",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -56541,6 +56947,7 @@
                 "description": "Remove a user from a group",
                 "summary": "Remove user from group",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -56592,6 +56999,7 @@
                 "description": "View members of a group",
                 "summary": "Get group members",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {

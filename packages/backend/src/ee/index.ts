@@ -194,6 +194,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                     }),
                     projectService: repository.getProjectService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     permissionsService: repository.getPermissionsService(),
                     dashboardModel: models.getDashboardModel(),
@@ -202,6 +204,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartModel: models.getSavedChartModel(),
                     savedSqlModel: models.getSavedSqlModel(),
                     userAttributesModel: models.getUserAttributesModel(),
+                    userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     organizationModel: models.getOrganizationModel(),
                 }),

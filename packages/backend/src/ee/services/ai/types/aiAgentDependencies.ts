@@ -102,10 +102,54 @@ export type SearchSemanticLayerFn = (args: {
 
 export type GetExploreFn = (args: { table: string }) => Promise<Explore>;
 
+export type FindContentSpaceBreadcrumb = {
+    uuid: string;
+    name: string;
+    slug: string;
+};
+
+export type FindContentSpaceMetadata = {
+    uuid: string;
+    name: string;
+    slug: string;
+    breadcrumbs: FindContentSpaceBreadcrumb[];
+};
+
+export type FindContentChartResult = AllChartsSearchResult & {
+    contentType: 'chart';
+    space: FindContentSpaceMetadata;
+};
+
+export type FindContentDashboardResult = DashboardSearchResult & {
+    contentType: 'dashboard';
+    space: FindContentSpaceMetadata;
+};
+
+export type FindContentSpaceResult = {
+    contentType: 'space';
+    uuid: string;
+    name: string;
+    slug: string;
+    search_rank: number;
+    chartCount: number;
+    dashboardCount: number;
+    childSpaceCount: number;
+    appCount: number;
+    directAccess: boolean;
+    space: FindContentSpaceMetadata;
+    verification: null;
+};
+
+export type FindContentResult =
+    | FindContentChartResult
+    | FindContentDashboardResult
+    | FindContentSpaceResult;
+
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
+    spaceSlug: ToolFindContentArgs['spaceSlug'];
 }) => Promise<{
-    content: (AllChartsSearchResult | DashboardSearchResult)[];
+    content: FindContentResult[];
 }>;
 
 export type ListContentFn = (args: {
@@ -358,6 +402,14 @@ export type ListKnowledgeDocumentsFn = () => Promise<AiAgentDocumentSummary[]>;
 export type GetKnowledgeDocumentContentFn = (args: {
     documentUuid: string;
 }) => Promise<AiAgentDocumentContent>;
+
+export type ReadPinnedThreadFn = (args: { threadUuid: string }) => Promise<
+    {
+        role: 'user' | 'assistant';
+        message: string;
+        createdAt: string;
+    }[]
+>;
 
 export type WaitForSqlApprovalFn = (
     toolCallId: string,

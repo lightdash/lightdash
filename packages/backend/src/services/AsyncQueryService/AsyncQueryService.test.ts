@@ -1315,9 +1315,15 @@ describe('AsyncQueryService', () => {
                 },
             });
             (service as AnyType).preAggregateStrategy = mockStrategy;
-            service.getExplore = jest
+            service.getExploreWithUserAccessControls = jest
                 .fn()
-                .mockResolvedValue(preAggregateExplore);
+                .mockResolvedValue({
+                    explore: preAggregateExplore,
+                    userAccessControls: {
+                        userAttributes: {},
+                        intrinsicUserAttributes: {},
+                    },
+                });
             (service as AnyType).getWarehouseCredentials = jest
                 .fn()
                 .mockResolvedValue(warehouseClientMock.credentials);

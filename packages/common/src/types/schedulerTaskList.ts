@@ -3,6 +3,7 @@ import {
     type AiAgentEvalRunJobPayload,
     type AiAgentReviewClassifierJobPayload,
     type AiAgentReviewRemediationPreviewJobPayload,
+    type AiAgentReviewRemediationRunJobPayload,
     type AiAgentReviewWritebackJobPayload,
     type ChartReference,
     type DataAppClaudeModel,
@@ -66,6 +67,7 @@ export const EE_SCHEDULER_TASKS = {
     AI_AGENT_REVIEW_CLASSIFIER: 'aiAgentReviewClassifier',
     AI_AGENT_REVIEW_WRITEBACK: 'aiAgentReviewWriteback',
     AI_AGENT_REVIEW_REMEDIATION_PREVIEW: 'aiAgentReviewRemediationPreview',
+    AI_AGENT_REVIEW_REMEDIATION_RUN: 'aiAgentReviewRemediationRun',
     EMBED_ARTIFACT_VERSION: 'embedArtifactVersion',
     GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
     APP_GENERATE_PIPELINE: 'appGeneratePipeline',
@@ -154,6 +156,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: AiAgentReviewRemediationPreviewJobPayload;
+    [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;
@@ -166,6 +169,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: AiAgentReviewRemediationPreviewJobPayload;
+    [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
     [EE_SCHEDULER_TASKS.APP_GENERATE_PIPELINE]: AppGeneratePipelineJobPayload;

@@ -3,10 +3,8 @@ import {
     DbtProjectConfig,
     DbtProjectType,
     DbtVersionOption,
-    DbtVersionOptionLatest,
-    getLatestSupportDbtVersion,
     ParameterError,
-    SupportedDbtVersions,
+    resolveDbtVersion,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
@@ -37,10 +35,7 @@ export const projectAdapterFromConfig = async (
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
 
-    const dbtVersion: SupportedDbtVersions =
-        dbtVersionOption === DbtVersionOptionLatest.LATEST
-            ? getLatestSupportDbtVersion()
-            : dbtVersionOption;
+    const dbtVersion = resolveDbtVersion(dbtVersionOption);
 
     switch (config.type) {
         case DbtProjectType.DBT:

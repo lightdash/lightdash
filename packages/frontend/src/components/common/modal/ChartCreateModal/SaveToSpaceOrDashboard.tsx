@@ -91,8 +91,10 @@ type Props = {
         dashboardName: string;
     } | null;
     defaultSpaceUuid?: string | undefined;
+    forcedSpaceUuid?: string | undefined;
     chartMetadata?: ChartMetadata;
     redirectOnSuccess?: boolean;
+    showViewChartAction?: boolean;
 };
 
 export const SaveToSpaceOrDashboard: FC<Props> = ({
@@ -103,15 +105,17 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     onClose,
     dashboardInfoFromSavedData = { dashboardUuid: null, dashboardName: null },
     originatingDashboard = null,
+    forcedSpaceUuid,
     chartMetadata = DEFAULT_CHART_METADATA,
     redirectOnSuccess = true,
+    showViewChartAction = true,
 }) => {
     const { user } = useApp();
     const navigate = useNavigate();
     const { showToastSuccess } = useToaster();
 
     const { mutateAsync: createChart, isLoading: isSavingChart } =
-        useCreateMutation({ redirectOnSuccess });
+        useCreateMutation({ redirectOnSuccess, showViewChartAction });
 
     const {
         clearIsEditingDashboardChart,
@@ -168,7 +172,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         {
             staleTime: 0,
         },
-        true,
+        !forcedSpaceUuid,
     );
 
     const {
@@ -187,6 +191,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                     }),
                 ),
             ),
+        enabled: !forcedSpaceUuid,
         staleTime: 0,
     });
 
@@ -194,14 +199,19 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
 
     useEffect(
         function initializeForm() {
-            if (!isSpacesSuccess || !isDashboardsSuccess) return;
+            if (
+                !forcedSpaceUuid &&
+                (!isSpacesSuccess || !isDashboardsSuccess)
+            ) {
+                return;
+            }
             if (form.initialized) return;
 
             const initialValues: FormValues = {
                 ...chartMetadata,
                 newSpaceName: null,
                 dashboardUuid: dashboardInfoFromSavedData.dashboardUuid,
-                spaceUuid: null,
+                spaceUuid: forcedSpaceUuid ?? null,
                 newDashboardName: null,
                 newDashboardDescription: null,
             };
@@ -215,6 +225,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             isDashboardsSuccess,
             isSpacesSuccess,
             chartMetadata,
+            forcedSpaceUuid,
         ],
     );
 
@@ -282,6 +293,9 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     const isFormReadyToSave = useMemo(() => {
         // OriginatingDashboard skips step 2 — it submits straight from
         // InitialInfo as soon as the chart has a name.
+        if (forcedSpaceUuid) {
+            return !!form.values.name;
+        }
         if (saveDestination === SaveDestination.OriginatingDashboard) {
             return !!form.values.name && !!originatingDashboard;
         }
@@ -321,6 +335,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         originatingDashboard,
         isCreatingNewDashboard,
         isCreatingNewSpaceForDashboard,
+        forcedSpaceUuid,
     ]);
 
     const handleOnSubmit = useCallback(
@@ -330,6 +345,16 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             }
 
             let savedQuery: SavedChart | undefined;
+            if (forcedSpaceUuid) {
+                savedQuery = await createChart({
+                    ...savedData,
+                    name: values.name,
+                    description: values.description ?? undefined,
+                    spaceUuid: forcedSpaceUuid,
+                    dashboardUuid: undefined,
+                });
+            }
+
             /**
              * Save back to the dashboard the editor was opened from.
              * Mirrors `SaveToDashboard` — stages the new tile in
@@ -337,6 +362,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
              * user can review/save unsaved dashboard changes.
              */
             if (
+                !savedQuery &&
                 saveDestination === SaveDestination.OriginatingDashboard &&
                 originatingDashboard &&
                 projectUuid
@@ -478,7 +504,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
              * Create space if user wants to create a new space
              * Save to space by creating a new chart
              */
-            if (saveDestination === SaveDestination.Space) {
+            if (!savedQuery && saveDestination === SaveDestination.Space) {
                 let newSpace = values.newSpaceName
                     ? await handleCreateNewSpace({
                           inheritParentPermissions: false,
@@ -532,13 +558,13 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
             isCreatingNewSpaceForDashboard,
             createDashboard,
             createSpace,
+            forcedSpaceUuid,
         ],
     );
 
     const isLoading =
         !form.initialized ||
-        isLoadingDashboards ||
-        isLoadingSpaces ||
+        (!forcedSpaceUuid && (isLoadingDashboards || isLoadingSpaces)) ||
         isSavingChart ||
         spaceManagement.createSpaceMutation.isLoading ||
         isCreatingDashboard ||
@@ -556,6 +582,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     };
 
     const skipDestinationStep =
+        !!forcedSpaceUuid ||
         saveDestination === SaveDestination.OriginatingDashboard;
 
     // Determine if we should show the "New Space" button
@@ -605,40 +632,46 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
                             value={form.values.description ?? ''}
                         />
 
-                        <Stack gap="sm" mt="sm">
-                            <Text fw={500}>Save to</Text>
+                        {!forcedSpaceUuid && (
+                            <Stack gap="sm" mt="sm">
+                                <Text fw={500}>Save to</Text>
 
-                            <Radio.Group
-                                value={saveDestination}
-                                onChange={(value) =>
-                                    setSaveDestination(value as SaveDestination)
-                                }
-                            >
-                                <Stack gap="xs">
-                                    <Radio
-                                        value={SaveDestination.Space}
-                                        label="Space"
-                                        disabled={!spaces || isLoadingSpaces}
-                                    />
-                                    {originatingDashboard && (
+                                <Radio.Group
+                                    value={saveDestination}
+                                    onChange={(value) =>
+                                        setSaveDestination(
+                                            value as SaveDestination,
+                                        )
+                                    }
+                                >
+                                    <Stack gap="xs">
                                         <Radio
-                                            value={
-                                                SaveDestination.OriginatingDashboard
+                                            value={SaveDestination.Space}
+                                            label="Space"
+                                            disabled={
+                                                !spaces || isLoadingSpaces
                                             }
-                                            label={`"${originatingDashboard.dashboardName}" dashboard`}
                                         />
-                                    )}
-                                    <Radio
-                                        value={SaveDestination.Dashboard}
-                                        label={
-                                            originatingDashboard
-                                                ? 'Different dashboard'
-                                                : 'Dashboard'
-                                        }
-                                    />
-                                </Stack>
-                            </Radio.Group>
-                        </Stack>
+                                        {originatingDashboard && (
+                                            <Radio
+                                                value={
+                                                    SaveDestination.OriginatingDashboard
+                                                }
+                                                label={`"${originatingDashboard.dashboardName}" dashboard`}
+                                            />
+                                        )}
+                                        <Radio
+                                            value={SaveDestination.Dashboard}
+                                            label={
+                                                originatingDashboard
+                                                    ? 'Different dashboard'
+                                                    : 'Dashboard'
+                                            }
+                                        />
+                                    </Stack>
+                                </Radio.Group>
+                            </Stack>
+                        )}
 
                         {showUnusedDimensionsWarning && (
                             <Callout

@@ -47,6 +47,7 @@ export const ToolNameSchema = z.enum([
     'describeWarehouseTable',
     'listKnowledgeDocuments',
     'getKnowledgeDocumentContent',
+    'readPinnedThread',
 ]);
 
 export type ToolName = z.infer<typeof ToolNameSchema>;
@@ -94,6 +95,7 @@ export const TOOL_DISPLAY_MESSAGES = ToolDisplayMessagesSchema.parse({
     describeWarehouseTable: 'Describing warehouse table',
     listKnowledgeDocuments: 'Listing knowledge documents',
     getKnowledgeDocumentContent: 'Reading knowledge document',
+    readPinnedThread: 'Reading pinned conversation',
 });
 
 // after-tool-call messages
@@ -135,6 +137,7 @@ export const TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL =
         describeWarehouseTable: 'Described warehouse table',
         listKnowledgeDocuments: 'Listed knowledge documents',
         getKnowledgeDocumentContent: 'Read knowledge document',
+        readPinnedThread: 'Read pinned conversation',
     });
 
 export const AVAILABLE_VISUALIZATION_TYPES = VisualizationTools;

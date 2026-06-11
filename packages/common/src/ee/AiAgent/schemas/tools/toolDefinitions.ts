@@ -166,6 +166,11 @@ import {
     toolReadContentOutputSchema,
 } from './toolReadContentArgs';
 import {
+    TOOL_READ_PINNED_THREAD_DESCRIPTION,
+    toolReadPinnedThreadArgsSchema,
+    toolReadPinnedThreadOutputSchema,
+} from './toolReadPinnedThreadArgs';
+import {
     TOOL_REPO_SHELL_DESCRIPTION,
     toolRepoShellArgsSchema,
     toolRepoShellOutputSchema,
@@ -440,27 +445,39 @@ export const readContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
     description: TOOL_READ_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolReadContentArgsSchema,
     agent: { outputSchema: toolReadContentOutputSchema },
+    mcp: {
+        name: 'read_content',
+        annotations: readOnlyAnnotations,
+    },
 });
 
 export const editContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
     description: TOOL_EDIT_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolEditContentArgsSchema,
     agent: { outputSchema: toolEditContentOutputSchema },
+    mcp: {
+        name: 'edit_content',
+        annotations: writeAnnotations,
+    },
 });
 
 export const createContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
     description: TOOL_CREATE_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolCreateContentArgsSchema,
     agent: { outputSchema: toolCreateContentOutputSchema },
+    mcp: {
+        name: 'create_content',
+        annotations: writeAnnotations,
+    },
 });
 
 export const runContentQueryToolDefinition = defineTool({
@@ -476,9 +493,13 @@ export const listContentToolDefinition = defineTool({
     name: 'listContent',
     title: 'List content',
     description: TOOL_LIST_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolListContentArgsSchema,
     agent: { outputSchema: toolListContentOutputSchema },
+    mcp: {
+        name: 'list_content',
+        annotations: readOnlyAnnotations,
+    },
 });
 
 export const improveContextToolDefinition = defineTool({
@@ -605,6 +626,15 @@ export const getKnowledgeDocumentContentToolDefinition = defineTool({
     availability: ['agent'],
     inputSchema: toolGetKnowledgeDocumentContentArgsSchema,
     agent: { outputSchema: toolGetKnowledgeDocumentContentOutputSchema },
+});
+
+export const readPinnedThreadToolDefinition = defineTool({
+    name: 'readPinnedThread',
+    title: 'Read pinned conversation',
+    description: TOOL_READ_PINNED_THREAD_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolReadPinnedThreadArgsSchema,
+    agent: { outputSchema: toolReadPinnedThreadOutputSchema },
 });
 
 /** @deprecated Legacy agent tool kept for historical tool calls. */
@@ -844,6 +874,7 @@ type AgentToolDefinitionsByName = {
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
     listKnowledgeDocuments: typeof listKnowledgeDocumentsToolDefinition;
     getKnowledgeDocumentContent: typeof getKnowledgeDocumentContentToolDefinition;
+    readPinnedThread: typeof readPinnedThreadToolDefinition;
     findCharts: typeof findChartsToolDefinition;
     findDashboards: typeof findDashboardsToolDefinition;
     generateBarVizConfig: typeof generateBarVizConfigToolDefinition;
@@ -884,6 +915,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     describeWarehouseTable: describeWarehouseTableToolDefinition,
     listKnowledgeDocuments: listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContent: getKnowledgeDocumentContentToolDefinition,
+    readPinnedThread: readPinnedThreadToolDefinition,
     findCharts: findChartsToolDefinition,
     findDashboards: findDashboardsToolDefinition,
     generateBarVizConfig: generateBarVizConfigToolDefinition,
@@ -926,6 +958,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     describeWarehouseTableToolDefinition,
     listKnowledgeDocumentsToolDefinition,
     getKnowledgeDocumentContentToolDefinition,
+    readPinnedThreadToolDefinition,
     findChartsToolDefinition,
     findDashboardsToolDefinition,
     generateBarVizConfigToolDefinition,

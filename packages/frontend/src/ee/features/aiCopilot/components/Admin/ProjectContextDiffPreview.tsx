@@ -2,30 +2,13 @@ import { Paper, Text, useComputedColorScheme } from '@mantine-8/core';
 import {
     MultiFileDiff,
     Virtualizer,
-    type WorkerInitializationRenderOptions,
     WorkerPoolContextProvider,
-    type WorkerPoolOptions,
 } from '@pierre/diffs/react';
-// Vite resolves this to the bundled worker URL.
-// oxlint-disable-next-line import/default
-import DiffsWorkerUrl from '@pierre/diffs/worker/worker.js?worker&url';
 import { type CSSProperties, type FC } from 'react';
-
-// Tokenize with both Pierre themes; the diff renders via CSS `light-dark()`. We
-// pin the host's `color-scheme` to Mantine's computed scheme below so the diff
-// follows the app's light/dark toggle rather than the OS preference.
-const HIGHLIGHTER_OPTIONS: WorkerInitializationRenderOptions = {
-    theme: { dark: 'pierre-dark', light: 'pierre-light' },
-    langs: ['yaml'],
-    preferredHighlighter: 'shiki-wasm',
-};
-
-const POOL_OPTIONS: WorkerPoolOptions = {
-    poolSize: 2,
-    workerFactory() {
-        return new Worker(DiffsWorkerUrl, { type: 'module' });
-    },
-};
+import {
+    PIERRE_HIGHLIGHTER_OPTIONS,
+    PIERRE_POOL_OPTIONS,
+} from './pierreDiffConfig';
 
 type ProjectContextDiffPreviewProps = {
     fileName: string;
@@ -57,8 +40,8 @@ export const ProjectContextDiffPreview: FC<ProjectContextDiffPreviewProps> = ({
 
     return (
         <WorkerPoolContextProvider
-            poolOptions={POOL_OPTIONS}
-            highlighterOptions={HIGHLIGHTER_OPTIONS}
+            poolOptions={PIERRE_POOL_OPTIONS}
+            highlighterOptions={PIERRE_HIGHLIGHTER_OPTIONS}
         >
             <Paper
                 withBorder

@@ -912,7 +912,6 @@ const AssistantBubbleContent: FC<{
                 <AiEditDbtProjectToolCall
                     metadata={editDbtProjectResult.metadata}
                     projectUuid={projectUuid}
-                    prCreatedAt={message.createdAt}
                     isPreviewDeploySetup={
                         editDbtProjectResult.isPreviewDeploySetup
                     }

@@ -6,6 +6,7 @@ import {
     useAmbientAiEnabled,
     useGenerateChartMetadata,
 } from '../../../ee/features/ambientAi';
+import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
     selectHasPaletteChanges,
     selectHasUnsavedChanges,
@@ -33,6 +34,8 @@ const SaveChartButton: FC<{
     onSaveModalOpenChange?: (isOpen: boolean) => void;
 }> = ({ disabled, onSaveModalOpenChange }) => {
     const isAmbientAiEnabled = useAmbientAiEnabled();
+    const embed = useEmbed();
+    const isEmbedded = embed.embedToken !== undefined;
     const projectUuid = useProjectUuid();
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
     // For saving: enriched with map extent (only subscribes here to avoid re-renders elsewhere)
@@ -244,6 +247,11 @@ const SaveChartButton: FC<{
                     chartMetadata={generatedMetadata ?? undefined}
                     forceSpaceOrDashboardChoice={isSaveAsModal}
                     isSaveAs={isSaveAsModal}
+                    redirectOnSuccess={!isEmbedded}
+                    showViewChartAction={!isEmbedded}
+                    forcedSpaceUuid={
+                        isEmbedded ? embed.writeActions?.spaceUuid : undefined
+                    }
                 />
             )}
         </>

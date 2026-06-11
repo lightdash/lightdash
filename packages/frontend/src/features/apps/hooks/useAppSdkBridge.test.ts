@@ -20,6 +20,7 @@ vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
 
 const PROJECT_UUID = 'project-uuid';
 const POST_PATH = `/api/v2/projects/${PROJECT_UUID}/query/metric-query`;
+const UNDERLYING_DATA_PATH = `/api/v2/projects/${PROJECT_UUID}/query/underlying-data`;
 const POST_ID = '11111111-1111-1111-1111-111111111111';
 const GET_ID = '22222222-2222-2222-2222-222222222222';
 const QUERY_UUID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
@@ -274,5 +275,33 @@ describe('useAppSdkBridge', () => {
         });
         pollQueryResult();
         await vi.waitFor(() => expect(activeIds.size).toBe(0));
+    });
+
+    it('allows SDK underlying-data queries through the bridge', async () => {
+        renderBridge(() => undefined);
+
+        mockFetchOk({
+            status: 'ok',
+            results: { queryUuid: QUERY_UUID, metricQuery: METRIC_QUERY },
+        });
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: UNDERLYING_DATA_PATH,
+            body: {
+                underlyingDataSourceQueryUuid: QUERY_UUID,
+                underlyingDataItemId: 'orders_total_revenue',
+                filters: {},
+            },
+        });
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                UNDERLYING_DATA_PATH,
+                expect.objectContaining({ method: 'POST' }),
+            ),
+        );
     });
 });

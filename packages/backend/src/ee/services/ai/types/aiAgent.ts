@@ -34,6 +34,7 @@ import {
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
     ReadContentFn,
+    ReadPinnedThreadFn,
     RecordSqlApprovalFn,
     RepoShellFn,
     RunAsyncQueryFn,
@@ -146,6 +147,7 @@ export type AiAgentDependencies = {
     describeWarehouseTable: DescribeWarehouseTableFn;
     listKnowledgeDocuments: ListKnowledgeDocumentsFn;
     getKnowledgeDocumentContent: GetKnowledgeDocumentContentFn;
+    readPinnedThread: ReadPinnedThreadFn;
     getSavedChart: GetSavedChartFn;
     getPrompt: GetPromptFn;
     sendFile: SendFileFn;

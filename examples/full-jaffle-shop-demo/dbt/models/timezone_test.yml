@@ -52,6 +52,9 @@ models:
             count:
               type: count
               description: Total number of events
+            max_event_ts:
+              type: max
+              description: Latest event timestamp (defined metric, tz formatting test)
       - name: event_timestamp_raw_utc
         description: >
           Same instants as event_timestamp, but the dimension opts out of

@@ -16,6 +16,7 @@ import {
     PivotSortAnchor,
     TableCalculationTemplate,
     TableCalculationType,
+    TimezoneSetting,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -105,7 +106,7 @@ export type DbSavedChartVersion = {
     pivot_dimensions: string[] | null;
     parameters: AnyType | null; // JSONB
     updated_by_user_uuid: string | null;
-    timezone: string | null;
+    timezone: TimezoneSetting;
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<

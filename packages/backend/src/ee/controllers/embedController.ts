@@ -155,11 +155,24 @@ export class EmbedController extends BaseController {
         };
     }
 
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    /**
+     * Update the dashboards allowed in the project embed config
+     * @summary Update embedded dashboards
+     *
+     * @deprecated Use PATCH /api/v1/embed/{projectUuid}/config instead
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use PATCH /api/v1/embed/{projectUuid}/config instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Patch('/config/dashboards')
     @OperationId('updateEmbeddedDashboards')
-    @Deprecated() // Use /config endpoint below instead
+    @Deprecated()
     async updateEmbeddedDashboards(
         @Request() req: express.Request,
         @Path() projectUuid: string,
@@ -317,6 +330,7 @@ export class EmbedController extends BaseController {
         @Body()
         body: {
             tileUuid: string;
+            timezone?: string;
         } & Pick<
             ExecuteAsyncDashboardChartRequestParams,
             | 'dashboardFilters'
@@ -347,6 +361,7 @@ export class EmbedController extends BaseController {
                 parameters: body.parameters,
                 pivotResults: body.pivotResults,
                 limit: body.limit,
+                timezone: body.timezone,
             });
 
         return {
@@ -597,14 +612,22 @@ export class EmbedController extends BaseController {
             forceRefresh: boolean;
             tableName?: string;
             fieldId?: string;
+            timezone?: string;
         },
     ): Promise<{
         status: 'ok';
         results: FieldValueSearchResult;
     }> {
         this.setStatus(200);
-        const { search, limit, filters, forceRefresh, tableName, fieldId } =
-            body;
+        const {
+            search,
+            limit,
+            filters,
+            forceRefresh,
+            tableName,
+            fieldId,
+            timezone,
+        } = body;
 
         assertEmbeddedAuth(req.account);
 
@@ -618,6 +641,7 @@ export class EmbedController extends BaseController {
             forceRefresh,
             tableName,
             fieldId,
+            timezone,
         });
         return {
             status: 'ok',

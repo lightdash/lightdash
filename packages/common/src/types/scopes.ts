@@ -2,6 +2,7 @@ import {
     type AbilityAction,
     type CaslSubjectNames,
 } from '../authorization/types';
+import { type ProjectType } from './projects';
 
 /**
  * Scope groups to organize permissions in the UI for admins.
@@ -35,11 +36,17 @@ type BaseScopeContext = {
 type OrganizationScopeContext = BaseScopeContext & {
     organizationUuid: string;
     projectUuid?: never;
+    projectType?: never;
+    projectCreatedByUserUuid?: never;
 };
 
 type ProjectScopeContext = BaseScopeContext & {
     projectUuid: string;
     organizationUuid?: never;
+    /** Type of the project this role assignment belongs to (for @self scopes) */
+    projectType?: ProjectType;
+    /** Creator of the project this role assignment belongs to (for @self scopes) */
+    projectCreatedByUserUuid?: string | null;
 };
 
 /**
@@ -78,7 +85,9 @@ export type Scope = {
      */
     group: ScopeGroup;
     /**
-     * Get the conditions to be applied to the CASL ability derived from the scope
+     * Get the conditions to be applied to the CASL ability derived from the
+     * scope. Returning null means the scope emits no rule for this context
+     * (an empty array still means an unconditional grant).
      */
-    getConditions: (context: ScopeContext) => Record<string, unknown>[];
+    getConditions: (context: ScopeContext) => Record<string, unknown>[] | null;
 };

@@ -10,7 +10,6 @@ export const reviewRootCauseLabels: Record<AiAgentRootCause, string> = {
     semantic_layer: 'Semantic layer',
     project_context: 'Project context',
     agent_configuration: 'Agent config',
-    data_gap: 'Data gap',
     product_capability: 'Product',
     runtime_reliability: 'Runtime',
     feedback_quality: 'Feedback',
@@ -22,7 +21,6 @@ export const reviewRootCauseColors: Record<AiAgentRootCause, string> = {
     semantic_layer: 'indigo',
     project_context: 'violet',
     agent_configuration: 'cyan',
-    data_gap: 'orange',
     product_capability: 'grape',
     runtime_reliability: 'red',
     feedback_quality: 'teal',
@@ -43,9 +41,18 @@ export const writebackBlockedReasonLabels: Record<
     git_app_not_installed: 'Git app is not installed',
     missing_writeback_config: 'Writeback runtime is not configured',
     pull_request_open: 'A pull request is already open',
+    source_thread_writeback_exists:
+        'The agent already opened a pull request in the source thread',
     terminal_state: 'Finding is already closed',
     writeback_in_progress: 'Writeback is already in progress',
 };
+
+export const shouldShowWritebackBlockedReason = (
+    reason: AiAgentReviewItemWritebackBlockedReason | null,
+): reason is Exclude<
+    AiAgentReviewItemWritebackBlockedReason,
+    'unsupported_root_cause'
+> => reason !== null && reason !== 'unsupported_root_cause';
 
 const actionLabels: Record<AiAgentRecommendationAction, string> = {
     update_semantic_yaml: 'Update semantic layer',

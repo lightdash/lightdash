@@ -48,6 +48,25 @@ const queryUuid = '11111111-1111-4111-8111-111111111111';
 const allowedSpaceUuid = 'allowed-space-uuid';
 const blockedSpaceUuid = 'blocked-space-uuid';
 
+const makeSpaceMetadata = (spaceUuid: string) => ({
+    uuid: spaceUuid,
+    name: spaceUuid === allowedSpaceUuid ? 'Allowed Space' : 'Blocked Space',
+    slug: spaceUuid === allowedSpaceUuid ? 'allowed-space' : 'blocked-space',
+    breadcrumbs: [
+        {
+            uuid: spaceUuid,
+            name:
+                spaceUuid === allowedSpaceUuid
+                    ? 'Allowed Space'
+                    : 'Blocked Space',
+            slug:
+                spaceUuid === allowedSpaceUuid
+                    ? 'allowed-space'
+                    : 'blocked-space',
+        },
+    ],
+});
+
 const account = {
     isRegisteredUser: () => true,
     isServiceAccount: () => false,
@@ -196,8 +215,10 @@ const makeMcpService = ({
         spaceAccess: string[];
     } | null;
     explores?: Record<string, ReturnType<typeof makeExplore>>;
-    dashboardSearchResults?: Record<string, unknown>[];
-    chartSearchResults?: Record<string, unknown>[];
+    dashboardSearchResults?: (Record<string, unknown> & {
+        spaceUuid: string;
+    })[];
+    chartSearchResults?: ReturnType<typeof makeChartSearchResult>[];
     verifiedContent?: Record<string, unknown>[];
 } = {}) => {
     const asyncQueryService = {
@@ -354,15 +375,21 @@ const makeMcpService = ({
             findFields: jest.fn(async () => ({ fields: [], pagination: {} })),
             findContent: jest.fn(async () => ({
                 content: [
-                    ...dashboardSearchResults,
-                    ...chartSearchResults,
+                    ...dashboardSearchResults.map((dashboard) => ({
+                        ...dashboard,
+                        contentType: 'dashboard',
+                        space: makeSpaceMetadata(dashboard.spaceUuid),
+                    })),
+                    ...chartSearchResults.map((chart) => ({
+                        ...chart,
+                        contentType: 'chart',
+                        space: makeSpaceMetadata(chart.spaceUuid),
+                    })),
                 ].filter(
                     ({ spaceUuid }) =>
                         !runtimeContext.spaceAccess ||
                         runtimeContext.spaceAccess.length === 0 ||
-                        runtimeContext.spaceAccess.includes(
-                            spaceUuid as string,
-                        ),
+                        runtimeContext.spaceAccess.includes(spaceUuid),
                 ),
             })),
             searchFieldValues: jest.fn(async (args) => {
@@ -397,6 +424,7 @@ const makeMcpService = ({
         analytics: { track: jest.fn() },
         asyncQueryService,
         catalogService,
+        contentService: {},
         contentVerificationService,
         featureFlagService: {},
         lightdashConfig: {

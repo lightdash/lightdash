@@ -10,7 +10,9 @@ import {
     CommercialFeatureFlags,
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
+    createContentToolDefinition,
     createToolRunSqlArgsSchema,
+    editContentToolDefinition,
     Explore,
     FeatureFlags,
     findContentToolDefinition,
@@ -28,6 +30,7 @@ import {
     getValidAiQueryLimit,
     ItemsMap,
     listAgentsToolDefinition,
+    listContentToolDefinition,
     listExploresToolDefinition,
     listSkillsToolDefinition,
     listVerifiedContentToolDefinition,
@@ -41,6 +44,7 @@ import {
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    readContentToolDefinition,
     readSkillResourceToolDefinition,
     readSkillToolDefinition,
     renderChartToolDefinition,
@@ -104,10 +108,14 @@ import {
     getMcpAnalystPromptWithContext,
     MCP_ANALYST_PROMPT,
 } from '../ai/prompts/mcpAnalyst';
+import { getCreateContent } from '../ai/tools/createContent';
+import { getEditContent } from '../ai/tools/editContent';
 import { getFindContent } from '../ai/tools/findContent';
 import { getFindExplores } from '../ai/tools/findExplores';
 import { getFindFields } from '../ai/tools/findFields';
+import { getListContent } from '../ai/tools/listContent';
 import { getMcpListExplores } from '../ai/tools/mcpListExplores';
+import { getReadContent } from '../ai/tools/readContent';
 import { validateRunQueryTool } from '../ai/tools/runQuery';
 import { getSearchFieldValues } from '../ai/tools/searchFieldValues';
 import { getPivotedResults } from '../ai/utils/getPivotedResults';
@@ -136,6 +144,10 @@ export enum McpToolName {
     FIND_EXPLORES = 'find_explores',
     FIND_FIELDS = 'find_fields',
     FIND_CONTENT = 'find_content',
+    LIST_CONTENT = 'list_content',
+    READ_CONTENT = 'read_content',
+    CREATE_CONTENT = 'create_content',
+    EDIT_CONTENT = 'edit_content',
     LIST_PROJECTS = 'list_projects',
     SET_PROJECT = 'set_project',
     GET_CURRENT_PROJECT = 'get_current_project',
@@ -164,6 +176,10 @@ const mcpListExploresTool = listExploresToolDefinition.for('mcp');
 const mcpFindExploresTool = findExploresToolDefinition.for('mcp');
 const mcpFindFieldsTool = findFieldsToolDefinition.for('mcp');
 const mcpFindContentTool = findContentToolDefinition.for('mcp');
+const mcpListContentTool = listContentToolDefinition.for('mcp');
+const mcpReadContentTool = readContentToolDefinition.for('mcp');
+const mcpCreateContentTool = createContentToolDefinition.for('mcp');
+const mcpEditContentTool = editContentToolDefinition.for('mcp');
 const mcpListProjectsTool = mcpListProjectsToolDefinition.for('mcp');
 const mcpSetProjectTool = setProjectToolDefinition.for('mcp');
 const mcpGetCurrentProjectTool = getCurrentProjectToolDefinition.for('mcp');
@@ -1276,6 +1292,170 @@ export class McpService extends BaseService {
                     trackCoverage: () => {},
                 });
                 const result = await findContentTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpListContentTool.name,
+            {
+                title: mcpListContentTool.title,
+                description: mcpListContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpListContentTool.inputSchema,
+                ),
+                annotations: mcpListContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(ctx, McpToolName.LIST_CONTENT, projectUuid);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const listContentTool = getListContent({
+                    listContent: toolsRuntime.listContent,
+                });
+                const result = await listContentTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpReadContentTool.name,
+            {
+                title: mcpReadContentTool.title,
+                description: mcpReadContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpReadContentTool.inputSchema,
+                ),
+                annotations: mcpReadContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(ctx, McpToolName.READ_CONTENT, projectUuid);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const readContentTool = getReadContent({
+                    readContent: toolsRuntime.readContent,
+                });
+                const result = await readContentTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpCreateContentTool.name,
+            {
+                title: mcpCreateContentTool.title,
+                description: mcpCreateContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpCreateContentTool.inputSchema,
+                ),
+                annotations: mcpCreateContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(
+                    ctx,
+                    McpToolName.CREATE_CONTENT,
+                    projectUuid,
+                );
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const createContentTool = getCreateContent({
+                    createContent: toolsRuntime.createContent,
+                });
+                const result = await createContentTool.execute!(
+                    argsWithProject,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpEditContentTool.name,
+            {
+                title: mcpEditContentTool.title,
+                description: mcpEditContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpEditContentTool.inputSchema,
+                ),
+                annotations: mcpEditContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(ctx, McpToolName.EDIT_CONTENT, projectUuid);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const editContentTool = getEditContent({
+                    editContent: toolsRuntime.editContent,
+                });
+                const result = await editContentTool.execute!(argsWithProject, {
                     toolCallId: '',
                     messages: [],
                 });

@@ -37,3 +37,36 @@ export enum TimeZone {
 
 export const isTimeZone = (timezone: string): timezone is TimeZone =>
     Object.values(TimeZone).includes(timezone as TimeZone);
+
+/**
+ * Sentinel values for a query's timezone setting. Anything that is not one of
+ * these keywords is treated as an override IANA zone.
+ */
+export const PROJECT_TIMEZONE_SETTING = 'project_timezone';
+export const USER_TIMEZONE_SETTING = 'user_timezone';
+
+/**
+ * A query/saved-chart timezone setting: the project-default keyword, the
+ * per-user keyword, or an override IANA zone. The `string` arm keeps the union
+ * from collapsing while still accepting any valid zone (resolved/profile/project
+ * zones aren't limited to the TimeZone dropdown set).
+ */
+export type TimezoneSetting =
+    | typeof PROJECT_TIMEZONE_SETTING
+    | typeof USER_TIMEZONE_SETTING
+    | TimeZone;
+
+/**
+ * Narrows an untrusted timezone string into a persisted TimezoneSetting. Keeps
+ * the keywords and any supported TimeZone; anything else (an unsupported zone)
+ * falls back to the project default rather than storing an arbitrary string.
+ */
+export function toTimezoneSetting(value: string | undefined): TimezoneSetting {
+    if (!value || value === PROJECT_TIMEZONE_SETTING) {
+        return PROJECT_TIMEZONE_SETTING;
+    }
+    if (value === USER_TIMEZONE_SETTING) {
+        return USER_TIMEZONE_SETTING;
+    }
+    return isTimeZone(value) ? value : PROJECT_TIMEZONE_SETTING;
+}

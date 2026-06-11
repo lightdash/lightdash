@@ -64,6 +64,7 @@ import {
     Body,
     Delete,
     Deprecated,
+    Extension,
     Get,
     Hidden,
     Middlewares,
@@ -228,15 +229,21 @@ export class ProjectController extends BaseController {
      * There may be users that have access to the project via their organization membership.
      * @summary Get project member access
      *
-     * NOTE:
-     * We don't use the API on the frontend. Instead, we can call the API
-     * so that we make sure of the user's access to the project.
+     * @deprecated Use GET /api/v2/projects/{projectId}/roles/assignments instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use GET /api/v2/projects/{projectId}/roles/assignments instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/user/{userUuid}')
     @OperationId('GetProjectMemberAccess')
     @Tags('Roles & Permissions')
+    @Deprecated()
     async getProjectMember(
         @Path() projectUuid: string,
         @Path() userUuid: string,
@@ -415,20 +422,29 @@ export class ProjectController extends BaseController {
     }
 
     /**
-     * Run a raw sql query against the project's warehouse connection
+     * Deprecated — use the v2 Execute SQL query endpoint instead.
+     *
+     * This endpoint was deprecated on 17 February 2025 and is past its sunset date (17 May 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute SQL query, then Get results.
      * @summary Run SQL query
-     * @deprecated Use /api/v1/projects/<project id>/sqlRunner/run instead
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/sql instead
      * @param projectUuid The uuid of the project to run the query against
      * @param body The query to run
      * @param req express request
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (17 May 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.com/api-reference/v2/execute-sql-query) (\`POST /api/v2/projects/{projectUuid}/query/sql\`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).
+</Warning>`,
+    })
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
         getDeprecatedRouteMiddleware(new Date('2025-02-17'), {
             suffixMessage:
-                'Use /api/v1/projects/<project id>/sqlRunner/run instead.',
+                "Use 'POST /api/v2/projects/{projectUuid}/query/sql' in conjunction with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.",
         }),
     ])
     @SuccessResponse('200', 'Success')
@@ -966,7 +982,7 @@ export class ProjectController extends BaseController {
         this.setStatus(201);
 
         const results = await dashboardService.createDashboardWithCharts(
-            toSessionUser(req.account),
+            req.account,
             projectUuid,
             body,
         );

@@ -1,4 +1,4 @@
-import { type AiPromptContextItem } from '@lightdash/common';
+import { assertUnreachable, type AiPromptContextItem } from '@lightdash/common';
 
 export type ContentReferenceSegment =
     | {
@@ -12,24 +12,50 @@ export type ContentReferenceSegment =
           label: string;
       };
 
-const getPromptContextItemKey = (item: AiPromptContextItem) =>
-    item.type === 'chart'
-        ? `chart:${item.chartUuid}`
-        : `dashboard:${item.dashboardUuid}`;
+export const getPromptContextItemKey = (item: AiPromptContextItem) => {
+    switch (item.type) {
+        case 'chart':
+            return `chart:${item.chartUuid}`;
+        case 'dashboard':
+            return `dashboard:${item.dashboardUuid}`;
+        case 'thread':
+            return `thread:${item.threadUuid}`;
+        default:
+            return assertUnreachable(item, 'Unknown AiPromptContextItem type');
+    }
+};
 
 const getPromptContextItemLabel = (item: AiPromptContextItem) => {
     if (item.displayName) return item.displayName;
-    if (item.type === 'chart') return item.chartSlug ?? 'Chart';
-    return item.dashboardSlug ?? 'Dashboard';
+    switch (item.type) {
+        case 'chart':
+            return item.chartSlug ?? 'Chart';
+        case 'dashboard':
+            return item.dashboardSlug ?? 'Dashboard';
+        case 'thread':
+            return 'Conversation';
+        default:
+            return assertUnreachable(item, 'Unknown AiPromptContextItem type');
+    }
 };
 
 export const getPromptContextItemHref = (
     item: AiPromptContextItem,
     projectUuid: string,
-) =>
-    item.type === 'chart'
-        ? `/projects/${projectUuid}/saved/${item.chartUuid}`
-        : `/projects/${projectUuid}/dashboards/${item.dashboardUuid}`;
+): string | null => {
+    switch (item.type) {
+        case 'chart':
+            return `/projects/${projectUuid}/saved/${item.chartUuid}`;
+        case 'dashboard':
+            return `/projects/${projectUuid}/dashboards/${item.dashboardUuid}`;
+        // A pinned thread can live in another project, so there is no
+        // reliable in-project URL to offer.
+        case 'thread':
+            return null;
+        default:
+            return assertUnreachable(item, 'Unknown AiPromptContextItem type');
+    }
+};
 
 export const buildContentReferenceSegments = (
     message: string,

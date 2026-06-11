@@ -11,6 +11,7 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
+    ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
@@ -86,7 +87,11 @@ import {
     type ApiUpdateMetricsTreeResponse,
 } from './catalog';
 import { type ApiGetChangeResponse } from './changeset';
-import { type CiChecks } from './ci';
+import {
+    type CiChecks,
+    type ClosePullRequestResult,
+    type MergePullRequestResult,
+} from './ci';
 import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
@@ -133,6 +138,7 @@ import {
     type GithubUserCredential,
     type GitIntegrationConfiguration,
     type GitRepo,
+    type ProjectFiles,
     type PullRequestCreated,
     type PullRequestPreview,
 } from './gitIntegration';
@@ -996,11 +1002,15 @@ type ApiResults =
     | Array<GitRepo>
     | PullRequestCreated
     | PullRequestPreview
+    | ProjectFiles
     | ProjectCiStatus
     | ApiGitFileContent
     | GitIntegrationConfiguration
     | GithubUserCredential
     | CiChecks
+    | MergePullRequestResult
+    | ClosePullRequestResult
+    | { diff: string }
     | GitBranch
     | GitBranch[]
     | GitFileOrDirectory
@@ -1087,6 +1097,7 @@ type ApiResults =
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
+    | ApiAiAgentReviewItemPrDiffResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']
