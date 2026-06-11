@@ -61,7 +61,6 @@ export type AiAgentRootCause =
     | 'semantic_layer'
     | 'project_context'
     | 'agent_configuration'
-    | 'data_gap'
     | 'product_capability'
     | 'runtime_reliability'
     | 'feedback_quality'
@@ -485,7 +484,6 @@ export const aiAgentReviewClassifierJudgeOutputSchema = z.object({
         'semantic_layer',
         'project_context',
         'agent_configuration',
-        'data_gap',
         'product_capability',
         'runtime_reliability',
         'feedback_quality',
@@ -497,7 +495,6 @@ export const aiAgentReviewClassifierJudgeOutputSchema = z.object({
             'semantic_layer',
             'project_context',
             'agent_configuration',
-            'data_gap',
             'product_capability',
             'runtime_reliability',
             'feedback_quality',
@@ -882,7 +879,6 @@ export const getAiAgentReviewItemFingerprintScope = (
     switch (input.primaryRootCause) {
         case 'semantic_layer':
         case 'project_context':
-        case 'data_gap':
             return {
                 type: 'project',
                 organizationUuid: input.organizationUuid,

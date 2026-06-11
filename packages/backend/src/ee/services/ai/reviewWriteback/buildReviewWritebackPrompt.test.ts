@@ -139,7 +139,9 @@ describe('planReviewWriteback', () => {
 
     it('throws for unsupported root causes', () => {
         expect(() =>
-            planReviewWriteback(baseItem({ primaryRootCause: 'data_gap' })),
+            planReviewWriteback(
+                baseItem({ primaryRootCause: 'runtime_reliability' }),
+            ),
         ).toThrow('not supported');
     });
 });

@@ -970,10 +970,9 @@ export class AiAgentReviewClassifierService extends BaseService {
 Classify whether the assistant turn contains an actionable issue. Use only the supplied evidence packet. Do not invent project fields or facts.
 
 Root cause definitions:
-- semantic_layer: dbt/Lightdash YAML model, dimension, metric, join, filter, or AI hint should change.
+- semantic_layer: the dbt/Lightdash semantic layer should change. This covers both adding to the model — a new model, join, dimension, metric, filter, or AI hint because the data is not currently exposed — and editing existing YAML metadata. Use this even when the underlying warehouse/dbt data may be missing or insufficient: the durable fix still lives in the semantic layer, and the writeback agent (which can inspect the live project) decides whether to expose the data or report that upstream modeling is needed.
 - project_context: available explores, project context, or knowledge about which explore to use is missing/wrong.
 - agent_configuration: Lightdash agent settings should change, e.g. instructions, knowledge docs, data access, SQL mode, MCP, access.
-- data_gap: underlying warehouse/dbt data is missing or insufficient.
 - product_capability: Lightdash product capability limitation or feature request.
 - runtime_reliability: query/tool/runtime failed or timed out.
 - feedback_quality: explicit feedback is too ambiguous to classify without admin review.
@@ -1003,10 +1002,9 @@ Decision rules — apply in order:
    - Do not promote output_shape_correction alone, routine drill-downs, normal follow-up questions, or chart/format-only changes when the assistant answered the user's actual question.
 
 When promoting, pick primaryRootCause by mapping the dominant signal:
-   - assistant_no_answer where the assistant names a missing join, missing column, missing relationship, or missing field → semantic_layer.
+   - assistant_no_answer where the assistant names a missing join, missing column, missing relationship, or missing field, OR where the warehouse/dbt data the user asked for is not currently exposed (a model/join/field would need to be added) → semantic_layer.
    - assistant_no_answer where the assistant picked a wrong / unrelated explore or field → project_context.
    - assistant_no_answer due to disabled SQL or data access, missing instructions, or missing knowledge docs → agent_configuration.
-   - assistant_no_answer because the warehouse genuinely lacks the data → data_gap.
    - assistant_no_answer because Lightdash cannot express the question (missing chart type, unsupported pivot, etc.) → product_capability.
    - next_user_correction or next_user_dispute about which explore/source/table to use, or about what an entity, acronym, or business term refers to → project_context.
    - next_user_correction or next_user_dispute about a field, metric, dimension, join, or filter definition within the right explore → semantic_layer.
