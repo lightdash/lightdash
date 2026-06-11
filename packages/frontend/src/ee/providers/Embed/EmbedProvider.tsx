@@ -46,8 +46,12 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
 
     // Parse theme params from URL once on mount (before hash is stripped)
     const [embedThemeParams] = useState(parseEmbedThemeParams);
-    // Parse the session timezone (?timezone=) once on mount, alongside the theme
-    const [embedTimezone] = useState(parseEmbedTimezoneParam);
+    // Parse the session timezone (?timezone=) once on mount, alongside the theme.
+    // Only the direct/iframe embed owns its URL; in SDK mode window.location is
+    // the host app's URL, so we must not scrape ?timezone= from it.
+    const [embedTimezone] = useState(() =>
+        encodedToken ? null : parseEmbedTimezoneParam(),
+    );
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
