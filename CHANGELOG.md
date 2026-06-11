@@ -1,3 +1,15 @@
+# [0.3140.0](https://github.com/lightdash/lightdash/compare/0.3139.0...0.3140.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* dedupe cartesian reference lines ([#24196](https://github.com/lightdash/lightdash/issues/24196)) ([da0c5ab](https://github.com/lightdash/lightdash/commit/da0c5abc2419612a9d9236789b83113dbe313004))
+
+
+### Features
+
+* **ai-writeback:** run writeback compile with project's dbt version ([#24194](https://github.com/lightdash/lightdash/issues/24194)) ([9fce8d0](https://github.com/lightdash/lightdash/commit/9fce8d096173d34945a8c5b1b049e0033ab29727))
+
 # [0.3139.0](https://github.com/lightdash/lightdash/compare/0.3138.2...0.3139.0) (2026-06-11)
 
 
