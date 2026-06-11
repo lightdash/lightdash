@@ -2517,9 +2517,6 @@
             "type": "object"
         },
         "Record_string.string_": {
-            "additionalProperties": {
-                "type": "string"
-            },
             "description": "Construct a type with a set of properties K of type T",
             "properties": {},
             "type": "object"
@@ -3535,9 +3532,9 @@
     },
     "required": [
         "name",
-        "slug",
-        "chartConfig",
         "tableName",
+        "chartConfig",
+        "slug",
         "spaceSlug",
         "version",
         "metricQuery"

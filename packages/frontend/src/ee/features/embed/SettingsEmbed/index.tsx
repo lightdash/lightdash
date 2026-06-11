@@ -1,5 +1,6 @@
 import {
     type ApiError,
+    type CreateEmbedJwt,
     type DecodedEmbed,
     type UpdateEmbed,
 } from '@lightdash/common';
@@ -15,7 +16,7 @@ import {
 } from '@mantine-8/core';
 import { IconAlertCircle, IconKey } from '@tabler/icons-react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, type FC } from 'react';
+import { useMemo, useState, type FC } from 'react';
 import { lightdashApi } from '../../../../api';
 import { EmptyState } from '../../../../components/common/EmptyState';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -29,6 +30,7 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCharts } from '../../../../hooks/useCharts';
 import useApp from '../../../../providers/App/useApp';
 import EmbedAllowListForm from './EmbedAllowListForm';
+import EmbedModifiableActionsForm from './EmbedModifiableActionsForm';
 import EmbedPreviewChartForm from './EmbedPreviewChartForm';
 import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
 
@@ -128,6 +130,8 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         useEmbedConfigCreateMutation(projectUuid);
     const { mutate: updateEmbedConfig, isLoading: isUpdating } =
         useEmbedConfigUpdateMutation(projectUuid);
+    const [modifiableActions, setModifiableActions] =
+        useState<CreateEmbedJwt['modifiableActions']>();
 
     const isSaving = isCreating || isUpdating;
     const allowedDashboards = useMemo(() => {
@@ -250,6 +254,21 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             </SettingsCard>
             <SettingsCard>
                 <Stack gap="xs" mb="md">
+                    <Title order={4}>Modifiable actions</Title>
+                    <Text c="dimmed" fz="sm">
+                        Choose which Lightdash actor should power embedded
+                        actions like creating scheduled deliveries or saving
+                        charts.
+                    </Text>
+                </Stack>
+                <EmbedModifiableActionsForm
+                    projectUuid={projectUuid}
+                    value={modifiableActions}
+                    onChange={setModifiableActions}
+                />
+            </SettingsCard>
+            <SettingsCard>
+                <Stack gap="xs" mb="md">
                     <Title order={4}>Preview & embed code</Title>
                     <Text c="dimmed" fz="sm">
                         Configure your content, preview it, and copy the right
@@ -267,6 +286,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 projectUuid={projectUuid}
                                 siteUrl={health.data.siteUrl}
                                 dashboards={allowedDashboards}
+                                modifiableActions={modifiableActions}
                             />
                         </Stack>
                     </Tabs.Panel>
@@ -276,6 +296,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 projectUuid={projectUuid}
                                 siteUrl={health.data.siteUrl}
                                 charts={charts || []}
+                                modifiableActions={modifiableActions}
                             />
                         </Stack>
                     </Tabs.Panel>

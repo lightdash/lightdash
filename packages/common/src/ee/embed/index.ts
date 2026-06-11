@@ -105,6 +105,27 @@ export type ChartInteractivityOptions = z.infer<
     typeof ChartInteractivityOptionsSchema
 >;
 
+export type EmbedModifiableActions = {
+    serviceAccountUserUuid?: string;
+    userUuid?: string;
+    spaceUuid: string;
+};
+
+export const EmbedModifiableActionsSchema: z.ZodType<EmbedModifiableActions> = z
+    .object({
+        serviceAccountUserUuid: z.string().uuid().optional(),
+        userUuid: z.string().uuid().optional(),
+        spaceUuid: z.string().uuid(),
+    })
+    .refine(
+        ({ serviceAccountUserUuid, userUuid }) =>
+            serviceAccountUserUuid !== undefined || userUuid !== undefined,
+        {
+            message:
+                'Either serviceAccountUserUuid or userUuid is required for modifiable actions',
+        },
+    );
+
 export const EmbedJwtSchema = z
     .object({
         userAttributes: z.record(z.unknown()).optional(),
@@ -140,6 +161,7 @@ export const EmbedJwtSchema = z
                 })
                 .merge(ChartInteractivityOptionsSchema),
         ]),
+        modifiableActions: EmbedModifiableActionsSchema.optional(),
         iat: z.number().optional(),
         exp: z.number(),
     })
@@ -201,6 +223,7 @@ export type CreateEmbedJwt = {
         | EmbedJwtContentDashboardUuid
         | EmbedJwtContentDashboardSlug
         | EmbedJwtContentChart;
+    modifiableActions?: EmbedModifiableActions;
     userAttributes?: { [key: string]: string };
     user?: {
         email?: string;

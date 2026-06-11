@@ -6,6 +6,8 @@ const EmbedProviderContext = createContext<EmbedContext>({
     embedToken: undefined,
     filters: undefined,
     projectUuid: undefined,
+    content: undefined,
+    modifiableActions: undefined,
     paletteUuid: undefined,
     languageMap: undefined,
     t: (_input: string) => undefined,

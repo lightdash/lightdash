@@ -1,4 +1,8 @@
-import { type LanguageMap, type SavedChart } from '@lightdash/common';
+import {
+    type CreateEmbedJwt,
+    type LanguageMap,
+    type SavedChart,
+} from '@lightdash/common';
 import get from 'lodash/get';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -28,6 +32,29 @@ type Props = {
     savedQueryUuid?: string;
 };
 
+const decodeEmbedJwtPayload = (
+    token: string | undefined,
+): Pick<CreateEmbedJwt, 'content' | 'modifiableActions'> | undefined => {
+    const payload = token?.split('.')[1];
+    if (!payload) {
+        return undefined;
+    }
+
+    try {
+        const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const paddedPayload = normalizedPayload.padEnd(
+            Math.ceil(normalizedPayload.length / 4) * 4,
+            '=',
+        );
+        return JSON.parse(window.atob(paddedPayload)) as Pick<
+            CreateEmbedJwt,
+            'content' | 'modifiableActions'
+        >;
+    } catch {
+        return undefined;
+    }
+};
+
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     children,
     embedToken: encodedToken,
@@ -54,6 +81,11 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const location = useLocation();
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
+    const tokenFromStorageOrProps = embedToken || embed?.token;
+    const embedJwtPayload = useMemo(
+        () => decodeEmbedJwtPayload(tokenFromStorageOrProps),
+        [tokenFromStorageOrProps],
+    );
 
     // Remove the token from the URL.
     useEffect(() => {
@@ -99,10 +131,12 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const value = useMemo(() => {
         return {
-            embedToken: embed?.token || embedToken,
+            embedToken: tokenFromStorageOrProps,
             filters,
             t: (input: string) => get(contentOverrides, input),
             projectUuid: embed?.projectUuid || projectUuid,
+            content: embedJwtPayload?.content,
+            modifiableActions: embedJwtPayload?.modifiableActions,
             paletteUuid,
             languageMap: contentOverrides,
             onExplore,
@@ -115,8 +149,9 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         };
     }, [
         embed?.projectUuid,
-        embed?.token,
-        embedToken,
+        tokenFromStorageOrProps,
+        embedJwtPayload?.content,
+        embedJwtPayload?.modifiableActions,
         filters,
         projectUuid,
         paletteUuid,

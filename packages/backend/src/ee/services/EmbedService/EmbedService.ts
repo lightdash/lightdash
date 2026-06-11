@@ -535,6 +535,9 @@ export class EmbedService extends BaseService {
             canExportImages,
             canExportPagePdf,
             canDateZoom,
+            canExplore,
+            canViewUnderlyingData,
+            canViewDataApps,
         } = decodedToken.content;
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
@@ -604,6 +607,9 @@ export class EmbedService extends BaseService {
             canExportImages,
             canExportPagePdf: canExportPagePdf ?? true, // enabled by default for backwards compatibility
             canDateZoom,
+            canExplore,
+            canViewUnderlyingData,
+            canViewDataApps,
             selectedPalette,
         };
     }

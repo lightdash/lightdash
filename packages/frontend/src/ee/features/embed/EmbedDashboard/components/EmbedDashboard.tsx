@@ -89,6 +89,7 @@ const EmbedDashboardGrid: FC<{
                                 onEdit={() => {}}
                                 canExportCsv={dashboard.canExportCsv}
                                 canExportImages={dashboard.canExportImages}
+                                canViewExplore={dashboard.canExplore}
                                 locked={hasRequiredDashboardFiltersToSet}
                                 tileIndex={index}
                             />

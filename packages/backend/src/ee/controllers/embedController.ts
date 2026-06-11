@@ -17,6 +17,7 @@ import {
     CommonEmbedJwtContent,
     CreateEmbedJwt,
     CreateEmbedRequestBody,
+    CreateSavedChart,
     Dashboard,
     DashboardAvailableFilters,
     DashboardFilters,
@@ -109,6 +110,11 @@ export type ApiEmbedChartAndResultsResponse = {
         rows: AnyType[];
         fields: Record<string, Item | AdditionalMetric>;
     };
+};
+
+export type ApiEmbedSavedChartCreateResponse = {
+    status: 'ok';
+    results: SavedChart;
 };
 
 @Route('/api/v1/embed/:projectUuid')
@@ -261,6 +267,69 @@ export class EmbedController extends BaseController {
                 req.account,
                 { paletteUuid: body?.paletteUuid },
             ),
+        };
+    }
+
+    @SuccessResponse('200', 'Success')
+    @Post('/saved')
+    @OperationId('createEmbedSavedChart')
+    async createEmbedSavedChart(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Body() body: CreateSavedChart,
+    ): Promise<ApiEmbedSavedChartCreateResponse> {
+        this.setStatus(200);
+
+        assertEmbeddedAuth(req.account);
+
+        if (projectUuid !== req.account.embed.projectUuid) {
+            throw new ForbiddenError(
+                'Embed token cannot create charts in this project',
+            );
+        }
+
+        const { modifiableActions } = req.account.authentication.data;
+        const actorUserUuid =
+            modifiableActions?.userUuid ??
+            modifiableActions?.serviceAccountUserUuid;
+
+        if (!modifiableActions?.spaceUuid || !actorUserUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow modifiable actions',
+            );
+        }
+
+        const userService = this.services.getUserService();
+        if (modifiableActions.userUuid === undefined) {
+            const serviceAccount =
+                await userService.findServiceAccountByUserUuid(actorUserUuid);
+            if (
+                serviceAccount === undefined ||
+                serviceAccount.organizationUuid !==
+                    req.account.embed.organization.organizationUuid
+            ) {
+                throw new ForbiddenError(
+                    'Embed token service account is not valid for this organization',
+                );
+            }
+        }
+
+        const actor = await userService.getSessionByUserUuidAndOrg(
+            actorUserUuid,
+            req.account.embed.organization.organizationUuid,
+        );
+
+        const results = await this.services
+            .getSavedChartService()
+            .create(actor, projectUuid, {
+                ...body,
+                dashboardUuid: undefined,
+                spaceUuid: modifiableActions.spaceUuid,
+            });
+
+        return {
+            status: 'ok',
+            results,
         };
     }
 

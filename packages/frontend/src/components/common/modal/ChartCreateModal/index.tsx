@@ -28,6 +28,9 @@ interface ChartCreateModalProps extends Pick<
      * a dashboard, the originating dashboard is offered as a destination.
      */
     isSaveAs?: boolean;
+    redirectOnSuccess?: boolean;
+    useEmbedEndpoint?: boolean;
+    forcedSpaceUuid?: string;
 }
 
 enum SaveMode {
@@ -44,6 +47,9 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
     chartMetadata,
     forceSpaceOrDashboardChoice = false,
     isSaveAs = false,
+    redirectOnSuccess = true,
+    useEmbedEndpoint = false,
+    forcedSpaceUuid,
 }) => {
     // Store it in the state to avoid losing the param when the user switches between tables
     const [spaceUuid] = useState(defaultSpaceUuid);
@@ -118,12 +124,15 @@ const ChartCreateModal: FC<ChartCreateModalProps> = ({
                     onConfirm={onConfirm}
                     onClose={onClose}
                     defaultSpaceUuid={spaceUuid}
+                    forcedSpaceUuid={forcedSpaceUuid}
                     dashboardInfoFromSavedData={{
                         dashboardName: savedData.dashboardName ?? null,
                         dashboardUuid: savedData.dashboardUuid ?? null,
                     }}
                     originatingDashboard={originatingDashboard}
                     chartMetadata={chartMetadata}
+                    redirectOnSuccess={redirectOnSuccess}
+                    useEmbedEndpoint={useEmbedEndpoint}
                 />
             )}
         </MantineModal>

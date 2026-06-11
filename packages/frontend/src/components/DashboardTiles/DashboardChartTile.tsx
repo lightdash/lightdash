@@ -551,6 +551,7 @@ interface DashboardChartTileMainProps extends Pick<
     canExportImages?: boolean;
     canExportPagePdf?: boolean;
     canDateZoom?: boolean;
+    canViewExplore?: boolean;
     onExplore?: (options: { chart: SavedChart }) => void;
     colorPaletteOverride?: string[];
     darkColorPaletteOverride?: string[] | null;
@@ -1817,6 +1818,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         resultsData,
         canExportCsv,
         canExportImages,
+        canViewExplore: canViewExploreOverride,
         onExplore,
         colorPaletteOverride,
         darkColorPaletteOverride,
@@ -1847,7 +1849,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         }
     }, [onExplore, chart]);
 
-    const canExplore = canViewExplore;
+    const canExplore = canViewExploreOverride ?? canViewExplore;
 
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
@@ -2128,6 +2130,7 @@ export const GenericDashboardChartTile: FC<
     error,
     canExportCsv = false,
     canExportImages = false,
+    canViewExplore,
     onExplore,
     colorPaletteOverride,
     darkColorPaletteOverride,
@@ -2272,6 +2275,7 @@ export const GenericDashboardChartTile: FC<
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
+                    canViewExplore={canViewExplore}
                     onExplore={onExplore}
                     colorPaletteOverride={effectiveColorPaletteOverride}
                     darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
