@@ -48,23 +48,6 @@ async function updateEmbedConfig(
     );
 }
 
-async function updateEmbedConfigDashboards(
-    client: ApiClient,
-    dashboardUuids: string[],
-    options?: { failOnStatusCode?: boolean },
-) {
-    return client.patch<Body<unknown>>(
-        `${EMBED_API_PREFIX}/config/dashboards`,
-        {
-            dashboardUuids,
-            chartUuids: [],
-            allowAllDashboards: false,
-            allowAllCharts: false,
-        },
-        options,
-    );
-}
-
 async function getEmbedUrl(
     client: ApiClient,
     body: CreateEmbedJwt,
@@ -214,10 +197,12 @@ describe('Embed Management API', () => {
         );
         expect(dashboardsUuids.length).toBeGreaterThan(1);
 
-        const updateResp = await updateEmbedConfigDashboards(
-            admin,
-            dashboardsUuids,
-        );
+        const updateResp = await updateEmbedConfig(admin, {
+            dashboardUuids: dashboardsUuids,
+            chartUuids: [],
+            allowAllDashboards: false,
+            allowAllCharts: false,
+        });
         expect(updateResp.status).toBe(200);
 
         const newConfigResp = await getEmbedConfig(admin);
@@ -387,13 +372,6 @@ describe('Embed Management API - invalid permissions', () => {
             { dashboardUuids: ['uuid'] },
             { failOnStatusCode: false },
         );
-        expect(resp.status).toBe(403);
-    });
-
-    it('should not update embed configuration (dashboards endpoint)', async () => {
-        const resp = await updateEmbedConfigDashboards(otherClient, ['uuid'], {
-            failOnStatusCode: false,
-        });
         expect(resp.status).toBe(403);
     });
 

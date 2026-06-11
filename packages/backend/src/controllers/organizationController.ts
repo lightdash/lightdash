@@ -277,10 +277,20 @@ export class OrganizationController extends BaseController {
      * @summary Get organization member by email
      * @param req express request
      * @param email the email of the user
+     *
+     * @deprecated Use the GET /api/v1/org/users list endpoint instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use the GET /api/v1/org/users list endpoint instead.',
+        }),
+    ])
     @Get('/users/email/{email}')
     @OperationId('GetOrganizationMemberByEmail')
+    @Deprecated()
     async getOrganizationMemberByEmail(
         @Request() req: express.Request,
         @Path() email: string,

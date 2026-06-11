@@ -12432,11 +12432,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['accepted'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['accepted'],
                                                         },
                                                         {
                                                             dataType:
@@ -12494,11 +12494,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['accepted'],
+                                                            enums: ['rejected'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['rejected'],
+                                                            enums: ['accepted'],
                                                         },
                                                         {
                                                             dataType:
@@ -12554,11 +12554,11 @@ const models: TsoaRoute.Models = {
                                                     subSchemas: [
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['error'],
+                                                            enums: ['success'],
                                                         },
                                                         {
                                                             dataType: 'enum',
-                                                            enums: ['success'],
+                                                            enums: ['error'],
                                                         },
                                                     ],
                                                     required: true,
@@ -26209,12 +26209,42 @@ const models: TsoaRoute.Models = {
         ],
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    PullRequestReviewContext: {
+        dataType: 'refAlias',
+        type: {
+            dataType: 'nestedObjectLiteral',
+            nestedProperties: {
+                sourceAgentUuid: { dataType: 'string', required: true },
+                sourceProjectUuid: { dataType: 'string', required: true },
+                sourceThreadUuid: { dataType: 'string', required: true },
+                sourceFindingUuid: { dataType: 'string', required: true },
+                primaryRootCause: { ref: 'AiAgentRootCause', required: true },
+                reviewStatus: {
+                    ref: 'AiAgentReviewItemStatus',
+                    required: true,
+                },
+                reviewTitle: { dataType: 'string', required: true },
+                reviewItemFingerprint: { dataType: 'string', required: true },
+                reviewItemUuid: { dataType: 'string', required: true },
+            },
+            validators: {},
+        },
+    },
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     PullRequest: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
             nestedProperties: {
                 createdAt: { dataType: 'datetime', required: true },
+                reviewContext: {
+                    dataType: 'union',
+                    subSchemas: [
+                        { ref: 'PullRequestReviewContext' },
+                        { dataType: 'enum', enums: [null] },
+                    ],
+                    required: true,
+                },
                 aiAgentUuid: {
                     dataType: 'union',
                     subSchemas: [

@@ -120,9 +120,14 @@ describe('Roles API Tests', () => {
                 rolesToCleanup.push(roleUuid);
 
                 // Test: add scopes to the role
-                const scopeResp = await admin.post<Body<unknown>>(
-                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}/scopes`,
-                    { scopeNames: ['view_project', 'view_dashboard'] },
+                const scopeResp = await admin.patch<Body<unknown>>(
+                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`,
+                    {
+                        scopes: {
+                            add: ['view_project', 'view_dashboard'],
+                            remove: [],
+                        },
+                    },
                 );
 
                 expect(scopeResp.status).toBe(200);
@@ -145,14 +150,17 @@ describe('Roles API Tests', () => {
                 rolesToCleanup.push(originalRoleUuid);
 
                 // Setup: add scopes to the original role
-                await admin.post<Body<unknown>>(
-                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${originalRoleUuid}/scopes`,
+                await admin.patch<Body<unknown>>(
+                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${originalRoleUuid}`,
                     {
-                        scopeNames: [
-                            'view_project',
-                            'view_dashboard',
-                            'create:Space',
-                        ],
+                        scopes: {
+                            add: [
+                                'view_project',
+                                'view_dashboard',
+                                'create:Space',
+                            ],
+                            remove: [],
+                        },
                     },
                 );
 
@@ -305,9 +313,14 @@ describe('Roles API Tests', () => {
             rolesToCleanup.push(roleUuid);
 
             // Add scopes to role
-            const scopeResp = await admin.post<Body<unknown>>(
-                `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}/scopes`,
-                { scopeNames: ['view_project', 'view_dashboard'] },
+            const scopeResp = await admin.patch<Body<unknown>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`,
+                {
+                    scopes: {
+                        add: ['view_project', 'view_dashboard'],
+                        remove: [],
+                    },
+                },
             );
             expect(scopeResp.status).toBe(200);
             expect(scopeResp.body).toHaveProperty('status', 'ok');
@@ -736,9 +749,9 @@ describe('Roles API Tests', () => {
             );
 
             if (systemRole) {
-                const scopeResp = await admin.post<Body<unknown>>(
-                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}/scopes`,
-                    { scopeNames: ['view:Dashboard'] },
+                const scopeResp = await admin.patch<Body<unknown>>(
+                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}`,
+                    { scopes: { add: ['view:Dashboard'], remove: [] } },
                     { failOnStatusCode: false },
                 );
 
@@ -758,8 +771,9 @@ describe('Roles API Tests', () => {
             );
 
             if (systemRole) {
-                const removeResp = await admin.delete(
-                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}/scopes/create:Space`,
+                const removeResp = await admin.patch<Body<unknown>>(
+                    `${orgRolesApiUrl}/${testOrgUuid}/roles/${systemRole.roleUuid}`,
+                    { scopes: { add: [], remove: ['create:Space'] } },
                     { failOnStatusCode: false },
                 );
 
@@ -782,16 +796,22 @@ describe('Roles API Tests', () => {
             rolesToCleanup.push(roleUuid);
 
             // Add scopes to role
-            const scopeResp = await admin.post<Body<unknown>>(
-                `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}/scopes`,
-                { scopeNames: ['view_project', 'view_dashboard'] },
+            const scopeResp = await admin.patch<Body<unknown>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`,
+                {
+                    scopes: {
+                        add: ['view_project', 'view_dashboard'],
+                        remove: [],
+                    },
+                },
             );
             expect(scopeResp.status).toBe(200);
             expect(scopeResp.body).toHaveProperty('status', 'ok');
 
             // Remove a scope from role
-            const removeResp = await admin.delete(
-                `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}/scopes/view_project`,
+            const removeResp = await admin.patch<Body<unknown>>(
+                `${orgRolesApiUrl}/${testOrgUuid}/roles/${roleUuid}`,
+                { scopes: { add: [], remove: ['view_project'] } },
             );
             expect(removeResp.status).toBe(200);
             expect(removeResp.body).toHaveProperty('status', 'ok');

@@ -1,7 +1,6 @@
 import {
     MetricQuery,
     ProjectMemberProfile,
-    SEED_ORG_1_ADMIN,
     SEED_PROJECT,
 } from '@lightdash/common';
 import { ApiClient, Body } from '../helpers/api-client';
@@ -81,10 +80,10 @@ describe('Lightdash API tests for member user with admin project permissions', (
         }
     });
 
-    it('Should get success response (200) from GET scheduler logs', async () => {
+    it('Should get success response (200) from GET scheduler runs', async () => {
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.get(
-            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/runs`,
         );
         expect(resp.status).toBe(200);
         expect(resp.body).toHaveProperty('status', 'ok');
@@ -438,10 +437,10 @@ describe('Lightdash API tests for member user with editor project permissions', 
         expect(resp.status).toBe(403);
     });
 
-    it('Should get forbidden (403) from GET scheduler logs', async () => {
+    it('Should get forbidden (403) from GET scheduler runs', async () => {
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.get(
-            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/runs`,
             { failOnStatusCode: false },
         );
         expect(resp.status).toBe(403);
@@ -616,10 +615,10 @@ describe('Lightdash API tests for member user with developer project permissions
         email = perm.email;
     });
 
-    it('Should get success response (200) from GET scheduler logs', async () => {
+    it('Should get success response (200) from GET scheduler runs', async () => {
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.get(
-            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/runs`,
         );
         expect(resp.status).toBe(200);
         expect(resp.body).toHaveProperty('status', 'ok');
@@ -698,10 +697,10 @@ describe('Lightdash API tests for member user with interactive_viewer project pe
         expect(resp.body).toHaveProperty('status', 'ok');
     });
 
-    it('Should get forbidden error (403) from GET Scheduler logs', async () => {
+    it('Should get forbidden error (403) from GET scheduler runs', async () => {
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.get(
-            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/runs`,
             { failOnStatusCode: false },
         );
         expect(resp.status).toBe(403);
@@ -877,10 +876,10 @@ describe('Lightdash API tests for member user with viewer project permissions', 
         }
     });
 
-    it('Should get forbidden error (403) from GET Scheduler logs', async () => {
+    it('Should get forbidden error (403) from GET scheduler runs', async () => {
         // eslint-disable-next-line no-await-in-loop
         const resp = await client.get(
-            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/logs`,
+            `${apiUrl}/schedulers/${SEED_PROJECT.project_uuid}/runs`,
             { failOnStatusCode: false },
         );
         expect(resp.status).toBe(403);
@@ -1148,7 +1147,7 @@ describe('Lightdash API tests for member user with NO project permissions', () =
             `/projects/${projectUuid}/catalog`,
             `/projects/${projectUuid}/tablesConfiguration`,
             `/projects/${projectUuid}/hasSavedCharts`,
-            `/schedulers/${projectUuid}/logs`,
+            `/schedulers/${projectUuid}/runs`,
         ];
         for (const endpoint of endpoints) {
             // eslint-disable-next-line no-await-in-loop
@@ -1255,25 +1254,18 @@ describe('Lightdash API tests for project members access', () => {
         expect(resp.status).toBe(200);
         expect(resp.body.results.length).toBeGreaterThan(0);
 
-        for (const member of resp.body.results) {
-            // eslint-disable-next-line no-await-in-loop
-            const resp2 = await admin.get<
-                Body<{ userUuid: string; projectUuid: string; role: string }>
-            >(`${apiUrl}/projects/${projectUuid}/user/${member.userUuid}`);
-            expect(resp2.status).toBe(200);
-            expect(resp2.body.results.userUuid).toBe(member.userUuid);
-            expect(resp2.body.results.projectUuid).toBe(member.projectUuid);
-            expect(resp2.body.results.role).toBe(member.role);
-        }
-    });
-
-    it('Should not get project member access for user that gets access via the org role', async () => {
-        const projectUuid = SEED_PROJECT.project_uuid;
         // eslint-disable-next-line no-await-in-loop
-        const resp = await admin.get(
-            `${apiUrl}/projects/${projectUuid}/user/${SEED_ORG_1_ADMIN.user_uuid}`,
-            { failOnStatusCode: false },
-        );
-        expect(resp.status).toBe(404);
+        const assignmentsResp = await admin.get<
+            Body<Array<{ assigneeId: string; roleName: string }>>
+        >(`/api/v2/projects/${projectUuid}/roles/assignments`);
+        expect(assignmentsResp.status).toBe(200);
+
+        for (const member of resp.body.results) {
+            const assignment = assignmentsResp.body.results.find(
+                (a) => a.assigneeId === member.userUuid,
+            );
+            expect(assignment).toBeDefined();
+            expect(assignment!.roleName).toBe(member.role);
+        }
     });
 });

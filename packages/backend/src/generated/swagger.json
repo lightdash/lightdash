@@ -13995,8 +13995,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -14054,8 +14054,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "accepted",
-                                                            "rejected"
+                                                            "rejected",
+                                                            "accepted"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -26872,11 +26872,63 @@
                 ],
                 "type": "string"
             },
+            "PullRequestReviewContext": {
+                "properties": {
+                    "sourceAgentUuid": {
+                        "type": "string"
+                    },
+                    "sourceProjectUuid": {
+                        "type": "string"
+                    },
+                    "sourceThreadUuid": {
+                        "type": "string"
+                    },
+                    "sourceFindingUuid": {
+                        "type": "string"
+                    },
+                    "primaryRootCause": {
+                        "$ref": "#/components/schemas/AiAgentRootCause"
+                    },
+                    "reviewStatus": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                    },
+                    "reviewTitle": {
+                        "type": "string"
+                    },
+                    "reviewItemFingerprint": {
+                        "type": "string"
+                    },
+                    "reviewItemUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "sourceAgentUuid",
+                    "sourceProjectUuid",
+                    "sourceThreadUuid",
+                    "sourceFindingUuid",
+                    "primaryRootCause",
+                    "reviewStatus",
+                    "reviewTitle",
+                    "reviewItemFingerprint",
+                    "reviewItemUuid"
+                ],
+                "type": "object"
+            },
             "PullRequest": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "reviewContext": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PullRequestReviewContext"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Source review context for AI review remediation PRs. Present when the PR\nwas opened to address a review finding."
                     },
                     "aiAgentUuid": {
                         "type": "string",
@@ -26923,6 +26975,7 @@
                 },
                 "required": [
                     "createdAt",
+                    "reviewContext",
                     "aiAgentUuid",
                     "aiThreadUuid",
                     "prUrl",
@@ -38547,7 +38600,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3129.1",
+        "version": "0.3135.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -45003,6 +45056,7 @@
                 "description": "Add scopes to role",
                 "summary": "Add scopes to role",
                 "tags": ["v2", "Custom Roles"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -45062,6 +45116,7 @@
                 "description": "Remove scope from role",
                 "summary": "Remove scope from role",
                 "tags": ["v2", "Custom Roles"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -47101,6 +47156,7 @@
                 "description": "Run a SQL query",
                 "summary": "Run SQL query",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -47152,6 +47208,7 @@
                 "description": "Run a SQL pivot query",
                 "summary": "Run SQL pivot query",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -49267,6 +49324,7 @@
                 "description": "Get scheduled logs",
                 "summary": "Get scheduler logs",
                 "tags": ["Schedulers"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -50082,6 +50140,7 @@
                 "description": "Get scheduled jobs",
                 "summary": "Get scheduled jobs",
                 "tags": ["Schedulers"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -51739,8 +51798,9 @@
                     }
                 },
                 "description": "Get a project explicit member's access.\nThere may be users that have access to the project via their organization membership.",
-                "summary": "Get project member access\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "summary": "Get project member access",
                 "tags": ["Roles & Permissions", "Projects"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -55324,6 +55384,7 @@
                 "description": "Get the member profile for a user in the current user's organization by email",
                 "summary": "Get organization member by email",
                 "tags": ["Organizations"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -56510,6 +56571,7 @@
                 "description": "Add a Lightdash user to a group",
                 "summary": "Add user to group",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -56559,6 +56621,7 @@
                 "description": "Remove a user from a group",
                 "summary": "Remove user from group",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -56610,6 +56673,7 @@
                 "description": "View members of a group",
                 "summary": "Get group members",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
