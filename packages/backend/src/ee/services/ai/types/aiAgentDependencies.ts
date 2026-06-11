@@ -403,6 +403,14 @@ export type GetKnowledgeDocumentContentFn = (args: {
     documentUuid: string;
 }) => Promise<AiAgentDocumentContent>;
 
+export type ReadPinnedThreadFn = (args: { threadUuid: string }) => Promise<
+    {
+        role: 'user' | 'assistant';
+        message: string;
+        createdAt: string;
+    }[]
+>;
+
 export type WaitForSqlApprovalFn = (
     toolCallId: string,
     timeoutMs?: number,

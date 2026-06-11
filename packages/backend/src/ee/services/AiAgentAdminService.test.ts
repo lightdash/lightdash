@@ -143,9 +143,10 @@ const makeService = ({
     new AiAgentAdminService({
         analytics: { track: jest.fn() },
         aiAgentModel: {
-            createWebAppThread: jest
-                .fn()
-                .mockResolvedValue(PREVIEW_THREAD_UUID),
+            createWebAppThreadWithPrompt: jest.fn().mockResolvedValue({
+                threadUuid: PREVIEW_THREAD_UUID,
+                promptUuid: 'prompt-uuid-1',
+            }),
             updateThreadTitle: jest.fn().mockResolvedValue(undefined),
             ...aiAgentModel,
         },
@@ -195,6 +196,9 @@ const makeService = ({
             aiAgentReviewRemediationPreview: jest
                 .fn()
                 .mockResolvedValue(undefined),
+            aiAgentReviewRemediationRun: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
             ...schedulerClient,
         },
         userModel: {},
@@ -411,12 +415,18 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
         jest.clearAllMocks();
     });
 
-    it('creates a preview work thread and links it to the remediation', async () => {
+    it('creates a seeded preview work thread and links it to the remediation', async () => {
         const aiAgentModel = {
-            createWebAppThread: jest
-                .fn()
-                .mockResolvedValue(PREVIEW_THREAD_UUID),
+            createWebAppThreadWithPrompt: jest.fn().mockResolvedValue({
+                threadUuid: PREVIEW_THREAD_UUID,
+                promptUuid: 'prompt-uuid-1',
+            }),
             updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+        };
+        const schedulerClient = {
+            aiAgentReviewRemediationRun: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
         };
         const aiAgentReviewClassifierModel = {
             getReviewRemediation: jest
@@ -441,6 +451,7 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
             aiAgentModel,
             aiAgentReviewClassifierModel,
             projectModel,
+            schedulerClient,
         });
         (getPullRequestComments as jest.Mock).mockResolvedValue([
             `Preview ready: ${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/tables`,
@@ -461,12 +472,27 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
             previewProjectUuid: PREVIEW_PROJECT_UUID,
             aiAgentUuid: AGENT_UUID,
         });
-        expect(aiAgentModel.createWebAppThread).toHaveBeenCalledWith({
-            organizationUuid: ORGANIZATION_UUID,
-            projectUuid: PREVIEW_PROJECT_UUID,
-            userUuid: USER_UUID,
-            createdFrom: 'web_app',
-            agentUuid: PREVIEW_AGENT_UUID,
+        expect(aiAgentModel.createWebAppThreadWithPrompt).toHaveBeenCalledWith({
+            thread: {
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PREVIEW_PROJECT_UUID,
+                userUuid: USER_UUID,
+                createdFrom: 'web_app',
+                agentUuid: PREVIEW_AGENT_UUID,
+            },
+            prompt: {
+                createdByUserUuid: USER_UUID,
+                prompt: expect.stringContaining(
+                    "Re-run the user's original question",
+                ),
+                context: [
+                    {
+                        type: 'thread',
+                        threadUuid: THREAD_UUID,
+                        promptUuid: PROMPT_UUID,
+                    },
+                ],
+            },
         });
         expect(aiAgentModel.updateThreadTitle).toHaveBeenCalledWith({
             threadUuid: PREVIEW_THREAD_UUID,
@@ -481,6 +507,118 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
             previewAgentUuid: PREVIEW_AGENT_UUID,
             previewThreadUuid: PREVIEW_THREAD_UUID,
         });
+        expect(
+            schedulerClient.aiAgentReviewRemediationRun,
+        ).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PREVIEW_PROJECT_UUID,
+            userUuid: USER_UUID,
+            fingerprint: 'fingerprint-1',
+            remediationUuid: REMEDIATION_UUID,
+            agentUuid: PREVIEW_AGENT_UUID,
+            threadUuid: PREVIEW_THREAD_UUID,
+        });
+    });
+
+    it('falls back to the flagged prompt text when the verification prompt fails to seed', async () => {
+        const aiAgentModel = {
+            createWebAppThreadWithPrompt: jest
+                .fn()
+                .mockRejectedValueOnce(new Error('context insert failed'))
+                .mockResolvedValue({
+                    threadUuid: PREVIEW_THREAD_UUID,
+                    promptUuid: 'prompt-uuid-1',
+                }),
+            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+        };
+        const schedulerClient = {
+            aiAgentReviewRemediationRun: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
+        };
+        const service = makeService({ aiAgentModel, schedulerClient });
+        (getPullRequestComments as jest.Mock).mockResolvedValue([
+            `Preview ready: ${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/tables`,
+        ]);
+
+        await service.pollReviewRemediationPreview({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            userUuid: USER_UUID,
+            fingerprint: 'fingerprint-1',
+            remediationUuid: REMEDIATION_UUID,
+            prUrl: 'https://github.com/acme/dbt/pull/42',
+            startedAt: Date.now(),
+        });
+
+        expect(
+            aiAgentModel.createWebAppThreadWithPrompt,
+        ).toHaveBeenLastCalledWith({
+            thread: expect.objectContaining({
+                projectUuid: PREVIEW_PROJECT_UUID,
+            }),
+            prompt: {
+                createdByUserUuid: USER_UUID,
+                prompt: 'Show revenue',
+            },
+        });
+        expect(schedulerClient.aiAgentReviewRemediationRun).toHaveBeenCalled();
+    });
+
+    it('links no preview thread when seeding fails and there is no retry prompt', async () => {
+        const aiAgentModel = {
+            createWebAppThreadWithPrompt: jest
+                .fn()
+                .mockRejectedValue(new Error('context insert failed')),
+            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+        };
+        const schedulerClient = {
+            aiAgentReviewRemediationRun: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
+        };
+        const aiAgentReviewClassifierModel = {
+            getReviewRemediation: jest
+                .fn()
+                .mockResolvedValue(makeRemediation({ retryPrompt: null })),
+            getReviewItem: jest
+                .fn()
+                .mockResolvedValue(makeReviewItem({ title: 'Review revenue' })),
+            setReviewRemediationPreviewThread: jest
+                .fn()
+                .mockResolvedValue(undefined),
+            updateReviewRemediationStatus: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            aiAgentModel,
+            aiAgentReviewClassifierModel,
+            schedulerClient,
+        });
+        (getPullRequestComments as jest.Mock).mockResolvedValue([
+            `Preview ready: ${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/tables`,
+        ]);
+
+        await service.pollReviewRemediationPreview({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            userUuid: USER_UUID,
+            fingerprint: 'fingerprint-1',
+            remediationUuid: REMEDIATION_UUID,
+            prUrl: 'https://github.com/acme/dbt/pull/42',
+            startedAt: Date.now(),
+        });
+
+        expect(
+            aiAgentReviewClassifierModel.setReviewRemediationPreviewThread,
+        ).not.toHaveBeenCalled();
+        expect(aiAgentModel.createWebAppThreadWithPrompt).toHaveBeenCalledTimes(
+            1,
+        );
+        expect(
+            schedulerClient.aiAgentReviewRemediationRun,
+        ).not.toHaveBeenCalled();
     });
 
     it('marks remediation failed when no preview URL is published in time', async () => {

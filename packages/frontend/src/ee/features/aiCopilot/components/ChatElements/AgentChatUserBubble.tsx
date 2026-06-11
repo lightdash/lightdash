@@ -12,6 +12,7 @@ import { ContentReferenceLink } from './ContentReferenceLink';
 import {
     buildContentReferenceSegments,
     getPromptContextItemHref,
+    getPromptContextItemKey,
 } from './contentReferenceUtils';
 
 type Props = {
@@ -34,11 +35,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
     );
     const remainingContext = message.context.filter((item) => {
         if (!hasInlineReferences) return true;
-        const key =
-            item.type === 'chart'
-                ? `chart:${item.chartUuid}`
-                : `dashboard:${item.dashboardUuid}`;
-        return !matchedKeys.has(key);
+        return !matchedKeys.has(getPromptContextItemKey(item));
     });
 
     return (
@@ -77,11 +74,7 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 >
                     {remainingContext.map((item, idx) => (
                         <PinnedContextCard
-                            key={`${item.type}-${
-                                item.type === 'chart'
-                                    ? item.chartUuid
-                                    : item.dashboardUuid
-                            }-${idx}`}
+                            key={`${getPromptContextItemKey(item)}-${idx}`}
                             item={item}
                             projectUuid={projectUuid}
                         />
@@ -119,10 +112,12 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                                     kind={segment.item.type}
                                     rel="noreferrer"
                                     target="_blank"
-                                    to={getPromptContextItemHref(
-                                        segment.item,
-                                        projectUuid,
-                                    )}
+                                    to={
+                                        getPromptContextItemHref(
+                                            segment.item,
+                                            projectUuid,
+                                        ) ?? undefined
+                                    }
                                 >
                                     {segment.label}
                                 </ContentReferenceLink>

@@ -6588,6 +6588,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "describeWarehouseTable",
   "listKnowledgeDocuments",
   "getKnowledgeDocumentContent",
+  "readPinnedThread",
   "findCharts",
   "findDashboards",
   "generateBarVizConfig",

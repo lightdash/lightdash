@@ -1,4 +1,5 @@
 import {
+    assertUnreachable,
     ChartSourceType,
     ContentType,
     type AiPromptContextInput,
@@ -36,6 +37,7 @@ import suggestionStyles from '../../../../../components/common/SuggestionList/Su
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import styles from './AgentChatInput.module.css';
 import { ContentMentionNodeView } from './ContentMentionNodeView';
+import { getPromptContextItemKey } from './contentReferenceUtils';
 
 const CONTENT_MENTION_NAME = 'contentMention';
 const MIN_CONTENT_SEARCH_QUERY_LENGTH = 2;
@@ -173,10 +175,21 @@ const getContentMentionIconSpec = (contentType: string): DOMOutputSpec => [
     },
 ];
 
-const getContextKey = (item: AiPromptContextInput[number]) =>
-    item.type === 'chart'
-        ? `chart:${item.chartUuid}`
-        : `dashboard:${item.dashboardUuid}`;
+const getContextKey = (item: AiPromptContextInput[number]) => {
+    switch (item.type) {
+        case 'chart':
+            return `chart:${item.chartUuid}`;
+        case 'dashboard':
+            return `dashboard:${item.dashboardUuid}`;
+        case 'thread':
+            return `thread:${item.threadUuid}`;
+        default:
+            return assertUnreachable(
+                item,
+                'Unknown AiPromptContextItemInput type',
+            );
+    }
+};
 
 const normalizeSearchText = (value: string) =>
     value
@@ -230,10 +243,7 @@ export const mergeAiPromptContextItems = (
     const merged = contextGroups
         .flatMap((context) => context ?? [])
         .filter((item) => {
-            const key =
-                item.type === 'chart'
-                    ? `chart:${item.chartUuid}`
-                    : `dashboard:${item.dashboardUuid}`;
+            const key = getPromptContextItemKey(item);
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -259,26 +269,31 @@ export const contextItemsToContentMentionSuggestions = (
     context: AiPromptContextItem[],
     group: ContentMentionGroup,
 ): ContentMentionSuggestionItem[] =>
-    context.map((item) =>
-        item.type === 'chart'
-            ? {
-                  id: `${group}:chart:${item.chartUuid}`,
-                  label: item.displayName ?? item.chartSlug ?? 'Chart',
-                  contentType: ContentType.CHART,
-                  uuid: item.chartUuid,
-                  slug: item.chartSlug,
-                  chartKind: item.chartKind,
-                  group,
-              }
-            : {
-                  id: `${group}:dashboard:${item.dashboardUuid}`,
-                  label: item.displayName ?? item.dashboardSlug ?? 'Dashboard',
-                  contentType: ContentType.DASHBOARD,
-                  uuid: item.dashboardUuid,
-                  slug: item.dashboardSlug,
-                  group,
-              },
-    );
+    context.flatMap((item) => {
+        if (item.type === 'chart') {
+            return {
+                id: `${group}:chart:${item.chartUuid}`,
+                label: item.displayName ?? item.chartSlug ?? 'Chart',
+                contentType: ContentType.CHART,
+                uuid: item.chartUuid,
+                slug: item.chartSlug,
+                chartKind: item.chartKind,
+                group,
+            };
+        }
+        if (item.type === 'dashboard') {
+            return {
+                id: `${group}:dashboard:${item.dashboardUuid}`,
+                label: item.displayName ?? item.dashboardSlug ?? 'Dashboard',
+                contentType: ContentType.DASHBOARD,
+                uuid: item.dashboardUuid,
+                slug: item.dashboardSlug,
+                group,
+            };
+        }
+        // Threads are reference-only context — not mentionable content.
+        return [];
+    });
 
 const summaryContentToSuggestion = (
     item: SummaryContent,

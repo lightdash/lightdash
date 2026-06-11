@@ -37,6 +37,7 @@ import {
     mergeAiPromptContextInput,
     mergeAiPromptContextItems,
 } from '../ChatElements/contentMentions';
+import { getPromptContextItemKey } from '../ChatElements/contentReferenceUtils';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AiAgentsLauncher.module.css';
 import { PanelHeader } from './PanelHeader';
@@ -241,11 +242,7 @@ const NewThreadPanel: FC<{
                         <Group gap="xs" wrap="wrap">
                             {previewItems.map((item) => (
                                 <PinnedContextCard
-                                    key={`${item.type}-${
-                                        item.type === 'chart'
-                                            ? item.chartUuid
-                                            : item.dashboardUuid
-                                    }`}
+                                    key={getPromptContextItemKey(item)}
                                     item={item}
                                     projectUuid={projectUuid}
                                 />
