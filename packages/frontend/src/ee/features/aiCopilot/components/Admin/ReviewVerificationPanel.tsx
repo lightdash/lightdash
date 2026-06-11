@@ -15,6 +15,7 @@ import {
     IconCircleCheckFilled,
     IconFileDiff,
     IconGitPullRequest,
+    IconListCheck,
     IconMessages,
     IconRefresh,
 } from '@tabler/icons-react';
@@ -66,6 +67,9 @@ export const ReviewVerificationPanel: FC<Props> = ({
     const linkedPrUrl = remediation?.linkedPrUrl ?? null;
     const prNumber = linkedPrUrl ? getPrNumber(linkedPrUrl) : null;
     const isResolved = reviewItem.status === 'resolved';
+    const validatorUrl = remediation?.previewProjectUuid
+        ? `/generalSettings/projectManagement/${remediation.previewProjectUuid}/validator`
+        : null;
     const sourceThreadUrl =
         remediation &&
         `/projects/${remediation.sourceProjectUuid}/ai-agents/${remediation.sourceAgentUuid}/threads/${remediation.sourceThreadUuid}`;
@@ -156,6 +160,27 @@ export const ReviewVerificationPanel: FC<Props> = ({
                                         ? `Pull request #${prNumber}`
                                         : 'Pull request'
                                 }
+                                trailing={
+                                    <MantineIcon
+                                        icon={IconArrowUpRight}
+                                        size="sm"
+                                        color="dimmed"
+                                    />
+                                }
+                            />
+                        </Anchor>
+                    )}
+
+                    {validatorUrl && (
+                        <Anchor
+                            className={styles.row}
+                            component={Link}
+                            to={validatorUrl}
+                            underline="never"
+                        >
+                            <Row
+                                icon={IconListCheck}
+                                label="Validate"
                                 trailing={
                                     <MantineIcon
                                         icon={IconArrowUpRight}
