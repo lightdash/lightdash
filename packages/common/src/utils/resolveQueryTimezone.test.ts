@@ -18,6 +18,7 @@ describe('resolveQueryTimezone', () => {
     it('returns metricQuery.timezone when set', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: { timezone: 'America/New_York' },
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: null,
@@ -29,6 +30,7 @@ describe('resolveQueryTimezone', () => {
     it('falls back to project timezone when metricQuery.timezone is undefined', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: { timezone: undefined },
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: null,
@@ -40,6 +42,7 @@ describe('resolveQueryTimezone', () => {
     it('falls back to project timezone when timezone field is missing', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone: 'Europe/London',
                 userTimezone: null,
@@ -51,6 +54,7 @@ describe('resolveQueryTimezone', () => {
     it('accepts UTC', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone: 'UTC',
                 userTimezone: null,
@@ -62,6 +66,7 @@ describe('resolveQueryTimezone', () => {
     it('uses user timezone when chart timezone is absent and the flag is on', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: 'Asia/Tokyo',
@@ -73,6 +78,7 @@ describe('resolveQueryTimezone', () => {
     it('ignores user timezone when the flag is off, falling back to project', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: 'Asia/Tokyo',
@@ -84,6 +90,7 @@ describe('resolveQueryTimezone', () => {
     it('chart timezone takes precedence over user timezone', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: { timezone: 'America/New_York' },
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: 'Asia/Tokyo',
@@ -95,6 +102,7 @@ describe('resolveQueryTimezone', () => {
     it('chart timezone still applies when the user-timezone flag is off', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: { timezone: 'America/New_York' },
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: 'Asia/Tokyo',
@@ -106,6 +114,7 @@ describe('resolveQueryTimezone', () => {
     it('falls back to project when user timezone is null', () => {
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: null,
@@ -117,6 +126,7 @@ describe('resolveQueryTimezone', () => {
     it('throws on invalid metricQuery timezone', () => {
         expect(() =>
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: { timezone: "'; DROP TABLE users; --" },
                 projectTimezone: 'UTC',
                 userTimezone: null,
@@ -128,6 +138,7 @@ describe('resolveQueryTimezone', () => {
     it('throws on invalid project timezone', () => {
         expect(() =>
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone: 'Not/A/Timezone',
                 userTimezone: null,
@@ -139,6 +150,7 @@ describe('resolveQueryTimezone', () => {
     it('throws on invalid user timezone', () => {
         expect(() =>
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone: 'UTC',
                 userTimezone: "UTC'; DROP TABLE users; --",
@@ -150,10 +162,59 @@ describe('resolveQueryTimezone', () => {
     it('throws on timezone with SQL injection attempt', () => {
         expect(() =>
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: { timezone: "UTC' OR '1'='1" },
                 projectTimezone: 'UTC',
                 userTimezone: null,
                 isUserTimezoneEnabled: true,
+            }),
+        ).toThrow('Invalid timezone');
+    });
+
+    it('sessionTimezone wins over chart pin, user, and project', () => {
+        expect(
+            resolveQueryTimezone({
+                sessionTimezone: 'America/Los_Angeles',
+                metricQuery: { timezone: 'Europe/London' },
+                projectTimezone: 'UTC',
+                userTimezone: 'Asia/Tokyo',
+                isUserTimezoneEnabled: true,
+            }),
+        ).toBe('America/Los_Angeles');
+    });
+
+    it('falls back to chart pin when sessionTimezone is null', () => {
+        expect(
+            resolveQueryTimezone({
+                sessionTimezone: null,
+                metricQuery: { timezone: 'Europe/London' },
+                projectTimezone: 'UTC',
+                userTimezone: null,
+                isUserTimezoneEnabled: false,
+            }),
+        ).toBe('Europe/London');
+    });
+
+    it('falls back to project when sessionTimezone and pin are absent', () => {
+        expect(
+            resolveQueryTimezone({
+                sessionTimezone: null,
+                metricQuery: {},
+                projectTimezone: 'America/New_York',
+                userTimezone: null,
+                isUserTimezoneEnabled: false,
+            }),
+        ).toBe('America/New_York');
+    });
+
+    it('throws ParameterError for an invalid sessionTimezone', () => {
+        expect(() =>
+            resolveQueryTimezone({
+                sessionTimezone: 'Not/AZone',
+                metricQuery: {},
+                projectTimezone: 'UTC',
+                userTimezone: null,
+                isUserTimezoneEnabled: false,
             }),
         ).toThrow('Invalid timezone');
     });
@@ -180,6 +241,7 @@ describe('getAccountUserTimezone', () => {
 
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone,
                 userTimezone: getAccountUserTimezone(account),
@@ -189,6 +251,7 @@ describe('getAccountUserTimezone', () => {
 
         expect(
             resolveQueryTimezone({
+                sessionTimezone: null,
                 metricQuery: {},
                 projectTimezone,
                 userTimezone: getAccountUserTimezone(account),
