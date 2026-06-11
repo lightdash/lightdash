@@ -12,6 +12,7 @@ import AiAgentsNotAuthorizedPage from './pages/AiAgents/AiAgentsNotAuthorizedPag
 import { AiAgentsRootLayout } from './pages/AiAgents/AiAgentsRootLayout';
 import AiAgentThreadSharePage from './pages/AiAgents/AiAgentThreadSharePage';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
+import EmbedApp from './pages/EmbedApp';
 import EmbedChart from './pages/EmbedChart';
 import EmbedDashboard from './pages/EmbedDashboard';
 import EmbedExplore from './pages/EmbedExplore';
@@ -44,6 +45,14 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                 element: (
                     <TrackPage name={PageName.EMBED_SAVED_CHART}>
                         <EmbedChart />
+                    </TrackPage>
+                ),
+            },
+            {
+                path: '/embed/:projectUuid/app/:appUuid',
+                element: (
+                    <TrackPage name={PageName.EMBED_DATA_APP}>
+                        <EmbedApp />
                     </TrackPage>
                 ),
             },

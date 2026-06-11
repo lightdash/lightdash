@@ -192,11 +192,11 @@ export class EmbedController extends BaseController {
     }
 
     /**
-     * This endpoint is used for updating the embed config for dashboards and charts.
+     * This endpoint is used for updating the embed config for dashboards, charts, and data apps.
      * @summary Update embed config
      * @param req
      * @param projectUuid
-     * @param body Contains dashboardUuids, allowAllDashboards, chartUuids, allowAllCharts
+     * @param body Contains dashboardUuids, allowAllDashboards, chartUuids, allowAllCharts, appUuids, allowAllApps
      * @returns Empty response with status 'ok'
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
@@ -696,13 +696,18 @@ export class EmbedController extends BaseController {
             ),
         );
 
+        // Embeds have no real name; an empty firstName crashes naive
+        // `firstName[0].toUpperCase()` avatar helpers, so derive a non-empty one.
+        const email = account.user.email ?? '';
+        const firstName = email.split('@')[0] || 'Guest';
+
         return {
             status: 'ok',
             results: {
                 userUuid: account.user.id,
-                firstName: '',
+                firstName,
                 lastName: '',
-                email: account.user.email ?? '',
+                email,
                 role: 'embed',
                 organizationUuid:
                     account.embed.organization.organizationUuid ?? '',

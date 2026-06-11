@@ -1,6 +1,7 @@
 import {
     type DashboardBasicDetails,
     type DecodedEmbed,
+    type EmbedProjectApp,
     type SavedChart,
     type UpdateEmbed,
 } from '@lightdash/common';
@@ -13,14 +14,26 @@ const EmbedAllowListForm: FC<{
     embedConfig: DecodedEmbed;
     dashboards: DashboardBasicDetails[];
     charts: Pick<SavedChart, 'uuid' | 'name'>[];
+    apps: EmbedProjectApp[];
+    showDataApps: boolean;
     onSave: (values: UpdateEmbed) => void;
-}> = ({ disabled, embedConfig, dashboards, charts, onSave }) => {
+}> = ({
+    disabled,
+    embedConfig,
+    dashboards,
+    charts,
+    apps,
+    showDataApps,
+    onSave,
+}) => {
     const form = useForm({
         initialValues: {
             allowAllDashboards: embedConfig.allowAllDashboards,
             dashboardUuids: embedConfig.dashboardUuids,
             allowAllCharts: embedConfig.allowAllCharts,
             chartUuids: embedConfig.chartUuids,
+            allowAllApps: embedConfig.allowAllApps,
+            appUuids: embedConfig.appUuids,
         },
     });
 
@@ -30,6 +43,8 @@ const EmbedAllowListForm: FC<{
             allowAllDashboards: values.allowAllDashboards,
             chartUuids: values.chartUuids,
             allowAllCharts: values.allowAllCharts,
+            appUuids: values.appUuids,
+            allowAllApps: values.allowAllApps,
         });
     });
 
@@ -98,12 +113,49 @@ const EmbedAllowListForm: FC<{
                         {...form.getInputProps('chartUuids')}
                     />
                 )}
+                {showDataApps && (
+                    <>
+                        <Switch
+                            name="allowAllApps"
+                            label="Allow all data apps"
+                            {...form.getInputProps('allowAllApps', {
+                                type: 'checkbox',
+                            })}
+                        />
+                        {!form.values.allowAllApps && (
+                            <MultiSelect
+                                required={!form.values.allowAllApps}
+                                label={'Data apps'}
+                                data={apps.map((app) => ({
+                                    value: app.appUuid,
+                                    label: app.name,
+                                }))}
+                                disabled={
+                                    disabled ||
+                                    apps.length === 0 ||
+                                    form.values.allowAllApps
+                                }
+                                defaultValue={[]}
+                                placeholder={
+                                    apps.length === 0
+                                        ? 'No data apps available to embed'
+                                        : 'Select a data app...'
+                                }
+                                searchable
+                                description="Only these data apps will be allowed to be embedded standalone."
+                                {...form.getInputProps('appUuids')}
+                            />
+                        )}
+                    </>
+                )}
                 <Flex justify="flex-end" gap="sm">
                     <Button
                         type="submit"
                         disabled={
                             disabled ||
-                            (dashboards.length === 0 && charts.length === 0)
+                            (dashboards.length === 0 &&
+                                charts.length === 0 &&
+                                (!showDataApps || apps.length === 0))
                         }
                     >
                         Save changes

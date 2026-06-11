@@ -2,6 +2,7 @@ import { type AbilityBuilder } from '@casl/ability';
 import flow from 'lodash/flow';
 import { isDashboardContent, type CreateEmbedJwt } from '../ee';
 import type { EmbedContent, OssEmbed } from '../types/auth';
+import assertUnreachable from '../utils/assertUnreachable';
 import type { MemberAbility } from './types';
 
 type EmbeddedAbilityBuilderPayload = {
@@ -110,6 +111,43 @@ const chartAbilities: EmbeddedAbilityBuilder = ({
     return { embedUser, content, embed, builder, externalId };
 };
 
+const dataAppAbilities: EmbeddedAbilityBuilder = ({
+    embedUser,
+    content,
+    embed,
+    externalId,
+    builder,
+}) => {
+    const { organization } = embed;
+    const { can } = builder;
+
+    can('view', 'Project', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    });
+
+    // A standalone data app runs arbitrary metric queries against any explore
+    // in the project. The Explore grant MUST be unconstrained (no exploreNames)
+    // — a scoped grant would 403 queries the app legitimately needs. Rows are
+    // still filtered at query time by the JWT's user attributes
+    // (getFilteredExplore). Same trust model as a dashboard's canViewDataApps.
+    can('view', 'Explore', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+    });
+
+    // Scope to the named app (defense in depth): the preview-token mint checks
+    // view:DataApp with metadata.appUuid, so this grant authorizes ONLY this
+    // app — a JWT for app A cannot pass the check for app B.
+    can('view', 'DataApp', {
+        organizationUuid: organization.organizationUuid,
+        projectUuid: embed.projectUuid,
+        'metadata.appUuid': content.appUuid,
+    });
+
+    return { embedUser, content, embed, builder, externalId };
+};
+
 const exploreAbilities: EmbeddedAbilityBuilder = ({
     embedUser,
     content,
@@ -160,14 +198,14 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
         content.type === 'dashboard' ? 'Dashboard' : 'SavedChart';
 
     // Common abilities for both dashboard and chart
-    if (permissions.canExportImages) {
+    if ('canExportImages' in permissions && permissions.canExportImages) {
         can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'images',
         });
     }
 
-    if (permissions.canExportCsv) {
+    if ('canExportCsv' in permissions && permissions.canExportCsv) {
         can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'csv',
@@ -199,6 +237,26 @@ const dashboardTypeAbilities = [
 
 const chartTypeAbilities = [chartAbilities, exportAbilities, exploreAbilities];
 
+const dataAppTypeAbilities = [dataAppAbilities];
+
+const getEmbeddedAbilitiesForType = (
+    type: EmbedContent['type'],
+): EmbeddedAbilityBuilder[] => {
+    switch (type) {
+        case 'chart':
+            return chartTypeAbilities;
+        case 'dataApp':
+            return dataAppTypeAbilities;
+        case 'dashboard':
+            return dashboardTypeAbilities;
+        default:
+            return assertUnreachable(
+                type,
+                `Unknown embed content type: ${type}`,
+            );
+    }
+};
+
 export function applyEmbeddedAbility(
     embedUser: CreateEmbedJwt,
     content: EmbedContent,
@@ -210,9 +268,7 @@ export function applyEmbeddedAbility(
         throw new Error('Content is required');
     }
 
-    const abilities =
-        content.type === 'chart' ? chartTypeAbilities : dashboardTypeAbilities;
-    const applyAbilities = flow(abilities);
+    const applyAbilities = flow(getEmbeddedAbilitiesForType(content.type));
 
     applyAbilities({
         embedUser,

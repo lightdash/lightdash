@@ -52,6 +52,7 @@ export enum PageName {
     EMBED_DASHBOARD = 'embed_dashboard',
     EMBED_SAVED_CHART = 'embed_saved_chart',
     EMBED_EXPLORE = 'embed_explore',
+    EMBED_DATA_APP = 'embed_data_app',
     CATALOG = 'catalog',
     METRICS_CATALOG = 'metrics_catalog',
     FUNNEL_BUILDER = 'funnel_builder',
