@@ -6980,18 +6980,20 @@ export class AiAgentModel {
                 { db: trx },
             );
 
-            await trx(AiThreadTableName)
-                .where('ai_thread_uuid', newThreadUuid)
-                .update({
-                    ...(shareSourceThreadShareUuid && {
-                        share_source_thread_share_uuid:
-                            shareSourceThreadShareUuid,
-                    }),
-                    ...(copyTitle && {
-                        title: sourceThread.title,
-                        title_generated_at: sourceThread.title_generated_at,
-                    }),
-                });
+            if (shareSourceThreadShareUuid || copyTitle) {
+                await trx(AiThreadTableName)
+                    .where('ai_thread_uuid', newThreadUuid)
+                    .update({
+                        ...(shareSourceThreadShareUuid && {
+                            share_source_thread_share_uuid:
+                                shareSourceThreadShareUuid,
+                        }),
+                        ...(copyTitle && {
+                            title: sourceThread.title,
+                            title_generated_at: sourceThread.title_generated_at,
+                        }),
+                    });
+            }
 
             // Clone thread artifacts and get mapping
             const artifactMapping = await this.cloneThreadArtifacts({

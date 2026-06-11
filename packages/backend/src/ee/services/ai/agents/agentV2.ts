@@ -234,6 +234,8 @@ const getAgentTools = (
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
               maxQueryLimit: args.runSqlMaxLimit,
+              autoApproveSql: args.autoApproveSql,
+              autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
           })
         : null;
 
