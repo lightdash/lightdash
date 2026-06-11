@@ -1,3 +1,16 @@
+# [0.3138.0](https://github.com/lightdash/lightdash/compare/0.3137.0...0.3138.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* CSV email attachments use correct filename extension ([#24184](https://github.com/lightdash/lightdash/issues/24184)) ([ecb97e9](https://github.com/lightdash/lightdash/commit/ecb97e9c27250e2767e0e3f6541ed330bf344b9a))
+
+
+### Features
+
+* **common:** add sessionTimezone slot to resolveQueryTimezone ([#24181](https://github.com/lightdash/lightdash/issues/24181)) ([a73ffd1](https://github.com/lightdash/lightdash/commit/a73ffd17958b0c616c85fe895c2cc18bbf13d86b))
+* **timezones:** default saved charts to project timezone (GLITCH-459) ([#24177](https://github.com/lightdash/lightdash/issues/24177)) ([22b2b4f](https://github.com/lightdash/lightdash/commit/22b2b4fd6279eee89c1e464612b46a97a6463362))
+
 # [0.3137.0](https://github.com/lightdash/lightdash/compare/0.3136.1...0.3137.0) (2026-06-11)
 
 
