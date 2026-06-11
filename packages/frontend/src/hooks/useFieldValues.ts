@@ -52,6 +52,7 @@ const getEmbedFilterValues = async (options: {
     filters: AndFilterGroup | undefined;
     tableName: string | undefined;
     fieldId: string | undefined;
+    timezone: string | null;
 }) => {
     return lightdashApi<FieldValueSearchResult>({
         url: `/embed/${options.projectId}/filter/${options.filterId}/search`,
@@ -63,6 +64,7 @@ const getEmbedFilterValues = async (options: {
             forceRefresh: options.forceRefresh,
             tableName: options.tableName,
             fieldId: options.fieldId,
+            timezone: options.timezone ?? undefined,
         }),
     });
 };
@@ -216,7 +218,7 @@ export const useFieldValues = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
 ) => {
-    const { embedToken } = useEmbed();
+    const { embedToken, timezone: embedTimezone } = useEmbed();
     const { data: resultsCacheFlag } = useServerFeatureFlag(
         FeatureFlags.ResultsCacheEnabled,
     );
@@ -276,6 +278,7 @@ export const useFieldValues = (
         debouncedSearch,
         parameterValues,
         useAsyncPath ? 'v2' : 'v1',
+        embedTimezone,
     ];
 
     const query = useQuery<FieldValueSearchResult, ApiError>(
@@ -291,6 +294,7 @@ export const useFieldValues = (
                     filters,
                     tableName,
                     fieldId,
+                    timezone: embedTimezone,
                 });
             }
             if (useAsyncPath) {
