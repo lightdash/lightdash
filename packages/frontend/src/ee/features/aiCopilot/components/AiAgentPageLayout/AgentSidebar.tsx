@@ -53,7 +53,7 @@ const ThreadNavLink: FC<ThreadNavLinkProps> = ({
         className={classes.threadNavLink}
         label={
             <Text truncate="end" size="xs" fw={500} c="ldGray.9">
-                {thread.title || thread.firstMessage.message}
+                {thread.title || thread.firstMessage?.message || 'New thread'}
             </Text>
         }
         description={

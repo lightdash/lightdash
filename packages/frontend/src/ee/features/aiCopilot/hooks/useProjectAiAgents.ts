@@ -726,6 +726,18 @@ export const useCreateAgentThreadMutation = (
                 queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
             });
 
+            const { firstMessage } = thread;
+            if (!firstMessage) {
+                options?.onCreated?.(thread);
+                if (!options?.skipNavigation) {
+                    void navigate(
+                        `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${thread.uuid}`,
+                        { viewTransition: true },
+                    );
+                }
+                return;
+            }
+
             void generateThreadTitle({ agentUuid, threadUuid: thread.uuid });
 
             // The agent is loaded by whichever page kicked off this mutation —
@@ -741,7 +753,7 @@ export const useCreateAgentThreadMutation = (
 
                     return {
                         createdFrom: 'web_app',
-                        firstMessage: thread.firstMessage,
+                        firstMessage,
                         agentUuid,
                         uuid: thread.uuid,
                         title: null,
@@ -749,8 +761,8 @@ export const useCreateAgentThreadMutation = (
                         compactions: [],
                         messages: createOptimisticMessages(
                             thread.uuid,
-                            thread.firstMessage.uuid,
-                            thread.firstMessage.message,
+                            firstMessage.uuid,
+                            firstMessage.message,
                             user!.data!,
                             agent,
                             // Prefer the caller's resolved metadata (name,
@@ -774,7 +786,7 @@ export const useCreateAgentThreadMutation = (
                 projectUuid,
                 agentUuid: thread.agentUuid,
                 threadUuid: thread.uuid,
-                messageUuid: thread.firstMessage.uuid,
+                messageUuid: firstMessage.uuid,
                 enableSqlMode: variables.enableSqlMode,
                 toolHints: variables.toolHints,
                 onFinish: () =>
@@ -803,7 +815,7 @@ export const useCreateAgentThreadMutation = (
                         ) =>
                             markOptimisticAssistantMessageAsErrored(
                                 currentData,
-                                thread.firstMessage.uuid,
+                                firstMessage.uuid,
                                 errorMessage,
                             ),
                     );

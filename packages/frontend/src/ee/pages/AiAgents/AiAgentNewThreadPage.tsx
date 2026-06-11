@@ -101,7 +101,7 @@ const AiAgentNewThreadPage: FC = () => {
             onCreated: (thread) => {
                 createdThreadRef.current = {
                     uuid: thread.uuid,
-                    title: thread.firstMessage.message,
+                    title: thread.firstMessage?.message ?? 'New thread',
                 };
                 dispatch(
                     setThreadSqlMode({

@@ -271,7 +271,7 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     firstMessage: {
         uuid: string;
         message: string;
-    };
+    } | null;
     user: TUser;
 };
 

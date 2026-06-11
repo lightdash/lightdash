@@ -148,7 +148,7 @@ const NewThreadPanel: FC<{
                 addDockItem({
                     threadId: thread.uuid,
                     agentUuid: agent.uuid,
-                    title: thread.firstMessage.message,
+                    title: thread.firstMessage?.message ?? 'New thread',
                 });
                 dispatch(
                     openPanel({
