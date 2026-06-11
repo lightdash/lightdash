@@ -475,19 +475,47 @@ message `type` and forwards each to the right hook —
 `useIframeScreenshot` for screenshot responses. See
 [Screenshot Capture](#screenshot-capture) below.
 
-### Backend Data Downloads
+### Interactive Query Actions
 
-`useLightdash()` returns `downloadResults({ fileType, values, limit, filename })` after the source query has loaded.
-This mirrors the core chart/table export pipeline instead of serializing data in the iframe:
+Generated apps can offer the same kinds of row-level exploration users expect from Lightdash charts, but the app has
+to wire those interactions explicitly in its React UI. The agent is taught these patterns in
+`sandboxes/data-apps/template/skill.md`; `docs/data-apps.md` is the architecture-level contract.
 
-1. For `limit: 'table'`, the SDK reuses the source query UUID.
-2. For `limit: 'all'` or a custom row count, the SDK reruns the same metric query with the requested limit and waits
-   until the query is ready without fetching every row into the iframe.
+**Drilldowns** are SDK-side query composition. `drillDown()` takes the source `QueryBuilder`, the clicked row, a metric,
+and a new drill-by dimension, then returns another `QueryBuilder`. The app passes that query to `useLightdash()` like
+any other metric query, so it uses the existing `POST /query/metric-query` bridge route and normal query polling.
+
+**Underlying data** uses Lightdash's native "View underlying data" backend path. `useLightdash()` returns
+`getUnderlyingData({ row, metric, limit? })` after the source query has loaded. The app calls it from a user action
+such as "View rows" or "View underlying data"; the SDK uses the loaded source query UUID plus the clicked result row
+to call `POST /api/v2/projects/{projectUuid}/query/underlying-data`, then polls the returned query UUID via
+`GET /api/v2/projects/{projectUuid}/query/{queryId}`.
+
+The returned value is shaped like a regular SDK result:
+
+```ts
+{
+    rows: Row[];
+    columns: Column[];
+    format: FormatFunction;
+    queryUuid: string;
+}
+```
+
+**Downloads** use Lightdash's backend export job pipeline rather than serializing rows in the iframe. `useLightdash()`
+returns `downloadResults({ fileType, values, limit, filename })` after the source query has loaded. The app calls it
+from an explicit user action such as an Export button or menu item.
+
+The download flow is:
+
+1. For `limit: 'table'`, the SDK reuses the loaded source query UUID.
+2. For `limit: 'all'` or a custom positive row count, the SDK reruns the same metric query with the requested limit and
+   waits until the query is ready without fetching every row into the iframe.
 3. The SDK calls `POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download`.
 4. The SDK polls `GET /api/v1/schedulers/job/{jobId}/status`.
 5. When the backend returns `fileUrl`, the iframe triggers a browser download.
 
-Supported options match the core export concepts:
+Supported download options match the core export concepts:
 
 - `fileType`: `csv` or `xlsx`
 - `values`: `formatted` or `raw`
@@ -495,7 +523,21 @@ Supported options match the core export concepts:
 - `filename`: optional download filename
 
 The backend owns CSV/XLSX generation, truncation, raw/formatted value handling, and file hosting. The app owns only the
-button/menu UI and when to call `downloadResults()`.
+button/menu UI and when to call `downloadResults()`. `limit: 'table'` means the rows loaded by the SDK query that owns
+`downloadResults()`, not arbitrary rows after local React filtering, pagination, or sorting. If the app needs to export
+exactly transformed client-side state, it should use a client-side CSV helper instead.
+
+Important constraints:
+
+- The iframe cannot call arbitrary Lightdash APIs directly; underlying data works only because the route is explicitly
+  allowlisted in `useAppSdkBridge`.
+- The action is not injected automatically onto every rendered value. Generated apps should add contextual buttons,
+  menus, or table actions where the source row and metric are unambiguous.
+- The row passed to `getUnderlyingData()` should be the original row returned by `useLightdash()`. If the app pivots,
+  aggregates, or transforms data for display, it should keep a reference to that original row for underlying-data
+  requests.
+- The backend still enforces the same underlying-data semantics as normal charts, including the source query context,
+  metric selection, model permissions, and the configured underlying fields.
 
 ### Preview Token Authentication
 
@@ -802,7 +844,7 @@ scopes, all defined in `packages/common/src/authorization/scopes.ts`:
 
 | Scope                  | Granted to          | Effect                                                                                                       |
 | ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `view:DataApp`         | viewer+             | View any app whose space the user can view (or where the project inherits org/project access).               |
+| `view:DataApp`         | interactive_viewer+ | View any app whose space the user can view (or where the project inherits org/project access). Plain viewers do not get data app access. |
 | `create:DataApp`       | interactive_viewer+ | Start a new app from a prompt. By default the app is personal until moved into a space; passing `spaceUuid` on the create request creates it directly in a space (also requires `manage:DataApp@space` on that space). |
 | `view:DataApp@self`    | interactive_viewer+ | View own personal apps (matched on `createdByUserUuid`).                                                     |
 | `manage:DataApp@self`  | interactive_viewer+ | Iterate, edit, pin (n/a for personal), move, and delete own personal apps.                                   |
@@ -810,6 +852,8 @@ scopes, all defined in `packages/common/src/authorization/scopes.ts`:
 | `manage:DataApp`       | admin               | Project-wide manage — covers any app, and gates restore + permanent-delete.                                  |
 
 ### Permission matrix
+
+The space columns assume the user is also at least an interactive viewer at the project/organization role level.
 
 | Action                                    | Project admin | Space admin/editor | Space viewer | App creator (personal app)        |
 | ----------------------------------------- | ------------- | ------------------ | ------------ | --------------------------------- |
