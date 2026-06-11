@@ -1,23 +1,22 @@
 import {
     assertUnreachable,
     DbtProjectType,
-    isWorkflowFile,
     ParameterError,
     PullRequestProvider,
+    type AiWritebackStep,
     type DbtProjectConfig,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import {
+    COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
 } from './constants';
 import type {
-    AgentPhase,
     AgentStreamEvent,
     AgentToolCall,
-    AiWritebackSource,
     CloneTarget,
     GitCommitAuthor,
     GitConnection,
@@ -69,6 +68,7 @@ export const parseGithubConnection = (
         owner,
         repo,
         projectSubPath: normalizeProjectSubPath(connection.project_sub_path),
+        branch: connection.branch?.trim() ?? '',
     };
 };
 
@@ -204,13 +204,7 @@ export const parsePullNumber = (prUrl: string): number => {
 /** `null` opts a stage out of progress reporting (its label would be noise). */
 export const progressTextForStage = (
     stage: AiWritebackFailureStage,
-    source?: AiWritebackSource,
 ): string | null => {
-    // A preview-deploy setup run shares the writeback pipeline but isn't editing
-    // the user's models — it generates and commits a workflow file. Relabel the
-    // stages whose generic writeback wording ("sub agent", "changes") would
-    // misdescribe what's happening, so the sub-progress reads correctly.
-    const isPreviewDeploySetup = source === 'preview_deploy_setup';
     switch (stage) {
         case 'install':
             return 'Setting up';
@@ -219,13 +213,9 @@ export const progressTextForStage = (
         case 'clone':
             return 'Cloning project';
         case 'agent':
-            return isPreviewDeploySetup
-                ? 'Generating preview-deploy workflow'
-                : 'Starting sub agent';
+            return 'Starting sub agent';
         case 'commit':
-            return isPreviewDeploySetup
-                ? 'Committing workflow'
-                : 'Committing changes';
+            return 'Committing changes';
         case 'push':
             return 'Pushing changes';
         case 'pull_request':
@@ -316,12 +306,6 @@ export const parseGitNameStatus = (stdout: string): StagedFileChanges => {
     return { addPaths, deletions };
 };
 
-export const parseTrackedWorkflowPaths = (stdout: string): string[] =>
-    stdout
-        .split('\n')
-        .map((path) => path.trim())
-        .filter((path) => path.length > 0 && isWorkflowFile(path));
-
 /** Caller owns the side effects (logging, counting, progress). */
 export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
     if (!event || typeof event !== 'object') return { type: 'ignored' };
@@ -329,9 +313,18 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
         type?: string;
         message?: { content?: unknown };
         total_cost_usd?: number;
+        duration_ms?: number;
+        duration_api_ms?: number;
+        num_turns?: number;
     };
     if (typed.type === 'result') {
-        return { type: 'result', costUsd: typed.total_cost_usd ?? null };
+        return {
+            type: 'result',
+            costUsd: typed.total_cost_usd ?? null,
+            durationMs: typed.duration_ms ?? null,
+            durationApiMs: typed.duration_api_ms ?? null,
+            numTurns: typed.num_turns ?? null,
+        };
     }
     if (typed.type !== 'assistant') return { type: 'ignored' };
     const content = typed.message?.content;
@@ -367,28 +360,79 @@ export const interpretAgentEvent = (event: unknown): AgentStreamEvent => {
     return { type: 'assistant', text: messageText || null, toolCalls };
 };
 
-export const classifyToolPhase = ({
+const toolStepBasename = (path: string): string => {
+    const idx = path.lastIndexOf('/');
+    return idx === -1 ? path : path.slice(idx + 1);
+};
+
+/**
+ * Classify one in-sandbox agent tool call into a generic {@link AiWritebackStep}
+ * — a `kind` bucket (read/edit/search/compile) plus a `label` (file basename or
+ * search pattern). Returns null for calls not worth surfacing (e.g. non-compile
+ * Bash). The chat UI groups consecutive same-kind steps and renders them; the
+ * shape is intentionally generic so the UI never needs writeback knowledge.
+ */
+export const classifyToolStep = ({
     name,
     input,
-}: AgentToolCall): AgentPhase | null => {
-    if (name === 'Bash') {
-        const command =
-            input && typeof input === 'object'
-                ? (input as { command?: unknown }).command
-                : undefined;
-        if (
-            typeof command === 'string' &&
-            command.includes('lightdash compile')
-        ) {
-            return 'compiling';
-        }
-        return null;
+}: AgentToolCall): AiWritebackStep | null => {
+    const fields =
+        input && typeof input === 'object'
+            ? (input as Record<string, unknown>)
+            : {};
+    const file =
+        typeof fields.file_path === 'string'
+            ? toolStepBasename(fields.file_path)
+            : null;
+    switch (name) {
+        case 'Edit':
+        case 'Write':
+            return { kind: 'edit', label: file ?? 'files' };
+        case 'Read':
+            return { kind: 'read', label: file ?? 'files' };
+        case 'Glob':
+        case 'Grep':
+            return {
+                kind: 'search',
+                label:
+                    typeof fields.pattern === 'string'
+                        ? fields.pattern
+                        : 'files',
+            };
+        case 'Bash':
+            // The agent compiles via the allowlisted wrapper, not `lightdash
+            // compile` directly — match both so the (slow) compile surfaces a
+            // step instead of a frozen gap before the commit stage.
+            return typeof fields.command === 'string' &&
+                (fields.command.includes(COMPILE_WRAPPER_PATH) ||
+                    fields.command.includes('lightdash compile'))
+                ? { kind: 'compile', label: 'project' }
+                : null;
+        default:
+            return null;
     }
-    if (name === 'Edit' || name === 'Write') return 'editing';
-    if (name === 'Read' || name === 'Glob' || name === 'Grep') {
-        return 'discovering';
+};
+
+/**
+ * One-line string for a step — used for the live progress stream (Slack's
+ * pinned message, the web step stream) and as a dedup key. The persisted,
+ * groupable form is the structured {@link AiWritebackStep} itself.
+ */
+export const formatWritebackStep = (step: AiWritebackStep): string => {
+    switch (step.kind) {
+        case 'read':
+            return `Reading ${step.label}`;
+        case 'edit':
+            return `Editing ${step.label}`;
+        case 'search':
+            return `Searching for "${step.label}"`;
+        case 'compile':
+            return 'Compiling project';
+        case 'stage':
+            return step.label;
+        default:
+            return step.label;
     }
-    return null;
 };
 
 export const summarizeToolInput = (input: unknown): string => {
@@ -406,21 +450,6 @@ export const summarizeToolInput = (input: unknown): string => {
         return '<unserializable>';
     }
 };
-
-export const getPhaseProgressText = (
-    source: AiWritebackSource,
-): Record<AgentPhase, string> =>
-    source === 'preview_deploy_setup'
-        ? {
-              discovering: 'Inspecting repository',
-              editing: 'Writing workflow files',
-              compiling: 'Validating workflow',
-          }
-        : {
-              discovering: 'Discovering models',
-              editing: 'Editing models',
-              compiling: 'Compiling project',
-          };
 
 export const splitStreamBuffer = (
     buffer: string,

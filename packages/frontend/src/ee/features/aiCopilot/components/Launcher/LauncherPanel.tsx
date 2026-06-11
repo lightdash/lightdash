@@ -1,6 +1,12 @@
 import { type AiAgentSummary } from '@lightdash/common';
 import { Center, Group, Loader, Stack, Text } from '@mantine-8/core';
-import { useCallback, useState, type CSSProperties, type FC } from 'react';
+import {
+    useCallback,
+    useMemo,
+    useState,
+    type CSSProperties,
+    type FC,
+} from 'react';
 import { createPath, useLocation, useNavigate } from 'react-router';
 import { LightdashUserAvatar } from '../../../../../components/Avatar';
 import useApp from '../../../../../providers/App/useApp';
@@ -26,6 +32,11 @@ import { getDashboardNavigationUrlFromContentToolResult } from '../../utils/cont
 import { AiAgentNewThreadMcpConnections } from '../AiAgentNewThreadMcpConnections';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../ChatElements/AgentChatInput';
+import {
+    contextItemsToContentMentionSuggestions,
+    mergeAiPromptContextInput,
+    mergeAiPromptContextItems,
+} from '../ChatElements/contentMentions';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AiAgentsLauncher.module.css';
 import { PanelHeader } from './PanelHeader';
@@ -101,6 +112,7 @@ const NewThreadPanel: FC<{
     const {
         contextInput,
         previewItems,
+        contentMentionItems,
         isReady: isPinnedContextReady,
     } = usePinnedContext({
         projectUuid,
@@ -112,6 +124,7 @@ const NewThreadPanel: FC<{
     // New threads have no uuid yet — keep the toggle in local state and seed
     // the per-thread slice entry once the thread is created.
     const [sqlMode, setSqlMode] = useState(false);
+    const [composerSeed, setComposerSeed] = useState<string | null>(null);
     const dispatchToStore = useAiAgentStoreDispatch();
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
@@ -158,17 +171,25 @@ const NewThreadPanel: FC<{
     const handleSubmit = ({
         message,
         toolHints,
+        context,
+        optimisticContext,
     }: {
         message: string;
         toolHints: string[];
+        context?: typeof contextInput;
+        optimisticContext?: typeof previewItems;
     }) => {
         if (!isPinnedContextReady) return;
+        const mergedContext = mergeAiPromptContextInput(contextInput, context);
+        const mergedOptimisticContext = mergeAiPromptContextItems(
+            previewItems,
+            optimisticContext,
+        );
         void createAgentThread({
             agentUuid: agent.uuid,
             prompt: message,
-            context: contextInput.length > 0 ? contextInput : undefined,
-            optimisticContext:
-                previewItems.length > 0 ? previewItems : undefined,
+            context: mergedContext,
+            optimisticContext: mergedOptimisticContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
         });
@@ -209,6 +230,7 @@ const NewThreadPanel: FC<{
                     <AiAgentNewThreadMcpConnections
                         projectUuid={projectUuid}
                         agentUuid={agent.uuid}
+                        onSuggestedPrompt={setComposerSeed}
                     />
                 </Stack>
                 {previewItems.length > 0 && (
@@ -232,6 +254,8 @@ const NewThreadPanel: FC<{
                     </Stack>
                 )}
                 <AgentChatInput
+                    key={composerSeed ?? 'composer'}
+                    defaultValue={composerSeed ?? undefined}
                     onSubmit={handleSubmit}
                     loading={isCreatingThread}
                     disabled={!isPinnedContextReady}
@@ -241,6 +265,7 @@ const NewThreadPanel: FC<{
                     fullWidth
                     sqlMode={sqlModeAvailable ? sqlMode : undefined}
                     onSqlModeChange={sqlModeAvailable ? setSqlMode : undefined}
+                    contentMentionPriorityItems={contentMentionItems}
                 />
             </div>
         </div>
@@ -294,13 +319,29 @@ const ExistingThreadPanel: FC<{
     const dispatchToStore = useAiAgentStoreDispatch();
 
     const isThreadFromCurrentUser = thread?.user.uuid === user?.data?.userUuid;
+    const contentMentionItems = useMemo(
+        () =>
+            contextItemsToContentMentionSuggestions(
+                thread?.messages.flatMap((message) =>
+                    message.role === 'user' ? message.context : [],
+                ) ?? [],
+                'thread',
+            ),
+        [thread?.messages],
+    );
 
     const handleSubmit = ({
         message,
         toolHints,
+        context,
+        optimisticContext,
     }: {
         message: string;
         toolHints: string[];
+        context?: Parameters<typeof createAgentThreadMessage>[0]['context'];
+        optimisticContext?: Parameters<
+            typeof createAgentThreadMessage
+        >[0]['optimisticContext'];
     }) => {
         const firstAssistantMessage = thread?.messages?.find(
             (m) => m.role === 'assistant',
@@ -309,6 +350,8 @@ const ExistingThreadPanel: FC<{
         void createAgentThreadMessage({
             prompt: message,
             modelConfig,
+            context,
+            optimisticContext,
             enableSqlMode: sqlModeAvailable && sqlMode,
             toolHints,
         });
@@ -380,6 +423,7 @@ const ExistingThreadPanel: FC<{
                         agentUuid={agent.uuid}
                         fullWidth
                         threadUuid={threadId}
+                        contentMentionPriorityItems={contentMentionItems}
                         latestAssistantMessageUuid={
                             [...(thread.messages ?? [])]
                                 .reverse()

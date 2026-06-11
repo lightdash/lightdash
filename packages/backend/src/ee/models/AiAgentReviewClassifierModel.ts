@@ -19,13 +19,17 @@ import type {
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
+    AiAgentReviewItemWritebackEligibility,
     AiAgentReviewItemWritebackStatus,
+    AiAgentReviewRemediation,
+    AiAgentReviewRemediationStatus,
     AiAgentReviewSignalSummary,
     AiAgentRootCause,
     AiAgentTargetRef,
     AiAgentTurnSignal,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { PullRequestsTableName } from '../../database/entities/pullRequests';
 import { QueryHistoryTableName } from '../../database/entities/queryHistory';
 import {
     AiAgentToolCallTableName,
@@ -38,17 +42,97 @@ import {
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTableName,
+    AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
     type AiAgentReviewClassifierRunTable,
     type AiAgentReviewItemTable,
+    type AiAgentReviewRemediationTable,
     type AiAgentTurnSignalTable,
     type DbAiAgentReviewClassifierRun,
     type DbAiAgentReviewItem,
+    type DbAiAgentReviewRemediation,
     type DbAiAgentTurnSignal,
 } from '../database/entities/aiAgentReviewClassifier';
 
 type Dependencies = {
     database: Knex;
+};
+
+type ReviewItemAggregateRow = {
+    fingerprint: string;
+    first_seen_at: Date | string;
+    last_seen_at: Date | string;
+    finding_count: string | number;
+};
+
+type ReviewRemediationRow = DbAiAgentReviewRemediation & {
+    linked_pr_url: string | null;
+    updated_at_age_ms: number;
+};
+
+type ReviewItemRow = DbAiAgentReviewItem & {
+    updated_at_age_ms: number;
+};
+
+// Longer than the worker's 30-min job timeout — past this, a queued/running
+// writeback has lost its worker and is reported as failed so the UI recovers
+// and retries. Ages are computed in SQL (now() - updated_at) so the check is
+// immune to the driver parsing tz-less timestamps in the process's local
+// timezone and to app/DB clock drift.
+export const WRITEBACK_STALE_MS = 35 * 60 * 1000;
+
+const WRITEBACK_TIMED_OUT_MESSAGE = 'Writeback timed out';
+
+const isStaleWritebackStatus = (
+    status:
+        | AiAgentReviewItemWritebackStatus
+        | AiAgentReviewRemediationStatus
+        | null,
+    ageMs: number,
+): boolean =>
+    (status === 'queued' || status === 'running') && ageMs > WRITEBACK_STALE_MS;
+
+const defaultWritebackEligibility: AiAgentReviewItemWritebackEligibility = {
+    eligible: false,
+    reason: 'reviews_disabled',
+    provider: null,
+    strategy: null,
+};
+
+const ACTIVE_REMEDIATION_STATUSES: AiAgentReviewRemediationStatus[] = [
+    'queued',
+    'running',
+    'pr_open',
+    'preview_ready',
+];
+
+const mapReviewRemediation = (
+    row: ReviewRemediationRow,
+): AiAgentReviewRemediation => {
+    const stale = isStaleWritebackStatus(row.status, row.updated_at_age_ms);
+    return {
+        uuid: row.ai_agent_review_remediation_uuid,
+        fingerprint: row.fingerprint,
+        organizationUuid: row.organization_uuid,
+        sourceFindingUuid: row.source_ai_agent_review_turn_signal_uuid,
+        sourcePromptUuid: row.source_prompt_uuid,
+        sourceThreadUuid: row.source_thread_uuid,
+        sourceProjectUuid: row.source_project_uuid,
+        sourceAgentUuid: row.source_agent_uuid,
+        pullRequestUuid: row.pull_request_uuid,
+        linkedPrUrl: row.linked_pr_url,
+        previewProjectUuid: row.preview_project_uuid,
+        previewAgentUuid: row.preview_agent_uuid,
+        previewThreadUuid: row.preview_thread_uuid,
+        status: stale ? 'failed' : row.status,
+        errorMessage: stale ? WRITEBACK_TIMED_OUT_MESSAGE : row.error_message,
+        retryPrompt: row.retry_prompt,
+        createdByUserUuid: row.created_by_user_uuid,
+        resolvedByUserUuid: row.resolved_by_user_uuid,
+        resolvedAt: row.resolved_at,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+    };
 };
 
 type CreateRunArgs = {
@@ -105,11 +189,57 @@ type UpsertReviewItemStateArgs = {
     statusUpdatedByUserUuid: string | null;
 };
 
+type CreateReviewRemediationArgs = {
+    fingerprint: string;
+    organizationUuid: string;
+    sourceFindingUuid: string;
+    sourcePromptUuid: string;
+    sourceThreadUuid: string;
+    sourceProjectUuid: string;
+    sourceAgentUuid: string;
+    retryPrompt: string | null;
+    createdByUserUuid: string | null;
+};
+
+type UpdateReviewRemediationStatusArgs = {
+    remediationUuid: string;
+    organizationUuid: string;
+    status: AiAgentReviewRemediationStatus;
+    errorMessage?: string | null;
+    resolvedByUserUuid?: string | null;
+};
+
+type SetReviewRemediationPullRequestArgs = {
+    remediationUuid: string;
+    organizationUuid: string;
+    pullRequestUuid: string;
+};
+
+type SetReviewRemediationPreviewArgs = {
+    remediationUuid: string;
+    organizationUuid: string;
+    previewProjectUuid: string;
+    previewAgentUuid: string;
+};
+
+type SetReviewRemediationPreviewThreadArgs = {
+    remediationUuid: string;
+    organizationUuid: string;
+    previewProjectUuid: string;
+    previewAgentUuid: string;
+    previewThreadUuid: string;
+};
+
 type ListReviewSignalsArgs = {
     organizationUuid: string;
     projectUuid?: string;
     agentUuid?: string;
     limit?: number;
+};
+
+type GetPromptTextArgs = {
+    organizationUuid: string;
+    promptUuid: string;
 };
 
 type BaseCandidateRow = {
@@ -167,6 +297,10 @@ type ToolCallEvidenceRow = {
 };
 
 const TOOL_NAME_PRIORITY = new Map<string, number>([
+    ['editDbtProject', 95],
+    ['propose_writeback', 95],
+    ['runAiWriteback', 95],
+    ['run_ai_writeback', 95],
     ['findFields', 80],
     ['find_fields', 80],
     ['findExplores', 70],
@@ -797,45 +931,136 @@ export class AiAgentReviewClassifierModel {
     async listReviewItems(
         args: ListReviewItemsArgs,
     ): Promise<AiAgentReviewItemSummary[]> {
-        const rows: DbAiAgentTurnSignal[] =
-            await this.database<AiAgentTurnSignalTable>(
-                AiAgentTurnSignalTableName,
+        const limit = Math.min(args.limit ?? 100, 500);
+        if (args.statuses?.length === 0) {
+            return [];
+        }
+        const baseQuery = this.database<AiAgentTurnSignalTable>(
+            AiAgentTurnSignalTableName,
+        )
+            .where(
+                `${AiAgentTurnSignalTableName}.organization_uuid`,
+                args.organizationUuid,
             )
-                .where('organization_uuid', args.organizationUuid)
-                .where('promoted_to_finding', true)
-                .whereNotNull('fingerprint')
-                .modify((query) => {
-                    if (args.projectUuid) {
-                        void query.where('project_uuid', args.projectUuid);
-                    }
-                    if (args.agentUuid) {
-                        void query.where('agent_uuid', args.agentUuid);
-                    }
-                    if (args.fingerprint) {
-                        void query.where('fingerprint', args.fingerprint);
-                    }
-                })
-                .orderBy('created_at', 'desc')
-                .limit(Math.min((args.limit ?? 100) * 10, 1000));
+            .where(`${AiAgentTurnSignalTableName}.promoted_to_finding`, true)
+            .whereNotNull(`${AiAgentTurnSignalTableName}.fingerprint`)
+            .modify((query) => {
+                if (args.projectUuid) {
+                    void query.where(
+                        `${AiAgentTurnSignalTableName}.project_uuid`,
+                        args.projectUuid,
+                    );
+                }
+                if (args.agentUuid) {
+                    void query.where(
+                        `${AiAgentTurnSignalTableName}.agent_uuid`,
+                        args.agentUuid,
+                    );
+                }
+                if (args.fingerprint) {
+                    void query.where(
+                        `${AiAgentTurnSignalTableName}.fingerprint`,
+                        args.fingerprint,
+                    );
+                }
+                if (args.statuses) {
+                    void query
+                        .leftJoin(
+                            AiAgentReviewItemTableName,
+                            function joinReviewItems() {
+                                this.on(
+                                    `${AiAgentReviewItemTableName}.fingerprint`,
+                                    `${AiAgentTurnSignalTableName}.fingerprint`,
+                                ).andOn(
+                                    `${AiAgentReviewItemTableName}.organization_uuid`,
+                                    `${AiAgentTurnSignalTableName}.organization_uuid`,
+                                );
+                            },
+                        )
+                        .whereRaw(
+                            `COALESCE(${AiAgentReviewItemTableName}.status, 'open') IN (${args.statuses
+                                .map(() => '?')
+                                .join(', ')})`,
+                            args.statuses,
+                        );
+                }
+            });
 
-        const byFingerprint = new Map<string, DbAiAgentTurnSignal[]>();
-        rows.forEach((row) => {
-            if (!row.fingerprint) return;
-            const group = byFingerprint.get(row.fingerprint) ?? [];
-            group.push(row);
-            byFingerprint.set(row.fingerprint, group);
-        });
+        const aggregateRows = (await baseQuery
+            .clone()
+            .select({
+                fingerprint: `${AiAgentTurnSignalTableName}.fingerprint`,
+            })
+            .min({
+                first_seen_at: `${AiAgentTurnSignalTableName}.created_at`,
+            })
+            .max({
+                last_seen_at: `${AiAgentTurnSignalTableName}.created_at`,
+            })
+            .count({
+                finding_count: '*',
+            })
+            .groupBy(`${AiAgentTurnSignalTableName}.fingerprint`)
+            .orderBy('last_seen_at', 'desc')
+            .limit(limit)) as ReviewItemAggregateRow[];
 
-        const fingerprints = Array.from(byFingerprint.keys());
-        const persisted = await this.getReviewItemsByFingerprint(fingerprints);
+        const fingerprints = aggregateRows.map((row) => row.fingerprint);
+        if (fingerprints.length === 0) {
+            return [];
+        }
 
-        return Array.from(byFingerprint.entries())
-            .map(([fingerprint, group]) => {
-                const latest = group[0];
-                const createdAts = group.map((row) => row.created_at.getTime());
-                const firstSeenAt = new Date(Math.min(...createdAts));
-                const lastSeenAt = new Date(Math.max(...createdAts));
+        const latestRows = (await this.database<AiAgentTurnSignalTable>(
+            AiAgentTurnSignalTableName,
+        )
+            .distinctOn('fingerprint')
+            .select('*')
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn('fingerprint', fingerprints)
+            .modify((query) => {
+                if (args.projectUuid) {
+                    void query.where('project_uuid', args.projectUuid);
+                }
+                if (args.agentUuid) {
+                    void query.where('agent_uuid', args.agentUuid);
+                }
+            })
+            .orderBy('fingerprint')
+            .orderBy('created_at', 'desc')) as DbAiAgentTurnSignal[];
+
+        const latestByFingerprint = new Map(
+            latestRows
+                .filter((row) => row.fingerprint !== null)
+                .map((row) => [row.fingerprint as string, row]),
+        );
+        const aggregateByFingerprint = new Map(
+            aggregateRows.map((row) => [row.fingerprint, row]),
+        );
+        const [persisted, remediationByFingerprint] = await Promise.all([
+            this.getReviewItemsByFingerprint(fingerprints),
+            this.getLatestReviewRemediationsByFingerprint({
+                organizationUuid: args.organizationUuid,
+                fingerprints,
+            }),
+        ]);
+
+        const reviewItems = fingerprints
+            .map((fingerprint): AiAgentReviewItemSummary | null => {
+                const latest = latestByFingerprint.get(fingerprint);
+                const aggregate = aggregateByFingerprint.get(fingerprint);
+                if (!latest || !aggregate) {
+                    return null;
+                }
+                const firstSeenAt = new Date(aggregate.first_seen_at);
+                const lastSeenAt = new Date(aggregate.last_seen_at);
                 const item = persisted.get(fingerprint) ?? null;
+                const remediation =
+                    remediationByFingerprint.get(fingerprint) ?? null;
+                const writebackStale =
+                    item !== null &&
+                    isStaleWritebackStatus(
+                        item.pr_writeback_status,
+                        item.updated_at_age_ms,
+                    );
                 return {
                     uuid: fingerprint,
                     fingerprint,
@@ -851,16 +1076,22 @@ export class AiAgentReviewClassifierModel {
                     assignedToUserUuid: item?.assigned_to_user_uuid ?? null,
                     firstSeenAt,
                     lastSeenAt,
-                    findingCount: group.length,
+                    findingCount: Number(aggregate.finding_count),
                     statusUpdatedAt: item?.status_updated_at ?? lastSeenAt,
                     statusUpdatedByUserUuid:
                         item?.status_updated_by_user_uuid ?? null,
                     linkedIssueUrl: item?.linked_issue_url ?? null,
                     linkedPrUrl: item?.linked_pr_url ?? null,
                     prState: item?.pr_state ?? null,
-                    prWritebackStatus: item?.pr_writeback_status ?? null,
-                    prWritebackMessage: item?.pr_writeback_message ?? null,
+                    prWritebackStatus: writebackStale
+                        ? 'failed'
+                        : (item?.pr_writeback_status ?? null),
+                    prWritebackMessage: writebackStale
+                        ? WRITEBACK_TIMED_OUT_MESSAGE
+                        : (item?.pr_writeback_message ?? null),
                     writebackEligible: false,
+                    writebackEligibility: defaultWritebackEligibility,
+                    remediation,
                     createdAt: item?.created_at ?? firstSeenAt,
                     updatedAt: item?.updated_at ?? lastSeenAt,
                     latestFinding: {
@@ -881,22 +1112,236 @@ export class AiAgentReviewClassifierModel {
                 };
             })
             .filter(
-                (reviewItem) =>
-                    !args.statuses || args.statuses.includes(reviewItem.status),
-            )
-            .slice(0, Math.min(args.limit ?? 100, 500));
+                (reviewItem): reviewItem is AiAgentReviewItemSummary =>
+                    reviewItem !== null,
+            );
+
+        return reviewItems;
     }
 
     async getReviewItemsByFingerprint(
         fingerprints: string[],
-    ): Promise<Map<string, DbAiAgentReviewItem>> {
+    ): Promise<Map<string, ReviewItemRow>> {
         if (fingerprints.length === 0) {
             return new Map();
         }
-        const items = await this.database<AiAgentReviewItemTable>(
+        const items = (await this.database<AiAgentReviewItemTable>(
             AiAgentReviewItemTableName,
-        ).whereIn('fingerprint', fingerprints);
+        )
+            .whereIn('fingerprint', fingerprints)
+            .select<ReviewItemRow[]>(
+                '*',
+                this.database.raw(
+                    '(extract(epoch from (now() - updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )) as ReviewItemRow[];
         return new Map(items.map((item) => [item.fingerprint, item]));
+    }
+
+    async getLatestReviewRemediationsByFingerprint(args: {
+        organizationUuid: string;
+        fingerprints: string[];
+    }): Promise<Map<string, AiAgentReviewRemediation>> {
+        if (args.fingerprints.length === 0) {
+            return new Map();
+        }
+
+        const rows = (await this.database<AiAgentReviewRemediationTable>(
+            `${AiAgentReviewRemediationTableName} as remediation`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'remediation.pull_request_uuid',
+            )
+            .where('remediation.organization_uuid', args.organizationUuid)
+            .whereIn('remediation.fingerprint', args.fingerprints)
+            .select<ReviewRemediationRow[]>(
+                'remediation.*',
+                {
+                    linked_pr_url: 'pull_request.pr_url',
+                },
+                this.database.raw(
+                    '(extract(epoch from (now() - remediation.updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )
+            .orderBy('remediation.fingerprint')
+            .orderByRaw(
+                `CASE WHEN remediation.status IN (${ACTIVE_REMEDIATION_STATUSES.map(
+                    () => '?',
+                ).join(', ')}) THEN 0 ELSE 1 END`,
+                ACTIVE_REMEDIATION_STATUSES,
+            )
+            .orderBy(
+                'remediation.updated_at',
+                'desc',
+            )) as ReviewRemediationRow[];
+
+        const remediations = new Map<string, AiAgentReviewRemediation>();
+        rows.forEach((row) => {
+            if (!remediations.has(row.fingerprint)) {
+                remediations.set(row.fingerprint, mapReviewRemediation(row));
+            }
+        });
+        return remediations;
+    }
+
+    async getReviewRemediation(args: {
+        organizationUuid: string;
+        remediationUuid: string;
+    }): Promise<AiAgentReviewRemediation | null> {
+        const row = (await this.database<AiAgentReviewRemediationTable>(
+            `${AiAgentReviewRemediationTableName} as remediation`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'remediation.pull_request_uuid',
+            )
+            .where('remediation.organization_uuid', args.organizationUuid)
+            .where(
+                'remediation.ai_agent_review_remediation_uuid',
+                args.remediationUuid,
+            )
+            .select<ReviewRemediationRow>(
+                'remediation.*',
+                {
+                    linked_pr_url: 'pull_request.pr_url',
+                },
+                this.database.raw(
+                    '(extract(epoch from (now() - remediation.updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )
+            .first()) as ReviewRemediationRow | undefined;
+
+        return row ? mapReviewRemediation(row) : null;
+    }
+
+    async createReviewRemediation(
+        args: CreateReviewRemediationArgs,
+    ): Promise<AiAgentReviewRemediation> {
+        const [row] = await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .insert({
+                fingerprint: args.fingerprint,
+                organization_uuid: args.organizationUuid,
+                source_ai_agent_review_turn_signal_uuid: args.sourceFindingUuid,
+                source_prompt_uuid: args.sourcePromptUuid,
+                source_thread_uuid: args.sourceThreadUuid,
+                source_project_uuid: args.sourceProjectUuid,
+                source_agent_uuid: args.sourceAgentUuid,
+                retry_prompt: args.retryPrompt,
+                created_by_user_uuid: args.createdByUserUuid,
+            })
+            .returning('*');
+
+        return mapReviewRemediation({
+            ...row,
+            linked_pr_url: null,
+            updated_at_age_ms: 0,
+        });
+    }
+
+    async updateReviewRemediationStatus(
+        args: UpdateReviewRemediationStatusArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                status: args.status,
+                error_message: args.errorMessage ?? null,
+                resolved_by_user_uuid:
+                    args.status === 'resolved'
+                        ? (args.resolvedByUserUuid ?? null)
+                        : null,
+                resolved_at:
+                    args.status === 'resolved'
+                        ? (this.database.fn.now() as never)
+                        : null,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    /**
+     * Persists a stale (queued/running past WRITEBACK_STALE_MS) remediation as
+     * failed so the one-active-per-fingerprint index allows a retry. The age
+     * check runs in SQL against the DB clock, so it agrees with the stale
+     * presentation in mapReviewRemediation. No-op when the remediation is
+     * still fresh or already terminal.
+     */
+    async failStaleReviewRemediation(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+    }): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .whereIn('status', ['queued', 'running'])
+            .whereRaw('updated_at < now() - make_interval(secs => ?)', [
+                WRITEBACK_STALE_MS / 1000,
+            ])
+            .update({
+                status: 'failed',
+                error_message: WRITEBACK_TIMED_OUT_MESSAGE,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    async setReviewRemediationPullRequest(
+        args: SetReviewRemediationPullRequestArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                pull_request_uuid: args.pullRequestUuid,
+                status: 'pr_open',
+                error_message: null,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    async setReviewRemediationPreview(
+        args: SetReviewRemediationPreviewArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                preview_project_uuid: args.previewProjectUuid,
+                preview_agent_uuid: args.previewAgentUuid,
+                status: 'preview_ready',
+                error_message: null,
+                updated_at: this.database.fn.now() as never,
+            });
+    }
+
+    async setReviewRemediationPreviewThread(
+        args: SetReviewRemediationPreviewThreadArgs,
+    ): Promise<void> {
+        await this.database<AiAgentReviewRemediationTable>(
+            AiAgentReviewRemediationTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .update({
+                preview_project_uuid: args.previewProjectUuid,
+                preview_agent_uuid: args.previewAgentUuid,
+                preview_thread_uuid: args.previewThreadUuid,
+                status: 'preview_ready',
+                error_message: null,
+                updated_at: this.database.fn.now() as never,
+            });
     }
 
     async getReviewItem(
@@ -908,6 +1353,20 @@ export class AiAgentReviewClassifierModel {
             fingerprint,
         });
         return items[0] ?? null;
+    }
+
+    async getPromptText(args: GetPromptTextArgs): Promise<string | null> {
+        const row = await this.database(`${AiPromptTableName} as prompt`)
+            .join(
+                `${AiThreadTableName} as thread`,
+                'thread.ai_thread_uuid',
+                'prompt.ai_thread_uuid',
+            )
+            .where('thread.organization_uuid', args.organizationUuid)
+            .where('prompt.ai_prompt_uuid', args.promptUuid)
+            .first<{ prompt: string }>('prompt.prompt');
+
+        return row?.prompt ?? null;
     }
 
     async getPromotedFingerprintScope(
@@ -1112,14 +1571,41 @@ export class AiAgentReviewClassifierModel {
 
     async createTurnSignal(args: CreateTurnSignalArgs): Promise<string> {
         const { finding, turnSignal } = args;
-        const [row] = await this.database.transaction(async (trx) => {
+        const promptUuid = turnSignal.subject.assistantPromptUuid;
+        const newFingerprint =
+            turnSignal.promotedToFinding && finding
+                ? finding.reviewItem.fingerprint
+                : null;
+
+        return this.database.transaction(async (trx) => {
+            // Serialize reviews of the same turn. A re-review (a feedback change,
+            // or the next turn supplying a correction) supersedes the prior
+            // signal with a delete+insert. Without this lock two concurrent
+            // reviews of the same turn can interleave so the loser's signal — and
+            // the review item it created — are clobbered and orphaned. The lock
+            // is transaction-scoped and released on commit/rollback.
+            await trx.raw(
+                'select pg_advisory_xact_lock(hashtextextended(?, 0))',
+                [promptUuid],
+            );
+
+            // Capture the fingerprints we're about to supersede so we can
+            // reconcile any review item left without a backing signal.
+            const supersededRows = await trx(AiAgentTurnSignalTableName)
+                .where('ai_prompt_uuid', promptUuid)
+                .whereNotNull('fingerprint')
+                .distinct('fingerprint');
+            const supersededFingerprints = supersededRows
+                .map((r) => r.fingerprint as string | null)
+                .filter((fp): fp is string => fp !== null);
+
             // Supersede: keep one current signal per turn. A re-review (once a
             // later turn supplies the correction) replaces the earlier judgment
             // instead of stacking a second signal — so the queue shows the
             // latest verdict and findingCount counts distinct turns, not
             // re-reviews of the same turn.
             await trx(AiAgentTurnSignalTableName)
-                .where('ai_prompt_uuid', turnSignal.subject.assistantPromptUuid)
+                .where('ai_prompt_uuid', promptUuid)
                 .delete();
             const inserted = await trx<AiAgentTurnSignalTable>(
                 AiAgentTurnSignalTableName,
@@ -1177,35 +1663,54 @@ export class AiAgentReviewClassifierModel {
                     ) as never,
                 })
                 .returning('ai_agent_review_turn_signal_uuid');
-            return inserted;
+
+            // Write the review item in the same transaction so a signal and the
+            // item it promotes are always created together.
+            if (newFingerprint) {
+                await trx<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
+                    .insert({
+                        fingerprint: newFingerprint,
+                        organization_uuid: turnSignal.subject.organizationUuid,
+                        project_uuid: turnSignal.subject.projectUuid,
+                        agent_uuid: turnSignal.subject.agentUuid,
+                    })
+                    .onConflict('fingerprint')
+                    .merge({ updated_at: trx.fn.now() });
+            }
+
+            // Reconcile: a superseded finding can leave its review item with no
+            // backing signal. Drop such orphans, but only while still pristine —
+            // an item a human has triaged (assigned, linked, status changed) is
+            // kept so manual work is never discarded.
+            const orphanCandidates = supersededFingerprints.filter(
+                (fp) => fp !== newFingerprint,
+            );
+            if (orphanCandidates.length > 0) {
+                const stillReferencedRows = await trx(
+                    AiAgentTurnSignalTableName,
+                )
+                    .whereIn('fingerprint', orphanCandidates)
+                    .distinct('fingerprint');
+                const stillReferenced = new Set(
+                    stillReferencedRows.map((r) => r.fingerprint),
+                );
+                const orphaned = orphanCandidates.filter(
+                    (fp) => !stillReferenced.has(fp),
+                );
+                if (orphaned.length > 0) {
+                    await trx(AiAgentReviewItemTableName)
+                        .whereIn('fingerprint', orphaned)
+                        .where('status', 'open')
+                        .whereNull('assigned_to_user_uuid')
+                        .whereNull('linked_issue_url')
+                        .whereNull('linked_pr_url')
+                        .whereNull('pr_writeback_thread_uuid')
+                        .whereNull('status_updated_by_user_uuid')
+                        .delete();
+                }
+            }
+
+            return inserted[0].ai_agent_review_turn_signal_uuid;
         });
-
-        if (turnSignal.promotedToFinding && finding) {
-            await this.ensureReviewItem({
-                fingerprint: finding.reviewItem.fingerprint,
-                organizationUuid: turnSignal.subject.organizationUuid,
-                projectUuid: turnSignal.subject.projectUuid,
-                agentUuid: turnSignal.subject.agentUuid,
-            });
-        }
-
-        return row.ai_agent_review_turn_signal_uuid;
-    }
-
-    private async ensureReviewItem(args: {
-        fingerprint: string;
-        organizationUuid: string;
-        projectUuid: string;
-        agentUuid: string;
-    }): Promise<void> {
-        await this.database<AiAgentReviewItemTable>(AiAgentReviewItemTableName)
-            .insert({
-                fingerprint: args.fingerprint,
-                organization_uuid: args.organizationUuid,
-                project_uuid: args.projectUuid,
-                agent_uuid: args.agentUuid,
-            })
-            .onConflict('fingerprint')
-            .merge({ updated_at: this.database.fn.now() });
     }
 }

@@ -68,6 +68,7 @@ import {
     UpdateSlackResponseTs,
     UpdateWebAppResponse,
     type AiAgent,
+    type AiAgentIntegration,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import moment from 'moment';
@@ -99,6 +100,7 @@ import {
     AiSlackThreadTableName,
     AiSqlApprovalTableName,
     AiThreadCompactionTableName,
+    AiThreadShareTableName,
     AiThreadTableName,
     AiWebAppPromptTableName,
     AiWebAppThreadTableName,
@@ -111,6 +113,7 @@ import {
     DbAiSqlApproval,
     DbAiThread,
     DbAiThreadCompaction,
+    DbAiThreadShare,
     DbAiWebAppPrompt,
     type AiSqlApprovalDecision,
 } from '../database/entities/ai';
@@ -240,6 +243,19 @@ type DbAiAgentToolCallWithMcpServer = DbAiAgentToolCall & {
     mcp_server_icon_url: string | null;
 };
 
+export type CreateAiThreadShareResult = {
+    uuid: string;
+    nanoid: string;
+    threadUuid: string;
+    agentUuid: string;
+    projectUuid: string;
+    organizationUuid: string;
+    snapshotPromptUuid: string;
+    createdByUserUuid: string;
+    createdAt: Date;
+    revokedAt: Date | null;
+};
+
 type AiThreadSummaryRow = Pick<
     DbAiThread,
     | 'ai_thread_uuid'
@@ -256,6 +272,24 @@ type AiThreadSummaryRow = Pick<
         agent_name: string | null;
         agent_image_url: string | null;
     };
+
+// Tool names persisted before a tool was renamed. Normalised at the read
+// boundary so historical rows parse as the current tool name and everything
+// downstream (API, frontend, rebuilt model history) only ever sees current
+// names. Only safe when the rename changed the name alone — the stored args
+// and result/metadata shapes must match the current tool's schemas.
+const LEGACY_TOOL_NAME_ALIASES: Record<string, ToolName> = {
+    proposeWriteback: 'editDbtProject',
+};
+
+const normalizeToolName = (toolName: string): string =>
+    LEGACY_TOOL_NAME_ALIASES[toolName] ?? toolName;
+
+// Rows whose tool name is neither a current/legacy built-in nor an MCP tool
+// (e.g. a tool removed without an alias) are dropped by the read paths rather
+// than failing the whole thread read.
+const isParseableToolName = (toolName: string): boolean =>
+    isAiAgentToolName(normalizeToolName(toolName));
 
 export class AiAgentModel {
     private database: Knex;
@@ -1426,14 +1460,11 @@ export class AiAgentModel {
             return undefined;
         }
 
-        if (row.auth_type === 'bearer') {
-            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
-                trx,
-            });
-        }
-
         if (!userUuid) {
-            if (!row.allow_oauth_credential_sharing) {
+            if (
+                row.auth_type === 'oauth' &&
+                !row.allow_oauth_credential_sharing
+            ) {
                 return undefined;
             }
 
@@ -1470,12 +1501,6 @@ export class AiAgentModel {
             return undefined;
         }
 
-        if (row.auth_type === 'bearer') {
-            return this.getCredential(row.ai_mcp_server_uuid, 'shared', {
-                trx,
-            });
-        }
-
         const userCredential = await this.getCredential(
             row.ai_mcp_server_uuid,
             'user',
@@ -1489,7 +1514,7 @@ export class AiAgentModel {
             return userCredential;
         }
 
-        if (!row.allow_oauth_credential_sharing) {
+        if (row.auth_type === 'oauth' && !row.allow_oauth_credential_sharing) {
             return undefined;
         }
 
@@ -1534,8 +1559,10 @@ export class AiAgentModel {
         authType: ApiCreateAiMcpServer['authType'];
         allowOAuthCredentialSharing: boolean;
         credentials: ApiCreateAiMcpServer['credentials'];
+        credentialScope?: AiMcpCredentialScope;
         actorUserUuid?: string | null;
     }): Promise<AiMcpServer> {
+        const credentialScope = args.credentialScope ?? 'shared';
         return this.database.transaction(async (trx) => {
             const [row] = await trx(AiMcpServerTableName)
                 .insert({
@@ -1563,7 +1590,11 @@ export class AiAgentModel {
                     ? null
                     : await this.upsertCredential({
                           serverUuid: row.ai_mcp_server_uuid,
-                          scope: 'shared',
+                          scope: credentialScope,
+                          userUuid:
+                              credentialScope === 'user'
+                                  ? (args.actorUserUuid ?? null)
+                                  : null,
                           credentials: credentialPayload,
                           actorUserUuid: args.actorUserUuid ?? null,
                           trx,
@@ -1909,72 +1940,101 @@ export class AiAgentModel {
                 })
                 .returning('*');
 
-            // Reset all integrations
-            // we cannot relay on cascade deletes because might run into race condition
-            // delete child records first to avoid unique constraint violations
-            const integrationUuids = await trx(AiAgentIntegrationTableName)
-                .select('ai_agent_integration_uuid')
-                .where('ai_agent_uuid', args.agentUuid);
+            // `integrations` is optional on the update payload (PATCH
+            // semantics). Only rebuild integrations when the caller explicitly
+            // provides them — an omitted value must leave existing integrations
+            // untouched. Otherwise partial updates (e.g. changing MCP servers
+            // via the agent update endpoint) would silently delete the agent's
+            // Slack channel assignments and unassign it from its channels.
+            let integrations: AiAgentIntegration[];
+            if (args.integrations !== undefined) {
+                // Reset all integrations
+                // we cannot relay on cascade deletes because might run into race condition
+                // delete child records first to avoid unique constraint violations
+                const integrationUuids = await trx(AiAgentIntegrationTableName)
+                    .select('ai_agent_integration_uuid')
+                    .where('ai_agent_uuid', args.agentUuid);
 
-            if (integrationUuids.length > 0) {
-                await trx(AiAgentSlackIntegrationTableName)
-                    .whereIn(
-                        'ai_agent_integration_uuid',
-                        integrationUuids.map(
-                            (i) => i.ai_agent_integration_uuid,
-                        ),
-                    )
+                if (integrationUuids.length > 0) {
+                    await trx(AiAgentSlackIntegrationTableName)
+                        .whereIn(
+                            'ai_agent_integration_uuid',
+                            integrationUuids.map(
+                                (i) => i.ai_agent_integration_uuid,
+                            ),
+                        )
+                        .delete();
+                }
+
+                // Then delete parent integration records
+                await trx(AiAgentIntegrationTableName)
+                    .where('ai_agent_uuid', args.agentUuid)
                     .delete();
-            }
 
-            // Then delete parent integration records
-            await trx(AiAgentIntegrationTableName)
-                .where('ai_agent_uuid', args.agentUuid)
-                .delete();
+                integrations = await Promise.all(
+                    args.integrations.map(async (integration) => {
+                        switch (integration.type) {
+                            case 'slack':
+                                try {
+                                    const [baseIntegration] = await trx(
+                                        AiAgentIntegrationTableName,
+                                    )
+                                        .insert({
+                                            ai_agent_uuid: agent.ai_agent_uuid,
+                                            integration_type: integration.type,
+                                        })
+                                        .returning('*');
 
-            const integrationPromises =
-                args.integrations?.map(async (integration) => {
-                    switch (integration.type) {
-                        case 'slack':
-                            try {
-                                const [baseIntegration] = await trx(
-                                    AiAgentIntegrationTableName,
-                                )
-                                    .insert({
-                                        ai_agent_uuid: agent.ai_agent_uuid,
-                                        integration_type: integration.type,
-                                    })
-                                    .returning('*');
-
-                                await trx(
-                                    AiAgentSlackIntegrationTableName,
-                                ).insert({
-                                    ai_agent_integration_uuid:
-                                        baseIntegration.ai_agent_integration_uuid,
-                                    organization_uuid: agent.organization_uuid,
-                                    slack_channel_id: integration.channelId,
-                                });
-                            } catch (error) {
-                                if (isUniqueConstraintViolation(error)) {
-                                    throw new AlreadyExistsError(
-                                        'This Slack channel is already assigned to another AI agent',
-                                    );
+                                    await trx(
+                                        AiAgentSlackIntegrationTableName,
+                                    ).insert({
+                                        ai_agent_integration_uuid:
+                                            baseIntegration.ai_agent_integration_uuid,
+                                        organization_uuid:
+                                            agent.organization_uuid,
+                                        slack_channel_id: integration.channelId,
+                                    });
+                                } catch (error) {
+                                    if (isUniqueConstraintViolation(error)) {
+                                        throw new AlreadyExistsError(
+                                            'This Slack channel is already assigned to another AI agent',
+                                        );
+                                    }
+                                    throw error;
                                 }
-                                throw error;
-                            }
 
-                            return {
-                                type: integration.type,
-                                channelId: integration.channelId,
-                            };
-                        default:
-                            return assertUnreachable(
-                                integration.type,
-                                `Unknown integration type ${integration.type} in updateAgent`,
-                            );
-                    }
-                }) || [];
-            const integrations = await Promise.all(integrationPromises);
+                                return {
+                                    type: integration.type,
+                                    channelId: integration.channelId,
+                                };
+                            default:
+                                return assertUnreachable(
+                                    integration.type,
+                                    `Unknown integration type ${integration.type} in updateAgent`,
+                                );
+                        }
+                    }),
+                );
+            } else {
+                // Leave existing integrations untouched and return them as-is.
+                integrations = await trx(AiAgentIntegrationTableName)
+                    .leftJoin(
+                        AiAgentSlackIntegrationTableName,
+                        `${AiAgentIntegrationTableName}.ai_agent_integration_uuid`,
+                        `${AiAgentSlackIntegrationTableName}.ai_agent_integration_uuid`,
+                    )
+                    .where(
+                        `${AiAgentIntegrationTableName}.ai_agent_uuid`,
+                        args.agentUuid,
+                    )
+                    .whereNotNull(
+                        `${AiAgentIntegrationTableName}.integration_type`,
+                    )
+                    .select({
+                        type: `${AiAgentIntegrationTableName}.integration_type`,
+                        channelId: `${AiAgentSlackIntegrationTableName}.slack_channel_id`,
+                    });
+            }
 
             let instruction = await this.getAgentLastInstruction(
                 {
@@ -3053,7 +3113,7 @@ export class AiAgentModel {
                 modelConfig: row.model_config,
                 tokenUsage: row.token_usage,
                 toolCalls: toolCalls
-                    .filter((tc) => isAiAgentToolName(tc.tool_name))
+                    .filter((tc) => isParseableToolName(tc.tool_name))
                     .map((tc) => this.parseToolCall(tc)),
                 toolResults,
                 reasoning,
@@ -3780,7 +3840,7 @@ export class AiAgentModel {
                     modelConfig: row.model_config,
                     tokenUsage: row.token_usage,
                     toolCalls: toolCalls
-                        .filter((tc) => isAiAgentToolName(tc.tool_name))
+                        .filter((tc) => isParseableToolName(tc.tool_name))
                         .map((tc) => this.parseToolCall(tc)),
                     toolResults,
                     reasoning,
@@ -4369,8 +4429,16 @@ export class AiAgentModel {
                 prompt: `${AiPromptTableName}.prompt`,
                 createdAt: `${AiPromptTableName}.created_at`,
                 response: `${AiPromptTableName}.response`,
+                errorMessage: `${AiPromptTableName}.error_message`,
+                respondedAt: `${AiPromptTableName}.responded_at`,
                 humanScore: `${AiPromptTableName}.human_score`,
+                humanFeedback: `${AiPromptTableName}.human_feedback`,
+                filtersOutput: `${AiPromptTableName}.filters_output`,
+                vizConfigOutput: `${AiPromptTableName}.viz_config_output`,
+                metricQuery: `${AiPromptTableName}.metric_query`,
+                savedQueryUuid: `${AiPromptTableName}.saved_query_uuid`,
                 modelConfig: `${AiPromptTableName}.model_config`,
+                tokenUsage: `${AiPromptTableName}.token_usage`,
             })
             .where(`${AiPromptTableName}.ai_prompt_uuid`, promptUuid)
             .first();
@@ -4820,7 +4888,9 @@ export class AiAgentModel {
     private parseToolCall(
         row: DbAiAgentToolCall | DbAiAgentToolCallWithMcpServer,
     ): AiAgentToolCall {
-        const parsedToolName = ToolNameSchema.safeParse(row.tool_name);
+        const parsedToolName = ToolNameSchema.safeParse(
+            normalizeToolName(row.tool_name),
+        );
 
         if (parsedToolName.success) {
             return {
@@ -4854,7 +4924,9 @@ export class AiAgentModel {
 
     // eslint-disable-next-line class-methods-use-this
     private parseToolResult(row: DbAiAgentToolResult): AiAgentToolResult {
-        const parsedToolName = ToolNameSchema.safeParse(row.tool_name);
+        const parsedToolName = ToolNameSchema.safeParse(
+            normalizeToolName(row.tool_name),
+        );
 
         if (!parsedToolName.success) {
             if (isAiAgentMcpToolName(row.tool_name)) {
@@ -4938,7 +5010,10 @@ export class AiAgentModel {
             .orderBy(`${AiAgentToolCallTableName}.created_at`, 'asc');
 
         return rows
-            .filter((row) => row.result !== null)
+            .filter(
+                (row) =>
+                    row.result !== null && isParseableToolName(row.tool_name),
+            )
             .map((row) => {
                 const toolCall = this.parseToolCall(row);
 
@@ -5119,7 +5194,9 @@ export class AiAgentModel {
             .where('ai_prompt_uuid', promptUuid)
             .orderBy('created_at', 'asc');
 
-        return rows.map(this.parseToolResult);
+        return rows
+            .filter((row) => isParseableToolName(row.tool_name))
+            .map((row) => this.parseToolResult(row));
     }
 
     async createToolResults(
@@ -6599,17 +6676,275 @@ export class AiAgentModel {
         });
     }
 
+    private async cloneThreadCompactions({
+        sourceThreadUuid,
+        targetThreadUuid,
+        promptMapping,
+        db,
+    }: {
+        sourceThreadUuid: string;
+        targetThreadUuid: string;
+        promptMapping: Map<string, string>;
+        db?: Knex;
+    }): Promise<void> {
+        await AiAgentModel.withTrx(db ?? this.database, async (trx) => {
+            const compactions = await trx(AiThreadCompactionTableName)
+                .select<DbAiThreadCompaction[]>(
+                    'compacted_through_ai_prompt_uuid',
+                    'triggering_ai_prompt_uuid',
+                    'serialized_input',
+                    'summary',
+                )
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .orderBy('created_at', 'asc');
+
+            const clonedCompactions = compactions.flatMap((compaction) => {
+                const compactedThroughPromptUuid = promptMapping.get(
+                    compaction.compacted_through_ai_prompt_uuid,
+                );
+                const triggeringPromptUuid = promptMapping.get(
+                    compaction.triggering_ai_prompt_uuid,
+                );
+                if (!compactedThroughPromptUuid || !triggeringPromptUuid) {
+                    return [];
+                }
+                return {
+                    ai_thread_uuid: targetThreadUuid,
+                    compacted_through_ai_prompt_uuid:
+                        compactedThroughPromptUuid,
+                    triggering_ai_prompt_uuid: triggeringPromptUuid,
+                    serialized_input: compaction.serialized_input,
+                    summary: compaction.summary,
+                };
+            });
+
+            if (clonedCompactions.length > 0) {
+                await trx(AiThreadCompactionTableName).insert(
+                    clonedCompactions,
+                );
+            }
+        });
+    }
+
+    async createThreadShare({
+        sourceThreadUuid,
+        createdByUserUuid,
+        nanoid,
+    }: {
+        sourceThreadUuid: string;
+        createdByUserUuid: string;
+        nanoid: string;
+    }): Promise<CreateAiThreadShareResult> {
+        return AiAgentModel.withTrx(this.database, async (trx) => {
+            const sourceThread = await trx(AiThreadTableName)
+                .select(
+                    'ai_thread_uuid',
+                    'agent_uuid',
+                    'project_uuid',
+                    'organization_uuid',
+                    'created_from',
+                )
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .first();
+
+            if (!sourceThread || !sourceThread.agent_uuid) {
+                throw new NotFoundError(
+                    `Source thread ${sourceThreadUuid} not found`,
+                );
+            }
+
+            if (sourceThread.created_from !== 'web_app') {
+                throw new ParameterError('Only web app threads can be shared');
+            }
+
+            const latestPrompt = await trx(AiPromptTableName)
+                .select('ai_prompt_uuid')
+                .where('ai_thread_uuid', sourceThreadUuid)
+                .orderBy('created_at', 'desc')
+                .first();
+
+            if (!latestPrompt) {
+                throw new ParameterError('Thread has no prompts to share');
+            }
+
+            const [threadShare] = await trx(AiThreadShareTableName)
+                .insert({
+                    nanoid,
+                    ai_thread_uuid: sourceThread.ai_thread_uuid,
+                    agent_uuid: sourceThread.agent_uuid,
+                    project_uuid: sourceThread.project_uuid,
+                    organization_uuid: sourceThread.organization_uuid,
+                    snapshot_prompt_uuid: latestPrompt.ai_prompt_uuid,
+                    created_by_user_uuid: createdByUserUuid,
+                })
+                .returning<DbAiThreadShare[]>([
+                    'ai_thread_share_uuid',
+                    'nanoid',
+                    'ai_thread_uuid',
+                    'agent_uuid',
+                    'project_uuid',
+                    'organization_uuid',
+                    'snapshot_prompt_uuid',
+                    'created_by_user_uuid',
+                    'created_at',
+                    'revoked_at',
+                ]);
+
+            if (!threadShare) {
+                throw new Error('Failed to create thread share');
+            }
+
+            const [user] = await trx('users')
+                .select('user_id')
+                .where('user_uuid', createdByUserUuid);
+            const [organization] = await trx('organizations')
+                .select('organization_id')
+                .where('organization_uuid', sourceThread.organization_uuid);
+
+            await trx('share').insert({
+                nanoid,
+                path: `/projects/${sourceThread.project_uuid}/ai-agents/share/${threadShare.ai_thread_share_uuid}`,
+                params: '',
+                organization_id: organization.organization_id,
+                created_by_user_id: user.user_id,
+            });
+
+            return {
+                uuid: threadShare.ai_thread_share_uuid,
+                nanoid: threadShare.nanoid,
+                threadUuid: threadShare.ai_thread_uuid,
+                agentUuid: threadShare.agent_uuid,
+                projectUuid: threadShare.project_uuid,
+                organizationUuid: threadShare.organization_uuid,
+                snapshotPromptUuid: threadShare.snapshot_prompt_uuid,
+                createdByUserUuid: threadShare.created_by_user_uuid,
+                createdAt: threadShare.created_at,
+                revokedAt: threadShare.revoked_at,
+            };
+        });
+    }
+
+    async getThreadShare(
+        aiThreadShareUuid: string,
+    ): Promise<CreateAiThreadShareResult | undefined> {
+        const row = await this.database(AiThreadShareTableName)
+            .select<DbAiThreadShare[]>(
+                'ai_thread_share_uuid',
+                'nanoid',
+                'ai_thread_uuid',
+                'agent_uuid',
+                'project_uuid',
+                'organization_uuid',
+                'snapshot_prompt_uuid',
+                'created_by_user_uuid',
+                'created_at',
+                'revoked_at',
+            )
+            .where('ai_thread_share_uuid', aiThreadShareUuid)
+            .first();
+
+        if (!row) return undefined;
+
+        return {
+            uuid: row.ai_thread_share_uuid,
+            nanoid: row.nanoid,
+            threadUuid: row.ai_thread_uuid,
+            agentUuid: row.agent_uuid,
+            projectUuid: row.project_uuid,
+            organizationUuid: row.organization_uuid,
+            snapshotPromptUuid: row.snapshot_prompt_uuid,
+            createdByUserUuid: row.created_by_user_uuid,
+            createdAt: row.created_at,
+            revokedAt: row.revoked_at,
+        };
+    }
+
+    async cloneThreadShare({
+        aiThreadShareUuid,
+        projectUuid,
+        targetUserUuid,
+    }: {
+        aiThreadShareUuid: string;
+        projectUuid: string;
+        targetUserUuid: string;
+    }): Promise<string> {
+        return AiAgentModel.withTrx(this.database, async (trx) => {
+            const share = await trx(AiThreadShareTableName)
+                .select<DbAiThreadShare[]>(
+                    'ai_thread_share_uuid',
+                    'nanoid',
+                    'ai_thread_uuid',
+                    'agent_uuid',
+                    'project_uuid',
+                    'organization_uuid',
+                    'snapshot_prompt_uuid',
+                    'created_by_user_uuid',
+                    'created_at',
+                    'revoked_at',
+                )
+                .where('ai_thread_share_uuid', aiThreadShareUuid)
+                .forUpdate()
+                .first();
+
+            if (!share || share.revoked_at) {
+                throw new NotFoundError('Shared thread link does not exist');
+            }
+
+            if (share.project_uuid !== projectUuid) {
+                throw new NotFoundError('Shared thread link does not exist');
+            }
+
+            const existingClone = await trx(AiThreadTableName)
+                .join(
+                    AiWebAppThreadTableName,
+                    `${AiThreadTableName}.ai_thread_uuid`,
+                    `${AiWebAppThreadTableName}.ai_thread_uuid`,
+                )
+                .select(`${AiThreadTableName}.ai_thread_uuid`)
+                .where(
+                    `${AiThreadTableName}.share_source_thread_share_uuid`,
+                    aiThreadShareUuid,
+                )
+                .where(`${AiWebAppThreadTableName}.user_uuid`, targetUserUuid)
+                .first();
+
+            if (existingClone) {
+                return existingClone.ai_thread_uuid;
+            }
+
+            return this.cloneThread({
+                sourceThreadUuid: share.ai_thread_uuid,
+                sourcePromptUuid: share.snapshot_prompt_uuid,
+                targetUserUuid,
+                createdFrom: 'web_app',
+                includeSelectedPromptResponse: true,
+                shareSourceThreadShareUuid: aiThreadShareUuid,
+                copyTitle: true,
+                copyCompactions: true,
+                db: trx,
+            });
+        });
+    }
+
     async cloneThread({
         sourceThreadUuid,
         sourcePromptUuid,
         targetUserUuid,
         createdFrom,
+        includeSelectedPromptResponse = false,
+        shareSourceThreadShareUuid,
+        copyTitle = false,
+        copyCompactions = false,
         db,
     }: {
         sourceThreadUuid: string;
         sourcePromptUuid: string;
         targetUserUuid: string;
         createdFrom?: 'web_app' | 'evals';
+        includeSelectedPromptResponse?: boolean;
+        shareSourceThreadShareUuid?: string;
+        copyTitle?: boolean;
+        copyCompactions?: boolean;
         db?: Knex;
     }): Promise<string> {
         return AiAgentModel.withTrx(db ?? this.database, async (trx) => {
@@ -6621,6 +6956,7 @@ export class AiAgentModel {
                     'agent_uuid',
                     'created_from',
                     'title',
+                    'title_generated_at',
                 )
                 .where('ai_thread_uuid', sourceThreadUuid)
                 .first();
@@ -6643,6 +6979,19 @@ export class AiAgentModel {
                 },
                 { db: trx },
             );
+
+            await trx(AiThreadTableName)
+                .where('ai_thread_uuid', newThreadUuid)
+                .update({
+                    ...(shareSourceThreadShareUuid && {
+                        share_source_thread_share_uuid:
+                            shareSourceThreadShareUuid,
+                    }),
+                    ...(copyTitle && {
+                        title: sourceThread.title,
+                        title_generated_at: sourceThread.title_generated_at,
+                    }),
+                });
 
             // Clone thread artifacts and get mapping
             const artifactMapping = await this.cloneThreadArtifacts({
@@ -6675,21 +7024,35 @@ export class AiAgentModel {
             );
 
             // Clone each prompt sequentially to maintain chronological order
+            const promptMapping = new Map<string, string>();
             // eslint-disable-next-line no-await-in-loop
             for (let i = 0; i < promptsToClone.length; i += 1) {
                 const promptToClone = promptsToClone[i];
                 const isLastPrompt = i === promptsToClone.length - 1;
 
                 // eslint-disable-next-line no-await-in-loop
-                await this.cloneWebAppPrompt({
+                const newPromptUuid = await this.cloneWebAppPrompt({
                     sourcePromptUuid: promptToClone.ai_prompt_uuid,
                     targetThreadUuid: newThreadUuid,
                     targetUserUuid,
                     artifactMapping,
-                    includeAssistantResponse: !isLastPrompt,
+                    includeAssistantResponse:
+                        !isLastPrompt || includeSelectedPromptResponse,
+                    db: trx,
+                });
+                promptMapping.set(promptToClone.ai_prompt_uuid, newPromptUuid);
+            }
+
+            if (copyCompactions) {
+                await this.cloneThreadCompactions({
+                    sourceThreadUuid,
+                    targetThreadUuid: newThreadUuid,
+                    promptMapping,
                     db: trx,
                 });
             }
+
+            // TODO: copy AI reasoning for shared clones when the UI supports it.
 
             return newThreadUuid;
         });

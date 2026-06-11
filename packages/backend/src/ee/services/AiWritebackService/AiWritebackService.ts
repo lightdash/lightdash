@@ -1,53 +1,52 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
-    detectPreviewDeployWorkflow,
     FeatureFlags,
     ForbiddenError,
-    generatePreviewDeployWorkflowFiles,
     getErrorMessage,
-    getPreviewDeploySecrets,
     isUserWithOrg,
     MissingConfigError,
     ParameterError,
+    PullRequestProvider,
     PullRequestSource,
     WarehouseTypes,
     type AiWritebackRunResult,
-    type PreviewDeploySecret,
-    type ProjectCiStatus,
+    type AiWritebackStep,
+    type PullRequestWritebackAction,
     type SessionUser,
-    type WorkflowFile,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { CommandExitError, Sandbox, TimeoutError } from 'e2b';
+import { ALL_TRAFFIC, CommandExitError, Sandbox, TimeoutError } from 'e2b';
 import type {
     AiWritebackFailureStage,
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
+import { getRepoDefaultBranch } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GitlabAppInstallationsModel } from '../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import type { PullRequestsModel } from '../../../models/PullRequestsModel';
+import type PrometheusMetrics from '../../../prometheus/PrometheusMetrics';
 import { BaseService } from '../../../services/BaseService';
-import { VERSION } from '../../../version';
+import type { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import type {
     AiWritebackThreadModel,
     AiWritebackThreadWithPrUrl,
 } from '../../models/AiWritebackThreadModel';
-import type { ProjectCiStatusModel } from '../../models/ProjectCiStatusModel';
 import {
     ALLOWED_TOOLS,
     CLAUDE_MODEL,
+    CLAUDE_SKILLS_DIR,
     COMPILE_STRIPPED_ENV_VARS,
+    COMPILE_TIMINGS_PATH,
     COMPILE_WRAPPER_PATH,
     CWD,
     GATHER_REPO_CONTEXT_SANDBOX_PATH,
     GIT_TIMEOUT_MS,
     PR_DESCRIPTION_PATH,
     PR_TITLE_PATH,
-    PREVIEW_DEPLOY_SETUP_PROMPT,
     PROMPT_PATH,
     REPO_CONTEXT_TIMEOUT_MS,
     RUN_TIMEOUT_MS,
@@ -56,8 +55,10 @@ import {
     SKILLS_DIR,
     STDERR_TAIL_BYTES,
     SYSTEM_PROMPT_PATH,
+    TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
+import { WritebackGitNotConnectedError } from './errors';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
@@ -66,7 +67,6 @@ import { loadWarehouseSkills, warehouseTypeToSkillKey } from './skills';
 import { buildSystemPrompt } from './templates';
 import type {
     AdoptedPullRequest,
-    AgentPhase,
     AiWritebackRunArgs,
     AiWritebackSource,
     AppliedChanges,
@@ -77,12 +77,12 @@ import type {
     WarehouseSkillKey,
 } from './types';
 import {
-    classifyToolPhase,
+    classifyToolStep,
     extractPrMetadata,
-    getPhaseProgressText,
+    formatWritebackStep,
     interpretAgentEvent,
+    parseGithubConnection,
     parsePullNumber,
-    parseTrackedWorkflowPaths,
     progressTextForStage,
     resolvePrMetadataValue,
     resolveSandboxTemplateRef,
@@ -92,16 +92,29 @@ import {
 
 export type { AiWritebackRunArgs, AiWritebackSource } from './types';
 
+// Maps the applied-changes outcome to the PR action surfaced to the user: a
+// fresh PR is 'opened', a resumed thread or adopted pasted-link PR is
+// 'updated', and no PR touched is null.
+const getPrAction = (
+    applied: AppliedChanges,
+): PullRequestWritebackAction | null => {
+    if (!applied.prUrl) {
+        return null;
+    }
+    return applied.prCreated ? 'opened' : 'updated';
+};
+
 type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
     featureFlagModel: FeatureFlagModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    githubAppService: GithubAppService;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
     aiWritebackThreadModel: AiWritebackThreadModel;
     pullRequestsModel: PullRequestsModel;
-    projectCiStatusModel: ProjectCiStatusModel;
+    prometheusMetrics?: PrometheusMetrics;
 };
 
 export class AiWritebackService extends BaseService {
@@ -117,7 +130,7 @@ export class AiWritebackService extends BaseService {
 
     private readonly pullRequestsModel: PullRequestsModel;
 
-    private readonly projectCiStatusModel: ProjectCiStatusModel;
+    private readonly prometheusMetrics?: PrometheusMetrics;
 
     private readonly githubProvider: GithubProvider;
 
@@ -129,10 +142,11 @@ export class AiWritebackService extends BaseService {
         projectModel,
         featureFlagModel,
         githubAppInstallationsModel,
+        githubAppService,
         gitlabAppInstallationsModel,
         aiWritebackThreadModel,
         pullRequestsModel,
-        projectCiStatusModel,
+        prometheusMetrics,
     }: AiWritebackServiceDeps) {
         super({ serviceName: 'AiWritebackService' });
         this.lightdashConfig = lightdashConfig;
@@ -141,9 +155,10 @@ export class AiWritebackService extends BaseService {
         this.featureFlagModel = featureFlagModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.pullRequestsModel = pullRequestsModel;
-        this.projectCiStatusModel = projectCiStatusModel;
+        this.prometheusMetrics = prometheusMetrics;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
+            githubAppService,
             logger: this.logger,
         });
         this.gitlabProvider = new GitlabProvider({
@@ -165,12 +180,98 @@ export class AiWritebackService extends BaseService {
         if (connectionType === DbtProjectType.GITLAB) {
             return this.gitlabProvider;
         }
-        throw new ParameterError(
+        throw new WritebackGitNotConnectedError(
+            null,
             `AI writeback requires a GitHub or GitLab dbt connection, but this project uses "${connectionType}"`,
         );
     }
 
-    private async assertEnabled(user: SessionUser): Promise<void> {
+    /**
+     * Resolve read-only access to the project's dbt repo — owner/repo/default
+     * branch and an installation access token — for the repoShell virtual
+     * filesystem. Reuses the same provider + installation resolution as
+     * writeback but never creates a sandbox or clone. GitHub-only for now;
+     * throws {@link WritebackGitNotConnectedError} for any other connection.
+     */
+    async getRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        owner: string;
+        repo: string;
+        branch: string;
+        token: string;
+        subPath: string;
+    }> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const project = await this.projectModel.get(projectUuid);
+        // Reading repo source requires view:SourceCode (writeback requires the
+        // stricter manage:SourceCode). Gate the read so the repoShell tool can't
+        // expose dbt source to users without source-code access.
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'You do not have permission to view this project source code',
+            );
+        }
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        if (provider.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                provider.provider,
+                'Repository read access is currently only supported for GitHub dbt connections',
+            );
+        }
+        const connection = parseGithubConnection(project.dbtConnection);
+        const installation = await this.githubProvider.resolveInstallation(
+            user.organizationUuid,
+        );
+        if (installation.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITHUB,
+                'GitHub App is not installed for this organization',
+            );
+        }
+        // Read the project's configured dbt branch so repoShell inspects the
+        // same source the Lightdash project compiles from. Only fall back to the
+        // repo's default branch when the project left the branch unset.
+        const branch =
+            connection.branch ||
+            (await getRepoDefaultBranch({
+                owner: connection.owner,
+                repo: connection.repo,
+                installationId: installation.installationId,
+            }));
+        return {
+            owner: connection.owner,
+            repo: connection.repo,
+            branch,
+            token: installation.token,
+            // Scope the read-only VFS to the dbt project subdirectory so it
+            // can't expose secrets/other files elsewhere in the repo. '.' (repo
+            // root) means no scoping.
+            subPath: connection.projectSubPath,
+        };
+    }
+
+    private async assertEnabled(
+        user: SessionUser,
+        source: AiWritebackSource,
+    ): Promise<void> {
+        if (source === 'admin_review') {
+            return;
+        }
         const { enabled } = await this.featureFlagModel.get({
             user,
             featureFlagId: FeatureFlags.AiWriteback,
@@ -218,6 +319,10 @@ export class AiWritebackService extends BaseService {
             timeoutMs: SANDBOX_TIMEOUT_MS,
             apiKey: this.getE2bApiKey(),
             lifecycle: { onTimeout: 'pause' },
+            network: {
+                allowOut: ['api.anthropic.com', 'github.com', 'gitlab.com'],
+                denyOut: [ALL_TRAFFIC],
+            },
         });
         const durationMs = AiWritebackService.elapsed(start);
         this.logger.info('AI writeback sandbox created', {
@@ -227,6 +332,9 @@ export class AiWritebackService extends BaseService {
             template: templateRef,
             durationMs,
         });
+        this.prometheusMetrics?.observeAiWritebackSandboxCreateDuration(
+            durationMs,
+        );
         return { sandbox, durationMs };
     }
 
@@ -272,6 +380,9 @@ export class AiWritebackService extends BaseService {
             projectUuid,
             durationMs,
         });
+        this.prometheusMetrics?.observeAiWritebackSandboxCreateDuration(
+            durationMs,
+        );
         return { sandbox, durationMs };
     }
 
@@ -342,245 +453,6 @@ export class AiWritebackService extends BaseService {
      *   session preserved), run the agent with `--continue`, push to the same
      *   branch (updates the existing PR), pause the sandbox again.
      */
-    /**
-     * Read the recorded CI status for a project (whether its repo has a
-     * Lightdash preview-deploy workflow). Returns null when the project has
-     * never been scanned. Used by the chat UI to decide whether a write-back
-     * PR will get a preview deployment, so it only waits for a preview URL when
-     * one is actually expected.
-     */
-    async getProjectCiStatus(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<ProjectCiStatus | null> {
-        // Authorize against the project's own organization (resource-derived),
-        // not the caller's org.
-        const project = await this.projectModel.get(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('SourceCode', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-        return this.projectCiStatusModel.findByProjectUuid(projectUuid);
-    }
-
-    /**
-     * Return the project's preview-deploy CI status, scanning the connected repo
-     * via the git host API (no sandbox) when it hasn't been determined yet.
-     *
-     * This lets the assistant answer "is preview-deploy CI set up?" by looking
-     * at the git-backed project on demand, rather than only learning the answer
-     * as a side effect of a full writeback run. A project already recorded as
-     * configured is not re-scanned. Best-effort: returns the last known status
-     * (or null) when the host has no preview-deploy support, the GitHub App
-     * isn't installed, or the scan fails.
-     */
-    async getOrScanProjectCiStatus(
-        user: SessionUser,
-        projectUuid: string,
-    ): Promise<ProjectCiStatus | null> {
-        const project = await this.projectModel.get(projectUuid);
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('SourceCode', {
-                    organizationUuid: project.organizationUuid,
-                    projectUuid,
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const existing =
-            await this.projectCiStatusModel.findByProjectUuid(projectUuid);
-        if (existing?.hasPreviewDeployWorkflow) {
-            // Already configured — don't re-scan (matches the sandbox path).
-            return existing;
-        }
-
-        const provider = this.getGitProvider(project.dbtConnection.type);
-        if (!provider.supportsPreviewDeploy) {
-            return existing;
-        }
-
-        try {
-            const connection = provider.resolveConnection(
-                project.dbtConnection,
-            );
-            const installation = await provider.resolveInstallation(
-                project.organizationUuid,
-            );
-            const files = await provider.readPreviewDeployWorkflowFiles(
-                connection,
-                installation,
-            );
-            const detection = detectPreviewDeployWorkflow(files);
-            return await this.projectCiStatusModel.upsert({
-                projectUuid,
-                hasPreviewDeployWorkflow: detection.hasPreviewDeployWorkflow,
-                workflowPath: detection.workflowPath,
-                detectedCommitSha: null,
-            });
-        } catch (error) {
-            this.logger.warn(
-                `AiWriteback: on-demand preview-deploy scan failed — returning last known status: ${getErrorMessage(
-                    error,
-                )}`,
-            );
-            return existing;
-        }
-    }
-
-    /**
-     * Secondary task of the writeback agent: while the repo is cloned in the
-     * sandbox, detect whether it already deploys Lightdash preview projects via
-     * GitHub Actions and persist the result. A project already recorded as set
-     * up is not re-scanned. Best-effort — a failure here never blocks the
-     * writeback run.
-     */
-    private async detectAndRecordPreviewDeploy(
-        sandbox: Sandbox,
-        projectUuid: string,
-    ): Promise<ProjectCiStatus | null> {
-        try {
-            const existing =
-                await this.projectCiStatusModel.findByProjectUuid(projectUuid);
-            if (existing?.hasPreviewDeployWorkflow) {
-                // Already set up — don't re-scan this project.
-                return existing;
-            }
-
-            const { stdout: fileList } = await sandbox.commands.run(
-                `git -C ${CWD} ls-files .github/workflows`,
-            );
-            const paths = parseTrackedWorkflowPaths(fileList);
-
-            const files: WorkflowFile[] = await Promise.all(
-                paths.map(async (path) => ({
-                    path,
-                    content: await sandbox.files.read(`${CWD}/${path}`),
-                })),
-            );
-
-            const detection = detectPreviewDeployWorkflow(files);
-
-            let detectedCommitSha: string | null = null;
-            try {
-                const { stdout } = await sandbox.commands.run(
-                    `git -C ${CWD} rev-parse HEAD`,
-                );
-                detectedCommitSha = stdout.trim() || null;
-            } catch {
-                detectedCommitSha = null;
-            }
-
-            const status = await this.projectCiStatusModel.upsert({
-                projectUuid,
-                hasPreviewDeployWorkflow: detection.hasPreviewDeployWorkflow,
-                workflowPath: detection.workflowPath,
-                detectedCommitSha,
-            });
-
-            this.logger.info('AI writeback preview-deploy detection complete', {
-                event: 'ai_writeback.preview_deploy.detected',
-                projectUuid,
-                hasPreviewDeployWorkflow: status.hasPreviewDeployWorkflow,
-                workflowPath: status.workflowPath,
-            });
-
-            return status;
-        } catch (error) {
-            this.logger.warn(
-                `AiWriteback: preview-deploy detection failed — ignoring: ${getErrorMessage(
-                    error,
-                )}`,
-                {
-                    event: 'ai_writeback.preview_deploy.failed',
-                    projectUuid,
-                },
-            );
-            return null;
-        }
-    }
-
-    /**
-     * Consent action behind the preview-deploy offer: open a dedicated pull
-     * request that adds the Lightdash preview workflow. Runs a second sandbox
-     * via run() with a synthetic prompt — the system prompt already carries the
-     * exact files + secrets because detection finds the workflow missing — so
-     * the workflow files land on their own PR, separate from any semantic-layer
-     * change.
-     *
-     * `aiThreadUuid` enables conversational resume: passing the chat thread's
-     * uuid lets follow-up requests ("also run on workflow_dispatch") update the
-     * SAME pull request instead of opening a new one — same machinery as
-     * proposeWriteback.
-     */
-    async setupPreviewDeploy(args: {
-        user: SessionUser;
-        projectUuid: string;
-        aiThreadUuid?: string;
-        onProgress?: (message: string) => void;
-    }): Promise<AiWritebackRunResult & { secrets: PreviewDeploySecret[] }> {
-        const { user, projectUuid, aiThreadUuid, onProgress } = args;
-        // Explicit permission gate at this service entry point (it's reachable
-        // directly as an agent tool). Mirrors the writeback manage:SourceCode
-        // check; run()/prepareTurn re-checks before any side effect.
-        const project = await this.projectModel.get(projectUuid);
-        const canWriteback = this.createAuditedAbility(user).can(
-            'manage',
-            subject('SourceCode', {
-                organizationUuid: project.organizationUuid,
-                projectUuid,
-                isProtectedBranch: false,
-            }),
-        );
-        if (!canWriteback) {
-            throw new ForbiddenError();
-        }
-
-        // This tool auto-generates a Lightdash preview-deploy *GitHub Actions*
-        // workflow, which today only supports GitHub-backed projects
-        // (provider.supportsPreviewDeploy). Preview deploys themselves can be
-        // wired up on any CI by hand — we just can't generate that for
-        // non-GitHub hosts yet. The agent isn't prompted to offer setup for
-        // other hosts (detection is gated on supportsPreviewDeploy), but the
-        // tool can still be reached by a direct ask — guard it explicitly.
-        const provider = this.getGitProvider(project.dbtConnection.type);
-        if (!provider.supportsPreviewDeploy) {
-            throw new ParameterError(
-                `Automated preview-deploy setup currently supports GitHub Actions only, so it can't run for this project's "${project.dbtConnection.type}" connection. Preview deploys can still be set up manually via your own CI.`,
-            );
-        }
-
-        const result = await this.run({
-            user,
-            projectUuid,
-            prompt: PREVIEW_DEPLOY_SETUP_PROMPT,
-            source: 'preview_deploy_setup',
-            aiThreadUuid,
-            onProgress,
-        });
-        // Pre-fill the secrets we know server-side (instance URL + project UUID)
-        // so the caller can surface concrete values, not generic descriptions.
-        return {
-            ...result,
-            secrets: getPreviewDeploySecrets({
-                projectUuid: args.projectUuid,
-                siteUrl: this.lightdashConfig.siteUrl,
-            }),
-        };
-    }
-
     async run(args: AiWritebackRunArgs): Promise<AiWritebackRunResult> {
         const {
             user,
@@ -593,6 +465,10 @@ export class AiWritebackService extends BaseService {
         } = args;
         const runStartedAt = performance.now();
 
+        // Ordered, structured log of every step (stages + per-file actions),
+        // persisted as the writeback step rows so the post-reload view matches
+        // what was shown live. Consecutive duplicates are suppressed.
+        const stepLog: AiWritebackStep[] = [];
         // Wrap the optional onProgress in a try/catch so a misbehaving caller
         // (e.g. a Slack `chat.update` 429 that wasn't caught upstream) can
         // never take down the writeback run itself. Progress is best-effort.
@@ -606,11 +482,21 @@ export class AiWritebackService extends BaseService {
                 );
             }
         };
+        // Record one structured step: dedup against the previous, persist it,
+        // and stream its one-line form for live progress (Slack/web).
+        const recordStep = (step: AiWritebackStep): void => {
+            const text = formatWritebackStep(step);
+            const last = stepLog[stepLog.length - 1];
+            if (last && formatWritebackStep(last) === text) return;
+            stepLog.push(step);
+            reportProgress(text);
+        };
 
         const turn = await this.prepareTurn({
             user,
             projectUuid,
             aiThreadUuid,
+            source,
         });
 
         this.logger.info('AI writeback run started', {
@@ -640,14 +526,18 @@ export class AiWritebackService extends BaseService {
                 nextStage: stage,
                 durationMs: now - stageStartedAt,
             });
+            this.prometheusMetrics?.observeAiWritebackStageDuration(
+                failureStage,
+                now - stageStartedAt,
+            );
             failureStage = stage;
             stageStartedAt = now;
             // Stages can opt out of progress reporting by returning null
             // from progressTextForStage when their label would duplicate
             // the parent tool's heading or otherwise add no signal.
-            const progressText = progressTextForStage(stage, source);
+            const progressText = progressTextForStage(stage);
             if (progressText !== null) {
-                reportProgress(progressText);
+                recordStep({ kind: 'stage', label: progressText });
             }
         };
 
@@ -660,6 +550,7 @@ export class AiWritebackService extends BaseService {
         try {
             const installation = await turn.provider.resolveInstallation(
                 turn.organizationUuid,
+                { user, connection: turn.gitConnection },
             );
 
             const adoptedPr =
@@ -682,50 +573,16 @@ export class AiWritebackService extends BaseService {
                 setStage,
             });
 
-            // Secondary task: detect & record whether the repo already deploys
-            // preview projects via GitHub Actions. Best-effort, never blocks.
-            // Gated by its own ai-preview-deploy-setup flag (independent of the
-            // ai-writeback flag that gates the run itself).
-            const { enabled: previewDeploySetupEnabled } =
-                await this.featureFlagModel.get({
-                    user,
-                    featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                });
-            // Only detect on a fresh clone. A resumed sandbox's working tree
-            // carries the agent's prior-turn edits (e.g. workflow files it just
-            // wrote), so detecting there is a false positive — detection must
-            // reflect the cloned default-branch state, not in-progress changes.
-            const previewDeployStatus =
-                previewDeploySetupEnabled &&
-                !turn.isResume &&
-                turn.provider.supportsPreviewDeploy
-                    ? await this.detectAndRecordPreviewDeploy(
-                          sandbox,
-                          projectUuid,
-                      )
-                    : null;
-            // When it's not set up, hand the agent the exact files + secrets so
-            // it can offer to open a PR adding the preview workflow.
-            const previewDeployGuidance =
-                previewDeployStatus &&
-                !previewDeployStatus.hasPreviewDeployWorkflow
-                    ? {
-                          workflowFiles: generatePreviewDeployWorkflowFiles({
-                              projectSubPath: turn.gitConnection.projectSubPath,
-                              // Pin the CLI to this instance's own version —
-                              // Lightdash packages release in lockstep, so it's
-                              // the matching, self-updating @lightdash/cli pin.
-                              cliVersion: VERSION,
-                          }),
-                          secrets: getPreviewDeploySecrets({
-                              projectUuid,
-                              siteUrl: this.lightdashConfig.siteUrl,
-                          }),
-                      }
-                    : null;
-
             setStage('agent');
             const repoContext = await this.gatherRepoContext(
+                sandbox,
+                turn.gitConnection.projectSubPath,
+            );
+            // Stage a credential-free profiles copy host-side so the agent
+            // doesn't burn turns discovering profiles.yml and hand-stripping
+            // Jinja (mkdir + cp + edit). Deterministic string work — no reason
+            // to spend LLM round-trips on it.
+            const profilesStaged = await this.prepareProfiles(
                 sandbox,
                 turn.gitConnection.projectSubPath,
             );
@@ -738,7 +595,7 @@ export class AiWritebackService extends BaseService {
                     repoContext,
                     warehouseType: turn.warehouseType,
                     hasWarehouseSkill: skillKey !== null,
-                    previewDeploy: previewDeployGuidance,
+                    profilesStaged,
                 },
             );
             const agent = await this.runAgentInSandbox({
@@ -747,7 +604,7 @@ export class AiWritebackService extends BaseService {
                 prompt,
                 isResume: turn.isResume,
                 source,
-                reportProgress,
+                recordStep,
                 skillKey,
                 warehouseType: turn.warehouseType,
             });
@@ -791,14 +648,18 @@ export class AiWritebackService extends BaseService {
                     hasChanges,
                     prCreated: false,
                 });
+                const crashPrUrl =
+                    turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null;
                 return {
                     output: sanitizedStdout,
                     exitCode: agent.exitCode,
-                    prUrl: turn.existingRow?.pr_url ?? adoptedPr?.prUrl ?? null,
+                    prUrl: crashPrUrl,
+                    // The agent crashed before pushing changes, so any PR here
+                    // is a pre-existing one — never newly opened.
+                    prAction: crashPrUrl ? 'updated' : null,
                     projectName: turn.projectName,
                     repository,
-                    previewDeployConfigured:
-                        previewDeployStatus?.hasPreviewDeployWorkflow ?? null,
+                    steps: stepLog,
                 };
             }
 
@@ -837,15 +698,19 @@ export class AiWritebackService extends BaseService {
                 warehouseType: turn.warehouseType,
                 totalDurationMs: Math.round(performance.now() - runStartedAt),
             });
+            this.prometheusMetrics?.observeAiWritebackRunDuration(
+                performance.now() - runStartedAt,
+                'success',
+            );
 
             return {
                 output: sanitizedStdout,
                 exitCode: agent.exitCode,
                 prUrl: applied.prUrl,
+                prAction: getPrAction(applied),
                 projectName: turn.projectName,
                 repository,
-                previewDeployConfigured:
-                    previewDeployStatus?.hasPreviewDeployWorkflow ?? null,
+                steps: stepLog,
             };
         } catch (error) {
             this.logger.error('AI writeback run failed', {
@@ -859,6 +724,10 @@ export class AiWritebackService extends BaseService {
                 warehouseType: turn.warehouseType,
                 totalDurationMs: Math.round(performance.now() - runStartedAt),
             });
+            this.prometheusMetrics?.observeAiWritebackRunDuration(
+                performance.now() - runStartedAt,
+                'error',
+            );
             Sentry.captureException(error, {
                 tags: {
                     errorType: 'AiWritebackRunFailed',
@@ -880,19 +749,22 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Pre-flight: enforce the feature flag, the `manage:SourceCode` permission,
-     * and resolve everything from the request that doesn't require a sandbox.
+     * Pre-flight: enforce source-specific rollout gates, the
+     * `manage:SourceCode` permission, and resolve everything from the request
+     * that doesn't require a sandbox.
      */
     private async prepareTurn({
         user,
         projectUuid,
         aiThreadUuid,
+        source,
     }: {
         user: SessionUser;
         projectUuid: string;
         aiThreadUuid: string | undefined;
+        source: AiWritebackSource;
     }): Promise<TurnContext> {
-        await this.assertEnabled(user);
+        await this.assertEnabled(user, source);
 
         const project = await this.projectModel.get(projectUuid);
         // Writeback opens a PR from a freshly created feature branch
@@ -1067,6 +939,68 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
+     * Stage a warehouse-credential-free `profiles.yml` copy at
+     * {@link TMP_PROFILES_DIR} so the in-sandbox agent can compile without
+     * discovering the profiles file, copying it, and hand-stripping Jinja —
+     * deterministic plumbing that otherwise costs several LLM turns. Strips
+     * every `{{ … }}` expression (env_var lookups, filters) to a literal so dbt
+     * parses without any environment variables. Returns true when staged;
+     * false (best-effort) leaves the agent's prompt fallback in place.
+     */
+    private async prepareProfiles(
+        sandbox: Sandbox,
+        projectSubPath: string,
+    ): Promise<boolean> {
+        const start = performance.now();
+        try {
+            const base =
+                projectSubPath === '.' ? CWD : `${CWD}/${projectSubPath}`;
+            const found = await sandbox.commands.run(
+                `find ${base} -maxdepth 2 -name profiles.yml 2>/dev/null | head -1`,
+                { cwd: CWD },
+            );
+            const profilesPath = found.stdout.trim();
+            if (!profilesPath) {
+                this.logger.info(
+                    'AI writeback prepareProfiles: no profiles.yml found — agent will prepare it',
+                    { event: 'ai_writeback.profiles.skipped', projectSubPath },
+                );
+                return false;
+            }
+            const raw = await sandbox.files.read(profilesPath);
+            // Replace each Jinja expression with a literal so the copy needs no
+            // env vars. Existing surrounding quotes (`"{{ … }}"`) wrap the
+            // placeholder; bare expressions become a plain scalar.
+            const patched = raw.replace(/\{\{.*?\}\}/g, 'placeholder');
+            await sandbox.commands.run(`mkdir -p ${TMP_PROFILES_DIR}`, {
+                cwd: CWD,
+            });
+            await sandbox.files.write(
+                `${TMP_PROFILES_DIR}/profiles.yml`,
+                patched,
+            );
+            this.logger.info(
+                `AI writeback profiles staged (${AiWritebackService.elapsed(
+                    start,
+                )}ms, from ${profilesPath})`,
+                {
+                    event: 'ai_writeback.profiles.staged',
+                    sandboxId: sandbox.sandboxId,
+                },
+            );
+            return true;
+        } catch (error) {
+            this.logger.warn(
+                `AI writeback prepareProfiles failed — agent will prepare it: ${getErrorMessage(
+                    error,
+                )}`,
+                { event: 'ai_writeback.profiles.failed' },
+            );
+            return false;
+        }
+    }
+
+    /**
      * Pre-compute a dbt project snapshot (project file, file tree, models/
      * YAML) so the agent doesn't burn turns rediscovering them. Returns null
      * on any failure — the run continues without the context block.
@@ -1123,7 +1057,7 @@ export class AiWritebackService extends BaseService {
         prompt,
         isResume,
         source,
-        reportProgress,
+        recordStep,
         skillKey,
         warehouseType,
     }: {
@@ -1132,7 +1066,7 @@ export class AiWritebackService extends BaseService {
         prompt: string;
         isResume: boolean;
         source: AiWritebackSource;
-        reportProgress: (message: string) => void;
+        recordStep: (step: AiWritebackStep) => void;
         skillKey: WarehouseSkillKey | null;
         warehouseType: WarehouseTypes | null;
     }): Promise<{ stdout: string; exitCode: number }> {
@@ -1148,11 +1082,23 @@ export class AiWritebackService extends BaseService {
         const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
             (name) => `-u ${name}`,
         ).join(' ');
+        // Time each compile and append `<elapsedMs> <exitCode>` to a log we read
+        // after the run. We drop `exec` (one extra shell frame) so the timing
+        // can be recorded after the child returns; secrets are still stripped via
+        // `env -u` for the compile child, so the security property is unchanged.
         await sandbox.files.write(
             COMPILE_WRAPPER_PATH,
-            `#!/usr/bin/env bash\nexec env ${unsetFlags} lightdash compile "$@"\n`,
+            `#!/usr/bin/env bash\n` +
+                `__ld_start=$(date +%s%3N)\n` +
+                `env ${unsetFlags} lightdash compile "$@"\n` +
+                `__ld_code=$?\n` +
+                `echo "$(( $(date +%s%3N) - __ld_start )) $__ld_code" >> ${COMPILE_TIMINGS_PATH}\n` +
+                `exit $__ld_code\n`,
         );
         await sandbox.commands.run(`chmod +x ${COMPILE_WRAPPER_PATH}`);
+        // Reset the timings log each turn — the sandbox filesystem persists across
+        // pause/resume, so a resumed turn would otherwise double-count prior runs.
+        await sandbox.files.write(COMPILE_TIMINGS_PATH, '');
 
         // Push the warehouse skill files alongside the prompts. `shared.md`
         // always; the dialect file only when one exists for this warehouse.
@@ -1169,8 +1115,6 @@ export class AiWritebackService extends BaseService {
         let buffer = '';
         let assistantText = '';
         const toolCounts: Record<string, number> = {};
-        const phaseProgressText = getPhaseProgressText(source);
-        const seenPhases = new Set<AgentPhase>();
 
         let stderrTail = '';
         const appendStderrTail = (chunk: string) => {
@@ -1180,14 +1124,37 @@ export class AiWritebackService extends BaseService {
         const handleEvent = (event: unknown): void => {
             const interpreted = interpretAgentEvent(event);
             if (interpreted.type === 'result') {
-                this.logger.info('AI writeback agent run summary', {
-                    event: 'ai_writeback.run.summary',
-                    source,
-                    sandboxId: sandbox.sandboxId,
-                    costUsd: interpreted.costUsd,
-                    warehouseType,
-                    toolCounts,
-                });
+                // `durationMs` is the agent's total wall-clock; `durationApiMs`
+                // is the LLM-call portion, so `durationMs - durationApiMs`
+                // approximates time spent in local tool execution (edits, git,
+                // and `lightdash compile`). A large gap points at compile/IO
+                // rather than model latency.
+                const localToolMs =
+                    interpreted.durationMs !== null &&
+                    interpreted.durationApiMs !== null
+                        ? interpreted.durationMs - interpreted.durationApiMs
+                        : null;
+                this.logger.info(
+                    `AI writeback agent run summary (wall=${
+                        interpreted.durationMs ?? '?'
+                    }ms, api=${interpreted.durationApiMs ?? '?'}ms, local=${
+                        localToolMs ?? '?'
+                    }ms, turns=${interpreted.numTurns ?? '?'}, cost=$${
+                        interpreted.costUsd ?? '?'
+                    }, tools=${JSON.stringify(toolCounts)})`,
+                    {
+                        event: 'ai_writeback.run.summary',
+                        source,
+                        sandboxId: sandbox.sandboxId,
+                        costUsd: interpreted.costUsd,
+                        durationMs: interpreted.durationMs,
+                        durationApiMs: interpreted.durationApiMs,
+                        localToolMs,
+                        numTurns: interpreted.numTurns,
+                        warehouseType,
+                        toolCounts,
+                    },
+                );
                 return;
             }
             if (interpreted.type === 'ignored') return;
@@ -1201,10 +1168,12 @@ export class AiWritebackService extends BaseService {
                     toolName: toolCall.name,
                     summary: summarizeToolInput(toolCall.input),
                 });
-                const phase = classifyToolPhase(toolCall);
-                if (phase && !seenPhases.has(phase)) {
-                    seenPhases.add(phase);
-                    reportProgress(phaseProgressText[phase]);
+                // Surface the actual file the agent is touching ("Editing
+                // fm_parts.yml", "Reading orders.yml") rather than a generic
+                // phase, deduped so a repeated step doesn't spam the UI.
+                const step = classifyToolStep(toolCall);
+                if (step) {
+                    recordStep(step);
                 }
             }
             if (interpreted.text !== null) assistantText = interpreted.text;
@@ -1243,7 +1212,9 @@ export class AiWritebackService extends BaseService {
                     // back to the repo root) unless /tmp is an added directory.
                     // The skills dir is outside the repo too, so it likewise needs
                     // to be added or the agent's Read of warehouse.md is refused.
-                    `--add-dir /tmp --add-dir ${SKILLS_DIR} ` +
+                    // CLAUDE_SKILLS_DIR holds the installed Agent Skills, added for
+                    // the same reason — the agent reads their resource files from there.
+                    `--add-dir /tmp --add-dir ${SKILLS_DIR} --add-dir ${CLAUDE_SKILLS_DIR} ` +
                     `--allowedTools "${ALLOWED_TOOLS}"`,
                 {
                     cwd: CWD,
@@ -1326,6 +1297,62 @@ export class AiWritebackService extends BaseService {
             exitCode: result.exitCode,
             isResume,
         });
+
+        // Report how much of the agent stage went to `lightdash compile` (each
+        // invocation timed by the wrapper) — the prime suspect for writeback
+        // latency. Best-effort: never fail the run over a missing timings file.
+        try {
+            const timings = await sandbox.commands.run(
+                `cat ${COMPILE_TIMINGS_PATH} 2>/dev/null || true`,
+                { cwd: CWD },
+            );
+            const runs = timings.stdout
+                .split('\n')
+                .map((line) => line.trim())
+                .filter((line) => line.length > 0)
+                .map((line) => {
+                    const [ms, code] = line.split(/\s+/);
+                    return { ms: Number(ms), exitCode: Number(code) };
+                })
+                .filter((run) => Number.isFinite(run.ms));
+            if (runs.length > 0) {
+                const compileTotalMs = runs.reduce(
+                    (sum, run) => sum + run.ms,
+                    0,
+                );
+                const compileFailures = runs.filter(
+                    (run) => run.exitCode !== 0,
+                ).length;
+                this.logger.info(
+                    `AI writeback compile timings (count=${
+                        runs.length
+                    }, total=${compileTotalMs}ms, runs=[${runs
+                        .map((run) => run.ms)
+                        .join(',')}]ms, failures=${compileFailures})`,
+                    {
+                        event: 'ai_writeback.run.compile',
+                        sandboxId: sandbox.sandboxId,
+                        compileCount: runs.length,
+                        compileTotalMs,
+                        compileMs: runs.map((run) => run.ms),
+                        compileFailures,
+                    },
+                );
+                runs.forEach((run) => {
+                    this.prometheusMetrics?.observeAiWritebackCompileDuration(
+                        run.ms,
+                        run.exitCode === 0 ? 'success' : 'error',
+                    );
+                });
+            }
+        } catch (error) {
+            this.logger.debug(
+                `AiWriteback: failed to read compile timings: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+
         return { stdout: assistantText, exitCode: result.exitCode };
     }
 

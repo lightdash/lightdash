@@ -110,7 +110,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 **Admin opt-in**: yes — `EnableUserTimezones` defaults off and can be toggled per-org via `feature_flag_overrides`.
 
-**Sharp footgun**: turning the flag off does NOT clear stored `users.timezone` values, and `resolveQueryTimezone` honors them regardless of the flag (only the picker UI is gated). Flagged in [`timezone-review.md` Concern 1](./timezone-review.md#concern-1--feature-flag-entanglement-is-wide-and-underspecified). Fix it before any customer hits "I disabled the feature but it still applies."
+**Flag-off behavior**: turning the flag off does NOT clear stored `users.timezone` values, but they are no longer applied — `getAccountUserTimezone(account, isUserTimezoneEnabled)` returns `null` when `EnableUserTimezones` is off, so resolution falls back to the project timezone for every user. The stored preference is preserved (non-destructive) and re-applies when the flag is turned back on.
 
 ### Scheduled deliveries & embeds — which TZ wins?
 
@@ -306,14 +306,14 @@ The internal doc does not mention DST. Flagged in [`timezone-review.md` section 
 
 ### Half-hour / 45-minute timezones (India, Nepal, Australia)?
 
-**Should work, but untested.** Our code path is dayjs/moment-tz on the Node side and warehouse-native on the SQL side. Both libraries handle half-hour zones natively (`Asia/Kolkata` is +05:30, `Asia/Kathmandu` is +05:45, `Australia/Eucla` is +08:45).
+**Verified working (GLITCH-453).** Our code path is dayjs/moment-tz on the Node side and warehouse-native on the SQL side. Both libraries handle half-hour zones natively (`Asia/Kolkata` is +05:30, `Asia/Kathmandu` is +05:45, `Australia/Eucla` is +08:45).
 
 **Risk surfaces:**
 - The ECharts shift math (`getTimezoneOffsetMs(rawMs, timezone)` → millisecond addition) — should be fine because dayjs returns minute-level offsets in milliseconds. Worth a smoke test.
 - Excel serialization (`toExcelWallClockDate`) — works on the wall-clock components, so half-hour offsets land correctly.
-- Filter literal formatting — `+05:30` suffix is valid in standard SQL TIMESTAMP literals on Postgres, Snowflake, Redshift, Databricks. **BigQuery's bare-literal path (no offset, `timezone-handling.md:208`) drops the offset entirely** — for a project in `Asia/Kolkata` with a BigQuery DATETIME filter, the boundary literal will be the local wall-clock time interpreted as session-TZ, which may or may not be IST depending on warehouse configuration.
+- Filter literal formatting — `+05:30` suffix is valid in standard SQL TIMESTAMP literals on Postgres, Snowflake, Redshift, Databricks. On BigQuery/ClickHouse the literal is bare (no offset, `timezone-handling.md:208`), but `formatTimestampAsUTCNoOffset` has already converted it to the UTC instant, so the offset is baked in, not dropped — the fractional boundary is correct. (The separate DATETIME/NTZ no-session-TZ limitation applies to non-UTC *stored* data, not to filter boundaries.)
 
-**Recommendation**: add `Asia/Kolkata` to whatever timezone test matrix exists, if any.
+**Coverage**: `Asia/Kathmandu` (+05:45) and `Pacific/Marquesas` (-09:30) sub-day buckets are asserted in `packages/api-tests/tests/queryTimezone.test.ts` on both Postgres and BigQuery.
 
 ### Historical TZ changes (Samoa 2011, Russia bunch)?
 
@@ -359,6 +359,19 @@ The only place this could go wrong is if we ever emitted `IS NULL OR (col >= bou
 
 The one gap: the resolved `queryTimezone` value itself isn't shown next to the SQL — you can infer it from the literals, but a "resolved TZ: America/New_York" label above the SQL panel would close the loop.
 
+**The output is raw by design — we don't auto-convert it.** SQL Runner results bypass `formatRows`, so timestamps render as raw UTC ISO 8601 (`2026-01-15T09:30:00.000Z`) regardless of project timezone. This is intentional: custom SQL can return any shape, so Lightdash will *not* apply the project timezone to SQL Runner / SQL-chart output. The supported path for users who want conversion is the `${ldQueryTimezone}` template variable ([GLITCH-462](https://linear.app/lightdash/issue/GLITCH-462), v3) — they write the conversion in their own SQL without hardcoding a zone; [GLITCH-466](https://linear.app/lightdash/issue/GLITCH-466) additionally labels the resolved TZ next to the compiled SQL.
+
+The residual friction: SQL Runner serializes every timestamp via a JS `Date` → ISO 8601 `Z` string, regardless of the value's real zone, so it both ignores the data/session TZ and misrepresents the value. Verified on Postgres with the warehouse session at Pacific/Pago_Pago (UTC−11):
+
+| Expression | SQL Runner shows | Warehouse `::text` / `to_char` |
+| ---------- | ---------------- | ------------------------------ |
+| `'2026-06-09 12:00:00+00'::timestamptz` | `2026-06-09T12:00:00.000Z` | `2026-06-09 01:00:00-11` |
+| `... AT TIME ZONE 'America/New_York'` | `2026-06-09T08:00:00.000Z` | `2026-06-09 08:00:00` |
+
+The first row shows a TZ-aware value collapsed to the UTC instant with the offset dropped; the second shows a naive (converted) wall-clock stamped with a false `Z`. Either way the rendering misrepresents the value, and casting to text is the only faithful workaround.
+
+Verified on Snowflake too: `CONVERT_TIMEZONE('America/New_York', '2026-06-09 12:00:00 +00:00'::timestamp_tz)` returns a `TIMESTAMP_TZ` of `08:00:00 -04:00`, but SQL Runner displays `2026-06-09T12:00:00.000Z` — *identical* to the unconverted value, so the 2-arg conversion looks completely inert; `TO_CHAR(...)` confirms the real `2026-06-09 08:00:00 -04:00`. (Note Snowflake `TIMESTAMP_TZ` keeps the literal's own offset rather than the session zone, so on Snowflake the drop shows up as this converted-looks-inert case rather than as a session-offset divergence.) Making SQL Runner render timestamps faithfully is tracked as [GLITCH-489](https://linear.app/lightdash/issue/GLITCH-489) (v3), separate from GLITCH-462.
+
 ---
 
 ## The meta question
@@ -386,13 +399,13 @@ So the architectural intent is "support both, default to consistent." **This is 
 | Issue | Severity | Effort | Location |
 |---|---|---|---|
 | ECharts DST shift bug | Correctness | 1d test + 2d fix | `packages/frontend/src/hooks/echarts/timezoneShift.ts` |
-| `EnableUserTimezones=off` doesn't gate stored profile TZs | Correctness | 1d | `resolveQueryTimezone.ts` |
+| ~~`EnableUserTimezones=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
 | Scheduled deliveries TZ interaction undocumented | Docs | 0.5d | `timezone-handling.md` |
 | Per-column wall-clock TZ annotation | Feature | 2d | `translator.ts` + `getColumnTimezone` |
-| BigQuery half-hour offset bare-literal hole | Correctness | 1d | `filtersCompiler.ts` |
+| ~~BigQuery half-hour offset bare-literal hole~~ ✅ not a bug (literal is a pre-converted UTC instant) | Correctness | 1d | `filtersCompiler.ts` |
 | Pre-agg TZ-frozen-after-project-TZ-change behavior | Correctness | 1d test | materialization path |
 | `${ldQueryTimezone}` SQL templating | Feature | 1w | `MetricQueryBuilder.ts` |
 | Customer-facing "how Lightdash handles TZ" doc | Docs | 2d | new file in docs site |
-| Timestamp leak in SQL Runner output | Polish | indef | warehouse `getSqlForTruncatedDate` |
-| Half-hour TZ test coverage | Testing | 0.5d | test matrix |
+| SQL Runner output is raw UTC ISO by design; conversion is user-driven via `${ldQueryTimezone}`. In-SQL `CONVERT_TIMEZONE` only shows once cast to string | Feature | v3 | GLITCH-462 (`${ldQueryTimezone}` var) |
+| ~~Half-hour TZ test coverage~~ ✅ added (Postgres + BigQuery) | Testing | 0.5d | `queryTimezone.test.ts` |
 | moment-timezone version pinning policy | Hygiene | 0.5d | `package.json` |

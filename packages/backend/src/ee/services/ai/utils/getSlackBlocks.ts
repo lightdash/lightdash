@@ -5,8 +5,8 @@ import {
     AiArtifact,
     FollowUpTools,
     followUpToolsText,
+    isToolEditDbtProjectResult,
     isToolProposeChangeResult,
-    isToolProposeWritebackResult,
     parseVizConfig,
     SlackPrompt,
     type Explore,
@@ -241,7 +241,7 @@ const ANSWER_PRODUCING_TOOLS = new Set([
     'runSql',
     'runSavedChart',
     'generateDashboard',
-    'proposeWriteback',
+    'editDbtProject',
 ]);
 
 // One compact footer: small "How did I do?" header + a single row with
@@ -470,7 +470,7 @@ export function getProposeChangeBlocks(
     ];
 }
 
-export function getProposeWritebackBlocks(
+export function getEditDbtProjectBlocks(
     toolResults?: AiAgentToolResult[],
 ): (Block | KnownBlock)[] {
     if (!toolResults || toolResults.length === 0) {
@@ -478,7 +478,7 @@ export function getProposeWritebackBlocks(
     }
 
     const prUrls = toolResults
-        .filter(isToolProposeWritebackResult)
+        .filter(isToolEditDbtProjectResult)
         .map((result) =>
             result.metadata.status === 'success' ? result.metadata.prUrl : null,
         )
@@ -504,33 +504,6 @@ export function getProposeWritebackBlocks(
                     text: 'View pull request',
                 },
             })),
-        },
-    ];
-}
-
-/**
- * Block for the threaded "preview ready" follow-up posted once a write-back
- * PR's preview environment has been published (the URL is discovered async from
- * the PR comments by a background poll).
- */
-export function getWritebackPreviewReplyBlocks(
-    previewUrl: string,
-): (Block | KnownBlock)[] {
-    return [
-        {
-            type: 'actions',
-            elements: [
-                {
-                    type: 'button',
-                    url: previewUrl,
-                    style: 'primary',
-                    action_id: 'actions.view_preview_button_click',
-                    text: {
-                        type: 'plain_text',
-                        text: 'View preview',
-                    },
-                },
-            ],
         },
     ];
 }

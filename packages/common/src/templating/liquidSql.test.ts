@@ -243,6 +243,20 @@ describe('renderLiquidSql', () => {
         );
     });
 
+    it('should escape Liquid-rendered string parameters when an escape function is provided', () => {
+        const sql =
+            '{% if ld.parameters.inj %}{{ ld.parameters.inj }}{% endif %}';
+
+        expect(
+            renderLiquidSql(
+                sql,
+                { inj: "coupon') OR TRUE --" },
+                undefined,
+                (value) => value.replaceAll("'", "''"),
+            ).trim(),
+        ).toBe("coupon'') OR TRUE --");
+    });
+
     it('should handle SQL with mixed content around Liquid blocks', () => {
         const sql =
             'SELECT {% if ld.parameters.grain == "day" %}"events".date{% else %}"events".week{% endif %} AS dynamic_col FROM events';

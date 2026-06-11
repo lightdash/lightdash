@@ -3,6 +3,7 @@ import {
     applyProjectContextWriteback,
     loadProjectContextFile,
     mergeProjectContextEntry,
+    PROJECT_CONTEXT_FILE_HEADER,
     serializeProjectContextFile,
     type ProjectContextEntry,
 } from './projectContext';
@@ -257,6 +258,21 @@ describe('serializeProjectContextFile', () => {
         );
     });
 
+    test('prepends a self-documenting header, ignored by the parser', () => {
+        const output = serializeProjectContextFile([
+            entry({ id: 'hr', kind: 'definition', content: 'x' }),
+        ]);
+        expect(output.startsWith(PROJECT_CONTEXT_FILE_HEADER)).toBe(true);
+        // the header is a comment, so loading round-trips to just the entry
+        expect(loadProjectContextFile(output)).toEqual([
+            entry({ id: 'hr', kind: 'definition', content: 'x' }),
+        ]);
+    });
+
+    test('omits the header when there are no entries', () => {
+        expect(serializeProjectContextFile([])).toBe('');
+    });
+
     test('serializes to a versioned { version, entries } document', () => {
         const output = serializeProjectContextFile([
             entry({ id: 'hr', kind: 'definition', content: 'x' }),
@@ -310,6 +326,7 @@ describe('applyProjectContextWriteback', () => {
         expect(op).toBe('create');
         expect(entryId).toBe('mrr');
         expect(content).toContain('version: 1');
+        expect(content.startsWith(PROJECT_CONTEXT_FILE_HEADER)).toBe(true);
         expect(loadProjectContextFile(content)).toEqual([
             {
                 id: 'mrr',
@@ -319,6 +336,29 @@ describe('applyProjectContextWriteback', () => {
                 objects: [],
             },
         ]);
+    });
+
+    test('keeps the header when a later writeback edits the generated file', () => {
+        const firstWrite = applyProjectContextWriteback('', {
+            op: 'create',
+            id: null,
+            kind: 'definition',
+            content: 'MRR means monthly recurring revenue.',
+            terms: ['MRR'],
+            objects: [],
+        });
+        const secondWrite = applyProjectContextWriteback(firstWrite.content, {
+            op: 'create',
+            id: null,
+            kind: 'definition',
+            content: 'ARR means annual recurring revenue.',
+            terms: ['ARR'],
+            objects: [],
+        });
+        expect(secondWrite.content).toContain(
+            'What your AI agents read before they answer.',
+        );
+        expect(loadProjectContextFile(secondWrite.content)).toHaveLength(2);
     });
 
     test('appends a new entry, preserving existing comments and entries verbatim', () => {
@@ -340,13 +380,12 @@ entries:
             objects: [],
         });
         expect(op).toBe('create');
-        // The human comment, the original quoting and the entry content all
-        // survive — this is the whole point: a minimal, reviewable diff rather
-        // than a full-file rewrite. (Flow seqs are re-spaced, e.g. [HR] →
-        // [ HR ], which is the one cosmetic cost vs js-yaml nuking everything.)
+        // The human comment, the original quoting, the flow style and the entry
+        // content all survive byte-for-byte — this is the whole point: a minimal,
+        // reviewable diff (just the added entry) rather than a full-file rewrite.
         expect(content).toContain('# Curated by the data team');
         expect(content).toContain(`content: '"HR" = high-risk cohort.'`);
-        expect(content).toContain('id: hr');
+        expect(content).toContain('terms: [HR]');
         expect(content).toContain('id: mrr');
         expect(loadProjectContextFile(content)).toHaveLength(2);
     });

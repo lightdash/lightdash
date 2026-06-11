@@ -6,7 +6,10 @@ import {
 } from '@lightdash/common';
 import { Button, Text } from '@mantine-8/core';
 import { useDisclosure } from '@mantine-8/hooks';
-import { captureException } from '@sentry/react';
+import {
+    ErrorBoundary as SentryErrorBoundary,
+    captureException,
+} from '@sentry/react';
 import { IconAlertCircle } from '@tabler/icons-react';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { type Layout } from 'react-grid-layout';
@@ -895,7 +898,9 @@ const DashboardPage: FC = () => {
             projectUuid={projectUuid}
             dashboardCommentsCheck={dashboardCommentsCheck}
         >
-            <DashboardAiAgentContextBridge />
+            <SentryErrorBoundary fallback={() => <></>}>
+                <DashboardAiAgentContextBridge />
+            </SentryErrorBoundary>
             <Dashboard />
         </DashboardProvider>
     );

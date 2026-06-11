@@ -49,6 +49,12 @@ const renderResolved = (
                     fieldValueType={f.fieldValueType}
                     fieldFilterType={f.fieldFilterType}
                     isFromJoinedTable={f.isFromJoinedTable}
+                    {...(f.caseSensitiveFilters === 'not_applicable'
+                        ? {}
+                        : {
+                              caseSensitiveFilters:
+                                  f.caseSensitiveFilters === 'true',
+                          })}
                 >
                     {f.description ? (
                         <description>{f.description}</description>
@@ -144,7 +150,11 @@ type ToolArgs = {
     promptUuid: string;
     telemetry: Pick<
         AiAgentArgs,
-        'agentSettings' | 'threadUuid' | 'promptUuid' | 'telemetryEnabled'
+        | 'agentSettings'
+        | 'threadUuid'
+        | 'promptUuid'
+        | 'telemetryEnabled'
+        | 'model'
     >;
 };
 

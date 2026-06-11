@@ -1,6 +1,17 @@
-import { ForbiddenError } from '@lightdash/common';
+import { FeatureFlags, ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
+import {
+    createBranch,
+    createPullRequest,
+    createPullRequestComment,
+    createSignedCommitOnBranch,
+    getBranchHeadSha,
+    getInstallationToken,
+    getPullRequest,
+    getRepoDefaultBranch,
+    getRepoWorkflowFiles,
+} from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
 import { McpContextModel } from '../models/McpContextModel';
@@ -33,15 +44,18 @@ import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExplores
 import { preAggregatePostProcessor } from './preAggregates/postProcessor';
 import { CommercialSchedulerClient } from './scheduler/SchedulerClient';
 import { CommercialSchedulerWorker } from './scheduler/SchedulerWorker';
+import { BuiltInSkills } from './services/ai/skills/builtInSkills';
 import { AiAgentContentValidation } from './services/ai/utils/AiAgentContentValidation';
 import { AiAgentAdminService } from './services/AiAgentAdminService';
 import { AiAgentDocumentService } from './services/AiAgentDocumentService';
 import { AiAgentReviewClassifierService } from './services/AiAgentReviewClassifierService';
 import { AiAgentService } from './services/AiAgentService/AiAgentService';
+import { AiAgentToolsService } from './services/AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from './services/AiOrganizationSettingsService';
 import { AiRouterService } from './services/AiRouterService/AiRouterService';
 import { AiService } from './services/AiService/AiService';
 import { AiWritebackService } from './services/AiWritebackService/AiWritebackService';
+import { WritebackPreviewService } from './services/AiWritebackService/WritebackPreviewService';
 import { AppGenerateService } from './services/AppGenerateService/AppGenerateService';
 import { PreAggregateStrategy } from './services/AsyncQueryService/PreAggregateStrategy';
 import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggregationDuckDbClient';
@@ -51,6 +65,7 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
+import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -97,7 +112,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
                 }),
-            aiWritebackService: ({ context, models }) =>
+            aiWritebackService: ({
+                context,
+                models,
+                repository,
+                prometheusMetrics,
+            }) =>
                 new AiWritebackService({
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
@@ -105,13 +125,44 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     featureFlagModel: models.getFeatureFlagModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    githubAppService: repository.getGithubAppService(),
                     gitlabAppInstallationsModel:
                         models.getGitlabAppInstallationsModel(),
                     aiWritebackThreadModel:
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
                     pullRequestsModel: models.getPullRequestsModel(),
+                    prometheusMetrics,
+                }),
+            previewDeploySetupService: ({ context, models }) =>
+                new PreviewDeploySetupService({
+                    lightdashConfig: context.lightdashConfig,
+                    projectModel: models.getProjectModel(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
+                    pullRequestsModel: models.getPullRequestsModel(),
                     projectCiStatusModel:
                         models.getProjectCiStatusModel<ProjectCiStatusModel>(),
+                    githubClient: {
+                        createBranch,
+                        createPullRequest,
+                        createSignedCommitOnBranch,
+                        getBranchHeadSha,
+                        getRepoDefaultBranch,
+                        getRepoWorkflowFiles,
+                    },
+                }),
+            writebackPreviewService: ({ context, models, repository }) =>
+                new WritebackPreviewService({
+                    lightdashConfig: context.lightdashConfig,
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    githubAppInstallationsModel:
+                        models.getGithubAppInstallationsModel(),
+                    githubClient: {
+                        createPullRequestComment,
+                        getInstallationToken,
+                        getPullRequest,
+                    },
                 }),
             appGenerateService: ({ context, models, clients, repository }) =>
                 new AppGenerateService({
@@ -160,11 +211,43 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     dashboardModel: models.getDashboardModel(),
                     dashboardSummaryModel: models.getDashboardSummaryModel(),
+                    savedChartModel: models.getSavedChartModel(),
                     projectService: repository.getProjectService(),
+                    asyncQueryService: repository.getAsyncQueryService(),
                     featureFlagService: repository.getFeatureFlagService(),
                     openAi: new OpenAi(
                         context.lightdashConfig.ai.copilot.providers.openai,
                     ), // TODO This should go in client repository as soon as it is available
+                }),
+            aiAgentToolsService: ({ models, repository, context }) =>
+                new AiAgentToolsService({
+                    builtInSkills: BuiltInSkills,
+                    lightdashConfig: context.lightdashConfig,
+                    projectModel: models.getProjectModel(),
+                    projectService: repository.getProjectService(),
+                    userAttributesModel: models.getUserAttributesModel(),
+                    asyncQueryService: repository.getAsyncQueryService(),
+                    catalogService: repository.getCatalogService(),
+                    contentVerificationModel:
+                        models.getContentVerificationModel(),
+                    searchModel: models.getSearchModel(),
+                    searchService: repository.getSearchService(),
+                    spaceService: repository.getSpaceService(),
+                    spaceModel: models.getSpaceModel(),
+                    dashboardService: repository.getDashboardService(),
+                    savedChartService: repository.getSavedChartService(),
+                    coderService: repository.getCoderService(),
+                    contentService: repository.getContentService(),
+                    aiAgentContentValidation: new AiAgentContentValidation(),
+                    projectContextModel:
+                        models.getProjectContextModel<ProjectContextModel>(),
+                    aiAgentDocumentModel:
+                        models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
+                    changesetModel: models.getChangesetModel(),
+                    featureFlagService: repository.getFeatureFlagService(),
+                    previewDeploySetupService:
+                        repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
+                    shareService: repository.getShareService(),
                 }),
             aiAgentService: ({
                 models,
@@ -194,6 +277,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     asyncQueryService: repository.getAsyncQueryService(),
                     userAttributesModel: models.getUserAttributesModel(),
                     searchModel: models.getSearchModel(),
+                    searchService: repository.getSearchService(),
                     slackAuthenticationModel:
                         models.getSlackAuthenticationModel() as CommercialSlackAuthenticationModel,
                     schedulerClient:
@@ -212,16 +296,25 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
+                    writebackPreviewService:
+                        repository.getWritebackPreviewService<WritebackPreviewService>(),
+                    previewDeploySetupService:
+                        repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    aiAgentToolsService:
+                        repository.getAiAgentToolsService<AiAgentToolsService>(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>
                 new AiAgentAdminService({
+                    analytics: context.lightdashAnalytics,
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     featureFlagService: repository.getFeatureFlagService(),
+                    aiOrganizationSettingsService:
+                        repository.getAiOrganizationSettingsService(),
                     projectModel: models.getProjectModel(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
@@ -230,10 +323,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     pullRequestsModel: models.getPullRequestsModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    gitlabAppInstallationsModel:
+                        models.getGitlabAppInstallationsModel(),
                     schedulerClient:
                         clients.getSchedulerClient() as CommercialSchedulerClient,
                     userModel: models.getUserModel(),
                     lightdashConfig: context.lightdashConfig,
+                    writebackPreviewService:
+                        repository.getWritebackPreviewService<WritebackPreviewService>(),
                 }),
             aiRouterService: ({ models, repository, context }) =>
                 new AiRouterService({
@@ -259,6 +356,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     aiAgentModel: models.getAiAgentModel<AiAgentModel>(),
+                    aiOrganizationSettingsModel:
+                        models.getAiOrganizationSettingsModel(),
                     catalogModel: models.getCatalogModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
@@ -372,6 +471,37 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationSettingsModel(),
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
+                    isProjectContextEnabled: async ({
+                        user,
+                        organizationUuid,
+                    }) => {
+                        const [reviewsEnabled, aiWritebackFlag] =
+                            await Promise.all([
+                                repository
+                                    .getAiOrganizationSettingsService<AiOrganizationSettingsService>()
+                                    .isAiAgentReviewsEnabled({
+                                        organizationUuid,
+                                    }),
+                                models.getFeatureFlagModel().get({
+                                    featureFlagId: FeatureFlags.AiWriteback,
+                                    user: {
+                                        userUuid: user.userUuid,
+                                        organizationUuid,
+                                        organizationName: user.organizationName,
+                                    },
+                                }),
+                            ]);
+                        return reviewsEnabled && aiWritebackFlag.enabled;
+                    },
+                    // Lazy accessor (not the instance) to duplicate the
+                    // upstream project's data apps when a preview is created.
+                    // AppGenerateService depends on ProjectService, so resolving
+                    // it eagerly here would cycle. The EE projectService
+                    // provider overrides the core one, so the thunk must be
+                    // wired here too — otherwise preview app duplication is a
+                    // silent no-op in EE builds.
+                    getAppGenerateService: () =>
+                        repository.getAppGenerateService<AppGenerateService>(),
                 }),
             instanceConfigurationService: ({
                 models,
@@ -394,6 +524,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     serviceAccountModel: models.getServiceAccountModel(),
                     embedModel: models.getEmbedModel(),
                     encryptionUtil: utils.getEncryptionUtil(),
+                    userAttributesModel: models.getUserAttributesModel(),
+                    groupsModel: models.getGroupsModel(),
                 }),
             asyncQueryService: ({
                 models,
@@ -510,6 +642,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     aiAgentService: repository.getAiAgentService(),
+                    aiAgentToolsService:
+                        repository.getAiAgentToolsService<AiAgentToolsService>(),
                     aiWritebackService: repository.getAiWritebackService(),
                 }),
             slackService: ({ repository, clients }) =>

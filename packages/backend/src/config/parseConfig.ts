@@ -27,6 +27,7 @@ import {
     WarehouseTypes,
     WeekDay,
     type SchedulerTaskName,
+    type UserAttributeSetupEntry,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/core';
 import { type ClientAuthMethod } from 'openid-client';
@@ -461,6 +462,71 @@ export const getMultiProjectSetupConfig = ():
     return parsed as MultiProjectSetupEntry[];
 };
 
+const userAttributeSetupEntrySchema = z.object({
+    name: z.string().min(1),
+    description: z.string().optional(),
+    attributeDefault: z.string().nullable().default(null),
+    groups: z
+        .array(
+            z.object({
+                group: z.string().min(1),
+                value: z.string(),
+            }),
+        )
+        .default([]),
+});
+
+const userAttributesSetupSchema = z.array(userAttributeSetupEntrySchema).refine(
+    (entries) => {
+        const names = entries.map((e) => e.name);
+        return new Set(names).size === names.length;
+    },
+    (entries) => {
+        const names = entries.map((e) => e.name);
+        const duplicate = names.find((name, i) => names.indexOf(name) !== i);
+        return {
+            message: `Duplicate user attribute name "${duplicate}" in LD_SETUP_USER_ATTRIBUTES`,
+        };
+    },
+);
+
+export const getUserAttributesSetupConfig = ():
+    | UserAttributeSetupEntry[]
+    | undefined => {
+    const raw = process.env.LD_SETUP_USER_ATTRIBUTES;
+    if (!raw) return undefined;
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (e) {
+        throw new ParseError(
+            `Failed to parse LD_SETUP_USER_ATTRIBUTES: ${getErrorMessage(e)}`,
+        );
+    }
+
+    if (Array.isArray(parsed) && parsed.length === 0) {
+        return undefined;
+    }
+
+    const result = userAttributesSetupSchema.safeParse(parsed);
+    if (!result.success) {
+        const errorDetails = result.error.errors
+            .map((err) =>
+                err.path.length > 0
+                    ? `  - ${err.path.join('.')}: ${err.message}`
+                    : `  - ${err.message}`,
+            )
+            .join('\n');
+        throw new ParseError(
+            `Invalid LD_SETUP_USER_ATTRIBUTES:\n${errorDetails}\n\n` +
+                `See https://docs.lightdash.com/self-host/customize-deployment/environment-variables for details.`,
+        );
+    }
+
+    return result.data;
+};
+
 const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
     const parseCompute = (): CreateDatabricksCredentials['compute'] => {
         // This is a stringified array of objects, in JSON format
@@ -635,6 +701,7 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
             personal_access_token: process.env.LD_SETUP_GITHUB_PAT,
         },
         projects: getMultiProjectSetupConfig(),
+        userAttributes: getUserAttributesSetupConfig(),
         embed: {
             allowAllDashboards:
                 process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS === 'true',
@@ -851,6 +918,10 @@ const parseAndSanitizeSchedulerTasks = (): Array<SchedulerTaskName> => {
     return ALL_TASK_NAMES;
 };
 
+// Default-on: streaming is disabled only when the env var is the literal 'false'
+const getProviderSupportsStreaming = (envVar: string): boolean =>
+    process.env[envVar] !== 'false';
+
 const getBedrockConfig = (customHeaders: Record<string, string>) => {
     if (process.env.BEDROCK_API_KEY) {
         return {
@@ -865,6 +936,9 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
                 'BEDROCK_AVAILABLE_MODELS',
             ),
             customHeaders,
+            supportsStreaming: getProviderSupportsStreaming(
+                'BEDROCK_SUPPORTS_STREAMING',
+            ),
         } as const;
     }
     if (process.env.BEDROCK_ACCESS_KEY_ID) {
@@ -882,6 +956,9 @@ const getBedrockConfig = (customHeaders: Record<string, string>) => {
                 'BEDROCK_AVAILABLE_MODELS',
             ),
             customHeaders,
+            supportsStreaming: getProviderSupportsStreaming(
+                'BEDROCK_SUPPORTS_STREAMING',
+            ),
         } as const;
     }
 
@@ -919,6 +996,9 @@ export const getAiConfig = () => ({
                   customHeaders: getProviderCustomHeaders(
                       'AZURE_AI_CUSTOM_HEADERS',
                   ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'AZURE_AI_SUPPORTS_STREAMING',
+                  ),
               }
             : undefined,
         openai: process.env.OPENAI_API_KEY
@@ -939,6 +1019,9 @@ export const getAiConfig = () => ({
                   customHeaders: getProviderCustomHeaders(
                       'OPENAI_CUSTOM_HEADERS',
                   ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'OPENAI_SUPPORTS_STREAMING',
+                  ),
               }
             : undefined,
         anthropic:
@@ -955,6 +1038,9 @@ export const getAiConfig = () => ({
                       customHeaders: getProviderCustomHeaders(
                           'ANTHROPIC_CUSTOM_HEADERS',
                       ),
+                      supportsStreaming: getProviderSupportsStreaming(
+                          'ANTHROPIC_SUPPORTS_STREAMING',
+                      ),
                   }
                 : undefined,
         openrouter: process.env.OPENROUTER_API_KEY
@@ -969,6 +1055,9 @@ export const getAiConfig = () => ({
                   ),
                   customHeaders: getProviderCustomHeaders(
                       'OPENROUTER_CUSTOM_HEADERS',
+                  ),
+                  supportsStreaming: getProviderSupportsStreaming(
+                      'OPENROUTER_SUPPORTS_STREAMING',
                   ),
               }
             : undefined,
@@ -1251,6 +1340,7 @@ export type LightdashConfig = {
             personalAccessToken?: CreateDatabricksCredentials['personalAccessToken'];
         };
         projects?: MultiProjectSetupEntry[];
+        userAttributes?: UserAttributeSetupEntry[];
         serviceAccount?: {
             token: string;
             expirationTime: Date | null;
@@ -1601,7 +1691,8 @@ const parseAppRuntimeConfig = (siteUrl: string): AppRuntimeConfig => {
             .filter(Boolean),
         s3,
         e2bApiKey: process.env.E2B_API_KEY || null,
-        e2bTemplateName: process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app',
+        e2bTemplateName:
+            process.env.E2B_TEMPLATE_NAME || 'lightdash/lightdash-data-app',
         // Default to the running Lightdash version so prod always launches
         // sandboxes from the matching template build (the release workflow
         // guarantees this tag exists). Operators can override to roll back
@@ -1698,7 +1789,7 @@ export const parseConfig = (): LightdashConfig => {
         'LIGHTDASH_CORS_ALLOWED_DOMAINS',
     );
     const iframeEmbeddingEnabled = iframeAllowedDomains.length > 0;
-    const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED === 'true';
+    const corsEnabled = process.env.LIGHTDASH_CORS_ENABLED !== 'false';
     const secureCookies = process.env.SECURE_COOKIES === 'true';
     const useSecureBrowser = process.env.USE_SECURE_BROWSER === 'true';
     const browserProtocol = useSecureBrowser ? 'wss' : 'ws';

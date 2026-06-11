@@ -9,6 +9,8 @@ import {
     applyDashboardFiltersForTile,
     assertIsAccountWithOrg,
     assertUnreachable,
+    buildWarehouseColumnTotals,
+    buildWarehouseRowTotals,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CompiledDimension,
@@ -34,6 +36,7 @@ import {
     formatRawRows,
     formatRawValue,
     formatRow,
+    formatRows,
     getAccountUserTimezone,
     getAvailableFilterFieldIds,
     getColumnTimezone,
@@ -101,6 +104,7 @@ import {
     type Organization,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type PivotRowTotalsByIndex,
     type PivotValuesColumn,
     type Project,
     type QueryHistory,
@@ -172,8 +176,10 @@ import {
     exploreHasFilteredAttribute,
     getFilteredExplore,
 } from '../UserAttributesService/UserAttributeUtils';
+import { getValidatedDashboardSorts } from './dashboardSorts';
 import { getPivotedColumns } from './getPivotedColumns';
 import {
+    getColumnSubtotalQueryFromSource,
     getColumnTotalQueryFromSource,
     getGrandTotalMetricQuery,
     getRowTotalQueryFromSource,
@@ -540,7 +546,11 @@ export class AsyncQueryService extends ProjectService {
         );
 
         if (isExploreError(explore)) {
-            throw new NotFoundError(`Explore "${exploreName}" has an error.`);
+            throw new NotFoundError(
+                `Explore "${exploreName}" has an error: ${explore.errors
+                    .map((error) => error.message)
+                    .join(', ')}`,
+            );
         }
 
         if (
@@ -1210,6 +1220,91 @@ export class AsyncQueryService extends ProjectService {
         });
     }
 
+    /**
+     * Pivot totals are exclusively warehouse-computed — the export renderer has
+     * no client-side fallback, so without this they come out blank. Mirrors the
+     * UI: re-run the source query collapsed across the pivot (`calculate-total`)
+     * and key the results so the pivot worker can match each rendered cell. A
+     * failed totals query (e.g. source can't be totalled) never fails the
+     * export — that total is simply left blank, as it is in the UI.
+     */
+    private async getExportWarehouseTotals({
+        account,
+        projectUuid,
+        sourceQueryUuid,
+        pivotConfig,
+        pivotDetails,
+    }: {
+        account: Account;
+        projectUuid: string;
+        sourceQueryUuid: string;
+        pivotConfig: PivotConfig;
+        pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
+    }): Promise<{
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
+    }> {
+        let warehouseColumnTotals: Record<string, number> | undefined;
+        let warehouseRowTotals: PivotRowTotalsByIndex | undefined;
+
+        if (pivotConfig.columnTotals) {
+            try {
+                const { rows, fields } =
+                    await this.executeCalculateTotalAndGetResults({
+                        account,
+                        projectUuid,
+                        queryUuid: sourceQueryUuid,
+                        kind: 'columnTotal',
+                    });
+                warehouseColumnTotals = buildWarehouseColumnTotals(
+                    formatRows(rows, fields),
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to compute column totals for pivot export',
+                    {
+                        projectUuid,
+                        sourceQueryUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+
+        const { indexColumn } = pivotDetails;
+        const indexFieldIds = indexColumn
+            ? (Array.isArray(indexColumn) ? indexColumn : [indexColumn]).map(
+                  (col) => col.reference,
+              )
+            : [];
+        if (pivotConfig.rowTotals && indexFieldIds.length > 0) {
+            try {
+                const { rows, fields } =
+                    await this.executeCalculateTotalAndGetResults({
+                        account,
+                        projectUuid,
+                        queryUuid: sourceQueryUuid,
+                        kind: 'rowTotal',
+                    });
+                warehouseRowTotals = buildWarehouseRowTotals(
+                    formatRows(rows, fields),
+                    indexFieldIds,
+                );
+            } catch (error) {
+                this.logger.warn(
+                    'Failed to compute row totals for pivot export',
+                    {
+                        projectUuid,
+                        sourceQueryUuid,
+                        error: getErrorMessage(error),
+                    },
+                );
+            }
+        }
+
+        return { warehouseRowTotals, warehouseColumnTotals };
+    }
+
     private async downloadAsyncQueryResults({
         account,
         projectUuid,
@@ -1347,22 +1442,65 @@ export class AsyncQueryService extends ProjectService {
                       ),
                   )
                 : fields;
-        const downloadPivotConfig = exportPivotedData ? pivotConfig : undefined;
+        // Pivot structure (which dimension is pivoted, layout) comes from the
+        // query's stored config so the export matches the rendered results;
+        // pivotConfig only adds presentation (totals, hidden fields).
+        const pivotDetails =
+            AsyncQueryService.getPivotDetailsFromQueryHistory(queryHistory);
+        const downloadPivotConfig: PivotConfig | undefined =
+            exportPivotedData && pivotDetails
+                ? {
+                      pivotDimensions: (pivotDetails.groupByColumns ?? []).map(
+                          (col) => col.reference,
+                      ),
+                      metricsAsRows:
+                          queryHistory.pivotConfiguration?.metricsAsRows ??
+                          false,
+                      columnOrder: validColumnOrder,
+                      hiddenMetricFieldIds: pivotConfig?.hiddenMetricFieldIds,
+                      hiddenDimensionFieldIds:
+                          pivotConfig?.hiddenDimensionFieldIds,
+                      visibleMetricFieldIds: pivotConfig?.visibleMetricFieldIds,
+                      rowTotals: pivotConfig?.rowTotals,
+                      columnTotals: pivotConfig?.columnTotals,
+                  }
+                : undefined;
+
+        // Warehouse-computed totals for the pivot export — without these the
+        // renderer leaves total cells blank (no client-side fallback).
+        const { warehouseRowTotals, warehouseColumnTotals } =
+            downloadPivotConfig &&
+            pivotDetails &&
+            (downloadPivotConfig.rowTotals || downloadPivotConfig.columnTotals)
+                ? await this.getExportWarehouseTotals({
+                      account,
+                      projectUuid,
+                      sourceQueryUuid: queryUuid,
+                      pivotConfig: downloadPivotConfig,
+                      pivotDetails,
+                  })
+                : {
+                      warehouseRowTotals: undefined,
+                      warehouseColumnTotals: undefined,
+                  };
 
         switch (type) {
             case DownloadFileType.CSV:
                 // Check if this is a pivot table download
-                if (downloadPivotConfig && queryHistory.metricQuery) {
+                if (
+                    downloadPivotConfig &&
+                    pivotDetails &&
+                    queryHistory.metricQuery
+                ) {
                     return this.pivotTableService.downloadAsyncPivotTableCsv({
                         resultsFileName,
                         fields,
                         metricQuery: queryHistory.metricQuery,
                         projectUuid,
                         storageClient: resultsStorageClient,
-                        pivotDetails:
-                            AsyncQueryService.getPivotDetailsFromQueryHistory(
-                                queryHistory,
-                            ),
+                        pivotDetails,
+                        warehouseRowTotals,
+                        warehouseColumnTotals,
                         options: {
                             onlyRaw,
                             showTableNames,
@@ -1411,7 +1549,9 @@ export class AsyncQueryService extends ProjectService {
             case DownloadFileType.XLSX: {
                 // Check if this is a pivot table download
                 const xlsxResult =
-                    downloadPivotConfig && queryHistory.metricQuery
+                    downloadPivotConfig &&
+                    pivotDetails &&
+                    queryHistory.metricQuery
                         ? await ExcelService.downloadAsyncPivotTableXlsx({
                               resultsFileName,
                               fields,
@@ -1425,10 +1565,9 @@ export class AsyncQueryService extends ProjectService {
                                       organizationUuid,
                                   )
                               ).csvCellsLimit,
-                              pivotDetails:
-                                  AsyncQueryService.getPivotDetailsFromQueryHistory(
-                                      queryHistory,
-                                  ),
+                              pivotDetails,
+                              warehouseRowTotals,
+                              warehouseColumnTotals,
                               options: {
                                   onlyRaw,
                                   showTableNames,
@@ -2678,11 +2817,16 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone = projectUuid
             ? await this.getQueryTimezoneForProject(projectUuid)
             : 'UTC';
-        const resolvedTimezone = resolveQueryTimezone(
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+            userUuid,
+            organizationUuid,
+        });
+        const resolvedTimezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
             userTimezone,
-        );
+            isUserTimezoneEnabled,
+        });
         const enabled = await this.isTimezoneSupportEnabled({
             userUuid,
             organizationUuid,
@@ -3148,6 +3292,9 @@ export class AsyncQueryService extends ProjectService {
                                 format: convertCustomFormatToFormatExpression(
                                     formatOptions,
                                 ),
+                                // The format expression can't encode the separator, so carry it
+                                // separately for the render paths (getEffectiveSeparator reads it).
+                                separator: formatOptions.separator,
                             },
                         ];
                     }
@@ -3329,7 +3476,9 @@ export class AsyncQueryService extends ProjectService {
                         projectUuid,
                         cacheKey,
                         account,
-                        args.invalidateCache,
+                        requestParameters.invalidateCache ??
+                            args.invalidateCache ??
+                            false,
                     );
                     const cacheCheckMs = Date.now() - cacheCheckStart;
 
@@ -4045,12 +4194,14 @@ export class AsyncQueryService extends ProjectService {
         projectUuid,
         queryUuid,
         kind,
+        subtotalDimensions,
         invalidateCache,
     }: {
         account: Account;
         projectUuid: string;
         queryUuid: string;
         kind: CalculateTotalKind;
+        subtotalDimensions?: string[];
         invalidateCache?: boolean;
     }): Promise<ApiExecuteAsyncMetricQueryResults> {
         assertIsAccountWithOrg(account);
@@ -4081,6 +4232,13 @@ export class AsyncQueryService extends ProjectService {
             case 'rowTotal':
                 ({ metricQuery, pivotConfiguration } =
                     getRowTotalQueryFromSource(sourceInputs));
+                break;
+            case 'columnSubtotal':
+                ({ metricQuery, pivotConfiguration } =
+                    getColumnSubtotalQueryFromSource({
+                        ...sourceInputs,
+                        subtotalDimensions: subtotalDimensions ?? [],
+                    }));
                 break;
             default:
                 return assertUnreachable(
@@ -4651,12 +4809,14 @@ export class AsyncQueryService extends ProjectService {
                 explore,
             });
 
+        const validatedDashboardSorts = getValidatedDashboardSorts(
+            dashboardSorts,
+            metricQueryWithFilters,
+        );
+
         const metricQueryWithDashboardOverrides: MetricQuery = {
             ...metricQueryWithFilters,
-            sorts:
-                dashboardSorts && dashboardSorts.length > 0
-                    ? dashboardSorts
-                    : savedChart.metricQuery.sorts,
+            sorts: validatedDashboardSorts ?? savedChart.metricQuery.sorts,
         };
 
         const { maxLimit, csvCellsLimit } =
@@ -4738,8 +4898,10 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
@@ -5716,8 +5878,10 @@ export class AsyncQueryService extends ProjectService {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
         const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
@@ -5906,6 +6070,52 @@ export class AsyncQueryService extends ProjectService {
             account,
             projectUuid,
             queryUuid,
+            cacheMetadata,
+            fields,
+        });
+    }
+
+    /**
+     * Execute a calculate-total query (row/column totals) derived from a source
+     * query and wait for all results. Mirrors `executeMetricQueryAndGetResults`
+     * but starts from `executeAsyncCalculateTotalFromQueryHistory`.
+     */
+    private async executeCalculateTotalAndGetResults(
+        args: {
+            account: Account;
+            projectUuid: string;
+            queryUuid: string;
+            kind: CalculateTotalKind;
+            subtotalDimensions?: string[];
+            invalidateCache?: boolean;
+        },
+        pollingOptions?: PollingOptions,
+    ): Promise<{
+        rows: Record<string, unknown>[];
+        cacheMetadata: CacheMetadata;
+        fields: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+    }> {
+        const { account, projectUuid } = args;
+
+        const {
+            queryUuid: totalsQueryUuid,
+            cacheMetadata,
+            fields,
+        } = await this.executeAsyncCalculateTotalFromQueryHistory(args);
+
+        await this.pollForQueryCompletion({
+            account,
+            projectUuid,
+            queryUuid: totalsQueryUuid,
+            ...pollingOptions,
+        });
+
+        return this.getReadyQueryResults({
+            account,
+            projectUuid,
+            queryUuid: totalsQueryUuid,
             cacheMetadata,
             fields,
         });
@@ -6320,6 +6530,7 @@ export class AsyncQueryService extends ProjectService {
         return rows[0];
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateMetricQuerySubtotals({
         account,
         projectUuid,
@@ -6587,6 +6798,7 @@ export class AsyncQueryService extends ProjectService {
         }
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateSubtotalsFromQuery(
         account: Account,
         projectUuid: string,

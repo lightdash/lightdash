@@ -1,0 +1,7 @@
+.root {
+    min-height: rem(44px);
+}
+
+.action {
+    height: rem(32px);
+}

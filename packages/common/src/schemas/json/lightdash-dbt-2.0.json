@@ -183,6 +183,9 @@
                             "format": {
                                 "type": "string"
                             },
+                            "separator": {
+                                "$ref": "#/$defs/separator"
+                            },
                             "compact": {
                                 "type": "string",
                                 "enum": [
@@ -325,6 +328,16 @@
                                         },
                                         "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
                                     },
+                                    "default_segment": {
+                                        "type": "string",
+                                        "description": "A dimension name pre-selected in the Segment by picker when this metric is opened in the Metrics Explorer. Must be one of segment_by (if set) and a segmentable dimension."
+                                    },
+                                    "default_filter": {
+                                        "type": "object",
+                                        "description": "A single filter pre-applied when this metric is opened in the Metrics Explorer, e.g. { status: active } or { status: [active, pending] }. Uses the metric filter syntax; only is / is not operators are supported here.",
+                                        "additionalProperties": true,
+                                        "maxProperties": 1
+                                    },
                                     "owner": {
                                         "type": "string",
                                         "description": "Email of the metric owner"
@@ -406,6 +419,17 @@
     "additionalProperties": false,
     "required": [],
     "$defs": {
+        "separator": {
+            "type": "string",
+            "enum": [
+                "default",
+                "commaPeriod",
+                "spacePeriod",
+                "periodComma",
+                "noSeparatorPeriod",
+                "apostrophePeriod"
+            ]
+        },
         "filterItem": {
             "type": "object",
             "additionalProperties": {
@@ -571,6 +595,9 @@
                                 "format": {
                                     "type": "string"
                                 },
+                                "separator": {
+                                    "$ref": "#/$defs/separator"
+                                },
                                 "percentile": {
                                     "type": "number"
                                 },
@@ -733,6 +760,16 @@
                                                 "type": "string"
                                             },
                                             "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
+                                        },
+                                        "default_segment": {
+                                            "type": "string",
+                                            "description": "A dimension name pre-selected in the Segment by picker when this metric is opened in the Metrics Explorer. Must be one of segment_by (if set) and a segmentable dimension."
+                                        },
+                                        "default_filter": {
+                                            "type": "object",
+                                            "description": "A single filter pre-applied when this metric is opened in the Metrics Explorer, e.g. { status: active } or { status: [active, pending] }. Uses the metric filter syntax; only is / is not operators are supported here.",
+                                            "additionalProperties": true,
+                                            "maxProperties": 1
                                         },
                                         "owner": {
                                             "type": "string",
@@ -1169,6 +1206,9 @@
                                 "format": {
                                     "type": "string"
                                 },
+                                "separator": {
+                                    "$ref": "#/$defs/separator"
+                                },
                                 "percentile": {
                                     "type": "number"
                                 },
@@ -1323,6 +1363,16 @@
                                             },
                                             "description": "An array of dimension names that are allowed for segmenting this metric in the Metrics Explorer"
                                         },
+                                        "default_segment": {
+                                            "type": "string",
+                                            "description": "A dimension name pre-selected in the Segment by picker when this metric is opened in the Metrics Explorer. Must be one of segment_by (if set) and a segmentable dimension."
+                                        },
+                                        "default_filter": {
+                                            "type": "object",
+                                            "description": "A single filter pre-applied when this metric is opened in the Metrics Explorer, e.g. { status: active } or { status: [active, pending] }. Uses the metric filter syntax; only is / is not operators are supported here.",
+                                            "additionalProperties": true,
+                                            "maxProperties": 1
+                                        },
                                         "owner": {
                                             "type": "string",
                                             "description": "Email of the metric owner"
@@ -1396,6 +1446,9 @@
                         },
                         "format": {
                             "type": "string"
+                        },
+                        "separator": {
+                            "$ref": "#/$defs/separator"
                         },
                         "time_intervals": {
                             "anyOf": [
@@ -1673,6 +1726,9 @@
                                 },
                                 "format": {
                                     "type": "string"
+                                },
+                                "separator": {
+                                    "$ref": "#/$defs/separator"
                                 },
                                 "compact": {
                                     "type": "string",

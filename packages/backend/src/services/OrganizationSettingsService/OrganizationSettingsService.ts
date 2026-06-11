@@ -7,12 +7,14 @@ import {
     POSTGRES_INTEGER_MAX,
     resolveEffectiveOrganizationSettings,
     UpdateOrganizationSettings,
+    validateCorsAllowedDomains,
     type RegisteredAccount,
 } from '@lightdash/common';
 import { LightdashConfig } from '../../config/parseConfig';
 import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { BaseService } from '../BaseService';
+import { invalidateCorsPolicyCache } from './CorsPolicy';
 import { getOrganizationSettingsInstanceDefaults } from './getInstanceDefaults';
 
 type OrganizationSettingsServiceArguments = {
@@ -110,7 +112,7 @@ export class OrganizationSettingsService extends BaseService {
         ];
         // Bounded by the integer column ceiling — above it the DB insert throws
         // an out-of-range error (a 500) instead of a clean validation failure.
-        const isInvalid = (value: number | boolean | null | undefined) =>
+        const isInvalid = (value: unknown) =>
             value !== undefined &&
             value !== null &&
             (typeof value !== 'number' ||
@@ -150,6 +152,14 @@ export class OrganizationSettingsService extends BaseService {
                 `Maximum query rows cannot exceed ${queryLimitCap}.`,
             );
         }
+        if (data.corsAllowedDomains !== undefined) {
+            const corsError = validateCorsAllowedDomains(
+                data.corsAllowedDomains ?? [],
+            );
+            if (corsError) {
+                throw new ParameterError(corsError);
+            }
+        }
     }
 
     async getOrganizationSettings(
@@ -174,6 +184,9 @@ export class OrganizationSettingsService extends BaseService {
             organizationUuid,
             data,
         );
+        if (data.corsAllowedDomains !== undefined) {
+            invalidateCorsPolicyCache();
+        }
         return resolveEffectiveOrganizationSettings(
             raw,
             getOrganizationSettingsInstanceDefaults(this.lightdashConfig),

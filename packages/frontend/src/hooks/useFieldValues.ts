@@ -134,7 +134,7 @@ export const pollForFieldValueResults = async (
     return results;
 };
 
-const getFieldValuesAsync = async (
+export const getFieldValuesAsync = async (
     projectId: string,
     table: string | undefined,
     fieldId: string,
@@ -180,9 +180,13 @@ const getFieldValuesAsync = async (
         throw new Error('Unexpected query status');
     }
 
+    // The backend may rewrite the fieldId (e.g. aliased joins), so read the
+    // single result column key from the response instead
+    const resultColumn = Object.keys(queryResult.columns)[0] ?? fieldId;
+
     const results: string[] = queryResult.rows
         .map((row) => {
-            const cell = row[fieldId];
+            const cell = row[resultColumn];
             if (!cell?.value) return undefined;
             const { raw } = cell.value;
             if (raw === null || raw === undefined) return undefined;

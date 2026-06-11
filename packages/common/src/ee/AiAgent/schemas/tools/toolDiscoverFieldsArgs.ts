@@ -52,6 +52,11 @@ const discoverFieldsFieldSummarySchema = z.object({
             'The value type (e.g. number, string, date, timestamp, boolean).',
         ),
     fieldFilterType: z.string(),
+    caseSensitiveFilters: z
+        .enum(['true', 'false', 'not_applicable'])
+        .describe(
+            'Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".',
+        ),
     isFromJoinedTable: z.boolean(),
     description: z
         .string()

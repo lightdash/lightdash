@@ -48,6 +48,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
             customHeaders: {},
+            supportsStreaming: true,
         },
         getModelPreset('openai', 'gpt-5.4')!,
     );

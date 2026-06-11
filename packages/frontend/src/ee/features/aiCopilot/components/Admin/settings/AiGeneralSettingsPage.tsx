@@ -1,4 +1,5 @@
 import {
+    Anchor,
     Badge,
     Box,
     Divider,
@@ -10,6 +11,8 @@ import {
     Title,
 } from '@mantine-8/core';
 import { IconSparkles } from '@tabler/icons-react';
+import { Link } from 'react-router';
+import { BetaBadge } from '../../../../../../components/common/BetaBadge';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { SettingsCard } from '../../../../../../components/common/Settings/SettingsCard';
@@ -95,6 +98,57 @@ export const AiGeneralSettingsPage = () => {
                                 onChange={(event) =>
                                     updateSettings({
                                         aiAgentsVisible:
+                                            event.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Group>
+                    </SettingsCard>
+
+                    <SettingsCard>
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            align="flex-start"
+                            gap="md"
+                        >
+                            <Box maw={620}>
+                                <Group gap="xs" mb={4}>
+                                    <Title order={5}>
+                                        Review AI agent turns
+                                    </Title>
+                                    <BetaBadge />
+                                </Group>
+                                <Text c="dimmed" fz="xs">
+                                    Process every agent turn to surface semantic
+                                    layer gaps, project context improvements,
+                                    and admin recommendations. For connected
+                                    projects, Lightdash can suggest pull
+                                    requests that improve context and dbt
+                                    definitions.
+                                    {settings.aiAgentReviewsEnabled && (
+                                        <>
+                                            {' '}
+                                            See findings in{' '}
+                                            <Anchor
+                                                component={Link}
+                                                to="/generalSettings/ai/reviews"
+                                                fz="inherit"
+                                            >
+                                                Ask AI &gt; Reviews
+                                            </Anchor>
+                                            .
+                                        </>
+                                    )}
+                                </Text>
+                            </Box>
+                            <Switch
+                                size="md"
+                                checked={settings.aiAgentReviewsEnabled}
+                                disabled={isUpdatingSettings}
+                                onChange={(event) =>
+                                    updateSettings({
+                                        aiAgentReviewsEnabled:
                                             event.currentTarget.checked,
                                     })
                                 }

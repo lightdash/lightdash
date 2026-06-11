@@ -1101,7 +1101,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         // Check for unauthorized access errors and use custom message if configured
         if (originalMessage.includes('does not exist or not authorized')) {
             const customErrorMessage =
-                process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE;
+                process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE?.replace(
+                    /\\n/g,
+                    '\n',
+                );
             if (customErrorMessage) {
                 const formattedMessage = this.formatCustomErrorMessage(
                     originalMessage,
@@ -1118,7 +1121,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             )
         ) {
             const customErrorMessage =
-                process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE;
+                process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE?.replace(
+                    /\\n/g,
+                    '\n',
+                );
             if (customErrorMessage) {
                 const formattedMessage =
                     this.formatWarehouseErrorMessage(customErrorMessage);

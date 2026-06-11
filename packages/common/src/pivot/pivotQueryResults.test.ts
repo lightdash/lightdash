@@ -1,6 +1,7 @@
 import { type ItemsMap } from '../types/field';
 import { type PivotData } from '../types/pivot';
 import { type ResultRow } from '../types/results';
+import { getPivotRowContextKey } from '../utils/conditionalFormatting';
 import {
     SortByDirection,
     VizAggregationOptions,
@@ -54,6 +55,52 @@ const buildWarehouseRowTotalsFromExpected = (
     return map;
 };
 
+// Column totals are warehouse-only too. Reconstruct the warehouse map (keyed by
+// pivot SQL column name, `<metric>_any_<pivotValue...>`) from an expected
+// fixture's columnTotals + headerValues so fixtures stay the source of truth.
+const buildWarehouseColumnTotalsFromExpected = (
+    expected: PivotData,
+): Record<string, number> => {
+    const map: Record<string, number> = {};
+    const { columnTotals, columnTotalFields, headerValues, pivotConfig } =
+        expected;
+    if (!columnTotals || !columnTotalFields) return map;
+
+    const pivotValuesForColumn = (
+        dimRows: PivotData['headerValues'],
+        colIndex: number,
+    ): string[] | undefined => {
+        const values = dimRows.map((dimRow) => {
+            const cell = dimRow[colIndex];
+            return cell && cell.type === 'value'
+                ? String(cell.value?.raw)
+                : undefined;
+        });
+        return values.some((v) => v === undefined)
+            ? undefined
+            : (values as string[]);
+    };
+
+    const metricRow = headerValues[headerValues.length - 1] ?? [];
+    const pivotDimRows = pivotConfig.metricsAsRows
+        ? headerValues
+        : headerValues.slice(0, -1);
+
+    columnTotals.forEach((row, rowIndex) => {
+        row.forEach((value, colIndex) => {
+            if (typeof value !== 'number') return;
+            const metricFieldId = pivotConfig.metricsAsRows
+                ? columnTotalFields[rowIndex]?.find((f) => f?.fieldId)?.fieldId
+                : metricRow[colIndex]?.fieldId;
+            if (!metricFieldId) return;
+            const pivotValues = pivotValuesForColumn(pivotDimRows, colIndex);
+            if (!pivotValues) return;
+            map[[metricFieldId, 'any', ...pivotValues].join('_')] = value;
+        });
+    });
+    return map;
+};
+
 describe('convertSqlPivotedRowsToPivotData', () => {
     it('should convert SQL-pivoted rows to PivotData format', () => {
         // Convert SQL Pivoted rows to PivotData
@@ -96,6 +143,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             getFieldLabel: (fieldId) => fieldId,
             groupedSubtotals: undefined,
             warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_PIVOT_DATA_WITH_TOTALS,
+            ),
+            warehouseColumnTotals: buildWarehouseColumnTotalsFromExpected(
                 EXPECTED_PIVOT_DATA_WITH_TOTALS,
             ),
         });
@@ -258,6 +308,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
                 EXPECTED_PIVOT_DATA_METRICS_AS_ROWS,
             ),
+            warehouseColumnTotals: buildWarehouseColumnTotalsFromExpected(
+                EXPECTED_PIVOT_DATA_METRICS_AS_ROWS,
+            ),
         });
 
         expect(result).toStrictEqual(EXPECTED_PIVOT_DATA_METRICS_AS_ROWS);
@@ -297,6 +350,9 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             },
             groupedSubtotals: undefined,
             warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
+                EXPECTED_COMPLEX_PIVOT_DATA,
+            ),
+            warehouseColumnTotals: buildWarehouseColumnTotalsFromExpected(
                 EXPECTED_COMPLEX_PIVOT_DATA,
             ),
         });
@@ -340,11 +396,77 @@ describe('convertSqlPivotedRowsToPivotData', () => {
             warehouseRowTotals: buildWarehouseRowTotalsFromExpected(
                 EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
             ),
+            warehouseColumnTotals: buildWarehouseColumnTotalsFromExpected(
+                EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
+            ),
         });
 
         expect(result).toStrictEqual(
             EXPECTED_COMPLEX_PIVOT_DATA_WITH_METRICS_AS_ROWS,
         );
+
+        // metricsAsRows column totals must include a footer row for every
+        // visible metric — including the non-summable avg — so warehouse
+        // totals can be overlaid for all metric types.
+        const totalMetricIds = result.columnTotalFields?.map(
+            (row) => row.find((cell) => cell?.fieldId)?.fieldId,
+        );
+        expect(totalMetricIds).toEqual([
+            'payments_total_revenue',
+            'orders_average_order_size',
+            'orders_total_order_amount',
+        ]);
+    });
+
+    it('leaves column totals null (no client-side fallback) without warehouse values', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: true,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // The total row is allocated but every cell is blank until warehouse
+        // column totals are provided — there is no in-memory summation.
+        expect(result.columnTotals).toStrictEqual([[null, null, null, null]]);
+    });
+
+    it('fills only the column totals present in the warehouse map', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: SQL_PIVOTED_ROWS,
+            pivotDetails: SQL_PIVOT_DETAILS,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: true,
+                metricsAsRows: false,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+            // Only two of the four pivot columns have a warehouse total.
+            warehouseColumnTotals: {
+                payments_total_revenue_any_bank_transfer: 111,
+                payments_total_revenue_any_credit_card: 333,
+            },
+        });
+
+        expect(result.columnTotals).toStrictEqual([[111, null, 333, null]]);
     });
 
     it('should limit pivot columns when columnLimit is provided', () => {
@@ -942,5 +1064,148 @@ describe('passthrough dimensions (PROD-7873)', () => {
                 columnType: 'passthrough',
             },
         ]);
+    });
+});
+
+describe('hidden-metric conditional-formatting side-channel (PROD-2372)', () => {
+    // One index dim (year), one pivot dim (payment method), two metrics where
+    // one is hidden. The hidden metric is filtered out of the visible output,
+    // but its pivoted values must be stashed on `hiddenContextValues` keyed by
+    // the displayed dimension context so a CF rule referencing it still resolves.
+    const rows: ResultRow[] = [
+        {
+            orders_order_date_year: {
+                value: { raw: '2025-01-01T00:00:00Z', formatted: '2025' },
+            },
+            payments_total_revenue_any_bank_transfer: {
+                value: { raw: 100, formatted: '100' },
+            },
+            orders_total_order_amount_any_bank_transfer: {
+                value: { raw: 200, formatted: '200' },
+            },
+        },
+        {
+            orders_order_date_year: {
+                value: { raw: '2024-01-01T00:00:00Z', formatted: '2024' },
+            },
+            payments_total_revenue_any_bank_transfer: {
+                value: { raw: 50, formatted: '50' },
+            },
+            orders_total_order_amount_any_bank_transfer: {
+                value: { raw: 75, formatted: '75' },
+            },
+        },
+    ];
+
+    const pivotDetails = {
+        totalColumnCount: 1,
+        valuesColumns: [
+            {
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [
+                    {
+                        value: 'bank_transfer',
+                        referenceField: 'payments_payment_method',
+                    },
+                ],
+                referenceField: 'payments_total_revenue',
+                pivotColumnName: 'payments_total_revenue_any_bank_transfer',
+            },
+            {
+                aggregation: VizAggregationOptions.ANY,
+                pivotValues: [
+                    {
+                        value: 'bank_transfer',
+                        referenceField: 'payments_payment_method',
+                    },
+                ],
+                referenceField: 'orders_total_order_amount',
+                pivotColumnName: 'orders_total_order_amount_any_bank_transfer',
+            },
+        ],
+        indexColumn: [
+            {
+                type: VizIndexType.TIME,
+                reference: 'orders_order_date_year',
+            },
+        ],
+        groupByColumns: [{ reference: 'payments_payment_method' }],
+        sortBy: [
+            {
+                direction: SortByDirection.DESC,
+                reference: 'orders_order_date_year',
+            },
+        ],
+        originalColumns: {},
+    };
+
+    it('stashes the hidden metric value keyed by index + header dims, without changing the visible output shape', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_payment_method',
+                    'payments_total_revenue',
+                    'orders_total_order_amount',
+                ],
+                hiddenMetricFieldIds: ['orders_total_order_amount'],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        // Visible output only carries the one visible metric (revenue): one
+        // pivot column group, so dataValues has exactly one column per row.
+        expect(result.dataColumnCount).toBe(1);
+        result.dataValues.forEach((row) => {
+            expect(row).toHaveLength(1);
+        });
+
+        expect(result.hiddenContextValues).toBeDefined();
+
+        const key2025 = getPivotRowContextKey({
+            orders_order_date_year: '2025-01-01T00:00:00Z',
+            payments_payment_method: 'bank_transfer',
+        });
+        expect(result.hiddenContextValues![key2025]).toEqual({
+            orders_total_order_amount: { raw: 200, formatted: '200' },
+        });
+
+        const key2024 = getPivotRowContextKey({
+            orders_order_date_year: '2024-01-01T00:00:00Z',
+            payments_payment_method: 'bank_transfer',
+        });
+        expect(result.hiddenContextValues![key2024]).toEqual({
+            orders_total_order_amount: { raw: 75, formatted: '75' },
+        });
+    });
+
+    it('omits hiddenContextValues entirely when no metric is hidden', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows,
+            pivotDetails,
+            pivotConfig: {
+                rowTotals: false,
+                columnTotals: false,
+                metricsAsRows: false,
+                columnOrder: [
+                    'orders_order_date_year',
+                    'payments_payment_method',
+                    'payments_total_revenue',
+                    'orders_total_order_amount',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+        });
+
+        expect(result.hiddenContextValues).toBeUndefined();
     });
 });

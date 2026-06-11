@@ -1,4 +1,5 @@
 import type {
+    DiscoverFieldsInput,
     ToolDashboardArgs,
     ToolDescribeWarehouseTableArgs,
     ToolFindChartsArgs,
@@ -9,10 +10,13 @@ import type {
     ToolFindExploresArgsV3,
     ToolFindFieldsArgs,
     ToolGetDashboardChartsArgs,
+    ToolListContentArgs,
     ToolListWarehouseTablesArgs,
     ToolName,
+    ToolRunContentQueryArgs,
     ToolRunQueryArgs,
     ToolSearchFieldValuesArgs,
+    ToolSearchSemanticLayerArgs,
     ToolTableVizArgs,
     ToolTimeSeriesArgs,
     ToolVerticalBarArgs,
@@ -78,6 +82,10 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolFindFieldsArgs;
             return args.fieldSearchQueries?.[0]?.label ?? null;
         }
+        case 'discoverFields': {
+            const args = toolArgs as DiscoverFieldsInput;
+            return args.userQuery ?? null;
+        }
         case 'findContent': {
             const args = toolArgs as ToolFindContentArgs;
             return args.searchQueries?.[0]?.label ?? null;
@@ -94,6 +102,18 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolSearchFieldValuesArgs;
             return args.query ?? args.fieldId ?? null;
         }
+        case 'searchSemanticLayer': {
+            const args = toolArgs as ToolSearchSemanticLayerArgs;
+            const fieldType =
+                args.type === 'metric'
+                    ? 'metrics'
+                    : args.type === 'dimension'
+                      ? 'dimensions'
+                      : 'fields';
+            return args.searchQuery
+                ? `${fieldType}: ${args.searchQuery}`
+                : fieldType;
+        }
         case 'getDashboardCharts': {
             const args = toolArgs as ToolGetDashboardChartsArgs;
             return args.dashboardName ?? args.dashboardUuid ?? null;
@@ -107,6 +127,10 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolListWarehouseTablesArgs;
             return args.schema ?? args.search ?? null;
         }
+        case 'listContent': {
+            const args = toolArgs as ToolListContentArgs;
+            return args.spaceSlug ?? 'root';
+        }
         case 'readContent': {
             const args = toolArgs as ToolReadContentArgs;
             return args.slug ?? null;
@@ -119,13 +143,25 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolCreateContentArgs;
             return args.content?.slug ?? null;
         }
+        case 'repoShell': {
+            const args = toolArgs as { command?: string };
+            return args.command ?? null;
+        }
         case 'runSql':
-        case 'runContentQuery':
         case 'runSavedChart':
         case 'generateHashes':
         case 'improveContext':
         case 'proposeChange':
             return null;
+        case 'runContentQuery': {
+            const args = toolArgs as ToolRunContentQueryArgs;
+            if (args.source.type === 'metricQuery')
+                return args.source.tableName;
+            if (args.source.type === 'dashboardChart') {
+                return `${args.source.dashboardSlug}: ${args.source.chartSlug}`;
+            }
+            return args.source.chartSlug;
+        }
         case 'loadProjectContext': {
             const args = toolArgs as { search?: string | null };
             return args.search ?? null;

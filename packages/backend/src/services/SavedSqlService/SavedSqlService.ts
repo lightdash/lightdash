@@ -481,6 +481,7 @@ export class SavedSqlService
     ): Promise<void> {
         const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
             deleted: true,
+            projectUuid: options?.projectUuid,
         });
         const { projectUuid } = savedChart.project;
         const { organizationUuid } = savedChart.organization;
@@ -550,7 +551,7 @@ export class SavedSqlService
         } else {
             const savedChart = await this.savedSqlModel.getByUuid(
                 savedSqlUuid,
-                { deleted: true },
+                { deleted: true, projectUuid: options?.projectUuid },
             );
             const { projectUuid } = savedChart.project;
             const { organizationUuid } = savedChart.organization;
@@ -855,12 +856,24 @@ export class SavedSqlService
         projectUuid: string,
         savedSqlUuid: string,
     ): Promise<SchedulerAndTargets[]> {
-        await this.checkCreateScheduledDeliveryAccess(
-            user,
-            projectUuid,
-            savedSqlUuid,
+        const { organizationUuid } =
+            await this.checkCreateScheduledDeliveryAccess(
+                user,
+                projectUuid,
+                savedSqlUuid,
+            );
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid,
+                projectUuid,
+            }),
         );
-        return this.schedulerModel.getSqlChartSchedulers(savedSqlUuid);
+        return this.schedulerModel.getSqlChartSchedulers(
+            savedSqlUuid,
+            canManageAll ? undefined : user.userUuid,
+        );
     }
 
     async createScheduler(

@@ -148,7 +148,7 @@ const getStreamToolPart = (
     };
 };
 
-const getStreamToolCallPart = (
+export const getStreamToolCallPart = (
     part: UIMessage['parts'][number],
 ): StreamToolCallPart | null => {
     const toolPart = getStreamToolPart(part);

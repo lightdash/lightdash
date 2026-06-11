@@ -5668,6 +5668,147 @@ SELECT * FROM group_by_query LIMIT 50`);
             expect(result).toContain('"revenue_ca" AS (');
             expect(result).toContain('column_ranking AS (');
         });
+
+        test('pivotColumnsOrder makes a hidden sort dim sort at its declared position, not leading, preserving outer column grouping (PROD-8159)', () => {
+            // Repro of the prod bug: two visible groupByColumns (case = outer,
+            // metric_type = inner) plus a hidden sort helper (item_order) that is
+            // declared BETWEEN them and orders the inner level. Hiding item_order
+            // must leave column order identical to when it was visible:
+            // case (outer) first, then item_order ordering metric_type within it.
+            // The old "hoist sort-only to the front" behavior produced
+            // ORDER BY item_order, case, metric_type — which groups columns by
+            // item_order ACROSS cases, breaking the case grouping and scrambling
+            // the rendered headers.
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'item', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'value',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'case' },
+                    { reference: 'metric_type' },
+                ],
+                sortOnlyDimensions: [{ reference: 'item_order' }],
+                pivotColumnsOrder: [
+                    { reference: 'case' },
+                    { reference: 'item_order' },
+                    { reference: 'metric_type' },
+                ],
+                sortBy: [
+                    { reference: 'item_order', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const collapsed = replaceWhitespace(builder.toSql());
+
+            // ORDER BY follows declared position: case (outer) leads, item_order
+            // orders the inner metric_type, metric_type trails as tiebreaker.
+            expect(collapsed).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."case" ASC, g."item_order" ASC, g."metric_type" ASC) AS "col_idx"',
+            );
+            // Column identity (DISTINCT) is visible dims only — item_order is
+            // never spread as a pivot column header.
+            expect(collapsed).toContain(
+                'column_ranking AS (SELECT DISTINCT g."case" AS "case", g."metric_type" AS "metric_type",',
+            );
+        });
+
+        test('pivotColumnsOrder holds declared position when the OUTER dim is also a sort target (prod sortBy [outer, helper]) (PROD-8159)', () => {
+            // Mirrors the exact prod payload: the user sorts the visible OUTER
+            // dim AND the hidden helper — sortBy [case ASC, item_order ASC].
+            // The helper must still sort at its declared position (not lead), and
+            // the visible groupByColumns keep their declared order regardless of
+            // sortBy order (issue #16871 invariant).
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'item', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'value',
+                        aggregation: VizAggregationOptions.ANY,
+                    },
+                ],
+                groupByColumns: [
+                    { reference: 'case' },
+                    { reference: 'metric_type' },
+                ],
+                sortOnlyDimensions: [{ reference: 'item_order' }],
+                pivotColumnsOrder: [
+                    { reference: 'case' },
+                    { reference: 'item_order' },
+                    { reference: 'metric_type' },
+                ],
+                sortBy: [
+                    { reference: 'case', direction: SortByDirection.ASC },
+                    { reference: 'item_order', direction: SortByDirection.ASC },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const collapsed = replaceWhitespace(builder.toSql());
+
+            // Same declared-position ORDER BY as when only the helper is sorted:
+            // the explicit outer sort does not hoist the helper, and does not
+            // reorder the visible groupByColumns.
+            expect(collapsed).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."case" ASC, g."item_order" ASC, g."metric_type" ASC) AS "col_idx"',
+            );
+        });
+
+        test('pivotColumnsOrder with the hidden sort dim declared first still leads the column ORDER BY (PROD-5789 stays fixed)', () => {
+            // Declared-position rule subsumes the original "lead" behavior: when
+            // the hidden helper is declared outermost (the single-visible-dim
+            // PROD-5789 shape), it naturally leads.
+            const pivotConfiguration = {
+                indexColumn: [
+                    { reference: 'customer_id', type: VizIndexType.CATEGORY },
+                ],
+                valuesColumns: [
+                    {
+                        reference: 'revenue',
+                        aggregation: VizAggregationOptions.SUM,
+                    },
+                ],
+                groupByColumns: [{ reference: 'orders_status' }],
+                sortOnlyDimensions: [{ reference: 'orders_status_priority' }],
+                pivotColumnsOrder: [
+                    { reference: 'orders_status_priority' },
+                    { reference: 'orders_status' },
+                ],
+                sortBy: [
+                    {
+                        reference: 'orders_status_priority',
+                        direction: SortByDirection.ASC,
+                    },
+                ],
+            };
+
+            const builder = new PivotQueryBuilder(
+                baseSql,
+                pivotConfiguration,
+                mockWarehouseSqlBuilder,
+            );
+            const collapsed = replaceWhitespace(builder.toSql());
+
+            expect(collapsed).toContain(
+                'DENSE_RANK() OVER (ORDER BY g."orders_status_priority" ASC, g."orders_status" ASC) AS "col_idx"',
+            );
+        });
     });
 
     describe('passthroughDimensions — hidden non-sort pivot dims carried for cross-field templating (PROD-7873)', () => {

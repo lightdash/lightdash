@@ -26,9 +26,14 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AiAgentReviewItemStatus,
+    type AiAgentReviewItemWritebackBlockedReason,
+    type AiAgentReviewItemWritebackStrategy,
+    type AiAgentRootCause,
     type AiRouterDecisionConfidence,
     type AiRouterRouteNextAction,
     type DataAppClaudeModel,
+    type PullRequestProvider,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -914,6 +919,18 @@ type ShareUrl = BaseTrack & {
     };
 };
 
+type AiAgentThreadShareEvent = BaseTrack & {
+    event: 'ai_agent_thread_share.created' | 'ai_agent_thread_share.cloned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        aiThreadShareId: string;
+    };
+};
+
 type ShareSlack = BaseTrack & {
     event:
         | 'share_slack.unfurl'
@@ -1409,14 +1426,17 @@ export type AiWritebackCompletedEvent = BaseTrack & {
 };
 
 // Pipeline stage that was running when an AI writeback run failed.
-export type AiWritebackFailureStage =
-    | 'install'
-    | 'sandbox'
-    | 'clone'
-    | 'agent'
-    | 'commit'
-    | 'push'
-    | 'pull_request';
+export const AI_WRITEBACK_STAGES = [
+    'install',
+    'sandbox',
+    'clone',
+    'agent',
+    'commit',
+    'push',
+    'pull_request',
+] as const;
+
+export type AiWritebackFailureStage = (typeof AI_WRITEBACK_STAGES)[number];
 
 export type AiWritebackFailedEvent = BaseTrack & {
     event: 'ai_writeback.failed';
@@ -1439,7 +1459,11 @@ export type AiWritebackEvent =
     | AiWritebackFailedEvent;
 
 export type CommentsEvent = BaseTrack & {
-    event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
+    event:
+        | 'comment.created'
+        | 'comment.deleted'
+        | 'comment.resolved'
+        | 'comment.unresolved';
     userId: string;
     properties: {
         dashboardTileUuid: string;
@@ -1719,6 +1743,19 @@ export type GithubInstallEvent = BaseTrack & {
     };
 };
 
+export type GithubUserLinkEvent = BaseTrack & {
+    event:
+        | 'github_user_link.started'
+        | 'github_user_link.completed'
+        | 'github_user_link.error'
+        | 'github_user_link.revoked';
+    userId: string;
+    properties: {
+        organizationId: string;
+        error?: string; // only for error
+    };
+};
+
 export type WriteBackEvent = BaseTrack & {
     event: 'write_back.created' | 'write_back.previewed';
     userId: string;
@@ -1831,9 +1868,7 @@ export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
         organizationId: string;
         projectId: string;
         mcpServerId: string;
-        // Distinguishes the one-click flow (auto-config from the org's GitHub
-        // integration) from manually creating a GitHub MCP server.
-        method: 'one_click';
+        method: 'one_click' | 'one_click_reconnect';
     };
 };
 
@@ -2137,6 +2172,92 @@ export type AiAgentPullRequestViewedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentReviewItemsListedEvent = BaseTrack & {
+    event: 'ai_agent_review_items.listed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        totalCount: number;
+        eligibleCount: number;
+        statuses: AiAgentReviewItemStatus[] | null;
+        blockedReasons: Partial<
+            Record<AiAgentReviewItemWritebackBlockedReason, number>
+        >;
+    };
+};
+
+export type AiAgentReviewItemStatusChangedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.status_changed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        previousStatus: AiAgentReviewItemStatus;
+        newStatus: AiAgentReviewItemStatus;
+    };
+};
+
+export type AiAgentReviewItemWritebackQueuedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_queued';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy;
+        provider: PullRequestProvider;
+    };
+};
+
+export type AiAgentReviewItemWritebackPreviewViewedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_preview_viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        available: boolean;
+        strategy: AiAgentReviewItemWritebackStrategy | null;
+    };
+};
+
+export type AiAgentReviewItemWritebackCompletedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy;
+        prCreated: boolean;
+    };
+};
+
+export type AiAgentReviewItemWritebackFailedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy | null;
+        errorMessage: string;
+    };
+};
+
+export type AiAgentReviewEvent =
+    | AiAgentReviewItemsListedEvent
+    | AiAgentReviewItemStatusChangedEvent
+    | AiAgentReviewItemWritebackQueuedEvent
+    | AiAgentReviewItemWritebackPreviewViewedEvent
+    | AiAgentReviewItemWritebackCompletedEvent
+    | AiAgentReviewItemWritebackFailedEvent;
+
 export type AiRouterConfigUpdatedEvent = BaseTrack & {
     event: 'ai_router.config_updated';
     userId: string;
@@ -2251,6 +2372,7 @@ type TypedEvent =
     | FieldValueSearch
     | PermissionsUpdated
     | ShareUrl
+    | AiAgentThreadShareEvent
     | ShareSlack
     | SavedChartView
     | DashboardView
@@ -2286,6 +2408,7 @@ type TypedEvent =
     | ManagedAgentEvent
     | VirtualViewEvent
     | GithubInstallEvent
+    | GithubUserLinkEvent
     | WriteBackEvent
     | WriteBackErrorEvent
     | SourceCodeEvent
@@ -2317,6 +2440,7 @@ type TypedEvent =
     | AiAgentSuggestionClickEvent
     | AiAgentSuggestionSubmitEvent
     | AiAgentPullRequestViewedEvent
+    | AiAgentReviewEvent
     | AiRouterConfigUpdatedEvent
     | AiRouterInstructionsUpdatedEvent
     | AiRouterMessageRoutedEvent

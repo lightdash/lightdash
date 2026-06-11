@@ -16,8 +16,8 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import {
@@ -43,7 +43,7 @@ const PreAggregateStatsTable: FC<Props> = ({
 }) => {
     const theme = useMantineTheme();
 
-    const [sorting, setSorting] = useState<MRT_SortingState>([
+    const [sorting, setSorting] = useState<ContentTableSortingState>([
         { id: 'queries', desc: true },
     ]);
     const [selectedQueryType, setSelectedQueryType] =
@@ -124,7 +124,7 @@ const PreAggregateStatsTable: FC<Props> = ({
         selectedMissReason,
     ]);
 
-    const columns = useMemo<MRT_ColumnDef<AggregatedRow>[]>(
+    const columns = useMemo<ContentTableColumnDef<AggregatedRow>[]>(
         () => [
             {
                 accessorKey: 'exploreName',

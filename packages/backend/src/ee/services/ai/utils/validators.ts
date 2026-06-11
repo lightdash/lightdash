@@ -8,6 +8,7 @@ import {
     convertAiTableCalcsSchemaToTableCalcs,
     CustomMetricBaseTransformed,
     dateFilterSchema,
+    DEFAULT_FILTER_CASE_SENSITIVE,
     DependencyNode,
     detectCircularDependencies,
     Explore,
@@ -275,7 +276,7 @@ function validateFilterRule(
                 WeekDay.SUNDAY,
                 SupportedDbtAdapter.BIGQUERY,
                 'UTC',
-                true, // Default to case sensitive for validation
+                DEFAULT_FILTER_CASE_SENSITIVE,
             );
         }
     } catch (e) {

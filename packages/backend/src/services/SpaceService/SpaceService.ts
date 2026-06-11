@@ -469,7 +469,9 @@ export class SpaceService
             trackEvent?: boolean;
         } = {},
     ) {
-        const space = await this.spaceModel.getSpaceSummary(spaceUuid);
+        const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
+            projectUuid,
+        });
 
         if (!space) {
             throw new NotFoundError('Space not found');
@@ -494,7 +496,7 @@ export class SpaceService
 
         await this.spaceModel.moveToSpace(
             {
-                projectUuid: space.projectUuid,
+                projectUuid,
                 itemUuid: spaceUuid,
                 targetSpaceUuid,
             },
@@ -690,6 +692,7 @@ export class SpaceService
     ): Promise<void> {
         const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
             deleted: true,
+            projectUuid: options?.projectUuid,
         });
 
         if (options?.bypassPermissions) {
@@ -739,6 +742,7 @@ export class SpaceService
                 // eslint-disable-next-line no-await-in-loop
                 await this.savedChartService.restore(user, chartUuid, {
                     bypassPermissions: true, // space restore authorized above
+                    projectUuid: space.projectUuid,
                 });
             }
 
@@ -751,6 +755,7 @@ export class SpaceService
                 // eslint-disable-next-line no-await-in-loop
                 await this.dashboardService.restore(user, dashboardUuid, {
                     bypassPermissions: true, // space restore authorized above
+                    projectUuid: space.projectUuid,
                 });
             }
 
@@ -782,6 +787,7 @@ export class SpaceService
                 // eslint-disable-next-line no-await-in-loop
                 await this.restore(user, childSpaceUuid, {
                     bypassPermissions: true, // space restore authorized above
+                    projectUuid: space.projectUuid,
                 });
             }
         }
@@ -811,6 +817,7 @@ export class SpaceService
         } else {
             const space = await this.spaceModel.getSpaceSummary(spaceUuid, {
                 deleted: true,
+                projectUuid: options?.projectUuid,
             });
             const auditedAbility = this.createAuditedAbility(user);
             if (

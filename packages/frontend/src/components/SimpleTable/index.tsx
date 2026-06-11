@@ -25,6 +25,7 @@ import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
 import ExplorerPivotTable from './ExplorerPivotTable';
 import MinimalCellContextMenu from './MinimalCellContextMenu';
+import PivotRerunState from './PivotRerunState';
 
 type SimpleTableProps = {
     isDashboard: boolean;
@@ -227,6 +228,8 @@ const SimpleTable: FC<SimpleTableProps> = ({
         minMaxMap,
         hideRowNumbers,
         pivotTableData,
+        isPivotTableEnabled,
+        isPivotResultStale,
         getFieldLabel,
         getField,
         showResultsTotal,
@@ -282,7 +285,22 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 icon={IconAlertCircle}
             />
         );
-    } else if (pivotTableData.loading || pivotTableData.data) {
+    }
+
+    // Pivot is configured but the current results weren't computed with the same
+    // pivot dimensions (pivot just added, or config changed without re-running).
+    // Prompt a re-run in the editor instead of an empty/stale table.
+    if (
+        isPivotTableEnabled &&
+        isPivotResultStale &&
+        !isDashboard &&
+        isEditMode &&
+        !isLoading
+    ) {
+        return <PivotRerunState />;
+    }
+
+    if (pivotTableData.loading || pivotTableData.data) {
         return (
             <Box
                 p={isDashboard ? 0 : 'xs'}
@@ -316,10 +334,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 }
                                 onColumnWidthChange={onColumnWidthChange}
                                 parameters={parameters}
-                                columnTotalsAreWarehouseComputed={
-                                    visualizationConfig.chartConfig
-                                        .columnTotalsAreWarehouseComputed
-                                }
                                 {...rest}
                             />
                         ) : (
@@ -342,10 +356,6 @@ const SimpleTable: FC<SimpleTableProps> = ({
                                 }
                                 onColumnWidthChange={onColumnWidthChange}
                                 parameters={parameters}
-                                columnTotalsAreWarehouseComputed={
-                                    visualizationConfig.chartConfig
-                                        .columnTotalsAreWarehouseComputed
-                                }
                                 {...rest}
                             />
                         )}

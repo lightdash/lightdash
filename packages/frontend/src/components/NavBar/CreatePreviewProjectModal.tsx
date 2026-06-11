@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     DbtProjectType,
     DbtProjectTypeLabels,
+    getInvalidDbtEnvironmentVariableKeys,
     ProjectType,
     type ApiError,
     type DbtProjectEnvironmentVariable,
@@ -71,6 +72,7 @@ type EnvironmentVariablesInputProps = {
     disabled?: boolean;
     documentationUrl?: string;
     labelHelp?: string | React.ReactNode;
+    error?: string;
 };
 
 const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
@@ -80,6 +82,7 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
     disabled,
     documentationUrl,
     labelHelp,
+    error,
 }) => {
     const [isLabelInfoOpen, setIsLabelInfoOpen] = useState<boolean>(false);
 
@@ -136,6 +139,7 @@ const EnvironmentVariablesInput: FC<EnvironmentVariablesInputProps> = ({
                 </>
             }
             description={isLabelInfoOpen && labelHelp}
+            error={error}
         >
             <Stack>
                 {value.map((variable, index) => (
@@ -214,6 +218,7 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
     const [environment, setEnvironment] = useState<
         DbtProjectEnvironmentVariable[]
     >([]);
+    const [environmentError, setEnvironmentError] = useState<string>('');
     const [manifestJson, setManifestJson] = useState<string>('');
     const [manifestError, setManifestError] = useState<string>('');
 
@@ -361,6 +366,18 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
         if (manifestJson.trim() && !validateManifest(manifestJson)) {
             return;
         }
+
+        const invalidEnvironmentKeys =
+            getInvalidDbtEnvironmentVariableKeys(environment);
+        if (invalidEnvironmentKeys.length > 0) {
+            setEnvironmentError(
+                `Environment variable keys cannot change how dbt or its child processes execute. Invalid keys: ${invalidEnvironmentKeys.join(
+                    ', ',
+                )}`,
+            );
+            return;
+        }
+        setEnvironmentError('');
 
         // Reduce manifest size by removing unnecessary keys
         const finalManifest = manifestJson.trim()
@@ -539,10 +556,12 @@ const CreatePreviewModal: FC<Props> = ({ isOpened, onClose }) => {
                                 <EnvironmentVariablesInput
                                     label="Environment Variables"
                                     value={environment}
-                                    onChange={(newVariables) =>
-                                        setEnvironment(newVariables)
-                                    }
+                                    onChange={(newVariables) => {
+                                        setEnvironment(newVariables);
+                                        setEnvironmentError('');
+                                    }}
                                     disabled={isPreviewCreating}
+                                    error={environmentError}
                                 />
 
                                 <Textarea

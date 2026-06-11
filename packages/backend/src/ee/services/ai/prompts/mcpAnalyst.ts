@@ -15,7 +15,8 @@ export const MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
 6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
-7. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
 ## Critical Rules
 

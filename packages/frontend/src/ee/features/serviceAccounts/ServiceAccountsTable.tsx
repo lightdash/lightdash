@@ -24,7 +24,6 @@ import {
     Text,
     TextInput,
     Tooltip,
-    useMantineTheme,
 } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import {
@@ -33,6 +32,7 @@ import {
     IconDots,
     IconFilter,
     IconInfoCircle,
+    IconPencil,
     IconRefresh,
     IconSearch,
     IconShieldLock,
@@ -46,12 +46,13 @@ import { Link } from 'react-router';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { useCustomRoles } from '../customRoles/useCustomRoles';
 import { ProjectsHoverCard } from './ProjectsHoverCard';
 import { ServiceAccountsDeleteModal } from './ServiceAccountsDeleteModal';
+import { ServiceAccountsEditModal } from './ServiceAccountsEditModal';
 import { ServiceAccountsRotateModal } from './ServiceAccountsRotateModal';
 import classes from './ServiceAccountsToolbar.module.css';
 import { isServiceAccountStale, STALE_THRESHOLD_DAYS } from './staleness';
@@ -121,7 +122,7 @@ const formatCreatedBy = (sa: ServiceAccount): string => {
 
 // Resolve the role label for a row so sort-by-role groups SAs that render
 // the same badge together (rather than sorting on raw scope strings).
-// MRT briefly invokes accessorFn with placeholder rows during auto-sort
+// ContentTable briefly invokes accessorFn with placeholder rows during auto-sort
 // inference, so guard against `scopes` being undefined.
 const formatRoleLabel = (
     sa: ServiceAccount,
@@ -151,9 +152,10 @@ export const ServiceAccountsTable: FC<Props> = ({
     onDelete,
     isDeleting,
 }) => {
-    const theme = useMantineTheme();
     const [opened, { open, close }] = useDisclosure(false);
     const [rotateOpened, { open: openRotate, close: closeRotate }] =
+        useDisclosure(false);
+    const [editOpened, { open: openEdit, close: closeEdit }] =
         useDisclosure(false);
 
     const [search, setSearch] = useState('');
@@ -214,6 +216,9 @@ export const ServiceAccountsTable: FC<Props> = ({
     const [serviceAccountToRotate, setServiceAccountToRotate] = useState<
         ServiceAccount | undefined
     >();
+    const [serviceAccountToEdit, setServiceAccountToEdit] = useState<
+        ServiceAccountWithProjectAccessCount | undefined
+    >();
 
     const handleOpenDelete = useCallback(
         (sa: ServiceAccount) => {
@@ -247,7 +252,20 @@ export const ServiceAccountsTable: FC<Props> = ({
         closeRotate();
     }, [closeRotate]);
 
-    const columns: MRT_ColumnDef<ServiceAccountWithProjectAccessCount>[] =
+    const handleOpenEdit = useCallback(
+        (sa: ServiceAccountWithProjectAccessCount) => {
+            setServiceAccountToEdit(sa);
+            openEdit();
+        },
+        [openEdit],
+    );
+
+    const handleCloseEdit = useCallback(() => {
+        setServiceAccountToEdit(undefined);
+        closeEdit();
+    }, [closeEdit]);
+
+    const columns: ContentTableColumnDef<ServiceAccountWithProjectAccessCount>[] =
         useMemo(
             () => [
                 {
@@ -283,7 +301,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                             color="red"
                                             size="xs"
                                             radius="md"
-                                            style={{ textTransform: 'none' }}
+                                            tt="none"
                                         >
                                             Stale
                                         </Badge>
@@ -327,7 +345,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     color="teal"
                                     radius="xs"
                                     size="sm"
-                                    style={{ textTransform: 'none' }}
+                                    tt="none"
                                 >
                                     {count}{' '}
                                     {count === 1 ? 'project' : 'projects'}
@@ -359,7 +377,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     color="indigo"
                                     radius="xs"
                                     size="sm"
-                                    style={{ textTransform: 'none' }}
+                                    tt="none"
                                 >
                                     {role?.name ?? 'Custom role'}
                                 </Badge>
@@ -385,9 +403,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                                     color="gray"
                                                     radius="xs"
                                                     size="sm"
-                                                    style={{
-                                                        textTransform: 'none',
-                                                    }}
+                                                    tt="none"
                                                 >
                                                     {SCOPE_LABEL[scope] ??
                                                         scope}
@@ -407,7 +423,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                         color="gray"
                                         radius="xs"
                                         size="sm"
-                                        style={{ textTransform: 'none' }}
+                                        tt="none"
                                     >
                                         {SCOPE_LABEL[scope] ?? scope}
                                     </Badge>
@@ -473,7 +489,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     ),
                     // Coerce to a sortable number; null = no-expiration so we
                     // float those rows to the end (Infinity) regardless of
-                    // sort direction. MRT will respect the asc/desc factor.
+                    // sort direction. ContentTable will respect the asc/desc factor.
                     sortingFn: (a, b) => {
                         const av = a.original.expiresAt
                             ? +new Date(a.original.expiresAt)
@@ -580,6 +596,14 @@ export const ServiceAccountsTable: FC<Props> = ({
                                     </ActionIcon>
                                 </Menu.Target>
                                 <Menu.Dropdown>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconPencil} />
+                                        }
+                                        onClick={() => handleOpenEdit(sa)}
+                                    >
+                                        Edit
+                                    </Menu.Item>
                                     {sa.roleUuid && (
                                         <Menu.Item
                                             component={Link}
@@ -623,7 +647,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                     },
                 },
             ],
-            [rolesByUuid, handleOpenRotate, handleOpenDelete],
+            [rolesByUuid, handleOpenEdit, handleOpenRotate, handleOpenDelete],
         );
 
     const handleStatusFilterChange = useCallback((value: string) => {
@@ -645,34 +669,9 @@ export const ServiceAccountsTable: FC<Props> = ({
         enableTopToolbar: true,
         enableBottomToolbar: false,
         enableGlobalFilter: false,
-        mantinePaperProps: {
-            shadow: undefined,
-            style: {
-                border: `1px solid ${theme.colors.ldGray[2]}`,
-                borderRadius: theme.radius.md,
-                boxShadow: theme.shadows.subtle,
-                display: 'flex',
-                flexDirection: 'column' as const,
-                overflow: 'hidden',
-            },
-        },
-        mantineTableHeadRowProps: { sx: { boxShadow: 'none' } },
-        mantineTableHeadCellProps: {
-            bg: 'ldGray.0',
-            style: {
-                userSelect: 'none',
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
-                borderTop: `1px solid ${theme.colors.ldGray[2]}`,
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-            },
-        },
-        mantineTableBodyCellProps: {
-            style: {
-                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
-                borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
-                borderTop: 'none',
-            },
-        },
+        mantinePaperProps: { className: classes.tablePaper },
+        mantineTableHeadCellProps: { className: classes.headCell },
+        mantineTableBodyCellProps: { className: classes.bodyCell },
         mantineTableProps: { highlightOnHover: true },
         state: { isLoading },
         renderEmptyRowsFallback: () => (
@@ -706,11 +705,12 @@ export const ServiceAccountsTable: FC<Props> = ({
         renderTopToolbar: () => (
             <Group
                 justify="space-between"
-                p={`${theme.spacing.sm} ${theme.spacing.md}`}
+                py="sm"
+                px="md"
                 wrap="nowrap"
                 className={classes.toolbar}
             >
-                <Group gap="xs" wrap="nowrap" style={{ flex: 1, minWidth: 0 }}>
+                <Group gap="xs" wrap="nowrap" flex={1} miw={0}>
                     <Tooltip
                         withinPortal
                         variant="xs"
@@ -755,7 +755,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                         orientation="vertical"
                         w={1}
                         h={20}
-                        style={{ alignSelf: 'center' }}
+                        className={classes.verticalDivider}
                     />
 
                     <SegmentedControl
@@ -788,7 +788,7 @@ export const ServiceAccountsTable: FC<Props> = ({
                                 orientation="vertical"
                                 w={1}
                                 h={20}
-                                style={{ alignSelf: 'center' }}
+                                className={classes.verticalDivider}
                             />
                             <Popover width={250} position="bottom-start">
                                 <Popover.Target>
@@ -820,14 +820,9 @@ export const ServiceAccountsTable: FC<Props> = ({
                                                         variant="filled"
                                                         color="indigo.6"
                                                         circle
-                                                        styles={{
-                                                            root: {
-                                                                minWidth: 18,
-                                                                height: 18,
-                                                                padding:
-                                                                    '0 4px',
-                                                            },
-                                                        }}
+                                                        className={
+                                                            classes.creatorCountBadge
+                                                        }
                                                     >
                                                         {
                                                             selectedCreators.length
@@ -930,6 +925,12 @@ export const ServiceAccountsTable: FC<Props> = ({
                 isOpen={rotateOpened}
                 onClose={handleCloseRotate}
                 serviceAccount={serviceAccountToRotate}
+            />
+
+            <ServiceAccountsEditModal
+                isOpen={editOpened}
+                onClose={handleCloseEdit}
+                serviceAccount={serviceAccountToEdit}
             />
         </>
     );

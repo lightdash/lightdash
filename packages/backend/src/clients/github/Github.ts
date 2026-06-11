@@ -40,6 +40,48 @@ export const getGithubApp = () => {
     return githubApp;
 };
 
+/** Build the GitHub OAuth authorize URL for linking a user's personal GitHub
+ * account (user-to-server token). Uses the same GitHub App OAuth client as the
+ * installation flow, so no extra app registration is needed. Without
+ * GITHUB_OAUTH_REDIRECT_URI, GitHub redirects to the app's first configured
+ * callback URL — set the env var (and register the URL on the app) when the
+ * instance is served somewhere else, e.g. a non-default local dev port. */
+export const getGithubUserAuthorizeUrl = (state: string): string => {
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    if (!clientId) {
+        throw new Error('Github integration not configured');
+    }
+    const url = new URL('https://github.com/login/oauth/authorize');
+    url.searchParams.set('client_id', clientId);
+    url.searchParams.set('state', state);
+    const redirectUri = process.env.GITHUB_OAUTH_REDIRECT_URI;
+    if (redirectUri) {
+        url.searchParams.set('redirect_uri', redirectUri);
+    }
+    return url.href;
+};
+
+/** Check whether a user OAuth token can access a repo. A user-to-server token
+ * is scoped to (repos the user can access) ∩ (repos the app is installed on),
+ * so this can be false even when the app installation has access. */
+export const userTokenHasRepoAccess = async (
+    token: string,
+    owner: string,
+    repo: string,
+): Promise<boolean> => {
+    const octokit = new OctokitRest();
+    try {
+        await octokit.rest.repos.get({
+            owner,
+            repo,
+            headers: { authorization: `Bearer ${token}` },
+        });
+        return true;
+    } catch {
+        return false;
+    }
+};
+
 export const getOctokitRestForUser = (
     authToken: string,
 ): { octokit: OctokitRest; headers: { authorization: string } } => {
@@ -172,6 +214,55 @@ export const getLastCommit = async ({
     return response.data[0];
 };
 
+/**
+ * True when a thrown octokit error is a rate-limit response. GitHub signals it
+ * two ways: a primary limit (403 with `x-ratelimit-remaining: 0`) and a
+ * secondary/burst limit (429, or 403 carrying a `retry-after` header, or a
+ * "rate limit" message). Checked at the throw site because callers wrap the
+ * error into UnexpectedGitError (dropping status + headers) downstream.
+ */
+export const isGithubRateLimitError = (error: unknown): boolean => {
+    const status = (error as { status?: number } | null)?.status;
+    const responseHeaders =
+        (error as { response?: { headers?: Record<string, string> } } | null)
+            ?.response?.headers ?? {};
+    const remaining = responseHeaders['x-ratelimit-remaining'];
+    const retryAfter = responseHeaders['retry-after'];
+    return (
+        status === 429 ||
+        (status === 403 && (remaining === '0' || retryAfter !== undefined)) ||
+        /rate limit/i.test(getErrorMessage(error))
+    );
+};
+
+/**
+ * Log a rate-limit response loudly (with the reset/retry hints) so throttling is
+ * never silent — several callers swallow or wrap the underlying error. No-op for
+ * non-rate-limit errors. `context` identifies the call site (e.g. the path).
+ */
+const logGithubRateLimit = (error: unknown, context: string): void => {
+    if (!isGithubRateLimitError(error)) return;
+    const responseHeaders =
+        (error as { response?: { headers?: Record<string, string> } } | null)
+            ?.response?.headers ?? {};
+    const status = (error as { status?: number } | null)?.status;
+    Logger.warn(
+        `[github] rate limit hit (${context}): status=${
+            status ?? '?'
+        } remaining=${responseHeaders['x-ratelimit-remaining'] ?? '?'} retryAfter=${
+            responseHeaders['retry-after'] ?? '?'
+        } reset=${responseHeaders['x-ratelimit-reset'] ?? '?'}`,
+        {
+            event: 'github.rate_limit',
+            context,
+            status,
+            remaining: responseHeaders['x-ratelimit-remaining'],
+            retryAfter: responseHeaders['retry-after'],
+            reset: responseHeaders['x-ratelimit-reset'],
+        },
+    );
+};
+
 export const getFileContent = async ({
     fileName,
     owner,
@@ -218,6 +309,7 @@ export const getFileContent = async ({
         ) {
             throw new NotFoundError(`file ${fileName} not found in Github`);
         }
+        logGithubRateLimit(error, `getContent ${fileName}`);
         throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
@@ -228,6 +320,70 @@ export const getFileContent = async ({
  * demand. Reads the repo's default branch when `ref` is omitted. Returns an
  * empty list when the workflows directory does not exist.
  */
+/**
+ * List every file path in a repo via the GitHub Git Trees API (recursive) — no
+ * clone/sandbox. Backs the read-only repo virtual filesystem (`repoShell` tool).
+ * `branch` may be a branch name, tag, or commit SHA (resolved to its tree).
+ * `truncated` is true when the repo exceeds the API's tree-entry limit, in which
+ * case the returned list is incomplete.
+ */
+export const getRepoTree = async ({
+    owner,
+    repo,
+    branch,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    branch: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{
+    files: { path: string; size: number }[];
+    truncated: boolean;
+}> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const response = await octokit.rest.git.getTree({
+            owner,
+            repo,
+            tree_sha: branch,
+            recursive: 'true',
+            headers,
+        });
+        const files = response.data.tree
+            // Symlinks are blobs with mode 120000. The Contents API follows an
+            // in-repo symlink server-side and returns the *target's* content, so
+            // a symlink committed inside a scoped dbt subPath would let a read
+            // escape that scope. Exclude them — the repo VFS exposes real files
+            // only (and reports isSymbolicLink: false everywhere).
+            .filter(
+                (entry) =>
+                    entry.type === 'blob' &&
+                    entry.mode !== '120000' &&
+                    Boolean(entry.path),
+            )
+            .map((entry) => ({
+                path: entry.path as string,
+                size: entry.size ?? 0,
+            }));
+        return { files, truncated: response.data.truncated ?? false };
+    } catch (error) {
+        if (
+            error instanceof Error &&
+            `status` in error &&
+            error.status === 404
+        ) {
+            throw new NotFoundError(
+                `repo ${owner}/${repo} (ref ${branch}) not found in Github`,
+            );
+        }
+        logGithubRateLimit(error, `getTree ${owner}/${repo}@${branch}`);
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
 export const getRepoWorkflowFiles = async ({
     owner,
     repo,
@@ -352,6 +508,77 @@ export const getBranchHeadSha = async ({
     }
 };
 
+/** The repo's default branch — the base for a PR opened without a sandbox clone. */
+export const getRepoDefaultBranch = async ({
+    owner,
+    repo,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    installationId?: string;
+    token?: string;
+}): Promise<string> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const { data } = await octokit.rest.repos.get({
+            owner,
+            repo,
+            headers,
+        });
+        return data.default_branch;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+/** A single GitHub Actions check run on a ref, in the API's native vocabulary. */
+export type GithubCheckRun = {
+    name: string;
+    status: 'queued' | 'in_progress' | 'completed';
+    conclusion: string | null;
+    htmlUrl: string | null;
+    /** When the run started, used to pick the latest run per check name. */
+    startedAt: string | null;
+};
+
+/**
+ * List the GitHub Actions check runs for a ref (branch name or SHA). Used to
+ * surface a PR's CI status. Paginates so all check runs are returned, not just
+ * the first page.
+ */
+export const listCheckRunsForRef = async ({
+    owner,
+    repo,
+    ref,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    ref: string;
+    installationId?: string;
+    token?: string;
+}): Promise<GithubCheckRun[]> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    try {
+        const checkRuns = await octokit.paginate(
+            octokit.rest.checks.listForRef,
+            { owner, repo, ref, per_page: 100, headers },
+        );
+        return checkRuns.map((run) => ({
+            name: run.name,
+            status: run.status as GithubCheckRun['status'],
+            conclusion: run.conclusion,
+            htmlUrl: run.html_url ?? null,
+            startedAt: run.started_at ?? null,
+        }));
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
 export type GithubFileChanges = {
     /** `contents` is the base64-encoded file content, as required by the API. */
     additions: { path: string; contents: string }[];
@@ -461,6 +688,9 @@ export const updateFile = async ({
     try {
         // GitHub API uses `branch` param for target branch
         // @see https://docs.github.com/en/rest/repos/contents#create-or-update-file-contents
+        // No explicit author/committer: GitHub attributes the commit to the
+        // token identity — the linked user when acting as them, or the app bot
+        // otherwise — matching createFile's behaviour.
         const response = await octokit.rest.repos.createOrUpdateFileContents({
             owner,
             repo,
@@ -470,14 +700,6 @@ export const updateFile = async ({
             sha: fileSha,
             branch,
             headers,
-            committer: {
-                name: 'Lightdash',
-                email: 'developers@glightdash.com',
-            },
-            author: {
-                name: 'Lightdash',
-                email: 'developers@glightdash.com',
-            },
         });
         return response;
     } catch (e) {
@@ -619,6 +841,15 @@ export const getPullRequest = async ({
     headRef: string;
     /** Full name (`owner/repo`) of the PR's head — differs from the base when the PR comes from a fork. */
     headRepoFullName: string | null;
+    /** GitHub's mergeability (null until GitHub finishes computing it). */
+    mergeable: boolean | null;
+    /**
+     * GitHub's `mergeable_state` — the policy verdict (clean/unstable/blocked/
+     * dirty/behind/draft/has_hooks/unknown). Authoritative for whether a merge
+     * is actually allowed; only populated on a single-PR GET like this one.
+     */
+    mergeableState: string;
+    draft: boolean;
 }> => {
     const { octokit, headers } = getOctokit(installationId, token);
 
@@ -635,7 +866,42 @@ export const getPullRequest = async ({
             merged: response.data.merged === true,
             headRef: response.data.head.ref,
             headRepoFullName: response.data.head.repo?.full_name ?? null,
+            mergeable: response.data.mergeable,
+            mergeableState: response.data.mergeable_state,
+            draft: response.data.draft === true,
         };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+export const createPullRequestComment = async ({
+    owner,
+    repo,
+    pullNumber,
+    body,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    body: string;
+    installationId?: string;
+    token?: string;
+}) => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.issues.createComment({
+            owner,
+            repo,
+            issue_number: pullNumber,
+            body,
+            headers,
+        });
+
+        return response.data;
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));
     }
@@ -991,6 +1257,9 @@ export const deleteFile = async ({
 > => {
     const { octokit, headers } = getOctokit(installationId, token);
     try {
+        // No explicit committer: attribute the commit to the token identity
+        // (linked user when acting as them, app bot otherwise), consistent
+        // with createFile/updateFile.
         const response = await octokit.rest.repos.deleteFile({
             owner,
             repo,
@@ -999,10 +1268,6 @@ export const deleteFile = async ({
             branch,
             message,
             headers,
-            committer: {
-                name: 'Lightdash',
-                email: 'developers@lightdash.com',
-            },
         });
         return response;
     } catch (error) {

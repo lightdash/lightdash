@@ -2108,7 +2108,10 @@ chartConfig:
 
         // Clear stale validation errors for this chart — the fix should resolve them.
         // If the fix was incomplete, the next validateProject run will re-create them.
-        await this.validationModel.deleteChartValidations(chartUuid);
+        await this.validationModel.deleteChartValidations(
+            chartUuid,
+            projectUuid,
+        );
 
         const action = await this.managedAgentModel.createAction({
             projectUuid,

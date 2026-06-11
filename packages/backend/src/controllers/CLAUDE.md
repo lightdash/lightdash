@@ -110,6 +110,56 @@ export class ProjectController extends BaseController {
 
 </importantToKnow>
 
+## Deprecating Endpoints
+
+**What:** This applies to HTTP endpoints only. Internal service/model methods,
+type fields, DB columns, and config fields are not endpoints — mark them with a
+`@deprecated` JSDoc comment but do not add deprecation middleware.
+
+**When:** Only deprecate an endpoint once nothing first-party calls it anymore —
+the frontend, CLI, and other internal consumers must already be migrated off it.
+A deprecated endpoint is removed 3 months after it was deprecated by default.
+That window is the `getDeprecatedRouteMiddleware` default; override it only when a
+different sunset date has been agreed.
+
+**How:** Add `getDeprecatedRouteMiddleware(deprecatedOn, { suffixMessage })` to
+the endpoint's `@Middlewares([...])`, where `deprecatedOn` is the date the
+endpoint was deprecated and `suffixMessage` names the replacement. Keep the TSOA
+`@Deprecated()` decorator and the `@deprecated` JSDoc (they drive OpenAPI).
+
+```typescript
+@Middlewares([
+    allowApiKeyAuthentication,
+    isAuthenticated,
+    getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+        suffixMessage: 'Use ProjectRoleAssignments instead.',
+    }),
+])
+@Deprecated()
+@Patch('{projectUuid}/access/{userUuid}')
+```
+
+**Docs visibility:** `deprecated: true` alone is nearly invisible on
+docs.lightdash.com (pages and llms.txt are generated from
+`src/generated/swagger.json`). Also lead the JSDoc description with a plain-text
+`Deprecated — use the v2 <name> endpoint instead.` first line (it becomes the
+llms.txt entry and page subtitle; no markdown/MDX there), add an
+`@Extension('x-mint', { content: '<Warning>...' })` migration banner (renders
+above the generated reference; MDX allowed there, not in the description), and
+keep `@summary` unchanged — the docs page URL is derived from it. Then
+`pnpm generate-api`. See the `deprecate-endpoint` skill for the full pattern.
+
+**Behavior** (`authentication/deprecation.ts`):
+
+- Every call logs. It logs a warning, escalating to an error once the removal
+  date is within two weeks or has passed. Deprecated endpoints are not expected
+  to be called by any first-party client, so any log line is a signal that
+  something still depends on a route slated for removal.
+- When it escalates to an error, it also reports a `DeprecatedRouteError`
+  (`@lightdash/common`) to Sentry so overdue routes surface in alerting.
+- Responses carry `Deprecation` (deprecation date), `Sunset` (removal date), and
+  a legacy `Warning` header.
+
 <links>
 @packages/backend/src/controllers/baseController.ts - Base controller implementation
 @packages/backend/src/controllers/authentication/index.ts - Authentication strategies

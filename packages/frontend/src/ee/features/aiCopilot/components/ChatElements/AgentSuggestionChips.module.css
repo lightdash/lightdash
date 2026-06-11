@@ -1,8 +1,14 @@
 .row {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
     gap: 6px;
-    padding: var(--mantine-spacing-xs);
+    padding: 0;
+}
+
+.rowLeft {
+    justify-content: flex-start;
 }
 
 .chip {
@@ -12,7 +18,7 @@
     font-size: 11px;
     font-weight: 500;
     line-height: 1;
-    letter-spacing: -0.005em;
+    letter-spacing: 0;
     border-radius: 6px;
     border-width: 1px;
     transition:
@@ -32,11 +38,11 @@
     @mixin dark {
         background-color: color-mix(
             in srgb,
-            var(--mantine-color-ldDark-5) 70%,
+            var(--mantine-color-ldDark-2) 70%,
             transparent
         );
         border-color: transparent;
-        color: var(--mantine-color-ldDark-7);
+        color: var(--mantine-color-ldDark-8);
     }
 
     &:hover {

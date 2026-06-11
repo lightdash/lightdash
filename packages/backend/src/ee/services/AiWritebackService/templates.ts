@@ -1,8 +1,4 @@
-import type {
-    PreviewDeploySecret,
-    WarehouseTypes,
-    WorkflowFile,
-} from '@lightdash/common';
+import type { WarehouseTypes } from '@lightdash/common';
 import {
     COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
@@ -36,64 +32,6 @@ const buildWarehouseSkillGuidance = (
     return `${trigger} ${SHARED_SKILL_PATH}. It contains cross-warehouse type-coercion rules. ${consequence}`;
 };
 
-export type PreviewDeployGuidance = {
-    workflowFiles: WorkflowFile[];
-    secrets: PreviewDeploySecret[];
-};
-
-// Secondary-task guidance: when the repo has no Lightdash preview-deploy CI, the
-// agent is told to offer setting it up and given the exact files + secrets. The
-// agent only acts if the user agrees; the workflow files ride the normal
-// commit→PR flow (the host additionally stages `.github/workflows`).
-const buildPreviewDeployGuidance = (
-    previewDeploy: PreviewDeployGuidance | null,
-): string => {
-    if (!previewDeploy) return '';
-    const filesBlock = previewDeploy.workflowFiles
-        .map((f) => `### \`${f.path}\`\n\n\`\`\`yaml\n${f.content}\`\`\``)
-        .join('\n\n');
-    const secretsBlock = previewDeploy.secrets
-        .map((s) =>
-            s.value
-                ? `- \`${s.name}\` = \`${s.value}\` — ${s.description}`
-                : `- \`${s.name}\` — ${s.description} (only the user can provide this)`,
-        )
-        .join('\n');
-    return `
-## Secondary task: offer to set up Lightdash preview deploys
-
-This repository does NOT currently deploy Lightdash preview projects via GitHub
-Actions. As a SECONDARY task, AFTER you have addressed the user's main request:
-
-- Briefly tell the user preview deploys aren't set up and OFFER to open a pull
-  request adding the Lightdash preview workflow. Do not set it up unless the
-  user wants it. Do not block or delay the user's main request on this.
-- If the user agrees (now or in a follow-up message), add these files, then let
-  the host open the PR as usual. Keep the workflow STRUCTURE exactly as shown:
-  the \`permissions\` blocks, the secret names and how they are passed, the
-  \`lightdash\` commands, and the job/trigger layout are security-reviewed and
-  run with live credentials, so do NOT widen permissions, rename the files, or
-  change the commands. \`PROJECT_DIR\` is already filled in for you.
-- VERSION PINNING is the one part you may adapt. By DEFAULT use the versions
-  shown below — the GitHub Actions are pinned to commit SHAs, plus a Node
-  version and the \`@lightdash/cli\` version. BUT first inspect the repo's other
-  files under \`.github/workflows\`: if it already follows a consistent
-  convention for pinning versions (e.g. it pins actions to tags like \`@v4\`
-  instead of SHAs, or uses a particular Node version), match the repo's
-  convention instead so the new workflow is consistent with their existing CI.
-  If the repo has no such convention, keep the pinned values exactly as shown.
-
-${filesBlock}
-
-- After creating the files, tell the user they must add these GitHub Actions
-  repository secrets for the workflow to run. Values shown are ones Lightdash
-  already knows; the rest only the user can provide:
-
-${secretsBlock}
-
-`;
-};
-
 // Instructions prepended to every user prompt. The host owns git, so the agent
 // must not touch it; instead it leaves the PR title/description on disk.
 //
@@ -111,6 +49,26 @@ ${secretsBlock}
 // unset variables. The original profiles.yml in the checkout must NOT be
 // touched — `git add --all` runs after the agent and would otherwise sweep
 // the patched file into the PR.
+// Compile follow-up steps when the host has already staged a
+// credential-free profiles copy at TMP_PROFILES_DIR — the agent skips the
+// discover/copy/strip dance entirely and just runs the compile.
+const buildStagedProfilesSteps = (dbtProjectDir: string): string => `
+1. From the repo root, run (use this exact wrapper command — it is the only
+   compile command available to you; a credential-free profiles directory has
+   already been prepared for you at \`${TMP_PROFILES_DIR}\`, so do NOT create or
+   edit it):
+     ${COMPILE_WRAPPER_PATH} --skip-warehouse-catalog \\
+       --profiles-dir ${TMP_PROFILES_DIR} \\
+       --project-dir ${dbtProjectDir}
+   Capture the exit code and the last meaningful line of output.
+
+2. In your final reply, include ONE line summarising the compile result —
+   for example: "lightdash compile: ok (exit 0)" or
+   "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
+   paste the full compile output.
+
+3. End your final reply with the two structured-output blocks below.`;
+
 export const buildSystemPrompt = (
     dbtProjectDir: string,
     context: {
@@ -119,7 +77,7 @@ export const buildSystemPrompt = (
         repoContext: string | null;
         warehouseType: WarehouseTypes | null;
         hasWarehouseSkill: boolean;
-        previewDeploy: PreviewDeployGuidance | null;
+        profilesStaged: boolean;
     },
 ): string =>
     `
@@ -157,10 +115,11 @@ ${context.repoContext}
 `
         : ''
 }
-${buildPreviewDeployGuidance(context.previewDeploy)}
-If you made any file changes, perform ALL of these follow-up steps before you
-finish:
-
+If you made any file changes, perform these follow-up steps before you finish:
+${
+    context.profilesStaged
+        ? buildStagedProfilesSteps(dbtProjectDir)
+        : `
 1. The dbt project directory (containing \`dbt_project.yml\`) is
    \`${dbtProjectDir}\`. Use it as the \`--project-dir\`.
 
@@ -191,10 +150,13 @@ finish:
    "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
    paste the full compile output.
 
-6. End your final reply with two structured-output blocks so the host can
-   pick up the PR metadata reliably. The host strips both blocks before
-   showing your reply to the user, so they will not appear in Slack. Emit them
-   verbatim, on their own lines, each opening and closing tag exactly as shown:
+6. End your final reply with the two structured-output blocks below.`
+}
+
+The two structured-output blocks let the host pick up the PR metadata reliably.
+The host strips both blocks before showing your reply to the user, so they will
+not appear in Slack. Emit them verbatim, on their own lines, each opening and
+closing tag exactly as shown:
 
    ${PR_TITLE_OPEN}
    single-line PR title — plain text, no emojis, max 72 characters
@@ -204,6 +166,6 @@ finish:
    PR description in plain markdown, no emojis
    ${PR_DESCRIPTION_CLOSE}
 
-If you did not change any files, skip steps 1–6 entirely and do not emit the
+If you did not change any files, skip these steps entirely and do not emit the
 blocks.
 `.trim();

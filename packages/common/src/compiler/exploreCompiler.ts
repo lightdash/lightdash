@@ -27,6 +27,10 @@ import {
 } from '../types/field';
 import { type ModelRequiredFilterRule } from '../types/filter';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import {
+    isMetricsExplorerCompatibleDimension,
+    METRICS_EXPLORER_FILTER_OPERATORS,
+} from '../types/metricsExplorer';
 import { type PreAggregateDef } from '../types/preAggregate';
 import {
     dateGranularityToTimeFrameMap,
@@ -182,6 +186,82 @@ export const getParsedReference = (
     const refName = split.length === 1 ? split[0] : split[1];
 
     return { refTable, refName };
+};
+
+/**
+ * Validate metric spotlight `default_segment` / `default_filter` at compile time.
+ * Stricter than the segment_by/filter_by allowlists: a wrong default silently
+ * produces a wrong landing view in the Metrics Explorer, so we hard-fail.
+ * Only runs when the optional fields are present — existing configs are untouched.
+ */
+const validateSpotlightDefaults = (
+    metric: Metric,
+    tables: Record<string, Table>,
+): void => {
+    const { spotlight } = metric;
+    if (!spotlight) return;
+
+    // Resolve a default's reference exactly like metric.filters does, so
+    // bare ("status") and joined ("customers.first_name") refs both work.
+    const resolveDimension = (ref: string): Dimension | undefined => {
+        const { refTable, refName } = getParsedReference(ref, metric.table);
+        return getReferencedDimensionCaseInsensitive(refTable, refName, tables);
+    };
+
+    // Allowlists store bare dimension names (matched against dimension.name in
+    // the explorer), but accept the fully-qualified ref too.
+    const isInAllowlist = (allowlist: string[], ref: string): boolean => {
+        const { refName } = getParsedReference(ref, metric.table);
+        return allowlist.includes(ref) || allowlist.includes(refName);
+    };
+
+    if (spotlight.defaultSegment !== undefined) {
+        const ref = spotlight.defaultSegment;
+        if (spotlight.segmentBy && !isInAllowlist(spotlight.segmentBy, ref)) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_segment '${ref}' must be one of segment_by: [${spotlight.segmentBy.join(
+                    ', ',
+                )}]`,
+            );
+        }
+        const dimension = resolveDimension(ref);
+        const isSegmentable =
+            dimension !== undefined &&
+            isMetricsExplorerCompatibleDimension(dimension);
+        if (!isSegmentable) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_segment '${ref}' must reference an existing dimension that is segmentable (string or boolean)`,
+            );
+        }
+    }
+
+    if (spotlight.defaultFilter !== undefined) {
+        const { fieldRef } = spotlight.defaultFilter.target;
+        if (
+            spotlight.filterBy &&
+            !isInAllowlist(spotlight.filterBy, fieldRef)
+        ) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter dimension '${fieldRef}' must be one of filter_by: [${spotlight.filterBy.join(
+                    ', ',
+                )}]`,
+            );
+        }
+        if (resolveDimension(fieldRef) === undefined) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter references an unknown dimension '${fieldRef}'`,
+            );
+        }
+        if (
+            !METRICS_EXPLORER_FILTER_OPERATORS.includes(
+                spotlight.defaultFilter.operator,
+            )
+        ) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter uses operator '${spotlight.defaultFilter.operator}' which is not supported in the Metrics Explorer (use 'is' or 'is not')`,
+            );
+        }
+    }
 };
 
 const getDimensionFromRequiredFilter = ({
@@ -912,6 +992,8 @@ export class ExploreCompiler {
             parameterReferences,
             availableParameters,
         );
+
+        validateSpotlightDefaults(metric, tables);
 
         return {
             ...metric,

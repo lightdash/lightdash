@@ -6,6 +6,7 @@ import {
     type CustomDimension,
     type Dimension,
     type Metric,
+    type SankeyNodeLayout,
     type TableCalculation,
 } from '@lightdash/common';
 import {
@@ -13,6 +14,7 @@ import {
     SegmentedControl,
     Stack,
     Tabs,
+    Text,
     useMantineColorScheme,
 } from '@mantine/core';
 import { memo, useMemo, type FC } from 'react';
@@ -90,7 +92,14 @@ export const ConfigTabs: FC = memo(() => {
         onNodeAlignChange,
         orient,
         onOrientChange,
+        nodeLayout,
+        onNodeLayoutChange,
+        data,
     } = visualizationConfig.chartConfig;
+
+    // Merging needs an acyclic graph, so cyclic data falls back to multi-step
+    const effectiveLayout: SankeyNodeLayout =
+        nodeLayout === 'merged' && data.hasCycle ? 'multi-step' : nodeLayout;
 
     return (
         <MantineProvider inherit theme={themeOverride}>
@@ -208,40 +217,78 @@ export const ConfigTabs: FC = memo(() => {
                         </Config>
                         <Config>
                             <Config.Section>
-                                <Config.Heading>Node alignment</Config.Heading>
+                                <Config.Heading>Node layout</Config.Heading>
                                 <SegmentedControl
-                                    value={nodeAlign}
+                                    value={effectiveLayout}
                                     data={[
                                         {
-                                            value: 'left',
-                                            label:
-                                                orient === 'vertical'
-                                                    ? 'Top'
-                                                    : 'Left',
+                                            value: 'multi-step',
+                                            label: 'Multi-step',
                                         },
                                         {
-                                            value: 'right',
-                                            label:
-                                                orient === 'vertical'
-                                                    ? 'Bottom'
-                                                    : 'Right',
+                                            value: 'merged',
+                                            label: 'Merged',
+                                            disabled: data.hasCycle,
                                         },
                                         {
-                                            value: 'justify',
-                                            label: 'Justify',
+                                            value: 'direct',
+                                            label: 'Direct',
                                         },
                                     ]}
                                     onChange={(value) =>
-                                        onNodeAlignChange(
-                                            value as
-                                                | 'left'
-                                                | 'right'
-                                                | 'justify',
+                                        onNodeLayoutChange(
+                                            value as SankeyNodeLayout,
                                         )
                                     }
                                 />
+                                {data.hasCycle && (
+                                    <Text size="xs" c="dimmed" mt="xs">
+                                        Merging isn't available for flows that
+                                        loop back on themselves.
+                                    </Text>
+                                )}
                             </Config.Section>
                         </Config>
+                        {effectiveLayout !== 'direct' && (
+                            <Config>
+                                <Config.Section>
+                                    <Config.Heading>
+                                        Node alignment
+                                    </Config.Heading>
+                                    <SegmentedControl
+                                        value={nodeAlign}
+                                        data={[
+                                            {
+                                                value: 'left',
+                                                label:
+                                                    orient === 'vertical'
+                                                        ? 'Top'
+                                                        : 'Left',
+                                            },
+                                            {
+                                                value: 'right',
+                                                label:
+                                                    orient === 'vertical'
+                                                        ? 'Bottom'
+                                                        : 'Right',
+                                            },
+                                            {
+                                                value: 'justify',
+                                                label: 'Justify',
+                                            },
+                                        ]}
+                                        onChange={(value) =>
+                                            onNodeAlignChange(
+                                                value as
+                                                    | 'left'
+                                                    | 'right'
+                                                    | 'justify',
+                                            )
+                                        }
+                                    />
+                                </Config.Section>
+                            </Config>
+                        )}
                     </Stack>
                 </Tabs.Panel>
             </Tabs>

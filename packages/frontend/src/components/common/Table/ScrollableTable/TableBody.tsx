@@ -5,7 +5,10 @@ import {
     getConditionalFormattingDescription,
     getItemId,
     getReadableTextColor,
+    getRowConditionalFormattingColor,
     isNumericItem,
+    type ConditionalFormattingColorRange,
+    type ConditionalFormattingMinMax,
     type ConditionalFormattingRowFields,
     type ResultRow,
 } from '@lightdash/common';
@@ -99,6 +102,30 @@ const TableRow: FC<TableRowProps> = ({
                 }, {}),
         [row],
     );
+    const getEffectiveColorFromRange = useCallback(
+        (
+            val: number,
+            colorRange: ConditionalFormattingColorRange,
+            minMaxRange: ConditionalFormattingMinMax,
+        ) => {
+            const effectiveColorRange =
+                colorScheme === 'dark'
+                    ? transformColorsForDarkMode(colorRange)
+                    : colorRange;
+            return getColorFromRange(val, effectiveColorRange, minMaxRange);
+        },
+        [colorScheme],
+    );
+
+    const rowBackgroundColor = useMemo(
+        () =>
+            getRowConditionalFormattingColor({
+                conditionalFormattings,
+                rowFields,
+                minMaxMap,
+            }),
+        [conditionalFormattings, rowFields, minMaxMap],
+    );
 
     return (
         <Tr $index={index} ref={measureElement} data-index={virtualIndex}>
@@ -107,63 +134,85 @@ const TableRow: FC<TableRowProps> = ({
                 const field = meta?.item;
                 const cellValue = cell.getValue() as ResultRow[0] | undefined;
 
-                const conditionalFormattingConfig =
+                const cellConditionalFormattingConfig =
                     getConditionalFormattingConfig({
                         field,
                         value: cellValue?.value?.raw,
                         minMaxMap,
                         conditionalFormattings,
                         rowFields,
+                        applyTo: ConditionalFormattingColorApplyTo.CELL,
+                    });
+                const textConditionalFormattingConfig =
+                    getConditionalFormattingConfig({
+                        field,
+                        value: cellValue?.value?.raw,
+                        minMaxMap,
+                        conditionalFormattings,
+                        rowFields,
+                        applyTo: ConditionalFormattingColorApplyTo.TEXT,
                     });
 
-                const conditionalFormattingResult =
+                const cellConditionalFormattingResult =
                     getConditionalFormattingColor({
                         field,
                         value: cellValue?.value?.raw,
                         minMaxMap,
-                        config: conditionalFormattingConfig,
-                        getColorFromRange: (val, colorRange, minMaxRange) => {
-                            const effectiveColorRange =
-                                colorScheme === 'dark'
-                                    ? transformColorsForDarkMode(colorRange)
-                                    : colorRange;
-                            return getColorFromRange(
-                                val,
-                                effectiveColorRange,
-                                minMaxRange,
-                            );
-                        },
+                        config: cellConditionalFormattingConfig,
+                        getColorFromRange: getEffectiveColorFromRange,
                     });
-
-                const applyToText =
-                    conditionalFormattingResult?.applyTo ===
-                    ConditionalFormattingColorApplyTo.TEXT;
+                const textConditionalFormattingResult =
+                    getConditionalFormattingColor({
+                        field,
+                        value: cellValue?.value?.raw,
+                        minMaxMap,
+                        config: textConditionalFormattingConfig,
+                        getColorFromRange: getEffectiveColorFromRange,
+                    });
 
                 // Frozen/locked rows should have a fixed background, unless there is a conditional formatting color applied to cell
                 let backgroundColor: string | undefined;
-                if (conditionalFormattingResult && !applyToText) {
-                    backgroundColor = conditionalFormattingResult.color;
+                if (cellConditionalFormattingResult) {
+                    backgroundColor = cellConditionalFormattingResult.color;
+                } else if (rowBackgroundColor) {
+                    backgroundColor = rowBackgroundColor;
                 } else if (meta?.frozen) {
                     backgroundColor = FROZEN_COLUMN_BACKGROUND;
                 }
 
-                const tooltipContent = getConditionalFormattingDescription(
-                    field,
-                    conditionalFormattingConfig,
-                    rowFields,
-                    getConditionalRuleLabelFromItem,
-                );
+                const tooltipContent = [
+                    getConditionalFormattingDescription(
+                        field,
+                        cellConditionalFormattingConfig,
+                        rowFields,
+                        getConditionalRuleLabelFromItem,
+                    ),
+                    getConditionalFormattingDescription(
+                        field,
+                        textConditionalFormattingConfig,
+                        rowFields,
+                        getConditionalRuleLabelFromItem,
+                    ),
+                ]
+                    .filter(
+                        (description, index, descriptions) =>
+                            description &&
+                            descriptions.indexOf(description) === index,
+                    )
+                    .join('; ');
 
                 const toggleExpander = row.getToggleExpandedHandler();
                 // When conditional formatting is applied to cell, use calculated contrast color
                 // When applied to text, use the formatting color directly
                 let fontColor: string | undefined;
-                if (conditionalFormattingResult) {
-                    fontColor = applyToText
-                        ? conditionalFormattingResult.color
-                        : getReadableTextColor(
-                              conditionalFormattingResult.color,
-                          );
+                if (textConditionalFormattingResult) {
+                    fontColor = textConditionalFormattingResult.color;
+                } else if (cellConditionalFormattingResult) {
+                    fontColor = getReadableTextColor(
+                        cellConditionalFormattingResult.color,
+                    );
+                } else if (rowBackgroundColor) {
+                    fontColor = getReadableTextColor(rowBackgroundColor);
                 }
 
                 const suppressContextMenu =
@@ -195,7 +244,7 @@ const TableRow: FC<TableRowProps> = ({
                             (cellValue?.value?.formatted || '').length >
                             SMALL_TEXT_LENGTH
                         }
-                        tooltipContent={tooltipContent}
+                        tooltipContent={tooltipContent || undefined}
                     >
                         {cell.getIsGrouped() ? (
                             <Group spacing="xxs">

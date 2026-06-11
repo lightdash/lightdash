@@ -20,6 +20,8 @@ export const getSearchItemLabel = (itemType: SearchItemType) => {
             return 'SQL Charts';
         case SearchItemType.DATA_APP:
             return 'Data apps';
+        case SearchItemType.SETTINGS:
+            return 'Settings';
         default:
             return assertUnreachable(
                 itemType,

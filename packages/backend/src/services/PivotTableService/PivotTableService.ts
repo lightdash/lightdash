@@ -8,6 +8,7 @@ import {
     PivotConfig,
     pivotResultsAsCsv,
     UnexpectedServerError,
+    type PivotRowTotalsByIndex,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
@@ -107,6 +108,8 @@ export class PivotTableService extends BaseService {
         storageClient,
         options,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
@@ -118,6 +121,8 @@ export class PivotTableService extends BaseService {
         projectUuid: string;
         storageClient: S3ResultsFileStorageClient;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -186,6 +191,8 @@ export class PivotTableService extends BaseService {
             truncated: finalTruncated,
             customLabels,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
             organizationUuid,
             createdByUserUuid,
             expirationSecondsOverride,
@@ -214,6 +221,8 @@ export class PivotTableService extends BaseService {
         truncated,
         customLabels,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
@@ -225,6 +234,8 @@ export class PivotTableService extends BaseService {
         itemMap: ItemsMap;
         pivotConfig: PivotConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         exploreId: string;
         onlyRaw: boolean;
         truncated: boolean;
@@ -268,6 +279,8 @@ export class PivotTableService extends BaseService {
             customLabels,
             onlyRaw,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
             timezone,
             formatTemporalsForSpreadsheet: true,
         });

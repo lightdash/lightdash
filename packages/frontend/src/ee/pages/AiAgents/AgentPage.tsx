@@ -1,5 +1,6 @@
 import { type AiAgent } from '@lightdash/common';
-import { Box, Loader } from '@mantine-8/core';
+import { Box, Group, Loader, Stack, Text, TextInput } from '@mantine-8/core';
+import { IconShare2 } from '@tabler/icons-react';
 import { useCallback, useState } from 'react';
 import {
     Navigate,
@@ -8,6 +9,8 @@ import {
     useParams,
     useSearchParams,
 } from 'react-router';
+import MantineModal from '../../../components/common/MantineModal';
+import { ShareLinkButton } from '../../../components/common/ShareLinkButton';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
@@ -21,10 +24,12 @@ import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentP
 import {
     useProjectAiAgent as useAiAgent,
     useAiAgentThread,
+    useCreateAgentThreadShareMutation,
     useProjectAiAgents,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { store as aiAgentStore } from '../../features/aiCopilot/store';
 import { openPanel } from '../../features/aiCopilot/store/aiAgentLauncherSlice';
+import styles from './AgentPage.module.css';
 
 type NavigateFromAgentChatOptions = {
     threadUuid?: string;
@@ -62,6 +67,10 @@ const AgentPage = () => {
     const { addItem: addDockItem } = useLauncherDock(projectUuid);
     const { track } = useTracking();
     const { user } = useApp();
+    const { mutateAsync: createThreadShare, isLoading: isCreatingShare } =
+        useCreateAgentThreadShareMutation();
+    const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+    const [shareUrl, setShareUrl] = useState<string | null>(null);
 
     const handleMinimize = useCallback(
         (targetUrl?: string, options?: NavigateFromAgentChatOptions) => {
@@ -134,6 +143,33 @@ const AgentPage = () => {
         ],
     );
 
+    const closeShareModal = useCallback(() => {
+        setIsShareModalOpen(false);
+        setShareUrl(null);
+    }, []);
+
+    const handleShare = useCallback(async () => {
+        if (!projectUuid || !agentUuid || !threadUuid) return;
+        setIsShareModalOpen(true);
+        setShareUrl(null);
+        try {
+            const share = await createThreadShare({
+                projectUuid,
+                agentUuid,
+                threadUuid,
+            });
+            setShareUrl(share.shareUrl);
+        } catch {
+            closeShareModal();
+        }
+    }, [
+        agentUuid,
+        closeShareModal,
+        createThreadShare,
+        projectUuid,
+        threadUuid,
+    ]);
+
     if (isLoadingAgent) {
         return (
             <Box
@@ -166,25 +202,73 @@ const AgentPage = () => {
                 />
             }
             Header={
-                <AgentPageHeader
-                    leftSection={
-                        threadUuid && agentsList && agentsList.length > 0 ? (
+                agentsList && agentsList.length > 0 ? (
+                    <AgentPageHeader
+                        leftSection={
                             <AgentSelector
                                 projectUuid={projectUuid!}
                                 agents={agentsList}
                                 selectedAgent={agent}
+                                variant="header"
                             />
-                        ) : undefined
-                    }
-                    onMinimize={() => handleMinimize()}
-                    settingsHref={
-                        canManageAgents
-                            ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
-                            : undefined
-                    }
-                />
+                        }
+                        onShare={
+                            thread?.createdFrom === 'web_app'
+                                ? handleShare
+                                : undefined
+                        }
+                        isSharing={isCreatingShare}
+                        onMinimize={() => handleMinimize()}
+                        settingsHref={
+                            canManageAgents
+                                ? `/projects/${projectUuid}/ai-agents/${agent.uuid}/edit`
+                                : undefined
+                        }
+                    />
+                ) : undefined
             }
         >
+            <MantineModal
+                opened={isShareModalOpen}
+                onClose={closeShareModal}
+                title="Share thread"
+                icon={IconShare2}
+                size={560}
+                cancelLabel={false}
+            >
+                <Stack gap="md">
+                    <Stack gap="xs">
+                        <Text size="sm">
+                            Anyone with the link and access to this AI agent can
+                            open this conversation as their own copy.
+                        </Text>
+                        <Text size="sm" c="dimmed">
+                            New messages you send later won't be included.
+                        </Text>
+                    </Stack>
+
+                    <Group
+                        wrap="nowrap"
+                        gap="sm"
+                        p="sm"
+                        className={styles.shareCopyBar}
+                    >
+                        <TextInput
+                            value={
+                                isCreatingShare
+                                    ? 'Creating link...'
+                                    : (shareUrl ?? '')
+                            }
+                            readOnly
+                            variant="unstyled"
+                            className={styles.shareLinkInput}
+                        />
+                        {shareUrl && !isCreatingShare ? (
+                            <ShareLinkButton url={shareUrl} />
+                        ) : null}
+                    </Group>
+                </Stack>
+            </MantineModal>
             <Outlet
                 context={{
                     agent,

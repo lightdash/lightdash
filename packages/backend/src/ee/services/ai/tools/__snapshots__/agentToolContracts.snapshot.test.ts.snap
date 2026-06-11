@@ -188,6 +188,15 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                           "items": {
                             "additionalProperties": false,
                             "properties": {
+                              "caseSensitiveFilters": {
+                                "description": "Use "true" or "false" only when the exact selected findFields result explicitly includes caseSensitiveFilters with that value; otherwise use "not_applicable".",
+                                "enum": [
+                                  "true",
+                                  "false",
+                                  "not_applicable",
+                                ],
+                                "type": "string",
+                              },
                               "description": {
                                 "description": "Short description, only include when needed to distinguish similar fields.",
                                 "type": [
@@ -234,6 +243,7 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
                               "fieldType",
                               "fieldValueType",
                               "fieldFilterType",
+                              "caseSensitiveFilters",
                               "isFromJoinedTable",
                               "description",
                             ],
@@ -750,15 +760,16 @@ Re-call this tool if the user pivots mid-thread to a different data topic and yo
   {
     "description": "Tool: "findContent"
 Purpose:
-Finds charts or dashboards by name or description within a project, returning detailed information about each.
+Finds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.
 
 Usage tips:
 - IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns").
 - The search engine understands natural language and context — more descriptive queries yield better results.
 - You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
+- Pass spaceSlug to search only inside that space and its descendants.
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
-- Returns chart and dashboard URLs when available.
+- Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
     "inputSchema": {
@@ -781,9 +792,17 @@ Usage tips:
           },
           "type": "array",
         },
+        "spaceSlug": {
+          "description": "Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned.",
+          "type": [
+            "string",
+            "null",
+          ],
+        },
       },
       "required": [
         "searchQueries",
+        "spaceSlug",
       ],
       "type": "object",
     },
@@ -823,15 +842,14 @@ Usage tips:
     "description": "Tool: findExplores
 
 Purpose:
-Returns an explore with all its fields, joined tables, AI hints and descriptions. When multiple explores match your search, also returns alternative explores and top 50 matching fields across ALL explores.
+Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
-- searchQuery: Full user query for finding relevant explores
+- searchQuery: Keyword terms for finding relevant explores
 
 Output:
-- Selected explore with all fields and metadata (including fields from joined tables)
-- Alternative explores (if multiple matches) with searchRank scores
+- Matching explores with searchRank scores
 - Top matching fields with their explore names and searchRank scores
 ",
     "inputSchema": {
@@ -839,7 +857,7 @@ Output:
       "additionalProperties": false,
       "properties": {
         "searchQuery": {
-          "description": "The full user query or search terms to help find the most relevant explore. Use the complete user request for better search results.",
+          "description": "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore and field name, label, and description. Prefer metric/entity/dimension nouns that capture the user's analytical intent.",
           "type": "string",
         },
       },
@@ -3497,11 +3515,15 @@ Parameters:
     },
   },
   {
-    "description": "Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those). The writeback agent runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request. The call is synchronous and can take several minutes. If the user pastes a link to an existing pull request and asks to iterate on it, pass that link as prUrl so the change updates that PR instead of opening a duplicate.",
+    "description": "Open or update a pull request that modifies the dbt project / Lightdash semantic layer for this project. Use this tool ONLY when the user asks to CHANGE something in the underlying repo — e.g. add or rename a metric, edit a dimension definition, modify a dbt model, update YAML metadata. Do NOT use this tool for read-only questions, querying data, exploring fields, or for changes that can be made inside Lightdash (use editContent for those). This tool applies the change on your behalf: it runs in an isolated sandbox, edits the repo, runs \`lightdash compile\`, and opens a pull request. The call is synchronous and can take several minutes. Treat the result as your own work when you report it to the user. If the user pastes a link to an existing pull request and asks to iterate on it, pass that link as prUrl so the change updates that PR instead of opening a duplicate.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
+        "fromActiveChangeset": {
+          "description": "Set to true when the user asks to write back, apply, or open a pull request FROM their changeset(s) — e.g. "create a PR from my changesets". The server then reads the project's active changeset and builds the writeback instructions deterministically from its structured changes, ignoring \`prompt\` (pass null). Leave false for ordinary free-text writeback requests where you compose \`prompt\` yourself.",
+          "type": "boolean",
+        },
         "prUrl": {
           "description": "If the user pasted a link to an existing GitHub pull request they want to UPDATE instead of opening a new one, put the full PR URL here (e.g. 'https://github.com/owner/repo/pull/123'). The PR must belong to this project's own dbt repository. Only set this when the user explicitly references an existing PR to edit; otherwise pass null to open a new pull request.",
           "type": [
@@ -3510,18 +3532,145 @@ Parameters:
           ],
         },
         "prompt": {
-          "description": "A focused, self-contained natural-language instruction for the writeback agent describing exactly which files in the dbt project to change and how. The writeback agent does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries.",
-          "minLength": 1,
-          "type": "string",
+          "description": "A focused, self-contained natural-language instruction describing exactly which files in the dbt project to change and how. The change is applied in a fresh sandbox that does not see this conversation, so include every detail it needs (model name, file path hints, the literal change to make). Do not include preamble or pleasantries. Pass null only when fromActiveChangeset is true, in which case this is ignored.",
+          "type": [
+            "string",
+            "null",
+          ],
         },
       },
       "required": [
         "prompt",
         "prUrl",
+        "fromActiveChangeset",
       ],
       "type": "object",
     },
-    "name": "proposeWriteback",
+    "name": "editDbtProject",
+    "outputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {
+        "metadata": {
+          "anyOf": [
+            {
+              "additionalProperties": false,
+              "properties": {
+                "prAction": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "opened",
+                        "updated",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "prUrl": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "status": {
+                  "const": "success",
+                  "type": "string",
+                },
+                "steps": {
+                  "anyOf": [
+                    {
+                      "items": {
+                        "additionalProperties": false,
+                        "properties": {
+                          "kind": {
+                            "enum": [
+                              "read",
+                              "edit",
+                              "search",
+                              "compile",
+                              "stage",
+                            ],
+                            "type": "string",
+                          },
+                          "label": {
+                            "type": "string",
+                          },
+                        },
+                        "required": [
+                          "kind",
+                          "label",
+                        ],
+                        "type": "object",
+                      },
+                      "type": "array",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "status",
+                "prUrl",
+              ],
+              "type": "object",
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "errorCode": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "github_not_installed",
+                        "gitlab_not_installed",
+                        "unsupported_source_control",
+                        "unknown",
+                      ],
+                      "type": "string",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+                "status": {
+                  "const": "error",
+                  "type": "string",
+                },
+              },
+              "required": [
+                "status",
+              ],
+              "type": "object",
+            },
+          ],
+        },
+        "result": {
+          "type": "string",
+        },
+      },
+      "required": [
+        "result",
+        "metadata",
+      ],
+      "type": "object",
+    },
+  },
+  {
+    "description": "Open a pull request that sets up Lightdash preview-project deploys for this project via GitHub Actions. Call this whenever the user wants to add Lightdash preview deploys — EITHER when they accept the offer surfaced by editDbtProject, OR when they ask directly (e.g. "set up preview deploys", "add the Lightdash preview GitHub Action", "deploy a preview project for each PR"). A prior writeback or offer is NOT required. It adds the canonical Lightdash preview workflow (a temporary preview project per pull request, torn down when the PR closes) on its own pull request. The target repository and dbt sub-folder are resolved server-side; this tool takes no arguments. The run is synchronous and can take a few minutes.",
+    "inputSchema": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "additionalProperties": false,
+      "properties": {},
+      "type": "object",
+    },
+    "name": "setupPreviewDeploy",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
@@ -3575,54 +3724,41 @@ Parameters:
     },
   },
   {
-    "description": "Open a pull request that sets up Lightdash preview-project deploys for this project via GitHub Actions. Call this whenever the user wants to add Lightdash preview deploys — EITHER when they accept the offer surfaced by proposeWriteback, OR when they ask directly (e.g. "set up preview deploys", "add the Lightdash preview GitHub Action", "deploy a preview project for each PR"). A prior writeback or offer is NOT required. It adds the canonical Lightdash preview workflow (a temporary preview project per pull request, torn down when the PR closes) on its own pull request. The target repository and dbt sub-folder are resolved server-side; this tool takes no arguments. The run is synchronous and can take a few minutes.",
+    "description": "Read-only access to this project's dbt repository source code via a real bash shell restricted to a read-only command set. Use this to INSPECT the actual files before answering questions about the dbt project, diagnosing a build/compile error, or proposing a change — do not guess at file contents or the cause of an error you have not read. This is read-only: anything that writes, deletes, runs the network, or executes scripts is unavailable and will error (use editDbtProject for changes). Available commands include file reading (\`ls\`, \`cat <path...>\` — pass MULTIPLE paths to read them in one call, \`head\`, \`tail\`, \`find\`, \`tree\`, \`wc\`, \`stat\`), search (\`grep\`/\`egrep\` with \`-r\`/\`-i\`/\`-n\`/\`-E\`/\`-l\` and \`--include=GLOB\`, \`rg\`), and text processing (\`sed\`, \`awk\`, \`cut\`, \`sort\`, \`uniq\`, \`tr\`, \`jq\`, \`diff\`, \`xargs\`). Full bash syntax works: pipes, \`&&\`/\`||\`, quoting, globs, and \`2>/dev/null\`. Prefer one command that does the job over many small ones: read several files with a single \`cat a b c\`, and locate files with one scoped command (e.g. \`find . -name "*.yml" | xargs grep -l orders\`) rather than repeatedly re-listing. Examples: \`find models -name "*.sql" | head -n 20\`, \`grep -rln "stg_api_error" models\`, \`cat models/orders.sql | grep ref\`, \`find models -name "*.sql" | xargs wc -l | sort -rn | head\`. Paths are relative to the dbt project root, which may itself be a subdirectory of the repository — so the dbt files are at the top level (e.g. \`ls models\`, \`cat dbt_project.yml\`); explore from there rather than assuming a repo-root layout.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
-      "properties": {},
+      "properties": {
+        "command": {
+          "description": "A single read-only bash command to run against the repository, e.g. \`ls models\`, \`cat dbt_project.yml\`, or \`grep -rin "organization_events" models | head -n 30\`. Standard read-only commands (ls, cat, find, grep, rg, sed, awk, cut, sort, uniq, head, tail, wc, jq, xargs, …) work, composed with pipes, \`&&\`/\`||\` and globs.",
+          "type": "string",
+        },
+      },
+      "required": [
+        "command",
+      ],
       "type": "object",
     },
-    "name": "setupPreviewDeploy",
+    "name": "repoShell",
     "outputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "additionalProperties": false,
       "properties": {
         "metadata": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "properties": {
-                "prUrl": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-                "status": {
-                  "const": "success",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-                "prUrl",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "enum": [
+                "success",
+                "error",
               ],
-              "type": "object",
+              "type": "string",
             },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "status": {
-                  "const": "error",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-              ],
-              "type": "object",
-            },
+          },
+          "required": [
+            "status",
           ],
+          "type": "object",
         },
         "result": {
           "type": "string",
@@ -6420,7 +6556,8 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "loadSkill",
   "loadProjectContext",
   "proposeChange",
-  "proposeWriteback",
+  "editDbtProject",
+  "repoShell",
   "setupPreviewDeploy",
   "runSavedChart",
   "listWarehouseTables",

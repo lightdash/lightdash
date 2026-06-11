@@ -33,7 +33,7 @@ import useApp from '../../../providers/App/useApp';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../common/ContentTable';
 import EmptyStateLoader from '../../common/EmptyStateLoader';
 import MantineIcon from '../../common/MantineIcon';
@@ -64,7 +64,7 @@ const UserAttributesPanel: FC = () => {
     const isGroupManagementEnabled =
         userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
-    const columns: MRT_ColumnDef<UserAttribute>[] = useMemo(
+    const columns: ContentTableColumnDef<UserAttribute>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',

@@ -13,6 +13,7 @@ import { AI_WRITEBACK_SECTION } from './systemV2AiWriteback';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
+import { REPO_FS_SECTION, repoFsRootHint } from './systemV2RepoFs';
 import { getRunSqlSection } from './systemV2RunSql';
 import { SEARCH_SEMANTIC_LAYER_SECTION } from './systemV2SearchSemanticLayer';
 import { renderAvailableSkills } from './systemV2Skills';
@@ -29,6 +30,8 @@ export const getSystemPromptV2 = (args: {
     enableDataAccess?: boolean;
     enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
+    enableRepoFs?: boolean;
+    repoFsRoot?: string | null;
     enableContentTools?: boolean;
     canRunSql?: boolean;
     warehouseType?: WarehouseTypes | null;
@@ -41,6 +44,8 @@ export const getSystemPromptV2 = (args: {
         enableDataAccess = false,
         enableSearchSemanticLayer = false,
         enableAiWriteback = false,
+        enableRepoFs = false,
+        repoFsRoot = null,
         enableContentTools = false,
         canRunSql = false,
         warehouseType = null,
@@ -123,6 +128,10 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{ai_writeback_section}}',
             enableAiWriteback ? AI_WRITEBACK_SECTION : '',
+        )
+        .replace(
+            '{{repo_fs_section}}',
+            enableRepoFs ? REPO_FS_SECTION + repoFsRootHint(repoFsRoot) : '',
         )
         .replace(
             '{{search_semantic_layer_section}}',

@@ -193,11 +193,6 @@ export enum FeatureFlags {
     PivotRowGrouping = 'pivot-row-grouping',
 
     /**
-     * Enable AI agent review classifier experiments.
-     */
-    AiAgentReviewClassifier = 'ai-agent-review-classifier',
-
-    /**
      * Show a persistent trial warning banner for an organization on shared
      * instances. This does not block product access.
      */
@@ -248,19 +243,28 @@ export enum FeatureFlags {
     GithubMcpOneClick = 'github-mcp-one-click',
 
     /**
+     * Let users link their personal GitHub account (user-to-server OAuth
+     * token) so write-back commits and pull requests are authored as them
+     * instead of the Lightdash GitHub App bot. Off by default while the
+     * link/unlink UX and token lifecycle are validated; when off, write-backs
+     * keep today's bot identity.
+     */
+    GithubUserCredentials = 'github-user-credentials',
+
+    /**
+     * Give the AI agent a read-only virtual filesystem over the project's dbt
+     * repo (`repoShell` tool): a limited shell (ls/cat/find/grep/head) backed by
+     * the GitHub API — no E2B sandbox/clone. Lets the agent inspect source
+     * before diagnosing, instead of guessing or spinning up a writeback sandbox.
+     */
+    RepoFs = 'repo-fs',
+
+    /**
      * Gate the org-level export Limits settings panel (per-org query max rows
      * and CSV cells limit). Backend enforcement of any stored overrides is
      * always on; this flag only controls who can see/configure the panel.
      */
     ProLimits = 'pro-limits',
-
-    /**
-     * Enable the (in-progress) project_context living document: ingest
-     * lightdash.project_context.yml on compile and inject the selected
-     * entries into the AI agent system prompt. Shared across the
-     * project_context slices so the whole feature ships atomically.
-     */
-    AiProjectContext = 'ai-project-context',
 }
 
 export type FeatureFlag = {

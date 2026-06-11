@@ -10,6 +10,7 @@ import AiAgentThreadPage from './pages/AiAgents/AgentThreadPage';
 import AiAgentNewThreadPage from './pages/AiAgents/AiAgentNewThreadPage';
 import AiAgentsNotAuthorizedPage from './pages/AiAgents/AiAgentsNotAuthorizedPage';
 import { AiAgentsRootLayout } from './pages/AiAgents/AiAgentsRootLayout';
+import AiAgentThreadSharePage from './pages/AiAgents/AiAgentThreadSharePage';
 import ProjectAiAgentEditPage from './pages/AiAgents/ProjectAiAgentEditPage';
 import EmbedChart from './pages/EmbedChart';
 import EmbedDashboard from './pages/EmbedDashboard';
@@ -103,6 +104,10 @@ const COMMERCIAL_AI_AGENTS_ROUTES: RouteObject[] = [
             {
                 path: 'new',
                 element: <ProjectAiAgentEditPage isCreateMode />,
+            },
+            {
+                path: 'share/:aiThreadShareUuid',
+                element: <AiAgentThreadSharePage />,
             },
             {
                 path: ':agentUuid/edit',

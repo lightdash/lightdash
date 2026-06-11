@@ -58,7 +58,16 @@ export class OrganizationSettingsModel {
                 row?.scheduled_delivery_expiration_seconds_googlechat ?? null,
             queryLimit: row?.query_limit ?? null,
             csvCellsLimit: row?.csv_cells_limit ?? null,
+            corsAllowedDomains: row?.cors_allowed_domains ?? null,
         };
+    }
+
+    async getAllEnabledCorsAllowedDomains(): Promise<string[]> {
+        const rows = await this.database(OrganizationSettingsTableName)
+            .select('cors_allowed_domains')
+            .whereNotNull('cors_allowed_domains');
+
+        return rows.flatMap((row) => row.cors_allowed_domains ?? []);
     }
 
     /**
@@ -86,6 +95,7 @@ export class OrganizationSettingsModel {
                 patch.scheduledDeliveryExpirationSecondsGoogleChat,
             query_limit: patch.queryLimit,
             csv_cells_limit: patch.csvCellsLimit,
+            cors_allowed_domains: patch.corsAllowedDomains,
         };
         const toWrite = omitBy(
             columns,

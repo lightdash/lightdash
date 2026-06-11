@@ -29,8 +29,8 @@ import useApp from '../../../providers/App/useApp';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
+    type ContentTableColumnDef,
+    type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import GroupsActionMenu from './GroupsActionMenu';
@@ -49,7 +49,9 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
     const { user: activeUser } = useApp();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const [search, setSearch] = useState('');
 
@@ -61,7 +63,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
     const [debouncedSearchValue] = useDebouncedValue(debouncedSearch, 300);
 
     // Use infinite query for pagination
-    const { data, fetchNextPage, isError, isFetching, isLoading } =
+    const { data, fetchNextPage, hasNextPage, isError, isFetching, isLoading } =
         useInfiniteOrganizationGroups({
             searchInput: debouncedSearchValue.search,
             includeMembers: GROUP_MEMBERS_PER_PAGE,
@@ -113,7 +115,7 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
     const canManageGroups =
         activeUser.data?.ability?.can('manage', 'Group') ?? false;
 
-    const columns: MRT_ColumnDef<GroupWithMembers>[] = useMemo(
+    const columns: ContentTableColumnDef<GroupWithMembers>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',
@@ -237,7 +239,6 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
         enableSorting: false,
         enableRowVirtualization: true,
         enableTopToolbar: true,
-        enableBottomToolbar: false,
         mantinePaperProps: {
             shadow: undefined,
             style: {
@@ -308,6 +309,36 @@ const GroupsTable: FC<GroupsTableProps> = ({ onAddClick, onEditGroup }) => {
                 canManage={canManageGroups}
                 onAddClick={onAddClick}
             />
+        ),
+        renderBottomToolbar: () => (
+            <Box
+                p={`${theme.spacing.sm} ${theme.spacing.xl} ${theme.spacing.md} ${theme.spacing.xl}`}
+                fz="xs"
+                fw={500}
+                c="ldGray.8"
+                style={{
+                    borderTop: `1px solid ${theme.colors.ldGray[3]}`,
+                }}
+            >
+                {isFetching ? (
+                    <Text c="ldGray.8" fz="xs">
+                        Loading more...
+                    </Text>
+                ) : (
+                    <Group gap="two">
+                        <Text fz="xs" c="ldGray.8">
+                            {hasNextPage
+                                ? 'Scroll for more groups'
+                                : 'All groups loaded'}
+                        </Text>
+                        <Text fz="xs" fw={400} c="ldGray.6">
+                            {hasNextPage
+                                ? `(${totalFetched} of ${totalDBRowCount} loaded)`
+                                : `(${totalFetched})`}
+                        </Text>
+                    </Group>
+                )}
+            </Box>
         ),
         icons: {
             IconArrowsSort: () => (

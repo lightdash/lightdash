@@ -31,7 +31,7 @@ import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
@@ -288,8 +288,8 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             .filter((row): row is EnrichedGroupRow => row !== null);
     }, [projectGroupAccessList, groups, allRoles]);
 
-    const columns: MRT_ColumnDef<EnrichedGroupRow>[] = useMemo(() => {
-        const cols: MRT_ColumnDef<EnrichedGroupRow>[] = [
+    const columns: ContentTableColumnDef<EnrichedGroupRow>[] = useMemo(() => {
+        const cols: ContentTableColumnDef<EnrichedGroupRow>[] = [
             {
                 accessorKey: 'groupUuid',
                 header: 'Group Name',

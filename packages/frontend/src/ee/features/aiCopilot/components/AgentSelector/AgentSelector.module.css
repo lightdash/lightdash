@@ -9,6 +9,7 @@
     box-shadow: var(--mantine-shadow-subtle);
     cursor: pointer;
     font-size: var(--mantine-font-size-xs);
+    font-family: var(--mantine-font-family);
     transition:
         background-color 120ms ease,
         border-color 120ms ease;
@@ -26,15 +27,38 @@
 .label {
     flex: 1;
     text-align: left;
+    font-family: var(--mantine-font-family);
 }
 
-/* Compact: icon-only at rest, no border. On hover / focus / open, the chip
- * grows a border + light background to match the adjacent model+thinking
- * group, then snaps back when interaction ends. The default 1px transparent
- * border reserves the same footprint so the chip doesn't shift on hover. */
+.headerTarget {
+    width: auto;
+    min-width: 0;
+    max-width: 260px;
+    padding: 4px 6px;
+    border-color: transparent;
+    box-shadow: none;
+    background: transparent;
+}
+
+.headerTarget:hover,
+.headerTarget:focus-visible,
+.headerTarget[data-open='true'] {
+    border-color: transparent;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}
+
 .compact {
     width: auto;
+    height: rem(30px);
+    padding: 0 var(--mantine-spacing-xs);
     border-color: transparent;
+    border-radius: var(--mantine-radius-xl);
     box-shadow: none;
     background: transparent;
 }
@@ -42,7 +66,7 @@
 .compact:hover,
 .compact:focus-visible,
 .compact[data-open='true'] {
-    border-color: var(--mantine-color-ldGray-2);
+    border-color: transparent;
 
     @mixin light {
         background-color: var(--mantine-color-ldGray-0);
@@ -54,14 +78,10 @@
 
 .compact .label {
     flex: none;
-    width: 0;
+    width: auto;
+    max-width: rem(140px);
     overflow: hidden;
     white-space: nowrap;
-    transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.compact:hover .label,
-.compact:focus-visible .label,
-.compact[data-open='true'] .label {
-    width: 140px;
+    font-weight: 600;
+    color: var(--mantine-color-ldGray-8);
 }

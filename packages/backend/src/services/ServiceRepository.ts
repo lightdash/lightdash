@@ -2,6 +2,11 @@ import { BulkActionable, MissingConfigError } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
+import {
+    getInstallationToken,
+    getPullRequest,
+    listCheckRunsForRef,
+} from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
 import { PreAggregateMaterializationService } from '../ee/services/PreAggregateMaterializationService/PreAggregateMaterializationService';
@@ -14,6 +19,7 @@ import { AsyncQueryService } from './AsyncQueryService/AsyncQueryService';
 import { BaseService } from './BaseService';
 import { CatalogService } from './CatalogService/CatalogService';
 import { ChangesetService } from './ChangesetService';
+import { CiService } from './CiService/CiService';
 import { CoderService } from './CoderService/CoderService';
 import { CommentService } from './CommentService/CommentService';
 import { ContentService } from './ContentService/ContentService';
@@ -83,6 +89,7 @@ interface ServiceManifest {
     downloadFileService: DownloadFileService;
     favoritesService: FavoritesService;
     gitIntegrationService: GitIntegrationService;
+    ciService: CiService;
     pullRequestsService: PullRequestsService;
     githubAppService: GithubAppService;
     gitlabAppService: GitlabAppService;
@@ -134,10 +141,13 @@ interface ServiceManifest {
     permissionsService: PermissionsService;
     /** An implementation signature for these services are not available at this stage */
     aiWritebackService: unknown;
+    writebackPreviewService: unknown;
+    previewDeploySetupService: unknown;
     appGenerateService: unknown;
     embedService: unknown;
     aiService: unknown;
     aiAgentService: unknown;
+    aiAgentToolsService: unknown;
     aiAgentAdminService: unknown;
     aiAgentDocumentService: unknown;
     aiAgentReviewClassifierService: unknown;
@@ -378,6 +388,7 @@ export class ServiceRepository
                     analyticsModel: this.models.getAnalyticsModel(),
                     pinnedListModel: this.models.getPinnedListModel(),
                     schedulerModel: this.models.getSchedulerModel(),
+                    searchModel: this.models.getSearchModel(),
                     schedulerService: this.getSchedulerService(),
                     savedChartModel: this.models.getSavedChartModel(),
                     savedChartService: this.getSavedChartService(),
@@ -428,8 +439,26 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    githubAppService: this.getGithubAppService(),
                     pullRequestsModel: this.models.getPullRequestsModel(),
                     analytics: this.context.lightdashAnalytics,
+                }),
+        );
+    }
+
+    public getCiService(): CiService {
+        return this.getService(
+            'ciService',
+            () =>
+                new CiService({
+                    projectModel: this.models.getProjectModel(),
+                    githubAppInstallationsModel:
+                        this.models.getGithubAppInstallationsModel(),
+                    githubClient: {
+                        getInstallationToken,
+                        getPullRequest,
+                        listCheckRunsForRef,
+                    },
                 }),
         );
     }
@@ -454,9 +483,12 @@ export class ServiceRepository
                 new GithubAppService({
                     githubAppInstallationsModel:
                         this.models.getGithubAppInstallationsModel(),
+                    gitUserCredentialsModel:
+                        this.models.getGitUserCredentialsModel(),
                     userModel: this.models.getUserModel(),
                     lightdashConfig: this.context.lightdashConfig,
                     analytics: this.context.lightdashAnalytics,
+                    featureFlagService: this.getFeatureFlagService(),
                 }),
         );
     }
@@ -762,6 +794,16 @@ export class ServiceRepository
                         this.models.getContentVerificationModel(),
                     organizationSettingsModel:
                         this.models.getOrganizationSettingsModel(),
+                    // Lazy accessor (not the instance) to duplicate the
+                    // upstream project's data apps when a preview is created.
+                    // AppGenerateService depends on ProjectService, so
+                    // resolving it eagerly here would cycle. Only wired when EE
+                    // license is active; core builds resolve undefined and skip
+                    // data-app duplication.
+                    getAppGenerateService: () =>
+                        this.providers.appGenerateService
+                            ? this.getAppGenerateService<AppGenerateService>()
+                            : undefined,
                 }),
         );
     }
@@ -1109,6 +1151,8 @@ export class ServiceRepository
                     changesetModel: this.models.getChangesetModel(),
                     catalogModel: this.models.getCatalogModel(),
                     projectModel: this.models.getProjectModel(),
+                    savedChartModel: this.models.getSavedChartModel(),
+                    dashboardModel: this.models.getDashboardModel(),
                 }),
         );
     }
@@ -1139,6 +1183,15 @@ export class ServiceRepository
                     spaceModel: this.models.getSpaceModel(),
                     dashboardModel: this.models.getDashboardModel(),
                     spacePermissionService: this.getSpacePermissionService(),
+                    // Lazy accessor (not the instance) to promote embedded data
+                    // apps during dashboard promotion. AppGenerateService depends
+                    // on PromoteService, so resolving it eagerly here would cycle.
+                    // Only wired when EE license is active; core builds resolve
+                    // undefined and reject DATA_APP tile promotion with an error.
+                    getAppGenerateService: () =>
+                        this.providers.appGenerateService
+                            ? this.getAppGenerateService<AppGenerateService>()
+                            : undefined,
                 }),
         );
     }
@@ -1262,6 +1315,18 @@ export class ServiceRepository
         return this.getService('aiWritebackService');
     }
 
+    public getPreviewDeploySetupService<
+        PreviewDeploySetupServiceImplT,
+    >(): PreviewDeploySetupServiceImplT {
+        return this.getService('previewDeploySetupService');
+    }
+
+    public getWritebackPreviewService<
+        WritebackPreviewServiceImplT,
+    >(): WritebackPreviewServiceImplT {
+        return this.getService('writebackPreviewService');
+    }
+
     public getAppGenerateService<
         AppGenerateServiceImplT,
     >(): AppGenerateServiceImplT {
@@ -1284,6 +1349,12 @@ export class ServiceRepository
 
     public getAiAgentService<AiAgentServiceImplT>(): AiAgentServiceImplT {
         return this.getService('aiAgentService');
+    }
+
+    public getAiAgentToolsService<
+        AiAgentToolsServiceImplT,
+    >(): AiAgentToolsServiceImplT {
+        return this.getService('aiAgentToolsService');
     }
 
     public getAiAgentAdminService<

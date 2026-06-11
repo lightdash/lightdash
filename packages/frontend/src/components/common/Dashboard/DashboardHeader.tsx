@@ -297,14 +297,26 @@ const DashboardHeader = memo(
             }),
         );
 
-        const userCanPromoteDashboard = user.data?.ability?.can(
-            'promote',
-            subject('Dashboard', {
-                organizationUuid,
-                projectUuid,
-                access: dashboard.access,
-            }),
-        );
+        // Mirror the backend promote check: promoting also requires promote
+        // rights on the upstream (destination) project, so hide the action
+        // when an upstream exists but the user has no promote access there.
+        const userCanPromoteDashboard =
+            user.data?.ability?.can(
+                'promote',
+                subject('Dashboard', {
+                    organizationUuid,
+                    projectUuid,
+                    access: dashboard.access,
+                }),
+            ) &&
+            (project?.upstreamProjectUuid === undefined ||
+                user.data?.ability?.can(
+                    'promote',
+                    subject('Dashboard', {
+                        organizationUuid,
+                        projectUuid: project.upstreamProjectUuid,
+                    }),
+                ));
 
         const canManageContentVerification =
             user.data?.ability?.can(

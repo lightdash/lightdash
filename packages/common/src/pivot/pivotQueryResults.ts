@@ -1,15 +1,11 @@
-import isNumber from 'lodash/isNumber';
 import last from 'lodash/last';
-import { type Entries } from 'type-fest';
 import { LightdashParameters } from '../compiler/parameters';
 import type { ReadyQueryResultsPage } from '../index';
 import { UnexpectedIndexError } from '../types/errors';
 import {
     DimensionType,
     FieldType,
-    isDimension,
     isField,
-    isSummable,
     type ItemsMap,
 } from '../types/field';
 import { type ParametersValuesMap } from '../types/parameters';
@@ -22,12 +18,14 @@ import {
 import { type ResultRow, type ResultValue } from '../types/results';
 import { TimeFrames } from '../types/timeFrames';
 import { getArrayValue } from '../utils/accessors';
+import { getPivotRowContextKey } from '../utils/conditionalFormatting';
 import {
     formatItemValue,
     formatTemporalCellForSpreadsheet,
     shouldShiftItemTimezone,
     toIsoWithProjectOffset,
 } from '../utils/formatting';
+import { type PivotValuesColumn } from '../visualizations/types';
 
 type FieldFunction = (fieldId: string) => ItemsMap[string] | undefined;
 
@@ -51,7 +49,7 @@ const ISO_DATETIME_RE =
 // differently between the pivot query (`...00Z`) and the flat totals query
 // (`...00.000Z`), so any ISO datetime is normalized to its ISO instant; other
 // values pass through as a plain string.
-const normalizeRowTotalRaw = (raw: unknown): string | null => {
+export const normalizePivotMatchRaw = (raw: unknown): string | null => {
     if (raw === null || raw === undefined) return null;
     const str = String(raw);
     if (ISO_DATETIME_RE.test(str)) {
@@ -71,8 +69,71 @@ export const buildPivotRowTotalKey = (
     JSON.stringify(
         [...indexEntries]
             .sort(([a], [b]) => a.localeCompare(b))
-            .map(([fieldId, raw]) => [fieldId, normalizeRowTotalRaw(raw)]),
+            .map(([fieldId, raw]) => [fieldId, normalizePivotMatchRaw(raw)]),
     );
+
+// Coerce a warehouse cell's raw value to a finite number, or null. Numeric
+// strings are accepted (some warehouses return decimals as strings); null,
+// undefined, empty and non-numeric values are rejected.
+const toFiniteNumber = (raw: unknown): number | null => {
+    if (raw === null || raw === undefined || raw === '') return null;
+    const numeric = Number(raw);
+    return Number.isFinite(numeric) ? numeric : null;
+};
+
+/**
+ * Flatten the single wide totals row from a `calculate-total`
+ * (`kind: 'columnTotal'`) response into the `warehouseColumnTotals` map keyed by
+ * pivot SQL column name. Non-numeric cells are dropped — the lookup only uses
+ * numbers. Shared by the frontend hook and the backend export path so both
+ * produce identical column totals.
+ */
+export const buildWarehouseColumnTotals = (
+    rows: ResultRow[],
+): Record<string, number> => {
+    const firstRow = rows[0];
+    if (!firstRow) return {};
+    const totals: Record<string, number> = {};
+    for (const [key, cell] of Object.entries(firstRow)) {
+        const numeric = toFiniteNumber(cell?.value?.raw);
+        if (numeric !== null) {
+            totals[key] = numeric;
+        }
+    }
+    return totals;
+};
+
+/**
+ * Build the `warehouseRowTotals` map from a `calculate-total`
+ * (`kind: 'rowTotal'`) response — one flat row per index-value combination, each
+ * keyed by its index-dimension values (`buildPivotRowTotalKey`) → metric fieldId
+ * → numeric total. `indexFieldIds` must match the index dims the pivot worker
+ * uses so the keys align. Shared by the frontend hook and the backend export
+ * path.
+ */
+export const buildWarehouseRowTotals = (
+    rows: ResultRow[],
+    indexFieldIds: string[],
+): PivotRowTotalsByIndex => {
+    const indexFieldIdSet = new Set(indexFieldIds);
+    const map: PivotRowTotalsByIndex = {};
+    for (const row of rows) {
+        const key = buildPivotRowTotalKey(
+            indexFieldIds.map((fieldId) => [fieldId, row[fieldId]?.value?.raw]),
+        );
+        const metricTotals: Record<string, number> = {};
+        for (const [fieldId, cell] of Object.entries(row)) {
+            if (!indexFieldIdSet.has(fieldId)) {
+                const numeric = toFiniteNumber(cell?.value?.raw);
+                if (numeric !== null) {
+                    metricTotals[fieldId] = numeric;
+                }
+            }
+        }
+        map[key] = metricTotals;
+    }
+    return map;
+};
 
 // Backend `.formatted` strings don't resolve ${ld.parameters.*} placeholders
 // (parameters live on the client). For flat tables, useColumns re-formats per
@@ -97,13 +158,6 @@ const reformatCellWithParameters = (
     };
 };
 
-type RecursiveRecord<T = unknown> = {
-    [key: string]: RecursiveRecord<T> | T;
-};
-
-const isRecursiveRecord = (value: unknown): value is RecursiveRecord =>
-    typeof value === 'object' && value !== null;
-
 const create2DArray = <T>(
     rows: number,
     columns: number,
@@ -112,65 +166,6 @@ const create2DArray = <T>(
     Array.from({ length: rows }, () =>
         Array.from({ length: columns }, () => value),
     );
-
-const parseNumericValue = (value: ResultValue | null): number => {
-    if (value === null) return 0;
-
-    const parsedVal = Number(value.raw);
-    return Number.isNaN(parsedVal) ? 0 : parsedVal;
-};
-
-const setIndexByKey = (
-    obj: RecursiveRecord<number>,
-    keys: string[],
-    value: number,
-): boolean => {
-    if (keys.length === 0) {
-        return false;
-    }
-    const [key, ...rest] = keys;
-
-    if (key === undefined) {
-        throw new UnexpectedIndexError(
-            `setIndexByKey: Cannot get key from keys ${keys.length}`,
-        );
-    }
-    if (rest.length === 0) {
-        if (obj[key] === undefined) {
-            // eslint-disable-next-line no-param-reassign
-            obj[key] = value;
-            return true;
-        }
-        return false;
-    }
-    if (obj[key] === undefined) {
-        // eslint-disable-next-line no-param-reassign
-        obj[key] = {};
-    }
-
-    const nextObject = obj[key];
-    if (!isRecursiveRecord(nextObject)) {
-        throw new Error('Cannot set key on non-object');
-    }
-
-    return setIndexByKey(nextObject, rest, value);
-};
-
-const getAllIndicesForFieldId = (
-    obj: RecursiveRecord<number>,
-    fieldId: string,
-): number[] => {
-    const entries = Object.entries(obj) as Entries<typeof obj>;
-    return entries.reduce<number[]>((acc, [key, value]) => {
-        if (key === fieldId && isNumber(value)) {
-            return [...acc, value];
-        }
-        if (isRecursiveRecord(value)) {
-            return [...acc, ...getAllIndicesForFieldId(value, fieldId)];
-        }
-        return acc;
-    }, []);
-};
 
 /**
  * Rebuilds `data.retrofitData.{allCombinedData,pivotColumnInfo}` from
@@ -367,57 +362,75 @@ const getHeaderValueTypes = ({
 };
 
 const getColumnTotals = ({
-    summableMetricFieldIds,
-    rowIndices,
+    baseMetricFieldIds,
+    uniqueColumns,
+    filteredValuesColumns,
     totalColumns,
     dataColumns,
-    dataValues,
     hasIndex,
     pivotConfig,
     indexValues,
+    warehouseColumnTotals,
 }: {
-    summableMetricFieldIds: string[];
-    rowIndices: RecursiveRecord<number>;
+    baseMetricFieldIds: string[];
+    uniqueColumns: PivotValuesColumn[];
+    filteredValuesColumns: PivotValuesColumn[];
     totalColumns: number;
     dataColumns: number;
-    dataValues: (ResultValue | null)[][];
     hasIndex: boolean;
     indexValues: PivotData['indexValues'];
     pivotConfig: Pick<PivotConfig, 'metricsAsRows' | 'columnTotals'>;
+    warehouseColumnTotals: Record<string, number> | undefined;
 }) => {
     let columnTotalFields: PivotData['columnTotalFields'];
     let columnTotals: PivotData['columnTotals'];
     const N_DATA_COLUMNS = dataColumns;
+
+    // Column totals are exclusively warehouse-computed (like row totals): each
+    // data column's total is looked up by its pivot SQL column name. Returns
+    // null when no warehouse value is available (still loading, errored, or the
+    // source query can't be totalled) — there is no client-side fallback.
+    const lookupTotal = (
+        pivotColumnName: string | undefined,
+    ): number | null => {
+        if (!warehouseColumnTotals || !pivotColumnName) return null;
+        const value = warehouseColumnTotals[pivotColumnName];
+        return typeof value === 'number' ? value : null;
+    };
+
     if (pivotConfig.columnTotals && hasIndex) {
         if (pivotConfig.metricsAsRows) {
-            const N_TOTAL_ROWS = summableMetricFieldIds.length;
+            // One footer row per visible metric; each column is a unique pivot
+            // combination. Match the metric + pivot values back to its source
+            // value column to read the warehouse total by pivot column name.
+            const N_TOTAL_ROWS = baseMetricFieldIds.length;
             const N_TOTAL_COLS = totalColumns;
             columnTotalFields = create2DArray(N_TOTAL_ROWS, N_TOTAL_COLS);
             columnTotals = create2DArray(N_TOTAL_ROWS, N_DATA_COLUMNS);
 
-            summableMetricFieldIds.forEach((fieldId, metricIndex) => {
+            baseMetricFieldIds.forEach((fieldId, metricIndex) => {
                 columnTotalFields![metricIndex][N_TOTAL_COLS - 1] = {
                     fieldId,
                 };
             });
 
-            columnTotals = columnTotals.map((row, rowIndex) =>
-                row.map((_, totalColIndex) => {
-                    const totalColFieldId =
-                        columnTotalFields![rowIndex][N_TOTAL_COLS - 1]?.fieldId;
-
-                    const valueColIndices = totalColFieldId
-                        ? getAllIndicesForFieldId(rowIndices, totalColFieldId)
-                        : [];
-                    return dataValues
-                        .filter((__, dataValueColIndex) =>
-                            valueColIndices.includes(dataValueColIndex),
-                        )
-                        .reduce(
-                            (acc, value) =>
-                                acc + parseNumericValue(value[totalColIndex]),
-                            0,
-                        );
+            columnTotals = columnTotals.map((row, metricRowIndex) =>
+                row.map((_, dataColIndex) => {
+                    const metric = baseMetricFieldIds[metricRowIndex];
+                    const uniqueCol = uniqueColumns[dataColIndex];
+                    const matchingColumn = filteredValuesColumns.find(
+                        (col) =>
+                            col.referenceField === metric &&
+                            col.pivotValues.every((pv) =>
+                                uniqueCol.pivotValues.some(
+                                    (upv) =>
+                                        upv.referenceField ===
+                                            pv.referenceField &&
+                                        upv.value === pv.value,
+                                ),
+                            ),
+                    );
+                    return lookupTotal(matchingColumn?.pivotColumnName);
                 }),
             );
         } else {
@@ -432,14 +445,10 @@ const getColumnTotals = ({
                 fieldId: undefined,
             };
 
-            columnTotals = columnTotals.map((row, _totalRowIndex) =>
+            // Data columns map 1:1 to the value columns in this layout.
+            columnTotals = columnTotals.map((row) =>
                 row.map((_col, colIndex) =>
-                    dataValues
-                        .map((dataRow) => dataRow[colIndex])
-                        .reduce(
-                            (acc, value) => acc + parseNumericValue(value),
-                            0,
-                        ),
+                    lookupTotal(uniqueColumns[colIndex]?.pivotColumnName),
                 ),
             );
         }
@@ -498,6 +507,7 @@ export const convertSqlPivotedRowsToPivotData = ({
     getFieldLabel,
     groupedSubtotals,
     warehouseRowTotals,
+    warehouseColumnTotals,
     columnLimit,
     parameters,
 }: {
@@ -524,6 +534,14 @@ export const convertSqlPivotedRowsToPivotData = ({
      * metrics-as-rows layouts.
      */
     warehouseRowTotals?: PivotRowTotalsByIndex;
+    /**
+     * Warehouse-computed column totals from `calculate-total`
+     * (`kind: 'columnTotal'`), keyed by pivot SQL column name. Column totals
+     * are exclusively warehouse-computed — there is no client-side fallback —
+     * so cells are blank until this resolves (or stay blank if the source
+     * query can't be totalled). Drives both layouts.
+     */
+    warehouseColumnTotals?: Record<string, number>;
     columnLimit?: number;
     parameters?: ParametersValuesMap;
 }): PivotData => {
@@ -770,8 +788,6 @@ export const convertSqlPivotedRowsToPivotData = ({
 
     // Build data values (the actual pivot data)
     let dataValues: PivotData['dataValues'];
-    const rowIndices: RecursiveRecord<number> = {};
-    let rowCount = 0;
 
     // Get unique columns
     const uniqueColumns = pivotConfig.metricsAsRows
@@ -794,13 +810,6 @@ export const convertSqlPivotedRowsToPivotData = ({
         // multiply rows per metric
         dataValues = rows.reduce<PivotData['dataValues']>((acc, row) => {
             baseMetricsArray.forEach((metric) => {
-                const indexRowValues = [
-                    ...indexColumns.map((fieldId) =>
-                        String(row[fieldId].value.raw),
-                    ),
-                    metric,
-                ];
-
                 // Build row data for this metric using unique columns
                 // For each unique column combination, find the corresponding value for this metric
                 const rowData = uniqueColumns.map((uniqueCol) => {
@@ -828,19 +837,12 @@ export const convertSqlPivotedRowsToPivotData = ({
                 });
 
                 acc.push(rowData);
-                setIndexByKey(rowIndices, indexRowValues, rowCount);
-                rowCount += 1;
             });
             return acc;
         }, []);
     } else {
-        dataValues = rows.map((row, rowIndex) => {
-            const indexRowValues = indexColumns.map((fieldId) =>
-                String(row[fieldId].value.raw),
-            );
-            setIndexByKey(rowIndices, indexRowValues, rowIndex);
-
-            return filteredValuesColumns.map((valueCol) =>
+        dataValues = rows.map((row) =>
+            filteredValuesColumns.map((valueCol) =>
                 row[valueCol.pivotColumnName]
                     ? (reformatCellWithParameters(
                           row[valueCol.pivotColumnName].value,
@@ -848,9 +850,8 @@ export const convertSqlPivotedRowsToPivotData = ({
                           parameters,
                       ) ?? null)
                     : null,
-            );
-        });
-        rowCount = rows.length;
+            ),
+        );
     }
 
     const fullPivotConfig: PivotConfig = {
@@ -873,16 +874,6 @@ export const convertSqlPivotedRowsToPivotData = ({
     const hasIndex = indexValueTypes.length > 0;
     const N_DATA_ROWS = hasIndex ? dataValues.length : 1;
     const N_DATA_COLUMNS = hasHeader ? uniqueColumns.length : 1;
-
-    const summableMetricFieldIds = baseMetricsArray.filter((metricId) => {
-        const field = getField(metricId);
-
-        // Skip if field is not found or is a dimension or is hidden
-        if (!field || isDimension(field)) return false;
-        if (!isMetricVisibleInPivot(metricId)) return false;
-
-        return isSummable(field);
-    });
 
     if (fullPivotConfig.rowTotals && hasHeader) {
         // Row totals are exclusively warehouse-computed: look up the value for a
@@ -968,14 +959,15 @@ export const convertSqlPivotedRowsToPivotData = ({
     }
 
     const { columnTotalFields, columnTotals } = getColumnTotals({
-        summableMetricFieldIds,
+        baseMetricFieldIds: baseMetricsArray,
+        uniqueColumns,
+        filteredValuesColumns,
         totalColumns: indexValueTypes.length,
         dataColumns: N_DATA_COLUMNS,
-        dataValues,
-        rowIndices,
         pivotConfig,
         indexValues,
         hasIndex,
+        warehouseColumnTotals,
     });
 
     // Passthrough dims — hidden non-sort pivot dims whose raw values are
@@ -1282,6 +1274,54 @@ export const convertSqlPivotedRowsToPivotData = ({
             );
     }
 
+    // Hidden-metric side-channel for conditional formatting (PROD-2372).
+    // Hidden metrics are dropped from `filteredValuesColumns`, so their pivoted
+    // values never reach `dataValues` and a CF rule that references a hidden
+    // metric renders nothing. Stash each hidden metric's pivoted cell value,
+    // keyed by the same displayed-dimension context the renderer rebuilds
+    // (visible index dims + visible header/pivot dims) via the shared
+    // `getPivotRowContextKey` helper, so producer and consumer keys cannot drift.
+    const hiddenValuesColumns = pivotDetails.valuesColumns.filter(
+        ({ referenceField }) => !isMetricVisibleInPivot(referenceField),
+    );
+    if (hiddenValuesColumns.length > 0) {
+        const visiblePivotDimRefs = new Set(
+            (pivotDetails.groupByColumns ?? []).map((c) => c.reference),
+        );
+        const hiddenContextValues: Record<
+            string,
+            Record<string, ResultValue>
+        > = {};
+        rows.forEach((row) => {
+            hiddenValuesColumns.forEach((col) => {
+                const cell = row[col.pivotColumnName];
+                if (!cell?.value) return;
+                const dimValues: Record<string, unknown> = {};
+                // Visible index (row) dims — match the renderer, which keys on
+                // displayed index dims only (hidden index dims are excluded).
+                indexColumns.forEach((ref) => {
+                    dimValues[ref] = row[ref]?.value?.raw;
+                });
+                // Visible header (pivot) dims for this column group. Hidden
+                // sort-only pivot dims never appear in `groupByColumns`, so they
+                // are excluded here too — keeping the key aligned with the
+                // renderer's `headerInfo`.
+                col.pivotValues.forEach((pv) => {
+                    if (visiblePivotDimRefs.has(pv.referenceField)) {
+                        dimValues[pv.referenceField] = pv.value;
+                    }
+                });
+                const key = getPivotRowContextKey(dimValues);
+                const perField = hiddenContextValues[key] ?? {};
+                perField[col.referenceField] = cell.value;
+                hiddenContextValues[key] = perField;
+            });
+        });
+        if (Object.keys(hiddenContextValues).length > 0) {
+            retrofitted.hiddenContextValues = hiddenContextValues;
+        }
+    }
+
     return retrofitted;
 };
 
@@ -1357,6 +1397,10 @@ type PivotResultsParams = {
     // When true, shiftable temporal cells (header + body, both modes) emit
     // the wall-clock format spreadsheet apps auto-detect as a date.
     formatTemporalsForSpreadsheet?: boolean;
+    // Warehouse-computed totals (from `calculate-total`). Without them the
+    // pivot worker leaves total cells blank — there is no client-side fallback.
+    warehouseRowTotals?: PivotRowTotalsByIndex;
+    warehouseColumnTotals?: Record<string, number>;
 };
 
 export const pivotResultsAsData = ({
@@ -1369,6 +1413,8 @@ export const pivotResultsAsData = ({
     pivotDetails,
     timezone,
     formatTemporalsForSpreadsheet = false,
+    warehouseRowTotals,
+    warehouseColumnTotals,
 }: PivotResultsParams): PivotResultsData => {
     const getFieldLabel = (fieldId: string) => {
         const customLabel = customLabels?.[fieldId];
@@ -1383,6 +1429,8 @@ export const pivotResultsAsData = ({
         pivotDetails,
         pivotConfig,
         groupedSubtotals: undefined,
+        warehouseRowTotals,
+        warehouseColumnTotals,
     });
 
     const formatField = onlyRaw ? 'raw' : 'formatted';
@@ -1455,7 +1503,75 @@ export const pivotResultsAsData = ({
         return [...noIndexPrefix, ...cells];
     });
 
-    return { headers, dataRows, fieldIds, hasIndex };
+    // Column totals render as footer row(s) below the data — mirroring the
+    // pivot table UI. Each row is [index labels, per-column totals, blank row
+    // total cells], matching the header/data column order. Only present when
+    // column totals are enabled (and therefore the table has an index).
+    const columnTotalRows: PivotResultsDataCell[][] = (
+        pivotedResults.columnTotals ?? []
+    ).map((totalRow, totalRowIndex) => {
+        const totalFieldsRow =
+            pivotedResults.columnTotalFields?.[totalRowIndex] ?? [];
+        const lastTotalField = last(totalFieldsRow);
+        const lastHeaderRow = last(pivotedResults.headerValues) ?? [];
+
+        const labelCells: PivotResultsDataCell[] = totalFieldsRow.map(
+            (totalField) => {
+                const label = totalField
+                    ? `Total${
+                          totalField.fieldId
+                              ? ` ${getFieldLabel(totalField.fieldId)}`
+                              : ''
+                      }`
+                    : '';
+                return { raw: label, formatted: label, fieldId: '' };
+            },
+        );
+
+        const dataCells: PivotResultsDataCell[] = totalRow.map(
+            (total, colIndex) => {
+                if (total === null || total === undefined) {
+                    return {
+                        raw: '',
+                        formatted: undefinedCharacter,
+                        fieldId: '',
+                    };
+                }
+                // The total's metric is the per-row metric (metricsAsRows) or
+                // the data column's metric (metricsAsColumns).
+                const headerCell = lastHeaderRow[colIndex];
+                let fieldId: string | undefined;
+                if (pivotConfig.metricsAsRows) {
+                    fieldId = lastTotalField?.fieldId;
+                } else if (headerCell && 'fieldId' in headerCell) {
+                    fieldId = headerCell.fieldId;
+                }
+                const field = fieldId ? itemMap[fieldId] : undefined;
+                const formatted = onlyRaw
+                    ? String(total)
+                    : formatItemValue(field, total, false);
+                return { raw: total, formatted, fieldId: fieldId ?? '' };
+            },
+        );
+
+        const rowTotalCells: PivotResultsDataCell[] =
+            pivotConfig.rowTotals && pivotedResults.rowTotalFields?.[0]
+                ? pivotedResults.rowTotalFields[0].map(() => ({
+                      raw: '',
+                      formatted: '',
+                      fieldId: '',
+                  }))
+                : [];
+
+        return [...labelCells, ...dataCells, ...rowTotalCells];
+    });
+
+    return {
+        headers,
+        dataRows: [...dataRows, ...columnTotalRows],
+        fieldIds,
+        hasIndex,
+    };
 };
 
 export const pivotResultsAsCsv = (params: PivotResultsParams) => {

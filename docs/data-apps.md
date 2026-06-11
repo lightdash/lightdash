@@ -274,29 +274,72 @@ Implementation: `AppGenerateService.deleteApp` is the entry point. It delegates 
 `permanentDeleteApp`, which each enforce the appropriate manage scope (see [Permissions](#permissions) below) and
 handle sandbox/S3 cleanup.
 
-### Preview environments and promotion
+### Promotion
 
-Data apps are **not yet duplicated** when a project is copied to a preview environment, and **not yet remapped**
-during cross-project promotion. The preview-copy step in `ProjectModel.duplicateContent` does copy
-`dashboard_tile_data_apps` rows — but it leaves their `app_uuid` pointing at the source project's app rather than
-creating a fresh `apps` row in the preview. The preview project ends up with zero `apps` rows of its own; any data
-app dashboard tile in the preview is a read-through window to the source project's app.
+Data apps promote from a preview project into its linked upstream (production) project, mirroring how charts and
+dashboards promote. Two entry points share the same per-app primitive:
 
-What this means in practice:
+**Standalone app promotion.** `AppGenerateService.promoteApp` snapshots an app's latest ready version into the upstream
+project as one new version — a fresh app on first promotion (linked back via `apps.upstream_app_uuid`), or an appended
+version on the already-linked production app on follow-up promotions. Built S3 artifacts are server-side copied into the
+production app's prefix; the source app is untouched beyond recording the link. `getPromoteAppDiff` previews whether a
+promotion will create or update, and which space it lands in.
 
-- **Preview rendering.** If the user opening the preview has view access to the source project's app, the tile
-  renders normally. Otherwise the existing `DashboardDataAppTile` error states show a "Data app not found" or
-  "No access" placeholder; the rest of the dashboard renders fine.
-- **Iterating inside the preview.** Not supported — the preview project has no `apps` row, so the AppGenerate page
-  isn't reachable from within the preview. Iteration still happens on the source project's app.
-- **Promote-back from preview to source.** Works: the tile's `app_uuid` is the source app's UUID, so the upstream
-  insert succeeds.
-- **Cross-project promotion between unrelated projects.** Data app tiles can be promoted but the tile's `app_uuid`
-  is not remapped — it stays pointing at the downstream project's app. Effectively the same read-through behavior
-  as previews.
+**Data app tiles inside a dashboard.** When a dashboard carrying `DATA_APP` tiles is promoted, every referenced app is
+promoted alongside it and the tile's `appUuid` is remapped to the upstream app — exactly how chart / SQL-chart tiles
+remap their `savedChartUuid` / `savedSqlUuid`. The orchestration lives in `PromoteService.promoteDashboard`:
 
-Full preview/promote support (copying `apps` + `app_versions` + S3 artifacts and remapping `app_uuid` during
-promotion) is tracked in [PROD-7778 follow-up](https://linear.app/lightdash/issue/PROD-7778/preview-environments-arent-considering-data-apps).
+- `upsertDataApps` runs after `upsertCharts` / `upsertSqlCharts` and **before** `updateDashboard`, so the upstream
+  `apps` row exists before the `dashboard_tile_data_apps` FK references it.
+- The per-app promotion is delegated to the EE `AppGenerateService.promoteAppsForDashboard` (which reuses `promoteApp`
+  per app), reached through a lazy `getAppGenerateService` accessor injected into `PromoteService`. The accessor is a
+  thunk, not the instance, because `AppGenerateService` depends on `PromoteService` — eager injection would create a
+  construction cycle. Core (non-EE) builds resolve `undefined` and reject `DATA_APP` tile promotion with a clear error.
+- The promote confirmation diff (`getPromoteDashboardDiff` → `getDataAppPromoteChanges`) lists the apps that will be
+  created / updated alongside spaces / charts / SQL charts, rendered as a "Data apps" section in `PromotionConfirmDialog`
+  (`PromotionChanges.dataApps`).
+- Each app promotes into **its own** mirrored space (the app's `space_uuid`, ancestors created as needed), not the
+  dashboard's space — apps are standalone entities the tile merely references. Personal apps (`space_uuid IS NULL`)
+  promote as personal apps owned by the promoting user.
+- Apps the user can't manage block the promotion (the per-app `manage` check inside `promoteApp`), the same gate chart
+  tiles get. Soft-deleted apps behind placeholder tiles are skipped — the tile keeps its original reference and renders
+  the existing "app no longer exists" placeholder upstream.
+
+### Preview environments (copy-on-preview)
+
+When a project is copied to a preview environment, **every data app is duplicated into the preview** — both standalone
+apps and apps embedded as `DATA_APP` dashboard tiles. The preview gets its own `apps` + `app_versions` rows and its own
+S3 artifacts, so apps render and can be iterated on entirely inside the preview.
+
+The copy is the mirror image of [promotion](#promotion): promotion snapshots a preview app *up* into production;
+preview duplication snapshots production apps *down* into a fresh preview. It reuses the same per-app primitives
+(`copyVersionS3Prefix`, `buildCopiedResources`, the org-shared design guard) that `duplicateApp` / `promoteApp` use.
+
+Orchestration lives in `AppGenerateService.duplicateAppsForPreview`, called once from
+`ProjectService.copyContentOnPreview` right after `ProjectModel.duplicateContent` has copied the rest of the project:
+
+- **What gets copied per app.** The latest ready version's S3 artifacts (`dist.tar` + `source.tar` + assets) are
+  server-side copied into a new v1; name, description, template, design, and chart/dashboard resource refs carry over.
+  No sandbox is created — one spins up lazily on the first iteration. Apps with no ready version are skipped (their tile,
+  if any, keeps its read-through reference). `created_by_user_uuid` is preserved so personal apps stay owned by their
+  original author inside the preview.
+- **Spaces.** `ProjectModel.duplicateContent` now returns the source→preview space-uuid mapping; each app lands in the
+  preview's mirror of its source space (ancestors already created by the content copy). Personal apps
+  (`space_uuid IS NULL`) stay personal.
+- **The round trip — `upstream_app_uuid`.** Each preview copy's `upstream_app_uuid` is set back to the production app it
+  was copied from. That is the same link `promoteApp` writes on first promotion, so iterating on the copy inside the
+  preview and then promoting **updates the original production app** rather than creating a duplicate. Preview
+  duplication and promotion are two halves of one loop.
+- **Tile remap.** `duplicateContent` copies `dashboard_tile_data_apps` rows with `app_uuid` still pointing at the source
+  apps; `AppModel.remapPreviewDashboardTileApps` then repoints the preview's tiles onto the duplicated apps. The update
+  is **scoped to dashboards in the preview project** (via a `dashboard_versions → dashboards → spaces → projects`
+  subquery) — critical, because the source project's tiles carry the same `app_uuid` and must never be touched.
+- **Best-effort.** A per-app failure (S3 or DB) is logged, its orphaned S3 copy cleaned up, and the app skipped — it
+  cannot abort the rest of the copy or block preview creation. The whole step is also non-fatal to the surrounding
+  content copy. Core (non-EE) builds resolve the lazy `getAppGenerateService` accessor to `undefined` and skip
+  duplication entirely.
+
+Tracked in [PROD-7819](https://linear.app/lightdash/issue/PROD-7819/make-it-possible-to-build-data-apps-in-previews-and-promote-them).
 
 ---
 
@@ -436,9 +479,19 @@ Preview requests use short-lived JWTs (signed with `LIGHTDASH_SECRET`), not sess
 Each preview response includes a strict CSP header:
 
 - `default-src 'none'` — deny everything by default
-- `script-src 'self'` — only execute scripts from the app's own origin
-- `connect-src 'self'` — allow same-origin `fetch`/`XHR` so html-to-image can inline `@font-face` sources and `<img>`/background URLs during [screenshot capture](#screenshot-capture). The iframe's opaque origin (sandboxed without `allow-same-origin`) means those fetches are uncredentialed, so authenticated API calls still only flow through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request).
+- `script-src 'self' {servingOrigin}` — only execute scripts from the app's own origin
+- `connect-src 'self' {servingOrigin}` — allow same-origin `fetch`/`XHR` so html-to-image can inline `@font-face` sources and `<img>`/background URLs during [screenshot capture](#screenshot-capture). The iframe's opaque origin (sandboxed without `allow-same-origin`) means those fetches are uncredentialed, so authenticated API calls still only flow through the parent-mediated `postMessage` bridge (which CSP cannot govern, since it is a DOM API and not a network request).
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
+
+> **Why `'self'` isn't enough — the `{servingOrigin}` term.** The iframe is sandboxed
+> *without* `allow-same-origin`, so its document origin is opaque. WebKit/Safari resolves
+> the CSP `'self'` keyword against that opaque origin (which matches nothing) and blocks the
+> app's own scripts, styles, and fetches — the app renders as a blank page. Chromium/Firefox
+> resolve `'self'` against the response URL's origin, so they were unaffected. The fix lists
+> the serving origin explicitly alongside `'self'` on every fetch directive (`script-src`,
+> `style-src`, `connect-src`, `img-src`, `font-src`, `base-uri`). The serving origin is
+> `APP_RUNTIME_PREVIEW_ORIGIN` in production (cross-origin previews) and the same-origin
+> `lightdashOrigin` in dev. See `buildCspHeader` in `appPreviewRouter.ts`.
 
 ---
 
@@ -636,11 +689,12 @@ notification via `useBuildNotification`.
 
 ## Infrastructure Dependencies
 
-| Service           | Purpose                                           | Config                                        |
-| ----------------- | ------------------------------------------------- | --------------------------------------------- |
-| **E2B**           | Serverless sandbox for code generation and builds | `E2B_API_KEY`                                 |
-| **S3 / MinIO**    | Stores built artifacts and source tarballs        | `S3_REGION`, `S3_ENDPOINT`, `S3_BUCKET`, etc. |
-| **Anthropic API** | Powers Claude Code inside the sandbox             | `ANTHROPIC_API_KEY`                           |
+| Service                          | Purpose                                                                  | Config                                              |
+| -------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------- |
+| **E2B**                          | Serverless sandbox for code generation and builds                        | `E2B_API_KEY`                                       |
+| **S3 / MinIO**                   | Stores built artifacts and source tarballs                               | `S3_REGION`, `S3_ENDPOINT`, `S3_BUCKET`, etc.       |
+| **Anthropic API** *(default)*    | Powers Claude Code inside the sandbox                                    | `ANTHROPIC_API_KEY`                                 |
+| **AWS Bedrock** *(alternative)*  | Routes Claude Code through Bedrock instead of the Anthropic API          | See [LLM provider](#llm-provider-anthropic-vs-bedrock) |
 
 ### Configuration (`AppRuntimeConfig`)
 
@@ -653,6 +707,22 @@ APP_RUNTIME_LIGHTDASH_ORIGIN=https://app.example   # Origin for CORS/CSP (defaul
 APP_RUNTIME_CDN_ORIGIN=https://cdn.example.com     # Optional CDN for CSP
 APP_RUNTIME_PREVIEW_ORIGIN=https://preview.example # Optional Separate domain for preview serving
 ```
+
+### LLM provider (Anthropic vs Bedrock)
+
+The `claude` CLI inside the E2B sandbox routes through either the Anthropic API or AWS Bedrock, following the same `AI_DEFAULT_PROVIDER` switch the AI copilot uses (`lightdashConfig.ai.copilot`). Claude Code itself only supports these two providers — any value other than `bedrock` falls back to the Anthropic API.
+
+| Mode                                         | Sandbox env vars                                                                                                                                                                                                                                          | Firewall allowlist                                                                                |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **Anthropic** *(default)*                    | `ANTHROPIC_API_KEY`                                                                                                                                                                                                                                       | `api.anthropic.com`                                                                                |
+| **Bedrock — bearer token** (`apiKey` set)    | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_BEARER_TOKEN_BEDROCK`                                                                                                                                                                                     | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com`                         |
+| **Bedrock — IAM** (`accessKeyId` set)        | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN`                                                                                                                                     | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com`                         |
+
+Bedrock mode reuses the AI copilot's existing `BEDROCK_*` configuration (`lightdashConfig.ai.copilot.providers.bedrock`) — no separate data-apps credentials.
+
+Validation is fail-loud: when `AI_DEFAULT_PROVIDER=bedrock` but credentials or region are missing, `resolveBedrockConfig` throws `MissingConfigError` rather than silently falling back to Anthropic or injecting an undefined region (the AI config schema is parsed leniently via safeParse, so startup validation can't be relied on here). The pipeline-start log line includes `llm=...` via `describeClaudeCodeEnv` — a non-secret summary of provider + auth method + region for ops visibility, never the credential values.
+
+All of this lives in `packages/backend/src/ee/services/AppGenerateService/claudeCodeEnv.ts` (`buildClaudeCodeEnv`, `claudeCodeAllowedHosts`, `describeClaudeCodeEnv`). The E2B sandbox firewall denies all egress except the allowlist returned by `claudeCodeAllowedHosts`, so changing provider also changes which hosts the sandbox can reach.
 
 ### Template versioning
 
@@ -677,6 +747,7 @@ S3 credentials are configured through the existing `S3_*` environment variables 
 | File                                                                        | Purpose                                        |
 | --------------------------------------------------------------------------- | ---------------------------------------------- |
 | `packages/backend/src/ee/services/AppGenerateService/AppGenerateService.ts` | Core pipeline: sandbox, Claude, build, S3, DB  |
+| `packages/backend/src/ee/services/AppGenerateService/claudeCodeEnv.ts`      | Builds the `claude` CLI env + firewall allowlist for the Anthropic / Bedrock provider switch |
 | `packages/backend/src/ee/controllers/appGenerateController.ts`              | TSOA REST controllers                          |
 | `packages/backend/src/models/AppModel.ts`                                   | Data access layer for apps and versions        |
 | `packages/backend/src/routers/appPreviewRouter.ts`                          | Express router serving built artifacts from S3 |

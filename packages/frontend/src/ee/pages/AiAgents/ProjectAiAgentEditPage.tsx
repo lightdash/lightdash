@@ -121,7 +121,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             mcpServerUuids: [],
             enableDataAccess: true,
             enableSelfImprovement: false,
-            enableContentTools: false,
+            enableContentTools: true,
             version: 2, // INFO: Default to v2 for now
         },
         validate: zodResolver(formSchema),
@@ -146,7 +146,9 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 mcpServerUuids: agentMcpServers?.map((mcp) => mcp.uuid) ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
-                enableContentTools: agent.enableContentTools ?? false,
+                enableContentTools:
+                    (agent.enableDataAccess ?? false) &&
+                    (agent.enableContentTools ?? false),
                 version: agent.version ?? 2, // INFO: Default to v2 for now
             };
             form.setValues(values);

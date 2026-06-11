@@ -37,8 +37,8 @@ import { useDeleteValidation } from '../../../hooks/validation/useValidation';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
+    type ContentTableColumnDef,
+    type ContentTableVirtualizer,
 } from '../../common/ContentTable';
 import MantineIcon from '../../common/MantineIcon';
 import { ChartIcon, IconBox } from '../../common/ResourceIcon';
@@ -141,7 +141,9 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
 }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const { mutate: deleteValidation } = useDeleteValidation(projectUuid);
 
@@ -176,7 +178,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns: MRT_ColumnDef<ValidationResponse>[] = useMemo(
+    const columns: ContentTableColumnDef<ValidationResponse>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',

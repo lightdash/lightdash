@@ -1,5 +1,6 @@
 import {
     resolveEffectiveOrganizationSettings,
+    validateCorsAllowedDomains,
     type OrganizationSettingsInstanceDefaults,
 } from './organizationSettings';
 
@@ -26,6 +27,7 @@ describe('resolveEffectiveOrganizationSettings', () => {
             scheduledDeliveryExpirationSecondsGoogleChat: null,
             queryLimit: 5000,
             csvCellsLimit: 100000,
+            corsAllowedDomains: [],
         });
     });
 
@@ -77,5 +79,81 @@ describe('resolveEffectiveOrganizationSettings', () => {
             resolveEffectiveOrganizationSettings({}, INSTANCE_DEFAULTS)
                 .supportImpersonationEnabled,
         ).toBe(false);
+    });
+
+    test('CORS settings default to no org domains, without env inheritance', () => {
+        const inherited = resolveEffectiveOrganizationSettings(
+            {},
+            INSTANCE_DEFAULTS,
+        );
+        expect(inherited.corsAllowedDomains).toEqual([]);
+
+        const overridden = resolveEffectiveOrganizationSettings(
+            {
+                corsAllowedDomains: [
+                    'https://app.example.com',
+                    '/^https:\\/\\/.*\\.example\\.com$/',
+                ],
+            },
+            INSTANCE_DEFAULTS,
+        );
+        expect(overridden.corsAllowedDomains).toEqual([
+            'https://app.example.com',
+            '/^https:\\/\\/.*\\.example\\.com$/',
+        ]);
+    });
+});
+
+describe('validateCorsAllowedDomains', () => {
+    test('accepts exact origins and anchored subdomain regex patterns', () => {
+        expect(
+            validateCorsAllowedDomains([
+                'https://app.example.com',
+                '/^https:\\/\\/.*\\.example\\.com$/',
+                '/^http:\\/\\/.*\\.example\\.com$/',
+            ]),
+        ).toBeNull();
+    });
+
+    test('accepts leading wildcard subdomain origins', () => {
+        expect(
+            validateCorsAllowedDomains([
+                '*.example.com',
+                'https://*.lightdash.example.com',
+                'http://*.example.com:3000',
+            ]),
+        ).toBeNull();
+    });
+
+    test('rejects broad or misplaced wildcard origins', () => {
+        expect(validateCorsAllowedDomains(['*.com'])).toContain(
+            'leading subdomain wildcard',
+        );
+        expect(validateCorsAllowedDomains(['*'])).toContain(
+            'leading subdomain wildcard',
+        );
+        expect(validateCorsAllowedDomains(['https://foo.*.com'])).toContain(
+            'leading subdomain wildcard',
+        );
+    });
+
+    test('rejects invalid regex patterns', () => {
+        expect(validateCorsAllowedDomains(['/unterminated[/'])).toBeTruthy();
+    });
+
+    test('rejects unanchored regex patterns', () => {
+        expect(validateCorsAllowedDomains(['/example\\.com/'])).toContain(
+            'anchored origins',
+        );
+    });
+
+    test('rejects regex patterns that allow arbitrary external origins', () => {
+        expect(validateCorsAllowedDomains(['/.*/'])).toBeTruthy();
+        expect(validateCorsAllowedDomains(['/^https?:\\/\\/.*$/'])).toContain(
+            'arbitrary external origins',
+        );
+        expect(
+            validateCorsAllowedDomains(['/^https:\\/\\/.*\\.com$/']),
+        ).toContain('arbitrary external origins');
     });
 });

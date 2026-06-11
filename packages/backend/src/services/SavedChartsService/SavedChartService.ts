@@ -922,7 +922,10 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        const savedChartsDaos = await this.savedChartModel.updateMultiple(data);
+        const savedChartsDaos = await this.savedChartModel.updateMultiple(
+            projectUuid,
+            data,
+        );
         const savedCharts = await Promise.all(
             savedChartsDaos.map(async (savedChart) => {
                 const { inheritsFromOrgOrProject, access } =
@@ -1665,6 +1668,14 @@ export class SavedChartService
             user,
             chartUuid,
         );
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+            }),
+        );
         const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: chart.projectUuid,
             organizationUuid: chart.organizationUuid,
@@ -1674,6 +1685,9 @@ export class SavedChartService
                 resourceType: 'chart',
                 resourceUuids: [chartUuid],
                 formats: filters?.formats,
+                ...(canManageAll
+                    ? {}
+                    : { createdByUserUuids: [user.userUuid] }),
             },
         });
 
@@ -2044,6 +2058,9 @@ export class SavedChartService
             if (!savedChart) {
                 throw new NotFoundError('Chart not found');
             }
+            if (savedChart.projectUuid !== actor.projectUuid) {
+                throw new NotFoundError('Chart not found');
+            }
 
             if (savedChart.dashboardUuid) {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
@@ -2238,7 +2255,7 @@ export class SavedChartService
         const deletedChart = await this.savedChartModel.get(
             chartUuid,
             undefined,
-            { deleted: true },
+            { deleted: true, projectUuid: options?.projectUuid },
         );
         const { organizationUuid, projectUuid } = deletedChart;
 
@@ -2324,7 +2341,7 @@ export class SavedChartService
             const deletedChart = await this.savedChartModel.get(
                 chartUuid,
                 undefined,
-                { deleted: true },
+                { deleted: true, projectUuid: options?.projectUuid },
             );
             const { organizationUuid, projectUuid } = deletedChart;
 

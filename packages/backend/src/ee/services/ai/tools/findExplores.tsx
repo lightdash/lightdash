@@ -22,18 +22,42 @@ const generateExploreResponse = ({
     exploreSearchResults,
     topMatchingFields,
 }: Awaited<ReturnType<FindExploresFn>> & { searchQuery: string }) => {
-    const searchResultsXml =
-        exploreSearchResults && exploreSearchResults.length > 0 ? (
-            <searchResults
-                searchQuery={searchQuery}
-                count={exploreSearchResults.length}
-            >
-                <note>
-                    {exploreSearchResults.length === 1
-                        ? 'One explore matched your search. Call findFields for this explore to get all its dimensions and metrics.'
-                        : 'Multiple explores matched your search. Use topMatchingFields below and apply Rule 2 (ambiguity check) to determine which explore to use, then call findFields for that explore.'}
-                </note>
-                {exploreSearchResults.map((result) => (
+    const exploreCount = exploreSearchResults?.length ?? 0;
+    const fieldCount = topMatchingFields?.length ?? 0;
+
+    const searchResultsNote = (() => {
+        if (exploreCount === 0) {
+            return fieldCount > 0
+                ? 'No explore name/label/description/aiHints matched. Use topMatchingFields below and call findFields on the most relevant explore.'
+                : 'No explore matched your search. Try different terms or synonyms.';
+        }
+        if (exploreCount === 1) {
+            return 'One explore matched your search. Call findFields for this explore to get all its dimensions and metrics.';
+        }
+        return "Multiple explores matched. Pick the explore whose fields can answer the user's question (a follow-up query runs against a single explore), using topMatchingFields to compare field-level relevance. Then call findFields on it.";
+    })();
+
+    const topFieldsNote =
+        fieldCount === 0
+            ? 'No field-level matches either.'
+            : "Per-field matches across all explores. Each field's `exploreName` shows where it lives — pick the explore whose fields can answer the user's question.";
+
+    return (
+        <findExplores searchQuery={searchQuery}>
+            <description>
+                Two-pass catalog search whose goal is to identify the single
+                explore for a follow-up query: a query runs against exactly one
+                explore, so the chosen explore must contain the fields needed to
+                answer the user's question. `searchResults` lists explores whose
+                name/label/description/aiHints matched the query.
+                `topMatchingFields` lists individual fields whose
+                name/label/description matched, across all explores — use it to
+                identify or disambiguate the explore to dig into when no explore
+                matched directly, or when several matched.
+            </description>
+            <searchResults count={exploreCount}>
+                <note>{searchResultsNote}</note>
+                {exploreSearchResults?.map((result) => (
                     <alternative
                         name={result.name}
                         label={result.label}
@@ -71,19 +95,9 @@ const generateExploreResponse = ({
                     </alternative>
                 ))}
             </searchResults>
-        ) : null;
-
-    const topFieldsXml =
-        topMatchingFields && topMatchingFields.length > 0 ? (
-            <topMatchingFields count={topMatchingFields.length}>
-                <note>
-                    Here are the top matching fields across all explores. Use
-                    this to determine which explore is most relevant by applying
-                    Rule 2 (ambiguity check). Call findFields on the chosen
-                    explore to retrieve full field metadata including
-                    descriptions.
-                </note>
-                {topMatchingFields.map((field) => (
+            <topMatchingFields count={fieldCount}>
+                <note>{topFieldsNote}</note>
+                {topMatchingFields?.map((field) => (
                     <field
                         name={field.name}
                         label={field.label}
@@ -95,11 +109,8 @@ const generateExploreResponse = ({
                     />
                 ))}
             </topMatchingFields>
-        ) : null;
-
-    return `${searchResultsXml ? `${searchResultsXml.toString()}\n` : ''}${
-        topFieldsXml ? `${topFieldsXml.toString()}\n` : ''
-    }`;
+        </findExplores>
+    ).toString();
 };
 export const getFindExplores = ({
     findExplores,

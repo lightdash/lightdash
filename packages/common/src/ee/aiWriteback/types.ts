@@ -15,25 +15,44 @@ export type AiWritebackRequestBody = {
 };
 
 /**
+ * Whether a writeback run opened a brand-new pull request or updated an
+ * existing one (a resumed thread or a pasted PR link). `null` when no pull
+ * request was touched (the agent made no file changes).
+ */
+export type PullRequestWritebackAction = 'opened' | 'updated';
+
+/**
  * Result of a (synchronous) AI writeback run.
  *
  * - `output` is the text the agent produced.
  * - `exitCode` is the sandbox command's exit status.
  * - `prUrl` is the URL of the pull request opened from the agent's changes, or
  *   `null` when the agent made no file changes (nothing to raise a PR for).
+ * - `prAction` is whether that PR was newly opened or an existing one updated,
+ *   or `null` when no PR was touched.
  * - `projectName` is the Lightdash project the run targeted.
  * - `repository` is the GitHub repository (`owner/repo`) the run targeted.
- * - `previewDeployConfigured` is whether the repo already deploys Lightdash
- *   preview projects via GitHub Actions: `true` set up, `false` not set up (the
- *   caller may offer to set it up), `null` when it could not be determined.
  */
+/**
+ * One action the writeback sandbox took, in a generic shape the chat UI can
+ * group and render as step rows without knowing anything about writeback.
+ * `kind` buckets the action (consecutive same-kind steps are grouped, e.g.
+ * "Read 3 files"); `label` is the file basename or a stage description.
+ */
+export type AiWritebackStep = {
+    kind: 'read' | 'edit' | 'search' | 'compile' | 'stage';
+    label: string;
+};
+
 export type AiWritebackRunResult = {
     output: string;
     exitCode: number;
     prUrl: string | null;
+    prAction: PullRequestWritebackAction | null;
     projectName: string;
     repository: string;
-    previewDeployConfigured: boolean | null;
+    /** Ordered actions the sandbox took, for the chat UI's step rows. */
+    steps: AiWritebackStep[];
 };
 
 export type ApiAiWritebackResponse = ApiSuccess<AiWritebackRunResult>;

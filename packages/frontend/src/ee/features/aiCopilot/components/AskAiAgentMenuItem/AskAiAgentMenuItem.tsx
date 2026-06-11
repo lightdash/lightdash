@@ -1,5 +1,5 @@
 import { Menu } from '@mantine-8/core';
-import { IconMessageCircleStar } from '@tabler/icons-react';
+import { IconMessageCircle } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import useApp from '../../../../../providers/App/useApp';
@@ -66,7 +66,7 @@ export const AskAiAgentMenuItem: FC<Props> = ({
     return (
         <>
             <Menu.Item
-                leftSection={<MantineIcon icon={IconMessageCircleStar} />}
+                leftSection={<MantineIcon icon={IconMessageCircle} />}
                 onClick={handleClick}
             >
                 Ask AI Agent

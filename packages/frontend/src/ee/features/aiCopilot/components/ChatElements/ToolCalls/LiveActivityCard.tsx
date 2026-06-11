@@ -1,10 +1,9 @@
 import {
-    TOOL_DISPLAY_MESSAGES,
-    TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL,
     type AiAgentToolCall,
     type AiAgentToolName,
     type AiAgentToolResult,
     type AiMcpServer,
+    type AiWritebackStep,
     isToolName,
 } from '@lightdash/common';
 import {
@@ -23,20 +22,24 @@ import { Streamdown } from 'streamdown';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { type StepProgressMessage } from '../../../store/aiAgentThreadStreamSlice';
 import bubbleStyles from '../AgentChatAssistantBubble.module.css';
+import { AgentStepGroups } from './AgentStepGroups';
 import { ToolCallDescription } from './descriptions/ToolCallDescription';
 import { DiscoverFieldsTrace, type TraceEntry } from './DiscoverFieldsTrace';
 import styles from './LiveActivityCard.module.css';
+import { parseAgentStep } from './parseAgentStep';
 import { ToolCallChip } from './ToolCallChip';
 import { ToolCallIcon } from './ToolCallIcon';
 import { ToolCallRow } from './ToolCallRow';
 import { getActivityTitle } from './utils/getActivityTitle';
 import { getToolCallChipLabel } from './utils/getToolCallChipLabel';
+import { getToolCallDisplayMessage } from './utils/getToolCallDisplayMessage';
 import {
     getMcpServerForToolName,
     getMcpToolDisplayMetadata,
     getMcpToolDisplayName,
 } from './utils/mcpToolDisplay';
 import { stripMarkdown } from './utils/stripMarkdown';
+import { type ToolCallGroupDisplay } from './utils/toolCallGrouping';
 import { getToolIcon } from './utils/toolIcons';
 import { type ToolCallSummary } from './utils/types';
 
@@ -44,6 +47,7 @@ export type LiveActivityToolGroup = {
     toolName: AiAgentToolName;
     calls: ToolCallSummary[];
     keyId: string;
+    display?: ToolCallGroupDisplay;
 };
 
 type Props = {
@@ -67,7 +71,7 @@ type Props = {
     pendingContent?: React.ReactNode;
     /**
      * In-flight status events emitted across the stream (e.g. "Starting
-     * sandbox", "Cloning project", "Committing changes" for proposeWriteback).
+     * sandbox", "Cloning project", "Committing changes" for editDbtProject).
      * Each carries the tool it belongs to so the inline row can be scoped to
      * the active tool — a concurrently running tool's progress (e.g. a
      * `findFields` query fired alongside the writeback) must not surface under
@@ -83,7 +87,6 @@ const TOOLS_WITHOUT_PREVIEW = new Set<string>([
     'runSql',
     'improveContext',
     'proposeChange',
-    'runContentQuery',
     'runSavedChart',
 ]);
 
@@ -97,25 +100,21 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'listKnowledgeDocuments',
     'listProjects',
     'getProjectInfo',
-    'listContent',
     'generateHashes',
     'generateUuids',
     'improveContext',
     'loadSkill',
     'loadProjectContext',
     'proposeChange',
-    'proposeWriteback',
+    'editDbtProject',
     'setupPreviewDeploy',
-    'runContentQuery',
     'runSavedChart',
 ]);
 
-// Tools that stream coarse step progress ("Starting sandbox", "Cloning
-// project", …) rendered as a single replacing row, instead of per-call rows.
-const TOOLS_WITH_STEP_PROGRESS = new Set<string>([
-    'proposeWriteback',
-    'setupPreviewDeploy',
-]);
+// Tools that stream coarse step progress rendered as a single replacing row.
+// editDbtProject is intentionally absent: its actions are surfaced as grouped
+// step rows (AgentStepGroups) under the tool call instead of a transient line.
+const TOOLS_WITH_STEP_PROGRESS = new Set<string>(['setupPreviewDeploy']);
 
 const MCP_SUMMARY_ICON_LIMIT = 4;
 
@@ -290,16 +289,23 @@ const LatestRow: FC<{
         ? null
         : getMcpToolDisplayName(group.toolName);
     const label = builtInToolName
-        ? isLive
-            ? TOOL_DISPLAY_MESSAGES[builtInToolName]
-            : TOOL_DISPLAY_MESSAGES_AFTER_TOOL_CALL[builtInToolName]
+        ? getToolCallDisplayMessage({
+              toolName: builtInToolName,
+              calls: group.calls,
+              display: group.display,
+              status: isLive ? 'running' : 'done',
+          })
         : null;
     const isGrouped = group.calls.length > 1;
     const lastCall = group.calls[group.calls.length - 1];
-    const chipLabel = isToolName(group.toolName)
-        ? getToolCallChipLabel(group.toolName, lastCall.toolArgs)
+    const lastBuiltInToolName = isToolName(lastCall.toolName)
+        ? lastCall.toolName
+        : builtInToolName;
+    const chipLabel = lastBuiltInToolName
+        ? getToolCallChipLabel(lastBuiltInToolName, lastCall.toolArgs)
         : null;
-    const showPreview = chipLabel && !TOOLS_WITHOUT_PREVIEW.has(group.toolName);
+    const showPreview =
+        chipLabel && !TOOLS_WITHOUT_PREVIEW.has(lastBuiltInToolName ?? '');
 
     return (
         <Group
@@ -495,7 +501,7 @@ const getDiscoverFieldsTraceFromCall = (
  *
  * Returns null when there's nothing to render (the tool hasn't fired any
  * progress events, an SQL approval is pending, or we're not actively
- * streaming). Today only proposeWriteback emits progress strings that
+ * streaming). Today only editDbtProject emits progress strings that
  * warrant this treatment; other tools either run instantly or share the
  * single "Running your query…" string that the parent bubble shows via
  * TypingDots instead.
@@ -747,6 +753,24 @@ export const LiveActivityCard: FC<Props> = ({
                 hasPending,
                 stepProgressMessages,
             })}
+            {isLive &&
+                !hasPending &&
+                latest?.toolName === 'editDbtProject' &&
+                (() => {
+                    // Live grouped step rows for the writeback tool: parse the
+                    // streamed progress strings back into structured steps so
+                    // they render (and group) the same way as the persisted
+                    // steps once the run completes.
+                    const liveSteps = stepProgressMessages
+                        .filter((m) => m.toolName === 'editDbtProject')
+                        .map((m) => parseAgentStep(m.message));
+                    if (liveSteps.length === 0) return null;
+                    return (
+                        <Box className={styles.liveStepProgress}>
+                            <AgentStepGroups steps={liveSteps} />
+                        </Box>
+                    );
+                })()}
             <Collapse
                 in={showBody}
                 transitionDuration={260}
@@ -765,14 +789,20 @@ export const LiveActivityCard: FC<Props> = ({
                             : null;
                         if (!latestBuiltInToolName) return null;
 
-                        const hasNoDescription =
-                            TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
-                                latestBuiltInToolName,
-                            );
                         const renderableCalls = latest.calls
                             .map((tc) => {
+                                const callBuiltInToolName = isToolName(
+                                    tc.toolName,
+                                )
+                                    ? tc.toolName
+                                    : null;
+                                if (!callBuiltInToolName) return null;
+                                const hasNoDescription =
+                                    TOOLS_WITHOUT_LATEST_DESCRIPTION.has(
+                                        callBuiltInToolName,
+                                    );
                                 const trace =
-                                    latestBuiltInToolName === 'discoverFields'
+                                    callBuiltInToolName === 'discoverFields'
                                         ? (getDiscoverFieldsTraceFromCall(tc) ??
                                           getDiscoverFieldsTrace(
                                               toolResults?.find(
@@ -794,7 +824,7 @@ export const LiveActivityCard: FC<Props> = ({
                                     >
                                         {!hasNoDescription && (
                                             <ToolCallDescription
-                                                toolName={latestBuiltInToolName}
+                                                toolName={callBuiltInToolName}
                                                 toolCall={tc}
                                                 toolResult={toolResults?.find(
                                                     (result) =>
@@ -837,6 +867,25 @@ export const LiveActivityCard: FC<Props> = ({
                                               )
                                               .find((t) => t && t.length > 0)
                                         : null;
+                                // Adapt the writeback tool's persisted, generic
+                                // step actions into grouped step rows. The
+                                // adaptation lives here (the orchestrator),
+                                // never in the generic row/step components.
+                                const groupSteps =
+                                    group.toolName === 'editDbtProject'
+                                        ? group.calls.flatMap((tc) => {
+                                              const meta = toolResults?.find(
+                                                  (r) =>
+                                                      r.toolCallId ===
+                                                      tc.toolCallId,
+                                              )?.metadata as
+                                                  | {
+                                                        steps?: AiWritebackStep[];
+                                                    }
+                                                  | undefined;
+                                              return meta?.steps ?? [];
+                                          })
+                                        : [];
                                 return (
                                     <Box
                                         key={group.keyId}
@@ -850,16 +899,24 @@ export const LiveActivityCard: FC<Props> = ({
                                         <ToolCallRow
                                             toolName={group.toolName}
                                             toolCalls={group.calls}
+                                            display={group.display}
                                             status="done"
                                             toolResults={toolResults}
                                             mcpServers={mcpServers}
-                                            extraBody={
-                                                groupTrace ? (
+                                            extraBody={(() => {
+                                                if (groupSteps.length > 0) {
+                                                    return (
+                                                        <AgentStepGroups
+                                                            steps={groupSteps}
+                                                        />
+                                                    );
+                                                }
+                                                return groupTrace ? (
                                                     <DiscoverFieldsTrace
                                                         trace={groupTrace}
                                                     />
-                                                ) : undefined
-                                            }
+                                                ) : undefined;
+                                            })()}
                                         />
                                     </Box>
                                 );

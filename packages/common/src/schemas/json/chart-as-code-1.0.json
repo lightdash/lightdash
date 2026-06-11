@@ -88,6 +88,10 @@
                     "format": "double",
                     "type": "number"
                 },
+                "separator": {
+                    "$ref": "#/$defs/NumberSeparator",
+                    "description": "Number separator style for grouping/decimal characters"
+                },
                 "sql": {
                     "description": "SQL expression (e.g., ${TABLE}.column_name)",
                     "type": "string"
@@ -529,7 +533,7 @@
             "type": "string"
         },
         "ConditionalFormattingColorApplyTo": {
-            "enum": ["cell", "text"],
+            "enum": ["cell", "text", "row"],
             "type": "string"
         },
         "ConditionalFormattingColorRange": {
@@ -1974,7 +1978,8 @@
                 "commaPeriod",
                 "spacePeriod",
                 "periodComma",
-                "noSeparatorPeriod"
+                "noSeparatorPeriod",
+                "apostrophePeriod"
             ],
             "type": "string"
         },
@@ -2557,6 +2562,10 @@
                     "enum": ["left", "right", "justify"],
                     "type": "string"
                 },
+                "nodeLayout": {
+                    "$ref": "#/$defs/SankeyNodeLayout",
+                    "description": "How nodes are laid out across steps"
+                },
                 "orient": {
                     "description": "Orientation of the diagram",
                     "enum": ["horizontal", "vertical"],
@@ -2586,6 +2595,11 @@
             },
             "required": ["type"],
             "type": "object"
+        },
+        "SankeyNodeLayout": {
+            "description": "How nodes are laid out:\n- `multi-step`: depth-unrolled journeys (default)\n- `merged`: one node per label, journeys preserved (acyclic flows only)\n- `direct`: two-column source→target pairs, no chaining",
+            "enum": ["multi-step", "merged", "direct"],
+            "type": "string"
         },
         "Series": {
             "properties": {
@@ -3217,6 +3231,16 @@
                 },
                 {
                     "properties": {
+                        "dataZoomAnchor": {
+                            "description": "Where the initial data-zoom window anchors when data zoom is enabled",
+                            "enum": ["start", "end"],
+                            "type": "string"
+                        },
+                        "dataZoomItemCount": {
+                            "description": "Number of items visible at once in the data-zoom window",
+                            "format": "double",
+                            "type": "number"
+                        },
                         "enableDataZoom": {
                             "description": "Enable data zoom slider for this axis",
                             "type": "boolean"

@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/common",
-  "version": "0.3085.0",
+  "version": "0.3137.0",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,8 +14,11 @@
   "types": "dist/types/index.d.ts",
   "scripts": {
     "dev": "tsc --build --watch --preserveWatchOutput --incremental ./tsconfig.build.json",
+    "dev:fast": "tsgo --build --watch --preserveWatchOutput ./tsconfig.build.fast.json",
     "build": "tsc --build ./tsconfig.build.json",
+    "build:fast": "tsgo --build ./tsconfig.build.fast.json",
     "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
@@ -65,6 +68,7 @@
     "@types/pegjs": "0.10.3",
     "@types/sanitize-html": "2.11.0",
     "@types/uuid": "10.0.0",
+    "@typescript/native-preview": "7.0.0-dev.20260527.2",
     "typescript": "6.0.3"
   }
 }

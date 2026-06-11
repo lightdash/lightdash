@@ -78,6 +78,15 @@ export const EditCredentialsModal: FC<
         },
     });
 
+    // SSO-based credentials are only ever set through their OAuth popup. They
+    // have no editable secret field, so a generic "Save" would persist the
+    // masked placeholder and wipe the working credential.
+    const showSaveButton = ![
+        WarehouseTypes.BIGQUERY,
+        WarehouseTypes.SNOWFLAKE,
+        WarehouseTypes.DATABRICKS,
+    ].includes(userCredentials.credentials.type);
+
     return (
         <MantineModal
             opened={opened}
@@ -86,14 +95,16 @@ export const EditCredentialsModal: FC<
             icon={IconPencil}
             cancelDisabled={isSaving}
             actions={
-                <Button
-                    type="submit"
-                    form={FORM_ID}
-                    disabled={isSaving}
-                    loading={isSaving}
-                >
-                    Save
-                </Button>
+                showSaveButton ? (
+                    <Button
+                        type="submit"
+                        form={FORM_ID}
+                        disabled={isSaving}
+                        loading={isSaving}
+                    >
+                        Save
+                    </Button>
+                ) : undefined
             }
         >
             <form

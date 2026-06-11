@@ -54,6 +54,62 @@ export const isAggregateCall = (node: ASTNode): boolean => {
     }
 };
 
+// True if the formula contains any aggregate (SUM, COUNT, ...) or window
+// function (WindowedAggregate, WindowFn, MovingWindowFn). Such formulas can't
+// be safely re-totaled by re-applying them to an aggregated totals row, so
+// callers use this to exclude them.
+export const containsAggregateOrWindow = (node: ASTNode): boolean => {
+    switch (node.type) {
+        case 'WindowedAggregate':
+        case 'WindowFn':
+        case 'MovingWindowFn':
+        case 'ConditionalAggregate':
+        case 'CountIf':
+        case 'CountDistinct':
+            return true;
+        case 'ColumnRef':
+        case 'NumberLiteral':
+        case 'StringLiteral':
+        case 'BooleanLiteral':
+        case 'ZeroArgFn':
+            return false;
+        case 'BinaryOp':
+        case 'Comparison':
+        case 'Logical':
+            return (
+                containsAggregateOrWindow(node.left) ||
+                containsAggregateOrWindow(node.right)
+            );
+        case 'UnaryOp':
+            return containsAggregateOrWindow(node.operand);
+        case 'If':
+            return (
+                containsAggregateOrWindow(node.condition) ||
+                containsAggregateOrWindow(node.then) ||
+                (node.else ? containsAggregateOrWindow(node.else) : false)
+            );
+        case 'SingleArgFn':
+            return isAggregateCall(node) || containsAggregateOrWindow(node.arg);
+        case 'ZeroOrOneArgFn':
+            return (
+                isAggregateCall(node) ||
+                (node.arg ? containsAggregateOrWindow(node.arg) : false)
+            );
+        case 'OneOrTwoArgFn':
+            return (
+                isAggregateCall(node) ||
+                node.args.some((arg) => containsAggregateOrWindow(arg))
+            );
+        case 'TwoArgFn':
+        case 'ThreeArgFn':
+        case 'VariadicFn':
+        case 'DateFn':
+            return node.args.some((arg) => containsAggregateOrWindow(arg));
+        default:
+            return assertUnreachable(node, `Unknown AST node type`);
+    }
+};
+
 export const extractColumnRefs = (node: ASTNode): string[] => {
     switch (node.type) {
         case 'ColumnRef':

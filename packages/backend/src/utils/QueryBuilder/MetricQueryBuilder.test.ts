@@ -83,6 +83,41 @@ const buildQuery = (
         parameterDefinitions: {},
     }).compileQuery();
 
+describe('field compilation errors', () => {
+    const exploreWithErroredDimension: Explore = {
+        ...EXPLORE,
+        tables: {
+            ...EXPLORE.tables,
+            table1: {
+                ...EXPLORE.tables.table1,
+                dimensions: {
+                    ...EXPLORE.tables.table1.dimensions,
+                    dim1: {
+                        ...EXPLORE.tables.table1.dimensions.dim1,
+                        compiledSql: 'NULL',
+                        compilationError: {
+                            message:
+                                'Dimension "dim1" failed to compile: Missing parameters: missing_parameter',
+                        },
+                    },
+                },
+            },
+        },
+    };
+
+    it('throws when a selected field has a partial compilation error', () => {
+        expect(() =>
+            buildQuery({
+                explore: exploreWithErroredDimension,
+                compiledMetricQuery: METRIC_QUERY,
+                warehouseSqlBuilder: warehouseClientMock,
+                intrinsicUserAttributes: {},
+                timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            }),
+        ).toThrow('Missing parameters: missing_parameter');
+    });
+});
+
 const POP_TEST_POP_METRIC_NAME = 'total_order_amount__pop__year_1__testpop';
 const POP_TEST_POP_METRIC_ID = `orders_${POP_TEST_POP_METRIC_NAME}`;
 const POP_TEST_FANOUT_POP_METRIC_NAME = 'metric_amount__pop__year_1__fanout';

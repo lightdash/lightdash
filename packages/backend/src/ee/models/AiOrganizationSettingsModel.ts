@@ -29,6 +29,7 @@ export class AiOrganizationSettingsModel {
         return {
             organizationUuid: db.organization_uuid,
             aiAgentsVisible: db.ai_agents_visible,
+            aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
         };
     }
 
@@ -65,6 +66,7 @@ export class AiOrganizationSettingsModel {
             .insert({
                 organization_uuid: data.organizationUuid,
                 ai_agents_visible: data.aiAgentsVisible,
+                ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
             })
             .returning('*');
 
@@ -75,13 +77,27 @@ export class AiOrganizationSettingsModel {
         organizationUuid: string,
         data: UpdateAiOrganizationSettings,
     ): Promise<AiOrganizationSettings> {
+        const updateData: Partial<
+            Pick<
+                DbAiOrganizationSettings,
+                'ai_agents_visible' | 'ai_agent_reviews_enabled'
+            >
+        > = {};
+        if (data.aiAgentsVisible !== undefined) {
+            updateData.ai_agents_visible = data.aiAgentsVisible;
+        }
+        if (data.aiAgentReviewsEnabled !== undefined) {
+            updateData.ai_agent_reviews_enabled = data.aiAgentReviewsEnabled;
+        }
+        if (Object.keys(updateData).length === 0) {
+            return this.getByOrganizationUuid(organizationUuid);
+        }
+
         const [row] = await this.database<AiOrganizationSettingsTable>(
             AiOrganizationSettingsTableName,
         )
             .where('organization_uuid', organizationUuid)
-            .update({
-                ai_agents_visible: data.aiAgentsVisible,
-            })
+            .update(updateData)
             .returning('*');
 
         if (!row) {
@@ -104,7 +120,8 @@ export class AiOrganizationSettingsModel {
         }
         return this.create({
             organizationUuid,
-            aiAgentsVisible: data.aiAgentsVisible,
+            aiAgentsVisible: data.aiAgentsVisible ?? true,
+            aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
         });
     }
 

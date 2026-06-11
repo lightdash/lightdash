@@ -12,6 +12,14 @@ export const SKILLS_DIR = '/home/user/.lightdash-skills';
 export const WAREHOUSE_SKILL_PATH = `${SKILLS_DIR}/warehouse.md`;
 export const SHARED_SKILL_PATH = `${SKILLS_DIR}/shared.md`;
 
+// Claude Code Agent Skills baked into the sandbox image at build time via
+// `lightdash install-skills` (see sandboxes/ai-writeback/e2b.Dockerfile). The
+// agent runs as `user`, so this matches the runtime ~/.claude/skills location
+// Claude Code auto-discovers. Distinct from SKILLS_DIR above (the host-pushed
+// warehouse markdown). The agent reads a skill's resource files from here, so
+// it must be both allowlisted (ALLOWED_TOOLS) and passed via --add-dir.
+export const CLAUDE_SKILLS_DIR = '/home/user/.claude/skills';
+
 // Files the agent writes for the host to open a PR from. Kept as a fallback
 // — the primary channel is now structured output blocks in the agent's stdout
 // (see PR_TITLE_OPEN/CLOSE etc.).
@@ -67,6 +75,11 @@ export const TMP_PROFILES_DIR = '/tmp/ld-profiles';
 // runtime by runAgentInSandbox.
 export const COMPILE_WRAPPER_PATH = '/tmp/ld-writeback-compile';
 
+// The compile wrapper appends one `<elapsedMs> <exitCode>` line per invocation
+// here, so runAgentInSandbox can report how much of the agent stage was spent in
+// `lightdash compile` (the prime suspect for writeback latency) vs the LLM/edits.
+export const COMPILE_TIMINGS_PATH = '/tmp/ld-writeback-compile-timings';
+
 // Environment variables stripped from the compile child by the wrapper above.
 // ANTHROPIC_API_KEY is the only secret currently in the agent's env, but we
 // also drop common token vars defensively in case that changes.
@@ -98,6 +111,11 @@ export const ALLOWED_TOOLS = [
     // skills dir also has to be passed via `--add-dir` (see runAgentInSandbox)
     // or Claude Code confines reads to the cwd workspace and refuses these.
     `Read(/${SKILLS_DIR}/**)`,
+    // Invoke the Lightdash Agent Skills installed in the image, and read the
+    // resource files they reference. Like the dirs above, CLAUDE_SKILLS_DIR is
+    // outside the cwd workspace so it must also be passed via `--add-dir`.
+    'Skill',
+    `Read(/${CLAUDE_SKILLS_DIR}/**)`,
     // PR metadata files live directly in /tmp. This permission alone is not
     // enough: Claude Code also confines Write/Edit to the cwd workspace, so
     // /tmp must additionally be passed via `--add-dir /tmp` (see
@@ -128,13 +146,3 @@ export const GATHER_REPO_CONTEXT_SANDBOX_PATH = '/tmp/gather-repo-context.sh';
 // Last N bytes of the agent's stderr kept for diagnostics on a non-zero exit /
 // timeout, so the Sentry payload carries the real error without inflating it.
 export const STDERR_TAIL_BYTES = 4096;
-
-// Synthetic prompt for the dedicated preview-deploy setup run. It leans on the
-// "Secondary task" section that run()'s system prompt already injects (with the
-// exact workflow files + secrets) when the repo has no preview-deploy workflow.
-export const PREVIEW_DEPLOY_SETUP_PROMPT = [
-    'The user has agreed to set up Lightdash preview deploys for this project.',
-    'Your ONLY task this run is to add the Lightdash preview-deploy GitHub Actions workflow described in the "Secondary task: offer to set up Lightdash preview deploys" section of your instructions.',
-    'Keep the workflow structure exactly as shown in that section — the permissions blocks, secret names, lightdash commands, and job/trigger layout are security-reviewed and run with live credentials, so do NOT widen permissions, rename the files, or change the commands. You MAY adapt only the version pinning (action refs, Node version, @lightdash/cli version): use the versions shown by default, but if the repo already has a consistent version-pinning convention in its other .github/workflows files, match it instead. Do NOT modify any dbt models, YAML, or other files.',
-    'In your final reply, list the GitHub Actions repository secrets the user must add for the workflow to run.',
-].join(' ');

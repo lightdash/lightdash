@@ -1,5 +1,9 @@
 import { subject } from '@casl/ability';
-import { ProjectType, type DashboardDataAppTile } from '@lightdash/common';
+import {
+    hashStringToBase36,
+    ProjectType,
+    type DashboardDataAppTile,
+} from '@lightdash/common';
 import { Box, Loader, Stack, Text } from '@mantine-8/core';
 import { IconAppsOff, IconPencil } from '@tabler/icons-react';
 import React, { useMemo, useState, type FC } from 'react';
@@ -133,16 +137,18 @@ const DataAppTile: FC<Props> = (props) => {
     // reloads and its mount-time metric queries re-fire — by then the bridge
     // is stamping the new filters onto every outgoing call. Without this the
     // bridge sees no new traffic until the user manually refreshes.
+    //
+    // Hash rather than serialize the filters: the app reads them from the
+    // bridge, not this URL, and embedding the full object made the URL grow
+    // with filters × tiles and 502 on large dashboards.
     const filtersKey = useMemo(
-        () => JSON.stringify(dashboardFiltersForApp),
+        () => hashStringToBase36(JSON.stringify(dashboardFiltersForApp)),
         [dashboardFiltersForApp],
     );
 
     const previewUrl =
         token && latestReadyVersion
-            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/?f=${encodeURIComponent(
-                  filtersKey,
-              )}&r=${refreshCounter}#transport=postMessage&projectUuid=${projectUuid}`
+            ? `${previewOrigin}/api/apps/${appUuid}/versions/${latestReadyVersion}/t/${token}/?f=${filtersKey}&r=${refreshCounter}#transport=postMessage&projectUuid=${projectUuid}`
             : undefined;
 
     const isForbidden =

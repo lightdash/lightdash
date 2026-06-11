@@ -150,6 +150,7 @@ export const METRIC_QUERY_WITH_ADDITIONAL_METRICS_COMPILED: CompiledMetricQuery 
                 round: undefined,
                 percentile: undefined,
                 compact: undefined,
+                separator: undefined,
                 source: undefined,
                 showUnderlyingValues: undefined,
                 format: undefined,

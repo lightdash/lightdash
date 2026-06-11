@@ -2,7 +2,6 @@
 // `this`, which is fine for a stateless host wrapper.
 /* eslint-disable class-methods-use-this */
 import {
-    ForbiddenError,
     getErrorMessage,
     MissingConfigError,
     ParameterError,
@@ -10,7 +9,6 @@ import {
     UnexpectedServerError,
     type DbtProjectConfig,
     type SessionUser,
-    type WorkflowFile,
 } from '@lightdash/common';
 import { randomUUID } from 'crypto';
 import type { Sandbox } from 'e2b';
@@ -24,6 +22,7 @@ import {
 } from '../../../../clients/gitlab/Gitlab';
 import type { GitlabAppInstallationsModel } from '../../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import { COMMIT_AUTHOR_EMAIL, COMMIT_AUTHOR_NAME, CWD } from '../constants';
+import { WritebackGitNotConnectedError } from '../errors';
 import type {
     AdoptedPullRequest,
     CloneTarget,
@@ -103,9 +102,6 @@ type GitlabProviderDeps = {
 export class GitlabProvider implements GitProvider {
     readonly provider = PullRequestProvider.GITLAB;
 
-    // Preview-deploy setup writes GitHub Actions workflows; not applicable here.
-    readonly supportsPreviewDeploy = false;
-
     private readonly gitlabAppInstallationsModel: GitlabAppInstallationsModel;
 
     private readonly gitlabConfig: GitlabConfig;
@@ -143,6 +139,9 @@ export class GitlabProvider implements GitProvider {
      */
     async resolveInstallation(
         organizationUuid: string,
+        // Per-user GitLab account linking is not implemented yet; GitLab
+        // writebacks always act as the org's app installation.
+        _options?: { user?: SessionUser; connection?: GitConnection },
     ): Promise<GitInstallation> {
         let auth: {
             token: string;
@@ -155,7 +154,8 @@ export class GitlabProvider implements GitProvider {
                     organizationUuid,
                 );
         } catch {
-            throw new ForbiddenError(
+            throw new WritebackGitNotConnectedError(
+                PullRequestProvider.GITLAB,
                 'GitLab App is not installed for this organization',
             );
         }
@@ -338,12 +338,6 @@ export class GitlabProvider implements GitProvider {
             pullNumber: mergeRequestIid,
             headRef: mr.sourceBranch,
         };
-    }
-
-    // GitLab has no Lightdash preview-deploy support (`supportsPreviewDeploy`
-    // is false), so there is nothing to scan for.
-    async readPreviewDeployWorkflowFiles(): Promise<WorkflowFile[]> {
-        return [];
     }
 
     /**

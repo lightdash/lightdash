@@ -1,52 +1,14 @@
-.heroAvatar {
+.routerView {
     position: relative;
-    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+    height: 100%;
+    min-height: 0;
 }
 
-.heroAvatar::after {
-    content: '';
+.routerSettingsButton {
     position: absolute;
-    inset: -6px;
-    border-radius: 50%;
-    border: 1px solid
-        light-dark(var(--mantine-color-ldGray-4), var(--mantine-color-ldGray-5));
-    opacity: 0;
-    pointer-events: none;
-}
-
-.heroAvatarWorking {
-    transform: scale(1.04);
-}
-
-.heroAvatarWorking::after {
-    animation: heroHaloPulse 1600ms cubic-bezier(0.16, 1, 0.3, 1) infinite;
-}
-
-.heroAvatarWorking .heroSparkles {
-    animation: heroSparkleSpin 3200ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-
-@keyframes heroHaloPulse {
-    0% {
-        transform: scale(0.9);
-        opacity: 0;
-    }
-    35% {
-        opacity: 0.6;
-    }
-    100% {
-        transform: scale(1.45);
-        opacity: 0;
-    }
-}
-
-@keyframes heroSparkleSpin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+    top: var(--mantine-spacing-md);
+    right: var(--mantine-spacing-md);
+    z-index: 2;
 }
 
 .routingStatus {
@@ -300,10 +262,6 @@
     .pickerHeader,
     .candidateButton,
     .candidateButton.recommended,
-    .heroAvatar,
-    .heroAvatarWorking,
-    .heroAvatarWorking::after,
-    .heroAvatarWorking .heroSparkles,
     .routingStatus,
     .routingDots span {
         animation: none;

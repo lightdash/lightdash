@@ -72,6 +72,7 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { createTwoColumnTiles } from '../../utils/dashboardTileUtils';
@@ -93,6 +94,7 @@ type DashboardServiceArguments = {
     analyticsModel: AnalyticsModel;
     pinnedListModel: PinnedListModel;
     schedulerModel: SchedulerModel;
+    searchModel: SearchModel;
     schedulerService: SchedulerService;
     savedChartModel: SavedChartModel;
     savedChartService: SavedChartService;
@@ -123,6 +125,8 @@ export class DashboardService
 
     schedulerModel: SchedulerModel;
 
+    searchModel: SearchModel;
+
     schedulerService: SchedulerService;
 
     savedChartModel: SavedChartModel;
@@ -151,6 +155,7 @@ export class DashboardService
         analyticsModel,
         pinnedListModel,
         schedulerModel,
+        searchModel,
         schedulerService,
         savedChartModel,
         savedChartService,
@@ -170,6 +175,7 @@ export class DashboardService
         this.analyticsModel = analyticsModel;
         this.pinnedListModel = pinnedListModel;
         this.schedulerModel = schedulerModel;
+        this.searchModel = searchModel;
         this.schedulerService = schedulerService;
         this.savedChartModel = savedChartModel;
         this.savedChartService = savedChartService;
@@ -533,6 +539,49 @@ export class DashboardService
         }
 
         return dashboard;
+    }
+
+    async getDashboardCharts(
+        user: SessionUser,
+        projectUuid: string,
+        dashboardUuid: string,
+        page: number,
+        pageSize: number,
+    ): ReturnType<SearchModel['getDashboardCharts']> {
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+        const spaceContext =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                dashboard.spaceUuid,
+            );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    ...spaceContext,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
+        }
+
+        return this.searchModel.getDashboardCharts(
+            projectUuid,
+            dashboard.uuid,
+            page,
+            pageSize,
+        );
     }
 
     private async logDashboardLoadedEvent(dashboard: Dashboard): Promise<void> {
@@ -1508,7 +1557,7 @@ export class DashboardService
     ): Promise<void> {
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
-            { deleted: true },
+            { deleted: true, projectUuid: options?.projectUuid },
         );
 
         if (options?.bypassPermissions) {
@@ -1566,7 +1615,7 @@ export class DashboardService
         // not-yet-deleted dashboard (when softDelete config is off).
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             dashboardUuidOrSlug,
-            { deleted: 'any' },
+            { deleted: 'any', projectUuid: options?.projectUuid },
         );
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
@@ -1604,6 +1653,14 @@ export class DashboardService
             user,
             dashboardUuid,
         );
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: dashboard.organizationUuid,
+                projectUuid: dashboard.projectUuid,
+            }),
+        );
         const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: dashboard.projectUuid,
             organizationUuid: dashboard.organizationUuid,
@@ -1612,6 +1669,9 @@ export class DashboardService
             filters: {
                 resourceType: 'dashboard',
                 resourceUuids: [dashboardUuid],
+                ...(canManageAll
+                    ? {}
+                    : { createdByUserUuids: [user.userUuid] }),
             },
         });
 
@@ -1825,7 +1885,7 @@ export class DashboardService
         };
     }
 
-    private async hasAccess(
+    async hasAccess(
         action: AbilityAction,
         actor: {
             user: SessionUser;
@@ -1839,6 +1899,9 @@ export class DashboardService
         const dashboard = await this.dashboardModel.getByIdOrSlug(
             resource.dashboardUuid,
         );
+        if (dashboard.projectUuid !== actor.projectUuid) {
+            throw new NotFoundError('Dashboard not found');
+        }
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 actor.user.userUuid,

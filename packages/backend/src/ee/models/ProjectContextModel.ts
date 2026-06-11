@@ -30,7 +30,9 @@ export class ProjectContextModel {
             .insert({
                 project_uuid: projectUuid,
                 version: PROJECT_CONTEXT_FILE_VERSION,
-                entries,
+                // Stringify: pg serializes a top-level JS array as a Postgres
+                // array literal, not JSON, which a jsonb column rejects.
+                entries: JSON.stringify(entries),
                 updated_at: this.database.fn.now(),
             })
             .onConflict('project_uuid')

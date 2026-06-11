@@ -29,7 +29,8 @@ exports[`MCP tool contracts matches the current MCP tool and prompt contract sna
 4. **Run queries**: Use \`run_metric_query\` for semantic-layer metric queries, or \`run_sql\` for custom SQL
 5. **Poll long-running queries**: If a query returns \`status: "running"\`, call \`get_query_result\` with the \`queryUuid\` until it returns done/error/cancelled/expired
 6. **Render charts**: If the user wants a chart, call \`render_chart\` after \`run_metric_query\` or \`get_query_result\` returns done with a \`queryUuid\`
-7. **Find content**: Use \`find_content\` to search for existing dashboards and charts
+7. **Browse content**: Use \`list_content\` to browse accessible spaces and direct content inside a space
+8. **Find content**: Use \`find_content\` to search for existing dashboards and charts
 
 ## Critical Rules
 
@@ -119,15 +120,14 @@ Usage Tips:
       "description": "Tool: findExplores
 
 Purpose:
-Returns an explore with all its fields, joined tables, AI hints and descriptions. When multiple explores match your search, also returns alternative explores and top 50 matching fields across ALL explores.
+Returns explores matching the query with their joined tables, AI hints and descriptions, plus the top 50 matching fields across ALL explores. Search matches explore and field name, label, and description. A follow-up query runs against a single explore, so this tool is meant to identify the explore whose fields can answer the user's question.
 IMPORTANT: Each explore may include fields from multiple joined tables. Check the "joinedTables" elements to see which tables are included in the explore.
 
 Parameters:
-- searchQuery: Full user query for finding relevant explores
+- searchQuery: Keyword terms for finding relevant explores
 
 Output:
-- Selected explore with all fields and metadata (including fields from joined tables)
-- Alternative explores (if multiple matches) with searchRank scores
+- Matching explores with searchRank scores
 - Top matching fields with their explore names and searchRank scores
 ",
       "inputSchema": {
@@ -135,7 +135,7 @@ Output:
         "additionalProperties": false,
         "properties": {
           "searchQuery": {
-            "description": "The full user query or search terms to help find the most relevant explore. Use the complete user request for better search results.",
+            "description": "set of high-signal keyword terms for query. Search uses PostgreSQL websearch_to_tsquery after joining whitespace-separated terms with OR. It searches explore and field name, label, and description. Prefer metric/entity/dimension nouns that capture the user's analytical intent.",
             "type": "string",
           },
         },
@@ -205,15 +205,16 @@ Usage tips:
       "agentName": null,
       "description": "Tool: "findContent"
 Purpose:
-Finds charts or dashboards by name or description within a project, returning detailed information about each.
+Finds spaces, charts, or dashboards by name or description within a project, returning detailed information about each.
 
 Usage tips:
 - IMPORTANT: Pass the user's full query or relevant portion directly (e.g., "revenue based on campaigns" instead of just "campaigns").
 - The search engine understands natural language and context — more descriptive queries yield better results.
 - You can provide multiple search queries to look for different topics simultaneously (e.g., ["monthly revenue", "user acquisition trends"]).
+- Pass spaceSlug to search only inside that space and its descendants.
 - If results aren't relevant, retry with the full user query or more specific terms.
 - Dashboards with validation errors will be deprioritized.
-- Returns chart and dashboard URLs when available.
+- Returns space breadcrumb/path metadata and chart/dashboard URLs when available.
 - Dashboards show a preview of the first 5 charts and the total chart count. Use "getDashboardCharts" to see all charts for a specific dashboard.
 - It doesn't provide summaries for dashboards yet, so don't suggest this capability.",
       "inputSchema": {
@@ -236,6 +237,10 @@ Usage tips:
             },
             "type": "array",
           },
+          "spaceSlug": {
+            "description": "Optional space slug/path. Use null to search the whole project. When set, only content in this space and descendants is returned., ",
+            "type": "string",
+          },
         },
         "required": [
           "searchQueries",
@@ -244,6 +249,278 @@ Usage tips:
       },
       "name": "find_content",
       "title": "Find content",
+    },
+    {
+      "agentName": null,
+      "description": "Tool: "listContent"
+Purpose:
+Lists accessible Lightdash content in a project as a browsable hierarchy.
+
+Usage tips:
+- By default, lists root-level spaces.
+- Pass a spaceSlug to list direct children and content inside that space.
+- Use page for pagination. Page starts at 1.
+- Results include names, slugs, content types, and space content counts.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "page": {
+            "description": "Use this to paginate through the results. Starts at 1., ",
+            "exclusiveMinimum": 0,
+            "type": "number",
+          },
+          "spaceSlug": {
+            "description": "Optional space slug/path to list. Use null to list root-level content., ",
+            "type": "string",
+          },
+        },
+        "type": "object",
+      },
+      "name": "list_content",
+      "title": "List content",
+    },
+    {
+      "agentName": null,
+      "description": "Read a dashboard or chart as JSON using its slug. Call this before editing.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "slug": {
+            "description": "Slug of the dashboard or chart to read.",
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "description": "Type of Lightdash content to read.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "type",
+        ],
+        "type": "object",
+      },
+      "name": "read_content",
+      "title": "Read content",
+    },
+    {
+      "agentName": null,
+      "description": "Create a new dashboard or chart, consult the skills for the required fields. Returns the created content with the final persisted slug.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "description": "Full Dashboard JSON to create.",
+                "properties": {
+                  "config": {},
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "description": ", ",
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "filters": {},
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "parameters": {},
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "tabs": {
+                    "items": {},
+                    "type": "array",
+                  },
+                  "tiles": {
+                    "items": {},
+                    "type": "array",
+                  },
+                  "updatedAt": {},
+                  "verification": {},
+                  "verified": {
+                    "type": "boolean",
+                  },
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "version",
+                  "contentType",
+                  "verified",
+                  "tiles",
+                  "tabs",
+                ],
+                "type": "object",
+              },
+              {
+                "additionalProperties": true,
+                "description": "Full Chart JSON to create.",
+                "properties": {
+                  "chartConfig": {},
+                  "contentType": {
+                    "type": "string",
+                  },
+                  "dashboardSlug": {
+                    "type": "string",
+                  },
+                  "description": {
+                    "description": ", ",
+                    "type": "string",
+                  },
+                  "downloadedAt": {},
+                  "metricQuery": {
+                    "additionalProperties": true,
+                    "description": "Chart-as-code metricQuery object. Required fields: exploreName, dimensions, metrics, filters, sorts, limit, tableCalculations. Optional passthrough fields: additionalMetrics, customDimensions, metricOverrides, dimensionOverrides, timezone, pivotDimensions, metadata. Every dimension in dimensions must appear in exactly one of: layout.xField, layout.yField, or pivotConfig.columns.",
+                    "properties": {
+                      "dimensions": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "exploreName": {},
+                      "filters": {},
+                      "limit": {},
+                      "metrics": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "sorts": {
+                        "items": {},
+                        "type": "array",
+                      },
+                      "tableCalculations": {
+                        "items": {},
+                        "type": "array",
+                      },
+                    },
+                    "required": [
+                      "dimensions",
+                      "metrics",
+                      "sorts",
+                      "tableCalculations",
+                    ],
+                    "type": "object",
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "parameters": {},
+                  "pivotConfig": {},
+                  "slug": {
+                    "description": "Requested slug. Lightdash may append a suffix if this slug already exists.",
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "spaceSlug": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "tableConfig": {},
+                  "tableName": {
+                    "minLength": 1,
+                    "type": "string",
+                  },
+                  "updatedAt": {},
+                  "verification": {},
+                  "verified": {
+                    "type": "boolean",
+                  },
+                  "version": {
+                    "type": "number",
+                  },
+                },
+                "required": [
+                  "slug",
+                  "name",
+                  "spaceSlug",
+                  "version",
+                  "contentType",
+                  "verified",
+                  "tableName",
+                  "metricQuery",
+                  "dashboardSlug",
+                ],
+                "type": "object",
+              },
+            ],
+          },
+          "type": {
+            "description": "Type of Lightdash content to create.",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "type",
+          "content",
+        ],
+        "type": "object",
+      },
+      "name": "create_content",
+      "title": "Create content",
+    },
+    {
+      "agentName": null,
+      "description": "Edit a dashboard or chart by applying a patch to its JSON, then validate before persisting",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "patch": {
+            "description": "RFC6902 Patch objects array to apply to the current dashboard or chart JSON",
+            "items": {},
+            "type": "array",
+          },
+          "slug": {
+            "description": "Slug of the dashboard or chart to edit",
+            "minLength": 1,
+            "type": "string",
+          },
+          "type": {
+            "description": "Type of Lightdash content to edit",
+            "enum": [
+              "dashboard",
+              "chart",
+            ],
+            "type": "string",
+          },
+        },
+        "required": [
+          "slug",
+          "type",
+          "patch",
+        ],
+        "type": "object",
+      },
+      "name": "edit_content",
+      "title": "Edit content",
     },
     {
       "agentName": null,
@@ -312,7 +589,7 @@ Usage tips:
     },
     {
       "agentName": null,
-      "description": "Set the active AI agent for the active project. Returns the agent's full context including: explores it has access to, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+      "description": "Set the active AI agent for the active project. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -343,7 +620,7 @@ Usage tips:
     },
     {
       "agentName": null,
-      "description": "Get the currently active AI agent with its full context: explores it has access to, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
+      "description": "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -7368,6 +7645,348 @@ Notes:
     },
     {
       "agentName": null,
+      "description": "List Lightdash built-in skills available to this MCP server. Use this when the client does not expose MCP resources directly.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {},
+        "type": "object",
+      },
+      "name": "list_skills",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "skills": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "description": {
+                  "type": "string",
+                },
+                "digest": {
+                  "type": "string",
+                },
+                "mimeType": {
+                  "type": "string",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "resources": {
+                  "items": {
+                    "additionalProperties": false,
+                    "properties": {
+                      "description": {
+                        "type": "string",
+                      },
+                      "digest": {
+                        "type": "string",
+                      },
+                      "mimeType": {
+                        "type": "string",
+                      },
+                      "name": {
+                        "type": "string",
+                      },
+                      "path": {
+                        "type": "string",
+                      },
+                      "size": {
+                        "type": "number",
+                      },
+                      "title": {
+                        "type": "string",
+                      },
+                      "uri": {
+                        "type": "string",
+                      },
+                    },
+                    "required": [
+                      "path",
+                      "uri",
+                      "name",
+                      "title",
+                      "description",
+                      "mimeType",
+                      "size",
+                      "digest",
+                    ],
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+                "size": {
+                  "type": "number",
+                },
+                "title": {
+                  "type": "string",
+                },
+                "uri": {
+                  "type": "string",
+                },
+              },
+              "required": [
+                "name",
+                "uri",
+                "title",
+                "description",
+                "mimeType",
+                "size",
+                "digest",
+                "resources",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "skills",
+        ],
+        "type": "object",
+      },
+      "title": "List Skills",
+    },
+    {
+      "agentName": null,
+      "description": "Read the main SKILL.md instructions for a Lightdash built-in skill. Call list_skills first to discover available skill names.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Skill name from list_skills, for example developing-in-lightdash",
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
+        ],
+        "type": "object",
+      },
+      "name": "read_skill",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string",
+          },
+          "skill": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "string",
+              },
+              "digest": {
+                "type": "string",
+              },
+              "mimeType": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+              "resources": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                    },
+                    "digest": {
+                      "type": "string",
+                    },
+                    "mimeType": {
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "path": {
+                      "type": "string",
+                    },
+                    "size": {
+                      "type": "number",
+                    },
+                    "title": {
+                      "type": "string",
+                    },
+                    "uri": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "path",
+                    "uri",
+                    "name",
+                    "title",
+                    "description",
+                    "mimeType",
+                    "size",
+                    "digest",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "size": {
+                "type": "number",
+              },
+              "title": {
+                "type": "string",
+              },
+              "uri": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "uri",
+              "title",
+              "description",
+              "mimeType",
+              "size",
+              "digest",
+              "resources",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "skill",
+          "body",
+        ],
+        "type": "object",
+      },
+      "title": "Read Skill",
+    },
+    {
+      "agentName": null,
+      "description": "Read a supporting resource file for a Lightdash built-in skill. Use the resource path returned by list_skills.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "description": "Skill name from list_skills, for example developing-in-lightdash",
+            "type": "string",
+          },
+          "path": {
+            "description": "Resource path from list_skills, for example resources/dashboard-reference.md",
+            "type": "string",
+          },
+        },
+        "required": [
+          "name",
+          "path",
+        ],
+        "type": "object",
+      },
+      "name": "read_skill_resource",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "body": {
+            "type": "string",
+          },
+          "resource": {
+            "$ref": "#/properties/skill/properties/resources/items",
+          },
+          "skill": {
+            "additionalProperties": false,
+            "properties": {
+              "description": {
+                "type": "string",
+              },
+              "digest": {
+                "type": "string",
+              },
+              "mimeType": {
+                "type": "string",
+              },
+              "name": {
+                "type": "string",
+              },
+              "resources": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "description": {
+                      "type": "string",
+                    },
+                    "digest": {
+                      "type": "string",
+                    },
+                    "mimeType": {
+                      "type": "string",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "path": {
+                      "type": "string",
+                    },
+                    "size": {
+                      "type": "number",
+                    },
+                    "title": {
+                      "type": "string",
+                    },
+                    "uri": {
+                      "type": "string",
+                    },
+                  },
+                  "required": [
+                    "path",
+                    "uri",
+                    "name",
+                    "title",
+                    "description",
+                    "mimeType",
+                    "size",
+                    "digest",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "size": {
+                "type": "number",
+              },
+              "title": {
+                "type": "string",
+              },
+              "uri": {
+                "type": "string",
+              },
+            },
+            "required": [
+              "name",
+              "uri",
+              "title",
+              "description",
+              "mimeType",
+              "size",
+              "digest",
+              "resources",
+            ],
+            "type": "object",
+          },
+        },
+        "required": [
+          "skill",
+          "resource",
+          "body",
+        ],
+        "type": "object",
+      },
+      "title": "Read Skill Resource",
+    },
+    {
+      "agentName": null,
       "description": "Tool: run_ai_writeback
 
 Purpose:
@@ -7457,8 +8076,15 @@ exports[`MCP tool contracts matches the shared MCP tool definition names snapsho
   "run_sql",
   "get_query_result",
   "render_chart",
+  "read_content",
+  "edit_content",
+  "create_content",
+  "list_content",
   "get_lightdash_version",
   "list_explores",
+  "list_skills",
+  "read_skill",
+  "read_skill_resource",
   "list_projects",
   "set_project",
   "get_current_project",

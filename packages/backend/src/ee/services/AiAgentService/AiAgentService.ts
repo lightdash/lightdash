@@ -33,6 +33,7 @@ import {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
+    ApiAiAgentThreadShareResponse,
     ApiAiMcpOAuthCredentialRequest,
     ApiAppendEvaluationRequest,
     ApiCreateAiAgent,
@@ -43,29 +44,20 @@ import {
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     assertUnreachable,
-    CatalogFilter,
-    CatalogType,
     CommercialFeatureFlags,
     ContentType,
     derivePivotConfigurationFromChart,
     Explore,
-    extractPreviewUrlFromComments,
     FeatureFlags,
-    filterExploreByTags,
     followUpToolsText,
     ForbiddenError,
-    getContentAsCodePathFromLtreePath,
     getErrorMessage,
     getGroupByDimensions,
     getItemId,
     getItemMap,
-    getLtreePathFromContentAsCodePath,
-    getValidAiQueryLimit,
     getWebAiChartConfig,
     GITHUB_MCP_SERVER_NAME,
     GITHUB_MCP_SERVER_URL,
-    isDashboardChartTileType,
-    isExploreError,
     isGitProjectType,
     isSlackPrompt,
     isToolProposeChangeSuccessResult,
@@ -78,14 +70,11 @@ import {
     OpenIdIdentityIssuerType,
     ParameterError,
     parseVizConfig,
-    PollWritebackPreviewJobPayload,
     ProjectType,
     QueryExecutionContext,
-    QueryHistoryStatus,
     ReadinessScore,
     ShareUrl,
     SlackPrompt,
-    TimeoutError,
     ToolDashboardArgs,
     toolDashboardArgsSchema,
     ToolDashboardV2Args,
@@ -93,7 +82,6 @@ import {
     UpdateSlackResponse,
     UpdateWebAppResponse,
     validateAgentSuggestion,
-    WarehouseQueryError,
     type AgentSuggestionTool,
     type AiPromptContextInput,
     type SessionUser,
@@ -118,8 +106,8 @@ import {
     type ToolSet,
 } from 'ai';
 import { EventEmitter } from 'events';
-import * as JsonPatch from 'fast-json-patch';
 import _ from 'lodash';
+import { nanoid as nanoidGenerator } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
 import { z } from 'zod';
 import {
@@ -142,10 +130,7 @@ import {
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
-import {
-    getInstallationToken,
-    getPullRequestComments,
-} from '../../../clients/github/Github';
+import { getInstallationToken } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
@@ -173,12 +158,9 @@ import { DashboardService } from '../../../services/DashboardService/DashboardSe
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
+import { SearchService } from '../../../services/SearchService/SearchService';
 import { ShareService } from '../../../services/ShareService/ShareService';
 import { SpaceService } from '../../../services/SpaceService/SpaceService';
-import {
-    doesExploreMatchRequiredAttributes,
-    getFilteredExplore,
-} from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { validatePublicHttpUrl } from '../../../utils/ssrfProtection';
 import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
@@ -189,6 +171,7 @@ import {
     type AiAgentMcpServerToolPermissionSetting,
     type AiAgentMcpServerToolPermissionSettingUpdate,
     type AiMcpCredential,
+    type AiMcpServerWithSensitiveData,
 } from '../../models/AiAgentModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
@@ -219,41 +202,22 @@ import {
     getModel,
 } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
-import { BuiltInSkills } from '../ai/skills/builtInSkills';
+import { runRepoShellCommand } from '../ai/repoFs/bashShell';
+import { createGithubRepoSource } from '../ai/repoFs/githubRepoSource';
+import { RepoFs } from '../ai/repoFs/RepoFs';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
-    CreateContentFn,
-    DescribeWarehouseTableFn,
-    EditContentFn,
-    FindContentFn,
-    FindExploresFn,
-    FindFieldFn,
-    GetDashboardChartsFn,
-    GetExploreFn,
-    GetProjectInfoFn,
+    EditDbtProjectFn,
     GetPromptFn,
-    GetSavedChartFn,
-    ListContentFn,
-    ListExploresFn,
-    ListProjectsFn,
-    ListWarehouseTablesFn,
-    ProposeWritebackFn,
-    ReadContentFn,
-    RunAsyncQueryFn,
-    RunSavedChartQueryFn,
-    RunSqlJobFn,
-    SearchFieldValuesFn,
-    SearchSemanticLayerFn,
+    RepoShellFn,
     SendFileFn,
     SendSlackBlocksFn,
-    SetupPreviewDeployFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
     UpdateProgressFn,
     UpdateSlackMessageFn,
-    ValidateContentFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { getUserFacingErrorMessage } from '../ai/utils/errorMessages';
@@ -262,16 +226,15 @@ import {
     getAgentSelectionBlocks,
     getArtifactBlocks,
     getDeepLinkBlocks,
+    getEditDbtProjectBlocks,
     getFeedbackBlocks,
     getFollowUpToolBlocks,
     getMarkdownBlocks,
     getProjectSelectionBlocks,
     getProposeChangeBlocks,
-    getProposeWritebackBlocks,
     getReferencedArtifactsBlocks,
     getTextBlocks,
     getThinkingBlocks,
-    getWritebackPreviewReplyBlocks,
 } from '../ai/utils/getSlackBlocks';
 import { llmAsAJudge } from '../ai/utils/llmAsAJudge';
 import {
@@ -279,8 +242,13 @@ import {
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
 import { validateSelectedFieldsExistence } from '../ai/utils/validators';
+import { AiAgentToolsService } from '../AiAgentToolsService/AiAgentToolsService';
 import { AiOrganizationSettingsService } from '../AiOrganizationSettingsService';
 import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
+import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPrompt';
+import type { AiWritebackSource } from '../AiWritebackService/types';
+import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
+import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
 type ThreadMessageContext = Array<
@@ -300,8 +268,7 @@ type AgentResponseStream = {
     consumeStream: StreamTextResult<ToolSet, Output.Output>['consumeStream'];
 };
 
-type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
-type AgentListContentItem = AgentListContentResult['items'][number];
+const MAX_AI_PROMPT_CONTEXT_ITEMS = 10;
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
@@ -314,6 +281,7 @@ type AiAgentServiceDependencies = {
     changesetModel: ChangesetModel;
     contentVerificationModel: ContentVerificationModel;
     searchModel: SearchModel;
+    searchService: SearchService;
     featureFlagService: FeatureFlagService;
     groupsModel: GroupsModel;
     lightdashConfig: LightdashConfig;
@@ -335,7 +303,10 @@ type AiAgentServiceDependencies = {
     shareService: ShareService;
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
+    previewDeploySetupService: PreviewDeploySetupService;
+    writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    aiAgentToolsService: AiAgentToolsService;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -375,7 +346,7 @@ const REFUSAL_RE =
  * The built-in "system" agent used as a fallback when an organization has no
  * configured agents (gated behind the AiSlackSystemAgentFallback feature
  * flag). It answers data questions with the normal query/find tools, and —
- * because the run path attaches the `proposeWriteback` tool whenever
+ * because the run path attaches the `editDbtProject` tool whenever
  * AiWriteback is enabled — it routes dbt/semantic-layer change requests to
  * the AI writeback flow.
  */
@@ -384,7 +355,7 @@ const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help t
 
 If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
-If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the proposeWriteback tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way.
+If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way. If the user asks to write back or open a pull request from their changeset(s), call editDbtProject with fromActiveChangeset set to true and prompt set to null — the server builds the change instructions from the project's active changeset.
 
 If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
 
@@ -522,6 +493,8 @@ export class AiAgentService extends BaseService {
 
     private readonly searchModel: SearchModel;
 
+    private readonly searchService: SearchService;
+
     private readonly userModel: UserModel;
 
     private readonly spaceService: SpaceService;
@@ -548,6 +521,12 @@ export class AiAgentService extends BaseService {
 
     private readonly aiWritebackService: AiWritebackService;
 
+    private readonly previewDeploySetupService: PreviewDeploySetupService;
+
+    private readonly writebackPreviewService: WritebackPreviewService;
+
+    private readonly aiAgentToolsService: AiAgentToolsService;
+
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
 
     private static getPinnedContextAnalyticsProperties(
@@ -573,6 +552,51 @@ export class AiAgentService extends BaseService {
         };
     }
 
+    private async validatePromptContextAccess(
+        user: SessionUser,
+        agent: AiAgent,
+        context: AiPromptContextInput | undefined,
+    ): Promise<AiPromptContextInput | undefined> {
+        if (!context || context.length === 0) return undefined;
+
+        const seen = new Set<string>();
+        const deduped = context.filter((item) => {
+            const key =
+                item.type === 'chart'
+                    ? `chart:${item.chartUuid}`
+                    : `dashboard:${item.dashboardUuid}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
+        if (deduped.length > MAX_AI_PROMPT_CONTEXT_ITEMS) {
+            throw new ParameterError(
+                `You can attach up to ${MAX_AI_PROMPT_CONTEXT_ITEMS} items as context`,
+            );
+        }
+
+        await Promise.all(
+            deduped.map((item) => {
+                if (item.type === 'chart') {
+                    return this.savedChartService.hasAccess(
+                        'view',
+                        { user, projectUuid: agent.projectUuid },
+                        { savedChartUuid: item.chartUuid },
+                    );
+                }
+
+                return this.dashboardService.hasAccess(
+                    'view',
+                    { user, projectUuid: agent.projectUuid },
+                    { dashboardUuid: item.dashboardUuid },
+                );
+            }),
+        );
+
+        return deduped;
+    }
+
     constructor(dependencies: AiAgentServiceDependencies) {
         super();
         this.aiAgentModel = dependencies.aiAgentModel;
@@ -585,6 +609,7 @@ export class AiAgentService extends BaseService {
         this.changesetModel = dependencies.changesetModel;
         this.contentVerificationModel = dependencies.contentVerificationModel;
         this.searchModel = dependencies.searchModel;
+        this.searchService = dependencies.searchService;
         this.featureFlagService = dependencies.featureFlagService;
         this.groupsModel = dependencies.groupsModel;
         this.lightdashConfig = dependencies.lightdashConfig;
@@ -608,8 +633,11 @@ export class AiAgentService extends BaseService {
         this.shareService = dependencies.shareService;
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
+        this.previewDeploySetupService = dependencies.previewDeploySetupService;
+        this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
+        this.aiAgentToolsService = dependencies.aiAgentToolsService;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -632,17 +660,10 @@ export class AiAgentService extends BaseService {
 
         const userUuid = args.userUuid ?? 'system';
 
-        void this.featureFlagService
-            .get({
-                featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-                user: {
-                    userUuid,
-                    organizationUuid,
-                    organizationName: '',
-                },
-            })
-            .then((flag) => {
-                if (!flag.enabled) {
+        void this.aiOrganizationSettingsService
+            .isAiAgentReviewsEnabled({ organizationUuid })
+            .then(async (reviewsEnabled) => {
+                if (!reviewsEnabled) {
                     return undefined;
                 }
                 return this.schedulerClient.aiAgentReviewClassifier({
@@ -728,7 +749,13 @@ export class AiAgentService extends BaseService {
         const hasUserAccess = agent.userAccess && agent.userAccess.length > 0;
 
         if (!hasGroupAccess && !hasUserAccess) {
-            return true;
+            return auditedAbility.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: agent.organizationUuid,
+                    projectUuid: agent.projectUuid,
+                }),
+            );
         }
 
         // Check user access first (direct access)
@@ -800,57 +827,12 @@ export class AiAgentService extends BaseService {
         availableTags: string[] | null,
         exploreNames?: string[],
     ) {
-        return wrapSentryTransaction(
-            'AiAgent.getAvailableExplores',
-            {
-                projectUuid,
-                availableTags,
-                exploreNames,
-            },
-            async () => {
-                const { organizationUuid } = user;
-                if (!organizationUuid) {
-                    throw new ForbiddenError('Organization not found');
-                }
-
-                const userAttributes =
-                    await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        {
-                            organizationUuid,
-                            userUuid: user.userUuid,
-                        },
-                    );
-
-                const allExplores = Object.values(
-                    await this.projectModel.findExploresFromCache(
-                        projectUuid,
-                        'name',
-                        exploreNames,
-                    ),
-                );
-
-                return allExplores
-                    .filter(
-                        (explore): explore is Explore =>
-                            !isExploreError(explore),
-                    )
-                    .filter((explore) =>
-                        doesExploreMatchRequiredAttributes(
-                            explore.tables[explore.baseTable]
-                                .requiredAttributes,
-                            explore.tables[explore.baseTable].anyAttributes,
-                            userAttributes,
-                        ),
-                    )
-                    .map((explore) =>
-                        getFilteredExplore(explore, userAttributes),
-                    )
-                    .filter((explore) =>
-                        filterExploreByTags({ explore, availableTags }),
-                    )
-                    .filter((explore): explore is Explore => !!explore);
-            },
-        );
+        return this.aiAgentToolsService.getAvailableExplores({
+            user,
+            projectUuid,
+            availableTags,
+            exploreNames,
+        });
     }
 
     private async getExplore(
@@ -859,17 +841,12 @@ export class AiAgentService extends BaseService {
         availableTags: string[] | null,
         exploreName: string,
     ) {
-        const [explore] = await this.getAvailableExplores(
+        return this.aiAgentToolsService.getExplore({
             user,
             projectUuid,
             availableTags,
-            [exploreName],
-        );
-        if (!explore) {
-            throw new NotFoundError('Explore not found');
-        }
-
-        return explore;
+            exploreName,
+        });
     }
 
     public async getAgentExploreAccessSummary(
@@ -1951,6 +1928,10 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        const context = body.prompt
+            ? await this.validatePromptContextAccess(user, agent, body.context)
+            : undefined;
+
         const threadUuid = await this.aiAgentModel.createWebAppThread({
             organizationUuid,
             projectUuid: agent.projectUuid,
@@ -1964,7 +1945,7 @@ export class AiAgentService extends BaseService {
                 threadUuid,
                 createdByUserUuid: user.userUuid,
                 prompt: body.prompt,
-                context: body.context,
+                context,
                 modelConfig: body.modelConfig,
             });
 
@@ -1978,7 +1959,7 @@ export class AiAgentService extends BaseService {
                     threadId: threadUuid,
                     context: 'web_app',
                     ...AiAgentService.getPinnedContextAnalyticsProperties(
-                        body.context,
+                        context,
                     ),
                 },
             });
@@ -2038,11 +2019,17 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        const context = await this.validatePromptContextAccess(
+            user,
+            agent,
+            body.context,
+        );
+
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
             threadUuid,
             createdByUserUuid: user.userUuid,
             prompt: body.prompt,
-            context: body.context,
+            context,
             modelConfig: body.modelConfig,
         });
 
@@ -2055,9 +2042,7 @@ export class AiAgentService extends BaseService {
                 aiAgentId: agentUuid,
                 threadId: threadUuid,
                 context: 'web_app',
-                ...AiAgentService.getPinnedContextAnalyticsProperties(
-                    body.context,
-                ),
+                ...AiAgentService.getPinnedContextAnalyticsProperties(context),
             },
         });
 
@@ -2109,7 +2094,8 @@ export class AiAgentService extends BaseService {
             mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
-            enableContentTools: body.enableContentTools,
+            enableContentTools:
+                body.enableDataAccess && (body.enableContentTools ?? false),
             version: body.version,
         });
 
@@ -2481,11 +2467,6 @@ export class AiAgentService extends BaseService {
                         'Bearer MCP servers require a bearer token',
                     );
                 }
-                if (body.credentialScope && body.credentialScope !== 'shared') {
-                    throw new ParameterError(
-                        'Bearer MCP servers only support shared credentials',
-                    );
-                }
                 if (allowOAuthCredentialSharing) {
                     throw new ParameterError(
                         'OAuth credential sharing is only allowed for auth type "oauth"',
@@ -2552,6 +2533,8 @@ export class AiAgentService extends BaseService {
             authType: body.authType,
             allowOAuthCredentialSharing,
             credentials,
+            credentialScope:
+                body.authType === 'bearer' ? body.credentialScope : undefined,
             actorUserUuid: user.userUuid,
         });
 
@@ -2595,44 +2578,44 @@ export class AiAgentService extends BaseService {
             return { available: false, alreadyConnected: false };
         }
 
+        const isCopilotEnabled = await this.getIsCopilotEnabled(user);
+        if (!isCopilotEnabled) {
+            return { available: false, alreadyConnected: false };
+        }
         const auditedAbility = this.createAuditedAbility(user);
-        const canManageGitIntegration = auditedAbility.can(
+        const canManageMcpServers = auditedAbility.can(
             'manage',
-            subject('GitIntegration', { organizationUuid }),
+            subject('AiAgent', { organizationUuid, projectUuid }),
         );
-        if (!canManageGitIntegration) {
-            return { available: false, alreadyConnected: false };
-        }
-
-        const installationId =
-            await this.githubAppInstallationsModel.findInstallationId(
-                organizationUuid,
-            );
-        if (!installationId) {
-            return { available: false, alreadyConnected: false };
-        }
 
         const servers = await this.aiAgentModel.listMcpServers(
             projectUuid,
             user.userUuid,
         );
-        const alreadyConnected = servers.some(
+        const githubServer = servers.find(
             (server) => server.url === GITHUB_MCP_SERVER_URL,
         );
 
-        return { available: true, alreadyConnected };
+        const available = canManageMcpServers || !!githubServer;
+        if (!available) {
+            return { available: false, alreadyConnected: false };
+        }
+
+        const credential = githubServer
+            ? await this.aiAgentModel.resolveCredential(
+                  githubServer.uuid,
+                  user.userUuid,
+              )
+            : undefined;
+
+        return { available: true, alreadyConnected: !!credential };
     }
 
-    /**
-     * One-click GitHub MCP setup: mints the org's GitHub App installation token
-     * and registers a bearer-authed MCP server pointing at the hosted GitHub
-     * MCP. Reuses createMcpServer so the URL validation, connection test and
-     * tool discovery all run. Idempotent — returns the existing server if one
-     * is already connected.
-     */
     public async connectGithubMcpServer(
         user: SessionUser,
         projectUuid: string,
+        personalAccessToken: string,
+        credentialScope: AiMcpCredentialScope,
     ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -2649,51 +2632,100 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        // Gate on the same permission used to manage the GitHub integration.
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('GitIntegration', { organizationUuid }),
-            )
-        ) {
-            throw new ForbiddenError(
-                'You do not have permission to manage the GitHub integration',
+        const bearerToken = personalAccessToken.trim();
+        if (!bearerToken) {
+            throw new ParameterError(
+                'A GitHub personal access token is required',
+            );
+        }
+        if (!/^(github_pat_|gh[pousr]_)[A-Za-z0-9_]+$/.test(bearerToken)) {
+            throw new ParameterError(
+                'That doesn\'t look like a GitHub personal access token. Expected a fine-grained token starting with "github_pat_".',
             );
         }
 
-        // Idempotency: if a GitHub MCP server already exists, return it.
         const existing = await this.aiAgentModel.listMcpServers(
             projectUuid,
             user.userUuid,
         );
-        const alreadyConnected = existing.find(
+        const githubServer = existing.find(
             (server) => server.url === GITHUB_MCP_SERVER_URL,
         );
-        if (alreadyConnected) {
-            return alreadyConnected;
+
+        if (githubServer) {
+            if (credentialScope === 'shared') {
+                await this.assertCanManageMcpServers(user, projectUuid);
+            } else {
+                await this.assertCanUsePersonalMcpCredentials(
+                    user,
+                    projectUuid,
+                );
+            }
+
+            try {
+                await this.aiAgentMcpRuntimeClient.testConnection({
+                    name: GITHUB_MCP_SERVER_NAME,
+                    url: GITHUB_MCP_SERVER_URL,
+                    authType: 'bearer',
+                    bearerToken,
+                    onUncaughtError: (error) => {
+                        Logger.error(
+                            `[AiAgent][MCP][${GITHUB_MCP_SERVER_NAME}] Uncaught MCP client error while reconnecting`,
+                            error,
+                        );
+                    },
+                });
+            } catch (error) {
+                Logger.error(
+                    `[AiAgent][MCP][${GITHUB_MCP_SERVER_NAME}] Failed to reconnect with provided token`,
+                    error,
+                );
+                throw new ParameterError(
+                    "We couldn't connect to GitHub with that token. Check the token and its repository access, then try again.",
+                );
+            }
+
+            await this.aiAgentModel.upsertCredential({
+                serverUuid: githubServer.uuid,
+                scope: credentialScope,
+                userUuid: credentialScope === 'user' ? user.userUuid : null,
+                credentials: { type: 'bearer', bearerToken },
+                actorUserUuid: user.userUuid,
+            });
+            await this.aiAgentModel.updateMcpServerRuntimeState({
+                serverUuid: githubServer.uuid,
+                connectionStatus: 'connected',
+                error: null,
+                actorUserUuid: user.userUuid,
+            });
+
+            this.analytics.track({
+                event: 'ai_agent.github_mcp_connected',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    mcpServerId: githubServer.uuid,
+                    method: 'one_click_reconnect',
+                },
+            });
+
+            const refreshed = await this.aiAgentModel.listMcpServers(
+                projectUuid,
+                user.userUuid,
+            );
+            return (
+                refreshed.find(
+                    (server) => server.url === GITHUB_MCP_SERVER_URL,
+                ) ?? githubServer
+            );
         }
 
-        const installationId =
-            await this.githubAppInstallationsModel.findInstallationId(
-                organizationUuid,
-            );
-        if (!installationId) {
-            throw new ForbiddenError(
-                'GitHub App is not installed for this organization',
-            );
-        }
-
-        const bearerToken = await getInstallationToken(installationId);
-
-        // Delegates to createMcpServer, which additionally asserts the caller
-        // can manage MCP servers, validates the URL, tests the connection and
-        // discovers tools.
         const server = await this.createMcpServer(user, projectUuid, {
             name: GITHUB_MCP_SERVER_NAME,
             url: GITHUB_MCP_SERVER_URL,
             authType: 'bearer',
-            credentialScope: 'shared',
+            credentialScope,
             credentials: { bearerToken },
         });
 
@@ -2709,6 +2741,45 @@ export class AiAgentService extends BaseService {
         });
 
         return server;
+    }
+
+    /**
+     * The GitHub MCP server is authed with a GitHub App installation token,
+     * which expires after ~1h. Rather than rely on the (stale) stored token,
+     * mint a fresh one per run — mirroring how writeback mints per run — so the
+     * connection can never expire mid-session.
+     */
+    private async refreshGithubMcpCredentials(
+        organizationUuid: string | undefined,
+        servers: AiMcpServerWithSensitiveData[],
+    ): Promise<AiMcpServerWithSensitiveData[]> {
+        const hasGithubMcp = servers.some(
+            (server) =>
+                server.url === GITHUB_MCP_SERVER_URL &&
+                server.authType === 'bearer',
+        );
+        if (!hasGithubMcp || !organizationUuid) {
+            return servers;
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.findInstallationId(
+                organizationUuid,
+            );
+        if (!installationId) {
+            return servers;
+        }
+
+        const bearerToken = await getInstallationToken(installationId);
+
+        return servers.map((server) =>
+            server.url === GITHUB_MCP_SERVER_URL && server.authType === 'bearer'
+                ? {
+                      ...server,
+                      resolvedCredential: { type: 'bearer', bearerToken },
+                  }
+                : server,
+        );
     }
 
     public async startMcpOAuthConnection(
@@ -2852,15 +2923,20 @@ export class AiAgentService extends BaseService {
             mcpServerUuid,
         );
 
-        if (server.authType !== 'oauth') {
-            throw new ParameterError('MCP server is not configured for OAuth');
+        if (server.authType === 'none') {
+            throw new ParameterError(
+                'This MCP server has no credentials to disconnect',
+            );
         }
 
         const credentialScope: AiMcpCredentialScope =
             body?.credentialScope ?? 'user';
 
         if (credentialScope === 'shared') {
-            if (!server.allowOAuthCredentialSharing) {
+            if (
+                server.authType === 'oauth' &&
+                !server.allowOAuthCredentialSharing
+            ) {
                 throw new ParameterError(
                     'This MCP server does not allow shared OAuth credentials',
                 );
@@ -2870,11 +2946,21 @@ export class AiAgentService extends BaseService {
             await this.assertCanUsePersonalMcpCredentials(user, projectUuid);
         }
 
-        await this.aiAgentMcpRuntimeClient.disconnectOAuthConnection({
-            mcpServerUuid,
-            credentialScope,
+        if (server.authType === 'oauth') {
+            await this.aiAgentMcpRuntimeClient.disconnectOAuthConnection({
+                mcpServerUuid,
+                credentialScope,
+                userUuid:
+                    credentialScope === 'user' ? user.userUuid : undefined,
+                actorUserUuid: user.userUuid,
+            });
+            return;
+        }
+
+        await this.aiAgentModel.deleteCredential({
+            serverUuid: mcpServerUuid,
+            scope: credentialScope,
             userUuid: credentialScope === 'user' ? user.userUuid : undefined,
-            actorUserUuid: user.userUuid,
         });
     }
 
@@ -2909,6 +2995,9 @@ export class AiAgentService extends BaseService {
             throw new ForbiddenError();
         }
 
+        const nextEnableDataAccess =
+            body.enableDataAccess ?? agent.enableDataAccess;
+
         const updatedAgent = await this.aiAgentModel.updateAgent({
             agentUuid,
             name: body.name,
@@ -2925,7 +3014,9 @@ export class AiAgentService extends BaseService {
             mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
-            enableContentTools: body.enableContentTools,
+            enableContentTools: nextEnableDataAccess
+                ? body.enableContentTools
+                : false,
             version: body.version,
         });
 
@@ -4252,7 +4343,10 @@ export class AiAgentService extends BaseService {
             );
         }
 
-        const change = await this.changesetModel.getChange(changeUuid);
+        const change = await this.changesetModel.getChange(
+            changeUuid,
+            agent.projectUuid,
+        );
 
         const originalExplores = await this.projectModel.findExploresFromCache(
             agent.projectUuid,
@@ -4261,7 +4355,7 @@ export class AiAgentService extends BaseService {
             { applyChangeset: false },
         );
 
-        await this.changesetModel.revertChange(changeUuid);
+        await this.changesetModel.revertChange(changeUuid, agent.projectUuid);
 
         await this.catalogModel.indexCatalogReverts({
             projectUuid: agent.projectUuid,
@@ -4648,149 +4742,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         ];
     }
 
-    private static paginateListContent(
-        items: AgentListContentItem[],
-        page: number,
-        pageSize: number,
-    ): AgentListContentResult {
-        const offset = (page - 1) * pageSize;
-        return {
-            spaceSlug: null,
-            items: items.slice(offset, offset + pageSize),
-            pagination: {
-                page,
-                pageSize,
-                totalResults: items.length,
-                totalPageCount: Math.ceil(items.length / pageSize),
-            },
-        };
-    }
-
-    private static hasAgentSpaceAccess(
-        agentSpaceAccess: string[] | Set<string> | null | undefined,
-        spaceUuid: string,
-    ): boolean {
-        if (
-            !agentSpaceAccess ||
-            (agentSpaceAccess instanceof Set
-                ? agentSpaceAccess.size === 0
-                : agentSpaceAccess.length === 0)
-        ) {
-            return true;
-        }
-        return agentSpaceAccess instanceof Set
-            ? agentSpaceAccess.has(spaceUuid)
-            : agentSpaceAccess.includes(spaceUuid);
-    }
-
-    private async getRootSpacesForAgent(
-        user: SessionUser,
-        projectUuid: string,
-        agentSpaceAccess: Set<string> | null,
-        page: number,
-        pageSize: number,
-    ): Promise<AgentListContentResult> {
-        const spaces = (
-            await this.projectService.getSpaces(user, projectUuid)
-        ).filter((space) =>
-            AiAgentService.hasAgentSpaceAccess(agentSpaceAccess, space.uuid),
-        );
-        const visibleSpaceUuids = new Set(spaces.map((space) => space.uuid));
-        const items = spaces
-            .filter(
-                (space) =>
-                    !space.parentSpaceUuid ||
-                    !visibleSpaceUuids.has(space.parentSpaceUuid),
-            )
-            .map(
-                (space): AgentListContentItem => ({
-                    contentType: ContentType.SPACE,
-                    name: space.name,
-                    slug: getContentAsCodePathFromLtreePath(space.path),
-                    chartCount: space.chartCount,
-                    dashboardCount: space.dashboardCount,
-                    childSpaceCount: space.childSpaceCount,
-                    appCount: space.appCount,
-                    directAccess: space.userAccess?.hasDirectAccess === true,
-                }),
-            );
-
-        return AiAgentService.paginateListContent(items, page, pageSize);
-    }
-
-    private async getSpaceContentsForAgent(
-        user: SessionUser,
-        projectUuid: string,
-        spaceSlug: string,
-        agentSpaceAccess: Set<string> | null,
-        page: number,
-        pageSize: number,
-    ): Promise<AgentListContentResult> {
-        const [space] = await this.spaceModel.find({
-            projectUuid,
-            path: getLtreePathFromContentAsCodePath(spaceSlug),
-        });
-        if (
-            !space ||
-            !AiAgentService.hasAgentSpaceAccess(agentSpaceAccess, space.uuid)
-        ) {
-            throw new NotFoundError(`Space "${spaceSlug}" was not found`);
-        }
-
-        const results = await this.contentService.find(
-            user,
-            {
-                projectUuids: [projectUuid],
-                spaceUuids: [space.uuid],
-                contentTypes: [
-                    ContentType.DASHBOARD,
-                    ContentType.CHART,
-                    ContentType.SPACE,
-                    ContentType.DATA_APP,
-                ],
-            },
-            {},
-            { page, pageSize },
-        );
-
-        return {
-            spaceSlug,
-            items: results.data
-                .filter(
-                    (item) =>
-                        item.contentType !== ContentType.SPACE ||
-                        AiAgentService.hasAgentSpaceAccess(
-                            agentSpaceAccess,
-                            item.uuid,
-                        ),
-                )
-                .map((item): AgentListContentItem => {
-                    if (item.contentType === ContentType.SPACE) {
-                        return {
-                            contentType: ContentType.SPACE,
-                            name: item.name,
-                            slug: getContentAsCodePathFromLtreePath(item.path),
-                            chartCount: item.chartCount,
-                            dashboardCount: item.dashboardCount,
-                            childSpaceCount: item.childSpaceCount,
-                            appCount: item.appCount,
-                            directAccess: item.access.includes(user.userUuid),
-                        };
-                    }
-
-                    return {
-                        contentType: item.contentType,
-                        name: item.name,
-                        slug: item.slug,
-                    };
-                }),
-            pagination: results.pagination,
-        };
-    }
-
     // Defines the functions that AI Agent tools can use to interact with the Lightdash backend or slack
     // This is scoped to the project, user and prompt (closure)
-    private getAiAgentDependencies(
+    private async getAiAgentDependencies(
         user: SessionUser,
         prompt: SlackPrompt | AiWebAppPrompt,
         options?: {
@@ -4804,252 +4758,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
-
-        const listExplores: ListExploresFn = () =>
-            wrapSentryTransaction('AiAgent.listExplores', {}, async () => {
-                const agentSettings = await this.getAgentSettings(user, prompt);
-
-                return this.getAvailableExplores(
-                    user,
-                    projectUuid,
-                    agentSettings.tags,
-                );
-            });
+        const runtimeAgentSettings = await this.getAgentSettings(user, prompt);
+        const toolsRuntime = this.aiAgentToolsService.createRuntime({
+            user,
+            account: fromSession(user),
+            organizationUuid,
+            projectUuid,
+            source: 'ai_agent',
+            catalogSearchContext: CatalogSearchContext.AI_AGENT,
+            defaultQueryExecutionContext: QueryExecutionContext.AI,
+            tags: runtimeAgentSettings.tags,
+            spaceAccess: runtimeAgentSettings.spaceAccess,
+            agentUuid: runtimeAgentSettings.uuid,
+        });
 
         const getProjectContextDocument: AiAgentDependencies['getProjectContextDocument'] =
             () => this.projectContextModel.getDocument(projectUuid);
-
-        const getExplore: GetExploreFn = async ({ table }) => {
-            const agentSettings = await this.getAgentSettings(user, prompt);
-            return this.getExplore(
-                user,
-                projectUuid,
-                agentSettings.tags,
-                table,
-            );
-        };
-
-        let verifiedFieldUsagePromise: Promise<Map<string, number>> | null =
-            null;
-        const getVerifiedFieldUsage = () => {
-            if (!verifiedFieldUsagePromise) {
-                verifiedFieldUsagePromise =
-                    this.contentVerificationModel.getVerifiedFieldUsage(
-                        projectUuid,
-                    );
-            }
-            return verifiedFieldUsagePromise;
-        };
-        const lookupVerifiedChartUsage = (
-            verifiedUsage: Map<string, number>,
-            tableName: string,
-            fieldName: string,
-            fieldType: string,
-        ) => verifiedUsage.get(`${tableName}_${fieldName}::${fieldType}`) ?? 0;
-
-        const findExplores: FindExploresFn = (args) =>
-            wrapSentryTransaction('AiAgent.findExplores', args, async () => {
-                const agentSettings = await this.getAgentSettings(user, prompt);
-
-                const userAttributes =
-                    await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        {
-                            organizationUuid,
-                            userUuid: user.userUuid,
-                        },
-                    );
-
-                // Get available explores filtered by tags
-                const filteredExplores = await this.getAvailableExplores(
-                    user,
-                    projectUuid,
-                    agentSettings.tags,
-                );
-
-                const searchResults = await this.catalogService.searchCatalog({
-                    projectUuid,
-                    userAttributes,
-                    catalogSearch: {
-                        searchQuery: args.searchQuery,
-                        type: CatalogType.Table,
-                    },
-                    context: CatalogSearchContext.AI_AGENT,
-                    paginateArgs: {
-                        page: 1,
-                        pageSize: 10,
-                    },
-                    fullTextSearchOperator: 'OR',
-                    filteredExplores,
-                });
-
-                const exploreSearchResults = searchResults.data
-                    .filter((item) => item.type === CatalogType.Table)
-                    .map((table) => ({
-                        name: table.name,
-                        label: table.label,
-                        description: table.description,
-                        aiHints: table.aiHints ?? undefined,
-                        searchRank: table.searchRank,
-                        joinedTables: table.joinedTables ?? undefined,
-                    }));
-
-                const fieldSearchResults =
-                    await this.catalogService.searchCatalog({
-                        projectUuid,
-                        userAttributes,
-                        catalogSearch: {
-                            searchQuery: args.searchQuery,
-                            type: CatalogType.Field,
-                        },
-                        context: CatalogSearchContext.AI_AGENT,
-                        paginateArgs: {
-                            page: 1,
-                            pageSize: 50,
-                        },
-                        fullTextSearchOperator: 'OR',
-                        filteredExplores,
-                    });
-
-                const verifiedFieldUsage = await getVerifiedFieldUsage();
-                const topMatchingFields = fieldSearchResults.data
-                    .filter((item) => item.type === CatalogType.Field)
-                    .map((field) => ({
-                        name: field.name,
-                        label: field.label,
-                        tableName: field.tableName,
-                        fieldType: field.fieldType,
-                        searchRank: field.searchRank,
-                        description: field.description,
-                        chartUsage: field.chartUsage ?? 0,
-                        verifiedChartUsage: lookupVerifiedChartUsage(
-                            verifiedFieldUsage,
-                            field.tableName,
-                            field.name,
-                            field.fieldType,
-                        ),
-                    }));
-
-                return {
-                    exploreSearchResults,
-                    topMatchingFields,
-                };
-            });
-
-        const findFields: FindFieldFn = (args) =>
-            wrapSentryTransaction('AiAgent.findFields', args, async () => {
-                const userAttributes =
-                    await this.userAttributesModel.getAttributeValuesForOrgMember(
-                        {
-                            organizationUuid,
-                            userUuid: user.userUuid,
-                        },
-                    );
-
-                const { data: catalogItems, pagination } =
-                    await this.catalogService.searchCatalog({
-                        projectUuid,
-                        catalogSearch: {
-                            type: CatalogType.Field,
-                            searchQuery: args.fieldSearchQuery.label,
-                        },
-                        context: CatalogSearchContext.AI_AGENT,
-                        paginateArgs: {
-                            page: args.page,
-                            pageSize: args.pageSize,
-                        },
-                        userAttributes,
-                        fullTextSearchOperator: 'OR',
-                        filteredExplores: [args.explore],
-                    });
-
-                // TODO: we should not filter here, search should be returning a proper type
-                const catalogFields = catalogItems.filter(
-                    (item) => item.type === CatalogType.Field,
-                );
-
-                const verifiedFieldUsage = await getVerifiedFieldUsage();
-                const enrichedFields = catalogFields.map((field) => ({
-                    ...field,
-                    verifiedChartUsage: lookupVerifiedChartUsage(
-                        verifiedFieldUsage,
-                        field.tableName,
-                        field.name,
-                        field.fieldType,
-                    ),
-                }));
-
-                return { fields: enrichedFields, pagination };
-            });
-
-        const searchSemanticLayer: SearchSemanticLayerFn = (args) =>
-            wrapSentryTransaction(
-                'AiAgent.searchSemanticLayer',
-                args,
-                async () => {
-                    const agentSettings = await this.getAgentSettings(
-                        user,
-                        prompt,
-                    );
-
-                    const userAttributes =
-                        await this.userAttributesModel.getAttributeValuesForOrgMember(
-                            {
-                                organizationUuid,
-                                userUuid: user.userUuid,
-                            },
-                        );
-
-                    const filteredExplores = await this.getAvailableExplores(
-                        user,
-                        projectUuid,
-                        agentSettings.tags,
-                    );
-
-                    const hasQuery = !!args.searchQuery?.trim();
-                    const filterByType = {
-                        metric: CatalogFilter.Metrics,
-                        dimension: CatalogFilter.Dimensions,
-                    };
-                    const filter = args.type
-                        ? filterByType[args.type]
-                        : undefined;
-
-                    const { data: catalogItems, pagination } =
-                        await this.catalogService.searchCatalog({
-                            projectUuid,
-                            userAttributes,
-                            catalogSearch: {
-                                searchQuery: args.searchQuery ?? '',
-                                type: CatalogType.Field,
-                                filter,
-                            },
-                            context: CatalogSearchContext.AI_AGENT,
-                            paginateArgs: {
-                                page: args.page,
-                                pageSize: args.pageSize,
-                            },
-                            // When there is no search query we want the full
-                            // inventory, so do not drop unmatched rows.
-                            excludeUnmatched: hasQuery,
-                            fullTextSearchOperator: 'OR',
-                            filteredExplores,
-                        });
-
-                    const fields = catalogItems
-                        .filter((item) => item.type === CatalogType.Field)
-                        .map((field) => ({
-                            name: field.name,
-                            label: field.label,
-                            tableName: field.tableName,
-                            fieldType: field.fieldType,
-                            description: field.description,
-                            chartUsage: field.chartUsage ?? 0,
-                            searchRank: field.searchRank,
-                        }));
-
-                    return { fields, pagination };
-                },
-            );
 
         const updateProgress: UpdateProgressFn = (progress, toolName) => {
             if (isSlackPrompt(prompt)) {
@@ -5075,502 +4799,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return webOrSlackPrompt;
         };
 
-        const getSavedChart: GetSavedChartFn = (chartUuid) =>
-            this.savedChartService.get(chartUuid, fromSession(user), {
-                projectUuid,
-            });
-
-        const getContentUrl = (type: 'dashboard' | 'chart', slug: string) => {
-            switch (type) {
-                case 'dashboard':
-                    return `/projects/${projectUuid}/dashboards/${slug}/view#dashboard-link`;
-                case 'chart':
-                    return `/projects/${projectUuid}/saved/${slug}/view#chart-link`;
-                default:
-                    return assertUnreachable(type, 'Invalid content type');
-            }
-        };
-
-        const readContent: ReadContentFn = ({ slug, type }) =>
-            wrapSentryTransaction(
-                'AiAgent.readContent',
-                { slug, type },
-                async () => {
-                    switch (type) {
-                        case 'dashboard': {
-                            const { dashboards } =
-                                await this.coderService.getDashboards(
-                                    user,
-                                    projectUuid,
-                                    [slug],
-                                );
-
-                            const dashboard = dashboards[0];
-                            if (!dashboard) {
-                                throw new NotFoundError(
-                                    `Dashboard "${slug}" was not found`,
-                                );
-                            }
-
-                            return {
-                                type: 'dashboard',
-                                content: dashboard,
-                                href: getContentUrl(
-                                    'dashboard',
-                                    dashboard.slug,
-                                ),
-                            };
-                        }
-                        case 'chart': {
-                            const { charts } =
-                                await this.coderService.getCharts(
-                                    user,
-                                    projectUuid,
-                                    [slug],
-                                );
-
-                            const chart = charts[0];
-                            if (!chart) {
-                                throw new NotFoundError(
-                                    `Chart "${slug}" was not found`,
-                                );
-                            }
-
-                            return {
-                                type: 'chart',
-                                content: chart,
-                                href: getContentUrl('chart', chart.slug),
-                            };
-                        }
-                        default:
-                            return assertUnreachable(
-                                type,
-                                'Invalid content type',
-                            );
-                    }
-                },
-            );
-
-        const editContent: EditContentFn = ({ slug, type, patch }) =>
-            wrapSentryTransaction(
-                'AiAgent.editContent',
-                { slug, type },
-                async () => {
-                    if (!Array.isArray(patch)) {
-                        throw new ParameterError(
-                            'Patch must be an RFC6902 patch array',
-                        );
-                    }
-                    this.aiAgentContentValidation.validatePatch(type, patch);
-
-                    const currentContent = await readContent({ slug, type });
-                    const versionBefore =
-                        await this.coderService.getCurrentContentVersionBySlug(
-                            user,
-                            projectUuid,
-                            type,
-                            slug,
-                        );
-                    const patchedContent = JsonPatch.applyPatch(
-                        structuredClone(currentContent.content),
-                        patch,
-                    ).newDocument;
-                    this.aiAgentContentValidation.validateContent(
-                        type,
-                        patchedContent,
-                    );
-
-                    const patchedSlug =
-                        typeof patchedContent.slug === 'string' &&
-                        patchedContent.slug.length > 0
-                            ? patchedContent.slug
-                            : slug;
-                    let uuid: string | undefined;
-
-                    switch (currentContent.type) {
-                        case 'dashboard': {
-                            const promotionChanges =
-                                await this.coderService.upsertDashboard(
-                                    user,
-                                    projectUuid,
-                                    slug,
-                                    patchedContent as typeof currentContent.content,
-                                    { force: true },
-                                );
-                            uuid =
-                                promotionChanges.dashboards[0]?.data.uuid ??
-                                undefined;
-                            break;
-                        }
-                        case 'chart': {
-                            const promotionChanges =
-                                await this.coderService.upsertChart(
-                                    user,
-                                    projectUuid,
-                                    slug,
-                                    patchedContent as typeof currentContent.content,
-                                    { force: true },
-                                );
-                            uuid =
-                                promotionChanges.charts[0]?.data.uuid ??
-                                undefined;
-                            break;
-                        }
-                        default:
-                            return assertUnreachable(
-                                currentContent,
-                                'Invalid content type',
-                            );
-                    }
-
-                    const editedContent = await readContent({
-                        slug: patchedSlug,
-                        type,
-                    });
-                    const versionAfter =
-                        await this.coderService.getCurrentContentVersionBySlug(
-                            user,
-                            projectUuid,
-                            type,
-                            patchedSlug,
-                        );
-
-                    if (!uuid) {
-                        throw new NotFoundError(
-                            `Edited ${type} "${patchedSlug}" was not found`,
-                        );
-                    }
-
-                    switch (editedContent.type) {
-                        case 'dashboard':
-                            return {
-                                ...editedContent,
-                                uuid,
-                                href: getContentUrl(
-                                    'dashboard',
-                                    editedContent.content.slug,
-                                ),
-                                versionUuids: {
-                                    before: versionBefore?.versionUuid ?? null,
-                                    after: versionAfter?.versionUuid ?? null,
-                                },
-                            };
-                        case 'chart':
-                            return {
-                                ...editedContent,
-                                uuid,
-                                href: getContentUrl(
-                                    'chart',
-                                    editedContent.content.slug,
-                                ),
-                                versionUuids: {
-                                    before: versionBefore?.versionUuid ?? null,
-                                    after: versionAfter?.versionUuid ?? null,
-                                },
-                            };
-                        default:
-                            return assertUnreachable(
-                                editedContent,
-                                'Invalid content type',
-                            );
-                    }
-                },
-            );
-
-        const createContent: CreateContentFn = ({ type, content }) =>
-            wrapSentryTransaction(
-                'AiAgent.createContent',
-                { slug: content.slug, type },
-                async () => {
-                    this.aiAgentContentValidation.validateContent(
-                        type,
-                        content,
-                    );
-
-                    switch (type) {
-                        case 'dashboard': {
-                            const promotionChanges =
-                                await this.coderService.upsertDashboard(
-                                    user,
-                                    projectUuid,
-                                    content.slug,
-                                    content,
-                                    { mode: 'create' },
-                                );
-                            const finalSlug =
-                                promotionChanges.dashboards[0]?.data.slug ??
-                                content.slug;
-                            const uuid =
-                                promotionChanges.dashboards[0]?.data.uuid;
-                            if (!uuid) {
-                                throw new NotFoundError(
-                                    `Created dashboard "${finalSlug}" was not found`,
-                                );
-                            }
-                            const createdContent = await readContent({
-                                slug: finalSlug,
-                                type,
-                            });
-
-                            return {
-                                ...createdContent,
-                                uuid,
-                                href: getContentUrl('dashboard', finalSlug),
-                            };
-                        }
-                        case 'chart': {
-                            // TODO: Reject missing dashboardSlug targets for
-                            // agent-created charts instead of relying on
-                            // CoderService's placeholder dashboard behavior.
-                            const promotionChanges =
-                                await this.coderService.upsertChart(
-                                    user,
-                                    projectUuid,
-                                    content.slug,
-                                    content,
-                                    { mode: 'create' },
-                                );
-                            const finalSlug =
-                                promotionChanges.charts[0]?.data.slug ??
-                                content.slug;
-                            const uuid = promotionChanges.charts[0]?.data.uuid;
-                            if (!uuid) {
-                                throw new NotFoundError(
-                                    `Created chart "${finalSlug}" was not found`,
-                                );
-                            }
-                            const createdContent = await readContent({
-                                slug: finalSlug,
-                                type,
-                            });
-
-                            return {
-                                ...createdContent,
-                                uuid,
-                                href: getContentUrl('chart', finalSlug),
-                            };
-                        }
-                        default:
-                            return assertUnreachable(
-                                type,
-                                'Invalid content type',
-                            );
-                    }
-                },
-            );
-
-        const validateContent: ValidateContentFn = ({ type, content }) =>
-            this.aiAgentContentValidation.validateContent(type, content);
-
-        const runAsyncQuery: RunAsyncQueryFn = (
-            metricQuery,
-            _additionalMetrics,
-            parameters,
-        ) =>
-            wrapSentryTransaction(
-                'AiAgent.runAsyncQuery',
-                metricQuery,
-                async () => {
-                    const agentSettings = await this.getAgentSettings(
-                        user,
-                        prompt,
-                    );
-                    const explore = await this.getExplore(
-                        user,
-                        projectUuid,
-                        agentSettings.tags,
-                        metricQuery.exploreName,
-                    );
-
-                    const metricQueryFields = [
-                        ...metricQuery.dimensions,
-                        ...metricQuery.metrics,
-                    ];
-
-                    validateSelectedFieldsExistence(
-                        explore,
-                        metricQueryFields,
-                        metricQuery.additionalMetrics,
-                    );
-
-                    const account = fromSession(user);
-                    return this.asyncQueryService.executeMetricQueryAndGetResults(
-                        {
-                            account,
-                            projectUuid,
-                            metricQuery: {
-                                ...metricQuery,
-                                additionalMetrics: populateCustomMetricsSQL(
-                                    metricQuery.additionalMetrics,
-                                    explore,
-                                ),
-                            },
-                            context: QueryExecutionContext.AI,
-                            parameters,
-                        },
-                    );
-                },
-            );
-
-        const runSavedChartQuery: RunSavedChartQueryFn = (args) =>
-            wrapSentryTransaction(
-                'AiAgent.runSavedChartQuery',
-                args,
-                async () => {
-                    const account = fromSession(user);
-                    const limit = getValidAiQueryLimit(
-                        args.limit,
-                        this.lightdashConfig.ai.copilot.maxQueryLimit,
-                    );
-
-                    if (!args.dashboardSlug) {
-                        return this.asyncQueryService.executeSavedChartQueryAndGetResults(
-                            {
-                                account,
-                                projectUuid,
-                                chartUuid: args.chartUuid,
-                                limit,
-                                context: QueryExecutionContext.AI,
-                            },
-                        );
-                    }
-
-                    const dashboard = await this.dashboardService.getByIdOrSlug(
-                        user,
-                        args.dashboardSlug,
-                        { projectUuid },
-                    );
-                    const tile = dashboard.tiles.find(
-                        (dashboardTile) =>
-                            isDashboardChartTileType(dashboardTile) &&
-                            dashboardTile.properties.savedChartUuid ===
-                                args.chartUuid,
-                    );
-
-                    if (!tile) {
-                        throw new NotFoundError(
-                            `Chart ${args.chartUuid} not found on dashboard ${args.dashboardSlug}`,
-                        );
-                    }
-
-                    return this.asyncQueryService.executeDashboardChartQueryAndGetResults(
-                        {
-                            account,
-                            projectUuid,
-                            chartUuid: args.chartUuid,
-                            dashboardUuid: dashboard.uuid,
-                            tileUuid: tile.uuid,
-                            dashboardFilters: dashboard.filters,
-                            dashboardSorts: [],
-                            limit,
-                            context: QueryExecutionContext.AI,
-                        },
-                    );
-                },
-            );
-
-        const runSqlJob: RunSqlJobFn = ({ sql, limit }) =>
-            wrapSentryTransaction(
-                'AiAgent.runSqlJob',
-                { sql: sql.slice(0, 500), limit },
-                async () => {
-                    const account = fromSession(user);
-                    const { queryUuid } =
-                        await this.asyncQueryService.executeAsyncSqlQuery({
-                            account,
-                            projectUuid,
-                            sql,
-                            limit,
-                            context: QueryExecutionContext.AI,
-                        });
-
-                    const maxWaitMs = 5 * 60 * 1000;
-                    const startTime = Date.now();
-                    let delayMs = 500;
-
-                    // eslint-disable-next-line no-constant-condition
-                    while (true) {
-                        if (Date.now() - startTime > maxWaitMs) {
-                            throw new TimeoutError(
-                                'SQL query timed out after 5 minutes',
-                            );
-                        }
-
-                        const queryResults =
-                            // eslint-disable-next-line no-await-in-loop
-                            await this.asyncQueryService.getAsyncQueryResults({
-                                account,
-                                projectUuid,
-                                queryUuid,
-                                page: 1,
-                                pageSize: limit,
-                            });
-
-                        if (queryResults.status === QueryHistoryStatus.READY) {
-                            const wrappedRows = (queryResults.rows ??
-                                []) as Record<string, AnyType>[];
-                            // Unwrap the {value: {raw, formatted}} cell shape
-                            // that AsyncQueryService returns so downstream
-                            // CSV/serialisation sees plain scalars.
-                            const unwrapCell = (cell: AnyType): AnyType => {
-                                if (
-                                    cell &&
-                                    typeof cell === 'object' &&
-                                    'value' in cell
-                                ) {
-                                    const inner = (cell as { value: AnyType })
-                                        .value;
-                                    if (
-                                        inner &&
-                                        typeof inner === 'object' &&
-                                        'raw' in inner
-                                    ) {
-                                        return (inner as { raw: AnyType }).raw;
-                                    }
-                                    return inner;
-                                }
-                                return cell;
-                            };
-                            const rows = wrappedRows.map((row) =>
-                                Object.fromEntries(
-                                    Object.entries(row).map(([k, v]) => [
-                                        k,
-                                        unwrapCell(v),
-                                    ]),
-                                ),
-                            );
-                            const columns = Object.keys(rows[0] ?? {});
-                            return {
-                                rows,
-                                columns,
-                                rowCount: rows.length,
-                            };
-                        }
-
-                        if (queryResults.status === QueryHistoryStatus.ERROR) {
-                            throw new WarehouseQueryError(
-                                `SQL query failed: ${queryResults.error ?? 'Unknown error'}`,
-                            );
-                        }
-
-                        if (
-                            queryResults.status === QueryHistoryStatus.CANCELLED
-                        ) {
-                            throw new WarehouseQueryError(
-                                'SQL query was cancelled',
-                            );
-                        }
-
-                        const localDelay = delayMs;
-                        // eslint-disable-next-line no-await-in-loop
-                        await new Promise<void>((resolve) => {
-                            setTimeout(resolve, localDelay);
-                        });
-                        delayMs = Math.min(delayMs * 2, 2000);
-                    }
-                },
-            );
-
         const sendFile: SendFileFn = (args) =>
             wrapSentryTransaction('AiAgent.sendFile', args, () =>
                 //
@@ -5587,55 +4815,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 //
 
                 this.slackClient.postFileToThread(args),
-            );
-
-        const listWarehouseTables: ListWarehouseTablesFn = () =>
-            wrapSentryTransaction(
-                'AiAgent.listWarehouseTables',
-                { projectUuid },
-                () => this.projectService.getWarehouseTables(user, projectUuid),
-            );
-
-        const describeWarehouseTable: DescribeWarehouseTableFn = ({
-            table,
-            schema,
-        }) =>
-            wrapSentryTransaction(
-                'AiAgent.describeWarehouseTable',
-                { projectUuid, table, schema: schema ?? null },
-                async () => {
-                    // When the agent doesn't pass a schema, fall back to the
-                    // project's default schema (same fallback the runSql
-                    // system prompt uses). getWarehouseFields throws if it
-                    // ends up undefined.
-                    let resolvedSchema = schema ?? null;
-                    if (!resolvedSchema) {
-                        const creds =
-                            await this.projectModel.getWarehouseCredentialsForProject(
-                                projectUuid,
-                            );
-                        resolvedSchema = creds
-                            ? ('schema' in creds && creds.schema) ||
-                              ('dataset' in creds && creds.dataset) ||
-                              null ||
-                              null
-                            : null;
-                    }
-                    const fields = await this.projectService.getWarehouseFields(
-                        user,
-                        projectUuid,
-                        QueryExecutionContext.AI,
-                        table,
-                        resolvedSchema ?? undefined,
-                    );
-                    return {
-                        columns: Object.entries(fields).map(([name, type]) => ({
-                            name,
-                            type: String(type),
-                        })),
-                        resolvedSchema,
-                    };
-                },
             );
 
         const sendSlackBlocks: SendSlackBlocksFn = async (args) =>
@@ -5709,196 +4888,65 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         };
 
-        const findContent: FindContentFn = async (args) =>
-            wrapSentryTransaction('AiAgent.findContent', args, async () => {
-                const dashboardSearchResults =
-                    await this.searchModel.searchDashboards(
-                        projectUuid,
-                        args.searchQuery.label,
-                        undefined,
-                        'OR',
-                    );
-
-                const chartSearchResults =
-                    await this.searchModel.searchAllCharts(
-                        projectUuid,
-                        args.searchQuery.label,
-                        'OR',
-                    );
-
-                const allContent = [
-                    ...dashboardSearchResults,
-                    ...chartSearchResults,
-                ];
-
-                const filteredResults =
-                    await this.spaceService.filterBySpaceAccess(
-                        user,
-                        allContent,
-                    );
-
-                const agentSettings = await this.getAgentSettings(user, prompt);
-                return {
-                    content: filteredResults.filter(({ spaceUuid }) =>
-                        AiAgentService.hasAgentSpaceAccess(
-                            agentSettings.spaceAccess,
-                            spaceUuid,
-                        ),
-                    ),
-                };
-            });
-
-        const listContent: ListContentFn = async ({ spaceSlug, page }) =>
-            wrapSentryTransaction(
-                'AiAgent.listContent',
-                { spaceSlug, page },
-                async () => {
-                    const pageSize = 25;
-                    const agentSettings = await this.getAgentSettings(
-                        user,
-                        prompt,
-                    );
-                    const agentSpaceAccess =
-                        agentSettings.spaceAccess &&
-                        agentSettings.spaceAccess.length > 0
-                            ? new Set(agentSettings.spaceAccess)
-                            : null;
-
-                    if (spaceSlug === null) {
-                        return this.getRootSpacesForAgent(
-                            user,
-                            projectUuid,
-                            agentSpaceAccess,
-                            page,
-                            pageSize,
-                        );
-                    }
-
-                    return this.getSpaceContentsForAgent(
-                        user,
-                        projectUuid,
-                        spaceSlug,
-                        agentSpaceAccess,
-                        page,
-                        pageSize,
-                    );
-                },
-            );
-
-        const getDashboardCharts: GetDashboardChartsFn = async (args) =>
-            wrapSentryTransaction('AiAgent.getDashboardCharts', args, () =>
-                this.searchModel.getDashboardCharts(
-                    args.dashboardUuid,
-                    args.page,
-                    args.pageSize,
-                ),
-            );
-
-        const searchFieldValues: SearchFieldValuesFn = async (args) =>
-            wrapSentryTransaction(
-                'AiAgent.searchFieldValues',
-                args,
-                async () => {
-                    const dimensionFilters = args.filters?.dimensions;
-                    const andFilters =
-                        dimensionFilters && 'and' in dimensionFilters
-                            ? dimensionFilters
-                            : undefined;
-
-                    const { results } =
-                        await this.projectService.searchFieldUniqueValues(
-                            user,
-                            projectUuid,
-                            args.table,
-                            args.fieldId,
-                            args.query,
-                            100,
-                            andFilters,
-                            false,
-                            undefined,
-                        );
-
-                    return results;
-                },
-            );
-
-        const listKnowledgeDocuments = async () =>
-            wrapSentryTransaction(
-                'AiAgent.listKnowledgeDocuments',
-                {},
-                async () => {
-                    const agentSettings = await this.getAgentSettings(
-                        user,
-                        prompt,
-                    );
-                    return this.aiAgentDocumentModel.findAllForAgent({
-                        organizationUuid,
-                        agentUuid: agentSettings.uuid,
-                        projectUuid,
-                    });
-                },
-            );
-
-        const getKnowledgeDocumentContent = async (args: {
-            documentUuid: string;
-        }) =>
-            wrapSentryTransaction(
-                'AiAgent.getKnowledgeDocumentContent',
-                args,
-                async () => {
-                    const agentSettings = await this.getAgentSettings(
-                        user,
-                        prompt,
-                    );
-                    const content =
-                        await this.aiAgentDocumentModel.getContentForAgent({
-                            organizationUuid,
-                            agentUuid: agentSettings.uuid,
-                            documentUuid: args.documentUuid,
-                        });
-                    if (!content) {
-                        throw new NotFoundError(
-                            `Knowledge document ${args.documentUuid} is not accessible to this agent.`,
-                        );
-                    }
-                    return content;
-                },
-            );
-
-        const proposeWriteback: ProposeWritebackFn = async (args) => {
+        const editDbtProject: EditDbtProjectFn = async (args) => {
             // Stream coarse progress back to the user so they can see what
             // the writeback is doing (Starting sandbox → Cloning project →
             // Discovering models → Editing models → Compiling project →
             // Committing → …). For Slack this overwrites the pinned
             // "Thinking…" message; for web it surfaces as a transient
             // `data-step-progress` chunk on the SSE stream. Tagged with the
-            // `proposeWriteback` tool name so the web client only renders
+            // `editDbtProject` tool name so the web client only renders
             // these under the writeback header — never a concurrently running
             // tool's progress. Fire-and-forget — a Slack rate limit, deleted
             // message, or dropped SSE client must never take down the
             // writeback itself.
             const writebackProgressCallback = (message: string) => {
-                void updateProgress(message, 'proposeWriteback').catch(
-                    (err) => {
-                        Logger.debug(
-                            `Failed to update progress for writeback (${message}):`,
-                            err,
-                        );
-                    },
-                );
+                void updateProgress(message, 'editDbtProject').catch((err) => {
+                    Logger.debug(
+                        `Failed to update progress for writeback (${message}):`,
+                        err,
+                    );
+                });
             };
 
+            // When the user asks to write back their changeset, build the
+            // instructions deterministically from the active changeset's
+            // structured changes instead of trusting the LLM-composed prompt.
+            let writebackPrompt: string;
+            let source: AiWritebackSource;
+            if (args.fromActiveChangeset) {
+                const changeset =
+                    await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
+                        projectUuid,
+                    );
+                if (!changeset || changeset.changes.length === 0) {
+                    throw new ParameterError(
+                        'There are no changes to write back for this project',
+                    );
+                }
+                writebackPrompt = buildChangesetWritebackPrompt(changeset);
+                source = 'changeset';
+            } else {
+                if (!args.prompt) {
+                    throw new ParameterError(
+                        'A writeback prompt is required when fromActiveChangeset is false',
+                    );
+                }
+                writebackPrompt = args.prompt;
+                source = isSlackPrompt(prompt) ? 'slack' : 'web';
+            }
+
             const result = await wrapSentryTransaction(
-                'AiAgent.proposeWriteback',
+                'AiAgent.editDbtProject',
                 {},
                 () =>
                     this.aiWritebackService.run({
                         user,
                         projectUuid,
-                        prompt: args.prompt,
+                        prompt: writebackPrompt,
                         prUrl: args.prUrl,
                         aiThreadUuid: prompt.threadUuid,
-                        source: isSlackPrompt(prompt) ? 'slack' : 'web',
+                        source,
                         onProgress: writebackProgressCallback,
                     }),
             );
@@ -5922,208 +4970,127 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         );
                     });
             }
-            // If the repo deploys Lightdash previews, kick off a background poll
-            // that adds a "View preview" follow-up in the Slack thread once the
-            // preview URL is published on the PR. Best-effort — never blocks the
-            // writeback result.
-            if (result.prUrl && isSlackPrompt(prompt)) {
-                try {
+            // Resolve the repo's preview-deploy CI status once (best-effort,
+            // gated by the ai-preview-deploy-setup flag). It drives the
+            // deterministic "offer to set it up" instruction the editDbtProject
+            // tool relays when no server-side preview could be built. Owned by
+            // the sibling PreviewDeploySetupService — writeback no longer
+            // detects this itself. Never fails the writeback result.
+            let previewDeployConfigured: boolean | null = null;
+            try {
+                const { enabled: previewDeploySetupEnabled } =
+                    await this.featureFlagService.get({
+                        user,
+                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
+                    });
+                if (previewDeploySetupEnabled) {
                     const ciStatus =
-                        await this.aiWritebackService.getProjectCiStatus(
+                        await this.previewDeploySetupService.getOrScanProjectCiStatus(
                             user,
                             projectUuid,
                         );
-                    if (ciStatus?.hasPreviewDeployWorkflow) {
-                        await this.schedulerClient.pollWritebackPreview({
-                            organizationUuid,
-                            projectUuid,
-                            userUuid: user.userUuid,
-                            promptUuid: prompt.promptUuid,
-                            prUrl: result.prUrl,
-                            startedAt: Date.now(),
-                        });
-                    }
-                } catch (err) {
-                    Logger.debug(
-                        'Failed to schedule writeback preview poll:',
-                        err,
-                    );
+                    previewDeployConfigured = ciStatus
+                        ? ciStatus.hasPreviewDeployWorkflow
+                        : null;
                 }
+            } catch (err) {
+                Logger.debug(
+                    'Failed to resolve preview-deploy CI status after writeback:',
+                    err,
+                );
             }
-            return result;
+
+            // Server-side preview: for GitHub-connected projects, build the
+            // preview ourselves from the PR's head branch and post its URL on
+            // the PR — no CI in the customer repo required. The URL is returned
+            // to the editDbtProject tool so the agent's reply (web chat and
+            // Slack alike) links the preview directly; this replaced the old
+            // pollWritebackPreview job that scanned PR comments for a
+            // CI-posted URL. Returns null for unsupported projects (e.g.
+            // CLI-deployed) or on any failure — those surface no preview.
+            let previewUrl: string | null = null;
+            if (result.prUrl) {
+                const preview =
+                    await this.writebackPreviewService.createPreviewForPullRequest(
+                        { user, projectUuid, prUrl: result.prUrl },
+                    );
+                previewUrl = preview?.previewUrl ?? null;
+            }
+
+            return { ...result, previewDeployConfigured, previewUrl };
         };
 
-        const setupPreviewDeploy: SetupPreviewDeployFn = () => {
-            // Surface coarse step progress (Starting sandbox → Cloning project →
-            // … → Committing) under the setupPreviewDeploy header, same as
-            // proposeWriteback. Fire-and-forget — a dropped client must never
-            // take down the run.
-            const setupProgressCallback = (message: string) => {
-                void updateProgress(message, 'setupPreviewDeploy').catch(
-                    (err) => {
-                        Logger.debug(
-                            `Failed to update progress for preview-deploy setup (${message}):`,
-                            err,
-                        );
-                    },
-                );
-            };
-            return wrapSentryTransaction('AiAgent.setupPreviewDeploy', {}, () =>
-                this.aiWritebackService.setupPreviewDeploy({
-                    user,
-                    projectUuid,
-                    aiThreadUuid: prompt.threadUuid,
-                    onProgress: setupProgressCallback,
-                }),
-            );
+        // Read-only repo virtual filesystem for the repoShell tool. Resolve the
+        // GitHub access + fetch the file tree at most once per request, then
+        // reuse the cached RepoFs across every repoShell call in the run.
+        let repoFsPromise: Promise<RepoFs> | null = null;
+        const repoShell: RepoShellFn = async ({ command }) => {
+            if (!repoFsPromise) {
+                repoFsPromise = this.aiWritebackService
+                    .getRepoReadAccess({ user, projectUuid })
+                    .then(
+                        (access) =>
+                            new RepoFs(
+                                createGithubRepoSource({
+                                    ...access,
+                                    onTiming: (event) => {
+                                        if (event.kind === 'tree') {
+                                            this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
+                                                event.durationMs,
+                                            );
+                                        } else {
+                                            this.prometheusMetrics?.observeRepoFsGithubFileDuration(
+                                                event.durationMs,
+                                                event.outcome,
+                                            );
+                                        }
+                                    },
+                                }),
+                            ),
+                    );
+            }
+            const repoFs = await repoFsPromise;
+            return runRepoShellCommand(repoFs, command);
         };
-
-        const listProjects: ListProjectsFn = () =>
-            wrapSentryTransaction('AiAgent.listProjects', {}, async () => {
-                const projects =
-                    await this.projectModel.getAllByOrganizationUuid(
-                        organizationUuid,
-                    );
-                const auditedAbility = this.createAuditedAbility(user);
-                return projects
-                    .filter((project) =>
-                        auditedAbility.can(
-                            'view',
-                            subject('Project', {
-                                organizationUuid,
-                                projectUuid: project.projectUuid,
-                            }),
-                        ),
-                    )
-                    .map((project) => ({
-                        projectUuid: project.projectUuid,
-                        name: project.name,
-                        type: project.type,
-                        isActive: project.projectUuid === projectUuid,
-                    }));
-            });
-
-        const getProjectInfo: GetProjectInfoFn = () =>
-            wrapSentryTransaction('AiAgent.getProjectInfo', {}, async () => {
-                // Re-check view permission on every call (matches listProjects)
-                // so a user who lost access mid-session can't still pull the
-                // project's dbt/git/warehouse details.
-                const auditedAbility = this.createAuditedAbility(user);
-                if (
-                    auditedAbility.cannot(
-                        'view',
-                        subject('Project', {
-                            organizationUuid,
-                            projectUuid,
-                        }),
-                    )
-                ) {
-                    throw new ForbiddenError(
-                        'You do not have permission to view this project',
-                    );
-                }
-
-                // projectModel.get() already strips sensitive dbt/warehouse
-                // credentials. We still whitelist fields explicitly so we never
-                // surface anything that isn't scrubbed (e.g. installation_id or
-                // dbt environment variables).
-                const project = await this.projectModel.get(projectUuid);
-                const { dbtConnection } = project;
-
-                // For a git-backed project, look up (and, if not yet known,
-                // scan the connected repo for) its preview-deploy CI status so
-                // the assistant can answer "is preview-deploy CI set up?" by
-                // inspecting the git-backed project. Best-effort — never block
-                // getProjectInfo on it.
-                let previewDeployCi: {
-                    hasPreviewDeployWorkflow: boolean;
-                    workflowPath: string | null;
-                } | null = null;
-                // Gate the CI lookup on the same SourceCode permission
-                // getOrScanProjectCiStatus enforces, checked up-front so a user
-                // who can view the project but not its source simply doesn't get
-                // this optional field — no swallowed ForbiddenError. Genuine
-                // operational failures (GitHub API, decryption) are logged at
-                // warn (visible) and still never fail getProjectInfo.
-                const canViewSourceCode = auditedAbility.can(
-                    'view',
-                    subject('SourceCode', { organizationUuid, projectUuid }),
-                );
-                if (isGitProjectType(dbtConnection) && canViewSourceCode) {
-                    try {
-                        const ciStatus =
-                            await this.aiWritebackService.getOrScanProjectCiStatus(
-                                user,
-                                projectUuid,
-                            );
-                        previewDeployCi = ciStatus
-                            ? {
-                                  hasPreviewDeployWorkflow:
-                                      ciStatus.hasPreviewDeployWorkflow,
-                                  workflowPath: ciStatus.workflowPath,
-                              }
-                            : null;
-                    } catch (err) {
-                        Logger.warn(
-                            'getProjectInfo: preview-deploy CI lookup failed',
-                            err,
-                        );
-                    }
-                }
-
-                return {
-                    projectName: project.name,
-                    projectType: project.type,
-                    dbtConnectionType: dbtConnection.type,
-                    dbtVersion: project.dbtVersion,
-                    warehouseType: project.warehouseConnection?.type ?? null,
-                    git: isGitProjectType(dbtConnection)
-                        ? {
-                              repository: dbtConnection.repository,
-                              branch: dbtConnection.branch,
-                              projectSubPath: dbtConnection.project_sub_path,
-                              hostDomain: dbtConnection.host_domain ?? null,
-                          }
-                        : null,
-                    previewDeployCi,
-                };
-            });
 
         return {
-            listExplores,
+            listExplores: toolsRuntime.listExplores,
             getProjectContextDocument,
-            getExplore,
-            listContent,
-            findContent,
-            readContent,
-            editContent,
-            createContent,
-            validateContent,
-            getDashboardCharts,
-            findFields,
-            findExplores,
-            searchSemanticLayer,
+            getExplore: toolsRuntime.getExplore,
+            listContent: toolsRuntime.listContent,
+            findContent: toolsRuntime.findContent,
+            readContent: toolsRuntime.readContent,
+            editContent: toolsRuntime.editContent,
+            createContent: toolsRuntime.createContent,
+            validateContent: toolsRuntime.validateContent,
+            getDashboardCharts: toolsRuntime.getDashboardCharts,
+            findFields: toolsRuntime.findFields,
+            findExplores: toolsRuntime.findExplores,
+            searchSemanticLayer: toolsRuntime.searchSemanticLayer,
             updateProgress,
             getPrompt,
-            runAsyncQuery,
-            runSavedChartQuery,
-            runSqlJob,
-            listWarehouseTables,
-            describeWarehouseTable,
-            listKnowledgeDocuments,
-            getKnowledgeDocumentContent,
-            getSavedChart,
+            runAsyncQuery: toolsRuntime.runAsyncQuery,
+            runSavedChartQuery: toolsRuntime.runSavedChartQuery,
+            runSqlJob: toolsRuntime.runSqlJob,
+            listWarehouseTables: toolsRuntime.listWarehouseTables,
+            describeWarehouseTable: toolsRuntime.describeWarehouseTable,
+            listKnowledgeDocuments: toolsRuntime.listKnowledgeDocuments,
+            getKnowledgeDocumentContent:
+                toolsRuntime.getKnowledgeDocumentContent,
+            getSavedChart: toolsRuntime.getSavedChart,
             sendFile,
             sendSlackBlocks,
             updateSlackMessage,
             storeToolCall,
             storeToolResults,
             storeReasoning,
-            searchFieldValues,
-            proposeWriteback,
-            setupPreviewDeploy,
-            listProjects,
-            getProjectInfo,
+            searchFieldValues: toolsRuntime.searchFieldValues,
+            editDbtProject,
+            setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
+            repoShell,
+            listProjects: toolsRuntime.listProjects,
+            getProjectInfo: toolsRuntime.getProjectInfo,
+            loadSkill: toolsRuntime.loadSkill,
         };
     }
 
@@ -6239,11 +5206,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             searchFieldValues,
-            proposeWriteback,
+            editDbtProject,
             setupPreviewDeploy,
+            repoShell,
             listProjects,
             getProjectInfo,
-        } = this.getAiAgentDependencies(user, prompt, {
+        } = await this.getAiAgentDependencies(user, prompt, {
             onStepProgress: stepProgressEmitter
                 ? (progress, toolName) =>
                       stepProgressEmitter.emit('stepProgress', {
@@ -6328,9 +5296,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 projectUuid: prompt.projectUuid,
             });
         const agentMcpServersWithSensitiveData =
-            await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
-                agentSettings.uuid,
-                user.userUuid,
+            await this.refreshGithubMcpCredentials(
+                user.organizationUuid,
+                await this.aiAgentModel.getAgentMcpServersWithSensitiveData(
+                    agentSettings.uuid,
+                    user.userUuid,
+                ),
             );
         const mcpServers = this.aiAgentMcpRuntimeClient.attachRuntimeProviders({
             projectUuid: prompt.projectUuid,
@@ -6346,14 +5317,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 })),
             ),
         });
-        const { enabled: projectContextEnabled } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiProjectContext,
-            });
-        const projectContext = projectContextEnabled
-            ? await this.projectContextModel.getDocument(prompt.projectUuid)
-            : [];
         const { enabled: agentRevampEnabled } =
             await this.featureFlagService.get({
                 user,
@@ -6372,10 +5335,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
         if (aiWritebackEnabled && !hasTrustedPromptUserIdentity) {
             this.logger.info(
-                `Disabling proposeWriteback for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
             aiWritebackEnabled = false;
         }
+        const projectContextEnabled =
+            aiWritebackEnabled &&
+            (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
+                user,
+            ));
+        const projectContext = projectContextEnabled
+            ? await this.projectContextModel.getDocument(prompt.projectUuid)
+            : [];
 
         // Preview-deploy setup rides the writeback infra, so it requires both
         // the writeback flag (and trusted identity, applied above) and its own
@@ -6387,6 +5358,37 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             });
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled && aiPreviewDeploySetupFlag;
+
+        let { enabled: repoFsEnabled } = await this.featureFlagService.get({
+            user,
+            featureFlagId: FeatureFlags.RepoFs,
+        });
+        // repoShell reads repo source and its view:SourceCode check evaluates
+        // against the resolved user. On Slack without aiRequireOAuth that user
+        // is the app installer, not the requester — so disable it, exactly as
+        // runSql and writeback do above.
+        if (repoFsEnabled && !hasTrustedPromptUserIdentity) {
+            this.logger.info(
+                `Disabling repoShell for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+            );
+            repoFsEnabled = false;
+        }
+
+        // The dbt project's root within the repo, so the prompt can point the
+        // repoShell agent at it (instead of hardcoding "dbt/"). Derived from the
+        // connection's project_sub_path: '.' = repo root, else a subdirectory.
+        // null when repoFs is off or the project isn't git-backed.
+        let repoFsRoot: string | null = null;
+        if (
+            repoFsEnabled &&
+            'project_sub_path' in promptProject.dbtConnection
+        ) {
+            const raw = (promptProject.dbtConnection.project_sub_path ?? '')
+                .trim()
+                .replace(/^\/+/, '')
+                .replace(/\/+$/, '');
+            repoFsRoot = raw === '' ? '.' : raw;
+        }
 
         const canUseContentTools =
             agentRevampEnabled &&
@@ -6405,7 +5407,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }),
             );
         const availableSkills = canUseContentTools
-            ? await BuiltInSkills.getAiAgentSkills()
+            ? await this.aiAgentToolsService.listAgentSkills()
             : [];
         const modelProperties = getModel(this.lightdashConfig.ai.copilot, {
             enableReasoning: prompt.modelConfig?.reasoning,
@@ -6438,6 +5440,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
+            enableRepoFs: repoFsEnabled,
+            repoFsRoot,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
             autoApproveSqlUserUuid: options.autoApproveSql
@@ -6496,8 +5500,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeToolResults,
             storeReasoning,
             searchFieldValues,
-            proposeWriteback,
+            editDbtProject,
             setupPreviewDeploy,
+            repoShell,
             listProjects,
             getProjectInfo,
             updateProgress: (progress: string) => updateProgress(progress),
@@ -6555,7 +5560,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     decision,
                     decidedByUserUuid,
                 ),
-            loadSkill: async (name) => BuiltInSkills.getAiAgentSkill(name),
+            loadSkill: async (name) =>
+                this.aiAgentToolsService.loadAgentSkill(name),
 
             perf: {
                 measureGenerateResponseTime: (durationMs) => {
@@ -6606,7 +5612,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
 
                 // Forward step-progress events from tools (`updateProgress`,
-                // `proposeWriteback`) to the client. `transient: true` so
+                // `editDbtProject`) to the client. `transient: true` so
                 // they don't get persisted as part of the message; they're
                 // ephemeral status updates the bubble surfaces as the
                 // active step under the running tool group until the next
@@ -6834,123 +5840,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         return [uuid, createdThread];
     }
 
-    /**
-     * Background poll (Graphile Worker) that surfaces a write-back PR's Lightdash
-     * preview environment in the Slack thread. The preview URL is published
-     * asynchronously by the dbt repo's CI as a PR comment, so we poll the PR's
-     * comments and, once found, post a "View preview" follow-up in the thread.
-     * Re-enqueues itself every ~25s until the URL appears or the ~10 min window
-     * elapses. Only scheduled when the project's repo deploys previews.
-     */
-    async pollSlackWritebackPreview(
-        payload: PollWritebackPreviewJobPayload,
-    ): Promise<void> {
-        const PREVIEW_POLL_INTERVAL_MS = 25_000;
-        const PREVIEW_WAIT_TIMEOUT_MS = 10 * 60_000;
-        const { promptUuid, prUrl, startedAt, organizationUuid, projectUuid } =
-            payload;
-
-        // Past the wait window — give up (the PR link stays in the message).
-        if (Date.now() - startedAt > PREVIEW_WAIT_TIMEOUT_MS) {
-            Logger.info(
-                `AiAgent: writeback preview poll timed out for prompt ${promptUuid}`,
-            );
-            return;
-        }
-
-        // Re-verify the triggering user can still view the project's source code
-        // before delivering — they may have lost access during the wait window.
-        // (Authorize against the project's organization, taken from the payload.)
-        const user = await this.userModel.findSessionUserByUUID(
-            payload.userUuid,
-        );
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'view',
-                subject('SourceCode', { organizationUuid, projectUuid }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
-
-        const slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
-        // Not a Slack prompt (or gone) — nothing to deliver to.
-        if (!slackPrompt) {
-            return;
-        }
-
-        // Wait until the agent's reply is actually posted, then resolve the URL.
-        const previewUrl = slackPrompt.response_slack_ts
-            ? await this.resolveWritebackPreviewUrl(organizationUuid, prUrl)
-            : null;
-
-        if (!previewUrl) {
-            await this.schedulerClient.pollWritebackPreview(
-                payload,
-                new Date(Date.now() + PREVIEW_POLL_INTERVAL_MS),
-            );
-            return;
-        }
-
-        await this.slackClient.postMessage({
-            organizationUuid,
-            channel: slackPrompt.slackChannelId,
-            thread_ts: slackPrompt.slackThreadTs,
-            text: `Preview environment ready: ${previewUrl}`,
-            unfurl_links: false,
-            blocks: [
-                ...getMarkdownBlocks(
-                    ':white_check_mark: Preview environment ready',
-                ),
-                ...getWritebackPreviewReplyBlocks(previewUrl),
-            ],
-        });
-    }
-
-    /**
-     * Resolve the Lightdash preview URL for a write-back PR by reading its
-     * comments via the org's GitHub App installation. Returns null when no
-     * preview comment is present yet, or on any failure — so the caller keeps
-     * polling rather than erroring.
-     */
-    private async resolveWritebackPreviewUrl(
-        organizationUuid: string,
-        prUrl: string,
-    ): Promise<string | null> {
-        try {
-            const url = new URL(prUrl);
-            const [owner, repo, , pullNumberStr] = url.pathname
-                .split('/')
-                .filter(Boolean);
-            const pullNumber = Number(pullNumberStr);
-            if (!owner || !repo || !Number.isInteger(pullNumber)) {
-                return null;
-            }
-            const installationId =
-                await this.githubAppInstallationsModel.getInstallationId(
-                    organizationUuid,
-                );
-            const comments = await getPullRequestComments({
-                owner,
-                repo,
-                pullNumber,
-                installationId,
-            });
-            return extractPreviewUrlFromComments(
-                comments,
-                this.lightdashConfig.siteUrl,
-            );
-        } catch (error) {
-            Logger.warn(
-                `AiAgent: failed to resolve writeback preview URL for ${prUrl}: ${getErrorMessage(
-                    error,
-                )}`,
-            );
-            return null;
-        }
-    }
-
     // TODO: user permissions
     async replyToSlackPrompt(promptUuid: string): Promise<void> {
         let slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
@@ -7120,7 +6009,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             this.lightdashConfig.siteUrl,
             toolResults,
         );
-        const proposeWritebackBlocks = getProposeWritebackBlocks(toolResults);
+        const editDbtProjectBlocks = getEditDbtProjectBlocks(toolResults);
         const historyBlocks = agent
             ? getDeepLinkBlocks(
                   agent.uuid,
@@ -7156,7 +6045,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...getMarkdownBlocks(response),
             ...exploreBlocks,
             ...proposeChangeBlocks,
-            ...proposeWritebackBlocks,
+            ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
             ...feedbackBlocks,
@@ -10044,6 +8933,154 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         if (!clonedThread) {
             throw new Error('Failed to retrieve cloned thread');
         }
+
+        return clonedThread;
+    }
+
+    async createThreadShare(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<ApiAiAgentThreadShareResponse['results']> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent || agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const sourceThread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!sourceThread) {
+            throw new NotFoundError(`Source thread not found: ${threadUuid}`);
+        }
+
+        const hasSourceAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            sourceThread.user.uuid,
+        );
+        if (!hasSourceAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access source thread',
+            );
+        }
+
+        const share = await this.aiAgentModel.createThreadShare({
+            sourceThreadUuid: threadUuid,
+            createdByUserUuid: user.userUuid,
+            nanoid: nanoidGenerator(),
+        });
+
+        const shareUrl = `${this.lightdashConfig.siteUrl}/share/${share.nanoid}`;
+
+        this.analytics.track({
+            event: 'ai_agent_thread_share.created',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                aiAgentId: agentUuid,
+                threadId: threadUuid,
+                aiThreadShareId: share.uuid,
+            },
+        });
+
+        return {
+            ...share,
+            createdAt: share.createdAt.toISOString(),
+            revokedAt: share.revokedAt?.toISOString() ?? null,
+            shareUrl,
+        };
+    }
+
+    async cloneThreadShare(
+        user: SessionUser,
+        projectUuid: string,
+        aiThreadShareUuid: string,
+    ): Promise<AiAgentThreadSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const share = await this.aiAgentModel.getThreadShare(aiThreadShareUuid);
+        if (
+            !share ||
+            share.revokedAt ||
+            share.projectUuid !== projectUuid ||
+            share.organizationUuid !== organizationUuid
+        ) {
+            throw new NotFoundError('Shared thread link does not exist');
+        }
+
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid: share.agentUuid,
+        });
+        if (!agent || agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${share.agentUuid}`);
+        }
+
+        const hasAgentAccess = await this.checkAgentAccess(user, agent);
+        if (!hasAgentAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to access agent',
+            );
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'create',
+                subject('AiAgentThread', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Insufficient permissions to create AI agent thread',
+            );
+        }
+
+        const clonedThreadUuid = await this.aiAgentModel.cloneThreadShare({
+            aiThreadShareUuid,
+            projectUuid,
+            targetUserUuid: user.userUuid,
+        });
+
+        const clonedThread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid: share.agentUuid,
+            threadUuid: clonedThreadUuid,
+        });
+
+        if (!clonedThread) {
+            throw new Error('Failed to retrieve cloned thread');
+        }
+
+        this.analytics.track({
+            event: 'ai_agent_thread_share.cloned',
+            userId: user.userUuid,
+            properties: {
+                organizationId: organizationUuid,
+                projectId: projectUuid,
+                aiAgentId: share.agentUuid,
+                threadId: clonedThreadUuid,
+                aiThreadShareId: share.uuid,
+            },
+        });
 
         return clonedThread;
     }

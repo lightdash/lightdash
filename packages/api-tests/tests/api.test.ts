@@ -170,23 +170,11 @@ describe('Lightdash API', () => {
             `/org/projects`,
             `/org/users`,
             `/org/onboardingStatus`,
-            `/org/users/email/demo@lightdash.com`,
         ];
         for (const endpoint of endpoints) {
             const resp = await admin.get(`${apiUrl}${endpoint}`);
             expect(resp.status).toBe(200);
             expect(resp.body).toHaveProperty('status', 'ok');
-        }
-    });
-
-    it('Should get not found response (404) from GET organizationRouter endpoints', async () => {
-        const endpoints = [`/org/users/email/another@lightdash.com`];
-        for (const endpoint of endpoints) {
-            const resp = await admin.get(`${apiUrl}${endpoint}`, {
-                failOnStatusCode: false,
-            });
-            expect(resp.status).toBe(404);
-            expect(resp.body).toHaveProperty('status', 'error');
         }
     });
 

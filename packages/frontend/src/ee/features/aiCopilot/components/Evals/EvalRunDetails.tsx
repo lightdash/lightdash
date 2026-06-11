@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../../../components/common/ContentTable';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import {
@@ -106,93 +106,94 @@ export const EvalRunDetails: FC<Props> = ({
         };
     }, [runData?.results]);
 
-    const columns: MRT_ColumnDef<AiAgentEvaluationRunResult>[] = useMemo(
-        () => [
-            {
-                accessorKey: 'index',
-                header: '#',
-                enableSorting: false,
-                size: 60,
-                Cell: ({ row }) => (
-                    <Text fz="sm" fw={500} c="dimmed">
-                        {row.index + 1}
-                    </Text>
-                ),
-            },
-            {
-                accessorKey: 'prompt',
-                header: 'Prompt',
-                enableSorting: false,
-                size: 300,
-                Cell: ({ row }) => {
-                    const promptText =
-                        row.original.prompt || `Prompt ${row.index + 1}`;
-                    return (
-                        <Text fz="sm" title={promptText} truncate maw={300}>
-                            {promptText}
+    const columns: ContentTableColumnDef<AiAgentEvaluationRunResult>[] =
+        useMemo(
+            () => [
+                {
+                    accessorKey: 'index',
+                    header: '#',
+                    enableSorting: false,
+                    size: 60,
+                    Cell: ({ row }) => (
+                        <Text fz="sm" fw={500} c="dimmed">
+                            {row.index + 1}
                         </Text>
-                    );
+                    ),
                 },
-            },
-            {
-                accessorKey: 'status',
-                header: 'Eval Status',
-                enableSorting: false,
-                size: 115,
-                Cell: ({ row }) => {
-                    const result = row.original;
-                    const statusStyle = statusConfig[result.status];
-                    const isEvalRunning = isRunning(result.status);
-                    return (
-                        <Tooltip
-                            label={result.errorMessage}
-                            disabled={result.status !== 'failed'}
-                        >
-                            <Text c={statusStyle.color}>
-                                <MantineIcon
-                                    icon={
-                                        isEvalRunning
-                                            ? IconPoint
-                                            : IconPointFilled
-                                    }
-                                />
+                {
+                    accessorKey: 'prompt',
+                    header: 'Prompt',
+                    enableSorting: false,
+                    size: 300,
+                    Cell: ({ row }) => {
+                        const promptText =
+                            row.original.prompt || `Prompt ${row.index + 1}`;
+                        return (
+                            <Text fz="sm" title={promptText} truncate maw={300}>
+                                {promptText}
                             </Text>
-                        </Tooltip>
-                    );
+                        );
+                    },
                 },
-            },
-            {
-                accessorKey: 'assessment',
-                header: 'Assessment',
-                enableSorting: false,
-                size: 120,
-                Cell: ({ row }) => {
-                    const result = row.original;
-                    const isEvalRunning = isRunning(result.status);
-                    const assessmentConfig = getAssessmentConfig(
-                        result.assessment?.passed,
-                    );
-                    return isEvalRunning ? (
-                        <Badge w={68} variant="transparent" color="gray">
-                            {result.status === 'assessing' ? (
-                                <Loader size={12} color="gray" />
-                            ) : (
-                                <>...</>
-                            )}
-                        </Badge>
-                    ) : (
-                        <Badge
-                            color={assessmentConfig.color}
-                            variant="transparent"
-                        >
-                            {assessmentConfig.label}
-                        </Badge>
-                    );
+                {
+                    accessorKey: 'status',
+                    header: 'Eval Status',
+                    enableSorting: false,
+                    size: 115,
+                    Cell: ({ row }) => {
+                        const result = row.original;
+                        const statusStyle = statusConfig[result.status];
+                        const isEvalRunning = isRunning(result.status);
+                        return (
+                            <Tooltip
+                                label={result.errorMessage}
+                                disabled={result.status !== 'failed'}
+                            >
+                                <Text c={statusStyle.color}>
+                                    <MantineIcon
+                                        icon={
+                                            isEvalRunning
+                                                ? IconPoint
+                                                : IconPointFilled
+                                        }
+                                    />
+                                </Text>
+                            </Tooltip>
+                        );
+                    },
                 },
-            },
-        ],
-        [],
-    );
+                {
+                    accessorKey: 'assessment',
+                    header: 'Assessment',
+                    enableSorting: false,
+                    size: 120,
+                    Cell: ({ row }) => {
+                        const result = row.original;
+                        const isEvalRunning = isRunning(result.status);
+                        const assessmentConfig = getAssessmentConfig(
+                            result.assessment?.passed,
+                        );
+                        return isEvalRunning ? (
+                            <Badge w={68} variant="transparent" color="gray">
+                                {result.status === 'assessing' ? (
+                                    <Loader size={12} color="gray" />
+                                ) : (
+                                    <>...</>
+                                )}
+                            </Badge>
+                        ) : (
+                            <Badge
+                                color={assessmentConfig.color}
+                                variant="transparent"
+                            >
+                                {assessmentConfig.label}
+                            </Badge>
+                        );
+                    },
+                },
+            ],
+            [],
+        );
 
     const table = useContentTable({
         columns,

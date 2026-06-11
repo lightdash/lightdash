@@ -20,7 +20,7 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     ParametersValuesMap,
-    PreviewDeploySecret,
+    PreviewDeploySetupResult,
     ProjectType,
     SavedChart,
     SlackPrompt,
@@ -102,10 +102,54 @@ export type SearchSemanticLayerFn = (args: {
 
 export type GetExploreFn = (args: { table: string }) => Promise<Explore>;
 
+export type FindContentSpaceBreadcrumb = {
+    uuid: string;
+    name: string;
+    slug: string;
+};
+
+export type FindContentSpaceMetadata = {
+    uuid: string;
+    name: string;
+    slug: string;
+    breadcrumbs: FindContentSpaceBreadcrumb[];
+};
+
+export type FindContentChartResult = AllChartsSearchResult & {
+    contentType: 'chart';
+    space: FindContentSpaceMetadata;
+};
+
+export type FindContentDashboardResult = DashboardSearchResult & {
+    contentType: 'dashboard';
+    space: FindContentSpaceMetadata;
+};
+
+export type FindContentSpaceResult = {
+    contentType: 'space';
+    uuid: string;
+    name: string;
+    slug: string;
+    search_rank: number;
+    chartCount: number;
+    dashboardCount: number;
+    childSpaceCount: number;
+    appCount: number;
+    directAccess: boolean;
+    space: FindContentSpaceMetadata;
+    verification: null;
+};
+
+export type FindContentResult =
+    | FindContentChartResult
+    | FindContentDashboardResult
+    | FindContentSpaceResult;
+
 export type FindContentFn = (args: {
     searchQuery: ToolFindContentArgs['searchQueries'][number];
+    spaceSlug: ToolFindContentArgs['spaceSlug'];
 }) => Promise<{
-    content: (AllChartsSearchResult | DashboardSearchResult)[];
+    content: FindContentResult[];
 }>;
 
 export type ListContentFn = (args: {
@@ -374,14 +418,25 @@ export type LoadAgentSkillFn = (
     name: string,
 ) => Promise<AiAgentSkill | undefined>;
 
-export type ProposeWritebackFn = (args: {
-    prompt: string;
+export type EditDbtProjectFn = (args: {
+    prompt: string | null;
     prUrl: string | null;
-}) => Promise<AiWritebackRunResult>;
-
-export type SetupPreviewDeployFn = () => Promise<
-    AiWritebackRunResult & { secrets: PreviewDeploySecret[] }
+    fromActiveChangeset: boolean;
+}) => Promise<
+    AiWritebackRunResult & {
+        previewDeployConfigured: boolean | null;
+        /** Server-side preview built from the PR's head branch; null when unsupported or failed. */
+        previewUrl: string | null;
+    }
 >;
+
+export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
+
+/**
+ * Run one read-only shell command against the project's dbt repo virtual
+ * filesystem (ls/cat/find/grep/head/wc) and return combined stdout.
+ */
+export type RepoShellFn = (args: { command: string }) => Promise<string>;
 
 export type ListProjectsFn = () => Promise<
     {

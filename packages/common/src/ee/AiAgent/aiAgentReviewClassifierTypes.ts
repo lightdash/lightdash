@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type { ApiSuccess } from '../../types/api/success';
+import type { PullRequestProvider } from '../../types/gitIntegration';
 import type { MetricQuery } from '../../types/metricQuery';
 import type { QueryHistoryStatus } from '../../types/queryHistory';
 import type { AiAgentDocumentStructuredSummary } from './documentTypes';
@@ -320,6 +321,69 @@ export type AiAgentReviewItemWritebackStatus =
     | 'completed'
     | 'failed';
 
+export type AiAgentReviewItemWritebackStrategy =
+    | 'semantic_layer'
+    | 'project_context';
+
+export type AiAgentReviewItemWritebackBlockedReason =
+    | 'reviews_disabled'
+    | 'unsupported_root_cause'
+    | 'missing_project'
+    | 'missing_project_context_entry'
+    | 'project_context_disabled'
+    | 'unsupported_source_control'
+    | 'git_app_not_installed'
+    | 'missing_writeback_config'
+    | 'pull_request_open'
+    | 'terminal_state'
+    | 'writeback_in_progress';
+
+export type AiAgentReviewItemWritebackEligibility =
+    | {
+          eligible: true;
+          provider: PullRequestProvider;
+          strategy: AiAgentReviewItemWritebackStrategy;
+          reason: null;
+      }
+    | {
+          eligible: false;
+          provider: PullRequestProvider | null;
+          strategy: AiAgentReviewItemWritebackStrategy | null;
+          reason: AiAgentReviewItemWritebackBlockedReason;
+      };
+
+export type AiAgentReviewRemediationStatus =
+    | 'queued'
+    | 'running'
+    | 'pr_open'
+    | 'preview_ready'
+    | 'resolved'
+    | 'failed';
+
+export type AiAgentReviewRemediation = {
+    uuid: string;
+    fingerprint: string;
+    organizationUuid: string;
+    sourceFindingUuid: string;
+    sourcePromptUuid: string;
+    sourceThreadUuid: string;
+    sourceProjectUuid: string;
+    sourceAgentUuid: string;
+    pullRequestUuid: string | null;
+    linkedPrUrl: string | null;
+    previewProjectUuid: string | null;
+    previewAgentUuid: string | null;
+    previewThreadUuid: string | null;
+    status: AiAgentReviewRemediationStatus;
+    errorMessage: string | null;
+    retryPrompt: string | null;
+    createdByUserUuid: string | null;
+    resolvedByUserUuid: string | null;
+    resolvedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
 const aiAgentConfigurationSettingSchema = z.enum([
     'instructions',
     'knowledge_documents',
@@ -540,12 +604,12 @@ export type AiAgentReviewItem = {
 
 export type AiAgentReviewItemSummary = AiAgentReviewItem & {
     /**
-     * Server-computed: true only when a writeback PR can actually be opened for
-     * this item — semantic-layer root cause, a GitHub-connected project, and
-     * both the review-writeback and writeback-engine feature flags enabled.
-     * The "Create PR" action is gated on this.
+     * Legacy boolean kept for current clients. New clients should use
+     * writebackEligibility for the blocking reason and provider.
      */
     writebackEligible: boolean;
+    writebackEligibility: AiAgentReviewItemWritebackEligibility;
+    remediation: AiAgentReviewRemediation | null;
     latestFinding: {
         uuid: string;
         promptUuid: string;
@@ -572,6 +636,25 @@ export type UpdateAiAgentReviewItemStatus = {
 };
 
 export type ApiAiAgentReviewItemResponse = ApiSuccess<AiAgentReviewItemSummary>;
+
+/**
+ * Preview of the file change a writeback PR would make, computed deterministically
+ * (no PR opened). Only available for the project_context strategy — semantic_layer
+ * runs in a sandbox, so there is no static diff to show before the PR is created.
+ */
+export type AiAgentReviewItemWritebackPreview =
+    | {
+          available: true;
+          fileName: string;
+          before: string;
+          after: string;
+          op: 'create' | 'update';
+          entryId: string;
+      }
+    | { available: false };
+
+export type ApiAiAgentReviewItemWritebackPreviewResponse =
+    ApiSuccess<AiAgentReviewItemWritebackPreview>;
 
 export type AiAgentReviewSignalSummary = {
     uuid: string;

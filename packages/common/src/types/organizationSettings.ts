@@ -76,6 +76,12 @@ export type OrganizationSettings = {
      * default. Always resolved to an effective number in API responses.
      */
     csvCellsLimit: number | null;
+    /**
+     * Exact origins, wildcard subdomain origins, and regex patterns this org
+     * contributes to the instance CORS allow-list. Regex entries use `/.../`
+     * syntax.
+     */
+    corsAllowedDomains: string[] | null;
 };
 
 /**
@@ -97,6 +103,141 @@ export type UpdateOrganizationSettings = Partial<OrganizationSettings>;
 export type ApiOrganizationSettingsResponse = {
     status: 'ok';
     results: OrganizationSettings;
+};
+
+export const isCorsRegexPattern = (value: string): boolean =>
+    value.length > 2 && value.startsWith('/') && value.endsWith('/');
+
+export type CorsWildcardOriginParts = {
+    protocol: 'http' | 'https';
+    hostname: string;
+    port: string | null;
+};
+
+const CORS_HOST_LABEL_PATTERN = '[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?';
+const CORS_WILDCARD_ORIGIN_PATTERN = new RegExp(
+    `^(?:(https?):\\/\\/)?\\*\\.(${CORS_HOST_LABEL_PATTERN}(?:\\.${CORS_HOST_LABEL_PATTERN})+)(?::([0-9]{1,5}))?$`,
+);
+
+const escapeRegexPart = (value: string): string =>
+    value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+export const getCorsWildcardOriginParts = (
+    value: string,
+): CorsWildcardOriginParts | null => {
+    const match = value.trim().match(CORS_WILDCARD_ORIGIN_PATTERN);
+    if (!match) {
+        return null;
+    }
+
+    const [, protocol = 'https', hostname, port = null] = match;
+    if (port !== null && Number(port) > 65535) {
+        return null;
+    }
+
+    return {
+        protocol: protocol as 'http' | 'https',
+        hostname,
+        port,
+    };
+};
+
+export const isCorsWildcardOrigin = (value: string): boolean =>
+    getCorsWildcardOriginParts(value) !== null;
+
+export const getCorsWildcardOriginRegexSource = (
+    value: string,
+): string | null => {
+    const parts = getCorsWildcardOriginParts(value);
+    if (!parts) {
+        return null;
+    }
+
+    const subdomainSource = '.*';
+    const portSource = parts.port ? `:${parts.port}` : '';
+    return `^${parts.protocol}:\\/\\/${subdomainSource}\\.${escapeRegexPart(
+        parts.hostname,
+    )}${portSource}$`;
+};
+
+const BROAD_CORS_REGEX_SAMPLE_ORIGINS = [
+    'https://malicious.com',
+    'http://malicious.com',
+    'https://attacker.invalid',
+    'https://anything.bad-example.com',
+];
+
+export const validateCorsAllowedDomain = (value: string): string | null => {
+    const trimmedValue = value.trim();
+    if (trimmedValue.length === 0) {
+        return 'CORS allowed origins cannot be empty.';
+    }
+
+    if (isCorsRegexPattern(trimmedValue)) {
+        try {
+            const pattern = trimmedValue.slice(1, -1);
+            if (pattern.length > 256) {
+                return 'CORS regex patterns must be 256 characters or fewer.';
+            }
+            const regex = new RegExp(pattern);
+            regex.test('');
+            const { source } = regex;
+            const startsWithOriginProtocol =
+                source.startsWith('^https:\\/\\/') ||
+                source.startsWith('^http:\\/\\/') ||
+                source.startsWith('^https?:\\/\\/');
+            if (!startsWithOriginProtocol || !source.endsWith('$')) {
+                return 'CORS regex patterns must be anchored origins, for example /^https:\\/\\/.*\\.example\\.com$/.';
+            }
+            if (
+                BROAD_CORS_REGEX_SAMPLE_ORIGINS.some((origin) =>
+                    regex.test(origin),
+                )
+            ) {
+                return 'CORS regex patterns cannot match arbitrary external origins.';
+            }
+            return null;
+        } catch {
+            return 'CORS regex patterns must be valid JavaScript regular expressions.';
+        }
+    }
+
+    if (isCorsWildcardOrigin(trimmedValue)) {
+        return null;
+    }
+
+    if (trimmedValue.includes('*')) {
+        return 'CORS wildcard origins must use a leading subdomain wildcard, for example *.example.com or https://*.example.com.';
+    }
+
+    try {
+        const url = new URL(trimmedValue);
+        if (!['http:', 'https:'].includes(url.protocol)) {
+            return 'CORS origins must use http or https.';
+        }
+        if (url.origin !== trimmedValue) {
+            return 'CORS origins must not include a path, query string, hash, or trailing slash.';
+        }
+        return null;
+    } catch {
+        return 'CORS entries must be exact origins like https://app.example.com, wildcard subdomains like *.example.com, or regex patterns like /^https:\\/\\/.*\\.example\\.com$/.';
+    }
+};
+
+export const validateCorsAllowedDomains = (values: string[]): string | null => {
+    const seen = new Set<string>();
+    for (const value of values) {
+        const trimmedValue = value.trim();
+        const error = validateCorsAllowedDomain(trimmedValue);
+        if (error) {
+            return error;
+        }
+        if (seen.has(trimmedValue)) {
+            return 'CORS allowed origins must be unique.';
+        }
+        seen.add(trimmedValue);
+    }
+    return null;
 };
 
 /**
@@ -150,4 +291,5 @@ export const resolveEffectiveOrganizationSettings = (
     // Limits resolve to an effective number (fall back to the env default).
     queryLimit: raw.queryLimit ?? instanceDefaults.queryLimit,
     csvCellsLimit: raw.csvCellsLimit ?? instanceDefaults.csvCellsLimit,
+    corsAllowedDomains: raw.corsAllowedDomains ?? [],
 });

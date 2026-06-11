@@ -15,7 +15,7 @@ export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
         ...toolDefinition,
         execute: async () => {
             try {
-                const { prUrl, output, projectName, repository, secrets } =
+                const { prUrl, projectName, repository, secrets } =
                     await setupPreviewDeploy();
 
                 // Render concrete secret values server-side. Values we know
@@ -30,15 +30,13 @@ export const getSetupPreviewDeploy = ({ setupPreviewDeploy }: Dependencies) =>
                     .join('\n');
 
                 const target = `Lightdash project "${projectName}" (repository ${repository})`;
-                const result = prUrl
-                    ? `Opened a pull request against ${target} that adds the Lightdash preview-deploy GitHub Actions workflow. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply. IMPORTANT: tell the user which GitHub Actions secrets to add, presenting the pre-filled values EXACTLY as given below (do not replace them with generic descriptions):\n\n${secretsList}\n\nAgent summary:\n${output}`
-                    : `The preview-deploy setup ran against ${target} but produced no workflow changes, so no pull request was opened.\n\nAgent summary:\n${output}`;
+                const result = `Opened a pull request against ${target} that adds the Lightdash preview-deploy GitHub Actions workflow. A "View pull request" button is shown to the user, so do NOT include the pull request URL or number in your reply. IMPORTANT: tell the user which GitHub Actions secrets to add, presenting the pre-filled values EXACTLY as given below (do not replace them with generic descriptions):\n\n${secretsList}`;
 
                 return {
                     result,
                     metadata: {
                         status: 'success' as const,
-                        prUrl: prUrl ?? null,
+                        prUrl,
                     },
                 };
             } catch (error) {

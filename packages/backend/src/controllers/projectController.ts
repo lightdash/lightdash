@@ -8,6 +8,7 @@ import {
     ApiCreateTagResponse,
     ApiDashboardAsCodeListResponse,
     ApiDashboardAsCodeUpsertResponse,
+    ApiDataTimezonePreview,
     ApiErrorPayload,
     ApiGetProjectGroupAccesses,
     ApiGetProjectMemberResponse,
@@ -51,6 +52,7 @@ import {
     type CalculateSubtotalsFromQuery,
     type CreateDashboard,
     type CreateDashboardWithCharts,
+    type DataTimezonePreviewRequest,
     type DuplicateDashboardParams,
     type Tag,
     type UpdateMultipleDashboards,
@@ -62,6 +64,7 @@ import {
     Body,
     Delete,
     Deprecated,
+    Extension,
     Get,
     Hidden,
     Middlewares,
@@ -82,6 +85,7 @@ import { toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -143,7 +147,11 @@ export class ProjectController extends BaseController {
      * @param req express request
      * @param excludeChartsSavedInDashboard Whether to exclude charts that are saved in dashboards
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2024-12-09')),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/chart-summaries')
     @Deprecated()
@@ -221,15 +229,21 @@ export class ProjectController extends BaseController {
      * There may be users that have access to the project via their organization membership.
      * @summary Get project member access
      *
-     * NOTE:
-     * We don't use the API on the frontend. Instead, we can call the API
-     * so that we make sure of the user's access to the project.
+     * @deprecated Use GET /api/v2/projects/{projectId}/roles/assignments instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use GET /api/v2/projects/{projectId}/roles/assignments instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/user/{userUuid}')
     @OperationId('GetProjectMemberAccess')
     @Tags('Roles & Permissions')
+    @Deprecated()
     async getProjectMember(
         @Path() projectUuid: string,
         @Path() userUuid: string,
@@ -280,6 +294,33 @@ export class ProjectController extends BaseController {
     }
 
     /**
+     * Preview how the warehouse disambiguates "now" under a data timezone
+     * @summary Preview data timezone
+     */
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('preview-data-timezone')
+    @OperationId('PreviewDataTimezone')
+    async previewDataTimezone(
+        @Body() body: DataTimezonePreviewRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiDataTimezonePreview> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.services
+            .getProjectService()
+            .previewDataTimezone(req.account, body);
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
      * Update a user's access to a project
      * @summary Update project access for user
      * @deprecated use ProjectRolesController.UpdateProjectUserRoleAssignment instead
@@ -288,6 +329,10 @@ export class ProjectController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage:
+                'Use ProjectRolesController.UpdateProjectUserRoleAssignment instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Patch('{projectUuid}/access/{userUuid}')
@@ -324,6 +369,10 @@ export class ProjectController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage:
+                'Use ProjectRolesController.DeleteProjectUserRoleAssignment instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('{projectUuid}/access/{userUuid}')
@@ -373,17 +422,30 @@ export class ProjectController extends BaseController {
     }
 
     /**
-     * Run a raw sql query against the project's warehouse connection
+     * Deprecated — use the v2 Execute SQL query endpoint instead.
+     *
+     * This endpoint was deprecated on 17 February 2025 and is past its sunset date (17 May 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute SQL query, then Get results.
      * @summary Run SQL query
-     * @deprecated Use /api/v1/projects/<project id>/sqlRunner/run instead
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/sql instead
      * @param projectUuid The uuid of the project to run the query against
      * @param body The query to run
      * @param req express request
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (17 May 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.com/api-reference/v2/execute-sql-query) (\`POST /api/v2/projects/{projectUuid}/query/sql\`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).
+</Warning>`,
+    })
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-02-17'), {
+            suffixMessage:
+                "Use 'POST /api/v2/projects/{projectUuid}/query/sql' in conjunction with 'GET /api/v2/projects/{projectUuid}/query/{queryUuid}' instead.",
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/sqlQuery')
@@ -413,7 +475,14 @@ export class ProjectController extends BaseController {
      * @param body The metric query to calculate totals for
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-05-29'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead, which computes totals from a previously-executed async query.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/calculate-total')
     @OperationId('CalculateTotalFromQuery')
@@ -434,9 +503,17 @@ export class ProjectController extends BaseController {
 
     /**
      * Calculate subtotals from a metricQuery
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.
      * @summary Calculate subtotals from query
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-04'), {
+            suffixMessage:
+                "Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total with kind 'columnSubtotal' instead.",
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('{projectUuid}/calculate-subtotals')
     @OperationId('CalculateSubtotalsFromQuery')
@@ -566,11 +643,20 @@ export class ProjectController extends BaseController {
     /**
      * Get all custom metrics in a project
      * @summary List custom metrics
+     *
+     * @deprecated No replacement, this endpoint will be removed
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage: 'No replacement, this endpoint will be removed.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('{projectUuid}/custom-metrics')
     @OperationId('getCustomMetrics')
+    @Deprecated()
     async getCustomMetrics(
         @Path() projectUuid: string,
         @Request() req: express.Request,
@@ -967,14 +1053,17 @@ export class ProjectController extends BaseController {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
 
-        const results = await this.services
-            .getProjectService()
-            .createPreview(
-                toSessionUser(req.account),
-                projectUuid,
-                body,
-                RequestMethod.WEB_APP,
-            );
+        const results = await this.services.getProjectService().createPreview(
+            toSessionUser(req.account),
+            projectUuid,
+            {
+                name: body.name,
+                copyContent: body.copyContent,
+                dbtConnectionOverrides: body.dbtConnectionOverrides,
+                warehouseConnectionOverrides: body.warehouseConnectionOverrides,
+            },
+            RequestMethod.WEB_APP,
+        );
 
         return {
             status: 'ok',

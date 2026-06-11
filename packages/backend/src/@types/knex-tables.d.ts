@@ -95,6 +95,10 @@ import {
     GitlabAppInstallationTableName,
 } from '../database/entities/gitlabAppInstallation';
 import {
+    GitUserCredentialsTable,
+    GitUserCredentialsTableName,
+} from '../database/entities/gitUserCredentials';
+import {
     GroupMembershipTable,
     GroupMembershipTableName,
 } from '../database/entities/groupMemberships';
@@ -338,10 +342,14 @@ import {
     AiSqlApprovalTableName,
     AiThreadCompactionTable,
     AiThreadCompactionTableName,
+    AiThreadShareTable,
+    AiThreadShareTableName,
     AiThreadTable,
     AiThreadTableName,
     AiWebAppPromptTable,
     AiWebAppPromptTableName,
+    AiWebAppThreadTable,
+    AiWebAppThreadTableName,
     AiWritebackThreadTable,
     AiWritebackThreadTableName,
 } from '../ee/database/entities/ai';
@@ -374,6 +382,8 @@ import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTable,
     AiAgentReviewItemTableName,
+    AiAgentReviewRemediationTable,
+    AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTable,
     AiAgentTurnSignalTableName,
 } from '../ee/database/entities/aiAgentReviewClassifier';
@@ -523,10 +533,13 @@ declare module 'knex/types/tables' {
         [DownloadAuditTableName]: DownloadAuditTable;
         [GithubAppInstallationTableName]: GithubAppInstallationTable;
         [GitlabAppInstallationTableName]: GitlabAppInstallationTable;
+        [GitUserCredentialsTableName]: GitUserCredentialsTable;
         [PullRequestsTableName]: PullRequestsTable;
         [DashboardTileCommentsTableName]: DashboardTileCommentsTable;
         [AiThreadTableName]: AiThreadTable;
+        [AiThreadShareTableName]: AiThreadShareTable;
         [AiSlackThreadTableName]: AiSlackThreadTable;
+        [AiWebAppThreadTableName]: AiWebAppThreadTable;
         [AiPromptTableName]: AiPromptTable;
         [AiPromptContextTableName]: AiPromptContextTable;
         [AiThreadCompactionTableName]: AiThreadCompactionTable;
@@ -542,6 +555,7 @@ declare module 'knex/types/tables' {
         [AiAgentReviewClassifierRunTableName]: AiAgentReviewClassifierRunTable;
         [AiAgentTurnSignalTableName]: AiAgentTurnSignalTable;
         [AiAgentReviewItemTableName]: AiAgentReviewItemTable;
+        [AiAgentReviewRemediationTableName]: AiAgentReviewRemediationTable;
         [AiAgentGroupAccessTableName]: AiAgentGroupAccessTable;
         [AiAgentIntegrationTableName]: AiAgentIntegrationTable;
         [AiAgentSlackIntegrationTableName]: AiAgentSlackIntegrationTable;

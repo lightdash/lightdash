@@ -510,6 +510,20 @@ export class NotImplementedError extends LightdashError {
         });
     }
 }
+export class DeprecatedRouteError extends LightdashError {
+    constructor(
+        message = 'Deprecated route called past its removal deadline',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'DeprecatedRouteError',
+            statusCode: 410,
+            data,
+        });
+    }
+}
+
 export const getErrorMessage = (e: unknown) => {
     if (e instanceof Error && e.message) return e.message;
     return `Unknown ${typeof e} error`;
@@ -669,6 +683,20 @@ export class DatabricksTokenError extends LightdashError {
         super({
             message,
             name: 'DatabricksTokenError',
+            statusCode: 401,
+            data: {},
+        });
+    }
+}
+
+/* This specific error will be used in the frontend
+to show a "reauthenticate" button in the UI
+*/
+export class BigqueryTokenError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'BigqueryTokenError',
             statusCode: 401,
             data: {},
         });

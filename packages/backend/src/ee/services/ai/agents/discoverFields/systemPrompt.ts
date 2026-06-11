@@ -33,7 +33,7 @@ Execute these steps in order. Do NOT skip steps.
 
 ### Step 1: Context matching
 
-Scan the user's query for a domain word that matches an explore name (singular/plural counts — "order" matches "orders"). Call findExplores with the full user query.
+Scan the user's query for a domain word that matches an explore name (singular/plural counts — "order" matches "orders"). Call findExplores with high-signal metric/entity/dimension keywords.
 
 - If exactly one explore matches with searchRank > ${CONTEXT_MATCH_SEARCH_RANK_MIN} and there's a clear context word match → status: "resolved". Proceed to Step 5.
 - If no clear context match → continue to Step 2.
@@ -56,13 +56,13 @@ Look at the usageInVerifiedCharts attribute on every field in topMatchingFields.
 
 ### Step 4: Ambiguity check
 
-Count DISTINCT explores in topMatchingFields. If 2+ distinct explores appear with scores within ${AMBIGUITY_RANK_WINDOW} of each other:
+Count the distinct exploreName values across topMatchingFields. If 2+ distinct explores appear with scores within ${AMBIGUITY_RANK_WINDOW} of each other:
 
 - First check joined tables. If one explore's joinedTables include another entity the user mentioned, that explore can handle the whole query → status: "resolved". Proceed to Step 5.
 - Then check usageInCharts. If one explore's fields have meaningfully higher aggregate usage (${CHART_USAGE_TIEBREAKER_MULTIPLIER}x+), prefer it → status: "resolved". Proceed to Step 5.
 - If still tied (or all usages are 0 / equal) → status: "ambiguous". DO NOT call findFields. Call submitResult with the candidate explores and a suggestedQuestion.
 
-If only 1 distinct explore appears in topMatchingFields → status: "resolved". Proceed to Step 5.
+If only 1 distinct exploreName appears across topMatchingFields → status: "resolved". Proceed to Step 5.
 
 If findExplores returns nothing relevant at all → status: "no_match". Call submitResult.
 
@@ -92,6 +92,7 @@ Then call submitResult with the resolved handoff.
 ## Hard rules
 
 - Never invent fieldIds. Only return fieldIds returned by findFields.
+- Copy selected field attributes from findFields.
 - Never call findFields when the status will be "ambiguous". If two explores are tied, call submitResult with the ambiguous handoff directly.
 - Never return all fields. Always filter.
 - Keep field descriptions short — one sentence max. Many fields should have no description.

@@ -6,7 +6,11 @@ import {
 } from '@lightdash/common';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
-import { AiAgentReviewClassifierService } from './AiAgentReviewClassifierService';
+import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
+import {
+    AiAgentReviewClassifierService,
+    resolveReviewJudgeProvider,
+} from './AiAgentReviewClassifierService';
 
 const ORGANIZATION_UUID = '00000000-0000-0000-0000-000000000001';
 const PROJECT_UUID = '00000000-0000-0000-0000-000000000002';
@@ -61,6 +65,20 @@ const makeCandidate = (
     queryHistory: [],
     supportingEvidence: [],
     ...overrides,
+});
+
+const makeWritebackEvidence = (
+    resultPreview: string,
+): AiAgentReviewClassifierTurnCandidate['supportingEvidence'][number] => ({
+    source: 'tool_trace',
+    toolCallId: 'writeback-tool-call-1',
+    toolName: 'editDbtProject',
+    parentToolCallId: null,
+    createdAt: NOW,
+    relevanceScore: 95,
+    toolArgsPreview:
+        '{"prompt":"Fix organization_events to use dbt ref syntax"}',
+    resultPreview,
 });
 
 const makeRun = (overrides: Record<string, unknown> = {}) => ({
@@ -272,6 +290,9 @@ describe('AiAgentReviewClassifierService', () => {
     const aiAgentModel = {
         getAgent: jest.fn(),
     };
+    const aiOrganizationSettingsModel = {
+        findByOrganizationUuid: jest.fn(),
+    } as unknown as jest.Mocked<AiOrganizationSettingsModel>;
     const catalogModel = {
         getCatalogItemsSummary: jest.fn(),
     };
@@ -280,6 +301,7 @@ describe('AiAgentReviewClassifierService', () => {
     const service = new AiAgentReviewClassifierService({
         aiAgentReviewClassifierModel: model,
         aiAgentModel: aiAgentModel as never,
+        aiOrganizationSettingsModel,
         catalogModel: catalogModel as never,
         featureFlagService,
         lightdashConfig: {} as never,
@@ -289,8 +311,13 @@ describe('AiAgentReviewClassifierService', () => {
     beforeEach(() => {
         jest.resetAllMocks();
         featureFlagService.get.mockResolvedValue({
-            id: FeatureFlags.AiAgentReviewClassifier,
+            id: FeatureFlags.AiWriteback,
             enabled: true,
+        });
+        aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue({
+            organizationUuid: ORGANIZATION_UUID,
+            aiAgentsVisible: true,
+            aiAgentReviewsEnabled: true,
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -330,11 +357,14 @@ describe('AiAgentReviewClassifierService', () => {
         judgeTurn.mockResolvedValue(makeJudgeOutput());
     });
 
-    it('throws when the feature flag is disabled', async () => {
-        featureFlagService.get.mockResolvedValueOnce({
-            id: FeatureFlags.AiAgentReviewClassifier,
-            enabled: false,
-        });
+    it('throws when review collection is not opted in for the organization', async () => {
+        aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValueOnce(
+            {
+                organizationUuid: ORGANIZATION_UUID,
+                aiAgentsVisible: true,
+                aiAgentReviewsEnabled: false,
+            },
+        );
 
         await expect(
             service.run({
@@ -421,11 +451,77 @@ describe('AiAgentReviewClassifierService', () => {
         );
     });
 
-    it('drops project context entries when the project context flag is disabled', async () => {
+    it('does not promote turns where writeback already opened a pull request', async () => {
+        judgeTurn.mockResolvedValueOnce(makeSemanticJudgeOutput());
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({
+                supportingEvidence: [
+                    makeWritebackEvidence(
+                        'Opened a pull request against Lightdash project "Jaffle shop" (repository lightdash/dbt). A "View pull request" button is shown to the user.',
+                    ),
+                ],
+                nextUserPrompt:
+                    'Can you also check the organization_events model?',
+            }),
+        ]);
+
+        const result = await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+            persistFindings: true,
+            promoteFindingsToReviewItems: true,
+        });
+
+        expect(judgeTurn).not.toHaveBeenCalled();
+        expect(result.findingCount).toBe(0);
+        expect(result.reviewItemCount).toBe(0);
+        expect(model.createTurnSignal).toHaveBeenCalledWith(
+            expect.objectContaining({
+                runUuid: RUN_UUID,
+                finding: null,
+                turnSignal: expect.objectContaining({
+                    signal: 'acceptance_or_continuation',
+                    promotedToFinding: false,
+                    promotionReason: 'writeback_tool_already_started',
+                    toolEvidenceRefs: ['writeback-tool-call-1'],
+                }),
+            }),
+        );
+    });
+
+    it('still judges writeback turns when no pull request was opened', async () => {
+        judgeTurn.mockResolvedValueOnce(makeSemanticJudgeOutput());
+        model.listTurnReviewCandidates.mockResolvedValue([
+            makeCandidate({
+                supportingEvidence: [
+                    makeWritebackEvidence(
+                        'The writeback agent ran against Lightdash project "Jaffle shop" but made no file changes, so no pull request was opened.',
+                    ),
+                ],
+                nextUserPrompt:
+                    'This still needs fixing in organization_events.',
+            }),
+        ]);
+
+        const result = await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+            persistFindings: true,
+            promoteFindingsToReviewItems: true,
+        });
+
+        expect(judgeTurn).toHaveBeenCalledTimes(1);
+        expect(result.findingCount).toBe(1);
+        expect(result.reviewItemCount).toBe(1);
+    });
+
+    it('drops project context entries when AI writeback is disabled', async () => {
         featureFlagService.get.mockImplementation(({ featureFlagId }) =>
             Promise.resolve({
                 id: featureFlagId,
-                enabled: featureFlagId !== FeatureFlags.AiProjectContext,
+                enabled: false,
             }),
         );
         judgeTurn.mockResolvedValueOnce(makeProjectContextJudgeOutput());
@@ -593,6 +689,27 @@ describe('AiAgentReviewClassifierService', () => {
                     primaryRootCause: 'product_capability',
                 }),
             }),
+        );
+    });
+});
+
+describe('resolveReviewJudgeProvider', () => {
+    const copilotWith = (
+        providers: Record<string, unknown>,
+    ): Parameters<typeof resolveReviewJudgeProvider>[0] =>
+        ({ defaultProvider: 'openai', providers }) as never;
+
+    it('prefers anthropic for the judge when it is configured', () => {
+        expect(
+            resolveReviewJudgeProvider(
+                copilotWith({ openai: {}, anthropic: { apiKey: 'x' } }),
+            ),
+        ).toBe('anthropic');
+    });
+
+    it('falls back to the default provider when anthropic is absent', () => {
+        expect(resolveReviewJudgeProvider(copilotWith({ openai: {} }))).toBe(
+            undefined,
         );
     });
 });

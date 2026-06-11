@@ -1,12 +1,15 @@
 import { subject } from '@casl/ability';
 import {
     AuthorizationError,
+    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    GithubUserCredential,
     isUserWithOrg,
     MissingConfigError,
     NotFoundError,
     ParameterError,
+    PullRequestProvider,
     SessionUser,
     UnexpectedGitError,
 } from '@lightdash/common';
@@ -16,23 +19,60 @@ import { nanoid } from 'nanoid';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import {
     createRepository as createGithubRepository,
+    getAuthenticatedUser,
     getGithubApp,
+    getGithubUserAuthorizeUrl,
     getOctokitRestForApp,
+    getOrRefreshToken,
 } from '../../clients/github/Github';
 import { LightdashConfig } from '../../config/parseConfig';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
+import { GitUserCredentialsModel } from '../../models/GitUserCredentials/GitUserCredentialsModel';
 import { UserModel } from '../../models/UserModel';
 import { BaseService } from '../BaseService';
+import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
+
+/**
+ * GitHub OAuth error codes that mean the stored refresh token is no longer
+ * usable (the user revoked the grant, or it was reset). Only these — plus a
+ * 401 — should trigger deleting the credential; everything else is treated as
+ * transient so a temporary outage doesn't silently unlink the user.
+ */
+const REVOKED_GITHUB_TOKEN_OAUTH_ERRORS = new Set([
+    'bad_refresh_token',
+    'invalid_grant',
+    'unauthorized',
+]);
+
+const isRevokedGithubTokenError = (error: unknown): boolean => {
+    if (typeof error !== 'object' || error === null) {
+        return false;
+    }
+    const maybeError = error as {
+        status?: number;
+        response?: { status?: number; data?: { error?: string } };
+    };
+    const oauthError = maybeError.response?.data?.error;
+    if (oauthError && REVOKED_GITHUB_TOKEN_OAUTH_ERRORS.has(oauthError)) {
+        return true;
+    }
+    const status = maybeError.status ?? maybeError.response?.status;
+    return status === 401;
+};
 
 type GithubAppServiceArguments = {
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    gitUserCredentialsModel: GitUserCredentialsModel;
     userModel: UserModel;
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
+    featureFlagService: FeatureFlagService;
 };
 
 export class GithubAppService extends BaseService {
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
+
+    private readonly gitUserCredentialsModel: GitUserCredentialsModel;
 
     private readonly userModel: UserModel;
 
@@ -40,12 +80,30 @@ export class GithubAppService extends BaseService {
 
     private readonly analytics: LightdashAnalytics;
 
+    private readonly featureFlagService: FeatureFlagService;
+
     constructor(args: GithubAppServiceArguments) {
         super();
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
+        this.gitUserCredentialsModel = args.gitUserCredentialsModel;
         this.userModel = args.userModel;
         this.lightdashConfig = args.lightdashConfig;
         this.analytics = args.analytics;
+        this.featureFlagService = args.featureFlagService;
+    }
+
+    private async isUserCredentialsFeatureEnabled(
+        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
+    ): Promise<boolean> {
+        const flag = await this.featureFlagService.get({
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                organizationName: undefined,
+            },
+            featureFlagId: FeatureFlags.GithubUserCredentials,
+        });
+        return flag.enabled;
     }
 
     async installRedirect(user: SessionUser) {
@@ -378,5 +436,278 @@ export class GithubAppService extends BaseService {
             description,
             isPrivate,
         });
+    }
+
+    /**
+     * Coerce a caller-supplied return path into a safe same-origin relative
+     * path. Rejects absolute URLs and protocol-relative (`//host`) values so a
+     * malicious `returnTo` cannot turn the post-OAuth redirect into an open
+     * redirect. Falls back to the integrations settings page.
+     */
+    private toSameOriginPath(returnToPath?: string): string {
+        const fallback = '/generalSettings/integrations';
+        if (
+            !returnToPath ||
+            !returnToPath.startsWith('/') ||
+            returnToPath.startsWith('//')
+        ) {
+            return fallback;
+        }
+        try {
+            const candidate = new URL(
+                returnToPath,
+                this.lightdashConfig.siteUrl,
+            );
+            const siteOrigin = new URL(this.lightdashConfig.siteUrl).origin;
+            // Reject anything that resolved to another origin (e.g. backslash
+            // tricks that browsers normalise to `//host`).
+            if (candidate.origin !== siteOrigin) {
+                return fallback;
+            }
+            return `${candidate.pathname}${candidate.search}${candidate.hash}`;
+        } catch {
+            return fallback;
+        }
+    }
+
+    /**
+     * Build the redirect for linking a user's personal GitHub account.
+     * Reuses the GitHub App's OAuth client and callback URL; the flow is
+     * disambiguated from app installation via the session's githubFlow flag.
+     */
+    async linkUserRedirect(user: SessionUser, returnToPath?: string) {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        if (!(await this.isUserCredentialsFeatureEnabled(user))) {
+            throw new ForbiddenError(
+                'Linking personal GitHub accounts is not enabled',
+            );
+        }
+
+        this.analytics.track({
+            event: 'github_user_link.started',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+            },
+        });
+
+        const returnToUrl = new URL(
+            this.toSameOriginPath(returnToPath),
+            this.lightdashConfig.siteUrl,
+        );
+        const randomID = nanoid().replace('_', '');
+        const subdomain = this.lightdashConfig.github.redirectDomain;
+        const state = `${subdomain}_${randomID}`;
+
+        return {
+            authorizeUrl: getGithubUserAuthorizeUrl(state),
+            returnToUrl: returnToUrl.href,
+            state,
+        };
+    }
+
+    async linkUserCallback(
+        user: SessionUser,
+        oauth: SessionData['oauth'],
+        code?: string,
+        state?: string,
+    ): Promise<string> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        try {
+            if (!(await this.isUserCredentialsFeatureEnabled(user))) {
+                throw new ForbiddenError(
+                    'Linking personal GitHub accounts is not enabled',
+                );
+            }
+            if (!state || state !== oauth?.state) {
+                throw new AuthorizationError('State does not match');
+            }
+            if (!code) {
+                throw new ParameterError('Code not provided');
+            }
+
+            const userToServerToken = await getGithubApp().oauth.createToken({
+                code,
+            });
+            const { token, refreshToken } = userToServerToken.authentication;
+            if (refreshToken === undefined) {
+                throw new ForbiddenError('Invalid authentication token');
+            }
+
+            const githubUser = await getAuthenticatedUser(token);
+
+            await this.gitUserCredentialsModel.upsertCredential({
+                userUuid: user.userUuid,
+                organizationUuid: user.organizationUuid,
+                provider: PullRequestProvider.GITHUB,
+                providerLogin: githubUser.login,
+                providerUserId: `${githubUser.id}`,
+                token,
+                refreshToken,
+            });
+
+            this.analytics.track({
+                event: 'github_user_link.completed',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                },
+            });
+
+            const redirectUrl = new URL(
+                oauth?.returnTo || '/',
+                this.lightdashConfig.siteUrl,
+            );
+            return redirectUrl.href;
+        } catch (error) {
+            this.analytics.track({
+                event: 'github_user_link.error',
+                userId: user.userUuid,
+                properties: {
+                    organizationId: user.organizationUuid,
+                    error: getErrorMessage(error),
+                },
+            });
+            throw new UnexpectedGitError(getErrorMessage(error));
+        }
+    }
+
+    async getUserCredential(
+        user: SessionUser,
+    ): Promise<GithubUserCredential | null> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        if (!(await this.isUserCredentialsFeatureEnabled(user))) {
+            return null;
+        }
+        const credential = await this.gitUserCredentialsModel.findCredential(
+            user.userUuid,
+            user.organizationUuid,
+            PullRequestProvider.GITHUB,
+        );
+        if (!credential) {
+            return null;
+        }
+        return {
+            githubLogin: credential.providerLogin,
+            createdAt: credential.createdAt,
+        };
+    }
+
+    // Intentionally NOT gated on the GithubUserCredentials feature flag: if an
+    // org disables the flag after users have linked, those users must still be
+    // able to revoke their stored token. Unlink only ever removes the caller's
+    // own credential, so there is no exposure in leaving it always available.
+    async unlinkUser(user: SessionUser): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        const credential = await this.gitUserCredentialsModel.findCredential(
+            user.userUuid,
+            user.organizationUuid,
+            PullRequestProvider.GITHUB,
+        );
+        if (!credential) {
+            return;
+        }
+
+        try {
+            await getGithubApp().oauth.deleteToken({
+                token: credential.token,
+            });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to revoke GitHub user token on unlink: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+        }
+
+        await this.gitUserCredentialsModel.deleteCredential(
+            user.userUuid,
+            user.organizationUuid,
+            PullRequestProvider.GITHUB,
+        );
+
+        this.analytics.track({
+            event: 'github_user_link.revoked',
+            userId: user.userUuid,
+            properties: {
+                organizationId: user.organizationUuid,
+            },
+        });
+    }
+
+    /**
+     * Resolve a valid user-to-server token for the user, refreshing and
+     * persisting it when expired. Returns undefined when the user has no
+     * linked account or the credential is no longer usable (e.g. revoked on
+     * GitHub's side) — callers should fall back to the app installation.
+     */
+    async getValidUserToken(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<string | undefined> {
+        if (
+            !(await this.isUserCredentialsFeatureEnabled({
+                userUuid,
+                organizationUuid,
+            }))
+        ) {
+            return undefined;
+        }
+        const credential = await this.gitUserCredentialsModel.findCredential(
+            userUuid,
+            organizationUuid,
+            PullRequestProvider.GITHUB,
+        );
+        if (!credential) {
+            return undefined;
+        }
+
+        try {
+            const { token, refreshToken } = await getOrRefreshToken(
+                credential.token,
+                credential.refreshToken,
+            );
+            if (token !== credential.token) {
+                await this.gitUserCredentialsModel.updateTokens(
+                    userUuid,
+                    organizationUuid,
+                    PullRequestProvider.GITHUB,
+                    token,
+                    refreshToken,
+                );
+            }
+            return token;
+        } catch (error) {
+            if (isRevokedGithubTokenError(error)) {
+                this.logger.warn(
+                    `GitHub user token for user ${userUuid} is revoked or invalid, removing credential: ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                await this.gitUserCredentialsModel.deleteCredential(
+                    userUuid,
+                    organizationUuid,
+                    PullRequestProvider.GITHUB,
+                );
+                return undefined;
+            }
+            // Transient failure (network error, timeout, rate limit, GitHub
+            // outage): keep the credential so a blip doesn't silently unlink
+            // the user, and fall back to app auth for this request.
+            this.logger.warn(
+                `GitHub user token for user ${userUuid} could not be refreshed, falling back to app auth: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return undefined;
+        }
     }
 }

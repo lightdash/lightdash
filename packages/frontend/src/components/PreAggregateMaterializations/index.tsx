@@ -56,8 +56,8 @@ import Callout from '../common/Callout';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
 } from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
@@ -223,7 +223,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         [data],
     );
 
-    const [sorting, setSorting] = useState<MRT_SortingState>([]);
+    const [sorting, setSorting] = useState<ContentTableSortingState>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<StatusType | null>(
         null,
@@ -276,7 +276,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     }, [filteredMaterializations]);
 
     const columns = useMemo<
-        MRT_ColumnDef<PreAggregateMaterializationSummary>[]
+        ContentTableColumnDef<PreAggregateMaterializationSummary>[]
     >(
         () => [
             {

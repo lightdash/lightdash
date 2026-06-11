@@ -8,6 +8,11 @@ import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
 import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
 import styles from './AgentChatUserBubble.module.css';
+import { ContentReferenceLink } from './ContentReferenceLink';
+import {
+    buildContentReferenceSegments,
+    getPromptContextItemHref,
+} from './contentReferenceUtils';
 
 type Props = {
     message: AiAgentMessageUser<AiAgentUser>;
@@ -20,6 +25,21 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
     const name = message.user.name;
     const app = useApp();
     const showUserName = app.user?.data?.userUuid !== message.user.uuid;
+    const { matchedKeys, segments } = buildContentReferenceSegments(
+        message.message,
+        message.context,
+    );
+    const hasInlineReferences = segments.some(
+        (segment) => segment.type === 'reference',
+    );
+    const remainingContext = message.context.filter((item) => {
+        if (!hasInlineReferences) return true;
+        const key =
+            item.type === 'chart'
+                ? `chart:${item.chartUuid}`
+                : `dashboard:${item.dashboardUuid}`;
+        return !matchedKeys.has(key);
+    });
 
     return (
         <Stack
@@ -48,14 +68,14 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 </Tooltip>
             </Stack>
 
-            {message.context.length > 0 && projectUuid && (
+            {remainingContext.length > 0 && projectUuid && (
                 <Group
                     gap="xs"
                     wrap="wrap"
                     justify="flex-end"
                     className={styles.contextGroup}
                 >
-                    {message.context.map((item, idx) => (
+                    {remainingContext.map((item, idx) => (
                         <PinnedContextCard
                             key={`${item.type}-${
                                 item.type === 'chart'
@@ -78,10 +98,43 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 color="white"
                 className={styles.messageCard}
             >
-                <MDEditor.Markdown
-                    source={message.message}
-                    className={styles.markdown}
-                />
+                {hasInlineReferences && projectUuid ? (
+                    <div className={`${styles.markdown} ${styles.messageText}`}>
+                        {segments.map((segment, idx) =>
+                            segment.type === 'text' ? (
+                                <MDEditor.Markdown
+                                    key={`text-${idx}`}
+                                    source={segment.text}
+                                    className={`${styles.markdown} ${styles.inlineMarkdown}`}
+                                />
+                            ) : (
+                                <ContentReferenceLink
+                                    key={`${segment.key}-${idx}`}
+                                    chartKind={
+                                        segment.item.type === 'chart'
+                                            ? (segment.item.chartKind ??
+                                              undefined)
+                                            : undefined
+                                    }
+                                    kind={segment.item.type}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                    to={getPromptContextItemHref(
+                                        segment.item,
+                                        projectUuid,
+                                    )}
+                                >
+                                    {segment.label}
+                                </ContentReferenceLink>
+                            ),
+                        )}
+                    </div>
+                ) : (
+                    <MDEditor.Markdown
+                        source={message.message}
+                        className={styles.markdown}
+                    />
+                )}
             </Card>
         </Stack>
     );

@@ -42,7 +42,7 @@ Tags combine (e.g., `bug + breaking` for a correctness fix that, shipped without
    ✅ `EnableUserTimezones`.
 
 7. **Disabling the user-TZ feature must actually disable it, not just hide the picker.**
-   ❌ `gap-flag-off-leak` *[bug + breaking]* — Today stored `users.timezone` is still honored when the flag is off — either gate `resolveQueryTimezone` on the flag, or clear stored values on flag-off.
+   ✅ `gap-flag-off-leak` fixed — `getAccountUserTimezone(account, isUserTimezoneEnabled)` returns `null` when `EnableUserTimezones` is off, so stored `users.timezone` values are ignored and resolution falls back to the project timezone. Non-destructive (values are kept, just not applied).
 
 8. **Resolved TZ persists with the query record; downstream paths read it back, never re-resolve.**
    ✅ Stamped onto `metricQuery.timezone` in `executePreparedAsyncQuery`.
@@ -107,7 +107,7 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
     ⚠️ `gap-echarts-dst` *[bug]* — Server SQL is correct; the ECharts shift is computed once per row and breaks at DST boundaries — fix or replace.
 
 20. **Half-hour and 45-min timezones work end-to-end (India, Nepal, Eucla).**
-    ⚠️ `gap-fractional-offset-tz` *[bug + breaking]* — Should work in the moment/dayjs path; BigQuery + ClickHouse bare-literal path drops the offset — needs test coverage.
+    ✅ `gap-fractional-offset-tz` — Not a bug: the bare literal on BigQuery/ClickHouse is already a UTC instant (`formatTimestampAsUTCNoOffset`), so the offset is baked in, not dropped, and fractional boundaries are correct. Picker zones added + BigQuery/Postgres api-test coverage (GLITCH-453).
 
 21. **NULL timestamps are excluded from relative filters by standard SQL semantics.**
     ✅ Implicit; no change.
@@ -150,6 +150,7 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
 
 30. **SQL Runner shows the same TZ-conversion expressions the rest of the system uses.**
     ✅ Compiled SQL is always visible; ⚠️ `gap-sql-runner-resolved-label` *[qol]* — the resolved TZ value should be labeled next to it.
+    ❌ `gap-sql-runner-raw-display` *[bug]* — separately, the output *values* are serialized as UTC ISO `Z` regardless of type: TZ-aware values collapse to the UTC instant (offset dropped) and naive values get a false `Z`, so a user's in-SQL conversion is hidden or mislabeled. (GLITCH-489, v3)
 
 31. **A customer-facing doc explains the model — pinned vs viewer-TZ trade-off, DATE vs TIMESTAMP semantics,** `dataTimezone` **vs** `queryTimezone`**.**
     ❌ `gap-customer-tz-doc` *[qol]* — Today only engineer-facing `timezone-handling.md` exists. (Draft at `draft-user-documentation.md`.)

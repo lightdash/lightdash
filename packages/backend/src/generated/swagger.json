@@ -278,6 +278,48 @@
                     }
                 ]
             },
+            "Pick_ServiceAccount.description_": {
+                "properties": {
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": ["description"],
+                "type": "object",
+                "description": "From T, pick a set of properties whose keys are in the union K"
+            },
+            "UpdateServiceAccount": {
+                "allOf": [
+                    {
+                        "$ref": "#/components/schemas/Pick_ServiceAccount.description_"
+                    },
+                    {
+                        "properties": {
+                            "projectAccess": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ServiceAccountProjectAccessInput"
+                                },
+                                "type": "array"
+                            },
+                            "roleUuid": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "scopes": {
+                                "items": {
+                                    "$ref": "#/components/schemas/ServiceAccountScope"
+                                },
+                                "type": "array"
+                            }
+                        },
+                        "type": "object"
+                    }
+                ],
+                "description": "In-place edit of a service account's name, permissions, and project access,\nwithout rotating its token. `description` is always applied. The rest is\ntarget-shaped — the payload describes what the SA should become, and the SA\ncan move between scope modes:\n\n- `projectAccess` (or `scopes = [system:member]`) → project-scoped: replace\n  its project grants (≥1 required), keeping `scopes = [system:member]`.\n  Sending an org `roleUuid` / non-member `scopes` alongside is rejected.\n- org `scopes` (preset) or `roleUuid` (custom role) → organization-scoped:\n  set the org permission and drop any project grants.\n- neither → rename only, preserving the current mode and permission.\n\nThe token and expiry are never touched."
+            },
+            "ApiUpdateServiceAccountRequest": {
+                "$ref": "#/components/schemas/UpdateServiceAccount"
+            },
             "ServiceAccountWithToken": {
                 "allOf": [
                     {
@@ -3105,7 +3147,8 @@
                     "commaPeriod",
                     "spacePeriod",
                     "periodComma",
-                    "noSeparatorPeriod"
+                    "noSeparatorPeriod",
+                    "apostrophePeriod"
                 ],
                 "type": "string"
             },
@@ -3356,6 +3399,10 @@
                                 "type": "string"
                             }
                         ]
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
                     },
                     "groupLabel": {
                         "type": "string",
@@ -3628,6 +3675,10 @@
                             }
                         ]
                     },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
+                    },
                     "groupLabel": {
                         "type": "string",
                         "deprecated": true
@@ -3700,6 +3751,12 @@
                     "spotlight": {
                         "properties": {
                             "owner": {
+                                "type": "string"
+                            },
+                            "defaultFilter": {
+                                "$ref": "#/components/schemas/MetricFilterRule"
+                            },
+                            "defaultSegment": {
                                 "type": "string"
                             },
                             "segmentBy": {
@@ -4403,6 +4460,10 @@
                         ],
                         "description": "Format string (legacy format specification)"
                     },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style for grouping/decimal characters"
+                    },
                     "table": {
                         "type": "string",
                         "description": "Table name the metric belongs to"
@@ -5045,7 +5106,7 @@
                 ]
             },
             "ConditionalFormattingColorApplyTo": {
-                "enum": ["cell", "text"],
+                "enum": ["cell", "text", "row"],
                 "type": "string"
             },
             "ConditionalFormattingConfigWithSingleColor": {
@@ -5718,6 +5779,16 @@
                     },
                     {
                         "properties": {
+                            "dataZoomItemCount": {
+                                "type": "number",
+                                "format": "double",
+                                "description": "Number of items visible at once in the data-zoom window"
+                            },
+                            "dataZoomAnchor": {
+                                "type": "string",
+                                "enum": ["start", "end"],
+                                "description": "Where the initial data-zoom window anchors when data zoom is enabled"
+                            },
                             "enableDataZoom": {
                                 "type": "boolean",
                                 "description": "Enable data zoom slider for this axis"
@@ -6631,8 +6702,17 @@
                 "enum": ["sankey"],
                 "type": "string"
             },
+            "SankeyNodeLayout": {
+                "type": "string",
+                "enum": ["multi-step", "merged", "direct"],
+                "description": "How nodes are laid out:\n- `multi-step`: depth-unrolled journeys (default)\n- `merged`: one node per label, journeys preserved (acyclic flows only)\n- `direct`: two-column source→target pairs, no chaining"
+            },
             "SankeyChart": {
                 "properties": {
+                    "nodeLayout": {
+                        "$ref": "#/components/schemas/SankeyNodeLayout",
+                        "description": "How nodes are laid out across steps"
+                    },
                     "orient": {
                         "type": "string",
                         "enum": ["horizontal", "vertical"],
@@ -7367,6 +7447,10 @@
                                 "type": "string"
                             }
                         ]
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
                     },
                     "groupLabel": {
                         "type": "string",
@@ -8409,6 +8493,10 @@
                                 "type": "string"
                             }
                         ]
+                    },
+                    "separator": {
+                        "$ref": "#/components/schemas/NumberSeparator",
+                        "description": "Number separator style for grouping/decimal characters. Composes with\n`format` (including ECMA-376 expressions) and `formatOptions` — it only\ncontrols the separator characters, not the format shape."
                     },
                     "groupLabel": {
                         "type": "string",
@@ -12442,6 +12530,18 @@
             "ApiAiMcpGithubAvailabilityResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiMcpGithubAvailability_"
             },
+            "ApiConnectGithubMcpServerBody": {
+                "properties": {
+                    "credentialScope": {
+                        "$ref": "#/components/schemas/AiMcpCredentialScope"
+                    },
+                    "personalAccessToken": {
+                        "type": "string"
+                    }
+                },
+                "required": ["credentialScope", "personalAccessToken"],
+                "type": "object"
+            },
             "AiMcpServerTool": {
                 "properties": {
                     "updatedAt": {
@@ -13867,7 +13967,8 @@
                     "getProjectInfo",
                     "loadSkill",
                     "loadProjectContext",
-                    "proposeWriteback",
+                    "editDbtProject",
+                    "repoShell",
                     "setupPreviewDeploy",
                     "runQuery",
                     "runSavedChart",
@@ -13998,6 +14099,19 @@
                                             },
                                             {
                                                 "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "error",
+                                                            "success"
+                                                        ]
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
                                                     "ranking": {
                                                         "properties": {
                                                             "topMatchingFields": {
@@ -14018,24 +14132,24 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "tableName": {
-                                                                            "type": "string"
-                                                                        },
-                                                                        "name": {
-                                                                            "type": "string"
-                                                                        },
                                                                         "fieldType": {
+                                                                            "type": "string"
+                                                                        },
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
                                                                             "type": "string"
+                                                                        },
+                                                                        "name": {
+                                                                            "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "tableName",
-                                                                        "name",
                                                                         "fieldType",
-                                                                        "label"
+                                                                        "tableName",
+                                                                        "label",
+                                                                        "name"
                                                                     ],
                                                                     "type": "object"
                                                                 },
@@ -14044,6 +14158,11 @@
                                                             "exploreSearchResults": {
                                                                 "items": {
                                                                     "properties": {
+                                                                        "searchRank": {
+                                                                            "type": "number",
+                                                                            "format": "double",
+                                                                            "nullable": true
+                                                                        },
                                                                         "joinedTables": {
                                                                             "items": {
                                                                                 "type": "string"
@@ -14051,21 +14170,16 @@
                                                                             "type": "array",
                                                                             "nullable": true
                                                                         },
-                                                                        "searchRank": {
-                                                                            "type": "number",
-                                                                            "format": "double",
-                                                                            "nullable": true
-                                                                        },
-                                                                        "name": {
+                                                                        "label": {
                                                                             "type": "string"
                                                                         },
-                                                                        "label": {
+                                                                        "name": {
                                                                             "type": "string"
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "name",
-                                                                        "label"
+                                                                        "label",
+                                                                        "name"
                                                                     ],
                                                                     "type": "object"
                                                                 },
@@ -14083,8 +14197,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -14143,24 +14257,24 @@
                                                                                         "format": "double",
                                                                                         "nullable": true
                                                                                     },
-                                                                                    "tableName": {
-                                                                                        "type": "string"
-                                                                                    },
-                                                                                    "name": {
-                                                                                        "type": "string"
-                                                                                    },
                                                                                     "fieldType": {
+                                                                                        "type": "string"
+                                                                                    },
+                                                                                    "tableName": {
                                                                                         "type": "string"
                                                                                     },
                                                                                     "label": {
                                                                                         "type": "string"
+                                                                                    },
+                                                                                    "name": {
+                                                                                        "type": "string"
                                                                                     }
                                                                                 },
                                                                                 "required": [
-                                                                                    "tableName",
-                                                                                    "name",
                                                                                     "fieldType",
-                                                                                    "label"
+                                                                                    "tableName",
+                                                                                    "label",
+                                                                                    "name"
                                                                                 ],
                                                                                 "type": "object"
                                                                             },
@@ -14187,8 +14301,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -14201,19 +14315,19 @@
                                                         "type": "number",
                                                         "format": "double"
                                                     },
-                                                    "name": {
-                                                        "type": "string"
-                                                    },
                                                     "status": {
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "contentSizeBytes",
-                                                    "name",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14222,8 +14336,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
                                                             "error",
+                                                            "success",
                                                             "not_found"
                                                         ]
                                                     }
@@ -14256,14 +14370,14 @@
                                                                     },
                                                                     "explore": {
                                                                         "properties": {
-                                                                            "baseTable": {
-                                                                                "type": "string"
-                                                                            },
                                                                             "joinedTables": {
                                                                                 "items": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "type": "array"
+                                                                            },
+                                                                            "baseTable": {
+                                                                                "type": "string"
                                                                             },
                                                                             "label": {
                                                                                 "type": "string"
@@ -14273,8 +14387,8 @@
                                                                             }
                                                                         },
                                                                         "required": [
-                                                                            "baseTable",
                                                                             "joinedTables",
+                                                                            "baseTable",
                                                                             "label",
                                                                             "name"
                                                                         ],
@@ -14286,31 +14400,39 @@
                                                                                 "isFromJoinedTable": {
                                                                                     "type": "boolean"
                                                                                 },
+                                                                                "caseSensitiveFilters": {
+                                                                                    "type": "string",
+                                                                                    "enum": [
+                                                                                        "true",
+                                                                                        "false",
+                                                                                        "not_applicable"
+                                                                                    ]
+                                                                                },
                                                                                 "fieldValueType": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "fieldFilterType": {
                                                                                     "type": "string"
                                                                                 },
+                                                                                "description": {
+                                                                                    "type": "string",
+                                                                                    "nullable": true
+                                                                                },
                                                                                 "fieldType": {
                                                                                     "type": "string",
                                                                                     "enum": [
-                                                                                        "dimension",
-                                                                                        "metric"
+                                                                                        "metric",
+                                                                                        "dimension"
                                                                                     ]
                                                                                 },
                                                                                 "table": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "label": {
-                                                                                    "type": "string"
-                                                                                },
                                                                                 "fieldId": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "description": {
-                                                                                    "type": "string",
-                                                                                    "nullable": true
+                                                                                "label": {
+                                                                                    "type": "string"
                                                                                 },
                                                                                 "name": {
                                                                                     "type": "string"
@@ -14318,13 +14440,14 @@
                                                                             },
                                                                             "required": [
                                                                                 "isFromJoinedTable",
+                                                                                "caseSensitiveFilters",
                                                                                 "fieldValueType",
                                                                                 "fieldFilterType",
+                                                                                "description",
                                                                                 "fieldType",
                                                                                 "table",
-                                                                                "label",
                                                                                 "fieldId",
-                                                                                "description",
+                                                                                "label",
                                                                                 "name"
                                                                             ],
                                                                             "type": "object"
@@ -14355,10 +14478,10 @@
                                                                     "candidates": {
                                                                         "items": {
                                                                             "properties": {
-                                                                                "reason": {
+                                                                                "exploreLabel": {
                                                                                     "type": "string"
                                                                                 },
-                                                                                "exploreLabel": {
+                                                                                "reason": {
                                                                                     "type": "string"
                                                                                 },
                                                                                 "exploreName": {
@@ -14366,8 +14489,8 @@
                                                                                 }
                                                                             },
                                                                             "required": [
-                                                                                "reason",
                                                                                 "exploreLabel",
+                                                                                "reason",
                                                                                 "exploreName"
                                                                             ],
                                                                             "type": "object"
@@ -14453,16 +14576,16 @@
                                                     "slug": {
                                                         "type": "string"
                                                     },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
+                                                    },
                                                     "uuid": {
                                                         "type": "string"
                                                     },
                                                     "name": {
                                                         "type": "string"
-                                                    },
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
                                                     }
                                                 },
                                                 "required": [
@@ -14470,20 +14593,79 @@
                                                     "warnings",
                                                     "href",
                                                     "slug",
+                                                    "status",
                                                     "uuid",
-                                                    "name",
-                                                    "status"
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
+                                                    "prAction": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "error",
-                                                            "success"
-                                                        ]
+                                                            "opened",
+                                                            "updated",
+                                                            null
+                                                        ],
+                                                        "nullable": true
+                                                    },
+                                                    "steps": {
+                                                        "items": {
+                                                            "properties": {
+                                                                "kind": {
+                                                                    "type": "string",
+                                                                    "enum": [
+                                                                        "read",
+                                                                        "edit",
+                                                                        "search",
+                                                                        "compile",
+                                                                        "stage"
+                                                                    ]
+                                                                },
+                                                                "label": {
+                                                                    "type": "string"
+                                                                }
+                                                            },
+                                                            "required": [
+                                                                "kind",
+                                                                "label"
+                                                            ],
+                                                            "type": "object"
+                                                        },
+                                                        "type": "array",
+                                                        "nullable": true
+                                                    },
+                                                    "prUrl": {
+                                                        "type": "string",
+                                                        "nullable": true
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["success"],
+                                                        "nullable": false
+                                                    }
+                                                },
+                                                "required": ["prUrl", "status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "errorCode": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "unknown",
+                                                            "github_not_installed",
+                                                            "gitlab_not_installed",
+                                                            "unsupported_source_control",
+                                                            null
+                                                        ],
+                                                        "nullable": true
+                                                    },
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": ["error"],
+                                                        "nullable": false
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -14491,25 +14673,7 @@
                                             },
                                             {
                                                 "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": ["success"],
-                                                        "nullable": false
-                                                    },
-                                                    "prUrl": {
-                                                        "type": "string",
-                                                        "nullable": true
-                                                    }
-                                                },
-                                                "required": ["status", "prUrl"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
                                                     "href": {
-                                                        "type": "string"
-                                                    },
-                                                    "name": {
                                                         "type": "string"
                                                     },
                                                     "slug": {
@@ -14519,13 +14683,16 @@
                                                         "type": "string",
                                                         "enum": ["success"],
                                                         "nullable": false
+                                                    },
+                                                    "name": {
+                                                        "type": "string"
                                                     }
                                                 },
                                                 "required": [
                                                     "href",
-                                                    "name",
                                                     "slug",
-                                                    "status"
+                                                    "status",
+                                                    "name"
                                                 ],
                                                 "type": "object"
                                             },
@@ -14548,6 +14715,10 @@
                                                 "properties": {
                                                     "ranking": {
                                                         "properties": {
+                                                            "searchQuery": {
+                                                                "type": "string",
+                                                                "nullable": true
+                                                            },
                                                             "fields": {
                                                                 "items": {
                                                                     "properties": {
@@ -14561,10 +14732,10 @@
                                                                             "format": "double",
                                                                             "nullable": true
                                                                         },
-                                                                        "tableName": {
+                                                                        "fieldType": {
                                                                             "type": "string"
                                                                         },
-                                                                        "fieldType": {
+                                                                        "tableName": {
                                                                             "type": "string"
                                                                         },
                                                                         "label": {
@@ -14575,8 +14746,8 @@
                                                                         }
                                                                     },
                                                                     "required": [
-                                                                        "tableName",
                                                                         "fieldType",
+                                                                        "tableName",
                                                                         "label",
                                                                         "name"
                                                                     ],
@@ -14584,23 +14755,19 @@
                                                                 },
                                                                 "type": "array"
                                                             },
-                                                            "searchQuery": {
-                                                                "type": "string",
-                                                                "nullable": true
-                                                            },
                                                             "type": {
                                                                 "type": "string",
                                                                 "enum": [
-                                                                    "dimension",
                                                                     "metric",
+                                                                    "dimension",
                                                                     null
                                                                 ],
                                                                 "nullable": true
                                                             }
                                                         },
                                                         "required": [
-                                                            "fields",
                                                             "searchQuery",
+                                                            "fields",
                                                             "type"
                                                         ],
                                                         "type": "object"
@@ -14608,8 +14775,8 @@
                                                     "status": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "success",
-                                                            "error"
+                                                            "error",
+                                                            "success"
                                                         ]
                                                     }
                                                 },
@@ -15443,6 +15610,78 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "AiAgentThreadShare": {
+                "properties": {
+                    "shareUrl": {
+                        "type": "string"
+                    },
+                    "revokedAt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdAt": {
+                        "type": "string"
+                    },
+                    "createdByUserUuid": {
+                        "type": "string"
+                    },
+                    "snapshotPromptUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "threadUuid": {
+                        "type": "string"
+                    },
+                    "nanoid": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "shareUrl",
+                    "revokedAt",
+                    "createdAt",
+                    "createdByUserUuid",
+                    "snapshotPromptUuid",
+                    "organizationUuid",
+                    "projectUuid",
+                    "agentUuid",
+                    "threadUuid",
+                    "nanoid",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "ApiSuccess_AiAgentThreadShare_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentThreadShare"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentThreadShareResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadShare_"
+            },
+            "ApiCloneAiAgentThreadShareResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentThreadSummary_"
             },
             "Pick_AiAgentEvaluation.evalUuid_": {
                 "properties": {
@@ -19526,17 +19765,47 @@
             "ApiRemoveScopeFromRoleResponse": {
                 "$ref": "#/components/schemas/ApiSuccessEmpty"
             },
+            "PullRequestWritebackAction": {
+                "type": "string",
+                "enum": ["opened", "updated"],
+                "description": "Whether a writeback run opened a brand-new pull request or updated an\nexisting one (a resumed thread or a pasted PR link). `null` when no pull\nrequest was touched (the agent made no file changes)."
+            },
+            "AiWritebackStep": {
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string",
+                        "enum": ["read", "edit", "search", "compile", "stage"]
+                    }
+                },
+                "required": ["label", "kind"],
+                "type": "object",
+                "description": "One action the writeback sandbox took, in a generic shape the chat UI can\ngroup and render as step rows without knowing anything about writeback.\n`kind` buckets the action (consecutive same-kind steps are grouped, e.g.\n\"Read 3 files\"); `label` is the file basename or a stage description."
+            },
             "AiWritebackRunResult": {
                 "properties": {
-                    "previewDeployConfigured": {
-                        "type": "boolean",
-                        "nullable": true
+                    "steps": {
+                        "items": {
+                            "$ref": "#/components/schemas/AiWritebackStep"
+                        },
+                        "type": "array",
+                        "description": "Ordered actions the sandbox took, for the chat UI's step rows."
                     },
                     "repository": {
                         "type": "string"
                     },
                     "projectName": {
                         "type": "string"
+                    },
+                    "prAction": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PullRequestWritebackAction"
+                            }
+                        ],
+                        "nullable": true
                     },
                     "prUrl": {
                         "type": "string",
@@ -19551,15 +19820,15 @@
                     }
                 },
                 "required": [
-                    "previewDeployConfigured",
+                    "steps",
                     "repository",
                     "projectName",
+                    "prAction",
                     "prUrl",
                     "exitCode",
                     "output"
                 ],
-                "type": "object",
-                "description": "Result of a (synchronous) AI writeback run.\n\n- `output` is the text the agent produced.\n- `exitCode` is the sandbox command's exit status.\n- `prUrl` is the URL of the pull request opened from the agent's changes, or\n  `null` when the agent made no file changes (nothing to raise a PR for).\n- `projectName` is the Lightdash project the run targeted.\n- `repository` is the GitHub repository (`owner/repo`) the run targeted.\n- `previewDeployConfigured` is whether the repo already deploys Lightdash\n  preview projects via GitHub Actions: `true` set up, `false` not set up (the\n  caller may offer to set it up), `null` when it could not be determined."
+                "type": "object"
             },
             "ApiSuccess_AiWritebackRunResult_": {
                 "properties": {
@@ -19640,6 +19909,98 @@
                 "required": ["results", "status"],
                 "type": "object",
                 "description": "CI status for a project, or null when the project has never been scanned\n(e.g. no AI writeback has run yet). A null result means \"unknown\", which is\ndistinct from a record with `hasPreviewDeployWorkflow: false` (\"scanned, no\npreview workflow\")."
+            },
+            "CiProviderType": {
+                "description": "Continuous-integration status for a pull request, abstracted across CI\nproviders. GitHub Actions is the first (and currently only) adapter, but the\nvocabulary here is deliberately host-agnostic so GitLab pipelines, Buildkite,\netc. can be added behind the same interface without changing consumers.",
+                "enum": ["github"],
+                "type": "string"
+            },
+            "CiCheckState": {
+                "description": "Provider-agnostic outcome of a single CI check. Each host's native states are\nmapped onto these by its adapter (e.g. GitHub's `queued`/`in_progress` →\n`pending`; `timed_out` → `failure`).",
+                "enum": [
+                    "success",
+                    "failure",
+                    "pending",
+                    "cancelled",
+                    "skipped",
+                    "neutral"
+                ],
+                "type": "string"
+            },
+            "CiMergeState": {
+                "description": "Whether the PR may actually be merged, per the repo's own policy (branch\nprotection: required checks + required reviews). This is distinct from the\nCI roll-up: a check can fail yet the PR still be mergeable when that check\nisn't *required* — so the merge verdict must come from the provider, never\nbe inferred from check states. Maps GitHub's `mergeable_state`.",
+                "enum": [
+                    "ready",
+                    "unstable",
+                    "blocked",
+                    "conflicts",
+                    "behind",
+                    "draft",
+                    "unknown"
+                ],
+                "type": "string"
+            },
+            "CiCheck": {
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "nullable": true,
+                        "description": "Link to the run on the provider, when available."
+                    },
+                    "state": {
+                        "$ref": "#/components/schemas/CiCheckState"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["url", "state", "name"],
+                "type": "object",
+                "description": "A single CI check (one GitHub Actions job/check run, or equivalent)."
+            },
+            "CiChecks": {
+                "properties": {
+                    "checks": {
+                        "items": {
+                            "$ref": "#/components/schemas/CiCheck"
+                        },
+                        "type": "array"
+                    },
+                    "mergeState": {
+                        "$ref": "#/components/schemas/CiMergeState",
+                        "description": "Whether the PR can actually be merged per the repo's policy — resolved\nfrom the provider, NOT inferred from `overall`. Drives the merge-\nreadiness verdict so a failing-but-not-required check doesn't read as\n\"blocked\"."
+                    },
+                    "overall": {
+                        "$ref": "#/components/schemas/CiCheckState",
+                        "description": "CI-only rollup of the check states. Drives the summary bar."
+                    },
+                    "provider": {
+                        "$ref": "#/components/schemas/CiProviderType"
+                    }
+                },
+                "required": ["checks", "mergeState", "overall", "provider"],
+                "type": "object",
+                "description": "The CI checks for a pull request, plus a single rolled-up state for an\nat-a-glance summary. `checks` is empty when the ref has no CI configured."
+            },
+            "ApiCiChecksResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/CiChecks"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "CI checks for a PR, or null when CI status can't be resolved (project isn't\nconnected to a supported provider, no app installation, PR not found, etc.) —\ndistinct from a resolved result with an empty `checks` array (\"no CI runs\")."
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -20020,6 +20381,211 @@
                     "title",
                     "agentUuid",
                     "projectUuid",
+                    "organizationUuid",
+                    "fingerprint",
+                    "uuid"
+                ],
+                "type": "object"
+            },
+            "PullRequestProvider": {
+                "enum": ["github", "gitlab"],
+                "type": "string"
+            },
+            "AiAgentReviewItemWritebackStrategy": {
+                "type": "string",
+                "enum": ["semantic_layer", "project_context"]
+            },
+            "AiAgentReviewItemWritebackBlockedReason": {
+                "type": "string",
+                "enum": [
+                    "reviews_disabled",
+                    "unsupported_root_cause",
+                    "missing_project",
+                    "missing_project_context_entry",
+                    "project_context_disabled",
+                    "unsupported_source_control",
+                    "git_app_not_installed",
+                    "missing_writeback_config",
+                    "pull_request_open",
+                    "terminal_state",
+                    "writeback_in_progress"
+                ]
+            },
+            "AiAgentReviewItemWritebackEligibility": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "reason": {
+                                "type": "number",
+                                "enum": [null],
+                                "nullable": true
+                            },
+                            "strategy": {
+                                "$ref": "#/components/schemas/AiAgentReviewItemWritebackStrategy"
+                            },
+                            "provider": {
+                                "$ref": "#/components/schemas/PullRequestProvider"
+                            },
+                            "eligible": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "reason",
+                            "strategy",
+                            "provider",
+                            "eligible"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "reason": {
+                                "$ref": "#/components/schemas/AiAgentReviewItemWritebackBlockedReason"
+                            },
+                            "strategy": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AiAgentReviewItemWritebackStrategy"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "provider": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/PullRequestProvider"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "eligible": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "reason",
+                            "strategy",
+                            "provider",
+                            "eligible"
+                        ],
+                        "type": "object"
+                    }
+                ]
+            },
+            "AiAgentReviewRemediationStatus": {
+                "type": "string",
+                "enum": [
+                    "queued",
+                    "running",
+                    "pr_open",
+                    "preview_ready",
+                    "resolved",
+                    "failed"
+                ]
+            },
+            "AiAgentReviewRemediation": {
+                "properties": {
+                    "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "resolvedAt": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "resolvedByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "createdByUserUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "retryPrompt": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "errorMessage": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/AiAgentReviewRemediationStatus"
+                    },
+                    "previewThreadUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "previewAgentUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "previewProjectUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "linkedPrUrl": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "pullRequestUuid": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "sourceAgentUuid": {
+                        "type": "string"
+                    },
+                    "sourceProjectUuid": {
+                        "type": "string"
+                    },
+                    "sourceThreadUuid": {
+                        "type": "string"
+                    },
+                    "sourcePromptUuid": {
+                        "type": "string"
+                    },
+                    "sourceFindingUuid": {
+                        "type": "string"
+                    },
+                    "organizationUuid": {
+                        "type": "string"
+                    },
+                    "fingerprint": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "updatedAt",
+                    "createdAt",
+                    "resolvedAt",
+                    "resolvedByUserUuid",
+                    "createdByUserUuid",
+                    "retryPrompt",
+                    "errorMessage",
+                    "status",
+                    "previewThreadUuid",
+                    "previewAgentUuid",
+                    "previewProjectUuid",
+                    "linkedPrUrl",
+                    "pullRequestUuid",
+                    "sourceAgentUuid",
+                    "sourceProjectUuid",
+                    "sourceThreadUuid",
+                    "sourcePromptUuid",
+                    "sourceFindingUuid",
                     "organizationUuid",
                     "fingerprint",
                     "uuid"
@@ -20467,12 +21033,28 @@
                                 "type": "object",
                                 "nullable": true
                             },
+                            "remediation": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/components/schemas/AiAgentReviewRemediation"
+                                    }
+                                ],
+                                "nullable": true
+                            },
+                            "writebackEligibility": {
+                                "$ref": "#/components/schemas/AiAgentReviewItemWritebackEligibility"
+                            },
                             "writebackEligible": {
                                 "type": "boolean",
-                                "description": "Server-computed: true only when a writeback PR can actually be opened for\nthis item — semantic-layer root cause, a GitHub-connected project, and\nboth the review-writeback and writeback-engine feature flags enabled.\nThe \"Create PR\" action is gated on this."
+                                "description": "Legacy boolean kept for current clients. New clients should use\nwritebackEligibility for the blocking reason and provider."
                             }
                         },
-                        "required": ["latestFinding", "writebackEligible"],
+                        "required": [
+                            "latestFinding",
+                            "remediation",
+                            "writebackEligibility",
+                            "writebackEligible"
+                        ],
                         "type": "object"
                     }
                 ]
@@ -20530,6 +21112,73 @@
                 },
                 "required": ["dismissedReason", "status"],
                 "type": "object"
+            },
+            "AiAgentReviewItemWritebackPreview": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "entryId": {
+                                "type": "string"
+                            },
+                            "op": {
+                                "type": "string",
+                                "enum": ["create", "update"]
+                            },
+                            "after": {
+                                "type": "string"
+                            },
+                            "before": {
+                                "type": "string"
+                            },
+                            "fileName": {
+                                "type": "string"
+                            },
+                            "available": {
+                                "type": "boolean",
+                                "enum": [true],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "entryId",
+                            "op",
+                            "after",
+                            "before",
+                            "fileName",
+                            "available"
+                        ],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "available": {
+                                "type": "boolean",
+                                "enum": [false],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["available"],
+                        "type": "object"
+                    }
+                ],
+                "description": "Preview of the file change a writeback PR would make, computed deterministically\n(no PR opened). Only available for the project_context strategy — semantic_layer\nruns in a sandbox, so there is no static diff to show before the PR is created."
+            },
+            "ApiSuccess_AiAgentReviewItemWritebackPreview_": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemWritebackPreview"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "ApiAiAgentReviewItemWritebackPreviewResponse": {
+                "$ref": "#/components/schemas/ApiSuccess_AiAgentReviewItemWritebackPreview_"
             },
             "AiAgentTurnSignal": {
                 "type": "string",
@@ -20799,6 +21448,9 @@
             },
             "AiOrganizationSettings": {
                 "properties": {
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
+                    },
                     "aiAgentsVisible": {
                         "type": "boolean"
                     },
@@ -20806,7 +21458,11 @@
                         "type": "string"
                     }
                 },
-                "required": ["aiAgentsVisible", "organizationUuid"],
+                "required": [
+                    "aiAgentReviewsEnabled",
+                    "aiAgentsVisible",
+                    "organizationUuid"
+                ],
                 "type": "object"
             },
             "ComputedAiOrganizationSettings": {
@@ -20862,22 +21518,20 @@
             "ApiUpdateAiOrganizationSettingsResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_AiOrganizationSettings_"
             },
-            "Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled__": {
+            "Partial_Omit_AiOrganizationSettings.organizationUuid__": {
                 "properties": {
                     "aiAgentsVisible": {
                         "type": "boolean"
+                    },
+                    "aiAgentReviewsEnabled": {
+                        "type": "boolean"
                     }
                 },
-                "required": ["aiAgentsVisible"],
                 "type": "object",
-                "description": "From T, pick a set of properties whose keys are in the union K"
-            },
-            "Omit_AiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled_": {
-                "$ref": "#/components/schemas/Pick_AiOrganizationSettings.Exclude_keyofAiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled__",
-                "description": "Construct a type with the properties of T except for those in type K."
+                "description": "Make all properties in T optional"
             },
             "UpdateAiOrganizationSettings": {
-                "$ref": "#/components/schemas/Omit_AiOrganizationSettings.organizationUuid-or-isTrial-or-isCopilotEnabled_"
+                "$ref": "#/components/schemas/Partial_Omit_AiOrganizationSettings.organizationUuid__"
             },
             "ApiJobScheduledResponse": {
                 "properties": {
@@ -22948,6 +23602,13 @@
             },
             "PivotConfiguration": {
                 "properties": {
+                    "pivotColumnsOrder": {
+                        "items": {
+                            "$ref": "#/components/schemas/GroupByColumn"
+                        },
+                        "type": "array",
+                        "description": "Declared order of the pivot-column dimensions (visible `groupByColumns`\nplus hidden `sortOnlyDimensions`) as they appear in the chart's\n`pivotConfig.columns`. `column_ranking` orders columns by this sequence so\na hidden sort-only dim sorts at its DECLARED position — hiding a dim then\nleaves column order identical to when it was visible, instead of hoisting\nthe hidden dim to the front of the ORDER BY. Passthrough (hidden, non-sort)\ndims are excluded since they don't drive sort. When omitted, ordering falls\nback to hoisting sort-only sort targets to the front (legacy behavior)."
+                    },
                     "passthroughDimensions": {
                         "items": {
                             "$ref": "#/components/schemas/GroupByColumn"
@@ -23745,8 +24406,35 @@
                 ],
                 "type": "object"
             },
+            "PromotedApp": {
+                "properties": {
+                    "name": {
+                        "type": "string"
+                    },
+                    "uuid": {
+                        "type": "string"
+                    }
+                },
+                "required": ["name", "uuid"],
+                "type": "object"
+            },
             "PromotionChanges": {
                 "properties": {
+                    "dataApps": {
+                        "items": {
+                            "properties": {
+                                "data": {
+                                    "$ref": "#/components/schemas/PromotedApp"
+                                },
+                                "action": {
+                                    "$ref": "#/components/schemas/PromotionAction"
+                                }
+                            },
+                            "required": ["data", "action"],
+                            "type": "object"
+                        },
+                        "type": "array"
+                    },
                     "sqlCharts": {
                         "items": {
                             "properties": {
@@ -25101,6 +25789,7 @@
                     "aiAgentEvalResult",
                     "aiAgentReviewClassifier",
                     "aiAgentReviewWriteback",
+                    "aiAgentReviewRemediationPreview",
                     "embedArtifactVersion",
                     "generateArtifactQuestion",
                     "appGeneratePipeline",
@@ -26173,10 +26862,6 @@
                 "required": ["type", "to", "from"],
                 "type": "object"
             },
-            "PullRequestProvider": {
-                "enum": ["github", "gitlab"],
-                "type": "string"
-            },
             "PullRequestSource": {
                 "enum": [
                     "custom_metric",
@@ -26187,11 +26872,63 @@
                 ],
                 "type": "string"
             },
+            "PullRequestReviewContext": {
+                "properties": {
+                    "sourceAgentUuid": {
+                        "type": "string"
+                    },
+                    "sourceProjectUuid": {
+                        "type": "string"
+                    },
+                    "sourceThreadUuid": {
+                        "type": "string"
+                    },
+                    "sourceFindingUuid": {
+                        "type": "string"
+                    },
+                    "primaryRootCause": {
+                        "$ref": "#/components/schemas/AiAgentRootCause"
+                    },
+                    "reviewStatus": {
+                        "$ref": "#/components/schemas/AiAgentReviewItemStatus"
+                    },
+                    "reviewTitle": {
+                        "type": "string"
+                    },
+                    "reviewItemFingerprint": {
+                        "type": "string"
+                    },
+                    "reviewItemUuid": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "sourceAgentUuid",
+                    "sourceProjectUuid",
+                    "sourceThreadUuid",
+                    "sourceFindingUuid",
+                    "primaryRootCause",
+                    "reviewStatus",
+                    "reviewTitle",
+                    "reviewItemFingerprint",
+                    "reviewItemUuid"
+                ],
+                "type": "object"
+            },
             "PullRequest": {
                 "properties": {
                     "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                    },
+                    "reviewContext": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PullRequestReviewContext"
+                            }
+                        ],
+                        "nullable": true,
+                        "description": "Source review context for AI review remediation PRs. Present when the PR\nwas opened to address a review finding."
                     },
                     "aiAgentUuid": {
                         "type": "string",
@@ -26238,6 +26975,7 @@
                 },
                 "required": [
                     "createdAt",
+                    "reviewContext",
                     "aiAgentUuid",
                     "aiThreadUuid",
                     "prUrl",
@@ -27021,6 +27759,117 @@
                 },
                 "required": ["sendEmail", "role", "email"],
                 "type": "object"
+            },
+            "DataTimezonePreviewNaive": {
+                "properties": {
+                    "rendered": {
+                        "type": "string"
+                    },
+                    "readAs": {
+                        "type": "string"
+                    },
+                    "raw": {
+                        "type": "string"
+                    },
+                    "interpretedAs": {
+                        "type": "string"
+                    }
+                },
+                "required": ["rendered", "readAs", "raw", "interpretedAs"],
+                "type": "object"
+            },
+            "DataTimezonePreviewAware": {
+                "properties": {
+                    "rendered": {
+                        "type": "string"
+                    },
+                    "raw": {
+                        "type": "string"
+                    }
+                },
+                "required": ["rendered", "raw"],
+                "type": "object"
+            },
+            "ApiDataTimezonePreviewResults": {
+                "properties": {
+                    "aware": {
+                        "$ref": "#/components/schemas/DataTimezonePreviewAware"
+                    },
+                    "naive": {
+                        "$ref": "#/components/schemas/DataTimezonePreviewNaive"
+                    },
+                    "dataTimezoneApplies": {
+                        "type": "boolean"
+                    },
+                    "projectTimezone": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "aware",
+                    "naive",
+                    "dataTimezoneApplies",
+                    "projectTimezone"
+                ],
+                "type": "object"
+            },
+            "ApiDataTimezonePreview": {
+                "properties": {
+                    "results": {
+                        "$ref": "#/components/schemas/ApiDataTimezonePreviewResults"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
+            "DataTimezonePreviewRequest": {
+                "anyOf": [
+                    {
+                        "properties": {
+                            "credentials": {
+                                "$ref": "#/components/schemas/CreateWarehouseCredentials"
+                            },
+                            "mode": {
+                                "type": "string",
+                                "enum": ["create"],
+                                "nullable": false
+                            }
+                        },
+                        "required": ["credentials", "mode"],
+                        "type": "object"
+                    },
+                    {
+                        "properties": {
+                            "dataTimezone": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "warehouseType": {
+                                "$ref": "#/components/schemas/WarehouseTypes"
+                            },
+                            "projectUuid": {
+                                "type": "string"
+                            },
+                            "mode": {
+                                "type": "string",
+                                "enum": ["edit"],
+                                "nullable": false
+                            }
+                        },
+                        "required": [
+                            "dataTimezone",
+                            "warehouseType",
+                            "projectUuid",
+                            "mode"
+                        ],
+                        "type": "object"
+                    }
+                ]
             },
             "UpdateProjectMember": {
                 "properties": {
@@ -28213,22 +29062,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "chart": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_ChartAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__chart_58___91_x-string_93__58__name_63_-string-or-undefined--chartConfig_63__58__type-ChartType.CARTESIAN--config_63__58__eChartsConfig_58__series_63__58__name_63_-string-or-undefined--markLine_63__58__data_58__name_63_-string-or-undefined_-Array_-or-undefined_-Array-or-undefined--xAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined--yAxis_63__58__name_63_-string-or-undefined_-Array-or-undefined__-or-undefined_-or-_type-ChartType.PIE--config_63__58__groupLabelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.FUNNEL--config_63__58__labelOverrides_63_-Record_string.string_-or-undefined_-or-undefined_-or-_type-ChartType.BIG_NUMBER--config_63__58__label_63_-string-or-undefined--comparisonLabel_63_-string-or-undefined--comparisonField_63_-string-or-undefined_-or-undefined_-or-_type-ChartType.TABLE--config_63__58__columns_63_-Record_string._name-string__-or-undefined_-or-undefined_-or-_type-ChartType.CUSTOM--config_63__58__spec_63_-Record_string.unknown_-or-undefined_-or-undefined_-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ContentAsCodeType.SPACE": {
@@ -28788,22 +29637,22 @@
                     }
                 ]
             },
-            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__": {
+            "PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__": {
                 "properties": {},
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
-            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__": {
+            "PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__": {
                 "properties": {
                     "dashboard": {
-                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined__._recurseIntoArrays-true__"
+                        "$ref": "#/components/schemas/PartialObjectDeep___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined__._recurseIntoArrays-true__"
                     }
                 },
                 "type": "object",
                 "description": "Same as `PartialDeep`, but accepts only `object`s as inputs. Internal helper for `PartialDeep`."
             },
             "PartialDeep_DashboardAsCodeLanguageMap._recurseIntoArrays-true__": {
-                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--description_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined___._recurseIntoArrays-true__",
+                "$ref": "#/components/schemas/PartialObjectDeep__dashboard_58___91_x-string_93__58__name_63_-string-or-undefined--tiles_63__58__40__type-DashboardTileTypes.SAVED_CHART-or-DashboardTileTypes.SQL_CHART--properties_58__title-string--chartName-string__-or-_type-DashboardTileTypes.MARKDOWN--properties_58__title-string--content-string__-or-_type-DashboardTileTypes.LOOM--properties_58__title-string__-or-_type-DashboardTileTypes.HEADING--properties_58__text-string__-or-_type-DashboardTileTypes.DATA_APP--properties_58__title-string___41_-Array-or-undefined--description_63_-string-or-undefined___._recurseIntoArrays-true__",
                 "description": "Create a type from another type with all keys and nested keys set to optional.\n\nUse-cases:\n- Merging a default settings/config object with another object, the second object would be a deep partial of the default object.\n- Mocking and testing complex entities, where populating an entire object with its keys would be redundant in terms of the mock or test."
             },
             "ApiDashboardAsCodeListResponse": {
@@ -30277,6 +31126,14 @@
             },
             "OrganizationSettings": {
                 "properties": {
+                    "corsAllowedDomains": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Exact origins, wildcard subdomain origins, and regex patterns this org\ncontributes to the instance CORS allow-list. Regex entries use `/.../`\nsyntax."
+                    },
                     "csvCellsLimit": {
                         "type": "number",
                         "format": "double",
@@ -30336,6 +31193,7 @@
                     }
                 },
                 "required": [
+                    "corsAllowedDomains",
                     "csvCellsLimit",
                     "queryLimit",
                     "scheduledDeliveryExpirationSecondsGoogleChat",
@@ -30422,6 +31280,14 @@
                         "format": "double",
                         "nullable": true,
                         "description": "Max number of cells (rows × columns) a CSV/Excel export may contain for\nthis org. Inherits `LIGHTDASH_CSV_CELLS_LIMIT` and is capped by\n`LIGHTDASH_CSV_MAX_LIMIT` (the ceiling); `null` inherits the\ndefault. Always resolved to an effective number in API responses."
+                    },
+                    "corsAllowedDomains": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array",
+                        "nullable": true,
+                        "description": "Exact origins, wildcard subdomain origins, and regex patterns this org\ncontributes to the instance CORS allow-list. Regex entries use `/.../`\nsyntax."
                     }
                 },
                 "type": "object",
@@ -32155,6 +33021,39 @@
                 "required": ["defaultBranch", "ownerLogin", "fullName", "name"],
                 "type": "object"
             },
+            "GithubUserCredential": {
+                "properties": {
+                    "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "githubLogin": {
+                        "type": "string"
+                    }
+                },
+                "required": ["createdAt", "githubLogin"],
+                "type": "object",
+                "description": "A user's personally linked GitHub account. When present, write-backs are\nauthored as this user instead of the Lightdash GitHub App bot."
+            },
+            "ApiGithubUserCredentialResponse": {
+                "properties": {
+                    "results": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/GithubUserCredential"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object"
+            },
             "GitIntegrationConfiguration": {
                 "properties": {
                     "installationId": {
@@ -33589,6 +34488,12 @@
                                     }
                                 ],
                                 "nullable": true
+                            },
+                            "spotlightDefaultFilter": {
+                                "$ref": "#/components/schemas/MetricFilterRule"
+                            },
+                            "spotlightDefaultSegment": {
+                                "type": "string"
                             },
                             "spotlightSegmentBy": {
                                 "items": {
@@ -35267,13 +36172,19 @@
             },
             "CalculateTotalKind": {
                 "type": "string",
-                "enum": ["columnTotal", "rowTotal"],
+                "enum": ["columnTotal", "rowTotal", "columnSubtotal"],
                 "description": "Kinds of totals derivable from an executed pivot query. Follow-up PRs\nwill widen the union to enable the commented-out variants below."
             },
             "ExecuteAsyncCalculateTotalRequestParams": {
                 "properties": {
                     "invalidateCache": {
                         "type": "boolean"
+                    },
+                    "subtotalDimensions": {
+                        "items": {
+                            "type": "string"
+                        },
+                        "type": "array"
                     },
                     "kind": {
                         "$ref": "#/components/schemas/CalculateTotalKind"
@@ -37689,7 +38600,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3082.0",
+        "version": "0.3135.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -39876,7 +40787,17 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiConnectGithubMcpServerBody"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/aiAgents/mcpServers/{mcpServerUuid}/tools": {
@@ -41666,6 +42587,106 @@
                     {
                         "in": "path",
                         "name": "versionUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/{agentUuid}/threads/{threadUuid}/shares": {
+            "post": {
+                "operationId": "createAiAgentThreadShare",
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentThreadShareResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "agentUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "threadUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/projects/{projectUuid}/aiAgents/thread-shares/{aiThreadShareUuid}/clone": {
+            "post": {
+                "operationId": "cloneAiAgentThreadShare",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiCloneAiAgentThreadShareResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "projectUuid",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "aiThreadShareUuid",
                         "required": true,
                         "schema": {
                             "type": "string"
@@ -44035,6 +45056,7 @@
                 "description": "Add scopes to role",
                 "summary": "Add scopes to role",
                 "tags": ["v2", "Custom Roles"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -44094,6 +45116,7 @@
                 "description": "Remove scope from role",
                 "summary": "Remove scope from role",
                 "tags": ["v2", "Custom Roles"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -44467,6 +45490,46 @@
                 ]
             }
         },
+        "/api/v1/aiAgents/admin/review-items/{fingerprint}/writeback-preview": {
+            "get": {
+                "operationId": "getAiAgentReviewItemWritebackPreview",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiAiAgentReviewItemWritebackPreviewResponse"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview the file change a writeback PR would make, without opening it.\nOnly project_context findings have a deterministic diff.",
+                "summary": "Preview AI agent review item writeback diff",
+                "security": [],
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "fingerprint",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
         "/api/v1/aiAgents/admin/review-signals": {
             "get": {
                 "operationId": "getAiAgentReviewSignals",
@@ -44663,7 +45726,6 @@
                 "description": "Get validation results for a project. This will return the results of the latest validation job.",
                 "summary": "Get validation results",
                 "tags": ["Projects"],
-                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -46094,6 +47156,7 @@
                 "description": "Run a SQL query",
                 "summary": "Run SQL query",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -46145,6 +47208,7 @@
                 "description": "Run a SQL pivot query",
                 "summary": "Run SQL pivot query",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -46196,6 +47260,7 @@
                 "description": "Get results from a file stored locally",
                 "summary": "Get stored results",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -46459,6 +47524,7 @@
                 "description": "Schedules a job to get its results",
                 "summary": "Get SQL chart results job",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -46510,6 +47576,7 @@
                 "description": "Schedules a job to get its results",
                 "summary": "Get SQL chart results job by UUID",
                 "tags": ["SQL runner"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -48257,6 +49324,7 @@
                 "description": "Get scheduled logs",
                 "summary": "Get scheduler logs",
                 "tags": ["Schedulers"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -49072,6 +50140,7 @@
                 "description": "Get scheduled jobs",
                 "summary": "Get scheduled jobs",
                 "tags": ["Schedulers"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -49239,7 +50308,7 @@
                         }
                     }
                 },
-                "description": "Run a query for underlying data results",
+                "description": "Deprecated — use the v2 Execute underlying data endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute underlying data, then Get results.",
                 "summary": "Run underlying data query",
                 "tags": ["Exploring"],
                 "deprecated": true,
@@ -49275,6 +50344,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute underlying data](https://docs.lightdash.com/api-reference/v2/execute-underlying-data) (`POST /api/v2/projects/{projectUuid}/query/underlying-data`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -49303,7 +50375,7 @@
                         }
                     }
                 },
-                "description": "Run a query for explore",
+                "description": "Deprecated — use the v2 Execute metric query endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute metric query, then Get results.",
                 "summary": "Run metric query",
                 "tags": ["Exploring"],
                 "deprecated": true,
@@ -49339,6 +50411,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute metric query](https://docs.lightdash.com/api-reference/v2/execute-metric-query) (`POST /api/v2/projects/{projectUuid}/query/metric-query`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -49367,7 +50442,7 @@
                         }
                     }
                 },
-                "description": "Run a query for a chart",
+                "description": "Deprecated — use the v2 Execute saved chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.",
                 "summary": "Run chart query",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -49397,6 +50472,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (`POST /api/v2/projects/{projectUuid}/query/chart`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -49425,7 +50503,7 @@
                         }
                     }
                 },
-                "description": "Get chart and run query with dashboard filters",
+                "description": "Deprecated — use the v2 Execute dashboard chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (20 June 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute dashboard chart, then Get results.",
                 "summary": "Get chart and results",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -49477,6 +50555,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (20 June 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute dashboard chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-chart) (`POST /api/v2/projects/{projectUuid}/query/dashboard-chart`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -49598,7 +50679,7 @@
                         }
                     }
                 },
-                "description": "Run a query for a chart version",
+                "description": "Deprecated — use the v2 Execute saved chart endpoint instead.\n\nThis endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.",
                 "summary": "Get chart version results",
                 "tags": ["Charts"],
                 "deprecated": true,
@@ -49622,7 +50703,10 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (`POST /api/v2/projects/{projectUuid}/query/chart`) to run the chart's latest version, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. Running a query for a specific chart version has no v2 equivalent.\n</Warning>"
+                }
             }
         },
         "/api/v1/saved/{chartUuid}/rollback/{versionUuid}": {
@@ -50714,8 +51798,9 @@
                     }
                 },
                 "description": "Get a project explicit member's access.\nThere may be users that have access to the project via their organization membership.",
-                "summary": "Get project member access\n\nNOTE:\nWe don't use the API on the frontend. Instead, we can call the API\nso that we make sure of the user's access to the project.",
+                "summary": "Get project member access",
                 "tags": ["Roles & Permissions", "Projects"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -50735,6 +51820,48 @@
                         }
                     }
                 ]
+            }
+        },
+        "/api/v1/projects/preview-data-timezone": {
+            "post": {
+                "operationId": "PreviewDataTimezone",
+                "responses": {
+                    "200": {
+                        "description": "Success",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiDataTimezonePreview"
+                                }
+                            }
+                        }
+                    },
+                    "default": {
+                        "description": "Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiErrorPayload"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Preview how the warehouse disambiguates \"now\" under a data timezone",
+                "summary": "Preview data timezone",
+                "tags": ["Projects"],
+                "security": [],
+                "parameters": [],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DataTimezonePreviewRequest"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/api/v1/projects/{projectUuid}/access/{userUuid}": {
@@ -50922,7 +52049,7 @@
                         }
                     }
                 },
-                "description": "Run a raw sql query against the project's warehouse connection",
+                "description": "Deprecated — use the v2 Execute SQL query endpoint instead.\n\nThis endpoint was deprecated on 17 February 2025 and is past its sunset date (17 May 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute SQL query, then Get results.",
                 "summary": "Run SQL query",
                 "tags": ["Exploring", "Projects"],
                 "deprecated": true,
@@ -50955,6 +52082,9 @@
                             }
                         }
                     }
+                },
+                "x-mint": {
+                    "content": "<Warning>\n**This endpoint is deprecated and past its sunset date (17 May 2025) — it may be removed at any time.**\n\nMigrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.com/api-reference/v2/execute-sql-query) (`POST /api/v2/projects/{projectUuid}/query/sql`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).\n</Warning>"
                 }
             }
         },
@@ -51041,6 +52171,7 @@
                 "description": "Calculate subtotals from a metricQuery",
                 "summary": "Calculate subtotals from query",
                 "tags": ["Projects"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -51290,6 +52421,7 @@
                 "description": "Get all custom metrics in a project",
                 "summary": "List custom metrics",
                 "tags": ["Projects"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -54156,6 +55288,7 @@
                 "description": "Get the member profile for a user in the current user's organization by uuid",
                 "summary": "Get organization member by UUID",
                 "tags": ["Organizations"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -54251,6 +55384,7 @@
                 "description": "Get the member profile for a user in the current user's organization by email",
                 "summary": "Get organization member by email",
                 "tags": ["Organizations"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -55437,6 +56571,7 @@
                 "description": "Add a Lightdash user to a group",
                 "summary": "Add user to group",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -55486,6 +56621,7 @@
                 "description": "Remove a user from a group",
                 "summary": "Remove user from group",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -55537,6 +56673,7 @@
                 "description": "View members of a group",
                 "summary": "Get group members",
                 "tags": ["User Groups"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -55923,6 +57060,70 @@
                 },
                 "description": "Install the Lightdash GitHub App and link to an organization",
                 "summary": "Install GitHub App",
+                "security": [],
+                "parameters": []
+            }
+        },
+        "/api/v1/github/user/authorize": {
+            "get": {
+                "operationId": "authorizeGithubUser",
+                "responses": {
+                    "302": {
+                        "description": "Redirect to GitHub"
+                    }
+                },
+                "description": "Link the authenticated user's personal GitHub account so write-backs\ncan be authored as them instead of the Lightdash GitHub App",
+                "summary": "Link GitHub account",
+                "security": [],
+                "parameters": [
+                    {
+                        "description": "Optional path to return to after authorization",
+                        "in": "query",
+                        "name": "redirect",
+                        "required": false,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ]
+            }
+        },
+        "/api/v1/github/user": {
+            "get": {
+                "operationId": "getGithubUserCredential",
+                "responses": {
+                    "200": {
+                        "description": "",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiGithubUserCredentialResponse"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Get the authenticated user's linked GitHub account, if any",
+                "summary": "Get linked GitHub account",
+                "security": [],
+                "parameters": []
+            },
+            "delete": {
+                "operationId": "unlinkGithubUser",
+                "responses": {
+                    "200": {
+                        "description": "Ok",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiSuccessEmpty"
+                                }
+                            }
+                        }
+                    }
+                },
+                "description": "Unlink the authenticated user's GitHub account and revoke its token",
+                "summary": "Unlink GitHub account",
                 "security": [],
                 "parameters": []
             }
@@ -56329,6 +57530,7 @@
                 "description": "Get the YAML file for an explore's base table",
                 "summary": "Get explore file",
                 "tags": ["Git Integration"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -56455,6 +57657,7 @@
                 "description": "Create a pull request with arbitrary file changes",
                 "summary": "Create file PR",
                 "tags": ["Git Integration"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -58127,6 +59330,14 @@
                         "schema": {
                             "type": "string"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "resolved",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
+                        }
                     }
                 ]
             }
@@ -58156,7 +59367,7 @@
                         }
                     }
                 },
-                "description": "Resolves a comment on a dashboard",
+                "description": "Resolves or unresolves a comment on a dashboard",
                 "summary": "Resolve comment",
                 "tags": ["Comments"],
                 "security": [],
@@ -58179,7 +59390,25 @@
                             "type": "string"
                         }
                     }
-                ]
+                ],
+                "requestBody": {
+                    "description": "whether the comment should be resolved",
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "resolved": {
+                                        "type": "boolean"
+                                    }
+                                },
+                                "required": ["resolved"],
+                                "type": "object",
+                                "description": "whether the comment should be resolved"
+                            }
+                        }
+                    }
+                }
             },
             "delete": {
                 "operationId": "deleteComment",
@@ -58758,6 +59987,7 @@
                 "description": "Get catalog metadata for tables",
                 "summary": "Get table metadata",
                 "tags": ["Catalog"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -61542,6 +62772,7 @@
                 "description": "Downloads query results in various formats with custom formatting options",
                 "summary": "Download results",
                 "tags": ["v2", "Query"],
+                "deprecated": true,
                 "security": [],
                 "parameters": [
                     {
@@ -62017,6 +63248,14 @@
                         "required": true,
                         "schema": {
                             "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "resolved",
+                        "required": false,
+                        "schema": {
+                            "type": "boolean"
                         }
                     }
                 ]

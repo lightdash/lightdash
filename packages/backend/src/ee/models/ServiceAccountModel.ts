@@ -1,6 +1,7 @@
 import {
     AuthTokenPrefix,
     CreateServiceAccount,
+    NotFoundError,
     OrganizationMemberRole,
     ParameterError,
     ServiceAccount,
@@ -8,6 +9,7 @@ import {
     ServiceAccountWithToken,
     SessionUser,
     UnexpectedDatabaseError,
+    UpdateServiceAccount,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import { Knex } from 'knex';
@@ -17,6 +19,7 @@ import { DbUser } from '../../database/entities/users';
 import { deprecatedHash, hash } from '../../utils/hash';
 import {
     DbServiceAccounts,
+    DbUpdateServiceAccount,
     ServiceAccountsTableName,
 } from '../database/entities/serviceAccounts';
 
@@ -285,6 +288,110 @@ export class ServiceAccountModel {
                 }),
                 token,
             };
+        });
+    }
+
+    // In-place edit of name + Organization-scope permission. Deliberately
+    // leaves `token_hash` (and expiry / project grants) untouched so existing
+    // integrations keep working — the point of PROD-8133. `description` is
+    // always applied and mirrored onto the SA user's `first_name`. The
+    // permission is only rewritten when `scopes` or `roleUuid` is supplied;
+    // a rename-only edit leaves the scopes / role membership as-is.
+    async update({
+        serviceAccountUuid,
+        data,
+    }: {
+        serviceAccountUuid: string;
+        data: UpdateServiceAccount;
+    }): Promise<ServiceAccount> {
+        // `description` mirrors onto the SA user's NOT NULL `first_name`, so
+        // guard here too (not just at the service) to stay self-defending.
+        if (!data.description || data.description.trim() === '') {
+            throw new ParameterError('Description is required');
+        }
+
+        // Same permission-shape invariant as `save`, minus the "at least one"
+        // requirement: editing the name without changing access is valid.
+        const hasScopes = !!data.scopes && data.scopes.length > 0;
+        const hasRoleUuid = !!data.roleUuid;
+        if (hasScopes && hasRoleUuid) {
+            throw new ParameterError(
+                'Specify either scopes or roleUuid, not both',
+            );
+        }
+
+        return this.database.transaction(async (trx) => {
+            const [existing] = await trx(ServiceAccountsTableName)
+                .where('service_account_uuid', serviceAccountUuid)
+                .select('organization_uuid', 'service_account_user_uuid');
+            if (!existing) {
+                throw new NotFoundError(
+                    `Service account ${serviceAccountUuid} not found`,
+                );
+            }
+            if (!existing.service_account_user_uuid) {
+                throw new UnexpectedDatabaseError(
+                    `Service account ${serviceAccountUuid} is missing service_account_user_uuid`,
+                );
+            }
+
+            const serviceAccountUpdate: DbUpdateServiceAccount = {
+                description: data.description,
+            };
+
+            // Permission change: rewrite the SA row's scopes and the backing
+            // user's org-membership role together so the runtime CASL source
+            // of truth stays consistent. Switching to a custom role clears
+            // the legacy scopes; switching to scopes clears the role link.
+            if (hasScopes || hasRoleUuid) {
+                if (data.roleUuid) {
+                    const [roleRow] = await trx(RolesTableName)
+                        .where('role_uuid', data.roleUuid)
+                        .andWhere(
+                            'organization_uuid',
+                            existing.organization_uuid,
+                        )
+                        .select('role_uuid');
+                    if (!roleRow) {
+                        throw new ParameterError(
+                            `Role ${data.roleUuid} not found in this organization`,
+                        );
+                    }
+                }
+
+                const scopes = data.scopes ?? [];
+                const role = hasRoleUuid
+                    ? OrganizationMemberRole.MEMBER
+                    : ServiceAccountModel.getRoleForScopes(scopes);
+                serviceAccountUpdate.scopes = scopes;
+
+                await trx(OrganizationMembershipsTableName)
+                    .update({ role, role_uuid: data.roleUuid ?? null })
+                    .whereIn(
+                        'user_id',
+                        trx('users')
+                            .where(
+                                'user_uuid',
+                                existing.service_account_user_uuid,
+                            )
+                            .select('user_id'),
+                    );
+            }
+
+            await trx(ServiceAccountsTableName)
+                .update(serviceAccountUpdate)
+                .where('service_account_uuid', serviceAccountUuid);
+            await trx('users')
+                .update({ first_name: data.description })
+                .where('user_uuid', existing.service_account_user_uuid);
+
+            const [row] = await this.serviceAccountSelectQuery()
+                .transacting(trx)
+                .where(
+                    `${ServiceAccountsTableName}.service_account_uuid`,
+                    serviceAccountUuid,
+                );
+            return ServiceAccountModel.mapDbObjectToServiceAccount(row);
         });
     }
 

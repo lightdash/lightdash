@@ -514,8 +514,10 @@ export class EmbedService extends BaseService {
                 dashboardUuid,
             );
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         await this.isFeatureEnabled({
             userUuid: user?.userUuid ?? account.user.id,
@@ -1088,8 +1090,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1215,8 +1219,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
             dashboard,
@@ -1283,8 +1289,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
             dashboard,
@@ -1353,8 +1361,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1437,11 +1447,12 @@ export class EmbedService extends BaseService {
 
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
-            metricQueryWithDashboardOverrides,
+        const timezone = resolveQueryTimezone({
+            metricQuery: metricQueryWithDashboardOverrides,
             projectTimezone,
-            null,
-        );
+            userTimezone: null,
+            isUserTimezoneEnabled: false,
+        });
 
         const isTimezoneSupportEnabled =
             await this.projectService.isTimezoneSupportEnabled({
@@ -1548,8 +1559,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const tile = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -1631,7 +1644,9 @@ export class EmbedService extends BaseService {
         // For chart embeds, dashboardUuid is undefined - use empty parameters
         const dashboardParameters = dashboardUuid
             ? getDashboardParametersValuesMap(
-                  await this.dashboardModel.getByIdOrSlug(dashboardUuid),
+                  await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
+                      projectUuid,
+                  }),
               )
             : {};
 
@@ -1687,6 +1702,7 @@ export class EmbedService extends BaseService {
         }
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateSubtotalsFromSavedChart(
         account: AnonymousAccount,
         projectUuid: string,
@@ -1716,7 +1732,9 @@ export class EmbedService extends BaseService {
         // For chart embeds, dashboardUuid is undefined - use empty parameters
         const dashboardParameters = dashboardUuid
             ? getDashboardParametersValuesMap(
-                  await this.dashboardModel.getByIdOrSlug(dashboardUuid),
+                  await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
+                      projectUuid,
+                  }),
               )
             : {};
 
@@ -1901,6 +1919,7 @@ export class EmbedService extends BaseService {
     /**
      * Calculate subtotals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal').
      */
     async calculateSubtotalsFromQuery(
         account: AnonymousAccount,
@@ -1988,8 +2007,10 @@ export class EmbedService extends BaseService {
             },
             dashboardUuid,
         );
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
         const dashboardFilters = dashboard.filters.dimensions;
         const filter = dashboardFilters.find((f) => f.id === filterUuid);
 
@@ -2060,11 +2081,12 @@ export class EmbedService extends BaseService {
 
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
+        const timezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
-            null,
-        );
+            userTimezone: null,
+            isUserTimezoneEnabled: false,
+        });
 
         const useTimezoneAwareDateTrunc =
             await this.projectService.isTimezoneSupportEnabled({

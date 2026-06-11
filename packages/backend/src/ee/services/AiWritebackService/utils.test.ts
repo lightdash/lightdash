@@ -7,6 +7,7 @@ import {
     type DbtProjectConfig,
 } from '@lightdash/common';
 import {
+    COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
@@ -18,9 +19,9 @@ import {
     buildGitlabCommitAuthor,
     buildNoreplyEmail,
     buildUserCoAuthorTrailer,
-    classifyToolPhase,
+    classifyToolStep,
     extractPrMetadata,
-    getPhaseProgressText,
+    formatWritebackStep,
     interpretAgentEvent,
     parseGithubConnection,
     parseGitlabConnection,
@@ -28,7 +29,6 @@ import {
     parseMergeRequestUrl,
     parsePullNumber,
     parsePullRequestUrl,
-    parseTrackedWorkflowPaths,
     progressTextForStage,
     resolvePrMetadataValue,
     resolveSandboxTemplateRef,
@@ -65,7 +65,20 @@ describe('parseGithubConnection', () => {
             owner: 'acme',
             repo: 'analytics',
             projectSubPath: '.',
+            branch: 'main',
         });
+    });
+
+    it('carries the configured branch through', () => {
+        expect(
+            parseGithubConnection(githubConfig({ branch: 'develop' })).branch,
+        ).toBe('develop');
+    });
+
+    it('returns an empty branch when none is configured', () => {
+        expect(parseGithubConnection(githubConfig({ branch: '' })).branch).toBe(
+            '',
+        );
     });
 
     it('strips leading and trailing slashes from a nested sub-path', () => {
@@ -225,28 +238,6 @@ describe('progressTextForStage', () => {
     it('opts pull_request out of progress reporting', () => {
         expect(progressTextForStage('pull_request')).toBeNull();
     });
-
-    it('relabels the model-editing stages for a preview-deploy setup', () => {
-        // The setup run generates a workflow file, it does not edit models.
-        expect(progressTextForStage('agent', 'preview_deploy_setup')).toBe(
-            'Generating preview-deploy workflow',
-        );
-        expect(progressTextForStage('commit', 'preview_deploy_setup')).toBe(
-            'Committing workflow',
-        );
-        // Shared stages keep their generic labels.
-        expect(progressTextForStage('clone', 'preview_deploy_setup')).toBe(
-            'Cloning project',
-        );
-        expect(progressTextForStage('push', 'preview_deploy_setup')).toBe(
-            'Pushing changes',
-        );
-        // Non-setup sources are unaffected.
-        expect(progressTextForStage('agent', 'web')).toBe('Starting sub agent');
-        expect(progressTextForStage('commit', 'slack')).toBe(
-            'Committing changes',
-        );
-    });
 });
 
 describe('extractPrMetadata', () => {
@@ -326,22 +317,6 @@ describe('parseGitNameStatus', () => {
     });
 });
 
-describe('parseTrackedWorkflowPaths', () => {
-    it('keeps only workflow yml/yaml files, trimmed', () => {
-        const stdout = [
-            '.github/workflows/deploy.yml',
-            '  .github/workflows/ci.yaml  ',
-            '.github/workflows/README.md',
-            'dbt/model.sql',
-            '',
-        ].join('\n');
-        expect(parseTrackedWorkflowPaths(stdout)).toEqual([
-            '.github/workflows/deploy.yml',
-            '.github/workflows/ci.yaml',
-        ]);
-    });
-});
-
 describe('interpretAgentEvent', () => {
     it('reads assistant text and tool calls', () => {
         const event = {
@@ -386,10 +361,34 @@ describe('interpretAgentEvent', () => {
         ).toEqual({ type: 'assistant', text: null, toolCalls: [] });
     });
 
-    it('reads the final cost from a result event', () => {
+    it('reads the cost and timing from a result event', () => {
+        expect(
+            interpretAgentEvent({
+                type: 'result',
+                total_cost_usd: 0.42,
+                duration_ms: 90000,
+                duration_api_ms: 30000,
+                num_turns: 7,
+            }),
+        ).toEqual({
+            type: 'result',
+            costUsd: 0.42,
+            durationMs: 90000,
+            durationApiMs: 30000,
+            numTurns: 7,
+        });
+    });
+
+    it('defaults missing result timing fields to null', () => {
         expect(
             interpretAgentEvent({ type: 'result', total_cost_usd: 0.42 }),
-        ).toEqual({ type: 'result', costUsd: 0.42 });
+        ).toEqual({
+            type: 'result',
+            costUsd: 0.42,
+            durationMs: null,
+            durationApiMs: null,
+            numTurns: null,
+        });
     });
 
     it.each([null, 'string', { type: 'system' }, undefined])(
@@ -400,35 +399,89 @@ describe('interpretAgentEvent', () => {
     );
 });
 
-describe('classifyToolPhase', () => {
-    it('classifies a lightdash compile Bash command as compiling', () => {
+describe('classifyToolStep', () => {
+    it('classifies an edit with the file basename', () => {
         expect(
-            classifyToolPhase({
+            classifyToolStep({
+                name: 'Edit',
+                input: { file_path: '/home/user/repo/models/fm_parts.yml' },
+            }),
+        ).toEqual({ kind: 'edit', label: 'fm_parts.yml' });
+        expect(
+            classifyToolStep({
+                name: 'Write',
+                input: { file_path: 'models/orders.yml' },
+            }),
+        ).toEqual({ kind: 'edit', label: 'orders.yml' });
+    });
+
+    it('classifies a read with the file basename', () => {
+        expect(
+            classifyToolStep({
+                name: 'Read',
+                input: { file_path: 'models/staging/stg_orders.sql' },
+            }),
+        ).toEqual({ kind: 'read', label: 'stg_orders.sql' });
+    });
+
+    it('classifies a search by its pattern', () => {
+        expect(
+            classifyToolStep({ name: 'Grep', input: { pattern: 'revenue' } }),
+        ).toEqual({ kind: 'search', label: 'revenue' });
+    });
+
+    it('classifies a lightdash compile Bash command', () => {
+        expect(
+            classifyToolStep({
                 name: 'Bash',
                 input: { command: 'lightdash compile --project-dir .' },
             }),
-        ).toBe('compiling');
+        ).toEqual({ kind: 'compile', label: 'project' });
     });
 
-    it('does not classify other Bash commands', () => {
+    it('classifies the compile wrapper the agent actually invokes', () => {
         expect(
-            classifyToolPhase({ name: 'Bash', input: { command: 'ls -la' } }),
+            classifyToolStep({
+                name: 'Bash',
+                input: {
+                    command: `${COMPILE_WRAPPER_PATH} --skip-warehouse-catalog`,
+                },
+            }),
+        ).toEqual({ kind: 'compile', label: 'project' });
+    });
+
+    it('returns null for non-compile Bash and unknown tools', () => {
+        expect(
+            classifyToolStep({ name: 'Bash', input: { command: 'ls -la' } }),
         ).toBeNull();
+        expect(classifyToolStep({ name: 'TodoWrite', input: {} })).toBeNull();
     });
 
-    it('classifies Edit/Write as editing and Read/Glob/Grep as discovering', () => {
-        expect(classifyToolPhase({ name: 'Write', input: {} })).toBe('editing');
-        expect(classifyToolPhase({ name: 'Edit', input: {} })).toBe('editing');
-        expect(classifyToolPhase({ name: 'Read', input: {} })).toBe(
-            'discovering',
-        );
-        expect(classifyToolPhase({ name: 'Grep', input: {} })).toBe(
-            'discovering',
-        );
+    it('falls back to a generic label when no file is given', () => {
+        expect(classifyToolStep({ name: 'Edit', input: {} })).toEqual({
+            kind: 'edit',
+            label: 'files',
+        });
     });
+});
 
-    it('returns null for an unknown tool', () => {
-        expect(classifyToolPhase({ name: 'TodoWrite', input: {} })).toBeNull();
+describe('formatWritebackStep', () => {
+    it('renders a one-line string per step kind', () => {
+        expect(formatWritebackStep({ kind: 'read', label: 'orders.yml' })).toBe(
+            'Reading orders.yml',
+        );
+        expect(
+            formatWritebackStep({ kind: 'edit', label: 'fm_parts.yml' }),
+        ).toBe('Editing fm_parts.yml');
+        expect(formatWritebackStep({ kind: 'search', label: 'revenue' })).toBe(
+            'Searching for "revenue"',
+        );
+        expect(formatWritebackStep({ kind: 'compile', label: 'project' })).toBe(
+            'Compiling project',
+        );
+        expect(
+            formatWritebackStep({ kind: 'stage', label: 'Cloning project' }),
+        ).toBe('Cloning project');
     });
 });
 
@@ -453,24 +506,6 @@ describe('summarizeToolInput', () => {
         const circular: Record<string, unknown> = {};
         circular.self = circular;
         expect(summarizeToolInput(circular)).toBe('<unserializable>');
-    });
-});
-
-describe('getPhaseProgressText', () => {
-    it('uses workflow wording for preview-deploy setup', () => {
-        expect(getPhaseProgressText('preview_deploy_setup')).toEqual({
-            discovering: 'Inspecting repository',
-            editing: 'Writing workflow files',
-            compiling: 'Validating workflow',
-        });
-    });
-
-    it('uses model wording for a normal writeback', () => {
-        expect(getPhaseProgressText('slack')).toEqual({
-            discovering: 'Discovering models',
-            editing: 'Editing models',
-            compiling: 'Compiling project',
-        });
     });
 });
 

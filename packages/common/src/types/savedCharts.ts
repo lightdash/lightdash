@@ -201,6 +201,14 @@ export type GaugeChart = {
     customPercentageLabel?: string;
 };
 
+/**
+ * How nodes are laid out:
+ * - `multi-step`: depth-unrolled journeys (default)
+ * - `merged`: one node per label, journeys preserved (acyclic flows only)
+ * - `direct`: two-column source→target pairs, no chaining
+ */
+export type SankeyNodeLayout = 'multi-step' | 'merged' | 'direct';
+
 export type SankeyChart = {
     /** Field ID for the source node dimension */
     sourceFieldId?: string;
@@ -212,6 +220,8 @@ export type SankeyChart = {
     nodeAlign?: 'left' | 'right' | 'justify';
     /** Orientation of the diagram */
     orient?: 'horizontal' | 'vertical';
+    /** How nodes are laid out across steps */
+    nodeLayout?: SankeyNodeLayout;
 };
 
 export enum MapChartLocation {
@@ -687,6 +697,10 @@ export type XAxis = Axis & {
     sortType?: XAxisSortType;
     /** Enable data zoom slider for this axis */
     enableDataZoom?: boolean;
+    /** Where the initial data-zoom window anchors when data zoom is enabled */
+    dataZoomAnchor?: 'start' | 'end';
+    /** Number of items visible at once in the data-zoom window */
+    dataZoomItemCount?: number;
 };
 
 export enum XAxisSortType {

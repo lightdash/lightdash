@@ -70,11 +70,15 @@ type Props = {
 /**
  * Renders a sandboxed app preview iframe with a postMessage fetch proxy.
  *
- * The iframe has `sandbox="allow-scripts allow-modals"` (no `allow-same-origin`),
- * so it cannot access the parent's cookies. `allow-modals` lets generated apps
- * call `window.print()` (needed for PDF Report templates) - it also enables
- * `alert`/`confirm`/`prompt`, which is acceptable here since the iframe is
- * already isolated from parent origin. The SDK inside the iframe routes all
+ * The iframe is sandboxed without `allow-same-origin`, so it cannot access the
+ * parent's cookies. `allow-modals` lets generated apps call `window.print()`
+ * (needed for PDF Report templates) - it also enables `alert`/`confirm`/`prompt`,
+ * which is acceptable here since the iframe is already isolated from parent
+ * origin. `allow-popups-to-escape-sandbox` lets cards open links in a new
+ * un-sandboxed tab, and `allow-top-navigation-by-user-activation` lets a clicked
+ * link navigate the current tab (e.g. to another dashboard) without letting app
+ * code redirect the page silently. None of these grant `allow-same-origin`, so
+ * the parent session stays inaccessible. The SDK inside the iframe routes all
  * API calls through postMessage, and this component's bridge executes them
  * using the current user's session.
  *
@@ -180,7 +184,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 src={src}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title="App preview"
-                sandbox="allow-scripts allow-modals allow-popups"
+                sandbox="allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""
                 onLoad={handleLoad}
             />

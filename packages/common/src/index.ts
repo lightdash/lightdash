@@ -47,6 +47,7 @@ export {
     defineUserAbility,
     getUserAbilityBuilder,
     JWT_HEADER_NAME,
+    type ProjectAbilityProfile,
 } from './authorization/index';
 export * from './authorization/jwtAbility';
 export { projectMemberAbilities } from './authorization/projectMemberAbility';
@@ -108,6 +109,7 @@ export * from './types/conditionalFormatting';
 export * from './types/content';
 export * from './types/contentVerification';
 export * from './types/dashboard';
+export * from './types/dataTimezonePreview';
 export * from './types/dbt';
 export * from './types/downloadFile';
 export * from './types/email';
@@ -118,6 +120,7 @@ export * from './types/featureFlags';
 export * from './types/impersonationOrganizationSettings';
 export * from './types/previewExpirationProjectSettings';
 export * from './types/field';
+export * from './types/ci';
 export * from './types/fieldMatch';
 export * from './types/filter';
 export * from './types/funnel';
@@ -152,7 +155,104 @@ export * from './types/projectCompileLogs';
 export * from './types/projectGroupAccess';
 export * from './types/projectMemberProfile';
 export * from './types/projectMemberRole';
-export * from './types/projects';
+export {
+    AthenaAuthenticationType,
+    BigqueryAuthenticationType,
+    DatabricksAuthenticationType,
+    DbtProjectType,
+    DbtVersionOptionLatest,
+    DefaultSupportedDbtVersion,
+    DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
+    getColumnTimezone,
+    getDbtEnvironmentVariableKeyError,
+    getInvalidDbtEnvironmentVariableKeys,
+    getLatestSupportDbtVersion,
+    isDbtVersion110OrHigher,
+    isGitProjectType,
+    isSafeDbtEnvironmentVariableKey,
+    LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
+    maybeOverrideDbtConnection,
+    maybeOverrideWarehouseConnection,
+    mergeWarehouseCredentials,
+    normalizeWarehouseCredentials,
+    ProjectType,
+    sensitiveCredentialsFieldNames,
+    SnowflakeAuthenticationType,
+    stripDucklakeNestedSensitive,
+    SupportedDbtVersions,
+    WarehouseTypes,
+} from './types/projects';
+export type {
+    ApiGetProjectGroupAccesses,
+    ApiProjectResponse,
+    AthenaCredentials,
+    BigqueryCredentials,
+    ClickhouseCredentials,
+    CreateAthenaCredentials,
+    CreateBigqueryCredentials,
+    CreateClickhouseCredentials,
+    CreateDatabricksCredentials,
+    CreateDuckdbCredentials,
+    CreateDuckdbDucklakeCredentials,
+    CreateDuckdbMotherduckCredentials,
+    CreateDucklakeCatalog,
+    CreateDucklakeCatalogDuckdb,
+    CreateDucklakeCatalogPostgres,
+    CreateDucklakeCatalogSqlite,
+    CreateDucklakeDataPath,
+    CreateDucklakeDataPathAzure,
+    CreateDucklakeDataPathGcs,
+    CreateDucklakeDataPathLocal,
+    CreateDucklakeDataPathS3,
+    CreatePostgresCredentials,
+    CreatePostgresLikeCredentials,
+    CreateRedshiftCredentials,
+    CreateSnowflakeCredentials,
+    CreateTrinoCredentials,
+    CreateWarehouseCredentials,
+    DatabricksCredentials,
+    DbtAzureDevOpsProjectConfig,
+    DbtBitBucketProjectConfig,
+    DbtCloudIDEProjectConfig,
+    DbtGithubProjectConfig,
+    DbtGitlabProjectConfig,
+    DbtLocalProjectConfig,
+    DbtManifestProjectConfig,
+    DbtNoneProjectConfig,
+    DbtProjectCompilerBase,
+    DbtProjectConfig,
+    DbtProjectConfigBase,
+    DbtProjectEnvironmentVariable,
+    DbtVersionOption,
+    DuckdbCredentials,
+    DuckdbDucklakeCredentials,
+    DuckdbMotherduckCredentials,
+    DucklakeCatalog,
+    DucklakeCatalogDuckdb,
+    DucklakeCatalogPostgres,
+    DucklakeCatalogSqlite,
+    DucklakeDataPath,
+    DucklakeDataPathAzure,
+    DucklakeDataPathGcs,
+    DucklakeDataPathLocal,
+    DucklakeDataPathS3,
+    IdContentMapping,
+    PostgresCredentials,
+    PreviewContentMapping,
+    Project,
+    ProjectSummary,
+    RedshiftCredentials,
+    SensitiveCredentialsFieldNames,
+    SnowflakeCredentials,
+    SshTunnelConfiguration,
+    SslConfiguration,
+    TrinoCredentials,
+    UpdateQueryTimezoneSettings,
+    UpdateSchedulerSettings,
+    WarehouseCredentials,
+} from './types/projects';
 export * from './types/promotion';
 export * from './types/queryHistory';
 export * from './types/rename';

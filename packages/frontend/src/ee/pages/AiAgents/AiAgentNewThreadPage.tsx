@@ -1,5 +1,6 @@
 import {
     ActionIcon,
+    Box,
     Center,
     Group,
     Pill,
@@ -24,6 +25,10 @@ import MantineIcon from '../../../components/common/MantineIcon';
 import { getModelKey } from '../../../components/common/ModelSelector/utils';
 import { AiAgentNewThreadMcpConnections } from '../../features/aiCopilot/components/AiAgentNewThreadMcpConnections';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
+import {
+    mergeAiPromptContextInput,
+    mergeAiPromptContextItems,
+} from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
@@ -41,6 +46,7 @@ import { useAiAgentStoreDispatch } from '../../features/aiCopilot/store/hooks';
 import { type AiAgentToolResult } from '../../features/aiCopilot/types';
 import { getDashboardNavigationUrlFromContentToolResult } from '../../features/aiCopilot/utils/contentToolResultNavigation';
 import { type AgentContext } from './AgentPage';
+import styles from './AiAgentNewThreadPage.module.css';
 
 const AiAgentNewThreadPage: FC = () => {
     const { agentUuid, projectUuid } = useParams();
@@ -51,6 +57,7 @@ const AiAgentNewThreadPage: FC = () => {
     const {
         contextInput,
         previewItems,
+        contentMentionItems,
         isReady: isPinnedContextReady,
     } = usePinnedContext({
         projectUuid,
@@ -147,18 +154,43 @@ const AiAgentNewThreadPage: FC = () => {
     const showExtendedThinking = selectedModel?.supportsReasoning ?? false;
 
     const { pendingPrompt, setPendingPrompt } = usePendingPrompt();
+    const [composerSeedKey, setComposerSeedKey] = useState(0);
+    const handleSuggestedPrompt = useCallback(
+        (prompt: string) => {
+            setPendingPrompt(prompt);
+            setComposerSeedKey((key) => key + 1);
+        },
+        [setPendingPrompt],
+    );
 
     const onSubmit = useCallback(
-        ({ message, toolHints }: { message: string; toolHints: string[] }) => {
+        ({
+            message,
+            toolHints,
+            context,
+            optimisticContext,
+        }: {
+            message: string;
+            toolHints: string[];
+            context?: typeof contextInput;
+            optimisticContext?: typeof previewItems;
+        }) => {
             if (!agentUuid) return;
             if (!isPinnedContextReady) return;
             setPendingPrompt('');
+            const mergedContext = mergeAiPromptContextInput(
+                contextInput,
+                context,
+            );
+            const mergedOptimisticContext = mergeAiPromptContextItems(
+                previewItems,
+                optimisticContext,
+            );
             void createAgentThread({
                 agentUuid,
                 prompt: message,
-                context: contextInput.length > 0 ? contextInput : undefined,
-                optimisticContext:
-                    previewItems.length > 0 ? previewItems : undefined,
+                context: mergedContext,
+                optimisticContext: mergedOptimisticContext,
                 enableSqlMode: sqlModeAvailable && sqlMode,
                 toolHints,
                 modelConfig: selectedModel
@@ -196,21 +228,25 @@ const AiAgentNewThreadPage: FC = () => {
                 {...ChatElementsUtils.centeredElementProps}
                 h="unset"
             >
-                <Stack flex={1} py="xl">
-                    <Stack align="center" gap="xxs">
-                        <LightdashUserAvatar
-                            size="lg"
-                            name={agent.name || 'AI'}
-                            src={agent.imageUrl}
-                        />
-                        <Group justify="center" gap={2}>
-                            <Title order={4} ta="center">
-                                {agent.name}
-                            </Title>
+                <Stack flex={1} py="lg">
+                    <Stack align="center" gap={6}>
+                        <Box className={styles.agentAvatarWrap}>
+                            <LightdashUserAvatar
+                                size="lg"
+                                name={agent.name || 'AI'}
+                                src={agent.imageUrl}
+                            />
                             <DefaultAgentButton
                                 projectUuid={projectUuid}
                                 agentUuid={agent.uuid}
+                                size="xs"
+                                className={styles.defaultAgentBadge}
                             />
+                        </Box>
+                        <Group justify="center" gap={4}>
+                            <Title order={4} ta="center">
+                                {agent.name}
+                            </Title>
                             {agent.instruction && (
                                 <Popover withArrow>
                                     <Popover.Target>
@@ -269,6 +305,7 @@ const AiAgentNewThreadPage: FC = () => {
                         <AiAgentNewThreadMcpConnections
                             projectUuid={projectUuid}
                             agentUuid={agentUuid}
+                            onSuggestedPrompt={handleSuggestedPrompt}
                         />
                     )}
 
@@ -304,6 +341,7 @@ const AiAgentNewThreadPage: FC = () => {
                     )}
 
                     <AgentChatInput
+                        key={composerSeedKey}
                         onSubmit={onSubmit}
                         loading={isCreatingThread}
                         disabled={!isPinnedContextReady}
@@ -329,6 +367,7 @@ const AiAgentNewThreadPage: FC = () => {
                         }
                         defaultValue={pendingPrompt}
                         onValueChange={setPendingPrompt}
+                        contentMentionPriorityItems={contentMentionItems}
                     />
                 </Stack>
             </Stack>

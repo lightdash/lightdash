@@ -44,8 +44,8 @@ import {
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
+    type ContentTableColumnDef,
+    type ContentTableVirtualizer,
 } from '../common/ContentTable';
 import EmptyStateLoader from '../common/EmptyStateLoader';
 import MantineIcon from '../common/MantineIcon';
@@ -95,7 +95,9 @@ const LogsTable: FC<LogsTableProps> = ({
     const isResourceScoped = !!resourceScope;
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
     const {
         search,
         setSearch,
@@ -302,7 +304,7 @@ const LogsTable: FC<LogsTableProps> = ({
         );
     }, [schedulerRunsData]);
 
-    const allColumns: MRT_ColumnDef<TableRow>[] = useMemo(
+    const allColumns: ContentTableColumnDef<TableRow>[] = useMemo(
         () => [
             {
                 accessorKey: 'scheduler.name',

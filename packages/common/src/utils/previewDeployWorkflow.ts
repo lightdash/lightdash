@@ -76,6 +76,18 @@ export type PreviewDeploySecret = {
     description: string;
 };
 
+/**
+ * Result of opening the preview-deploy setup pull request. `secrets` are the
+ * GitHub Actions secrets the user must add for the workflow to run, with the
+ * values Lightdash can pre-fill already populated.
+ */
+export type PreviewDeploySetupResult = {
+    prUrl: string;
+    projectName: string;
+    repository: string;
+    secrets: PreviewDeploySecret[];
+};
+
 export const getPreviewDeploySecrets = ({
     projectUuid,
     siteUrl,
@@ -121,6 +133,8 @@ const CHECKOUT_ACTION =
     'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2';
 const SETUP_NODE_ACTION =
     'actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6';
+const GITHUB_SCRIPT_ACTION =
+    'actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8';
 
 /**
  * Generate the canonical Lightdash preview-on-PR workflow pair.
@@ -147,8 +161,11 @@ export const generatePreviewDeployWorkflowFiles = ({
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+# contents:read for checkout; pull-requests:write to post the preview link
+# comment. Both must be listed — an omitted scope defaults to none.
 permissions:
   contents: read
+  pull-requests: write
 concurrency:
   group: lightdash-preview-\${{ github.ref }}
   cancel-in-progress: true
@@ -170,11 +187,42 @@ jobs:
         env:
           DBT_PROFILES: \${{ secrets.DBT_PROFILES }}
       - name: Create preview project
+        id: preview
         run: lightdash start-preview --project-dir "$PROJECT_DIR" --profiles-dir . --name "\${GITHUB_HEAD_REF}"
         env:
           LIGHTDASH_URL: \${{ secrets.LIGHTDASH_URL }}
           LIGHTDASH_PROJECT: \${{ secrets.LIGHTDASH_PROJECT }}
           LIGHTDASH_API_KEY: \${{ secrets.LIGHTDASH_API_KEY }}
+      - name: Comment preview link on PR
+        if: steps.preview.outputs.url != ''
+        uses: ${GITHUB_SCRIPT_ACTION}
+        env:
+          PREVIEW_URL: \${{ steps.preview.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- lightdash-preview -->';
+            const body = marker + '\\n:zap: Your Lightdash preview project is ready: ' + process.env.PREVIEW_URL;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
 `;
 
     const closePreview = `name: lightdash-close-preview

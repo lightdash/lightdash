@@ -1,8 +1,10 @@
 import {
     DimensionType,
     FieldType,
+    getExcelFormatExpression,
     getFormatExpression,
     ItemsMap,
+    MetricType,
     SortByDirection,
     TimeFrames,
     VizAggregationOptions,
@@ -48,6 +50,28 @@ const mockItemMapWithFormats: ItemsMap = {
         tableLabel: 'table',
         label: 'Plain Number',
         sql: '${TABLE}.plain_number',
+    },
+    count_metric_without_format: {
+        name: 'count_metric_without_format',
+        description: undefined,
+        table: 'table',
+        hidden: false,
+        fieldType: FieldType.METRIC,
+        type: MetricType.COUNT,
+        tableLabel: 'table',
+        label: 'Count',
+        sql: 'COUNT(${TABLE}.id)',
+    },
+    count_distinct_metric_without_format: {
+        name: 'count_distinct_metric_without_format',
+        description: undefined,
+        table: 'table',
+        hidden: false,
+        fieldType: FieldType.METRIC,
+        type: MetricType.COUNT_DISTINCT,
+        tableLabel: 'table',
+        label: 'Count distinct',
+        sql: 'COUNT(DISTINCT ${TABLE}.id)',
     },
     string_column: {
         name: 'string_column',
@@ -1855,6 +1879,19 @@ describe('ExcelService', () => {
 
             // Should return a default number format for fields without explicit format
             expect(formatExpression).toBe('#,##0.###');
+        });
+
+        it('should default unformatted Excel count metrics to whole numbers', () => {
+            expect(
+                getExcelFormatExpression(
+                    mockItemMapWithFormats.count_metric_without_format,
+                ),
+            ).toBe('#,##0');
+            expect(
+                getExcelFormatExpression(
+                    mockItemMapWithFormats.count_distinct_metric_without_format,
+                ),
+            ).toBe('#,##0');
         });
 
         it('should NOT return default format for date fields without explicit format', () => {

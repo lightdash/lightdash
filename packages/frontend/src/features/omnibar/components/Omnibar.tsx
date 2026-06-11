@@ -1,7 +1,7 @@
 import {
     getSearchResultId,
+    SearchItemType,
     type SearchFilters,
-    type SearchItemType,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -33,13 +33,13 @@ import { useProject } from '../../../hooks/useProject';
 import { useValidationUserAbility } from '../../../hooks/validation/useValidation';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { useOmnibarSettingsItems } from '../hooks/useOmnibarSettingsItems';
 import useSearch, { OMNIBAR_MIN_QUERY_LENGTH } from '../hooks/useSearch';
 import {
     allSearchItemTypes,
     type FocusedItemIndex,
     type SearchItem,
 } from '../types/searchItem';
-import { isSearchResultEmpty } from '../utils/isSearchResultEmpty';
 import classes from './Omnibar.module.css';
 import OmnibarEmptyState from './OmnibarEmptyState';
 import OmnibarFilters from './OmnibarFilters';
@@ -74,6 +74,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
         filters: searchFilters,
         source: 'omnibar',
     });
+
+    const settingsItems = useOmnibarSettingsItems(debouncedValue ?? '');
 
     const [isOmnibarOpen, { open: openOmnibar, close: closeOmnibar }] =
         useDisclosure(false);
@@ -129,7 +131,8 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
                 id: getSearchResultId(item.item),
             },
         });
-        if (redirect) {
+        // Settings pages always navigate in place, never a new tab.
+        if (redirect && item.type !== SearchItemType.SETTINGS) {
             window.open(
                 item.location.pathname + (item.location.search || ''),
                 '_blank',
@@ -161,14 +164,29 @@ const Omnibar: FC<Props> = ({ projectUuid }) => {
     const hasEnteredQuery = query !== undefined && query !== '';
     const hasEnteredMinQueryLength =
         hasEnteredQuery && query.length >= OMNIBAR_MIN_QUERY_LENGTH;
-    const hasSearchResults =
-        searchResults && !isSearchResultEmpty(searchResults);
 
-    const sortedGroupEntries = useMemo(
-        () =>
-            searchResults ? getSearchResultsGroupsSorted(searchResults) : [],
-        [searchResults],
-    );
+    const sortedGroupEntries = useMemo(() => {
+        const contentGroups = searchResults
+            ? getSearchResultsGroupsSorted(searchResults)
+            : [];
+
+        const showSettings =
+            settingsItems.length > 0 &&
+            (!searchFilters?.type ||
+                searchFilters.type === SearchItemType.SETTINGS);
+
+        return showSettings
+            ? [
+                  ...contentGroups,
+                  [SearchItemType.SETTINGS, settingsItems] as [
+                      SearchItemType,
+                      SearchItem[],
+                  ],
+              ]
+            : contentGroups;
+    }, [searchResults, settingsItems, searchFilters?.type]);
+
+    const hasSearchResults = sortedGroupEntries.length > 0;
     useEffect(() => {
         setFocusedItemIndex(undefined);
     }, [query, searchFilters]);

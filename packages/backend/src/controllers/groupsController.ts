@@ -12,6 +12,7 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -33,6 +34,7 @@ import {
 } from '../database/entities/projectGroupAccess';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -105,14 +107,21 @@ export class GroupsController extends BaseController {
      * @summary Add user to group
      * @param groupUuid the UUID for the group to add the user to
      * @param userUuid the UUID for the user to add to the group
+     *
+     * @deprecated Use PATCH /api/v1/groups/{groupUuid} with the full member set instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use PATCH /api/v1/groups/{groupUuid} with the full member set instead.',
+        }),
     ])
     @Put('{groupUuid}/members/{userUuid}')
     @OperationId('addUserToGroup')
+    @Deprecated()
     async addUserToGroup(
         @Path() groupUuid: string,
         @Path() userUuid: string,
@@ -137,14 +146,21 @@ export class GroupsController extends BaseController {
      * @summary Remove user from group
      * @param groupUuid the UUID for the group to remove the user from
      * @param userUuid the UUID for the user to remove from the group
+     *
+     * @deprecated Use PATCH /api/v1/groups/{groupUuid} with the full member set instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use PATCH /api/v1/groups/{groupUuid} with the full member set instead.',
+        }),
     ])
     @Delete('{groupUuid}/members/{userUuid}')
     @OperationId('removeUserFromGroup')
+    @Deprecated()
     async removeUserFromGroup(
         @Path() groupUuid: string,
         @Path() userUuid: string,
@@ -168,10 +184,20 @@ export class GroupsController extends BaseController {
      * View members of a group
      * @summary Get group members
      * @param groupUuid the UUID for the group to view the members of
+     *
+     * @deprecated Use GET /api/v1/groups/{groupUuid}?includeMembers=N instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use GET /api/v1/groups/{groupUuid}?includeMembers=N instead.',
+        }),
+    ])
     @Get('{groupUuid}/members')
     @OperationId('getGroupMembers')
+    @Deprecated()
     async getGroupMembers(
         @Path() groupUuid: string,
         @Request() req: express.Request,
@@ -223,6 +249,9 @@ export class GroupsController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage: 'Use ProjectRoleAssignments instead.',
+        }),
     ])
     @Post('{groupUuid}/projects/{projectUuid}')
     @OperationId('addProjectAccessToGroup')
@@ -257,6 +286,9 @@ export class GroupsController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage: 'Use ProjectRoleAssignments instead.',
+        }),
     ])
     @Patch('{groupUuid}/projects/{projectUuid}')
     @OperationId('updateProjectAccessForGroup')
@@ -292,6 +324,9 @@ export class GroupsController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-26'), {
+            suffixMessage: 'Use ProjectRoleAssignments instead.',
+        }),
     ])
     @Delete('{groupUuid}/projects/{projectUuid}')
     @OperationId('removeProjectAccessFromGroup')

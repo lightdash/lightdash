@@ -42,8 +42,8 @@ import Callout from '../../../components/common/Callout';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
+    type ContentTableColumnDef,
+    type ContentTableVirtualizer,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
@@ -131,7 +131,9 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const theme = useMantineTheme();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const { health, user } = useApp();
     const retentionDays = health.data?.softDelete.retentionDays;
@@ -227,7 +229,9 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns = useMemo<MRT_ColumnDef<DeletedContentWithDescendants>[]>(
+    const columns = useMemo<
+        ContentTableColumnDef<DeletedContentWithDescendants>[]
+    >(
         () => [
             {
                 accessorKey: 'name',
@@ -333,7 +337,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                       Unknown
                                   </Text>
                               ),
-                      } as MRT_ColumnDef<DeletedContentWithDescendants>,
+                      } as ContentTableColumnDef<DeletedContentWithDescendants>,
                   ]
                 : []),
             {

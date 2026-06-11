@@ -1,7 +1,8 @@
 import {
     assertUnreachable,
     type Change,
-    type ChangesetWithChanges,
+    type ChangeDependency,
+    type ChangeWithDependencies,
 } from '@lightdash/common';
 import {
     Alert,
@@ -9,19 +10,27 @@ import {
     Badge,
     Box,
     Button,
+    Divider,
     Group,
+    HoverCard,
     Loader,
+    ScrollArea,
     Stack,
     Text,
     Title,
     Tooltip,
+    UnstyledButton,
     useMantineTheme,
 } from '@mantine-8/core';
 import { modals } from '@mantine/modals';
 import {
     IconAlertCircle,
+    IconAlertTriangle,
     IconArrowBackUp,
+    IconChartBar,
     IconClock,
+    IconDownload,
+    IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
@@ -31,7 +40,7 @@ import Callout from '../../../components/common/Callout';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -42,6 +51,7 @@ import {
     useRevertAllChanges,
     useRevertChange,
 } from '../hooks';
+import { downloadChangesetJson } from '../utils/downloadChangeset';
 
 dayjs.extend(relativeTime);
 
@@ -103,6 +113,125 @@ const getUserDisplayName = (
     return user.firstName && user.lastName
         ? `${user.firstName} ${user.lastName}`
         : user.email;
+};
+
+const getDependencyMeta = (
+    dependency: ChangeDependency,
+    projectUuid: string,
+) => {
+    switch (dependency.type) {
+        case 'chart':
+            return {
+                icon: IconChartBar,
+                color: 'blue',
+                to: `/projects/${projectUuid}/saved/${dependency.id}`,
+            };
+        case 'dashboard':
+            return {
+                icon: IconLayoutDashboard,
+                color: 'grape',
+                to: `/projects/${projectUuid}/dashboards/${dependency.id}`,
+            };
+        default:
+            return assertUnreachable(
+                dependency.type,
+                `Unknown dependency type`,
+            );
+    }
+};
+
+const DependenciesCell: FC<{
+    dependencies: ChangeDependency[];
+    projectUuid: string;
+}> = ({ dependencies, projectUuid }) => {
+    if (dependencies.length === 0) {
+        return null;
+    }
+
+    return (
+        <HoverCard
+            withinPortal
+            position="bottom-start"
+            offset={4}
+            withArrow
+            shadow="md"
+            radius="md"
+            openDelay={100}
+            closeDelay={150}
+        >
+            <HoverCard.Target>
+                <UnstyledButton>
+                    <Group gap={6} wrap="nowrap">
+                        <MantineIcon icon={IconAlertTriangle} color="red.6" />
+                        <Text fz="xs" fw={500} c="red.6">
+                            {dependencies.length}{' '}
+                            {dependencies.length === 1
+                                ? 'dependency'
+                                : 'dependencies'}
+                        </Text>
+                    </Group>
+                </UnstyledButton>
+            </HoverCard.Target>
+            <HoverCard.Dropdown p={0}>
+                <Group justify="space-between" gap="lg" px="sm" py="xs">
+                    <Text fz={10} fw={600} c="dimmed" tt="uppercase">
+                        Breaks if reverted
+                    </Text>
+                    <Badge color="red" variant="light" size="xs" radius="sm">
+                        {dependencies.length}
+                    </Badge>
+                </Group>
+                <Divider color="ldGray.2" />
+                <ScrollArea.Autosize mah={260} type="auto">
+                    <Stack gap={1} p={4} miw={248}>
+                        {dependencies.map((dependency) => {
+                            const { icon, color, to } = getDependencyMeta(
+                                dependency,
+                                projectUuid,
+                            );
+                            return (
+                                <Group
+                                    key={`${dependency.type}-${dependency.id}`}
+                                    gap="md"
+                                    wrap="nowrap"
+                                    justify="space-between"
+                                    px="xs"
+                                    py={4}
+                                >
+                                    <Group gap={8} wrap="nowrap" miw={0}>
+                                        <MantineIcon
+                                            icon={icon}
+                                            size={14}
+                                            color={`${color}.6`}
+                                        />
+                                        <Anchor
+                                            href={to}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            fz="xs"
+                                            fw={500}
+                                            lineClamp={1}
+                                        >
+                                            {dependency.name}
+                                        </Anchor>
+                                    </Group>
+                                    <Badge
+                                        color={color}
+                                        variant="light"
+                                        size="xs"
+                                        radius="sm"
+                                        tt="capitalize"
+                                    >
+                                        {dependency.type}
+                                    </Badge>
+                                </Group>
+                            );
+                        })}
+                    </Stack>
+                </ScrollArea.Autosize>
+            </HoverCard.Dropdown>
+        </HoverCard>
+    );
 };
 
 export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
@@ -194,141 +323,145 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         });
     };
 
-    const columns: MRT_ColumnDef<ChangesetWithChanges['changes'][0]>[] =
-        useMemo(
-            () => [
-                {
-                    accessorKey: 'entityName',
-                    header: '',
-                    enableSorting: false,
-                    size: 150,
-                    Cell: ({ row }) => {
-                        const change = row.original;
-                        return (
-                            <Tooltip
-                                withinPortal
-                                label={
-                                    <Group gap="xs">
-                                        <MantineIcon
-                                            icon={IconTable}
-                                            size={16}
-                                        />
-                                        <Text size="sm">
-                                            {change.entityTableName}
-                                        </Text>
-                                    </Group>
-                                }
+    const columns: ContentTableColumnDef<ChangeWithDependencies>[] = useMemo(
+        () => [
+            {
+                accessorKey: 'entityName',
+                header: '',
+                enableSorting: false,
+                size: 150,
+                Cell: ({ row }) => {
+                    const change = row.original;
+                    return (
+                        <Tooltip
+                            withinPortal
+                            label={
+                                <Group gap="xs">
+                                    <MantineIcon icon={IconTable} size={16} />
+                                    <Text size="sm">
+                                        {change.entityTableName}
+                                    </Text>
+                                </Group>
+                            }
+                        >
+                            <Text
+                                fw={500}
+                                fz="sm"
+                                truncate
+                                style={{ cursor: 'help' }}
                             >
-                                <Text
-                                    fw={500}
-                                    fz="sm"
-                                    truncate
-                                    style={{ cursor: 'help' }}
-                                >
-                                    {change.entityName}
-                                </Text>
-                            </Tooltip>
-                        );
-                    },
+                                {change.entityName}
+                            </Text>
+                        </Tooltip>
+                    );
                 },
-                {
-                    accessorKey: 'change',
-                    header: 'Change',
-                    enableSorting: false,
-                    size: 200,
+            },
+            {
+                accessorKey: 'change',
+                header: 'Change',
+                enableSorting: false,
+                size: 200,
 
-                    Cell: ({ row }) => {
-                        const isTruncated = useIsTruncated<HTMLDivElement>();
-                        const change = row.original;
-                        const changeValue = extractChangeValue(change);
+                Cell: ({ row }) => {
+                    const isTruncated = useIsTruncated<HTMLDivElement>();
+                    const change = row.original;
+                    const changeValue = extractChangeValue(change);
 
-                        return (
-                            <Group gap="xs" align="center">
-                                <Badge
-                                    {...getChangeTypeBadgeProps(change.type)}
-                                    radius="sm"
-                                    size="sm"
-                                    fw={400}
-                                    tt="capitalize"
-                                >
-                                    {change.type}
-                                </Badge>
-                                {typeof changeValue === 'string' ? (
-                                    <Text fz="xs">{changeValue}</Text>
-                                ) : (
-                                    <>
-                                        <Tooltip
-                                            withinPortal
-                                            label={changeValue.map((patch) => (
-                                                <Text key={patch.path} fz="xs">
+                    return (
+                        <Group gap="xs" align="center">
+                            <Badge
+                                {...getChangeTypeBadgeProps(change.type)}
+                                radius="sm"
+                                size="sm"
+                                fw={400}
+                                tt="capitalize"
+                            >
+                                {change.type}
+                            </Badge>
+                            {typeof changeValue === 'string' ? (
+                                <Text fz="xs">{changeValue}</Text>
+                            ) : (
+                                <>
+                                    <Tooltip
+                                        withinPortal
+                                        label={changeValue.map((patch) => (
+                                            <Text key={patch.path} fz="xs">
+                                                {patch.value}
+                                            </Text>
+                                        ))}
+                                        disabled={!isTruncated.isTruncated}
+                                    >
+                                        <Box>
+                                            {changeValue.map((patch) => (
+                                                <Text
+                                                    key={patch.path}
+                                                    fz="xs"
+                                                    maw={280}
+                                                    truncate
+                                                    ref={isTruncated.ref}
+                                                >
+                                                    <Text fw={500} fz="xs" span>
+                                                        {patch.path}:{' '}
+                                                    </Text>
                                                     {patch.value}
                                                 </Text>
                                             ))}
-                                            disabled={!isTruncated.isTruncated}
-                                        >
-                                            <Box>
-                                                {changeValue.map((patch) => (
-                                                    <Text
-                                                        key={patch.path}
-                                                        fz="xs"
-                                                        maw={280}
-                                                        truncate
-                                                        ref={isTruncated.ref}
-                                                    >
-                                                        <Text
-                                                            fw={500}
-                                                            fz="xs"
-                                                            span
-                                                        >
-                                                            {patch.path}:{' '}
-                                                        </Text>
-                                                        {patch.value}
-                                                    </Text>
-                                                ))}
-                                            </Box>
-                                        </Tooltip>
-                                    </>
-                                )}
-                            </Group>
-                        );
-                    },
+                                        </Box>
+                                    </Tooltip>
+                                </>
+                            )}
+                        </Group>
+                    );
                 },
-                {
-                    accessorKey: 'createdByUserUuid',
-                    header: 'Created By',
-                    enableSorting: false,
-                    size: 200,
-                    Cell: ({ row }) => {
-                        const change = row.original;
-                        const userName = getUserDisplayName(
-                            change.createdByUserUuid,
-                            organizationUsers,
-                        );
+            },
+            {
+                accessorKey: 'createdByUserUuid',
+                header: 'Created By',
+                enableSorting: false,
+                size: 200,
+                Cell: ({ row }) => {
+                    const change = row.original;
+                    const userName = getUserDisplayName(
+                        change.createdByUserUuid,
+                        organizationUsers,
+                    );
 
-                        return (
-                            <Group gap="xs" align="center">
-                                <Tooltip
-                                    withinPortal
-                                    label={formatDateTime(change.createdAt)}
-                                >
-                                    <Box style={{ cursor: 'help' }}>
-                                        <MantineIcon
-                                            icon={IconClock}
-                                            size={16}
-                                            color="ldGray.6"
-                                        />
-                                    </Box>
-                                </Tooltip>
-                                <Text fz="sm" truncate>
-                                    {userName}
-                                </Text>
-                            </Group>
-                        );
-                    },
+                    return (
+                        <Group gap="xs" align="center">
+                            <Tooltip
+                                withinPortal
+                                label={formatDateTime(change.createdAt)}
+                            >
+                                <Box style={{ cursor: 'help' }}>
+                                    <MantineIcon
+                                        icon={IconClock}
+                                        size={16}
+                                        color="ldGray.6"
+                                    />
+                                </Box>
+                            </Tooltip>
+                            <Text fz="sm" truncate>
+                                {userName}
+                            </Text>
+                        </Group>
+                    );
                 },
-            ],
-            [organizationUsers],
-        );
+            },
+            {
+                id: 'dependencies',
+                header: 'Dependencies',
+                enableSorting: false,
+                size: 160,
+                Cell: ({ row }) => (
+                    <DependenciesCell
+                        dependencies={row.original.dependencies}
+                        projectUuid={projectUuid}
+                    />
+                ),
+            },
+        ],
+        [organizationUsers, projectUuid],
+    );
 
     const table = useContentTable({
         columns,
@@ -530,16 +663,34 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                         </Text>
                     </Stack>
                     {allChanges.length > 0 && (
-                        <Button
-                            variant="default"
-                            radius="md"
-                            size="compact-sm"
-                            onClick={handleRevertAllChanges}
-                            loading={revertAllChangesMutation.isLoading}
-                            leftSection={<MantineIcon icon={IconArrowBackUp} />}
-                        >
-                            Revert All
-                        </Button>
+                        <Group gap="xs">
+                            <Button
+                                variant="default"
+                                radius="md"
+                                size="compact-sm"
+                                onClick={() =>
+                                    changesets &&
+                                    downloadChangesetJson(changesets)
+                                }
+                                leftSection={
+                                    <MantineIcon icon={IconDownload} />
+                                }
+                            >
+                                Download
+                            </Button>
+                            <Button
+                                variant="default"
+                                radius="md"
+                                size="compact-sm"
+                                onClick={handleRevertAllChanges}
+                                loading={revertAllChangesMutation.isLoading}
+                                leftSection={
+                                    <MantineIcon icon={IconArrowBackUp} />
+                                }
+                            >
+                                Revert All
+                            </Button>
+                        </Group>
                     )}
                 </Group>
                 <ContentTable table={table} />

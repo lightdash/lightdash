@@ -35,6 +35,7 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
     Get,
     Middlewares,
     OperationId,
@@ -52,6 +53,7 @@ import express from 'express';
 import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -242,10 +244,20 @@ export class OrganizationController extends BaseController {
      * @summary Get organization member by UUID
      * @param req express request
      * @param userUuid the uuid of the user
+     *
+     * @deprecated Use the GET /api/v1/org/users list endpoint instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use the GET /api/v1/org/users list endpoint instead.',
+        }),
+    ])
     @Get('/users/{userUuid}')
     @OperationId('GetOrganizationMemberByUuid')
+    @Deprecated()
     async getOrganizationMemberByUuid(
         @Request() req: express.Request,
         @Path() userUuid: UUID,
@@ -265,10 +277,20 @@ export class OrganizationController extends BaseController {
      * @summary Get organization member by email
      * @param req express request
      * @param email the email of the user
+     *
+     * @deprecated Use the GET /api/v1/org/users list endpoint instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use the GET /api/v1/org/users list endpoint instead.',
+        }),
+    ])
     @Get('/users/email/{email}')
     @OperationId('GetOrganizationMemberByEmail')
+    @Deprecated()
     async getOrganizationMemberByEmail(
         @Request() req: express.Request,
         @Path() email: string,
@@ -296,6 +318,10 @@ export class OrganizationController extends BaseController {
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2025-08-27'), {
+            suffixMessage:
+                'Use the /api/v2/org/assignments/user/{userId} endpoint instead.',
+        }),
     ])
     @Patch('/users/{userUuid}')
     @OperationId('UpdateOrganizationMember')

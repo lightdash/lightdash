@@ -541,6 +541,35 @@ export class PivotQueryBuilder {
             ...(sortOnlyDimensions || []),
         ];
 
+        // When the declared pivot-column order is known, order the dimension
+        // part of the ORDER BY by it so a hidden sort-only dim sorts at its
+        // DECLARED position — i.e. hiding a dim leaves column order identical to
+        // when it was visible. Returns undefined when not provided, so callers
+        // fall back to the legacy "hoist sort-only to the front" behavior.
+        const { pivotColumnsOrder } = this.pivotConfiguration;
+        const orderDimsByDeclaredPosition = ():
+            | typeof allOrderableDims
+            | undefined => {
+            if (!pivotColumnsOrder || pivotColumnsOrder.length === 0) {
+                return undefined;
+            }
+            const byRef = new Map(
+                allOrderableDims.map((d) => [d.reference, d]),
+            );
+            const declared = pivotColumnsOrder
+                .map((d) => byRef.get(d.reference))
+                .filter(
+                    (d): d is (typeof allOrderableDims)[number] =>
+                        d !== undefined,
+                );
+            const seen = new Set(declared.map((d) => d.reference));
+            // Append any orderable dims missing from pivotColumnsOrder (safety).
+            return [
+                ...declared,
+                ...allOrderableDims.filter((d) => !seen.has(d.reference)),
+            ];
+        };
+
         if (sortBy) {
             const isValueColumn = (sort: VizSortBy | undefined) =>
                 valuesColumns?.some(
@@ -572,7 +601,8 @@ export class PivotQueryBuilder {
                     return acc;
                 }, []);
 
-            // Build groups order parts:
+            // Build groups order parts. Prefer declared-position ordering; when
+            // pivotColumnsOrder is absent, fall back to the legacy behavior:
             //   1. sortOnlyDimensions that appear in sortBy lead (in sortBy order) —
             //      otherwise the visible groupBy (typically 1-to-1 with the
             //      sort helper) would dominate alphabetically and the helper
@@ -581,23 +611,31 @@ export class PivotQueryBuilder {
             //      issue #16871's invariant: sortBy order does NOT leak into
             //      groupByColumns ordering).
             //   3. remaining sortOnlyDimensions (without sortBy entries) trail.
-            const sortOnlyRefs = new Set(
-                (sortOnlyDimensions || []).map((d) => d.reference),
-            );
-            const leadingDims = sortBy
-                .filter((s) => sortOnlyRefs.has(s.reference))
-                .map((s) =>
-                    allOrderableDims.find((d) => d.reference === s.reference),
-                )
-                .filter(
-                    (d): d is (typeof allOrderableDims)[number] =>
-                        d !== undefined,
-                );
-            const leadingRefs = new Set(leadingDims.map((d) => d.reference));
-            const trailingDims = allOrderableDims.filter(
-                (d) => !leadingRefs.has(d.reference),
-            );
-            const orderedDims = [...leadingDims, ...trailingDims];
+            const orderedDims =
+                orderDimsByDeclaredPosition() ??
+                (() => {
+                    const sortOnlyRefs = new Set(
+                        (sortOnlyDimensions || []).map((d) => d.reference),
+                    );
+                    const leadingDims = sortBy
+                        .filter((s) => sortOnlyRefs.has(s.reference))
+                        .map((s) =>
+                            allOrderableDims.find(
+                                (d) => d.reference === s.reference,
+                            ),
+                        )
+                        .filter(
+                            (d): d is (typeof allOrderableDims)[number] =>
+                                d !== undefined,
+                        );
+                    const leadingRefs = new Set(
+                        leadingDims.map((d) => d.reference),
+                    );
+                    const trailingDims = allOrderableDims.filter(
+                        (d) => !leadingRefs.has(d.reference),
+                    );
+                    return [...leadingDims, ...trailingDims];
+                })();
 
             const groupsOrderByParts = orderedDims.map((col) => {
                 const sort = sortBy.find((s) => s.reference === col.reference);
@@ -623,8 +661,10 @@ export class PivotQueryBuilder {
                 orderByParts.push(...groupsOrderByParts, ...valuesOrderByParts);
             }
         } else {
-            // Default to all orderable dim columns with ASC direction
-            allOrderableDims.forEach((col) => {
+            // Default to all orderable dim columns with ASC direction, in
+            // declared position when known (else original groupBy order).
+            const dims = orderDimsByDeclaredPosition() ?? allOrderableDims;
+            dims.forEach((col) => {
                 orderByParts.push(`g.${q}${col.reference}${q} ASC`);
             });
         }

@@ -5,14 +5,17 @@ import {
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    getRowConditionalFormattingColor,
     getItemId,
+    getPivotRowContextKey,
     isDimension,
     isField,
     isHexCodeColor,
     isNumericItem,
-    isSummable,
     type ColumnProperties,
+    type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMax,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
     type ItemsMap,
@@ -54,6 +57,7 @@ import React, {
     type FC,
 } from 'react';
 import {
+    findMatchingSubtotal,
     getGroupingValuesAndSubtotalKey,
     getSubtotalValueFromGroup,
 } from '../../../hooks/tableVisualization/getDataAndColumns';
@@ -179,10 +183,6 @@ type PivotTableProps = BoxProps & // TODO: remove this
         sortBy?: SortField[];
         /** Renders inside a Mantine Menu opened by clicking sortable headers. */
         renderSortMenu?: (target: PivotSortMenuTarget) => React.ReactNode;
-        // When true the footer skips the `isSummable` gate that hides
-        // totals for count_distinct/avg/min/max — only safe to skip when
-        // `data.columnTotals` carries warehouse-recomputed values.
-        columnTotalsAreWarehouseComputed?: boolean;
     };
 
 export type PivotSortMenuTarget =
@@ -213,7 +213,6 @@ const PivotTable: FC<PivotTableProps> = ({
     parameters,
     sortBy,
     renderSortMenu,
-    columnTotalsAreWarehouseComputed = false,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
@@ -535,36 +534,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                     finalHeaderInfoForColumns[colIndex];
 
                                 // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                                const subtotal = data.groupedSubtotals?.[
-                                    subtotalGroupKey
-                                ]?.find((sub) => {
-                                    try {
-                                        return (
-                                            // All grouping values in the row must match the subtotal values
-                                            Object.keys(groupingValues).every(
-                                                (key) => {
-                                                    return (
-                                                        groupingValues[key]
-                                                            ?.value.raw ===
-                                                        sub[key]
-                                                    );
-                                                },
-                                            ) &&
-                                            // All pivoted header values in the row must match the subtotal values
-                                            Object.keys(
-                                                pivotedHeaderValues,
-                                            ).every((key) => {
-                                                return (
-                                                    pivotedHeaderValues[key]
-                                                        ?.raw === sub[key]
-                                                );
-                                            })
-                                        );
-                                    } catch (e) {
-                                        console.error(e);
-                                        return false;
-                                    }
-                                });
+                                const subtotal = findMatchingSubtotal(
+                                    data.groupedSubtotals?.[subtotalGroupKey],
+                                    groupingValues,
+                                    pivotedHeaderValues,
+                                );
 
                                 const subtotalValue = getSubtotalValueFromGroup(
                                     subtotal,
@@ -711,14 +685,8 @@ const PivotTable: FC<PivotTableProps> = ({
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
-            // Skip the `isSummable` gate when totals were computed by the
-            // warehouse — the value is correct for any metric type
-            // (count_distinct, avg, min, max, ratios). Without this guard the
-            // legacy client-side path would (incorrectly) sum pre-aggregated
-            // cells, so the gate stays in place when totals are local.
-            if (!columnTotalsAreWarehouseComputed && !isSummable(item)) {
-                return null;
-            }
+            // Column totals are warehouse-computed for every metric type, so
+            // there is no `isSummable` gate; a null total just renders blank.
             if (total === null || total === undefined) {
                 return null;
             }
@@ -734,20 +702,18 @@ const PivotTable: FC<PivotTableProps> = ({
                 formatted: formattedValue,
             };
         },
-        [
-            data.headerValues,
-            columnTotalsAreWarehouseComputed,
-            getField,
-            parameters,
-        ],
+        [data.headerValues, getField, parameters],
     );
 
     const getMetricAsRowColumnTotalValueFromAxis = useCallback(
-        (total: unknown, rowIndex: number): ResultValue => {
+        (total: unknown, rowIndex: number): ResultValue | null => {
             const value = last(data.columnTotalFields?.[rowIndex]);
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
+            if (total === null || total === undefined) {
+                return null;
+            }
 
             const formattedValue = formatItemValue(
                 item,
@@ -859,6 +825,31 @@ const PivotTable: FC<PivotTableProps> = ({
         [getField],
     );
 
+    // Merge hidden metric values from hiddenContextValues into rowFields
+    // for conditional formatting rules that reference hidden metrics
+    const mergeHiddenContextValues = useCallback(
+        (
+            dimValues: Record<string, unknown>,
+        ): ConditionalFormattingRowFields => {
+            if (!data.hiddenContextValues) return {};
+            const key = getPivotRowContextKey(dimValues);
+            const hidden = data.hiddenContextValues[key];
+            if (!hidden) return {};
+            return Object.entries(
+                hidden,
+            ).reduce<ConditionalFormattingRowFields>(
+                (acc, [fieldId, resultValue]) => {
+                    const field = getField(fieldId);
+                    if (field)
+                        acc[fieldId] = { field, value: resultValue?.raw };
+                    return acc;
+                },
+                {},
+            );
+        },
+        [data.hiddenContextValues, getField],
+    );
+
     // Build rowFields for metricsAsRows mode by looking up metric values across rows
     // that share the same index dimension values (same "row group" in the original data)
     const buildRowFieldsForMetricsAsRows = useCallback(
@@ -924,11 +915,26 @@ const PivotTable: FC<PivotTableProps> = ({
                     {},
                 );
 
-            // Merge pivoted dimensions, row dimensions, and metrics
+            // Build dim map for hidden context key lookup:
+            // use display index dims (rowDimensionFields) + header dims (headerInfo)
+            const dimValuesForKey: Record<string, unknown> = {};
+            Object.entries(rowDimensionFields).forEach(
+                ([fieldId, { value }]) => {
+                    dimValuesForKey[fieldId] = value;
+                },
+            );
+            if (headerInfo) {
+                Object.entries(headerInfo).forEach(([fieldId, rv]) => {
+                    dimValuesForKey[fieldId] = rv?.raw;
+                });
+            }
+
+            // Merge pivoted dimensions, row dimensions, metrics, and hidden metric values
             return {
                 ...pivotedDimensionFields,
                 ...rowDimensionFields,
                 ...metricFields,
+                ...mergeHiddenContextValues(dimValuesForKey),
             };
         },
         [
@@ -937,6 +943,7 @@ const PivotTable: FC<PivotTableProps> = ({
             findDataColumnIndex,
             getField,
             buildRowFieldsFromHeaderInfo,
+            mergeHiddenContextValues,
         ],
     );
 
@@ -976,10 +983,41 @@ const PivotTable: FC<PivotTableProps> = ({
                     return acc;
                 }, {});
 
-            // Merge pivoted dimensions with cell fields
-            return { ...pivotedDimensionFields, ...cellFields };
+            // Build dim map for hidden context key lookup:
+            // use index dimension cells + header dims (headerInfo)
+            const dimValuesForKey: Record<string, unknown> = {};
+            Object.values(cellFields).forEach(({ field, value }) => {
+                if (isDimension(field))
+                    dimValuesForKey[getItemId(field)] = value;
+            });
+            if (headerInfo) {
+                Object.entries(headerInfo).forEach(([fieldId, rv]) => {
+                    dimValuesForKey[fieldId] = rv?.raw;
+                });
+            }
+
+            // Merge pivoted dimensions, cell fields, and hidden metric values
+            return {
+                ...pivotedDimensionFields,
+                ...cellFields,
+                ...mergeHiddenContextValues(dimValuesForKey),
+            };
         },
-        [buildRowFieldsFromHeaderInfo],
+        [buildRowFieldsFromHeaderInfo, mergeHiddenContextValues],
+    );
+    const getEffectiveColorFromRange = useCallback(
+        (
+            val: number,
+            colorRange: ConditionalFormattingColorRange,
+            minMaxRange: ConditionalFormattingMinMax,
+        ) => {
+            const effectiveColorRange =
+                colorScheme === 'dark'
+                    ? transformColorsForDarkMode(colorRange)
+                    : colorRange;
+            return getColorFromRange(val, effectiveColorRange, minMaxRange);
+        },
+        [colorScheme],
     );
 
     const paddingTop = useMemo(() => {
@@ -1514,6 +1552,41 @@ const PivotTable: FC<PivotTableProps> = ({
 
                     const toggleExpander = row.getToggleExpandedHandler();
 
+                    // Row-level conditional formatting (PROD-8058): evaluate
+                    // once per row using a representative data column's pivot
+                    // context, then paint every cell in the row.
+                    const representativeHeaderInfo = row
+                        .getVisibleCells()
+                        .find((c) => {
+                            const m = c.column.columnDef.meta;
+                            return (
+                                c.column.id !== ROW_NUMBER_COLUMN_ID &&
+                                m?.type !== 'indexValue' &&
+                                m?.type !== 'label' &&
+                                m?.type !== 'rowTotal'
+                            );
+                        })?.column.columnDef.meta?.headerInfo;
+
+                    const rowLevelFields = representativeHeaderInfo
+                        ? data.pivotConfig.metricsAsRows
+                            ? buildRowFieldsForMetricsAsRows(
+                                  rowIndex,
+                                  representativeHeaderInfo,
+                              )
+                            : buildRowFieldsFromVisibleCells(
+                                  row,
+                                  representativeHeaderInfo,
+                              )
+                        : buildRowFieldsFromVisibleCells(row, undefined);
+
+                    const rowBackgroundColor = getRowConditionalFormattingColor(
+                        {
+                            conditionalFormattings,
+                            rowFields: rowLevelFields,
+                            minMaxMap,
+                        },
+                    );
+
                     return (
                         <Table.Row
                             key={`row-${rowIndex}-${data.pivotConfig.metricsAsRows}`}
@@ -1655,77 +1728,121 @@ const PivotTable: FC<PivotTableProps> = ({
                                           currentHeaderInfo,
                                       );
 
-                                const conditionalFormattingConfig =
+                                const cellConditionalFormattingConfig =
                                     getConditionalFormattingConfig({
                                         field: item,
                                         value: value?.raw,
                                         minMaxMap,
                                         conditionalFormattings,
                                         rowFields: rowFieldsForCell,
+                                        applyTo:
+                                            ConditionalFormattingColorApplyTo.CELL,
+                                    });
+                                const textConditionalFormattingConfig =
+                                    getConditionalFormattingConfig({
+                                        field: item,
+                                        value: value?.raw,
+                                        minMaxMap,
+                                        conditionalFormattings,
+                                        rowFields: rowFieldsForCell,
+                                        applyTo:
+                                            ConditionalFormattingColorApplyTo.TEXT,
                                     });
 
-                                const conditionalFormattingResult =
+                                const cellConditionalFormattingResult =
                                     getConditionalFormattingColor({
                                         field: item,
                                         value: value?.raw,
-                                        config: conditionalFormattingConfig,
+                                        config: cellConditionalFormattingConfig,
                                         minMaxMap,
-                                        getColorFromRange: (
-                                            val,
-                                            colorRange,
-                                            minMaxRange,
-                                        ) => {
-                                            const effectiveColorRange =
-                                                colorScheme === 'dark'
-                                                    ? transformColorsForDarkMode(
-                                                          colorRange,
-                                                      )
-                                                    : colorRange;
-                                            return getColorFromRange(
-                                                val,
-                                                effectiveColorRange,
-                                                minMaxRange,
-                                            );
-                                        },
+                                        getColorFromRange:
+                                            getEffectiveColorFromRange,
                                     });
-
-                                const applyToText =
-                                    conditionalFormattingResult?.applyTo ===
-                                    ConditionalFormattingColorApplyTo.TEXT;
+                                const textConditionalFormattingResult =
+                                    getConditionalFormattingColor({
+                                        field: item,
+                                        value: value?.raw,
+                                        config: textConditionalFormattingConfig,
+                                        minMaxMap,
+                                        getColorFromRange:
+                                            getEffectiveColorFromRange,
+                                    });
 
                                 const conditionalFormatting = (() => {
                                     const tooltipContent =
-                                        getConditionalFormattingDescription(
-                                            item,
-                                            conditionalFormattingConfig,
-                                            rowFieldsForCell,
-                                            getConditionalRuleLabelFromItem,
-                                        );
+                                        [
+                                            getConditionalFormattingDescription(
+                                                item,
+                                                cellConditionalFormattingConfig,
+                                                rowFieldsForCell,
+                                                getConditionalRuleLabelFromItem,
+                                            ),
+                                            getConditionalFormattingDescription(
+                                                item,
+                                                textConditionalFormattingConfig,
+                                                rowFieldsForCell,
+                                                getConditionalRuleLabelFromItem,
+                                            ),
+                                        ]
+                                            .filter(
+                                                (
+                                                    description,
+                                                    index,
+                                                    descriptions,
+                                                ) =>
+                                                    description &&
+                                                    descriptions.indexOf(
+                                                        description,
+                                                    ) === index,
+                                            )
+                                            .join('; ') || undefined;
 
+                                    // No cell-level result → fall back to the row fill (if any).
                                     if (
-                                        !conditionalFormattingResult ||
-                                        !isHexCodeColor(
-                                            conditionalFormattingResult.color,
+                                        !cellConditionalFormattingResult &&
+                                        !textConditionalFormattingResult
+                                    ) {
+                                        return rowBackgroundColor
+                                            ? {
+                                                  tooltipContent,
+                                                  color: readableColor(
+                                                      rowBackgroundColor,
+                                                  ),
+                                                  backgroundColor:
+                                                      rowBackgroundColor,
+                                              }
+                                            : undefined;
+                                    }
+
+                                    const backgroundColor =
+                                        cellConditionalFormattingResult &&
+                                        isHexCodeColor(
+                                            cellConditionalFormattingResult.color,
+                                        )
+                                            ? cellConditionalFormattingResult.color
+                                            : rowBackgroundColor;
+                                    let color: string | undefined;
+                                    if (
+                                        textConditionalFormattingResult &&
+                                        isHexCodeColor(
+                                            textConditionalFormattingResult.color,
                                         )
                                     ) {
+                                        color =
+                                            textConditionalFormattingResult.color;
+                                    } else if (backgroundColor) {
+                                        color = readableColor(backgroundColor);
+                                    }
+
+                                    if (!color && !backgroundColor) {
                                         return undefined;
                                     }
 
-                                    // When applying to text, set color directly without background
-                                    // When applying to cell, set background and calculate readable text color
-                                    return applyToText
-                                        ? {
-                                              tooltipContent,
-                                              color: conditionalFormattingResult.color,
-                                          }
-                                        : {
-                                              tooltipContent,
-                                              color: readableColor(
-                                                  conditionalFormattingResult.color,
-                                              ),
-                                              backgroundColor:
-                                                  conditionalFormattingResult.color,
-                                          };
+                                    return {
+                                        tooltipContent,
+                                        color,
+                                        backgroundColor,
+                                    };
                                 })();
 
                                 // Font color is set by conditionalFormatting above

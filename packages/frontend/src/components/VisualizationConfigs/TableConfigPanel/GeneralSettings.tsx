@@ -109,6 +109,13 @@ const GeneralSettings: FC = () => {
                         fieldId,
                         ...columns.slice(destination.index),
                     ]);
+                    // Pivot columns are always visible — a dim hidden as a row
+                    // would otherwise carry visible:false in and blank the table.
+                    if (!isHidePivotDimsEnabled) {
+                        chartConfig.updateColumnProperty(fieldId, {
+                            visible: true,
+                        });
+                    }
                 } else {
                     // Remove pivot
                     const fieldId = columns[source.index];
@@ -144,6 +151,7 @@ const GeneralSettings: FC = () => {
             setPivotDimensions,
             showToastError,
             handleToggleMetricsAsRows,
+            isHidePivotDimsEnabled,
         ],
     );
 

@@ -18,9 +18,7 @@ exports[`buildSystemPrompt — warehouse skill guidance matches the snapshot for
 
 BEFORE editing a \`schema.yml\` \`type:\` field or modifying SQL that changes a column's emitted type, you MUST read /home/user/.lightdash-skills/shared.md. It contains cross-warehouse type-coercion rules. Skipping this step has produced PRs that broke filters and silently changed query results.
 
-
-If you made any file changes, perform ALL of these follow-up steps before you
-finish:
+If you made any file changes, perform these follow-up steps before you finish:
 
 1. The dbt project directory (containing \`dbt_project.yml\`) is
    \`analytics/dbt\`. Use it as the \`--project-dir\`.
@@ -52,10 +50,12 @@ finish:
    "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
    paste the full compile output.
 
-6. End your final reply with two structured-output blocks so the host can
-   pick up the PR metadata reliably. The host strips both blocks before
-   showing your reply to the user, so they will not appear in Slack. Emit them
-   verbatim, on their own lines, each opening and closing tag exactly as shown:
+6. End your final reply with the two structured-output blocks below.
+
+The two structured-output blocks let the host pick up the PR metadata reliably.
+The host strips both blocks before showing your reply to the user, so they will
+not appear in Slack. Emit them verbatim, on their own lines, each opening and
+closing tag exactly as shown:
 
    <lightdash-writeback-pr-title>
    single-line PR title — plain text, no emojis, max 72 characters
@@ -65,7 +65,7 @@ finish:
    PR description in plain markdown, no emojis
    </lightdash-writeback-pr-description>
 
-If you did not change any files, skip steps 1–6 entirely and do not emit the
+If you did not change any files, skip these steps entirely and do not emit the
 blocks."
 `;
 
@@ -87,9 +87,7 @@ exports[`buildSystemPrompt — warehouse skill guidance matches the snapshot for
 
 This Lightdash project's warehouse is **postgres**. BEFORE editing a \`schema.yml\` \`type:\` field or modifying SQL that changes a column's emitted type, you MUST read /home/user/.lightdash-skills/warehouse.md and /home/user/.lightdash-skills/shared.md. They contain warehouse-specific type-coercion rules. Skipping this step has produced PRs that broke filters and silently changed query results.
 
-
-If you made any file changes, perform ALL of these follow-up steps before you
-finish:
+If you made any file changes, perform these follow-up steps before you finish:
 
 1. The dbt project directory (containing \`dbt_project.yml\`) is
    \`analytics/dbt\`. Use it as the \`--project-dir\`.
@@ -121,10 +119,12 @@ finish:
    "lightdash compile: failed (exit 1) — <short reason from stderr>". Do not
    paste the full compile output.
 
-6. End your final reply with two structured-output blocks so the host can
-   pick up the PR metadata reliably. The host strips both blocks before
-   showing your reply to the user, so they will not appear in Slack. Emit them
-   verbatim, on their own lines, each opening and closing tag exactly as shown:
+6. End your final reply with the two structured-output blocks below.
+
+The two structured-output blocks let the host pick up the PR metadata reliably.
+The host strips both blocks before showing your reply to the user, so they will
+not appear in Slack. Emit them verbatim, on their own lines, each opening and
+closing tag exactly as shown:
 
    <lightdash-writeback-pr-title>
    single-line PR title — plain text, no emojis, max 72 characters
@@ -134,6 +134,6 @@ finish:
    PR description in plain markdown, no emojis
    </lightdash-writeback-pr-description>
 
-If you did not change any files, skip steps 1–6 entirely and do not emit the
+If you did not change any files, skip these steps entirely and do not emit the
 blocks."
 `;

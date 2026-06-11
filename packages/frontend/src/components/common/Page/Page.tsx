@@ -46,6 +46,7 @@ type Props = {
     isSidebarCollapsed?: boolean;
     isSidebarCollapsible?: boolean;
     collapsedSidebarContent?: React.ReactNode;
+    sidebarWidthProps?: SidebarWidthProps;
     rightSidebar?: React.ReactNode;
     isRightSidebarOpen?: boolean;
     rightSidebarWidthProps?: SidebarWidthProps;
@@ -60,6 +61,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     isSidebarCollapsed = false,
     isSidebarCollapsible = false,
     collapsedSidebarContent,
+    sidebarWidthProps,
     rightSidebar,
     isRightSidebarOpen = false,
     rightSidebarWidthProps,
@@ -126,6 +128,7 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                         isCollapsed={isSidebarCollapsed}
                         collapsible={isSidebarCollapsible}
                         collapsedContent={collapsedSidebarContent}
+                        widthProps={sidebarWidthProps}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
                     >

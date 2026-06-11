@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/cli",
-  "version": "0.3085.0",
+  "version": "0.3137.0",
   "description": "Lightdash CLI tool",
   "license": "MIT",
   "repository": {
@@ -19,9 +19,11 @@
     "test": "jest",
     "dev": "ts-node src/index.ts",
     "build": "tsc --build tsconfig.json",
+    "build:fast": "tsgo --build tsconfig.fast.json",
     "bundle": "ncc build dist/index.js -o bundle -e @duckdb/node-api -e @duckdb/node-bindings -e @duckdb/node-bindings-darwin-arm64 -e @duckdb/node-bindings-darwin-x64 -e @duckdb/node-bindings-linux-arm64 -e @duckdb/node-bindings-linux-x64 -e @duckdb/node-bindings-win32-x64 && bash ./scripts/copy-bundle-assets.sh",
     "build:binary": "DUCKDB_BINDINGS=node-bindings-darwin-x64,node-bindings-darwin-arm64 pnpm bundle && npx @yao-pkg/pkg bundle/index.js --config pkg.config.json --targets node20-macos-x64,node20-macos-arm64 --output bin/lightdash --compress Brotli",
     "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
     "linter": "eslint -c .eslintrc.js --ignore-path ./../../.gitignore",
     "formatter": "oxfmt",
     "lint": "pnpm run linter ./src",
@@ -68,6 +70,7 @@
     "@types/nunjucks": "3.2.1",
     "@types/parse-node-version": "1.0.0",
     "@types/uuid": "10.0.0",
+    "@typescript/native-preview": "7.0.0-dev.20260527.2",
     "@vercel/ncc": "0.38.4",
     "@yao-pkg/pkg": "6.7.0",
     "ts-node": "10.9.2",

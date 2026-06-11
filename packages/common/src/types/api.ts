@@ -11,12 +11,14 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
+    ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
     ApiAiAgentVerifiedArtifactsResponse,
     ApiAiDashboardSummaryResponse,
@@ -32,6 +34,7 @@ import type {
     ApiAiRouterRouteResponse,
     ApiAppendInstructionResponse,
     ApiAppImageUploadResponse,
+    ApiCloneAiAgentThreadShareResponse,
     ApiCreateEvaluationResponse,
     ApiGenerateAppResponse,
     ApiGetAppResponse,
@@ -83,6 +86,7 @@ import {
     type ApiUpdateMetricsTreeResponse,
 } from './catalog';
 import { type ApiGetChangeResponse } from './changeset';
+import { type CiChecks } from './ci';
 import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
@@ -105,6 +109,7 @@ import {
     type DashboardHistory,
     type DashboardVersion,
 } from './dashboard';
+import { type ApiDataTimezonePreviewResults } from './dataTimezonePreview';
 import { type DbtExposure } from './dbt';
 import { type EmailStatusExpiring } from './email';
 import {
@@ -125,6 +130,7 @@ import {
     type ApiPullRequestsResponse,
     type GitBranch,
     type GitFileOrDirectory,
+    type GithubUserCredential,
     type GitIntegrationConfiguration,
     type GitRepo,
     type PullRequestCreated,
@@ -920,6 +926,7 @@ type ApiResults =
     | ApiStatusResults
     | ApiRefreshResults
     | ApiCreatePreviewResults
+    | ApiDataTimezonePreviewResults
     | ApiHealthResults
     | OrganizationAccess
     | Organization
@@ -992,6 +999,8 @@ type ApiResults =
     | ProjectCiStatus
     | ApiGitFileContent
     | GitIntegrationConfiguration
+    | GithubUserCredential
+    | CiChecks
     | GitBranch
     | GitBranch[]
     | GitFileOrDirectory
@@ -1068,6 +1077,8 @@ type ApiResults =
     | ApiGetProjectParametersResults
     | ApiGetProjectParametersListResults
     | ApiAiAgentThreadCreateResponse['results']
+    | ApiAiAgentThreadShareResponse['results']
+    | ApiCloneAiAgentThreadShareResponse['results']
     | ApiAiAgentThreadMessageCreateResponse['results']
     | ApiAiAgentArtifactResponse['results']
     | ApiAiAgentThreadGenerateTitleResponse['results']
@@ -1075,6 +1086,7 @@ type ApiResults =
     | ApiAiAgentProjectThreadSummaryListResponse['results']
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
+    | ApiAiAgentReviewItemWritebackPreviewResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']

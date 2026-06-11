@@ -1,5 +1,8 @@
 import type { AiAgentArgs } from '../types/aiAgent';
 
+export const getAiAgentModelName = (model: AiAgentArgs['model']) =>
+    typeof model === 'string' ? model : model.modelId;
+
 /**
  * Builds an `experimental_telemetry` config for an agent-level
  * generateText/streamText call.
@@ -17,9 +20,14 @@ export const getAgentTelemetryConfig = (
         threadUuid,
         promptUuid,
         telemetryEnabled,
+        model,
     }: Pick<
         AiAgentArgs,
-        'agentSettings' | 'threadUuid' | 'promptUuid' | 'telemetryEnabled'
+        | 'agentSettings'
+        | 'threadUuid'
+        | 'promptUuid'
+        | 'telemetryEnabled'
+        | 'model'
     >,
 ) =>
     ({
@@ -31,5 +39,6 @@ export const getAgentTelemetryConfig = (
             agentUuid: agentSettings.uuid,
             threadUuid,
             promptUuid,
+            model: getAiAgentModelName(model),
         },
     }) as const;

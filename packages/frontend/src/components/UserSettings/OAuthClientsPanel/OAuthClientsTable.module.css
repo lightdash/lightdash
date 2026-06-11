@@ -1,0 +1,14 @@
+.clientId {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+    user-select: all;
+    white-space: nowrap;
+}
+
+.nameColumn {
+    width: 25%;
+    min-width: 180px;
+}
+
+.redirectColumn {
+    width: 25%;
+}

@@ -1,0 +1,10 @@
+{
+    "extends": "./tsconfig.fast.json",
+    "compilerOptions": {
+        "outDir": "dist/types",
+        "tsBuildInfoFile": "dist/types/.tsgo.tsbuildinfo",
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "declarationMap": true
+    }
+}

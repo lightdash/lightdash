@@ -1,4 +1,7 @@
+import { Ability } from '@casl/ability';
 import {
+    AbilityAction,
+    AnyType,
     FilterOperator,
     TableCalculationTemplateType,
     TableSelectionType,
@@ -30,25 +33,52 @@ import {
     exploreWithoutMetric,
     project,
     tableConfiguration,
+    user,
 } from './ValidationService.mock';
 
 const savedChartModel = {
     findChartsForValidation: jest.fn(async () => [chartForValidation]),
+    get: jest.fn(async () => ({
+        ...chartForValidation,
+        spaceUuid: 'spaceUuid',
+        organizationUuid: 'orgUuid',
+        projectUuid: 'projectUuid',
+    })),
 };
 const projectModel = {
     findExploresFromCache: jest.fn(async () => ({
         [explore.name]: explore,
     })),
+    getExploreFromCache: jest.fn(async () => explore),
+    getAllExploresFromCache: jest.fn(async () => ({
+        [explore.name]: explore,
+    })),
     get: jest.fn(async () => project),
+    getSummary: jest.fn(async () => project),
     getTablesConfiguration: jest.fn(async () => tableConfiguration),
 };
 const validationModel = {
     delete: jest.fn(async () => {}),
+    deleteChartValidations: jest.fn(async () => {}),
+    deleteDashboardValidations: jest.fn(async () => {}),
     create: jest.fn(async () => {}),
     get: jest.fn(async () => []),
 };
 const dashboardModel = {
     findDashboardsForValidation: jest.fn(async () => [dashboardForValidation]),
+    getByIdOrSlug: jest.fn(async () => ({
+        ...dashboardForValidation,
+        uuid: dashboardForValidation.dashboardUuid,
+        spaceUuid: 'spaceUuid',
+        organizationUuid: 'orgUuid',
+        projectUuid: 'projectUuid',
+    })),
+};
+const spacePermissionService = {
+    getSpaceAccessContext: jest.fn(async () => ({
+        inheritsFromOrgOrProject: false,
+        access: [],
+    })),
 };
 describe('validation', () => {
     const validationService = new ValidationService({
@@ -60,12 +90,56 @@ describe('validation', () => {
         lightdashConfig: config,
         spaceModel: {} as SpaceModel,
         schedulerClient: {} as SchedulerClient,
-        spacePermissionService: {} as SpacePermissionService,
+        spacePermissionService:
+            spacePermissionService as unknown as SpacePermissionService,
         featureFlagModel: {} as FeatureFlagModel,
     });
+    const allAccessUser = {
+        ...user,
+        ability: new Ability<[AbilityAction, AnyType]>([
+            { subject: 'Validation', action: ['manage'] },
+            { subject: 'SavedChart', action: ['view'] },
+            { subject: 'Dashboard', action: ['view'] },
+        ]),
+    };
 
     afterEach(() => {
         jest.clearAllMocks();
+    });
+
+    it('scopes single chart validation lookups and cleanup to the requested project', async () => {
+        await validationService.validateAndUpdateChart(
+            allAccessUser,
+            'projectUuid',
+            'chartUuid',
+        );
+
+        expect(savedChartModel.get).toHaveBeenCalledWith(
+            'chartUuid',
+            undefined,
+            { projectUuid: 'projectUuid' },
+        );
+        expect(validationModel.deleteChartValidations).toHaveBeenCalledWith(
+            'chartUuid',
+            'projectUuid',
+        );
+    });
+
+    it('scopes single dashboard validation lookups and cleanup to the requested project', async () => {
+        await validationService.validateAndUpdateDashboard(
+            allAccessUser,
+            'projectUuid',
+            'dashboardUuid',
+        );
+
+        expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+            'dashboardUuid',
+            { projectUuid: 'projectUuid' },
+        );
+        expect(validationModel.deleteDashboardValidations).toHaveBeenCalledWith(
+            'dashboardUuid',
+            'projectUuid',
+        );
     });
 
     it('Should validate project without errors', async () => {

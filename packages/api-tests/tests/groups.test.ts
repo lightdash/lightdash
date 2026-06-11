@@ -60,13 +60,6 @@ describe('Groups API', () => {
         expect(resp.body.results.data).toHaveLength(0);
     });
 
-    it('should add members to group', async () => {
-        const resp = await admin.put(
-            `api/v1/groups/${SEED_GROUP.groupUuid}/members/${SEED_ORG_1_ADMIN.user_uuid}`,
-        );
-        expect([201, 204]).toContain(resp.status);
-    });
-
     it('should delete group from organization', async () => {
         const createResp = await admin.post<Body<{ uuid: string }>>(
             'api/v1/org/groups',
@@ -97,10 +90,11 @@ describe('Groups API', () => {
     });
 
     it('should get group members', async () => {
-        const resp = await admin.get(
-            `api/v1/groups/${SEED_GROUP.groupUuid}/members`,
-        );
+        const resp = await admin.get<
+            Body<{ members: Array<{ userUuid: string }> }>
+        >(`api/v1/groups/${SEED_GROUP.groupUuid}?includeMembers=100`);
         expect(resp.status).toBe(200);
+        expect(resp.body.results.members).toBeInstanceOf(Array);
     });
 
     it('should successfully update group name and members', async () => {

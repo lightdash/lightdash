@@ -26,6 +26,7 @@ import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
+import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { SavedChartService } from '../SavedChartsService/SavedChartService';
@@ -88,6 +89,22 @@ const projectModel = {
 const schedulerModel = {
     getScheduler: jest.fn(),
     getProjectSchedulerRuns: jest.fn(),
+    getSchedulers: jest.fn(),
+};
+
+const dashboardChartsResult = {
+    dashboardName: dashboard.name,
+    charts: [],
+    pagination: {
+        page: 1,
+        pageSize: 20,
+        totalResults: 0,
+        totalPageCount: 0,
+    },
+};
+
+const searchModel = {
+    getDashboardCharts: jest.fn(async () => dashboardChartsResult),
 };
 
 const contentVerificationModel = {
@@ -145,6 +162,7 @@ describe('DashboardService', () => {
         analyticsModel: analyticsModel as unknown as AnalyticsModel,
         pinnedListModel: {} as PinnedListModel,
         schedulerModel: schedulerModel as unknown as SchedulerModel,
+        searchModel: searchModel as unknown as SearchModel,
         schedulerService: {} as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
         savedChartService: {} as SavedChartService, // Mock for test
@@ -175,6 +193,50 @@ describe('DashboardService', () => {
             dashboard.uuid,
             { projectUuid: undefined },
         );
+    });
+    test('should get dashboard charts after dashboard access check', async () => {
+        const result = await service.getDashboardCharts(
+            user,
+            projectUuid,
+            dashboard.uuid,
+            1,
+            20,
+        );
+
+        expect(result).toEqual(dashboardChartsResult);
+        expect(dashboardModel.getByIdOrSlug).toHaveBeenCalledWith(
+            dashboard.uuid,
+            { projectUuid },
+        );
+        expect(searchModel.getDashboardCharts).toHaveBeenCalledWith(
+            projectUuid,
+            dashboard.uuid,
+            1,
+            20,
+        );
+    });
+    test('should not get dashboard charts without dashboard access', async () => {
+        const anotherUser = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    organizationUuid: 'another-org-uuid',
+                },
+                [],
+            ),
+        };
+
+        await expect(
+            service.getDashboardCharts(
+                anotherUser,
+                projectUuid,
+                dashboard.uuid,
+                1,
+                20,
+            ),
+        ).rejects.toThrowError(ForbiddenError);
+        expect(searchModel.getDashboardCharts).not.toHaveBeenCalled();
     });
     test('should get all dashboard by project uuid', async () => {
         const result = await service.getAllByProject(
@@ -812,6 +874,77 @@ describe('DashboardService', () => {
             expect(
                 schedulerModel.getProjectSchedulerRuns,
             ).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('getSchedulers', () => {
+        const adminUser: SessionUser = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                [
+                    {
+                        projectUuid: dashboard.projectUuid,
+                        role: ProjectMemberRole.ADMIN,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+        const editorUser: SessionUser = {
+            ...user,
+            ability: defineUserAbility(
+                {
+                    ...user,
+                    role: OrganizationMemberRole.MEMBER,
+                },
+                [
+                    {
+                        projectUuid: dashboard.projectUuid,
+                        role: ProjectMemberRole.EDITOR,
+                        userUuid: user.userUuid,
+                        roleUuid: undefined,
+                    },
+                ],
+            ),
+        };
+
+        beforeEach(() => {
+            schedulerModel.getSchedulers.mockResolvedValue({
+                data: [],
+                pagination: undefined,
+            });
+        });
+
+        test('admin lists all schedulers for the dashboard', async () => {
+            await service.getSchedulers(adminUser, dashboard.uuid);
+
+            expect(schedulerModel.getSchedulers).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filters: {
+                        resourceType: 'dashboard',
+                        resourceUuids: [dashboard.uuid],
+                    },
+                }),
+            );
+        });
+
+        test('editor lists only their own schedulers for the dashboard', async () => {
+            await service.getSchedulers(editorUser, dashboard.uuid);
+
+            expect(schedulerModel.getSchedulers).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    filters: {
+                        resourceType: 'dashboard',
+                        resourceUuids: [dashboard.uuid],
+                        createdByUserUuids: [user.userUuid],
+                    },
+                }),
+            );
         });
     });
 });

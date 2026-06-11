@@ -8,6 +8,7 @@ import {
     AnyType,
     ApiChartAndResults,
     ApiCreatePreviewResults,
+    ApiDataTimezonePreviewResults,
     ApiDeployExploresResults,
     ApiFormulaValidationResults,
     ApiQueryResults,
@@ -17,6 +18,8 @@ import {
     assertUnreachable,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
+    buildDataTimezonePreviewResponse,
+    buildDataTimezonePreviewSql,
     CacheMetadata,
     calculateCompilationReport,
     calculateExploreWarningReport,
@@ -37,6 +40,7 @@ import {
     CreateSnowflakeCredentials,
     CreateVirtualViewPayload,
     CreateWarehouseCredentials,
+    currentUtcWallClock,
     CustomFormatType,
     CustomSqlQueryForbiddenError,
     DashboardAvailableFilters,
@@ -48,6 +52,7 @@ import {
     DbtExposure,
     DbtExposureType,
     DbtManifestVersion,
+    DbtProjectConfig,
     DbtProjectEnvironmentVariable,
     DbtProjectType,
     DbtRawModelNode,
@@ -70,6 +75,7 @@ import {
     getAvailableParametersFromTables,
     getColumnTimezone,
     getDashboardFilterRulesForTables,
+    getDbtEnvironmentVariableKeyError,
     getDimensions,
     getErrorMessage,
     getFields,
@@ -132,6 +138,7 @@ import {
     ProjectMemberRole,
     ProjectType,
     QueryExecutionContext,
+    RegisteredAccount,
     ReplaceableCustomFields,
     ReplaceCustomFields,
     ReplaceCustomFieldsPayload,
@@ -175,6 +182,7 @@ import {
     WarehouseTypes,
     type ApiCreateProjectResults,
     type CreateDatabricksCredentials,
+    type DataTimezonePreviewRequest,
     type Metric,
     type ParameterDefinitions,
     type ParametersValuesMap,
@@ -215,6 +223,7 @@ import { type DbPreAggregateDefinitionIn } from '../../ee/database/entities/preA
 import { PreAggregateModel } from '../../ee/models/PreAggregateModel';
 import { enhanceExploresForPreAggregates } from '../../ee/preAggregates/enhanceExploresForPreAggregates';
 import { preAggregatePostProcessor } from '../../ee/preAggregates/postProcessor';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { buildMaterializationMetricQuery } from '../../ee/services/PreAggregateMaterializationService/buildMaterializationMetricQuery';
 import { errorHandler } from '../../errors';
 import Logger from '../../logging/logger';
@@ -328,6 +337,16 @@ export type ProjectServiceArguments = {
             entries: ProjectContextEntry[],
         ): Promise<void>;
     };
+    isProjectContextEnabled?: (args: {
+        user: Pick<SessionUser, 'userUuid'> &
+            Partial<Pick<SessionUser, 'organizationName'>>;
+        organizationUuid: string;
+    }) => Promise<boolean>;
+    // Lazily resolves the EE data-app service so preview creation can duplicate
+    // the upstream project's data apps. A thunk — not the instance — because
+    // AppGenerateService depends on ProjectService, so eager injection would
+    // create a construction cycle. Resolves undefined in core (non-EE) builds.
+    getAppGenerateService?: () => AppGenerateService | undefined;
 };
 
 export class ProjectService extends BaseService {
@@ -412,6 +431,12 @@ export class ProjectService extends BaseService {
           }
         | undefined;
 
+    isProjectContextEnabled:
+        | ProjectServiceArguments['isProjectContextEnabled']
+        | undefined;
+
+    getAppGenerateService: (() => AppGenerateService | undefined) | undefined;
+
     constructor({
         lightdashConfig,
         analytics,
@@ -449,6 +474,8 @@ export class ProjectService extends BaseService {
         contentVerificationModel,
         organizationSettingsModel,
         projectContextModel,
+        isProjectContextEnabled,
+        getAppGenerateService,
     }: ProjectServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
@@ -489,6 +516,8 @@ export class ProjectService extends BaseService {
         this.contentVerificationModel = contentVerificationModel;
         this.organizationSettingsModel = organizationSettingsModel;
         this.projectContextModel = projectContextModel;
+        this.isProjectContextEnabled = isProjectContextEnabled;
+        this.getAppGenerateService = getAppGenerateService;
     }
 
     static getMetricQueryExecutionProperties({
@@ -1555,7 +1584,9 @@ export class ProjectService extends BaseService {
                         'Please authenticate to access Databricks',
                     );
                 }
-                throw new NotFoundError('User warehouse credentials not found');
+                throw new MissingWarehouseCredentialsError(
+                    "You don't have warehouse credentials set up for this project. Add them under 'User settings' → 'My warehouse connections', or refresh the page to sign in again.",
+                );
             } else if (!organizationWarehouseCredentialsUuid) {
                 // No user credentials, no org credentials, refresh project credentials
                 this.logger.debug(
@@ -2101,6 +2132,9 @@ export class ProjectService extends BaseService {
         await this.validateProjectCreationPermissions(user, data);
 
         const newProjectData = data;
+        ProjectService.validateDbtEnvironmentVariables(
+            newProjectData.dbtConnection,
+        );
 
         // If type preview and has upstream project, we first link the preview to the same organization warehouse credentials (if exists)
         if (
@@ -2324,6 +2358,7 @@ export class ProjectService extends BaseService {
         }
 
         await this.validateProjectCreationPermissions(user, data);
+        ProjectService.validateDbtEnvironmentVariables(data.dbtConnection);
 
         let encryptedData: string;
         try {
@@ -2650,6 +2685,31 @@ export class ProjectService extends BaseService {
     /* When editing a project, most fields are optional
     but if the user switches from one authentication type to another,
     we need to validate the secrets are present */
+    static validateDbtEnvironmentVariables(dbtConnection: DbtProjectConfig) {
+        if (!('environment' in dbtConnection) || !dbtConnection.environment) {
+            return;
+        }
+
+        const keys = new Set<string>();
+        dbtConnection.environment.forEach(({ key }) => {
+            const error = getDbtEnvironmentVariableKeyError(key);
+            if (error) {
+                throw new ParameterError(error);
+            }
+
+            if (key.length === 0) {
+                return;
+            }
+
+            if (keys.has(key)) {
+                throw new ParameterError(
+                    `Environment variable "${key}" is duplicated`,
+                );
+            }
+            keys.add(key);
+        });
+    }
+
     validateConfigSecrets(project: UpdateProject) {
         switch (project.warehouseConnection?.type) {
             case WarehouseTypes.BIGQUERY:
@@ -2759,6 +2819,9 @@ export class ProjectService extends BaseService {
         );
 
         this.validateConfigSecrets(updatedProject);
+        ProjectService.validateDbtEnvironmentVariables(
+            updatedProject.dbtConnection,
+        );
 
         await this.projectModel.update(projectUuid, updatedProject);
 
@@ -3143,6 +3206,111 @@ export class ProjectService extends BaseService {
             throw e;
         }
         return { adapter, sshTunnel };
+    }
+
+    async previewDataTimezone(
+        account: RegisteredAccount,
+        body: DataTimezonePreviewRequest,
+    ): Promise<ApiDataTimezonePreviewResults> {
+        assertIsAccountWithOrg(account);
+        if (
+            !(await this.isTimezoneSupportEnabled({
+                userUuid: account.user.userUuid,
+                organizationUuid: account.organization.organizationUuid,
+            }))
+        ) {
+            throw new ForbiddenError('Timezone support is not enabled');
+        }
+
+        const auditedAbility = this.createAuditedAbility(account);
+
+        // Edit flow sources secrets from storage and overrides only the unsaved
+        // data timezone - the frontend never sends credentials. Create flow uses
+        // the just-typed credentials.
+        let effectiveCredentials: CreateWarehouseCredentials;
+        let projectTimezone = 'UTC';
+        if (body.mode === 'edit') {
+            const stored = await this.projectModel.getWithSensitiveFields(
+                body.projectUuid,
+            );
+            if (auditedAbility.cannot('update', subject('Project', stored))) {
+                throw new ForbiddenError();
+            }
+            // A switched-but-unsaved warehouse type can't be merged with stored
+            // secrets, so ask for a save rather than failing mid-connect.
+            if (
+                !stored.warehouseConnection ||
+                stored.warehouseConnection.type !== body.warehouseType
+            ) {
+                throw new ParameterError(
+                    'Save the warehouse connection before previewing a different warehouse type.',
+                );
+            }
+            effectiveCredentials = {
+                ...stored.warehouseConnection,
+                dataTimezone: body.dataTimezone ?? undefined,
+            };
+            projectTimezone = await this.getQueryTimezoneForProject(
+                body.projectUuid,
+            );
+        } else {
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Project', {
+                        organizationUuid: account.organization.organizationUuid,
+                        type: ProjectType.DEFAULT,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+            effectiveCredentials = body.credentials;
+        }
+
+        // The data timezone is set as the warehouse session timezone (the
+        // client interpolates it raw), so validate it before connecting.
+        const { dataTimezone } = effectiveCredentials;
+        if (dataTimezone && !isValidTimezone(dataTimezone)) {
+            throw new ParameterError('Invalid data timezone');
+        }
+
+        const sshTunnel = new SshTunnel(effectiveCredentials);
+        const tunnelCredentials = await sshTunnel.connect();
+        try {
+            const warehouseClient =
+                this.projectModel.getWarehouseClientFromCredentials(
+                    tunnelCredentials,
+                );
+            const adapterType = warehouseClient.getAdapterType();
+            // A fixed wall-clock, read through the session timezone the client
+            // sets from dataTimezone (the third runQuery arg below).
+            const nowWallClock = currentUtcWallClock();
+            const sql = buildDataTimezonePreviewSql(adapterType, nowWallClock);
+            const queryTags: RunQueryTags = {
+                organization_uuid: account.organization.organizationUuid,
+                user_uuid: account.user.userUuid,
+                query_context: QueryExecutionContext.API,
+            };
+            const { rows } = await warehouseClient.runQuery(
+                sql,
+                queryTags,
+                dataTimezone,
+            );
+            if (rows.length === 0) {
+                throw new UnexpectedServerError(
+                    'Data timezone preview query returned no rows',
+                );
+            }
+            return buildDataTimezonePreviewResponse({
+                row: rows[0],
+                nowWallClock,
+                projectTimezone,
+                dataTimezone,
+            });
+        } finally {
+            await sshTunnel.disconnect();
+        }
     }
 
     async delete(projectUuid: string, user: SessionUser): Promise<void> {
@@ -3685,11 +3853,16 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+            userUuid: account.user.id,
+            organizationUuid: account.organization.organizationUuid,
+        });
+        const timezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
-            getAccountUserTimezone(account),
-        );
+            userTimezone: getAccountUserTimezone(account),
+            isUserTimezoneEnabled,
+        });
         const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
             userUuid: account.user.id,
             organizationUuid: account.organization.organizationUuid,
@@ -4369,11 +4542,16 @@ export class ProjectService extends BaseService {
 
                 const projectTimezone =
                     await this.getQueryTimezoneForProject(projectUuid);
-                const resolvedTimezone = resolveQueryTimezone(
+                const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                });
+                const resolvedTimezone = resolveQueryTimezone({
                     metricQuery,
                     projectTimezone,
-                    getAccountUserTimezone(account),
-                );
+                    userTimezone: getAccountUserTimezone(account),
+                    isUserTimezoneEnabled,
+                });
                 const isTimezoneEnabled = await this.isTimezoneSupportEnabled({
                     userUuid: account.user.id,
                     organizationUuid: account.organization.organizationUuid,
@@ -4710,11 +4888,18 @@ export class ProjectService extends BaseService {
 
                     const projectTimezone =
                         await this.getQueryTimezoneForProject(projectUuid);
-                    const timezone = resolveQueryTimezone(
-                        metricQueryWithLimit,
+                    const isUserTimezoneEnabled =
+                        await this.isUserTimezoneEnabled({
+                            userUuid: account.user.id,
+                            organizationUuid:
+                                account.organization.organizationUuid,
+                        });
+                    const timezone = resolveQueryTimezone({
+                        metricQuery: metricQueryWithLimit,
                         projectTimezone,
-                        getAccountUserTimezone(account),
-                    );
+                        userTimezone: getAccountUserTimezone(account),
+                        isUserTimezoneEnabled,
+                    });
                     const useTimezoneAwareDateTrunc =
                         await this.isTimezoneSupportEnabled({
                             userUuid: account.user.id,
@@ -5220,7 +5405,7 @@ export class ProjectService extends BaseService {
         table: string;
         initialFieldId: string;
         search: string;
-        limit: number;
+        limit: unknown;
         filters: AndFilterGroup | undefined;
     }) {
         const { organizationUuid } =
@@ -5248,7 +5433,7 @@ export class ProjectService extends BaseService {
         table: string,
         initialFieldId: string,
         search: string,
-        limit: number,
+        limit: unknown,
         filters: AndFilterGroup | undefined,
         forceRefresh: boolean = false,
         parameters?: ParametersValuesMap,
@@ -5315,11 +5500,13 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
+        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled(user);
+        const timezone = resolveQueryTimezone({
             metricQuery,
             projectTimezone,
-            user.timezone,
-        );
+            userTimezone: user.timezone,
+            isUserTimezoneEnabled,
+        });
         const useTimezoneAwareDateTrunc =
             await this.isTimezoneSupportEnabled(user);
 
@@ -5407,7 +5594,7 @@ export class ProjectService extends BaseService {
                 fieldId: getItemId(field),
                 searchCharCount: search.length,
                 resultsCount: resultsArray.length,
-                searchLimit: limit,
+                searchLimit: metricQuery.limit,
             },
         });
 
@@ -5433,15 +5620,13 @@ export class ProjectService extends BaseService {
             return undefined;
         }
 
-        const { enabled } = await this.featureFlagModel.get({
-            user: {
-                userUuid: user.userUuid,
-                organizationUuid,
-                organizationName: user.organizationName,
-            },
-            featureFlagId: FeatureFlags.AiProjectContext,
-        });
-        return enabled ? adapter.getProjectContext() : undefined;
+        const enabled = this.isProjectContextEnabled
+            ? await this.isProjectContextEnabled({ user, organizationUuid })
+            : false;
+        if (!enabled) {
+            return undefined;
+        }
+        return adapter.getProjectContext();
     }
 
     private async replaceProjectContext(
@@ -5835,6 +6020,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         requestMethod: RequestMethod,
         skipPermissionCheck: boolean = false,
+        validateAfterCompile: boolean = false,
     ): Promise<{ jobUuid: string }> {
         const { organizationUuid, type } =
             await this.projectModel.getSummary(projectUuid);
@@ -5878,6 +6064,7 @@ export class ProjectService extends BaseService {
             requestMethod,
             jobUuid: job.jobUuid,
             isPreview: type === ProjectType.PREVIEW,
+            validateAfterCompile,
             userUuid: user.userUuid,
         });
 
@@ -6198,7 +6385,9 @@ export class ProjectService extends BaseService {
                 }
                 if (isExploreError(explore)) {
                     throw new NotFoundError(
-                        `Explore "${exploreName}" has an error.`,
+                        `Explore "${exploreName}" has an error: ${explore.errors
+                            .map((error) => error.message)
+                            .join(', ')}`,
                     );
                 }
                 if (includeUnfilteredTables) {
@@ -7586,6 +7775,7 @@ export class ProjectService extends BaseService {
                 manifest?: string;
             };
             warehouseConnectionOverrides?: { schema?: string };
+            validateAfterCompile?: boolean;
         },
         context: RequestMethod,
     ): Promise<ApiCreatePreviewResults> {
@@ -7631,6 +7821,7 @@ export class ProjectService extends BaseService {
             previewProject.project.projectUuid,
             context,
             true, // Skip permission check
+            data.validateAfterCompile ?? false,
         );
         return {
             projectUuid: previewProject.project.projectUuid,
@@ -7714,11 +7905,34 @@ export class ProjectService extends BaseService {
             async () => {
                 const spaces = await this.spaceModel.find({ projectUuid }); // Get all spaces in the project
 
-                await this.projectModel.duplicateContent(
-                    projectUuid,
-                    previewProjectUuid,
-                    spaces,
-                );
+                const { spaceMapping } =
+                    await this.projectModel.duplicateContent(
+                        projectUuid,
+                        previewProjectUuid,
+                        spaces,
+                    );
+
+                // Duplicate the upstream project's data apps into the preview
+                // and remap the copied dashboard tiles onto them. EE-only —
+                // resolves undefined in core builds. Best-effort: a failure
+                // here must not undo the content copy that already committed,
+                // so swallow and log rather than propagate.
+                const appGenerateService = this.getAppGenerateService?.();
+                if (appGenerateService) {
+                    try {
+                        await appGenerateService.duplicateAppsForPreview(
+                            projectUuid,
+                            previewProjectUuid,
+                            spaceMapping,
+                        );
+                    } catch (e) {
+                        this.logger.error(
+                            `Failed to duplicate data apps from ${projectUuid} to preview ${previewProjectUuid}: ${getErrorMessage(
+                                e,
+                            )}`,
+                        );
+                    }
+                }
             },
         );
     }
@@ -8274,6 +8488,18 @@ export class ProjectService extends BaseService {
     }): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             featureFlagId: FeatureFlags.EnableTimezoneSupport,
+            user,
+        });
+
+        return enabled;
+    }
+
+    protected async isUserTimezoneEnabled(user: {
+        userUuid: string;
+        organizationUuid?: string;
+    }): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            featureFlagId: FeatureFlags.EnableUserTimezones,
             user,
         });
 

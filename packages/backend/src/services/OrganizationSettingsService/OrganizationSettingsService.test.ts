@@ -2,6 +2,7 @@ import { Ability } from '@casl/ability';
 import {
     FeatureFlags,
     ForbiddenError,
+    ParameterError,
     type PossibleAbilities,
     type RegisteredAccount,
 } from '@lightdash/common';
@@ -79,5 +80,54 @@ describe('OrganizationSettingsService — pro-limits gate', () => {
             csvCellsLimit: 50,
         });
         expect(organizationSettingsModel.update).toHaveBeenCalled();
+    });
+
+    it('allows valid CORS settings when pro-limits is disabled', async () => {
+        const { service, organizationSettingsModel } = buildService(false);
+        await service.updateOrganizationSettings(account, {
+            corsAllowedDomains: [
+                'https://app.example.com',
+                '/^https:\\/\\/.*\\.example\\.com$/',
+            ],
+        });
+        expect(organizationSettingsModel.update).toHaveBeenCalledWith(
+            'org-uuid',
+            {
+                corsAllowedDomains: [
+                    'https://app.example.com',
+                    '/^https:\\/\\/.*\\.example\\.com$/',
+                ],
+            },
+        );
+    });
+
+    it('rejects invalid CORS regex patterns', async () => {
+        const { service, organizationSettingsModel } = buildService(false);
+        await expect(
+            service.updateOrganizationSettings(account, {
+                corsAllowedDomains: ['/unterminated[/'],
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects broad CORS regex patterns', async () => {
+        const { service, organizationSettingsModel } = buildService(false);
+        await expect(
+            service.updateOrganizationSettings(account, {
+                corsAllowedDomains: ['/^https?:\\/\\/.*$/'],
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
+    });
+
+    it('rejects invalid CORS origins', async () => {
+        const { service, organizationSettingsModel } = buildService(false);
+        await expect(
+            service.updateOrganizationSettings(account, {
+                corsAllowedDomains: ['https://app.example.com/path'],
+            }),
+        ).rejects.toThrow(ParameterError);
+        expect(organizationSettingsModel.update).not.toHaveBeenCalled();
     });
 });

@@ -83,22 +83,12 @@ const ExplorerHeader: FC = memo(() => {
     const isEmbedded = embed.embedToken !== undefined;
 
     const buttonDisabledMessage = useMemo(() => {
-        // There is no concept on abilities about 'create' a SavedChart without space context
-        // We need a space to save the chart to whether it is public or user has editor permissions
-
-        // User has permissions to create charts in a public space (eg: interactive viewer with editor space permission)
+        // A chart always needs a space to be saved to (a public space or one the user can create)
         if (userCanCreateChartsInSpace) return null;
-
-        // User has permissions to create spaces
-        // Therefore, he can create a space for him to save the chart (eg: editor)
         if (userCanCreateSpace) return null;
 
-        // Edge case: there are no public spaces and the user does not have permissions to create spaces
-        if (!userCanCreateChartsInSpace && !userCanCreateSpace) {
-            return 'There are no public spaces to save this chart to';
-        }
-
-        return null;
+        // The user lacks permission to save a chart in any space
+        return "You don't have permission to save charts in this project";
     }, [userCanCreateChartsInSpace, userCanCreateSpace]);
 
     const urlToShare = useMemo(() => {

@@ -35,6 +35,7 @@ import {
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    ServiceAccountProjectAccessInput,
     ServiceAccountProjectGrant,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
@@ -2124,6 +2125,104 @@ export class ProjectModel {
     }
 
     /**
+     * Replace a service account's entire set of project grants in one
+     * transaction. Used by the in-place SA edit path: delete every existing
+     * `project_memberships` row for the SA's dedicated user, then insert the
+     * new set. Wholesale replace (rather than a diff) keeps add / remove /
+     * role-change a single atomic operation.
+     *
+     * Each grant must carry exactly one of `role` (system) or `roleUuid`
+     * (custom); the service layer validates this and that custom roles belong
+     * to the org before calling. Projects are re-validated here to be in the
+     * SA's organization.
+     */
+    async setServiceAccountProjectAccess(
+        serviceAccountUuid: string,
+        grants: ServiceAccountProjectAccessInput[],
+    ): Promise<void> {
+        const [sa] = await this.database(ServiceAccountsTableName)
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ServiceAccountsTableName}.service_account_user_uuid`,
+            )
+            .select<Array<{ user_id: number; organization_uuid: string }>>(
+                `${UserTableName}.user_id`,
+                `${ServiceAccountsTableName}.organization_uuid`,
+            )
+            .where(
+                `${ServiceAccountsTableName}.service_account_uuid`,
+                serviceAccountUuid,
+            );
+        if (!sa) {
+            throw new NotFoundError(
+                `Service account with uuid ${serviceAccountUuid} not found`,
+            );
+        }
+
+        // Resolve every project to its int id, validating same-org membership
+        // up front so the replace can't partially apply a cross-org grant.
+        const projectUuids = grants.map((g) => g.projectUuid);
+        if (new Set(projectUuids).size !== projectUuids.length) {
+            throw new ParameterError(
+                'A service account can have at most one grant per project',
+            );
+        }
+        const projects = await this.database(ProjectTableName)
+            .leftJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .select<
+                { project_uuid: string; project_id: number; org_uuid: string }[]
+            >(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.project_id`,
+                `${OrganizationTableName}.organization_uuid as org_uuid`,
+            )
+            .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
+        const projectByUuid = new Map(projects.map((p) => [p.project_uuid, p]));
+        for (const projectUuid of projectUuids) {
+            const project = projectByUuid.get(projectUuid);
+            if (!project) {
+                throw new NotFoundError(
+                    `Project with uuid ${projectUuid} not found`,
+                );
+            }
+            if (project.org_uuid !== sa.organization_uuid) {
+                throw new ParameterError(
+                    'Service account and project must be in the same organization',
+                );
+            }
+        }
+
+        await this.database.transaction(async (trx) => {
+            await trx(ProjectMembershipsTableName)
+                .where('user_id', sa.user_id)
+                .delete();
+            if (grants.length > 0) {
+                await trx(ProjectMembershipsTableName).insert(
+                    grants.map((grant) => {
+                        // Legacy `role` column is NOT NULL; when `role_uuid` is
+                        // set, runtime CASL prefers the custom role and `role`
+                        // is a Viewer placeholder (matches create's convention).
+                        const project = projectByUuid.get(grant.projectUuid)!;
+                        return {
+                            project_id: project.project_id,
+                            user_id: sa.user_id,
+                            role: grant.roleUuid
+                                ? ProjectMemberRole.VIEWER
+                                : (grant.role as ProjectMemberRole),
+                            role_uuid: grant.roleUuid ?? null,
+                        };
+                    }),
+                );
+            }
+        });
+    }
+
+    /**
      * Validate that every `roleUuid` in the input exists and belongs to the
      * given organization. Returns the set of `roleUuid`s in the input that
      * are missing or owned by a different org — callers should reject if
@@ -2394,7 +2493,9 @@ export class ProjectModel {
         projectUuid: string,
         previewProjectUuid: string,
         spaces: Pick<SpaceSummary, 'uuid'>[],
-    ) {
+    ): Promise<{
+        spaceMapping: { sourceSpaceUuid: string; previewSpaceUuid: string }[];
+    }> {
         Logger.info(
             `Copying content from ${projectUuid} to ${previewProjectUuid}`,
         );
@@ -3469,7 +3570,41 @@ export class ProjectModel {
                 preview_project_uuid: previewProjectUuid,
                 content_mapping: contentMapping,
             });
+
+            // Return the source→preview space mapping so callers (preview data
+            // app duplication) can place copied entities into the mirrored
+            // preview spaces.
+            return {
+                spaceMapping: spaceMapping.map((s) => ({
+                    sourceSpaceUuid: s.uuid,
+                    previewSpaceUuid: s.newUuid,
+                })),
+            };
         });
+    }
+
+    async getPreviewAiAgentUuid({
+        projectUuid,
+        previewProjectUuid,
+        aiAgentUuid,
+    }: {
+        projectUuid: string;
+        previewProjectUuid: string;
+        aiAgentUuid: string;
+    }): Promise<string | null> {
+        const row = await this.database('preview_content')
+            .select<{ content_mapping: PreviewContentMapping }[]>(
+                'content_mapping',
+            )
+            .where('project_uuid', projectUuid)
+            .where('preview_project_uuid', previewProjectUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        const match = row?.content_mapping.aiAgents.find(
+            (mapping) => String(mapping.id) === aiAgentUuid,
+        );
+        return typeof match?.newId === 'string' ? match.newId : null;
     }
 
     // Easier to mock in ProjectService

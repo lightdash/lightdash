@@ -49,7 +49,7 @@ import isEqual from 'lodash/isEqual';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';
-import { type MRT_TableInstance } from '../../../../components/common/ContentTable';
+import { type ContentTableInstance } from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
@@ -87,7 +87,7 @@ type MetricsTableTopToolbarProps = GroupProps & {
     totalResults: number;
     showCategoriesFilter?: boolean;
     metricCatalogView: MetricCatalogView;
-    table: MRT_TableInstance<CatalogField>;
+    table: ContentTableInstance<CatalogField>;
 };
 
 const SortableColumn: FC<{

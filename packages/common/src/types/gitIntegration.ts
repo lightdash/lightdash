@@ -1,3 +1,7 @@
+import type {
+    AiAgentReviewItemStatus,
+    AiAgentRootCause,
+} from '../ee/AiAgent/aiAgentReviewClassifierTypes';
 import { type KnexPaginatedData } from './knex-paginate';
 
 export type GitIntegrationConfiguration = {
@@ -8,6 +12,18 @@ export type GitIntegrationConfiguration = {
 export type PullRequestCreated = {
     prTitle: string;
     prUrl: string;
+};
+
+export type PullRequestReviewContext = {
+    reviewItemUuid: string;
+    reviewItemFingerprint: string;
+    reviewTitle: string;
+    reviewStatus: AiAgentReviewItemStatus;
+    primaryRootCause: AiAgentRootCause;
+    sourceFindingUuid: string;
+    sourceThreadUuid: string;
+    sourceProjectUuid: string;
+    sourceAgentUuid: string;
 };
 
 export enum PullRequestProvider {
@@ -56,6 +72,11 @@ export type PullRequest = {
      * build the in-app thread link. Null whenever `aiThreadUuid` is null.
      */
     aiAgentUuid: string | null;
+    /**
+     * Source review context for AI review remediation PRs. Present when the PR
+     * was opened to address a review finding.
+     */
+    reviewContext: PullRequestReviewContext | null;
     createdAt: Date;
 };
 
@@ -67,6 +88,20 @@ export type PullRequest = {
 export type PullRequestWithStatus = PullRequest & {
     title: string | null;
     state: PullRequestState | null;
+};
+
+/**
+ * A user's personally linked GitHub account. When present, write-backs are
+ * authored as this user instead of the Lightdash GitHub App bot.
+ */
+export type GithubUserCredential = {
+    githubLogin: string;
+    createdAt: Date;
+};
+
+export type ApiGithubUserCredentialResponse = {
+    status: 'ok';
+    results: GithubUserCredential | null;
 };
 
 export type ApiGitFileContent = {
@@ -196,4 +231,23 @@ export const extractPreviewUrlFromComments = (
         }
     }
     return null;
+};
+
+export const extractPreviewProjectUuidFromUrl = (
+    previewUrl: string,
+    siteUrl: string,
+): string | null => {
+    try {
+        const preview = new URL(previewUrl);
+        const site = new URL(siteUrl);
+        if (preview.host !== site.host) {
+            return null;
+        }
+        const match = preview.pathname.match(
+            new RegExp(`^/projects/(${PREVIEW_PROJECT_UUID})(?:/|$)`, 'i'),
+        );
+        return match?.[1] ?? null;
+    } catch {
+        return null;
+    }
 };

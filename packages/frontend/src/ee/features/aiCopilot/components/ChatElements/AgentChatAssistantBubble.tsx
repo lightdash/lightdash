@@ -4,10 +4,10 @@ import {
     type AiAgentToolCall,
     type AiMcpServer,
     isToolProposeChangeResult,
-    isToolProposeWritebackResult,
+    isToolEditDbtProjectResult,
     isToolSetupPreviewDeployResult,
     type ToolProposeChangeArgs,
-    type ToolProposeWritebackOutput,
+    type ToolEditDbtProjectOutput,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -72,8 +72,8 @@ import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
+import { AiEditDbtProjectToolCall } from './ToolCalls/AiEditDbtProjectToolCall';
 import { AiProposeChangeToolCall } from './ToolCalls/AiProposeChangeToolCall';
-import { AiProposeWritebackToolCall } from './ToolCalls/AiProposeWritebackToolCall';
 import { ImproveContextToolCall } from './ToolCalls/ImproveContextToolCall';
 import {
     LiveActivityCard,
@@ -82,14 +82,18 @@ import {
 } from './ToolCalls/LiveActivityCard';
 import { toReasoningTexts } from './ToolCalls/reasoningHelpers';
 import { SqlApprovalCard } from './ToolCalls/SqlApprovalCard';
+import {
+    appendToolCallToActivityGroup,
+    canAppendToolCallToActivityGroup,
+    createToolCallActivityGroup,
+    groupToolCallSummaries,
+    type ToolCallActivityGroup,
+} from './ToolCalls/utils/toolCallGrouping';
 import { type ToolCallSummary } from './ToolCalls/utils/types';
 import { TypingDots } from './TypingDots';
 
-type ToolGroup = {
+type ToolGroup = ToolCallActivityGroup & {
     kind: 'toolGroup';
-    toolName: AiAgentToolName;
-    calls: ToolCallSummary[];
-    keyId: string;
 };
 type TextSegment = { kind: 'text'; text: string; idx: number };
 type SqlApprovalSegment = {
@@ -144,43 +148,23 @@ const segmentStreamParts = (
         if (
             last &&
             last.kind === 'toolGroup' &&
-            last.toolName === part.toolName
+            canAppendToolCallToActivityGroup(last, call)
         ) {
-            last.calls.push(call);
-        } else {
-            segments.push({
-                kind: 'toolGroup',
-                toolName: part.toolName,
-                calls: [call],
-                keyId: part.toolCallId,
-            });
+            appendToolCallToActivityGroup(last, call);
+            return;
         }
+
+        segments.push({
+            ...createToolCallActivityGroup(call),
+            kind: 'toolGroup',
+        });
     });
     return segments;
 };
 
 const groupPersistedToolCalls = (
     calls: ToolCallSummary[],
-): { toolName: AiAgentToolName; calls: ToolCallSummary[]; keyId: string }[] => {
-    const groups: {
-        toolName: AiAgentToolName;
-        calls: ToolCallSummary[];
-        keyId: string;
-    }[] = [];
-    for (const tc of calls) {
-        const last = groups[groups.length - 1];
-        if (last && last.toolName === tc.toolName) {
-            last.calls.push(tc);
-        } else {
-            groups.push({
-                toolName: tc.toolName,
-                calls: [tc],
-                keyId: tc.toolCallId,
-            });
-        }
-    }
-    return groups;
-};
+): ToolCallActivityGroup[] => groupToolCallSummaries(calls);
 
 const getPendingPersistedSqlApprovals = (
     message: AiAgentMessageAssistant,
@@ -435,26 +419,26 @@ const AssistantBubbleContent: FC<{
         isToolProposeChangeResult,
     );
 
-    // Writeback PR card metadata. The proposeWriteback tool result instructs
+    // Writeback PR card metadata. The editDbtProject tool result instructs
     // the LLM not to print the PR URL inline (we surface it via a dedicated
     // button instead), so we have to source it from the tool result ourselves.
     //   - Persisted view: pull it from message.toolResults via the existing
-    //     isToolProposeWritebackResult type predicate.
+    //     isToolEditDbtProjectResult type predicate.
     //   - Live streaming: pull it from streamingState.parts. The streaming
     //     slice mirrors AI SDK output-available chunks into each part's
     //     toolResult, which is the full tool return shape {result,metadata}.
     //     We re-shape to the structured `metadata` the card expects.
-    const proposeWritebackResult: {
-        metadata: ToolProposeWritebackOutput['metadata'];
+    const editDbtProjectResult: {
+        metadata: ToolEditDbtProjectOutput['metadata'];
         // setupPreviewDeploy reuses this card but its PR only adds the preview
         // workflow — it never previews itself, so the card hides the preview
         // affordance when this is true.
         isPreviewDeploySetup: boolean;
     } | null = (() => {
-        // setupPreviewDeploy shares proposeWriteback's output shape and the
+        // setupPreviewDeploy shares editDbtProject's output shape and the
         // same PR-button card, so resolve either tool's result here.
         const writebackResult = message.toolResults.find(
-            isToolProposeWritebackResult,
+            isToolEditDbtProjectResult,
         );
         if (writebackResult)
             return {
@@ -473,13 +457,13 @@ const AssistantBubbleContent: FC<{
         const livePart = streamingState?.parts.find(
             (p): p is Extract<StreamPart, { type: 'toolCall' }> =>
                 p.type === 'toolCall' &&
-                (p.toolName === 'proposeWriteback' ||
+                (p.toolName === 'editDbtProject' ||
                     p.toolName === 'setupPreviewDeploy') &&
                 p.toolResult !== null &&
                 p.isPreliminary !== true,
         );
         const liveOutput = livePart?.toolResult as
-            | ToolProposeWritebackOutput
+            | ToolEditDbtProjectOutput
             | undefined;
         if (!liveOutput?.metadata) return null;
         return {
@@ -636,6 +620,7 @@ const AssistantBubbleContent: FC<{
                             toolName: s.toolName,
                             calls: s.calls,
                             keyId: s.keyId,
+                            display: s.display,
                         }));
                     const sqlApprovals = segments.filter(
                         (s): s is Extract<typeof s, { kind: 'sqlApproval' }> =>
@@ -923,13 +908,13 @@ const AssistantBubbleContent: FC<{
                     toolResult={proposeChangeToolResult}
                 />
             )}
-            {proposeWritebackResult && (
-                <AiProposeWritebackToolCall
-                    metadata={proposeWritebackResult.metadata}
+            {editDbtProjectResult && (
+                <AiEditDbtProjectToolCall
+                    metadata={editDbtProjectResult.metadata}
                     projectUuid={projectUuid}
                     prCreatedAt={message.createdAt}
                     isPreviewDeploySetup={
-                        proposeWritebackResult.isPreviewDeploySetup
+                        editDbtProjectResult.isPreviewDeploySetup
                     }
                 />
             )}

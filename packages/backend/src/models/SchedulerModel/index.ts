@@ -731,8 +731,9 @@ export class SchedulerModel {
 
     async getSqlChartSchedulers(
         savedSqlUuid: string,
+        createdByUserUuid?: string,
     ): Promise<SchedulerAndTargets[]> {
-        const schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
+        let schedulers = SchedulerModel.getBaseSchedulerQuery(this.database)
             .where(`${SchedulerTableName}.saved_sql_uuid`, savedSqlUuid)
             .orderBy([
                 {
@@ -744,6 +745,12 @@ export class SchedulerModel {
                     order: 'asc',
                 },
             ]);
+        if (createdByUserUuid) {
+            schedulers = schedulers.where(
+                `${SchedulerTableName}.created_by`,
+                createdByUserUuid,
+            );
+        }
         return this.getSchedulersWithTargets(await schedulers);
     }
 

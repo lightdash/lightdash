@@ -16,7 +16,8 @@ Unlike findFields (which requires a specific explore) and findExplores (a keywor
 Parameters:
 - searchQuery: Optional keyword to full-text search field names, labels and descriptions. Leave null/empty to list the full inventory.
 - type: Optional filter — "metric" or "dimension". Leave null to return both.
-- page: Page number for pagination (starts at 1). The result reports total counts so you know how many pages remain.
+- page: Page number for pagination (starts at 1). The result reports total counts so you know how many pages remain. For a high-level overview ("tell me about our semantic layer"), the first page plus those totals is usually enough — do NOT page through the entire inventory. Only fetch every page when the task genuinely needs all fields at once, such as a project-wide duplicate/inconsistency audit.
+- pageSize: Optional number of fields per page (default 200, max 500). Choose it to fit the task: pass a LARGE pageSize to pull the whole inventory in one or two calls for an audit, or a small one for a quick look. Leave null for the default.
 
 Output:
 - A paginated list of fields, each with: explore (exploreName), name, label, fieldType (metric/dimension), description and chart usage count.
@@ -35,6 +36,13 @@ export const toolSearchSemanticLayerArgsSchema = createToolSchema()
             .nullable()
             .describe(
                 'Optional filter to return only metrics or only dimensions. Leave null to return both.',
+            ),
+        pageSize: z.coerce
+            .number()
+            .positive()
+            .nullable()
+            .describe(
+                'Optional number of fields per page (default 200, max 500). Use a large value to read the whole inventory in one or two calls for an audit, or a small one for a quick overview. Leave null for the default.',
             ),
     })
     .withPagination()

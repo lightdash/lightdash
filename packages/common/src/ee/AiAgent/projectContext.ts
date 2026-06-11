@@ -112,16 +112,27 @@ export const mergeProjectContextEntry = (
     return { entries, entryId, op };
 };
 
+// Prepended when the file is first generated so the artifact a reviewer is asked
+// to merge explains itself. Survives later edits because the writeback path
+// preserves leading comments.
+export const PROJECT_CONTEXT_FILE_HEADER = [
+    '# What your AI agents read before they answer.',
+    '# Add things here to teach them your terms and how your data fits together.',
+    '# Merge a change to this file and your future answers get better.',
+    '# Managed from the Reviews tab under Ask AI.',
+].join('\n');
+
 export const serializeProjectContextFile = (
     entries: ProjectContextEntry[],
 ): string => {
     if (entries.length === 0) {
         return '';
     }
-    return yaml.dump(
+    const body = yaml.dump(
         { version: PROJECT_CONTEXT_FILE_VERSION, entries },
         { lineWidth: -1 },
     );
+    return `${PROJECT_CONTEXT_FILE_HEADER}\n${body}`;
 };
 
 // Derive a stable id from the first term (or content) when the author omitted
@@ -249,7 +260,17 @@ export const applyProjectContextWriteback = (
             } else {
                 entriesNode.add(node);
             }
-            return { content: doc.toString({ lineWidth: 0 }), entryId, op };
+            // flowCollectionPadding:false keeps `[a, b]` from being re-emitted
+            // as `[ a, b ]`, so untouched flow lines stay byte-identical and the
+            // diff is just the changed entry.
+            return {
+                content: doc.toString({
+                    lineWidth: 0,
+                    flowCollectionPadding: false,
+                }),
+                entryId,
+                op,
+            };
         }
     }
 

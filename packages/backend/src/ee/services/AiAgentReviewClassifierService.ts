@@ -31,11 +31,34 @@ import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
+import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
 
 const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v2';
+const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
+const WRITEBACK_TOOL_NAMES = new Set([
+    'editDbtProject',
+    'propose_writeback',
+    'runAiWriteback',
+    'run_ai_writeback',
+]);
+const SUCCESSFUL_WRITEBACK_RESULT_PATTERN =
+    /\b(opened|updated) a pull request\b/i;
+const NON_ACTIONABLE_WRITEBACK_RESULT_PATTERN =
+    /no pull request was opened|made no file changes|error running ai writeback/i;
+
+/**
+ * Provider for the review judge. Prefer Anthropic (Claude) when it is configured
+ * — it follows the project_context vs semantic_layer routing far more reliably
+ * than other providers. Returns undefined to fall back to the org's default
+ * provider, so EE orgs that have an EE license but no Anthropic key (OpenAI /
+ * Azure only) keep working.
+ */
+export const resolveReviewJudgeProvider = (
+    copilot: LightdashConfig['ai']['copilot'],
+): LightdashConfig['ai']['copilot']['defaultProvider'] | undefined =>
+    copilot.providers.anthropic ? 'anthropic' : undefined;
 
 type AiAgentReviewClassifierJudge = (
     candidate: AiAgentReviewClassifierTurnCandidate,
@@ -48,6 +71,7 @@ type AiAgentReviewClassifierJudgeTargetRef =
 type AiAgentReviewClassifierServiceDependencies = {
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
     aiAgentModel: AiAgentModel;
+    aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
@@ -195,6 +219,8 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
 
+    private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
+
     private readonly featureFlagService: FeatureFlagService;
 
     private readonly lightdashConfig: LightdashConfig;
@@ -207,6 +233,8 @@ export class AiAgentReviewClassifierService extends BaseService {
             dependencies.aiAgentReviewClassifierModel;
         this.aiAgentModel = dependencies.aiAgentModel;
         this.catalogModel = dependencies.catalogModel;
+        this.aiOrganizationSettingsModel =
+            dependencies.aiOrganizationSettingsModel;
         this.featureFlagService = dependencies.featureFlagService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.judgeTurn =
@@ -351,8 +379,8 @@ export class AiAgentReviewClassifierService extends BaseService {
         const runAgentConfig = args.candidates[0]
             ? await this.captureAgentConfigSnapshot(args.candidates[0])
             : AiAgentReviewClassifierService.emptyAgentConfigEvidence();
-        const projectContextFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiProjectContext,
+        const aiWritebackFlag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiWriteback,
             user: {
                 userUuid: args.requestedByUserUuid ?? 'system',
                 organizationUuid: args.organizationUuid,
@@ -403,7 +431,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     classifiedTurn: await this.classifyTurnWithJudge(
                         candidate,
                         runAgentConfig,
-                        { projectContextEnabled: projectContextFlag.enabled },
+                        { projectContextEnabled: aiWritebackFlag.enabled },
                     ),
                 })),
             );
@@ -500,6 +528,33 @@ export class AiAgentReviewClassifierService extends BaseService {
         agentConfig: AiAgentReviewAgentConfigEvidence,
         args: { projectContextEnabled: boolean },
     ): Promise<AiAgentReviewClassifierClassifiedTurn> {
+        const successfulWritebackEvidence =
+            AiAgentReviewClassifierService.getSuccessfulWritebackEvidence(
+                candidate,
+            );
+        if (successfulWritebackEvidence) {
+            const signal =
+                AiAgentReviewClassifierService.buildWritebackInProgressSignal(
+                    candidate,
+                    successfulWritebackEvidence.toolCallId,
+                );
+
+            Logger.info(
+                'AI agent review suppressed finding for writeback turn',
+                {
+                    runPromptUuid: candidate.subject.assistantPromptUuid,
+                    threadUuid: candidate.subject.threadUuid,
+                    projectUuid: candidate.subject.projectUuid,
+                    agentUuid: candidate.subject.agentUuid,
+                    toolName: successfulWritebackEvidence.toolName,
+                    toolCallId: successfulWritebackEvidence.toolCallId,
+                    promotionReason: signal.promotionReason,
+                },
+            );
+
+            return { signal, finding: null };
+        }
+
         const reviewEvidence = await this.buildReviewEvidence(
             candidate,
             agentConfig,
@@ -876,6 +931,9 @@ export class AiAgentReviewClassifierService extends BaseService {
         evidencePacket: AiAgentReviewJudgeEvidencePacket,
     ): Promise<AiAgentReviewClassifierJudgeOutput> {
         const model = getModel(this.lightdashConfig.ai.copilot, {
+            provider: resolveReviewJudgeProvider(
+                this.lightdashConfig.ai.copilot,
+            ),
             useFastModel: true,
         });
 
@@ -936,7 +994,9 @@ Decision rules — apply in order:
 
 1. First, populate implicitSignalSources by inspecting the evidence packet. Do not skip this step.
 
-2. Treat implicitSignalSources as strong evidence of unresolved user intent, not as decoration. Promote when the implicit signal points to likely assistant failure:
+2. If the evidence shows the assistant successfully called a writeback tool (for example editDbtProject or runAiWriteback) and opened or updated a pull request, do not promote this as a semantic_layer or project_context finding. The remediation is already in progress; use promotedToFinding=false, signal=acceptance_or_continuation, primaryRootCause=not_a_failure, and promotionReason=writeback_tool_already_started. Only consider writeback turns promotable when the tool failed, opened no pull request despite a clear requested change, or the user later says the PR is wrong.
+
+3. Treat implicitSignalSources as strong evidence of unresolved user intent, not as decoration. Promote when the implicit signal points to likely assistant failure:
    - Always promote assistant_no_answer, next_user_dispute, tool_error, product_capability_request, and human_intervention.
    - Promote next_user_correction when the correction is about field choice, metric choice, explore/source selection, scoping, business definition, missing data, or whether the assistant can connect the requested data.
    - Promote next_user_retry only when the previous answer was failed, empty, non-substantive, off-target, or only offered a workaround instead of answering the user's actual question.
@@ -948,19 +1008,21 @@ When promoting, pick primaryRootCause by mapping the dominant signal:
    - assistant_no_answer due to disabled SQL or data access, missing instructions, or missing knowledge docs → agent_configuration.
    - assistant_no_answer because the warehouse genuinely lacks the data → data_gap.
    - assistant_no_answer because Lightdash cannot express the question (missing chart type, unsupported pivot, etc.) → product_capability.
-   - next_user_correction or next_user_dispute about field choice, scoping, or definition → semantic_layer or project_context.
+   - next_user_correction or next_user_dispute about which explore/source/table to use, or about what an entity, acronym, or business term refers to → project_context.
+   - next_user_correction or next_user_dispute about a field, metric, dimension, join, or filter definition within the right explore → semantic_layer.
    - next_user_retry after a failed or empty answer → runtime_reliability or agent_configuration depending on cause.
    - tool_error → runtime_reliability.
    - product_capability_request → product_capability.
    - human_intervention → agent_configuration unless evidence clearly points elsewhere.
+   - Tiebreaker for semantic_layer vs project_context: if the durable fix is a fact the agent should KNOW — what a term/acronym/entity refers to, or which explore answers a kind of question → project_context. If the durable fix is a CHANGE to the semantic YAML — a model, dimension, metric, join, or filter definition → semantic_layer. Do not default to semantic_layer when the real gap is missing routing or knowledge about which explore to use.
 
-3. Only set promotedToFinding=false when there is no promotable implicit signal AND the assistant answered the user's actual question. In that case use signal=acceptance_or_continuation, new_question, output_shape_correction, or normal_refinement and primaryRootCause=not_a_failure.
+4. Only set promotedToFinding=false when there is no promotable implicit signal AND the assistant answered the user's actual question. In that case use signal=acceptance_or_continuation, new_question, output_shape_correction, or normal_refinement and primaryRootCause=not_a_failure.
 
-4. Successful queries can still be findings even without implicit signals when the user asked broad business language and the semantic / catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity.
+5. Successful queries can still be findings even without implicit signals when the user asked broad business language and the semantic / catalog context does not clearly support the selected field, explore, or metric. Promote those as semantic_layer or project_context when a model definition, AI hint, or project context rule would prevent future ambiguity, choosing between them with the explore-vs-definition tiebreaker above.
 
-5. Use agentConfig to catch Lightdash-layer fixes: missing instructions, disabled data access, missing knowledge docs, access restrictions, or capability settings. Promote those as agent_configuration when the answer quality depends on agent setup.
+6. Use agentConfig to catch Lightdash-layer fixes: missing instructions, disabled data access, missing knowledge docs, access restrictions, or capability settings. Promote those as agent_configuration when the answer quality depends on agent setup.
 
-6. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
+7. If you would promote but cannot pick one primaryRootCause confidently, set primaryRootCause=ambiguous with confidence=low or medium and still promote.
 
 When promotedToFinding=true, provide concise evidence excerpts copied or summarized from the packet and a practical recommendation.
 Use one primaryRootCause. Secondary causes are optional.
@@ -997,16 +1059,12 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
         organizationUuid: string;
         organizationName?: string;
     }): Promise<boolean> {
-        const featureFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiAgentReviewClassifier,
-            user: {
-                userUuid: args.requestedByUserUuid ?? 'system',
-                organizationUuid: args.organizationUuid,
-                organizationName: args.organizationName ?? '',
-            },
-        });
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                args.organizationUuid,
+            );
 
-        return featureFlag.enabled;
+        return settings?.aiAgentReviewsEnabled ?? false;
     }
 
     private static buildEvidenceExcerpts(
@@ -1074,6 +1132,46 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
                 }),
             ),
         ].filter((excerpt): excerpt is AiAgentEvidenceExcerpt => !!excerpt);
+    }
+
+    private static getSuccessfulWritebackEvidence(
+        candidate: AiAgentReviewClassifierTurnCandidate,
+    ):
+        | AiAgentReviewClassifierTurnCandidate['supportingEvidence'][number]
+        | null {
+        return (
+            candidate.supportingEvidence.find((evidence) => {
+                const resultPreview = evidence.resultPreview ?? '';
+                return (
+                    WRITEBACK_TOOL_NAMES.has(evidence.toolName) &&
+                    SUCCESSFUL_WRITEBACK_RESULT_PATTERN.test(resultPreview) &&
+                    !NON_ACTIONABLE_WRITEBACK_RESULT_PATTERN.test(resultPreview)
+                );
+            }) ?? null
+        );
+    }
+
+    private static buildWritebackInProgressSignal(
+        candidate: AiAgentReviewClassifierTurnCandidate,
+        toolCallId: string,
+    ): AiAgentReviewClassifierTurnSignal {
+        return {
+            subject: candidate.subject,
+            interactionSource: candidate.interactionSource,
+            sourceRef: candidate.sourceRef,
+            signal: 'acceptance_or_continuation',
+            implicitSignalSources: [],
+            confidence: 'high',
+            promotedToFinding: false,
+            promotionReason: 'writeback_tool_already_started',
+            toolEvidenceRefs: [toolCallId],
+            runtimeContextSnapshot: {
+                userUuid: null,
+                canRunSql: false,
+                canManageAgent: false,
+            },
+            modelMetadata: candidate.modelMetadata,
+        };
     }
 
     private static buildJudgeEvidencePacket({

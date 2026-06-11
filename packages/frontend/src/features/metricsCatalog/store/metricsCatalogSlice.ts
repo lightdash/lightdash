@@ -7,7 +7,7 @@ import {
     type SpotlightTableConfig,
 } from '@lightdash/common';
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
-import type { MRT_SortingState } from '../../../components/common/ContentTable';
+import type { ContentTableSortingState } from '../../../components/common/ContentTable';
 import type { UserWithAbility } from '../../../hooks/user/useUser';
 import { SavedTreeEditMode } from '../types';
 
@@ -37,7 +37,7 @@ type MetricsCatalogState = {
     tableFilters: string[];
     ownerFilters: string[];
     search: string | undefined;
-    tableSorting: MRT_SortingState;
+    tableSorting: ContentTableSortingState;
     popovers: {
         category: {
             isClosing: boolean;
@@ -186,7 +186,10 @@ export const metricsCatalogSlice = createSlice({
         setSearch: (state, action: PayloadAction<string | undefined>) => {
             state.search = action.payload;
         },
-        setTableSorting: (state, action: PayloadAction<MRT_SortingState>) => {
+        setTableSorting: (
+            state,
+            action: PayloadAction<ContentTableSortingState>,
+        ) => {
             state.tableSorting = action.payload;
         },
         setUser: (

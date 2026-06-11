@@ -5,7 +5,7 @@ import {
     formatItemValue,
     formatRows,
     getErrorMessage,
-    getFormatExpression,
+    getExcelFormatExpression,
     isDimension,
     isField,
     isNumber,
@@ -18,6 +18,7 @@ import {
     timeIntervalToExcelNumFmt,
     toExcelWallClockDate,
     UnexpectedServerError,
+    type PivotRowTotalsByIndex,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -143,6 +144,8 @@ export class ExcelService {
         onlyRaw,
         customLabels,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         enableImprovedExcelDates = false,
         timezone,
     }: {
@@ -152,6 +155,8 @@ export class ExcelService {
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         enableImprovedExcelDates?: boolean;
         timezone?: string;
     }): Promise<Excel.Buffer> {
@@ -177,6 +182,8 @@ export class ExcelService {
                 onlyRaw,
                 customLabels,
                 pivotDetails,
+                warehouseRowTotals,
+                warehouseColumnTotals,
                 timezone,
             });
         }
@@ -188,6 +195,8 @@ export class ExcelService {
             customLabels,
             onlyRaw,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
         });
 
         // Build date column metadata: for each data column, determine if
@@ -306,6 +315,8 @@ export class ExcelService {
         onlyRaw,
         customLabels,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         timezone,
     }: {
         formattedRows: ResultRow[];
@@ -314,6 +325,8 @@ export class ExcelService {
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
         pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         timezone?: string;
     }): Promise<Excel.Buffer> {
         const csvResults = pivotResultsAsCsv({
@@ -323,6 +336,8 @@ export class ExcelService {
             customLabels,
             onlyRaw,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
         });
 
         const workbook = new Excel.Workbook();
@@ -376,6 +391,8 @@ export class ExcelService {
         lightdashConfig,
         options,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         timezone,
         csvCellsLimit,
     }: {
@@ -385,6 +402,8 @@ export class ExcelService {
         exportsStorageClient: FileStorageClient;
         lightdashConfig: LightdashConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -445,6 +464,8 @@ export class ExcelService {
             onlyRaw,
             customLabels,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
             enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
             timezone,
         });
@@ -513,7 +534,7 @@ export class ExcelService {
         worksheet.columns = headers.map((header, index) => {
             const fieldId = sortedFieldIds[index];
             const item = fields[fieldId];
-            const formatExpression = getFormatExpression(item);
+            const formatExpression = getExcelFormatExpression(item);
 
             const column: Partial<Excel.Column> = {
                 header,

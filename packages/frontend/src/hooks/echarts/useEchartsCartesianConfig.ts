@@ -37,6 +37,7 @@ import {
     getValueLabelStyle,
     hashFieldReference,
     hasValidFormatExpression,
+    isCalendarValueDimension,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -1534,12 +1535,11 @@ export const getCategoryDateAxisConfig = (
     );
     const boundaryGap = hasBarSeries;
 
-    // DATE-base intervals are raw calendar values — snap in UTC to match.
-    const isDateBaseInterval =
-        isDimension(axisField) &&
-        axisField.timeIntervalBaseDimensionType === DimensionType.DATE;
+    // Calendar values (wall-clock dates) are raw — snap in UTC to match.
     const tz =
-        isDateBaseInterval || !resolvedTimezone ? 'UTC' : resolvedTimezone;
+        isCalendarValueDimension(axisField) || !resolvedTimezone
+            ? 'UTC'
+            : resolvedTimezone;
     // Skip dayjs.tz for UTC: .add() chains drift sub-ms vs fresh .tz() objects
     // and break .isBefore at the boundary.
     const inTz = (v: string | number) =>
@@ -3561,6 +3561,23 @@ const useEchartsCartesianConfig = (
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
+        const dataZoomAnchor =
+            validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.dataZoomAnchor ??
+            'start';
+        const dataZoomItemCount =
+            validCartesianConfig?.eChartsConfig?.xAxis?.[0]
+                ?.dataZoomItemCount ?? 10;
+        const dataZoomSpan = Math.max(1, dataZoomItemCount - 1);
+        const dataZoomLastIndex = Math.max(0, dataToRender.length - 1);
+        const dataZoomStartValue =
+            dataZoomAnchor === 'end'
+                ? Math.max(0, dataZoomLastIndex - dataZoomSpan)
+                : 0;
+        const dataZoomEndValue =
+            dataZoomAnchor === 'end'
+                ? dataZoomLastIndex
+                : Math.min(dataZoomLastIndex, dataZoomSpan);
+
         const baseOptions = {
             xAxis: sortedAxes.xAxis,
             yAxis: sortedAxes.yAxis,
@@ -3587,12 +3604,12 @@ const useEchartsCartesianConfig = (
                         type: 'slider',
                         show: true,
                         [flipAxes ? 'yAxisIndex' : 'xAxisIndex']: 0,
-                        startValue: 0,
-                        endValue: 10,
+                        startValue: dataZoomStartValue,
+                        endValue: dataZoomEndValue,
                         brushSelect: false,
                         zoomLock: true,
-                        minValueSpan: 5,
-                        maxValueSpan: 30,
+                        minValueSpan: dataZoomSpan,
+                        maxValueSpan: dataZoomSpan,
                         // Reduce scroll bar size
                         ...(flipAxes && {
                             width: 20,

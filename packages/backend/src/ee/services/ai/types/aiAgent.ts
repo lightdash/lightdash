@@ -17,6 +17,7 @@ import {
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
     EditContentFn,
+    EditDbtProjectFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -32,9 +33,9 @@ import {
     ListProjectsFn,
     ListWarehouseTablesFn,
     LoadAgentSkillFn,
-    ProposeWritebackFn,
     ReadContentFn,
     RecordSqlApprovalFn,
+    RepoShellFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -90,6 +91,10 @@ export type AiAgentArgs = AnyAiModel & {
     enableSearchSemanticLayer: boolean;
     enableAiWriteback: boolean;
     enablePreviewDeploySetup: boolean;
+    enableRepoFs: boolean;
+    // dbt project root within the repo (from project_sub_path); '.' = repo root,
+    // null when repoFs is off or the project is not git-backed.
+    repoFsRoot: string | null;
     canRunSql: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
@@ -154,8 +159,9 @@ export type AiAgentDependencies = {
     searchFieldValues: SearchFieldValuesFn;
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
-    proposeWriteback: ProposeWritebackFn;
+    editDbtProject: EditDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
+    repoShell: RepoShellFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;

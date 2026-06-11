@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import { Accordion, Button, Flex, Loader, Stack, Text } from '@mantine-8/core';
 import {
+    IconAppWindow,
     IconChartAreaLine,
     IconDatabase,
     IconFolder,
@@ -32,7 +33,7 @@ type PromotionChange = {
 };
 
 const PromotionChangesAccordion: FC<{
-    type: 'spaces' | 'charts' | 'dashboards' | 'sqlCharts';
+    type: 'spaces' | 'charts' | 'dashboards' | 'sqlCharts' | 'dataApps';
     items: {
         created: PromotionChange[];
         updated: PromotionChange[];
@@ -155,6 +156,20 @@ export const PromotionConfirmDialog: FC<Props> = ({
                     (item) => item.action === PromotionAction.DELETE,
                 ),
             },
+            dataApps: {
+                total: (promotionChanges.dataApps ?? []).filter(
+                    (item) => item.action !== PromotionAction.NO_CHANGES,
+                ).length,
+                created: (promotionChanges.dataApps ?? []).filter(
+                    (item) => item.action === PromotionAction.CREATE,
+                ),
+                updated: (promotionChanges.dataApps ?? []).filter(
+                    (item) => item.action === PromotionAction.UPDATE,
+                ),
+                deleted: (promotionChanges.dataApps ?? []).filter(
+                    (item) => item.action === PromotionAction.DELETE,
+                ),
+            },
             dashboards: {
                 total: promotionChanges.dashboards.filter(
                     (item) => item.action !== PromotionAction.NO_CHANGES,
@@ -175,6 +190,7 @@ export const PromotionConfirmDialog: FC<Props> = ({
             changes.spaces.total +
             changes.charts.total +
             changes.sqlCharts.total +
+            changes.dataApps.total +
             changes.dashboards.total;
         const withoutChangesNum =
             promotionChanges.spaces.filter(
@@ -187,6 +203,9 @@ export const PromotionConfirmDialog: FC<Props> = ({
                 (item) => item.action === PromotionAction.NO_CHANGES,
             ).length +
             (promotionChanges.sqlCharts ?? []).filter(
+                (item) => item.action === PromotionAction.NO_CHANGES,
+            ).length +
+            (promotionChanges.dataApps ?? []).filter(
                 (item) => item.action === PromotionAction.NO_CHANGES,
             ).length;
 
@@ -231,12 +250,12 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 <Text fz="sm">
                                     These changes will be applied:
                                 </Text>
-                                <Flex gap="sm">
+                                <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconFolder}
                                         color="violet.8"
-                                    />{' '}
-                                    <Text fw={600}>Spaces: </Text>{' '}
+                                    />
+                                    <Text fw={600}>Spaces:</Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="spaces"
@@ -250,14 +269,12 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 <Text fz="sm">
                                     These changes will be applied:
                                 </Text>
-                                <Flex>
+                                <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconLayoutDashboard}
                                         color="green.8"
-                                    />{' '}
-                                    <Text ml={10} fw={600}>
-                                        Dashboards:{' '}
-                                    </Text>{' '}
+                                    />
+                                    <Text fw={600}>Dashboards:</Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="dashboards"
@@ -270,14 +287,12 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 <Text fz="sm">
                                     These changes will be applied:
                                 </Text>
-                                <Flex>
+                                <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconChartAreaLine}
                                         color="blue.7"
-                                    />{' '}
-                                    <Text ml={10} fw={600}>
-                                        Charts:{' '}
-                                    </Text>{' '}
+                                    />
+                                    <Text fw={600}>Charts:</Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="charts"
@@ -290,18 +305,34 @@ export const PromotionConfirmDialog: FC<Props> = ({
                                 <Text fz="sm">
                                     These changes will be applied:
                                 </Text>
-                                <Flex>
+                                <Flex gap="xs" align="center">
                                     <MantineIcon
                                         icon={IconDatabase}
                                         color="cyan.7"
-                                    />{' '}
-                                    <Text ml={10} fw={600}>
-                                        SQL charts:{' '}
-                                    </Text>{' '}
+                                    />
+                                    <Text fw={600}>SQL charts:</Text>
                                 </Flex>
                                 <PromotionChangesAccordion
                                     type="sqlCharts"
                                     items={groupedChanges.sqlCharts}
+                                />
+                            </>
+                        )}
+                        {groupedChanges.dataApps.total > 0 && (
+                            <>
+                                <Text fz="sm">
+                                    These changes will be applied:
+                                </Text>
+                                <Flex gap="xs" align="center">
+                                    <MantineIcon
+                                        icon={IconAppWindow}
+                                        color="orange.6"
+                                    />
+                                    <Text fw={600}>Data apps:</Text>
+                                </Flex>
+                                <PromotionChangesAccordion
+                                    type="dataApps"
+                                    items={groupedChanges.dataApps}
                                 />
                             </>
                         )}

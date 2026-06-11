@@ -88,7 +88,7 @@ const Sidebar: FC<React.PropsWithChildren<Props>> = ({
                     {...containerProps}
                 >
                     <Paper
-                        shadow="lg"
+                        withBorder={false}
                         radius={0}
                         className={classes.floatingPanel}
                         data-collapsed={isCollapsed}

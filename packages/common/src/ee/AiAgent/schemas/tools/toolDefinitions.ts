@@ -15,6 +15,17 @@ import {
     mcpToolListExploresArgsSchema,
 } from './mcpToolListExploresArgs';
 import {
+    TOOL_LIST_SKILLS_DESCRIPTION,
+    TOOL_LOAD_SKILL_DESCRIPTION_MCP,
+    TOOL_LOAD_SKILL_RESOURCE_DESCRIPTION,
+    toolListSkillsArgsSchema,
+    toolListSkillsOutputSchema,
+    toolLoadSkillMcpArgsSchema,
+    toolLoadSkillOutputSchemaMcp,
+    toolLoadSkillResourceArgsSchema,
+    toolLoadSkillResourceOutputSchema,
+} from './toolBuiltInSkillArgs';
+import {
     TOOL_CREATE_CONTENT_DESCRIPTION,
     toolCreateContentArgsSchema,
     toolCreateContentOutputSchema,
@@ -44,6 +55,11 @@ import {
     toolEditContentArgsSchema,
     toolEditContentOutputSchema,
 } from './toolEditContentArgs';
+import {
+    TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
+    toolEditDbtProjectArgsSchema,
+    toolEditDbtProjectOutputSchema,
+} from './toolEditDbtProjectArgs';
 import {
     TOOL_FIND_CHARTS_DESCRIPTION,
     toolFindChartsArgsSchema,
@@ -139,11 +155,6 @@ import {
     toolProposeChangeOutputSchema,
 } from './toolProposeChangeArgs';
 import {
-    TOOL_PROPOSE_WRITEBACK_DESCRIPTION,
-    toolProposeWritebackArgsSchema,
-    toolProposeWritebackOutputSchema,
-} from './toolProposeWritebackArgs';
-import {
     mcpGetQueryResultStructuredOutputSchema,
     mcpRenderChartStructuredOutputSchema,
     mcpRunMetricQueryStructuredOutputSchema,
@@ -154,6 +165,11 @@ import {
     toolReadContentArgsSchema,
     toolReadContentOutputSchema,
 } from './toolReadContentArgs';
+import {
+    TOOL_REPO_SHELL_DESCRIPTION,
+    toolRepoShellArgsSchema,
+    toolRepoShellOutputSchema,
+} from './toolRepoShellArgs';
 import {
     TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
     toolRunContentQueryArgsSchema,
@@ -424,27 +440,39 @@ export const readContentToolDefinition = defineTool({
     name: 'readContent',
     title: 'Read content',
     description: TOOL_READ_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolReadContentArgsSchema,
     agent: { outputSchema: toolReadContentOutputSchema },
+    mcp: {
+        name: 'read_content',
+        annotations: readOnlyAnnotations,
+    },
 });
 
 export const editContentToolDefinition = defineTool({
     name: 'editContent',
     title: 'Edit content',
     description: TOOL_EDIT_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolEditContentArgsSchema,
     agent: { outputSchema: toolEditContentOutputSchema },
+    mcp: {
+        name: 'edit_content',
+        annotations: writeAnnotations,
+    },
 });
 
 export const createContentToolDefinition = defineTool({
     name: 'createContent',
     title: 'Create content',
     description: TOOL_CREATE_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolCreateContentArgsSchema,
     agent: { outputSchema: toolCreateContentOutputSchema },
+    mcp: {
+        name: 'create_content',
+        annotations: writeAnnotations,
+    },
 });
 
 export const runContentQueryToolDefinition = defineTool({
@@ -460,9 +488,13 @@ export const listContentToolDefinition = defineTool({
     name: 'listContent',
     title: 'List content',
     description: TOOL_LIST_CONTENT_DESCRIPTION,
-    availability: ['agent'],
+    availability: ['agent', 'mcp'],
     inputSchema: toolListContentArgsSchema,
     agent: { outputSchema: toolListContentOutputSchema },
+    mcp: {
+        name: 'list_content',
+        annotations: readOnlyAnnotations,
+    },
 });
 
 export const improveContextToolDefinition = defineTool({
@@ -519,13 +551,22 @@ export const proposeChangeToolDefinition = defineTool({
     agent: { outputSchema: toolProposeChangeOutputSchema },
 });
 
-export const proposeWritebackToolDefinition = defineTool({
-    name: 'proposeWriteback',
-    title: 'Propose writeback',
-    description: TOOL_PROPOSE_WRITEBACK_DESCRIPTION,
+export const editDbtProjectToolDefinition = defineTool({
+    name: 'editDbtProject',
+    title: 'Edit dbt project',
+    description: TOOL_EDIT_DBT_PROJECT_DESCRIPTION,
     availability: ['agent'],
-    inputSchema: toolProposeWritebackArgsSchema,
-    agent: { outputSchema: toolProposeWritebackOutputSchema },
+    inputSchema: toolEditDbtProjectArgsSchema,
+    agent: { outputSchema: toolEditDbtProjectOutputSchema },
+});
+
+export const repoShellToolDefinition = defineTool({
+    name: 'repoShell',
+    title: 'Read repository',
+    description: TOOL_REPO_SHELL_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolRepoShellArgsSchema,
+    agent: { outputSchema: toolRepoShellOutputSchema },
 });
 
 export const setupPreviewDeployToolDefinition = defineTool({
@@ -653,6 +694,42 @@ export const listExploresToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
+export const listSkillsToolDefinition = defineTool({
+    name: 'listSkills',
+    title: 'List Skills',
+    description: TOOL_LIST_SKILLS_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolListSkillsArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolListSkillsOutputSchema,
+    },
+});
+
+export const readSkillToolDefinition = defineTool({
+    name: 'readSkill',
+    title: 'Read Skill',
+    description: TOOL_LOAD_SKILL_DESCRIPTION_MCP,
+    availability: ['mcp'],
+    inputSchema: toolLoadSkillMcpArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolLoadSkillOutputSchemaMcp,
+    },
+});
+
+export const readSkillResourceToolDefinition = defineTool({
+    name: 'readSkillResource',
+    title: 'Read Skill Resource',
+    description: TOOL_LOAD_SKILL_RESOURCE_DESCRIPTION,
+    availability: ['mcp'],
+    inputSchema: toolLoadSkillResourceArgsSchema,
+    mcp: {
+        annotations: readOnlyAnnotations,
+        structuredContentSchema: toolLoadSkillResourceOutputSchema,
+    },
+});
+
 export const mcpListProjectsToolDefinition = defineTool({
     name: 'listProjects',
     title: 'List projects',
@@ -702,7 +779,7 @@ export const setAgentToolDefinition = defineTool({
     name: 'setAgent',
     title: 'Set agent',
     description:
-        "Set the active AI agent for the active project. Returns the agent's full context including: explores it has access to, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+        "Set the active AI agent for the active project. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
     availability: ['mcp'],
     inputSchema: z.object({
         agentUuid: z.string(),
@@ -724,7 +801,7 @@ export const getCurrentAgentToolDefinition = defineTool({
     name: 'getCurrentAgent',
     title: 'Get current agent',
     description:
-        "Get the currently active AI agent with its full context: explores it has access to, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
+        "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -775,7 +852,8 @@ type AgentToolDefinitionsByName = {
     loadSkill: typeof loadSkillToolDefinition;
     loadProjectContext: typeof loadProjectContextToolDefinition;
     proposeChange: typeof proposeChangeToolDefinition;
-    proposeWriteback: typeof proposeWritebackToolDefinition;
+    editDbtProject: typeof editDbtProjectToolDefinition;
+    repoShell: typeof repoShellToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
@@ -814,7 +892,8 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadSkill: loadSkillToolDefinition,
     loadProjectContext: loadProjectContextToolDefinition,
     proposeChange: proposeChangeToolDefinition,
-    proposeWriteback: proposeWritebackToolDefinition,
+    editDbtProject: editDbtProjectToolDefinition,
+    repoShell: repoShellToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
@@ -855,7 +934,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadSkillToolDefinition,
     loadProjectContextToolDefinition,
     proposeChangeToolDefinition,
-    proposeWritebackToolDefinition,
+    editDbtProjectToolDefinition,
+    repoShellToolDefinition,
     setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
@@ -869,6 +949,9 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     generateTimeSeriesVizConfigToolDefinition,
     getLightdashVersionToolDefinition,
     listExploresToolDefinition,
+    listSkillsToolDefinition,
+    readSkillToolDefinition,
+    readSkillResourceToolDefinition,
     listProjectsToolDefinition,
     mcpListProjectsToolDefinition,
     getProjectInfoToolDefinition,

@@ -1,4 +1,4 @@
-import { FeatureFlags, WarehouseTypes } from '@lightdash/common';
+import { WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     NumberInput,
@@ -9,14 +9,13 @@ import {
 } from '@mantine/core';
 import React, { type FC } from 'react';
 import { useToggle } from 'react-use';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import TimeZonePicker from '../../common/TimeZonePicker';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
 import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { useProjectFormContext } from '../useProjectFormContext';
+import DataTimezoneField from './DataTimezoneField';
 import { TrinoDefaultValues } from './defaultValues';
 
 export const TrinoSchemaInput: FC<{
@@ -44,10 +43,6 @@ const TrinoForm: FC<{
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.TRINO;
     const form = useFormContext();
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
     return (
         <>
             <Stack style={{ marginTop: '8px' }}>
@@ -156,21 +151,7 @@ const TrinoForm: FC<{
                             disabled={disabled}
                         />
 
-                        {isTimezoneSupportEnabled && (
-                            <TimeZonePicker
-                                size="sm"
-                                maw="100%"
-                                label="Data timezone"
-                                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
-                                searchable
-                                clearable
-                                placeholder="Not set (uses warehouse default)"
-                                disabled={disabled}
-                                {...form.getInputProps(
-                                    'warehouse.dataTimezone',
-                                )}
-                            />
-                        )}
+                        <DataTimezoneField disabled={disabled} />
                         <StartOfWeekSelect disabled={disabled} />
                     </Stack>
                 </FormSection>

@@ -5,6 +5,7 @@ import { getDiscoverFields } from '../agents/discoverFields/tool';
 import { getCreateContent } from './createContent';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
 import { getEditContent } from './editContent';
+import { getEditDbtProject } from './editDbtProject';
 import { getFindContent } from './findContent';
 import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
@@ -21,8 +22,8 @@ import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getLoadSkill } from './loadSkill';
-import { getProposeWriteback } from './proposeWriteback';
 import { getReadContent } from './readContent';
+import { getRepoShell } from './repoShell';
 import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
@@ -138,12 +139,13 @@ const makeAgentTools = () => {
             listWarehouseTables: noop,
         }),
         loadSkill: getLoadSkill({ loadSkill: noop }),
-        proposeWriteback: getProposeWriteback({
-            proposeWriteback: noop,
+        editDbtProject: getEditDbtProject({
+            editDbtProject: noop,
         }),
         setupPreviewDeploy: getSetupPreviewDeploy({
             setupPreviewDeploy: noop,
         }),
+        repoShell: getRepoShell({ repoShell: noop }),
         readContent: getReadContent({ readContent: noop }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,

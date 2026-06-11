@@ -7,9 +7,12 @@ import {
 import { type PullRequestRow } from './types';
 
 export const DEFAULT_PULL_REQUESTS_PAGE_SIZE = 25;
-
-/** Empty-cell placeholder used when live title/state can't be resolved. */
-export const EMPTY_VALUE = '—';
+export type PullRequestThreadPreviewTarget = {
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    reviewItemUuid?: string;
+};
 
 export const getSourceLabel = (source: PullRequestSource): string => {
     switch (source) {
@@ -25,20 +28,6 @@ export const getSourceLabel = (source: PullRequestSource): string => {
             return 'AI agent';
         default:
             return assertUnreachable(source, `Unknown source ${source}`);
-    }
-};
-
-export const getStateLabel = (state: PullRequestState | null): string => {
-    if (state === null) return EMPTY_VALUE;
-    switch (state) {
-        case PullRequestState.OPEN:
-            return 'Open';
-        case PullRequestState.CLOSED:
-            return 'Closed';
-        case PullRequestState.MERGED:
-            return 'Merged';
-        default:
-            return assertUnreachable(state, `Unknown state ${state}`);
     }
 };
 
@@ -79,10 +68,52 @@ export const getSourceColor = (source: PullRequestSource): string => {
 };
 
 /**
- * In-app AI agent thread path for a PR, or null when the PR didn't originate
- * from an AI thread (no agent/thread to link to).
+ * In-app AI agent thread path for a PR. Review remediation PRs link back to
+ * the source review thread; other AI PRs fall back to the writeback thread.
  */
 export const getThreadPath = (row: PullRequestRow): string | null => {
-    if (!row.aiThreadUuid || !row.aiAgentUuid) return null;
-    return `/projects/${row.projectUuid}/ai-agents/${row.aiAgentUuid}/threads/${row.aiThreadUuid}`;
+    const target = getThreadPreviewTarget(row);
+    if (!target) return null;
+
+    const query = target.reviewItemUuid
+        ? `?reviewItem=${encodeURIComponent(target.reviewItemUuid)}`
+        : '';
+    return `/projects/${target.projectUuid}/ai-agents/${target.agentUuid}/threads/${target.threadUuid}${query}`;
+};
+
+export const getThreadPreviewTarget = (
+    row: PullRequestRow,
+): PullRequestThreadPreviewTarget | null => {
+    if (row.reviewContext) {
+        return {
+            projectUuid: row.reviewContext.sourceProjectUuid,
+            agentUuid: row.reviewContext.sourceAgentUuid,
+            threadUuid: row.reviewContext.sourceThreadUuid,
+            reviewItemUuid: row.reviewContext.reviewItemUuid,
+        };
+    }
+
+    if (!row.aiThreadUuid || !row.aiAgentUuid) {
+        return null;
+    }
+
+    return {
+        projectUuid: row.projectUuid,
+        agentUuid: row.aiAgentUuid,
+        threadUuid: row.aiThreadUuid,
+    };
+};
+
+export const getReviewPath = (row: PullRequestRow): string | null => {
+    if (!row.reviewContext) {
+        return null;
+    }
+
+    const params = new URLSearchParams();
+    params.set('reviewProjectUuid', row.reviewContext.sourceProjectUuid);
+    params.set('reviewAgentUuid', row.reviewContext.sourceAgentUuid);
+    params.set('reviewThreadUuid', row.reviewContext.sourceThreadUuid);
+    params.set('reviewItemUuid', row.reviewContext.reviewItemUuid);
+
+    return `/generalSettings/ai/reviews?${params.toString()}`;
 };

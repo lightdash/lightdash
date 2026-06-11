@@ -320,13 +320,24 @@ const SavedChartsHeader: FC = () => {
             subject('SavedChart', { ...savedChart }),
         );
 
+    // Mirror the backend promote check: promoting also requires promote
+    // rights on the upstream (destination) project, so hide the action when
+    // an upstream exists but the user has no promote access there.
     const userCanPromoteChart =
         savedChart &&
         !savedChart?.dashboardUuid &&
         user.data?.ability?.can(
             'promote',
             subject('SavedChart', { ...savedChart }),
-        );
+        ) &&
+        (project?.upstreamProjectUuid === undefined ||
+            user.data?.ability?.can(
+                'promote',
+                subject('SavedChart', {
+                    organizationUuid: savedChart.organizationUuid,
+                    projectUuid: project.upstreamProjectUuid,
+                }),
+            ));
 
     const userCanManageExplore = user.data?.ability.can(
         'manage',
@@ -753,13 +764,9 @@ const SavedChartsHeader: FC = () => {
                                             Change explore
                                         </Menu.Item>
                                     )}
-                                {
+                                {userCanPromoteChart && (
                                     <Tooltip
-                                        label={
-                                            userCanPromoteChart
-                                                ? 'You must enable first an upstream project in settings > Data ops'
-                                                : "You don't have permissions to promote this chart on the upstream project"
-                                        }
+                                        label="You must enable first an upstream project in settings > Data ops"
                                         disabled={!promoteDisabled}
                                         withinPortal
                                     >
@@ -784,7 +791,7 @@ const SavedChartsHeader: FC = () => {
                                             </Menu.Item>
                                         </div>
                                     </Tooltip>
-                                }
+                                )}
 
                                 {canManageContentVerification &&
                                     savedChart?.uuid && (

@@ -32,6 +32,7 @@
     display: block;
     width: 100%;
     border-radius: 4px;
+    font-family: var(--mantine-font-family);
 }
 
 .option:hover {
@@ -56,6 +57,7 @@
         var(--mantine-color-ldGray-6),
         var(--mantine-color-dark-2)
     );
+    font-family: var(--mantine-font-family);
     font-size: 11px;
     font-weight: 500;
     text-transform: uppercase;

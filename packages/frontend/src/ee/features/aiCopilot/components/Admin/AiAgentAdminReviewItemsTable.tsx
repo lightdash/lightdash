@@ -1,40 +1,29 @@
 import {
-    type AiAgentRecommendationAction,
     type AiAgentReviewItemStatus,
     type AiAgentReviewItemSummary,
     type AiAgentReviewSignalSummary,
     type AiAgentRootCause,
-    type AiAgentTargetRef,
     type AiAgentTurnSignal,
 } from '@lightdash/common';
 import {
     ActionIcon,
     Box,
     Button,
-    Collapse,
     Divider,
     Group,
-    Loader,
-    Menu,
-    SegmentedControl,
+    HoverCard,
     Stack,
     Text,
     Tooltip,
-    UnstyledButton,
     useMantineTheme,
 } from '@mantine-8/core';
 import {
     IconArrowRight,
     IconBox,
-    IconChevronDown,
-    IconChevronRight,
     IconCircleCheck,
     IconCircleDashed,
     IconClock,
-    IconDots,
-    IconExternalLink,
     IconFilterX,
-    IconGitPullRequest,
     IconHelpCircle,
     IconInfoCircle,
     IconListCheck,
@@ -44,6 +33,7 @@ import {
     IconTriangle,
     IconX,
 } from '@tabler/icons-react';
+import { type RowSelectionState } from '@tanstack/react-table';
 import {
     useCallback,
     useDeferredValue,
@@ -56,57 +46,41 @@ import { CategoryBadge } from '../../../../../components/common/CategoryBadge';
 import {
     ContentTable,
     useContentTable,
-    type MRT_ColumnDef,
+    type ContentTableColumnDef,
 } from '../../../../../components/common/ContentTable';
 import FilterFacet, {
     type FilterFacetOption,
 } from '../../../../../components/common/FilterFacet';
-import LinkButton from '../../../../../components/common/LinkButton';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useOnboardingMock } from '../../../../../hooks/useOnboardingMock';
 import { useProjects } from '../../../../../hooks/useProjects';
 import {
     useAiAgentAdminAgents,
-    useAiAgentAdminReviewItem,
     useAiAgentAdminReviewItems,
     useAiAgentAdminReviewSignals,
-    useCreateAiAgentReviewItemWriteback,
     useUpdateAiAgentReviewItemStatus,
 } from '../../hooks/useAiAgentAdmin';
 import { AgentNamePill } from '../AgentNamePill';
 import styles from './AiAgentAdminReviewItemsTable.module.css';
+import { EXAMPLE_REVIEW_ITEMS, isExampleReviewItem } from './onboarding';
+import { ReviewItemActions } from './ReviewItemActions';
+import {
+    formatReviewDate,
+    getActionLabel,
+    getIssueTitle,
+    getRecommendationActionLabel,
+    getSuggestedNextStep,
+    getWhatHappened,
+    getWhyText,
+    reviewRootCauseColors,
+    reviewRootCauseLabels,
+} from './reviewItemDetails';
 import { SearchFilter } from './SearchFilter';
 
-const ALL_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
+const ACTIVE_REVIEW_ITEM_STATUSES: AiAgentReviewItemStatus[] = [
     'open',
     'in_progress',
-    'resolved',
-    'dismissed',
-    'duplicate',
 ];
-
-const rootCauseLabels: Record<AiAgentRootCause, string> = {
-    semantic_layer: 'Semantic layer',
-    project_context: 'Project context',
-    agent_configuration: 'Agent config',
-    data_gap: 'Data gap',
-    product_capability: 'Product',
-    runtime_reliability: 'Runtime',
-    feedback_quality: 'Feedback',
-    not_a_failure: 'Not failure',
-    ambiguous: 'Ambiguous',
-};
-
-const rootCauseColors: Record<AiAgentRootCause, string> = {
-    semantic_layer: 'indigo',
-    project_context: 'violet',
-    agent_configuration: 'cyan',
-    data_gap: 'orange',
-    product_capability: 'grape',
-    runtime_reliability: 'red',
-    feedback_quality: 'teal',
-    not_a_failure: 'gray',
-    ambiguous: 'gray',
-};
 
 const signalLabels: Record<AiAgentTurnSignal, string> = {
     normal_refinement: 'Normal refinement',
@@ -121,33 +95,6 @@ const signalLabels: Record<AiAgentTurnSignal, string> = {
     ambiguous: 'Ambiguous',
 };
 
-const actionLabels: Record<AiAgentRecommendationAction, string> = {
-    update_semantic_yaml: 'Update semantic layer',
-    update_agent_instructions: 'Update instructions',
-    add_knowledge_document: 'Add knowledge doc',
-    enable_data_access: 'Enable data access',
-    enable_sql_mode: 'Enable SQL mode',
-    enable_self_improvement: 'Enable self-improvement',
-    configure_mcp_server: 'Configure MCP',
-    adjust_explore_tags: 'Adjust explore tags',
-    update_access: 'Update access',
-    route_to_product_work: 'Route to product',
-    request_more_evidence: 'Needs more evidence',
-    no_action: 'No action',
-};
-
-const formatLastSeenDate = (date: Date): string => {
-    const parsedDate = new Date(date);
-    const now = new Date();
-    const isCurrentYear = parsedDate.getFullYear() === now.getFullYear();
-
-    return parsedDate.toLocaleDateString(undefined, {
-        month: 'short',
-        day: 'numeric',
-        ...(!isCurrentYear && { year: 'numeric' }),
-    });
-};
-
 type ReviewSurface = 'findings' | 'signals';
 
 export type AiAgentAdminReviewItemPreviewTarget = {
@@ -160,112 +107,16 @@ export type AiAgentAdminReviewItemPreviewTarget = {
 type AiAgentAdminReviewItemsTableProps = {
     selectedReviewItemUuid?: string | null;
     onReviewItemSelect?: (target: AiAgentAdminReviewItemPreviewTarget) => void;
-};
-
-const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
-    const targetRef = targetRefs[0];
-    if (!targetRef) return null;
-
-    switch (targetRef.type) {
-        case 'dimension':
-            return `${targetRef.modelName}.${targetRef.dimensionName}`;
-        case 'metric':
-            return `${targetRef.modelName}.${targetRef.metricName}`;
-        case 'model':
-            return targetRef.modelName;
-        case 'explore':
-            return `${targetRef.modelName}.${targetRef.exploreName}`;
-        case 'join':
-            return `${targetRef.modelName}.${targetRef.joinName}`;
-        case 'agent_config':
-            return targetRef.setting.replaceAll('_', ' ');
-        case 'product_capability':
-            return targetRef.capabilityKey;
-        case 'runtime':
-            return targetRef.key;
-        default:
-            return null;
-    }
-};
-
-const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
-    reviewItem.primaryRootCause === 'ambiguous' ||
-    reviewItem.latestFinding?.fixTargets.includes('feedback_needed') === true;
-
-const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
-    if (isTriageReviewItem(reviewItem)) {
-        return 'Triage correction signal';
-    }
-
-    const targetLabel = getTargetLabel(
-        reviewItem.latestFinding?.targetRefs ?? [],
-    );
-    if (targetLabel && reviewItem.primaryRootCause === 'semantic_layer') {
-        return `Review ${targetLabel}`;
-    }
-
-    return reviewItem.latestFinding?.recommendation?.title ?? reviewItem.title;
-};
-
-const getWhatHappened = (reviewItem: AiAgentReviewItemSummary): string => {
-    const evidence = reviewItem.latestFinding?.evidenceExcerpts ?? [];
-    const correction =
-        evidence.find((excerpt) => excerpt.source === 'next_user_prompt')
-            ?.text ??
-        evidence.find((excerpt) => excerpt.source === 'user_prompt')?.text;
-    const assistantAnswer = evidence.find(
-        (excerpt) => excerpt.source === 'assistant_answer',
-    )?.text;
-
-    if (correction && assistantAnswer) {
-        return `User correction: ${correction}`;
-    }
-
-    return correction ?? reviewItem.description;
-};
-
-const getWhyText = (reviewItem: AiAgentReviewItemSummary): string => {
-    if (isTriageReviewItem(reviewItem)) {
-        return 'Could be a real failure or a normal change in user intent.';
-    }
-
-    return (
-        reviewItem.latestFinding?.recommendation?.rationale ??
-        `Review agent judged this as ${rootCauseLabels[reviewItem.primaryRootCause].toLowerCase()}.`
-    );
-};
-
-const getActionLabel = (reviewItem: AiAgentReviewItemSummary): string => {
-    const recommendation = reviewItem.latestFinding?.recommendation;
-    if (recommendation) {
-        return actionLabels[recommendation.actionType];
-    }
-
-    const fixTarget = reviewItem.latestFinding?.fixTargets[0];
-    if (fixTarget) {
-        return fixTarget.replaceAll('_', ' ');
-    }
-
-    return 'Review';
-};
-
-const getSuggestedNextStep = (reviewItem: AiAgentReviewItemSummary): string => {
-    const action = getActionLabel(reviewItem);
-
-    if (isTriageReviewItem(reviewItem)) {
-        return 'Review the backing thread before deciding whether this is actionable.';
-    }
-
-    if (action === 'No action') {
-        return 'No action suggested.';
-    }
-
-    return action;
+    /**
+     * While true and the queue is empty, sample rows are shown so the onboarding
+     * tour has findings to highlight. Flips to real data once the tour is done.
+     */
+    showOnboardingExamples?: boolean;
 };
 
 const getSignalResultLabel = (signal: AiAgentReviewSignalSummary): string => {
     if (signal.finding) {
-        return rootCauseLabels[signal.finding.primaryRootCause];
+        return reviewRootCauseLabels[signal.finding.primaryRootCause];
     }
 
     return signal.promotedToFinding ? 'Finding pending' : 'Signal only';
@@ -278,7 +129,9 @@ const getSignalWhyText = (signal: AiAgentReviewSignalSummary): string =>
 
 const getSignalActionText = (signal: AiAgentReviewSignalSummary): string => {
     if (signal.finding?.recommendation) {
-        return actionLabels[signal.finding.recommendation.actionType];
+        return getRecommendationActionLabel(
+            signal.finding.recommendation.actionType,
+        );
     }
 
     if (signal.promotedToFinding) {
@@ -379,270 +232,182 @@ const SuggestedStep = ({ children }: { children: string }) => (
     </Tooltip>
 );
 
+// Plain-English gloss for each root cause + which two are fixable from this page.
+const rootCauseHelp: Record<
+    AiAgentRootCause,
+    { desc: string; opensPr: boolean }
+> = {
+    semantic_layer: {
+        desc: 'A metric or field was missing or off',
+        opensPr: true,
+    },
+    project_context: {
+        desc: 'The agent didn’t know something about your data',
+        opensPr: true,
+    },
+    agent_configuration: {
+        desc: 'Its instructions or setup got in the way',
+        opensPr: false,
+    },
+    data_gap: {
+        desc: 'The data to answer this isn’t there yet',
+        opensPr: false,
+    },
+    product_capability: {
+        desc: 'The agent can’t do this yet',
+        opensPr: false,
+    },
+    runtime_reliability: {
+        desc: 'Something broke or timed out',
+        opensPr: false,
+    },
+    feedback_quality: {
+        desc: 'The judge’s read needs a second look',
+        opensPr: false,
+    },
+    not_a_failure: { desc: 'Nothing wrong, it answered fine', opensPr: false },
+    ambiguous: { desc: 'Not clear, worth a look', opensPr: false },
+};
+
+const rootCauseHelpOrder: AiAgentRootCause[] = [
+    'semantic_layer',
+    'project_context',
+    'agent_configuration',
+    'data_gap',
+    'product_capability',
+    'runtime_reliability',
+    'feedback_quality',
+    'not_a_failure',
+    'ambiguous',
+];
+
+const DEFAULT_HIDDEN_ROOT_CAUSES: AiAgentRootCause[] = [
+    'agent_configuration',
+    'runtime_reliability',
+];
+
+const DEFAULT_VISIBLE_ROOT_CAUSES = (
+    Object.keys(reviewRootCauseLabels) as AiAgentRootCause[]
+).filter((rootCause) => !DEFAULT_HIDDEN_ROOT_CAUSES.includes(rootCause));
+
 const ReviewConceptHelp = () => (
-    <Tooltip
-        label="Turn: one user prompt and assistant response. Signal: the judge's per-turn assessment. Finding: a promoted signal that needs admin review."
+    <HoverCard
+        width={380}
+        shadow="md"
+        position="bottom-start"
         withArrow
-        multiline
-        maw={320}
+        openDelay={150}
     >
-        <Box className={styles.headerHelpIcon}>
-            <MantineIcon icon={IconHelpCircle} color="ldGray.5" size="sm" />
-        </Box>
-    </Tooltip>
+        <HoverCard.Target>
+            <Box className={styles.headerHelpIcon}>
+                <MantineIcon icon={IconHelpCircle} color="ldGray.5" size="sm" />
+            </Box>
+        </HoverCard.Target>
+        <HoverCard.Dropdown>
+            <Stack gap="sm">
+                <Stack gap={4}>
+                    <Text fz="xs" c="dimmed">
+                        A{' '}
+                        <Text span fw={600} c="ldGray.9" fz="inherit">
+                            turn
+                        </Text>{' '}
+                        is one question and answer. When a turn shows a clear
+                        issue, it becomes a{' '}
+                        <Text span fw={600} c="ldGray.9" fz="inherit">
+                            finding
+                        </Text>{' '}
+                        so you can review it here and decide what to fix next.
+                    </Text>
+                </Stack>
+                <Divider />
+                <Stack gap={6}>
+                    <Text fz="xs" fw={600} c="ldGray.9">
+                        What went wrong
+                    </Text>
+                    {rootCauseHelpOrder.map((cause) => (
+                        <Group
+                            key={cause}
+                            gap="xs"
+                            wrap="nowrap"
+                            align="flex-start"
+                        >
+                            <Box miw={110}>
+                                <CategoryBadge
+                                    variant="dot"
+                                    label={reviewRootCauseLabels[cause]}
+                                    color={reviewRootCauseColors[cause]}
+                                />
+                            </Box>
+                            <Text fz="xs" c="dimmed">
+                                {rootCauseHelp[cause].desc}
+                                {rootCauseHelp[cause].opensPr && (
+                                    <Text
+                                        span
+                                        fz="inherit"
+                                        c="ldGray.7"
+                                        fw={600}
+                                    >
+                                        {' '}
+                                        · fixable here
+                                    </Text>
+                                )}
+                            </Text>
+                        </Group>
+                    ))}
+                </Stack>
+            </Stack>
+        </HoverCard.Dropdown>
+    </HoverCard>
 );
 
-const statusColors: Record<AiAgentReviewItemStatus, string> = {
-    open: 'gray',
-    in_progress: 'yellow',
-    resolved: 'green',
-    dismissed: 'gray',
-    duplicate: 'gray',
-};
+const isTerminalReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
+    reviewItem.status === 'resolved' ||
+    reviewItem.status === 'dismissed' ||
+    reviewItem.status === 'duplicate';
 
 const FindingCell = ({
     reviewItem,
-    onPreview,
 }: {
     reviewItem: AiAgentReviewItemSummary;
-    onPreview: (() => void) | null;
-}) => {
-    const [showReasoning, setShowReasoning] = useState(false);
-    const contextEntry = reviewItem.latestFinding?.projectContextEntry ?? null;
-    const reasoning = contextEntry
-        ? `${
-              contextEntry.op === 'update' ? 'Updates' : 'Adds'
-          } project context: ${contextEntry.content}`
-        : getWhyText(reviewItem);
-
-    return (
-        <Stack gap={2} miw={0}>
-            <Text fw={600} fz="sm" c="ldGray.9" lineClamp={1}>
-                {getIssueTitle(reviewItem)}
-            </Text>
-            <ExpandableText lineClamp={1}>
-                {getWhatHappened(reviewItem)}
-            </ExpandableText>
-            <Group justify="space-between" wrap="nowrap" gap="xs" mt={2}>
-                <UnstyledButton
-                    className={styles.reasoningToggle}
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        setShowReasoning((shown) => !shown);
-                    }}
-                >
-                    <MantineIcon
-                        icon={
-                            showReasoning ? IconChevronDown : IconChevronRight
-                        }
-                        size="xs"
-                    />
-                    Agent&rsquo;s reasoning
-                </UnstyledButton>
-                <Group gap={6} wrap="nowrap">
-                    <Box
-                        className={styles.statusDot}
-                        bg={statusColors[reviewItem.status]}
-                    />
-                    <Text fz="xs" c="ldGray.5" tt="capitalize">
-                        {reviewItem.status.replaceAll('_', ' ')} ·{' '}
-                        {formatLastSeenDate(reviewItem.lastSeenAt)}
-                    </Text>
-                </Group>
-            </Group>
-            <Collapse in={showReasoning}>
-                <Box className={styles.reasoning}>
-                    <Text className={styles.reasoningLabel}>
-                        Why this was flagged
-                    </Text>
-                    <Text fz="xs" c="ldGray.7">
-                        {reasoning}
-                    </Text>
-                    <Group justify="flex-end">
-                        {onPreview && (
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                color="gray"
-                                leftSection={
-                                    <MantineIcon
-                                        icon={IconMessages}
-                                        size="sm"
-                                    />
-                                }
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    onPreview();
-                                }}
-                            >
-                                Open AI thread
-                            </Button>
-                        )}
-                    </Group>
-                </Box>
-            </Collapse>
-        </Stack>
-    );
-};
-
-const ReviewItemActionsCell = ({
-    reviewItem,
-}: {
-    reviewItem: AiAgentReviewItemSummary;
-}) => {
-    const updateStatus = useUpdateAiAgentReviewItemStatus();
-    const createWriteback = useCreateAiAgentReviewItemWriteback();
-
-    const propInFlight =
-        reviewItem.prWritebackStatus === 'queued' ||
-        reviewItem.prWritebackStatus === 'running';
-    // Poll the single item while writeback runs so live phase messages surface.
-    const { data: polled } = useAiAgentAdminReviewItem(reviewItem.fingerprint, {
-        enabled: propInFlight,
-        refetchInterval: propInFlight ? 2500 : false,
-    });
-    const current = polled ?? reviewItem;
-
-    const isWritebackInFlight =
-        current.prWritebackStatus === 'queued' ||
-        current.prWritebackStatus === 'running';
-    const isTerminal =
-        current.status === 'resolved' || current.status === 'dismissed';
-    const canCreatePr =
-        current.writebackEligible &&
-        !current.linkedPrUrl &&
-        !isTerminal &&
-        !isWritebackInFlight;
-
-    if (isWritebackInFlight) {
-        const phase = current.prWritebackMessage ?? 'Opening pull request…';
-        return (
-            <Tooltip label={phase} withArrow openDelay={300}>
-                <Group gap={8} wrap="nowrap" maw={180}>
-                    <Loader size={12} color="ldGray.5" />
-                    <Text fz="xs" c="ldGray.6" lineClamp={1}>
-                        {phase}
-                    </Text>
-                </Group>
-            </Tooltip>
-        );
-    }
-
-    return (
-        <Stack gap={6} align="flex-start">
-            <Group gap="xs" wrap="nowrap">
-                {current.linkedPrUrl && (
-                    <LinkButton
-                        href={current.linkedPrUrl}
-                        target="_blank"
-                        onClick={(event) => event.stopPropagation()}
-                        leftIcon={IconExternalLink}
-                        size="compact-xs"
-                        fz="xs"
-                        loading={createWriteback.isLoading}
-                    >
-                        View PR
-                    </LinkButton>
-                )}
-
-                {canCreatePr && (
-                    <Tooltip
-                        label="Open a pull request against the dbt project (runs in the background, may take a few minutes)"
-                        withArrow
-                        multiline
-                        maw={260}
-                    >
-                        <Button
-                            size="compact-xs"
-                            radius="md"
-                            variant="default"
-                            loading={createWriteback.isLoading}
-                            leftSection={
-                                <MantineIcon icon={IconGitPullRequest} />
-                            }
-                            onClick={(event) => {
-                                event.stopPropagation();
-                                createWriteback.mutate(current.fingerprint);
-                            }}
-                        >
-                            Create PR
-                        </Button>
-                    </Tooltip>
-                )}
-
-                {!isTerminal && (
-                    <Menu position="bottom-end" withinPortal>
-                        <Menu.Target>
-                            <ActionIcon
-                                variant="subtle"
-                                color="gray"
-                                size="sm"
-                                aria-label="More actions"
-                                loading={updateStatus.isLoading}
-                                onClick={(event) => event.stopPropagation()}
-                            >
-                                <MantineIcon icon={IconDots} />
-                            </ActionIcon>
-                        </Menu.Target>
-                        <Menu.Dropdown>
-                            <Menu.Item
-                                leftSection={<MantineIcon icon={IconX} />}
-                                onClick={(event) => {
-                                    event.stopPropagation();
-                                    updateStatus.mutate({
-                                        fingerprint: current.fingerprint,
-                                        body: {
-                                            status: 'dismissed',
-                                            dismissedReason: 'not_actionable',
-                                        },
-                                    });
-                                }}
-                            >
-                                Dismiss finding
-                            </Menu.Item>
-                        </Menu.Dropdown>
-                    </Menu>
-                )}
-            </Group>
-
-            {canCreatePr && (
-                <Group gap={4} wrap="nowrap">
-                    <MantineIcon
-                        icon={IconArrowRight}
-                        size="xs"
-                        className={styles.suggestedStepArrow}
-                    />
-                    <Text fz="xs" c="ldGray.6" fw={500} lineClamp={1}>
-                        {getSuggestedNextStep(current)}
-                    </Text>
-                </Group>
-            )}
-        </Stack>
-    );
-};
+}) => (
+    <Text fw={700} fz="sm" c="ldGray.9" lineClamp={2}>
+        {getIssueTitle(reviewItem)}
+    </Text>
+);
 
 const AiAgentAdminReviewItemsTable = ({
     onReviewItemSelect,
     selectedReviewItemUuid,
+    showOnboardingExamples = false,
 }: AiAgentAdminReviewItemsTableProps) => {
     const theme = useMantineTheme();
     const [search, setSearch] = useState<string | undefined>(undefined);
-    const [reviewSurface, setReviewSurface] =
+    const [reviewSurface, _setReviewSurface] =
         useState<ReviewSurface>('findings');
     const [selectedProjectUuids, setSelectedProjectUuids] = useState<string[]>(
         [],
     );
     const [selectedRootCauses, setSelectedRootCauses] = useState<
         AiAgentRootCause[]
-    >([]);
+    >(DEFAULT_VISIBLE_ROOT_CAUSES);
     const [selectedSignals, setSelectedSignals] = useState<AiAgentTurnSignal[]>(
         [],
     );
+    const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
     const deferredSearch = useDeferredValue(search);
+    const updateStatus = useUpdateAiAgentReviewItemStatus();
 
-    const { data: reviewItems = [], isLoading } = useAiAgentAdminReviewItems({
-        statuses: ALL_REVIEW_ITEM_STATUSES,
-    });
+    // While the tour is running the table always shows the sample rows so the
+    // tour is deterministic; otherwise it passes real data straight through
+    // (which may be empty or not).
+    const selectReviewItems = useOnboardingMock(
+        EXAMPLE_REVIEW_ITEMS,
+        showOnboardingExamples,
+    );
+    const { data: reviewItems = [], isLoading } = useAiAgentAdminReviewItems(
+        { statuses: ACTIVE_REVIEW_ITEM_STATUSES },
+        { select: selectReviewItems },
+    );
     const { data: reviewSignals = [], isLoading: isSignalsLoading } =
         useAiAgentAdminReviewSignals({
             enabled: reviewSurface === 'signals',
@@ -682,7 +447,7 @@ const AiAgentAdminReviewItemsTable = ({
                 getWhyText(reviewItem),
                 getSuggestedNextStep(reviewItem),
                 getActionLabel(reviewItem),
-                rootCauseLabels[reviewItem.primaryRootCause],
+                reviewRootCauseLabels[reviewItem.primaryRootCause],
                 agent?.name,
                 project?.name,
                 reviewItem.latestFinding?.recommendation?.title,
@@ -827,10 +592,10 @@ const AiAgentAdminReviewItemsTable = ({
                 (counts.get(item.primaryRootCause) ?? 0) + 1,
             );
         }
-        return (Object.keys(rootCauseLabels) as AiAgentRootCause[])
+        return (Object.keys(reviewRootCauseLabels) as AiAgentRootCause[])
             .map((rootCause) => ({
                 value: rootCause,
-                label: rootCauseLabels[rootCause],
+                label: reviewRootCauseLabels[rootCause],
                 count: counts.get(rootCause) ?? 0,
             }))
             .sort(
@@ -838,7 +603,7 @@ const AiAgentAdminReviewItemsTable = ({
             );
     }, [projectFilteredReviewItems]);
 
-    const signalFacetOptions = useMemo((): FilterFacetOption[] => {
+    const _signalFacetOptions = useMemo((): FilterFacetOption[] => {
         const counts = new Map<AiAgentTurnSignal, number>();
         for (const signal of projectFilteredReviewSignals) {
             counts.set(signal.signal, (counts.get(signal.signal) ?? 0) + 1);
@@ -854,16 +619,35 @@ const AiAgentAdminReviewItemsTable = ({
             );
     }, [projectFilteredReviewSignals]);
 
+    const hasDefaultRootCauseSelection =
+        selectedRootCauses.length === DEFAULT_VISIBLE_ROOT_CAUSES.length &&
+        DEFAULT_VISIBLE_ROOT_CAUSES.every((rootCause) =>
+            selectedRootCauses.includes(rootCause),
+        );
+
     const hasActiveFilters =
         selectedProjectUuids.length > 0 ||
-        selectedRootCauses.length > 0 ||
+        !hasDefaultRootCauseSelection ||
         selectedSignals.length > 0;
 
     const clearAllFilters = useCallback(() => {
         setSelectedProjectUuids([]);
-        setSelectedRootCauses([]);
+        setSelectedRootCauses(DEFAULT_VISIBLE_ROOT_CAUSES);
         setSelectedSignals([]);
     }, []);
+
+    const handleRowSelectionChange = useCallback(
+        (
+            updater:
+                | RowSelectionState
+                | ((previous: RowSelectionState) => RowSelectionState),
+        ) => {
+            setRowSelection((previous) =>
+                typeof updater === 'function' ? updater(previous) : updater,
+            );
+        },
+        [],
+    );
 
     const renderReviewsToolbar = ({
         visibleCount,
@@ -871,44 +655,51 @@ const AiAgentAdminReviewItemsTable = ({
         noun,
         isLoading: toolbarLoading,
         surface,
+        selectedCount = 0,
+        isDismissingSelected = false,
+        onClearSelection,
+        onDismissSelected,
     }: {
         visibleCount: number;
         totalCount: number;
-        noun: 'item' | 'signal';
+        noun: 'finding' | 'turn';
         isLoading: boolean;
         surface: ReviewSurface;
+        selectedCount?: number;
+        isDismissingSelected?: boolean;
+        onClearSelection?: () => void;
+        onDismissSelected?: () => void;
     }) => {
         const pluralised = visibleCount === 1 ? noun : `${noun}s`;
+        const hasSelection = selectedCount > 0;
         const countLabel = toolbarLoading
             ? 'Loading…'
             : hasActiveFilters && visibleCount !== totalCount
               ? `${visibleCount} of ${totalCount} ${pluralised}`
               : `${visibleCount} ${pluralised}`;
+        const helperCopy =
+            'Findings are issues worth attention. Click a row to inspect details and thread context.';
 
         return (
             <Box>
                 <Group py="lg" px="xl" justify="space-between">
-                    <Group gap="xs" wrap="wrap">
+                    <Group gap="sm" wrap="wrap" className={styles.toolbarGroup}>
                         <SearchFilter
                             search={search}
                             setSearch={setSearch}
-                            placeholder="Search reviews"
+                            placeholder="Search findings"
                         />
 
-                        <Divider orientation="vertical" w={1} h={20} />
-                        <SegmentedControl
-                            size="xs"
-                            radius="md"
-                            value={reviewSurface}
-                            onChange={(value) =>
-                                setReviewSurface(value as ReviewSurface)
-                            }
-                            data={[
-                                { value: 'findings', label: 'Findings' },
-                                { value: 'signals', label: 'Signals' },
-                            ]}
-                        />
-                        <ReviewConceptHelp />
+                        <Group
+                            gap={6}
+                            wrap="nowrap"
+                            className={styles.toolbarHeading}
+                        >
+                            <Text fz="sm" fw={700} c="ldGray.9">
+                                Findings
+                            </Text>
+                            <ReviewConceptHelp />
+                        </Group>
 
                         <FilterFacet
                             label="Project"
@@ -919,35 +710,19 @@ const AiAgentAdminReviewItemsTable = ({
                             emptyLabel="No projects in current view"
                             tooltipLabel="Filter by project"
                         />
-                        {surface === 'findings' ? (
-                            <FilterFacet
-                                label="Root cause"
-                                icon={IconTag}
-                                options={rootCauseFacetOptions}
-                                selected={selectedRootCauses}
-                                onChange={(values) =>
-                                    setSelectedRootCauses(
-                                        values as AiAgentRootCause[],
-                                    )
-                                }
-                                emptyLabel="No root causes in current view"
-                                tooltipLabel="Filter by root cause"
-                            />
-                        ) : (
-                            <FilterFacet
-                                label="Signal"
-                                icon={IconTag}
-                                options={signalFacetOptions}
-                                selected={selectedSignals}
-                                onChange={(values) =>
-                                    setSelectedSignals(
-                                        values as AiAgentTurnSignal[],
-                                    )
-                                }
-                                emptyLabel="No signals in current view"
-                                tooltipLabel="Filter by signal type"
-                            />
-                        )}
+                        <FilterFacet
+                            label="Cause"
+                            icon={IconTag}
+                            options={rootCauseFacetOptions}
+                            selected={selectedRootCauses}
+                            onChange={(values) =>
+                                setSelectedRootCauses(
+                                    values as AiAgentRootCause[],
+                                )
+                            }
+                            emptyLabel="No root causes in current view"
+                            tooltipLabel="Filter by root cause"
+                        />
                         {hasActiveFilters && (
                             <Button
                                 variant="subtle"
@@ -964,24 +739,62 @@ const AiAgentAdminReviewItemsTable = ({
                         )}
                     </Group>
 
-                    <Box className={styles.countPill}>
-                        <Text fz="sm" fw={500}>
-                            {countLabel}
-                        </Text>
-                    </Box>
+                    <Group gap="sm" wrap="nowrap">
+                        {surface === 'findings' &&
+                            hasSelection &&
+                            onDismissSelected && (
+                                <>
+                                    <Text fz="sm" c="dimmed" fw={500}>
+                                        {selectedCount} selected
+                                    </Text>
+                                    <Button
+                                        size="xs"
+                                        variant="light"
+                                        color="red"
+                                        loading={isDismissingSelected}
+                                        leftSection={
+                                            <MantineIcon icon={IconX} />
+                                        }
+                                        onClick={onDismissSelected}
+                                    >
+                                        Dismiss findings
+                                    </Button>
+                                    {onClearSelection && (
+                                        <Button
+                                            size="xs"
+                                            variant="subtle"
+                                            color="gray"
+                                            onClick={onClearSelection}
+                                        >
+                                            Clear
+                                        </Button>
+                                    )}
+                                </>
+                            )}
+                        {!hasSelection && (
+                            <Box className={styles.countPill}>
+                                <Text fz="sm" fw={500}>
+                                    {countLabel}
+                                </Text>
+                            </Box>
+                        )}
+                    </Group>
                 </Group>
+                <Text px="xl" pb="sm" fz="xs" c="dimmed">
+                    {helperCopy}
+                </Text>
                 <Divider color="ldGray.2" />
             </Box>
         );
     };
 
-    const columns: MRT_ColumnDef<AiAgentReviewItemSummary>[] = useMemo(
+    const columns: ContentTableColumnDef<AiAgentReviewItemSummary>[] = useMemo(
         () => [
             {
                 accessorKey: 'primaryRootCause',
-                header: 'Type',
+                header: 'Cause',
                 enableSorting: false,
-                size: 220,
+                size: 170,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconTag} color="ldGray.6" />
@@ -990,36 +803,29 @@ const AiAgentAdminReviewItemsTable = ({
                 ),
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
-                    const subcategory =
-                        reviewItem.latestFinding?.subcategories[0];
-                    const contextEntry =
-                        reviewItem.latestFinding?.projectContextEntry ?? null;
+                    const isExample = isExampleReviewItem(reviewItem.uuid);
                     return (
                         <Stack gap={7} align="flex-start">
+                            {isExample && (
+                                <CategoryBadge
+                                    variant="token"
+                                    color="gray"
+                                    label="Example"
+                                />
+                            )}
                             <CategoryBadge
                                 variant="dot"
                                 label={
-                                    rootCauseLabels[reviewItem.primaryRootCause]
+                                    reviewRootCauseLabels[
+                                        reviewItem.primaryRootCause
+                                    ]
                                 }
                                 color={
-                                    rootCauseColors[reviewItem.primaryRootCause]
+                                    reviewRootCauseColors[
+                                        reviewItem.primaryRootCause
+                                    ]
                                 }
                             />
-                            {contextEntry ? (
-                                <CategoryBadge
-                                    variant="dot"
-                                    label={contextEntry.kind}
-                                    color="gray"
-                                />
-                            ) : (
-                                subcategory && (
-                                    <CategoryBadge
-                                        variant="dot"
-                                        label={subcategory.replaceAll('_', ' ')}
-                                        color="gray"
-                                    />
-                                )
-                            )}
                         </Stack>
                     );
                 },
@@ -1028,7 +834,7 @@ const AiAgentAdminReviewItemsTable = ({
                 accessorKey: 'title',
                 header: 'Finding',
                 enableSorting: false,
-                size: 650,
+                size: 700,
                 Header: ({ column }) => (
                     <Group gap="two">
                         <MantineIcon icon={IconListCheck} color="ldGray.6" />
@@ -1037,298 +843,267 @@ const AiAgentAdminReviewItemsTable = ({
                 ),
                 Cell: ({ row }) => {
                     const reviewItem = row.original;
-                    const latestFinding = reviewItem.latestFinding;
-                    return (
-                        <FindingCell
-                            reviewItem={reviewItem}
-                            onPreview={
-                                latestFinding
-                                    ? () =>
-                                          onReviewItemSelect?.({
-                                              projectUuid:
-                                                  latestFinding.projectUuid,
-                                              agentUuid:
-                                                  latestFinding.agentUuid,
-                                              threadUuid:
-                                                  latestFinding.threadUuid,
-                                              reviewItemUuid: reviewItem.uuid,
-                                          })
-                                    : null
-                            }
-                        />
-                    );
+                    return <FindingCell reviewItem={reviewItem} />;
                 },
             },
             {
-                accessorKey: 'agentUuid',
-                header: 'Agent',
-                enableSorting: false,
-                size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconRobotFace} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const reviewItem = row.original;
-                    const agentUuid =
-                        reviewItem.latestFinding?.agentUuid ??
-                        reviewItem.agentUuid;
-                    const projectUuid =
-                        reviewItem.latestFinding?.projectUuid ??
-                        reviewItem.projectUuid;
-                    const agent = agentUuid
-                        ? agentsMap.get(agentUuid)
-                        : undefined;
-                    const project = projectUuid
-                        ? projectsMap.get(projectUuid)
-                        : undefined;
-                    const projectName = project?.name ?? 'Organization';
-
-                    if (agent) {
-                        return (
-                            <AgentNamePill
-                                name={agent.name}
-                                imageUrl={agent.imageUrl}
-                            />
-                        );
-                    }
-
-                    return (
-                        <Group gap="two" wrap="nowrap">
-                            <MantineIcon
-                                icon={IconBox}
-                                color="ldGray.6"
-                                size="sm"
-                            />
-                            <Text fz="sm" c="ldGray.9" lineClamp={1}>
-                                {projectName}
-                            </Text>
-                        </Group>
-                    );
-                },
-            },
-            {
-                accessorKey: 'status',
+                accessorKey: 'prWritebackStatus',
                 header: 'Action',
                 enableSorting: false,
-                size: 260,
+                size: 190,
                 Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon
-                            icon={IconGitPullRequest}
-                            color="ldGray.6"
-                        />
+                    <Group gap={4}>
+                        <MantineIcon icon={IconArrowRight} color="ldGray.6" />
                         {column.columnDef.header}
                     </Group>
                 ),
-                Cell: ({ row }) => (
-                    <ReviewItemActionsCell reviewItem={row.original} />
-                ),
+                Cell: ({ row }) =>
+                    isExampleReviewItem(row.original.uuid) ? (
+                        <Box data-tour="reviews-create-pr">
+                            <Button
+                                size="compact-xs"
+                                radius="md"
+                                variant="default"
+                                disabled
+                            >
+                                Create PR
+                            </Button>
+                        </Box>
+                    ) : (
+                        <ReviewItemActions reviewItem={row.original} />
+                    ),
             },
         ],
-        [agentsMap, onReviewItemSelect, projectsMap],
+        [],
     );
 
-    const signalColumns: MRT_ColumnDef<AiAgentReviewSignalSummary>[] = useMemo(
-        () => [
-            {
-                accessorKey: 'promotedToFinding',
-                header: 'Result',
-                enableSorting: false,
-                size: 110,
-                Header: ({ column }) => (
-                    <Group gap="two" wrap="nowrap">
-                        <MantineIcon icon={IconTag} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    const ConfidenceIcon = getConfidenceIcon(signal.confidence);
-                    return (
-                        <Group gap={4} wrap="nowrap">
-                            <CategoryBadge
-                                variant="dot"
-                                label={getSignalResultLabel(signal)}
-                                color={
-                                    signal.finding
-                                        ? rootCauseColors[
-                                              signal.finding.primaryRootCause
-                                          ]
-                                        : 'gray'
-                                }
-                            />
-                            <Tooltip
-                                label={`${signal.confidence} confidence`}
-                                withArrow
-                            >
-                                <Box className={styles.confidenceIcon}>
-                                    <MantineIcon
-                                        icon={ConfidenceIcon}
-                                        color="ldGray.6"
-                                        size="xs"
-                                    />
-                                </Box>
-                            </Tooltip>
+    const signalColumns: ContentTableColumnDef<AiAgentReviewSignalSummary>[] =
+        useMemo(
+            () => [
+                {
+                    accessorKey: 'promotedToFinding',
+                    header: 'Result',
+                    enableSorting: false,
+                    size: 110,
+                    Header: ({ column }) => (
+                        <Group gap="two" wrap="nowrap">
+                            <MantineIcon icon={IconTag} color="ldGray.6" />
+                            {column.columnDef.header}
                         </Group>
-                    );
-                },
-            },
-            {
-                accessorKey: 'signal',
-                header: 'Signal',
-                enableSorting: false,
-                size: 300,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconInfoCircle} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    const subcategory = signal.finding?.subcategories[0];
-
-                    return (
-                        <Stack gap={4}>
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        const ConfidenceIcon = getConfidenceIcon(
+                            signal.confidence,
+                        );
+                        return (
                             <Group gap={4} wrap="nowrap">
                                 <CategoryBadge
                                     variant="dot"
-                                    label={signalLabels[signal.signal]}
-                                    color="gray"
+                                    label={getSignalResultLabel(signal)}
+                                    color={
+                                        signal.finding
+                                            ? reviewRootCauseColors[
+                                                  signal.finding
+                                                      .primaryRootCause
+                                              ]
+                                            : 'gray'
+                                    }
                                 />
-                                {subcategory && (
+                                <Tooltip
+                                    label={`${signal.confidence} confidence`}
+                                    withArrow
+                                >
+                                    <Box className={styles.confidenceIcon}>
+                                        <MantineIcon
+                                            icon={ConfidenceIcon}
+                                            color="ldGray.6"
+                                            size="xs"
+                                        />
+                                    </Box>
+                                </Tooltip>
+                            </Group>
+                        );
+                    },
+                },
+                {
+                    accessorKey: 'signal',
+                    header: 'Signal',
+                    enableSorting: false,
+                    size: 300,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="ldGray.6"
+                            />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        const subcategory = signal.finding?.subcategories[0];
+
+                        return (
+                            <Stack gap={4}>
+                                <Group gap={4} wrap="nowrap">
                                     <CategoryBadge
                                         variant="dot"
-                                        label={subcategory.replaceAll('_', ' ')}
+                                        label={signalLabels[signal.signal]}
                                         color="gray"
                                     />
-                                )}
-                                <SuggestedStep>
-                                    {getSignalActionText(signal)}
-                                </SuggestedStep>
-                            </Group>
-                            <ExpandableText lineClamp={1}>
-                                {getSignalWhyText(signal)}
-                            </ExpandableText>
-                        </Stack>
-                    );
-                },
-            },
-            {
-                accessorKey: 'prompt',
-                header: 'Turn',
-                enableSorting: false,
-                size: 300,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconListCheck} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    return (
-                        <Stack gap={2}>
-                            <Text fw={600} fz="sm" c="ldGray.9" lineClamp={1}>
-                                {signal.prompt}
-                            </Text>
-                            <ExpandableText lineClamp={1}>
-                                {signal.errorMessage ??
-                                    signal.responsePreview ??
-                                    'No response captured'}
-                            </ExpandableText>
-                        </Stack>
-                    );
-                },
-            },
-            {
-                accessorKey: 'agentUuid',
-                header: 'Agent',
-                enableSorting: false,
-                size: 100,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconRobotFace} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    const agent = agentsMap.get(signal.agentUuid);
-                    const project = projectsMap.get(signal.projectUuid);
-
-                    if (agent) {
-                        return (
-                            <AgentNamePill
-                                name={agent.name}
-                                imageUrl={agent.imageUrl}
-                            />
+                                    {subcategory && (
+                                        <CategoryBadge
+                                            variant="dot"
+                                            label={subcategory.replaceAll(
+                                                '_',
+                                                ' ',
+                                            )}
+                                            color="gray"
+                                        />
+                                    )}
+                                    <SuggestedStep>
+                                        {getSignalActionText(signal)}
+                                    </SuggestedStep>
+                                </Group>
+                                <ExpandableText lineClamp={1}>
+                                    {getSignalWhyText(signal)}
+                                </ExpandableText>
+                            </Stack>
                         );
-                    }
-
-                    return (
-                        <Group gap="two" wrap="nowrap">
+                    },
+                },
+                {
+                    accessorKey: 'prompt',
+                    header: 'Turn',
+                    enableSorting: false,
+                    size: 300,
+                    Header: ({ column }) => (
+                        <Group gap="two">
                             <MantineIcon
-                                icon={IconBox}
+                                icon={IconListCheck}
                                 color="ldGray.6"
-                                size="sm"
                             />
-                            <Text fz="sm" c="ldGray.9" lineClamp={1}>
-                                {project?.name ?? 'Unknown agent'}
-                            </Text>
+                            {column.columnDef.header}
                         </Group>
-                    );
-                },
-            },
-            {
-                accessorKey: 'createdAt',
-                header: 'Reviewed',
-                enableSorting: true,
-                size: 150,
-                Header: ({ column }) => (
-                    <Group gap="two">
-                        <MantineIcon icon={IconClock} color="ldGray.6" />
-                        {column.columnDef.header}
-                    </Group>
-                ),
-                Cell: ({ row }) => {
-                    const signal = row.original;
-                    return (
-                        <Group gap="xs" wrap="nowrap" justify="space-between">
-                            <Text fz="xs" c="ldGray.7" fw={500}>
-                                {formatLastSeenDate(signal.createdAt)}
-                            </Text>
-                            <Tooltip label="Open AI thread preview" withArrow>
-                                <ActionIcon
-                                    variant="subtle"
-                                    color="gray"
-                                    size="sm"
-                                    aria-label="Open AI thread preview"
-                                    className={styles.threadIcon}
-                                    onClick={(event) => {
-                                        event.stopPropagation();
-                                        onReviewItemSelect?.({
-                                            projectUuid: signal.projectUuid,
-                                            agentUuid: signal.agentUuid,
-                                            threadUuid: signal.threadUuid,
-                                            reviewItemUuid:
-                                                signal.finding?.reviewItemUuid,
-                                        });
-                                    }}
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        return (
+                            <Stack gap={2}>
+                                <Text
+                                    fw={600}
+                                    fz="sm"
+                                    c="ldGray.9"
+                                    lineClamp={1}
                                 >
-                                    <MantineIcon icon={IconMessages} />
-                                </ActionIcon>
-                            </Tooltip>
-                        </Group>
-                    );
+                                    {signal.prompt}
+                                </Text>
+                                <ExpandableText lineClamp={1}>
+                                    {signal.errorMessage ??
+                                        signal.responsePreview ??
+                                        'No response captured'}
+                                </ExpandableText>
+                            </Stack>
+                        );
+                    },
                 },
-            },
-        ],
-        [agentsMap, onReviewItemSelect, projectsMap],
-    );
+                {
+                    accessorKey: 'agentUuid',
+                    header: 'Agent',
+                    enableSorting: false,
+                    size: 100,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon
+                                icon={IconRobotFace}
+                                color="ldGray.6"
+                            />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        const agent = agentsMap.get(signal.agentUuid);
+                        const project = projectsMap.get(signal.projectUuid);
+
+                        if (agent) {
+                            return (
+                                <AgentNamePill
+                                    name={agent.name}
+                                    imageUrl={agent.imageUrl}
+                                />
+                            );
+                        }
+
+                        return (
+                            <Group gap="two" wrap="nowrap">
+                                <MantineIcon
+                                    icon={IconBox}
+                                    color="ldGray.6"
+                                    size="sm"
+                                />
+                                <Text fz="sm" c="ldGray.9" lineClamp={1}>
+                                    {project?.name ?? 'Unknown agent'}
+                                </Text>
+                            </Group>
+                        );
+                    },
+                },
+                {
+                    accessorKey: 'createdAt',
+                    header: 'Reviewed',
+                    enableSorting: true,
+                    size: 150,
+                    Header: ({ column }) => (
+                        <Group gap="two">
+                            <MantineIcon icon={IconClock} color="ldGray.6" />
+                            {column.columnDef.header}
+                        </Group>
+                    ),
+                    Cell: ({ row }) => {
+                        const signal = row.original;
+                        return (
+                            <Group
+                                gap="xs"
+                                wrap="nowrap"
+                                justify="space-between"
+                            >
+                                <Text fz="xs" c="ldGray.7" fw={500}>
+                                    {formatReviewDate(signal.createdAt)}
+                                </Text>
+                                <Tooltip
+                                    label="Open AI thread preview"
+                                    withArrow
+                                >
+                                    <ActionIcon
+                                        variant="subtle"
+                                        color="gray"
+                                        size="sm"
+                                        aria-label="Open AI thread preview"
+                                        className={styles.threadIcon}
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            onReviewItemSelect?.({
+                                                projectUuid: signal.projectUuid,
+                                                agentUuid: signal.agentUuid,
+                                                threadUuid: signal.threadUuid,
+                                                reviewItemUuid:
+                                                    signal.finding
+                                                        ?.reviewItemUuid,
+                                            });
+                                        }}
+                                    >
+                                        <MantineIcon icon={IconMessages} />
+                                    </ActionIcon>
+                                </Tooltip>
+                            </Group>
+                        );
+                    },
+                },
+            ],
+            [agentsMap, onReviewItemSelect, projectsMap],
+        );
 
     const table = useContentTable({
         columns,
@@ -1346,6 +1121,20 @@ const AiAgentAdminReviewItemsTable = ({
         enableSorting: true,
         enableTopToolbar: true,
         enableBottomToolbar: false,
+        enableRowSelection: (row) =>
+            !isTerminalReviewItem(row.original) &&
+            !isExampleReviewItem(row.original.uuid),
+        mantineSelectCheckboxProps: { size: 'xs' },
+        mantineSelectAllCheckboxProps: { size: 'xs' },
+        displayColumnDefOptions: {
+            'mrt-row-select': {
+                size: 28,
+                minSize: 28,
+                maxSize: 28,
+                enableResizing: false,
+            },
+        },
+        getRowId: (row) => row.uuid,
         mantinePaperProps: {
             shadow: undefined,
             style: {
@@ -1368,7 +1157,7 @@ const AiAgentAdminReviewItemsTable = ({
         },
         mantineTableBodyCellProps: {
             style: {
-                padding: `${theme.spacing.xs} ${theme.spacing.md}`,
+                padding: `${theme.spacing.sm} ${theme.spacing.md}`,
                 borderRight: 'none',
                 borderLeft: 'none',
                 borderBottom: `1px solid ${theme.colors.ldGray[2]}`,
@@ -1381,30 +1170,83 @@ const AiAgentAdminReviewItemsTable = ({
             }
 
             const reviewItem = row.original;
+            // Anchor the tour to the first row so it spotlights the whole finding.
+            const rowAnchor =
+                row.index === 0 ? { 'data-tour': 'reviews-row' } : {};
+
+            if (isExampleReviewItem(reviewItem.uuid)) {
+                return { className: styles.exampleRow, ...rowAnchor };
+            }
+
             const isSelected = selectedReviewItemUuid === reviewItem.uuid;
+            const latestFinding = reviewItem.latestFinding;
 
             return {
                 className: styles.bodyRow,
                 style: {
+                    cursor: latestFinding ? 'pointer' : 'default',
                     backgroundColor: isSelected
-                        ? theme.colors.ldGray[1]
+                        ? theme.colors.ldGray[0]
                         : undefined,
                 },
+                onClick: latestFinding
+                    ? () =>
+                          onReviewItemSelect?.({
+                              projectUuid: latestFinding.projectUuid,
+                              agentUuid: latestFinding.agentUuid,
+                              threadUuid: latestFinding.threadUuid,
+                              reviewItemUuid: reviewItem.uuid,
+                          })
+                    : undefined,
+                ...rowAnchor,
             };
         },
-        renderTopToolbar: () =>
-            renderReviewsToolbar({
+        renderTopToolbar: ({ table: tableInstance }) => {
+            const selectedRows = tableInstance
+                .getFilteredSelectedRowModel()
+                .flatRows.map((row) => row.original);
+
+            const dismissSelected = () => {
+                selectedRows.forEach((reviewItem) => {
+                    updateStatus.mutate({
+                        fingerprint: reviewItem.fingerprint,
+                        body: {
+                            status: 'dismissed',
+                            dismissedReason: 'not_actionable',
+                        },
+                    });
+                });
+                tableInstance.resetRowSelection();
+            };
+
+            return renderReviewsToolbar({
                 visibleCount: filteredReviewItems.length,
                 totalCount: searchFilteredReviewItems.length,
-                noun: 'item',
+                noun: 'finding',
                 isLoading,
                 surface: 'findings',
-            }),
+                selectedCount: selectedRows.length,
+                isDismissingSelected: updateStatus.isLoading,
+                onClearSelection: () => tableInstance.resetRowSelection(),
+                onDismissSelected:
+                    selectedRows.length > 0 ? dismissSelected : undefined,
+            });
+        },
+        emptyState: {
+            entityName: 'findings',
+            emptyMessage:
+                'Nothing to review yet. When an agent answer looks wrong, it shows up here.',
+            search,
+            hasActiveFilters,
+            onClearFilters: clearAllFilters,
+        },
         state: {
             showProgressBars: false,
             showSkeletons: isLoading,
             density: 'md',
+            rowSelection,
         },
+        onRowSelectionChange: handleRowSelectionChange,
         mantineLoadingOverlayProps: {
             loaderProps: {
                 color: 'gray',
@@ -1412,7 +1254,7 @@ const AiAgentAdminReviewItemsTable = ({
         },
     });
 
-    const signalTable = useContentTable({
+    const _signalTable = useContentTable({
         columns: signalColumns,
         data: filteredReviewSignals,
         enableColumnResizing: false,
@@ -1479,7 +1321,7 @@ const AiAgentAdminReviewItemsTable = ({
             renderReviewsToolbar({
                 visibleCount: filteredReviewSignals.length,
                 totalCount: searchFilteredReviewSignals.length,
-                noun: 'signal',
+                noun: 'turn',
                 isLoading: isSignalsLoading,
                 surface: 'signals',
             }),
@@ -1497,11 +1339,7 @@ const AiAgentAdminReviewItemsTable = ({
 
     return (
         <Box>
-            {reviewSurface === 'findings' ? (
-                <ContentTable table={table} />
-            ) : (
-                <ContentTable table={signalTable} />
-            )}
+            <ContentTable table={table} />
         </Box>
     );
 };

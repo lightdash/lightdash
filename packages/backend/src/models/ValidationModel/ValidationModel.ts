@@ -223,15 +223,23 @@ export class ValidationModel {
         }
     }
 
-    async deleteChartValidations(chartUuid: string): Promise<void> {
+    async deleteChartValidations(
+        chartUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
         await this.database(ValidationTableName)
             .where('saved_chart_uuid', chartUuid)
+            .where('project_uuid', projectUuid)
             .delete();
     }
 
-    async deleteDashboardValidations(dashboardUuid: string): Promise<void> {
+    async deleteDashboardValidations(
+        dashboardUuid: string,
+        projectUuid: string,
+    ): Promise<void> {
         await this.database(ValidationTableName)
             .where('dashboard_uuid', dashboardUuid)
+            .where('project_uuid', projectUuid)
             .delete();
     }
 

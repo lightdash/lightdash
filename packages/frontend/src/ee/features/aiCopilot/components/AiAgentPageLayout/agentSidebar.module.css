@@ -1,14 +1,76 @@
+.sidebarSurface {
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+    border-radius: 0;
+
+    @mixin light {
+        background-color: transparent;
+        border: none;
+        box-shadow: none;
+    }
+
+    @mixin dark {
+        background-color: transparent;
+        border: none;
+        box-shadow: none;
+    }
+}
+
+.sidebarSurface[data-collapsed='true'] {
+    flex-grow: 0;
+    align-items: center;
+    padding: 0;
+    overflow: visible;
+
+    @mixin light {
+        background-color: transparent;
+        border-color: transparent;
+        box-shadow: none;
+    }
+
+    @mixin dark {
+        background-color: transparent;
+        border-color: transparent;
+        box-shadow: none;
+    }
+}
+
+.threadList {
+    flex-grow: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.threadItems {
+    min-height: 0;
+}
+
 .threadNavLink {
-    border-radius: var(--mantine-radius-sm);
-    transition: background-color 150ms ease;
+    border-radius: rem(6px);
+    transition:
+        background-color 150ms ease,
+        color 150ms ease;
 
     /* Don't override Mantine's active background when also hovered. */
     &:not([data-active]):hover {
         @mixin light {
-            background-color: var(--mantine-color-ldGray-2);
+            background-color: var(--mantine-color-ldGray-1);
         }
         @mixin dark {
             background-color: var(--mantine-color-ldDark-3);
+        }
+    }
+
+    &[data-active] {
+        @mixin light {
+            background-color: var(--mantine-color-ldGray-1);
+        }
+
+        @mixin dark {
+            background-color: var(--mantine-color-dark-5);
         }
     }
 }

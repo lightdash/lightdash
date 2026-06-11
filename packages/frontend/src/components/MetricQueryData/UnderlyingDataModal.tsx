@@ -126,7 +126,7 @@ const UnderlyingDataModalContent: FC = () => {
             if (showUnderlyingValues === undefined) return 0;
 
             const indexOfUnderlyingValue = (column: TableColumn): number => {
-                const columnDimension = allDimensions.find(
+                const columnDimension = allFields.find(
                     (dimension) => getItemId(dimension) === column.id,
                 );
                 if (columnDimension === undefined) return -1;
@@ -143,7 +143,7 @@ const UnderlyingDataModalContent: FC = () => {
                 indexOfUnderlyingValue(columnB)
             );
         },
-        [showUnderlyingValues, allDimensions],
+        [showUnderlyingValues, allFields],
     );
 
     const filters = useMemo<Filters>(() => {

@@ -32,6 +32,7 @@ import {
 } from '@lightdash/common';
 import {
     Body,
+    Deprecated,
     Get,
     Hidden,
     Middlewares,
@@ -47,7 +48,11 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromHeader } from '../../analytics/LightdashAnalytics';
-import { allowApiKeyAuthentication, isAuthenticated } from '../authentication';
+import {
+    allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
+    isAuthenticated,
+} from '../authentication';
 import { BaseController } from '../baseController';
 
 export type ApiGetAsyncQueryResultsResponse = {
@@ -151,6 +156,7 @@ export class QueryController extends BaseController {
                 projectUuid,
                 queryUuid,
                 kind: body.kind,
+                subtotalDimensions: body.subtotalDimensions,
                 invalidateCache: body.invalidateCache,
             });
 
@@ -539,11 +545,21 @@ export class QueryController extends BaseController {
     /**
      * Downloads query results in various formats with custom formatting options
      * @summary Download results
+     *
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download instead
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download instead.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/{queryUuid}/download')
     @OperationId('downloadResults')
+    @Deprecated()
     async downloadResults(
         @Path() projectUuid: string,
         /** The UUID of the completed async query to download */

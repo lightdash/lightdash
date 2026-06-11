@@ -1,10 +1,12 @@
 import {
     type AiAgentAdminFilters,
     type AiAgentAdminSort,
+    type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
     type ApiAiAgentReviewItemResponse,
     type ApiAiAgentReviewItemsResponse,
+    type ApiAiAgentReviewItemWritebackPreviewResponse,
     type ApiAiAgentReviewSignalsResponse,
     type ApiAiAgentSummaryResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
@@ -17,6 +19,7 @@ import {
     useMutation,
     useQuery,
     useQueryClient,
+    type QueryClient,
     type UseInfiniteQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
@@ -130,15 +133,66 @@ const getAiAgentAdminReviewItems = async (args: {
     });
 };
 
+const AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY = 'ai-agent-admin-review-items';
+
+export const updateCachedReviewItemLists = (
+    queryClient: QueryClient,
+    updatedItem: AiAgentReviewItemSummary,
+) => {
+    queryClient
+        .getQueryCache()
+        .findAll({
+            queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
+        })
+        .forEach((query) => {
+            const [, args] = query.queryKey as [
+                string,
+                { statuses?: AiAgentReviewItemStatus[] } | undefined,
+            ];
+            const matchesStatus =
+                !args?.statuses || args.statuses.includes(updatedItem.status);
+
+            queryClient.setQueryData<ApiAiAgentReviewItemsResponse['results']>(
+                query.queryKey,
+                (current) => {
+                    if (!current) return current;
+
+                    if (!matchesStatus) {
+                        return current.filter(
+                            (item) =>
+                                item.fingerprint !== updatedItem.fingerprint,
+                        );
+                    }
+
+                    return current.map((item) =>
+                        item.fingerprint === updatedItem.fingerprint
+                            ? updatedItem
+                            : item,
+                    );
+                },
+            );
+        });
+};
+
 export const useAiAgentAdminReviewItems = (
     args: { statuses?: AiAgentReviewItemStatus[] },
-    options?: { enabled?: boolean },
+    options?: {
+        enabled?: boolean;
+        select?: (
+            data: ApiAiAgentReviewItemsResponse['results'],
+        ) => ApiAiAgentReviewItemsResponse['results'];
+    },
 ) => {
-    return useQuery<ApiAiAgentReviewItemsResponse['results'], ApiError>({
-        queryKey: ['ai-agent-admin-review-items', args],
+    return useQuery<
+        ApiAiAgentReviewItemsResponse['results'],
+        ApiError,
+        ApiAiAgentReviewItemsResponse['results']
+    >({
+        queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY, args],
         queryFn: () => getAiAgentAdminReviewItems(args),
         keepPreviousData: true,
         enabled: options?.enabled ?? true,
+        select: options?.select,
     });
 };
 
@@ -160,6 +214,33 @@ export const useAiAgentAdminReviewItem = (
         queryFn: () => getAiAgentAdminReviewItem(fingerprint),
         enabled: options?.enabled ?? true,
         refetchInterval: options?.refetchInterval,
+    });
+};
+
+const getAiAgentReviewItemWritebackPreview = async (fingerprint: string) => {
+    return lightdashApi<
+        ApiAiAgentReviewItemWritebackPreviewResponse['results']
+    >({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/writeback-preview`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentReviewItemWritebackPreview = (
+    fingerprint: string,
+    options?: { enabled?: boolean },
+) => {
+    return useQuery<
+        ApiAiAgentReviewItemWritebackPreviewResponse['results'],
+        ApiError
+    >({
+        queryKey: ['ai-agent-admin-review-item-writeback-preview', fingerprint],
+        queryFn: () => getAiAgentReviewItemWritebackPreview(fingerprint),
+        enabled: options?.enabled ?? true,
     });
 };
 
@@ -187,10 +268,15 @@ export const useUpdateAiAgentReviewItemStatus = () => {
         { fingerprint: string; body: UpdateAiAgentReviewItemStatus }
     >({
         mutationFn: updateAiAgentReviewItemStatus,
-        onSuccess: () => {
+        onSuccess: (updatedItem, { fingerprint }) => {
             showToastSuccess({ title: 'Review item updated' });
+            queryClient.setQueryData(
+                ['ai-agent-admin-review-item', fingerprint],
+                updatedItem,
+            );
+            updateCachedReviewItemLists(queryClient, updatedItem);
             void queryClient.invalidateQueries({
-                queryKey: ['ai-agent-admin-review-items'],
+                queryKey: [AI_AGENT_ADMIN_REVIEW_ITEMS_QUERY_KEY],
             });
         },
         onError: ({ error }) => {
@@ -213,6 +299,36 @@ const createAiAgentReviewItemWriteback = async (fingerprint: string) => {
     });
 };
 
+export const getReviewItemWritebackSuccessToast = (
+    reviewItem: Pick<
+        AiAgentReviewItemSummary,
+        'linkedPrUrl' | 'prWritebackMessage' | 'prWritebackStatus'
+    >,
+): { title: string; subtitle?: string } => {
+    const isInProgress =
+        reviewItem.prWritebackStatus === 'queued' ||
+        reviewItem.prWritebackStatus === 'running';
+    if (isInProgress) {
+        return {
+            title: 'Writeback queued',
+            subtitle: 'The review item will update as it runs.',
+        };
+    }
+
+    if (reviewItem.linkedPrUrl) {
+        return { title: 'Pull request opened' };
+    }
+
+    if (reviewItem.prWritebackStatus === 'completed') {
+        return {
+            title: 'Writeback completed',
+            subtitle: reviewItem.prWritebackMessage ?? undefined,
+        };
+    }
+
+    return { title: 'Writeback queued' };
+};
+
 export const useCreateAiAgentReviewItemWriteback = () => {
     const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
@@ -224,11 +340,14 @@ export const useCreateAiAgentReviewItemWriteback = () => {
     >({
         mutationFn: createAiAgentReviewItemWriteback,
         onSuccess: (reviewItem) => {
+            const toast = getReviewItemWritebackSuccessToast(reviewItem);
+            const showPrAction =
+                Boolean(reviewItem.linkedPrUrl) &&
+                reviewItem.prWritebackStatus !== 'queued' &&
+                reviewItem.prWritebackStatus !== 'running';
             showToastSuccess({
-                title: reviewItem.linkedPrUrl
-                    ? 'Pull request opened'
-                    : 'Writeback ran — no changes were needed',
-                ...(reviewItem.linkedPrUrl && {
+                ...toast,
+                ...(showPrAction && {
                     action: {
                         children: 'View pull request',
                         icon: IconArrowRight,

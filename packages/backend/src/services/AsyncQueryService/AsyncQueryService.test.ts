@@ -3,6 +3,7 @@ import {
     AnyType,
     CreateWarehouseCredentials,
     DimensionType,
+    DownloadFileType,
     ExecuteAsyncQueryRequestParams,
     ExploreType,
     FeatureFlags,
@@ -95,6 +96,7 @@ import {
     type PreAggregateStrategy,
 } from './PreAggregateStrategy';
 import type {
+    DownloadAsyncQueryResultsArgs,
     ExecuteAsyncQueryReturn,
     RunAsyncWarehouseQueryArgs,
 } from './types';
@@ -749,6 +751,57 @@ describe('AsyncQueryService', () => {
                     organizationUuid:
                         sessionAccount.organization.organizationUuid,
                 }),
+            );
+        });
+
+        test('prefers requestParameters.invalidateCache over args.invalidateCache', async () => {
+            const mockCacheResult: MissCacheResult = {
+                cacheHit: false,
+                updatedAt: undefined,
+                expiresAt: undefined,
+            };
+
+            (
+                serviceWithCache.findResultsCache as jest.Mock
+            ).mockResolvedValueOnce(mockCacheResult);
+
+            (
+                serviceWithCache.queryHistoryModel.create as jest.Mock
+            ).mockResolvedValue({
+                queryUuid: 'test-query-uuid',
+            });
+
+            jest.spyOn(
+                serviceWithCache,
+                'runAsyncWarehouseQuery',
+            ).mockResolvedValue(undefined);
+
+            await serviceWithCache.executeAsyncQuery(
+                {
+                    account: sessionAccount,
+                    projectUuid,
+                    metricQuery: metricQueryMock,
+                    context: QueryExecutionContext.EXPLORE,
+                    dateZoom: undefined,
+                    queryTags: {
+                        query_context: QueryExecutionContext.EXPLORE,
+                    },
+                    explore: validExplore,
+                    invalidateCache: false,
+                    sql: 'SELECT * FROM test',
+                    fields: {},
+                    missingParameterReferences: [],
+                    displayTimezone: null,
+                    useTimezoneAwareDateTrunc: false,
+                },
+                { query: metricQueryMock, invalidateCache: true },
+            );
+
+            expect(serviceWithCache.findResultsCache).toHaveBeenCalledWith(
+                projectUuid,
+                expect.any(String),
+                expect.any(Object),
+                true,
             );
         });
 
@@ -1692,6 +1745,276 @@ describe('AsyncQueryService', () => {
         });
     });
 
+    describe('download pivot routing', () => {
+        // Typed view onto the private download methods exercised by these tests.
+        type DownloadInternals = {
+            downloadAsyncQueryResults: (
+                args: DownloadAsyncQueryResultsArgs,
+            ) => Promise<{ fileUrl: string; truncated: boolean }>;
+            downloadAsyncQueryResultsAsFormattedFile: (
+                ...args: unknown[]
+            ) => Promise<{ fileUrl: string; truncated: boolean }>;
+        };
+        const asInternals = (service: AsyncQueryService) =>
+            service as unknown as DownloadInternals;
+
+        const pivotConfig = {
+            pivotDimensions: ['order_date'],
+            metricsAsRows: false,
+        };
+
+        const baseReadyQueryHistory = (
+            overrides: Partial<QueryHistory>,
+        ): QueryHistory =>
+            ({
+                createdAt: new Date(),
+                organizationUuid: sessionAccount.organization.organizationUuid!,
+                createdByUserUuid: sessionAccount.user.id,
+                createdBy: sessionAccount.user.id,
+                createdByAccount: null,
+                createdByActorType: 'session',
+                queryUuid: 'test-query-uuid',
+                projectUuid,
+                status: QueryHistoryStatus.READY,
+                error: null,
+                erroredAt: null,
+                metricQuery: metricQueryMock,
+                context: QueryExecutionContext.EXPLORE,
+                fields: validExplore.tables.a.dimensions,
+                compiledSql: 'SELECT * FROM test.table',
+                warehouseQueryId: 'test-warehouse-query-id',
+                warehouseQueryMetadata: null,
+                requestParameters: {} as ExecuteAsyncQueryRequestParams,
+                totalRowCount: 10,
+                warehouseExecutionTimeMs: 1500,
+                defaultPageSize: 10,
+                cacheKey: 'test-cache-key',
+                pivotConfiguration: null,
+                pivotTotalColumnCount: null,
+                pivotValuesColumns: null,
+                resultsFileName: 'results-file-name.json',
+                resultsCreatedAt: new Date(),
+                resultsUpdatedAt: new Date(),
+                resultsExpiresAt: new Date(Date.now() + 60_000),
+                columns: expectedColumns,
+                originalColumns: {},
+                preAggregateCompiledSql: null,
+                processingStartedAt: null,
+                ...overrides,
+            }) as QueryHistory;
+
+        it('falls back to a flat CSV export when a pivotConfig is requested but the query stored no pivot details', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const internals = asInternals(service);
+            service.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(baseReadyQueryHistory({}));
+
+            const pivotSpy = jest
+                .spyOn(service.pivotTableService, 'downloadAsyncPivotTableCsv')
+                .mockResolvedValue({
+                    fileUrl: 'should-not-be-used',
+                    truncated: false,
+                });
+            const flatSpy = jest
+                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
+                .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
+
+            await expect(
+                internals.downloadAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    type: DownloadFileType.CSV,
+                    pivotConfig,
+                    exportPivotedData: true,
+                }),
+            ).resolves.toMatchObject({ fileUrl: 'flat-url' });
+
+            expect(pivotSpy).not.toHaveBeenCalled();
+            expect(flatSpy).toHaveBeenCalledTimes(1);
+        });
+
+        it('uses the pivot CSV export when the query stored pivot details', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const internals = asInternals(service);
+            service.queryHistoryModel.get = jest.fn().mockResolvedValue(
+                baseReadyQueryHistory({
+                    pivotConfiguration: {
+                        indexColumn: {
+                            reference: 'user_id',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        valuesColumns: [
+                            {
+                                reference: 'amount',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        groupByColumns: [{ reference: 'order_date' }],
+                        sortBy: [],
+                    },
+                    pivotTotalColumnCount: 5,
+                    pivotValuesColumns: {
+                        amount_sum_2021: {
+                            referenceField: 'amount',
+                            pivotColumnName: 'amount_sum_2021',
+                            aggregation: VizAggregationOptions.SUM,
+                            pivotValues: [
+                                { referenceField: 'order_date', value: '2021' },
+                            ],
+                        },
+                    } as AnyType,
+                }),
+            );
+
+            const pivotSpy = jest
+                .spyOn(service.pivotTableService, 'downloadAsyncPivotTableCsv')
+                .mockResolvedValue({ fileUrl: 'pivot-url', truncated: false });
+            const flatSpy = jest
+                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
+                .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
+
+            await expect(
+                internals.downloadAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    type: DownloadFileType.CSV,
+                    pivotConfig,
+                    exportPivotedData: true,
+                }),
+            ).resolves.toMatchObject({ fileUrl: 'pivot-url' });
+
+            expect(pivotSpy).toHaveBeenCalledTimes(1);
+            expect(flatSpy).not.toHaveBeenCalled();
+        });
+
+        it('pivots based on stored pivot details even when the request omits pivotConfig', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const internals = asInternals(service);
+            service.queryHistoryModel.get = jest.fn().mockResolvedValue(
+                baseReadyQueryHistory({
+                    pivotConfiguration: {
+                        indexColumn: {
+                            reference: 'user_id',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        valuesColumns: [
+                            {
+                                reference: 'amount',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        groupByColumns: [{ reference: 'order_date' }],
+                        sortBy: [],
+                        metricsAsRows: false,
+                    },
+                    pivotTotalColumnCount: 5,
+                    pivotValuesColumns: {
+                        amount_sum_2021: {
+                            referenceField: 'amount',
+                            pivotColumnName: 'amount_sum_2021',
+                            aggregation: VizAggregationOptions.SUM,
+                            pivotValues: [
+                                { referenceField: 'order_date', value: '2021' },
+                            ],
+                        },
+                    } as AnyType,
+                }),
+            );
+
+            const pivotSpy = jest
+                .spyOn(service.pivotTableService, 'downloadAsyncPivotTableCsv')
+                .mockResolvedValue({ fileUrl: 'pivot-url', truncated: false });
+            const flatSpy = jest
+                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
+                .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
+
+            await expect(
+                internals.downloadAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    type: DownloadFileType.CSV,
+                    exportPivotedData: true,
+                }),
+            ).resolves.toMatchObject({ fileUrl: 'pivot-url' });
+
+            expect(pivotSpy).toHaveBeenCalledTimes(1);
+            expect(pivotSpy).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    options: expect.objectContaining({
+                        pivotConfig: expect.objectContaining({
+                            pivotDimensions: ['order_date'],
+                            metricsAsRows: false,
+                        }),
+                    }),
+                }),
+            );
+            expect(flatSpy).not.toHaveBeenCalled();
+        });
+
+        it('does not pivot when the user opts out via exportPivotedData=false', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock);
+            const internals = asInternals(service);
+            service.queryHistoryModel.get = jest.fn().mockResolvedValue(
+                baseReadyQueryHistory({
+                    pivotConfiguration: {
+                        indexColumn: {
+                            reference: 'user_id',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        valuesColumns: [
+                            {
+                                reference: 'amount',
+                                aggregation: VizAggregationOptions.SUM,
+                            },
+                        ],
+                        groupByColumns: [{ reference: 'order_date' }],
+                        sortBy: [],
+                        metricsAsRows: false,
+                    },
+                    pivotTotalColumnCount: 5,
+                    pivotValuesColumns: {
+                        amount_sum_2021: {
+                            referenceField: 'amount',
+                            pivotColumnName: 'amount_sum_2021',
+                            aggregation: VizAggregationOptions.SUM,
+                            pivotValues: [
+                                { referenceField: 'order_date', value: '2021' },
+                            ],
+                        },
+                    } as AnyType,
+                }),
+            );
+
+            const pivotSpy = jest
+                .spyOn(service.pivotTableService, 'downloadAsyncPivotTableCsv')
+                .mockResolvedValue({
+                    fileUrl: 'should-not-be-used',
+                    truncated: false,
+                });
+            const flatSpy = jest
+                .spyOn(internals, 'downloadAsyncQueryResultsAsFormattedFile')
+                .mockResolvedValue({ fileUrl: 'flat-url', truncated: false });
+
+            await expect(
+                internals.downloadAsyncQueryResults({
+                    account: sessionAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    type: DownloadFileType.CSV,
+                    pivotConfig,
+                    exportPivotedData: false,
+                }),
+            ).resolves.toMatchObject({ fileUrl: 'flat-url' });
+
+            expect(pivotSpy).not.toHaveBeenCalled();
+            expect(flatSpy).toHaveBeenCalledTimes(1);
+        });
+    });
+
     describe('getAsyncQueryHistory', () => {
         const createQueryHistory = (): QueryHistory =>
             ({
@@ -2410,6 +2733,77 @@ describe('AsyncQueryService', () => {
     });
 
     describe('executeAsyncSqlQuery', () => {
+        describe('cache invalidation', () => {
+            it('skips cache when invalidateCache is true', async () => {
+                const service = getMockedAsyncQueryService({
+                    ...lightdashConfigMock,
+                    results: {
+                        ...lightdashConfigMock.results,
+                        cacheEnabled: true,
+                    },
+                });
+
+                service.warehouseClients = {};
+                service.cacheService = {
+                    isResultsCacheEnabled: jest.fn(async () => true),
+                    findCachedResultsFile: jest.fn(async () => null),
+                } as unknown as ICacheService;
+
+                service.findResultsCache = jest.fn().mockResolvedValue({
+                    cacheHit: false,
+                    updatedAt: undefined,
+                    expiresAt: undefined,
+                } satisfies MissCacheResult);
+
+                (
+                    service.queryHistoryModel.create as jest.Mock
+                ).mockResolvedValue({
+                    queryUuid: 'test-query-uuid',
+                });
+
+                jest.spyOn(service, 'runAsyncWarehouseQuery').mockResolvedValue(
+                    undefined,
+                );
+
+                service.getUserAttributes = jest.fn(async () => ({
+                    userAttributes: {},
+                    intrinsicUserAttributes: { email: 'test@example.com' },
+                }));
+
+                const mockWarehouseClient = {
+                    ...warehouseClientMock,
+                    streamQuery: jest.fn(async (_sql, callback) => {
+                        await callback({
+                            fields: {
+                                test_col: { type: DimensionType.STRING },
+                            },
+                            rows: [],
+                        });
+                    }),
+                };
+
+                service._getWarehouseClient = jest.fn(async () => ({
+                    warehouseClient: mockWarehouseClient,
+                    sshTunnel: mockSshTunnel,
+                }));
+
+                await service.executeAsyncSqlQuery({
+                    account: sessionAccount,
+                    projectUuid,
+                    sql: 'SELECT 1',
+                    context: QueryExecutionContext.SQL_RUNNER,
+                    invalidateCache: true,
+                });
+
+                expect(service.findResultsCache).toHaveBeenCalledWith(
+                    projectUuid,
+                    expect.any(String),
+                    sessionAccount,
+                    true,
+                );
+            });
+        });
+
         describe('user attributes replacement', () => {
             it('should replace user attributes in SQL queries', async () => {
                 // GIVEN: Service with mocked user attributes

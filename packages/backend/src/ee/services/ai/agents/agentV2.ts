@@ -15,6 +15,7 @@ import { getSystemPromptV2 } from '../prompts/systemV2';
 import { getCreateContent } from '../tools/createContent';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getEditContent } from '../tools/editContent';
+import { getEditDbtProject } from '../tools/editDbtProject';
 import { getFindContent } from '../tools/findContent';
 import { getGenerateDashboardV2 } from '../tools/generateDashboardV2';
 import { getGenerateHashes } from '../tools/generateHashes';
@@ -30,8 +31,8 @@ import { getListProjects } from '../tools/listProjects';
 import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
-import { getProposeWriteback } from '../tools/proposeWriteback';
 import { getReadContent } from '../tools/readContent';
+import { getRepoShell } from '../tools/repoShell';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -50,7 +51,7 @@ import {
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
 import { getDiscoverFields } from './discoverFields/tool';
-import { getAgentTelemetryConfig } from './telemetry';
+import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
 const createAiAgentLogger =
     (debugLoggingEnabled: boolean) => (context: string, message: string) => {
@@ -154,6 +155,7 @@ const getAgentTools = (
                 threadUuid: args.threadUuid,
                 promptUuid: args.promptUuid,
                 telemetryEnabled: args.telemetryEnabled,
+                model: args.model,
             },
         },
         {
@@ -269,15 +271,21 @@ const getAgentTools = (
         enableDataAccess: args.enableDataAccess,
     });
 
-    const proposeWriteback = args.enableAiWriteback
-        ? getProposeWriteback({
-              proposeWriteback: dependencies.proposeWriteback,
+    const editDbtProject = args.enableAiWriteback
+        ? getEditDbtProject({
+              editDbtProject: dependencies.editDbtProject,
           })
         : null;
 
     const setupPreviewDeploy = args.enablePreviewDeploySetup
         ? getSetupPreviewDeploy({
               setupPreviewDeploy: dependencies.setupPreviewDeploy,
+          })
+        : null;
+
+    const repoShell = args.enableRepoFs
+        ? getRepoShell({
+              repoShell: dependencies.repoShell,
           })
         : null;
 
@@ -288,7 +296,10 @@ const getAgentTools = (
     const searchSemanticLayer = getSearchSemanticLayer({
         searchSemanticLayer: dependencies.searchSemanticLayer,
         updateProgress: dependencies.updateProgress,
-        pageSize: 200,
+        // The agent chooses pageSize per task; cap it so one call can't pull an
+        // unbounded payload while still letting an audit grab the inventory in
+        // one or two round-trips.
+        maxPageSize: 500,
     });
 
     const listKnowledgeDocuments = getListKnowledgeDocuments({
@@ -322,6 +333,11 @@ const getAgentTools = (
           })
         : null;
 
+    const enableContentTools =
+        args.enableAgentRevamp &&
+        args.enableDataAccess &&
+        args.enableContentTools;
+
     const tools: ToolSet = {
         findContent,
         discoverFields,
@@ -330,7 +346,7 @@ const getAgentTools = (
         getProjectInfo,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
-        ...(args.enableAgentRevamp && args.enableContentTools
+        ...(enableContentTools
             ? {
                   readContent,
                   editContent,
@@ -347,8 +363,9 @@ const getAgentTools = (
         generateHashes,
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
-        ...(proposeWriteback ? { proposeWriteback } : {}),
+        ...(editDbtProject ? { editDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
+        ...(repoShell ? { repoShell } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
@@ -388,8 +405,12 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             enableDataAccess: args.enableDataAccess,
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
+            enableRepoFs: args.enableRepoFs,
+            repoFsRoot: args.repoFsRoot,
             enableContentTools:
-                args.enableAgentRevamp && args.enableContentTools,
+                args.enableAgentRevamp &&
+                args.enableDataAccess &&
+                args.enableContentTools,
             canRunSql: args.canRunSql,
             warehouseType: args.warehouseType,
             warehouseSchema: args.warehouseSchema,
@@ -443,7 +464,7 @@ export const generateAgentResponse = async ({
         `Agent settings: ${JSON.stringify(args.agentSettings)}`,
     );
     const startTime = Date.now();
-    const modelName = args.model.modelId;
+    const modelName = getAiAgentModelName(args.model);
 
     try {
         const availableExplores = await dependencies.listExplores();
@@ -601,7 +622,11 @@ export const generateAgentResponse = async ({
         Logger.error(
             `[AiAgent][Generate Agent Response] Error during agent response generation: ${errorMessage}`,
         );
-        Sentry.captureException(error);
+        Sentry.captureException(error, {
+            tags: {
+                'ai.model': modelName,
+            },
+        });
 
         const userFacingMessage = getUserFacingErrorMessage(
             error,
@@ -642,8 +667,7 @@ export const streamAgentResponse = async ({
     let firstChunkTime: number | null = null;
     let firstTextTime: number | null = null;
     let mcpClientsClosed = false;
-    const modelName =
-        typeof args.model === 'string' ? args.model : args.model.modelId;
+    const modelName = getAiAgentModelName(args.model);
 
     const cleanupMcpClients = async () => {
         if (mcpClientsClosed) {
@@ -717,6 +741,7 @@ export const streamAgentResponse = async ({
                             Sentry.captureException(event.chunk.error, {
                                 tags: {
                                     errorType: 'AiAgentToolCallInvalid',
+                                    'ai.model': modelName,
                                 },
                             });
                             break;
@@ -739,7 +764,11 @@ export const streamAgentResponse = async ({
                                     '[AiAgent][Chunk Tool Call] Failed to store tool call',
                                     error,
                                 );
-                                Sentry.captureException(error);
+                                Sentry.captureException(error, {
+                                    tags: {
+                                        'ai.model': modelName,
+                                    },
+                                });
                             });
                         break;
 
@@ -775,7 +804,11 @@ export const streamAgentResponse = async ({
                                     '[AiAgent][Chunk Tool Result] Failed to store tool result',
                                     error,
                                 );
-                                Sentry.captureException(error);
+                                Sentry.captureException(error, {
+                                    tags: {
+                                        'ai.model': modelName,
+                                    },
+                                });
                             });
                         break;
                     case 'text-delta':
@@ -824,7 +857,11 @@ export const streamAgentResponse = async ({
                                 'On Step Finish',
                                 `Failed to store reasoning: ${error}`,
                             );
-                            Sentry.captureException(error);
+                            Sentry.captureException(error, {
+                                tags: {
+                                    'ai.model': modelName,
+                                },
+                            });
                         });
                 }
             },
@@ -911,6 +948,7 @@ export const streamAgentResponse = async ({
                 Sentry.captureException(error, {
                     tags: {
                         errorType: 'AiAgentStreamError',
+                        'ai.model': modelName,
                     },
                 });
 
@@ -944,6 +982,7 @@ export const streamAgentResponse = async ({
         Sentry.captureException(error, {
             tags: {
                 errorType: 'AiAgentStreamError',
+                'ai.model': modelName,
             },
         });
 

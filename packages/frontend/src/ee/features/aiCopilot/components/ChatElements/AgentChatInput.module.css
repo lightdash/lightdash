@@ -1,44 +1,37 @@
 .container {
     position: relative;
-    padding-bottom: var(--mantine-spacing-lg);
 }
 
-/* Bordered shell that hosts the model selector + thinking toggle as a single
- * segmented control. Inner controls stay borderless (variant="subtle"); the
- * shell owns the outer border and one hairline divider sits between them. */
 .modelGroup {
     display: inline-flex;
     align-items: stretch;
-    border: 1px solid var(--mantine-color-ldGray-2);
-    border-radius: var(--mantine-radius-md);
+    gap: 2px;
+    border: 1px solid transparent;
+    border-radius: var(--mantine-radius-xl);
     background: transparent;
 }
 
 .modelGroup > button {
-    border-radius: 0;
+    border-radius: var(--mantine-radius-xl);
     border: none;
 }
 
-/* Mantine size="xs" Buttons set min-width for label-bearing buttons; the
- * icon-only ActionIcon doesn't need it. Keep both square at the ends. */
 .modelGroup > button:first-child {
-    border-top-left-radius: calc(var(--mantine-radius-md) - 1px);
-    border-bottom-left-radius: calc(var(--mantine-radius-md) - 1px);
+    border-radius: var(--mantine-radius-xl);
 }
 
 .modelGroup > button:last-child {
-    border-top-right-radius: calc(var(--mantine-radius-md) - 1px);
-    border-bottom-right-radius: calc(var(--mantine-radius-md) - 1px);
+    border-radius: var(--mantine-radius-xl);
 }
 
 .modelGroupDivider {
-    width: 1px;
-    background: var(--mantine-color-ldGray-2);
-    align-self: stretch;
+    display: none;
 }
 
 .inputCard {
-    border-radius: var(--mantine-radius-lg);
+    position: relative;
+    z-index: 1;
+    border-radius: rem(24px);
     overflow: hidden;
     transition:
         box-shadow 150ms ease,
@@ -46,25 +39,33 @@
 
     @mixin light {
         background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-gray-3);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        border: 1px solid var(--mantine-color-ldGray-2);
+        box-shadow:
+            0 8px 24px rgba(15, 23, 42, 0.05),
+            0 1px 4px rgba(15, 23, 42, 0.04);
     }
 
     @mixin dark {
         background-color: var(--mantine-color-dark-6);
         border: 1px solid var(--mantine-color-dark-4);
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        box-shadow:
+            0 10px 32px rgba(0, 0, 0, 0.22),
+            0 1px 4px rgba(0, 0, 0, 0.18);
     }
 
     &:focus-within {
         @mixin light {
             border-color: var(--mantine-color-gray-4);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+            box-shadow:
+                0 10px 28px rgba(15, 23, 42, 0.06),
+                0 0 0 2px rgba(15, 23, 42, 0.04);
         }
 
         @mixin dark {
             border-color: var(--mantine-color-dark-3);
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            box-shadow:
+                0 12px 36px rgba(0, 0, 0, 0.26),
+                0 0 0 2px rgba(255, 255, 255, 0.04);
         }
     }
 }
@@ -91,35 +92,42 @@
 }
 
 .divider {
+    display: none;
     margin: 0;
     border: none;
-    border-top: 1px dashed;
-    border-color: var(--mantine-color-ldGray-3);
 }
 
 .toolbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--mantine-spacing-xs);
+    gap: var(--mantine-spacing-xs);
+    min-height: rem(50px);
+    padding: 0 rem(8px) rem(8px);
 }
 
 .toolbarActions {
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-xs);
+    min-width: 0;
 }
 
 .submitButton {
+    width: rem(40px);
+    height: rem(40px);
+    min-width: rem(40px);
+    min-height: rem(40px);
     border-radius: var(--mantine-radius-xl);
     transition:
         transform 150ms ease,
-        opacity 150ms ease;
+        opacity 150ms ease,
+        background-color 150ms ease;
 
-    background-color: var(--mantine-color-foreground-0);
+    background-color: var(--mantine-color-foreground-0) !important;
 
     &:hover:not(:disabled) {
-        background-color: var(--mantine-color-foreground-1);
+        background-color: var(--mantine-color-foreground-1) !important;
     }
 
     &:disabled {
@@ -170,6 +178,10 @@
     margin: 0;
 }
 
+.threadInputStack {
+    position: relative;
+}
+
 .chipReveal {
     display: grid;
     grid-template-rows: 1fr;
@@ -191,16 +203,39 @@
     pointer-events: none;
 }
 
-/* Full (empty-state) layout: the composer lives in a vertically centered
- * stack, so any chip row added in normal flow re-centers the block and nudges
- * the input. Take the row out of flow instead — absolute with no `top` keeps
- * it at its static position (directly below the input) while carrying zero
- * layout height, so the input holds still no matter how many lines the chips
- * wrap to. `.container` is the positioning context. */
-.chipFloat {
-    position: absolute;
-    left: 0;
-    right: 0;
+.chipTray {
+    position: relative;
+    z-index: 0;
+    margin: rem(-14px) auto 0;
+    padding: rem(24px) rem(16px) rem(12px);
+    border-radius: 0 0 rem(24px) rem(24px);
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+    }
+}
+
+.chipReserved {
+    visibility: hidden;
+}
+
+.chipTrayReserve {
+    min-height: rem(50px);
+}
+
+.threadChipFlow {
+    margin-bottom: rem(8px);
+}
+
+.threadBelowControls {
+    display: flex;
+    justify-content: flex-end;
+    min-height: rem(30px);
+    padding: rem(4px) rem(8px) 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -216,11 +251,8 @@
  * ------------------------------------------------------------------ */
 .sqlModeActive {
     border-color: var(--mantine-color-indigo-4) !important;
-    box-shadow:
-        0 0 0 1px var(--mantine-color-indigo-3),
-        0 0 24px -8px var(--mantine-color-indigo-5),
-        0 0 0 4px
-            color-mix(in srgb, var(--mantine-color-indigo-5) 10%, transparent);
+    box-shadow: 0 0 0 2px
+        color-mix(in srgb, var(--mantine-color-indigo-5) 12%, transparent);
 }
 
 /* Long, gentle ease applies both when toggling on *and* off. */
@@ -241,18 +273,20 @@
 
 .minimalInputWrapper {
     position: relative;
+    z-index: 1;
     display: flex;
     align-items: center;
     width: 100%;
-    border-radius: var(--mantine-radius-lg);
+    border-radius: rem(18px);
     padding: 4px var(--mantine-spacing-xs);
+    gap: 4px;
     transition:
         background-color 150ms ease,
         border-color 150ms ease;
 
     @mixin light {
         background-color: var(--mantine-color-white);
-        border: 1px solid var(--mantine-color-ldGray-3);
+        border: 1px solid var(--mantine-color-ldGray-2);
     }
 
     @mixin dark {
@@ -295,6 +329,28 @@
     flex: 1;
     --input-bd: transparent;
     --input-bg: transparent;
+}
+
+.minimalPlaceholder {
+    position: absolute;
+    left: rem(30px);
+    right: rem(60px);
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.5;
+
+    @mixin light {
+        color: var(--mantine-color-ldGray-6);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-7);
+    }
 }
 
 .minimalSubmitButton {
@@ -352,17 +408,16 @@
 }
 
 .editorContent {
-    padding: var(--mantine-spacing-md) var(--mantine-spacing-lg);
-    padding-bottom: var(--mantine-spacing-sm);
+    padding: rem(22px) rem(24px) rem(10px);
     font-size: var(--mantine-font-size-md);
     line-height: 1.5;
-    min-height: 60px;
+    min-height: rem(118px);
     max-height: 240px;
     overflow-y: auto;
 
     :global(.ProseMirror) {
         outline: none;
-        min-height: 36px;
+        min-height: rem(82px);
     }
 
     :global(p.is-empty.is-editor-empty::before) {
@@ -382,8 +437,7 @@
 }
 
 .minimalEditorContent {
-    padding: 0;
-    padding-right: var(--mantine-spacing-xs);
+    padding: 0 var(--mantine-spacing-xs) 0 rem(6px);
     font-size: var(--mantine-font-size-sm);
     line-height: 1.5;
     min-height: 24px;
@@ -402,19 +456,64 @@
         background: transparent;
     }
 
-    :global(p.is-empty.is-editor-empty::before) {
-        content: attr(data-placeholder);
-        float: left;
-        pointer-events: none;
-        height: 0;
+    :global(p.is-empty.is-editor-empty::before),
+    :global(p.is-empty.is-editor-empty:first-child::before),
+    :global(.ProseMirror p.is-editor-empty:first-child::before) {
+        content: none;
+    }
+}
 
-        @mixin light {
-            color: var(--mantine-color-ldGray-6);
-        }
+.sqlModeButton {
+    flex-shrink: 0;
+    border-radius: var(--mantine-radius-xl);
+}
 
-        @mixin dark {
-            color: var(--mantine-color-ldGray-7);
+.sqlModeControl {
+    flex-shrink: 0;
+}
+
+.sqlModeLabel {
+    line-height: 1;
+    white-space: nowrap;
+
+    @mixin light {
+        color: var(--mantine-color-indigo-6);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-indigo-3);
+    }
+}
+
+@media (max-width: 48em) {
+    .inputCard {
+        border-radius: rem(22px);
+    }
+
+    .editorContent {
+        padding: rem(20px) rem(18px) rem(12px);
+        font-size: var(--mantine-font-size-md);
+        min-height: rem(112px);
+
+        :global(.ProseMirror) {
+            min-height: rem(70px);
         }
+    }
+
+    .toolbar {
+        min-height: rem(52px);
+        padding: 0 rem(8px) rem(8px);
+    }
+
+    .toolbarActions {
+        min-width: auto;
+    }
+
+    .submitButton {
+        width: rem(40px);
+        height: rem(40px);
+        min-width: rem(40px);
+        min-height: rem(40px);
     }
 }
 
@@ -436,4 +535,108 @@
         background-color: var(--mantine-color-indigo-9);
         border: 1px solid var(--mantine-color-indigo-7);
     }
+}
+
+.contentMention {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    max-width: min(100%, 340px);
+    padding: 2px 7px 2px 4px;
+    border-radius: var(--mantine-radius-md);
+    font-weight: 500;
+    font-size: 0.95em;
+    line-height: 1.35;
+    vertical-align: baseline;
+    white-space: nowrap;
+    box-decoration-break: clone;
+
+    @mixin light {
+        color: var(--mantine-color-ldDark-7);
+        background-color: var(--mantine-color-white);
+        border: 1px solid var(--mantine-color-ldGray-3);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-ldGray-8);
+        background-color: var(--mantine-color-ldDark-2);
+        border: 1px solid var(--mantine-color-ldDark-5);
+    }
+}
+
+.contentMentionIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+    border-radius: var(--mantine-radius-sm);
+
+    @mixin light {
+        color: var(--mantine-color-blue-7);
+        background-color: var(--mantine-color-ldGray-1);
+        box-shadow: inset 0 0 0 1px var(--mantine-color-ldGray-3);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-blue-3);
+        background-color: var(--mantine-color-ldDark-3);
+        box-shadow: inset 0 0 0 1px var(--mantine-color-ldDark-5);
+    }
+}
+
+.contentMention[data-content-type='dashboard'] .contentMentionIcon {
+    @mixin light {
+        color: var(--mantine-color-green-7);
+    }
+
+    @mixin dark {
+        color: var(--mantine-color-green-3);
+    }
+}
+
+.contentMentionIcon::before {
+    content: '';
+    display: block;
+    width: 12px;
+    height: 12px;
+    background:
+        linear-gradient(currentColor 0 0) 1px 8px / 2px 3px no-repeat,
+        linear-gradient(currentColor 0 0) 5px 5px / 2px 6px no-repeat,
+        linear-gradient(currentColor 0 0) 9px 2px / 2px 9px no-repeat,
+        linear-gradient(currentColor 0 0) 0 11px / 12px 1px no-repeat;
+    border-radius: 1px;
+}
+
+.contentMentionIcon[data-icon-type='dashboard']::before {
+    background:
+        linear-gradient(currentColor 0 0) 1px 1px / 4px 4px no-repeat,
+        linear-gradient(currentColor 0 0) 7px 1px / 4px 3px no-repeat,
+        linear-gradient(currentColor 0 0) 1px 7px / 4px 4px no-repeat,
+        linear-gradient(currentColor 0 0) 7px 6px / 4px 5px no-repeat;
+}
+
+.contentMentionIcon[data-rendered-icon='true']::before {
+    content: none;
+}
+
+.contentMentionLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.contentMentionSuggestionItem {
+    padding: 6px var(--mantine-spacing-xs);
+}
+
+.contentMentionSuggestionText {
+    min-width: 0;
+    flex: 1;
+}
+
+.contentMentionSuggestionLabel {
+    min-width: 0;
+    max-width: 100%;
 }

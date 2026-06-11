@@ -168,6 +168,7 @@ import { ValidationService } from '../services/ValidationService/ValidationServi
 import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
 import { sanitizeGenericFileName } from '../utils/FileDownloadUtils/FileDownloadUtils';
 import { SchedulerClient } from './SchedulerClient';
+import { SchedulerDeliveryError } from './SchedulerDeliveryError';
 
 export type SchedulerTaskArguments = {
     lightdashConfig: LightdashConfig;
@@ -469,6 +470,7 @@ export default class SchedulerTask {
     protected async getNotificationPageData(
         scheduler: CreateSchedulerAndTargets,
         jobId: string,
+        isFinalAttempt: boolean,
         expirationSecondsOverride?: number,
     ): Promise<NotificationPayloadBase['page']> {
         const {
@@ -589,7 +591,7 @@ export default class SchedulerTask {
                             );
                     }
                 } catch (error) {
-                    if (this.slackClient.isEnabled) {
+                    if (this.slackClient.isEnabled && isFinalAttempt) {
                         await this.slackClient.postMessageToNotificationChannel(
                             {
                                 organizationUuid,
@@ -631,7 +633,7 @@ export default class SchedulerTask {
                     }
                     pdfFile = unfurlPdf.pdfFile;
                 } catch (error) {
-                    if (this.slackClient.isEnabled) {
+                    if (this.slackClient.isEnabled && isFinalAttempt) {
                         await this.slackClient.postMessageToNotificationChannel(
                             {
                                 organizationUuid,
@@ -1177,6 +1179,7 @@ export default class SchedulerTask {
                 (await this.getNotificationPageData(
                     scheduler,
                     jobId,
+                    true, // maxAttempts 1 — always the final attempt
                     slackExpiration,
                 ));
 
@@ -1555,6 +1558,7 @@ export default class SchedulerTask {
                 (await this.getNotificationPageData(
                     scheduler,
                     jobId,
+                    true, // maxAttempts 1 — always the final attempt
                     msTeamsExpiration,
                 ));
 
@@ -1896,7 +1900,10 @@ export default class SchedulerTask {
                 },
                 status: SchedulerJobStatus.COMPLETED,
             });
-            if (process.env.IS_PULL_REQUEST !== 'true' && !payload.isPreview) {
+            if (
+                process.env.IS_PULL_REQUEST !== 'true' &&
+                (!payload.isPreview || payload.validateAfterCompile === true)
+            ) {
                 void this.schedulerClient.generateValidation({
                     projectUuid: payload.projectUuid,
                     context: 'dbt_refresh',
@@ -2532,6 +2539,7 @@ export default class SchedulerTask {
                 (await this.getNotificationPageData(
                     scheduler,
                     jobId,
+                    true, // maxAttempts 1 — always the final attempt
                     emailExpiration,
                 ));
 
@@ -2935,7 +2943,7 @@ export default class SchedulerTask {
         let account: AccountType | undefined;
         let scheduler: SchedulerAndTargets | undefined;
 
-        let deliveryUrl = this.lightdashConfig.siteUrl;
+        let deliveryUrl = `${this.lightdashConfig.siteUrl}/generalSettings/projectManagement/${notification.projectUuid}/scheduledDeliveries?tab=scheduled-deliveries&schedulerUuid=${schedulerUuid}`;
         try {
             if (!this.googleDriveClient.isEnabled) {
                 throw new MissingConfigError(
@@ -3410,60 +3418,74 @@ export default class SchedulerTask {
                 e instanceof UnexpectedGoogleSheetsError ||
                 e instanceof WarehouseConnectionError;
 
-            if (
-                this.slackClient.isEnabled &&
-                account?.organization?.organizationUuid &&
-                scheduler
-            ) {
-                await this.slackClient.postMessageToNotificationChannel({
-                    organizationUuid: account.organization.organizationUuid,
-                    text: `Error uploading Google Sheets: ${scheduler.name}`,
-                    blocks: getNotificationChannelErrorBlocks(
-                        scheduler.name,
-                        e,
-                        deliveryUrl,
-                        'Google Sync',
-                        shouldDisableSync,
-                    ),
-                });
-            }
-
-            // Send failure email to scheduler creator for all errors
-            try {
-                if (account?.user.email) {
-                    await this.emailClient.sendGoogleSheetsErrorNotificationEmail(
-                        account.user.email,
-                        scheduler?.name || 'Unknown',
-                        deliveryUrl,
-                        getErrorMessage(e),
-                        shouldDisableSync,
-                        jobId,
-                    );
-                }
-            } catch (emailError) {
-                // Don't throw - continue with existing error handling
-                Logger.error(
-                    `Failed to send Google Sheets failure email: ${emailError}`,
-                );
-            }
-
-            // Disable scheduler if it should be disabled
-            if (shouldDisableSync) {
-                console.warn(
-                    `Disabling Google sheets scheduler with non-retryable error: ${e}`,
-                );
-
-                await this.schedulerService.setSchedulerEnabled(
-                    sessionUser!, // This error from gdriveClient happens after user initialized
-                    schedulerUuid,
-                    false,
-                );
-
-                return; // Do not cascade error
-            }
-
-            throw e; // Cascade error to it can be retried by graphile
+            // Notify/disable is the worker's job (it knows the attempt count);
+            // here we just report the failure with the context it needs.
+            throw new SchedulerDeliveryError({
+                cause: e,
+                isNonRetryable: shouldDisableSync,
+                createdByUserUuid:
+                    scheduler?.createdBy ?? notification.userUuid,
+                notification: {
+                    organizationUuid: account?.organization?.organizationUuid,
+                    recipientEmail: account?.user.email,
+                    schedulerName: scheduler?.name ?? 'Unknown',
+                    deliveryUrl,
+                },
+            });
         }
+    }
+
+    protected async notifyGsheetsDeliveryFailure(
+        err: SchedulerDeliveryError,
+        jobId: string,
+    ): Promise<void> {
+        const { isNonRetryable, notification } = err;
+        const { organizationUuid, recipientEmail, schedulerName, deliveryUrl } =
+            notification;
+
+        if (this.slackClient.isEnabled && organizationUuid) {
+            await this.slackClient.postMessageToNotificationChannel({
+                organizationUuid,
+                text: `Error uploading Google Sheets: ${schedulerName}`,
+                blocks: getNotificationChannelErrorBlocks(
+                    schedulerName,
+                    err.cause,
+                    deliveryUrl,
+                    'Google Sync',
+                    isNonRetryable,
+                ),
+            });
+        }
+
+        try {
+            if (recipientEmail) {
+                await this.emailClient.sendGoogleSheetsErrorNotificationEmail(
+                    recipientEmail,
+                    schedulerName,
+                    deliveryUrl,
+                    getErrorMessage(err.cause),
+                    isNonRetryable,
+                    jobId,
+                );
+            }
+        } catch (emailError) {
+            Logger.error(
+                `Failed to send Google Sheets failure email: ${emailError}`,
+            );
+        }
+    }
+
+    protected async disableGsheetsScheduler(
+        schedulerUuid: string,
+        createdByUserUuid: string,
+    ): Promise<void> {
+        const sessionUser =
+            await this.userService.getSessionByUserUuid(createdByUserUuid);
+        await this.schedulerService.setSchedulerEnabled(
+            sessionUser,
+            schedulerUuid,
+            false,
+        );
     }
 
     protected async logScheduledTarget(
@@ -3548,6 +3570,7 @@ export default class SchedulerTask {
         jobId: string,
         scheduledTime: Date,
         schedulerPayload: ScheduledDeliveryPayload,
+        isFinalAttempt: boolean,
     ) {
         const schedulerUuid = getSchedulerUuid(schedulerPayload);
 
@@ -3867,6 +3890,7 @@ export default class SchedulerTask {
                         const channelPage = await this.getNotificationPageData(
                             scheduler,
                             jobId,
+                            isFinalAttempt,
                             expiration,
                         );
                         for (const channel of channels) {
@@ -5550,6 +5574,7 @@ export default class SchedulerTask {
                 (await this.getNotificationPageData(
                     scheduler,
                     jobId,
+                    true, // maxAttempts 1 — always the final attempt
                     googleChatExpiration,
                 ));
 

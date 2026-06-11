@@ -90,6 +90,32 @@ export class SpaceModel {
         return spaces.map((s: { space_uuid: string }) => s.space_uuid);
     }
 
+    async hasSpaceWithPathAndUuids({
+        projectUuid,
+        path,
+        spaceUuids,
+    }: {
+        projectUuid: string;
+        path: string;
+        spaceUuids: string[];
+    }): Promise<boolean> {
+        if (spaceUuids.length === 0) return false;
+
+        const space = await this.database(SpaceTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${SpaceTableName}.path`, path)
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .first(`${SpaceTableName}.space_uuid`);
+
+        return space !== undefined;
+    }
+
     async getChildSpaceUuidsForParents(
         parentSpaceUuids: string[],
     ): Promise<string[]> {
@@ -840,7 +866,7 @@ export class SpaceModel {
 
     async getSpaceSummary(
         spaceUuid: string,
-        options?: { deleted?: boolean },
+        options?: { deleted?: boolean; projectUuid?: string },
     ): Promise<SpaceSummaryBase> {
         return wrapSentryTransaction(
             'SpaceModel.getSpaceSummary',
@@ -849,6 +875,7 @@ export class SpaceModel {
                 const [space] = await this.find({
                     spaceUuid,
                     deleted: options?.deleted,
+                    projectUuid: options?.projectUuid,
                 });
                 if (space === undefined)
                     throw new NotFoundError(

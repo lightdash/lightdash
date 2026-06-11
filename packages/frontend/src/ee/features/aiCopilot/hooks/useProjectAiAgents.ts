@@ -11,6 +11,7 @@ import type {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
     ApiAiAgentThreadResponse,
+    ApiAiAgentThreadShareResponse,
     ApiAiAgentVerifiedQuestionsResponse,
     ApiAppendInstructionRequest,
     ApiAppendInstructionResponse,
@@ -19,6 +20,7 @@ import type {
     AiPromptContextItemInput,
     ApiCreateAiAgent,
     ApiCreateAiAgentResponse,
+    ApiCloneAiAgentThreadShareResponse,
     ApiError,
     ApiAiMcpServerListResponse,
     ApiRevertChangeRequest,
@@ -335,6 +337,83 @@ const getAgentThread = async (
         method: 'GET',
         body: undefined,
     });
+
+const createAgentThreadShare = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) =>
+    lightdashApi<ApiAiAgentThreadShareResponse['results']>({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/shares`,
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+
+export const useCreateAgentThreadShareMutation = () => {
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentThreadShareResponse['results'],
+        ApiError,
+        { projectUuid: string; agentUuid: string; threadUuid: string }
+    >({
+        mutationFn: ({ projectUuid, agentUuid, threadUuid }) =>
+            createAgentThreadShare(projectUuid, agentUuid, threadUuid),
+        onError: ({ error }) => {
+            showToastApiError({
+                title: 'Failed to create AI agent thread share',
+                apiError: error,
+            });
+        },
+    });
+};
+
+const cloneAgentThreadShare = async (
+    projectUuid: string,
+    aiThreadShareUuid: string,
+) =>
+    lightdashApi<ApiCloneAiAgentThreadShareResponse['results']>({
+        url: `/projects/${projectUuid}/aiAgents/thread-shares/${aiThreadShareUuid}/clone`,
+        method: 'POST',
+        body: JSON.stringify({}),
+    });
+
+export const useCloneAgentThreadShareMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const navigate = useNavigate();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiCloneAiAgentThreadShareResponse['results'],
+        ApiError,
+        string
+    >({
+        mutationFn: (aiThreadShareUuid) =>
+            cloneAgentThreadShare(projectUuid, aiThreadShareUuid),
+        onSuccess: async (thread) => {
+            await queryClient.invalidateQueries({
+                queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
+            });
+            void navigate(
+                `/projects/${projectUuid}/ai-agents/${thread.agentUuid}/threads/${thread.uuid}`,
+                { replace: true },
+            );
+        },
+        onError: ({ error }) => {
+            if (error.statusCode === 403) {
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    { replace: true },
+                );
+                return;
+            }
+            showToastApiError({
+                title: 'Failed to open shared AI thread',
+                apiError: error,
+            });
+        },
+    });
+};
 
 const PROJECT_THREADS_KEY = 'project-threads';
 

@@ -174,11 +174,11 @@ const useColumnSizeVars = <TData extends RowData>(
 const defaultEstimateSize = () => 44;
 const TALL_SKELETON_ROW_HEIGHT = 64;
 const DISPLAY_COLUMN_IDS = new Set([
-    'mrt-row-actions',
-    'mrt-row-numbers',
-    'mrt-row-select',
+    'content-table-row-actions',
+    'content-table-row-numbers',
+    'content-table-row-select',
 ]);
-const ROW_SELECT_COLUMN_ID = 'mrt-row-select';
+const ROW_SELECT_COLUMN_ID = 'content-table-row-select';
 
 const getRowSelectCellStyle = (columnId: string): CSSProperties | undefined =>
     columnId === ROW_SELECT_COLUMN_ID
@@ -199,9 +199,9 @@ const getSkeletonRowHeight = <TData extends RowData>(
     defaultEstimateSize();
 
 const getSkeletonWidth = (columnId: string, columnIndex: number) => {
-    if (columnId === 'mrt-row-select') return 20;
-    if (columnId === 'mrt-row-actions') return 28;
-    if (columnId === 'mrt-row-numbers') return 24;
+    if (columnId === 'content-table-row-select') return 20;
+    if (columnId === 'content-table-row-actions') return 28;
+    if (columnId === 'content-table-row-numbers') return 24;
 
     const widths = ['72%', '48%', '58%', '42%', '52%'];
     return widths[columnIndex % widths.length];

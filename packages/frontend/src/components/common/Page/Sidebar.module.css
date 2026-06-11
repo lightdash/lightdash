@@ -36,18 +36,29 @@
         var(--sidebar-ease-conceal);
 }
 
+/* Pinned: flush against content — a single clean hairline, no shadow. */
 .floatingPanel[data-collapsed='false'] {
     transform: translateX(0);
     border-radius: 0;
+    border-right: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    box-shadow: none;
     transition: transform var(--sidebar-reveal-duration)
         var(--sidebar-ease-reveal);
 }
 
 /* Off-screen at rest; the extra 24px clears the shadow and floating margin. */
+/* Floating: lifts off the page — soft border + a gentle, diffuse shadow. */
 .floatingPanel[data-collapsed='true'] {
     transform: translateX(calc(-100% - 24px));
     margin: 8px;
     border-radius: var(--mantine-radius-md);
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    box-shadow: light-dark(
+        0 8px 24px -6px rgba(15, 18, 22, 0.12),
+        0 8px 24px -6px rgba(0, 0, 0, 0.5)
+    );
     will-change: transform;
 }
 
@@ -61,14 +72,14 @@
 }
 
 /* Invisible full-height hover zone along the page's left edge — approaching it
-   reveals the sidebar. Its width matches the collapsed panel's 8px inset so the
-   zone meets the panel with no dead gap that would drop the hover mid-transit. */
+   reveals the sidebar. Kept generous so the panel reveals as the cursor nears
+   the edge, well before reaching the collapsed panel itself. */
 .edgeTrigger {
     position: absolute;
     top: 0;
     bottom: 0;
     left: 0;
-    width: 8px;
+    width: 30px;
     z-index: 1;
 }
 
@@ -84,7 +95,7 @@
 .trigger {
     position: absolute;
     top: 10px;
-    left: 10px;
+    left: 20px;
     z-index: 1;
 }
 

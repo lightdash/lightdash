@@ -524,12 +524,14 @@ export const getConditionalFormattingConfig = ({
     minMaxMap = {},
     conditionalFormattings,
     rowFields,
+    applyTo,
 }: {
     field: ItemsMap[string] | undefined;
     value: unknown | undefined;
     minMaxMap: ConditionalFormattingMinMaxMap | undefined;
     conditionalFormattings: ConditionalFormattingConfig[] | undefined;
     rowFields?: ConditionalFormattingRowFields;
+    applyTo?: ConditionalFormattingColorApplyTo;
 }) => {
     // For backwards compatibility with old table calculations without type
     const isCalculationTypeUndefined =
@@ -543,9 +545,23 @@ export const getConditionalFormattingConfig = ({
     )
         return undefined;
 
-    return findLast(conditionalFormattings, (config) =>
-        hasMatchingConditionalRules(field, value, minMaxMap, config, rowFields),
-    );
+    return findLast(conditionalFormattings, (config) => {
+        if (
+            applyTo !== undefined &&
+            (config.applyTo ?? ConditionalFormattingColorApplyTo.CELL) !==
+                applyTo
+        ) {
+            return false;
+        }
+
+        return hasMatchingConditionalRules(
+            field,
+            value,
+            minMaxMap,
+            config,
+            rowFields,
+        );
+    });
 };
 
 export const getConditionalFormattingDescription = (
@@ -733,4 +749,63 @@ export const getConditionalFormattingColor = ({
         minMaxMap,
         getColorFromRange,
     });
+};
+
+/**
+ * Row-level conditional formatting (PROD-8058): returns the background color to
+ * paint across an entire row when a single `applyTo: ROW` rule's trigger field
+ * matches. Evaluated once per row, independent of the cell being drawn.
+ * Returns null when no ROW rule matches.
+ */
+export const getRowConditionalFormattingColor = ({
+    conditionalFormattings,
+    rowFields,
+    minMaxMap = {},
+}: {
+    conditionalFormattings: ConditionalFormattingConfig[] | undefined;
+    rowFields: ConditionalFormattingRowFields;
+    minMaxMap: ConditionalFormattingMinMaxMap | undefined;
+}): string | null => {
+    if (!conditionalFormattings) return null;
+
+    const match = conditionalFormattings.find((config) => {
+        if (config.applyTo !== ConditionalFormattingColorApplyTo.ROW) {
+            return false;
+        }
+        const targetFieldId = config.target?.fieldId;
+        if (!targetFieldId) return false;
+        const trigger = rowFields[targetFieldId];
+        if (!trigger) return false;
+        return hasMatchingConditionalRules(
+            trigger.field,
+            trigger.value,
+            minMaxMap,
+            config,
+            rowFields,
+        );
+    });
+
+    if (!match) return null;
+    return isConditionalFormattingConfigWithSingleColor(match)
+        ? match.color
+        : null;
+};
+
+/**
+ * Canonical key for a pivot cell's dimension context (index + header dims).
+ * Used by both pivotQueryResults (to store hidden values) and the pivot
+ * renderer (to look them up), so the keys cannot drift. Entries are sorted by
+ * fieldId; null and undefined raw values are normalised to the same token.
+ */
+export const getPivotRowContextKey = (
+    dimValues: Record<string, unknown>,
+): string => {
+    const entries = Object.keys(dimValues)
+        .sort()
+        .map((fieldId) => {
+            const raw = dimValues[fieldId];
+            const token = raw === null || raw === undefined ? ' ' : String(raw);
+            return [fieldId, token];
+        });
+    return JSON.stringify(entries);
 };

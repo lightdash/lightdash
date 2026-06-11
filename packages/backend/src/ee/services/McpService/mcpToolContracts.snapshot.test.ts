@@ -36,6 +36,9 @@ jest.mock('@sentry/node', () => ({
 
 jest.mock('@modelcontextprotocol/sdk/server/mcp.js', () => ({
     McpServer: jest.fn().mockImplementation(() => ({
+        server: {
+            registerCapabilities: jest.fn(),
+        },
         registerResource: jest.fn(),
         registerPrompt: jest.fn(
             (
@@ -78,11 +81,13 @@ const schemaToJson = (
 const makeMcpService = (): McpService =>
     new McpService({
         aiAgentService: {},
+        aiAgentToolsService: { createRuntime: jest.fn() },
         aiOrganizationSettingsService: {},
         aiWritebackService: {},
         analytics: {},
         asyncQueryService: {},
         catalogService: {},
+        contentService: {},
         contentVerificationService: {},
         featureFlagService: {},
         lightdashConfig: {
@@ -98,7 +103,7 @@ const makeMcpService = (): McpService =>
         shareService: {},
         spaceService: {},
         userAttributesModel: {},
-    } as ConstructorParameters<typeof McpService>[0]);
+    } as unknown as ConstructorParameters<typeof McpService>[0]);
 
 const sharedMcpToolDefinitionNames = mcpToolDefinitions.map(
     (toolDefinition) => toolDefinition.for('mcp').name,
@@ -114,12 +119,12 @@ describe('MCP tool contracts', () => {
         expect(sharedMcpToolDefinitionNames).toMatchSnapshot();
     });
 
-    it('matches the current MCP tool and prompt contract snapshot', () => {
+    it('matches the current MCP tool and prompt contract snapshot', async () => {
         const mcpService = makeMcpService();
 
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
-        mcpService.createServer({ aiWritebackEnabled: true });
+        await mcpService.createServer({ aiWritebackEnabled: true });
 
         expect({
             prompts: mockRegisteredMcpPrompts.map(({ name, config }) => ({

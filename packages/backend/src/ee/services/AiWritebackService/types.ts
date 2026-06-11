@@ -32,6 +32,8 @@ export type GithubConnection = {
     owner: string;
     repo: string;
     projectSubPath: string;
+    /** The project's configured branch, or '' to fall back to the repo default. */
+    branch: string;
 };
 
 export type GitlabConnection = {
@@ -60,9 +62,17 @@ export type AdoptedPullRequest = {
 export type GithubInstallation = {
     provider: PullRequestProvider.GITHUB;
     installationId: string;
-    /** Installation access token — authenticates the in-sandbox clone/push. */
+    /** Installation access token — authenticates the in-sandbox clone. */
     token: string;
-    /** Author stamped on the (local) writeback commit — the Lightdash app identity. */
+    /**
+     * The triggering user's user-to-server token, when they have linked their
+     * GitHub account (feature-flagged) and it can reach this repo. When set,
+     * the API commits and the pull request are authored — and signed — as that
+     * user, and no co-author trailer is added. Null → act as the app bot and
+     * credit the triggering user as a commit co-author instead.
+     */
+    userToken: string | null;
+    /** Author stamped on the (local, never-pushed) writeback commit — the Lightdash app identity. */
     commitAuthor: GitCommitAuthor;
     /**
      * `Co-authored-by:` trailer appended to the commit message to credit the
@@ -121,10 +131,7 @@ export type AiWritebackSource =
     | 'mcp'
     | 'api'
     | 'admin_review'
-    | 'preview_deploy_setup';
-
-/** Coarse phase of the agent's work, inferred from the tools it calls. */
-export type AgentPhase = 'discovering' | 'editing' | 'compiling';
+    | 'changeset';
 
 export type AgentToolCall = {
     name: string;
@@ -138,7 +145,16 @@ export type AgentToolCall = {
  */
 export type AgentStreamEvent =
     | { type: 'assistant'; text: string | null; toolCalls: AgentToolCall[] }
-    | { type: 'result'; costUsd: number | null }
+    | {
+          type: 'result';
+          costUsd: number | null;
+          /** Total agent wall-clock (ms) as reported by Claude Code. */
+          durationMs: number | null;
+          /** Time (ms) spent in LLM API calls — the rest is local tool execution. */
+          durationApiMs: number | null;
+          /** Number of agent turns. */
+          numTurns: number | null;
+      }
     | { type: 'ignored' };
 
 /** Title/description parsed out of the agent's final stdout. */

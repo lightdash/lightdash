@@ -23,7 +23,7 @@ export type {
     FunctionDefinitionFor,
 } from './functions';
 export { parse } from './compiler';
-export { extractColumnRefs } from './ast';
+export { extractColumnRefs, containsAggregateOrWindow } from './ast';
 export { FUNCTION_CATALOG, FUNCTION_DEFINITIONS } from './functions';
 
 // Dialects the formula package can compile to. Consumers (backend mapper,

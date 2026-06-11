@@ -3,6 +3,7 @@ import {
     FilterOperator,
     getFilterRuleFromFieldWithDefaultValue,
     getItemId,
+    METRICS_EXPLORER_FILTER_OPERATORS,
     type CompiledDimension,
     type FilterRule,
 } from '@lightdash/common';
@@ -16,25 +17,13 @@ export interface FilterOperatorOption {
 export const getOperatorOptions = (
     dimension?: CompiledDimension,
 ): FilterOperatorOption[] => {
-    const baseOperators = [
-        {
-            value: FilterOperator.EQUALS,
-            label: 'is',
-        },
-        {
-            value: FilterOperator.NOT_EQUALS,
-            label: 'is not',
-        },
-    ];
-
-    if (dimension?.type === DimensionType.BOOLEAN) {
-        return baseOperators.map((op) => ({
-            ...op,
-            label: op.value === FilterOperator.EQUALS ? 'is true' : 'is false',
-        }));
-    }
-
-    return baseOperators;
+    const isBoolean = dimension?.type === DimensionType.BOOLEAN;
+    return METRICS_EXPLORER_FILTER_OPERATORS.map((value) => {
+        if (value === FilterOperator.EQUALS) {
+            return { value, label: isBoolean ? 'is true' : 'is' };
+        }
+        return { value, label: isBoolean ? 'is false' : 'is not' };
+    });
 };
 
 export const doesDimensionRequireValues = (dimension: CompiledDimension) =>

@@ -10,7 +10,7 @@ import MarkdownPreview, {
     type MarkdownPreviewProps,
 } from '@uiw/react-markdown-preview';
 import { useEffect, useRef, type FC } from 'react';
-import { type MRT_TableInstance } from '../../../components/common/ContentTable';
+import { type ContentTableInstance } from '../../../components/common/ContentTable';
 import { useLockScroll } from '../../../hooks/useLockScroll';
 
 type Props = {
@@ -18,7 +18,7 @@ type Props = {
     setIsOpen: (isOpen: boolean) => void;
     content: string;
     cellRef: React.RefObject<HTMLDivElement | null>;
-    table: MRT_TableInstance<CatalogField>;
+    table: ContentTableInstance<CatalogField>;
     markdownPreviewProps?: Omit<MarkdownPreviewProps, 'source'>;
 };
 

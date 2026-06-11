@@ -50,7 +50,11 @@ export type DiscoverFieldsAgentArgs = {
     parentToolCallId: string;
     telemetry: Pick<
         AiAgentArgs,
-        'agentSettings' | 'threadUuid' | 'promptUuid' | 'telemetryEnabled'
+        | 'agentSettings'
+        | 'threadUuid'
+        | 'promptUuid'
+        | 'telemetryEnabled'
+        | 'model'
     >;
 };
 

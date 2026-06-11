@@ -157,12 +157,14 @@ export const getDateZoomFromRequestParameters = (
  * Kinds of totals derivable from an executed pivot query. Follow-up PRs
  * will widen the union to enable the commented-out variants below.
  */
-export type CalculateTotalKind = 'columnTotal' | 'rowTotal';
-// | 'columnSubtotal'
+export type CalculateTotalKind = 'columnTotal' | 'rowTotal' | 'columnSubtotal';
 // | 'rowSubtotal'
 // | 'grandTotal';
 
 export type ExecuteAsyncCalculateTotalRequestParams = {
     kind: CalculateTotalKind;
+    // Required for `columnSubtotal`: the dimensions this subtotal level groups
+    // by (the pivot groupBy columns are added from the source query).
+    subtotalDimensions?: string[];
     invalidateCache?: boolean;
 };

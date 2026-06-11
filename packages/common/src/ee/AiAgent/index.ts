@@ -275,6 +275,20 @@ export type AiAgentThreadSummary<TUser extends AiAgentUser = AiAgentUser> = {
     user: TUser;
 };
 
+export type AiAgentThreadShare = {
+    uuid: string;
+    nanoid: string;
+    threadUuid: string;
+    agentUuid: string;
+    projectUuid: string;
+    organizationUuid: string;
+    snapshotPromptUuid: string;
+    createdByUserUuid: string;
+    createdAt: string;
+    revokedAt: string | null;
+    shareUrl: string;
+};
+
 export type AiAgentThread<TUser extends AiAgentUser = AiAgentUser> =
     AiAgentThreadSummary<TUser> & {
         messages: AiAgentMessage<TUser>[];
@@ -372,6 +386,11 @@ export type ApiStartAiMcpOAuthResponse = ApiSuccess<{
 // token (minted server-side), so no separate OAuth/PAT step is needed.
 export const GITHUB_MCP_SERVER_URL = 'https://api.githubcopilot.com/mcp/';
 export const GITHUB_MCP_SERVER_NAME = 'GitHub';
+
+export type ApiConnectGithubMcpServerBody = {
+    personalAccessToken: string;
+    credentialScope: AiMcpCredentialScope;
+};
 
 export type AiMcpGithubAvailability = {
     // The org has a GitHub App installation AND the caller has permission to
@@ -814,6 +833,11 @@ export type ApiCreateEvaluationResponse = ApiSuccess<
 export type ApiUpdateEvaluationResponse = ApiSuccess<AiAgentEvaluation>;
 
 export type ApiCloneThreadResponse = ApiSuccess<AiAgentThreadSummary>;
+
+export type ApiCreateAiAgentThreadShareRequest = Record<string, never>;
+export type ApiAiAgentThreadShareResponse = ApiSuccess<AiAgentThreadShare>;
+export type ApiCloneAiAgentThreadShareResponse =
+    ApiSuccess<AiAgentThreadSummary>;
 
 export type ApiAppendInstructionRequest = {
     instruction: string;
