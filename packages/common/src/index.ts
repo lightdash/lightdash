@@ -178,6 +178,7 @@ export {
     mergeWarehouseCredentials,
     normalizeWarehouseCredentials,
     ProjectType,
+    resolveDbtVersion,
     sensitiveCredentialsFieldNames,
     SnowflakeAuthenticationType,
     stripDucklakeNestedSensitive,

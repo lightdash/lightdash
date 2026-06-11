@@ -741,6 +741,14 @@ export const getLatestSupportDbtVersion = (): SupportedDbtVersions => {
     return versions[versions.length - 1];
 };
 
+/** Resolve a `DbtVersionOption` to a concrete version (`latest` → newest). */
+export const resolveDbtVersion = (
+    option: DbtVersionOption,
+): SupportedDbtVersions =>
+    option === DbtVersionOptionLatest.LATEST
+        ? getLatestSupportDbtVersion()
+        : option;
+
 export const DefaultSupportedDbtVersion = DbtVersionOptionLatest.LATEST;
 
 export interface DbtProjectCompilerBase extends DbtProjectConfigBase {

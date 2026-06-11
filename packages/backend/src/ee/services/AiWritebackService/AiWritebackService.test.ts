@@ -2,9 +2,12 @@ import { Ability, AbilityBuilder } from '@casl/ability';
 import {
     AnyType,
     DbtProjectType,
+    DbtVersionOptionLatest,
     FeatureFlags,
     ForbiddenError,
+    getLatestSupportDbtVersion,
     PullRequestProvider,
+    SupportedDbtVersions,
     WarehouseTypes,
     type MemberAbility,
     type SessionUser,
@@ -20,6 +23,7 @@ import {
 } from '../../../clients/github/Github';
 import { AiWritebackService } from './AiWritebackService';
 import {
+    COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
@@ -260,7 +264,9 @@ describe('AiWritebackService.prepareTurn', () => {
         } as AnyType;
     };
 
-    const githubProject = (): AnyType => ({
+    const githubProject = (
+        dbtVersion: AnyType = SupportedDbtVersions.V1_9,
+    ): AnyType => ({
         organizationUuid: ORG,
         name: 'Analytics',
         dbtConnection: {
@@ -271,6 +277,7 @@ describe('AiWritebackService.prepareTurn', () => {
             project_sub_path: '/',
         },
         warehouseConnection: { type: WarehouseTypes.POSTGRES },
+        dbtVersion,
     });
 
     const gitlabProject = (): AnyType => ({
@@ -345,6 +352,53 @@ describe('AiWritebackService.prepareTurn', () => {
             existingRow: null,
             isResume: false,
             warehouseType: WarehouseTypes.POSTGRES,
+            dbtVersion: SupportedDbtVersions.V1_9,
+        });
+    });
+
+    it('resolves the project `latest` dbt version to the newest supported version', async () => {
+        const service = buildService({
+            featureFlagModel: {
+                get: jest.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: jest
+                    .fn()
+                    .mockResolvedValue(
+                        githubProject(DbtVersionOptionLatest.LATEST),
+                    ),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+            } as AnyType,
+        });
+        await expect(
+            prepareTurn(service, userWithOrg(true)),
+        ).resolves.toMatchObject({
+            dbtVersion: getLatestSupportDbtVersion(),
+        });
+    });
+
+    it('clamps a project pinned below the supported range to the oldest installed version', async () => {
+        const service = buildService({
+            featureFlagModel: {
+                get: jest.fn().mockResolvedValue({ enabled: true }),
+            } as AnyType,
+            projectModel: {
+                get: jest
+                    .fn()
+                    .mockResolvedValue(
+                        githubProject(SupportedDbtVersions.V1_5),
+                    ),
+            } as AnyType,
+            aiWritebackThreadModel: {
+                findByAiThreadUuid: jest.fn().mockResolvedValue(null),
+            } as AnyType,
+        });
+        await expect(
+            prepareTurn(service, userWithOrg(true)),
+        ).resolves.toMatchObject({
+            dbtVersion: SupportedDbtVersions.V1_8,
         });
     });
 
@@ -466,6 +520,7 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                         project_sub_path: '/',
                     },
                     warehouseConnection: null,
+                    dbtVersion: SupportedDbtVersions.V1_9,
                 }),
             } as AnyType,
             githubAppInstallationsModel: {
@@ -531,6 +586,15 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         expect(createPullRequest).toHaveBeenCalledTimes(1);
         expect(sandbox.kill).toHaveBeenCalledTimes(1);
         expect(sandbox.pause).not.toHaveBeenCalled();
+
+        // The compile wrapper pins `dbt` to the project's version venv (V1_9)
+        // and still strips secrets from the compile child's environment.
+        const wrapperWrite = (sandbox.files.write as jest.Mock).mock.calls.find(
+            ([path]) => path === COMPILE_WRAPPER_PATH,
+        );
+        expect(wrapperWrite).toBeDefined();
+        expect(wrapperWrite[1]).toContain('PATH="/usr/local/dbt1.9/bin:$PATH"');
+        expect(wrapperWrite[1]).toContain('-u ANTHROPIC_API_KEY');
     });
 
     it('skips the PR when the agent exits non-zero', async () => {

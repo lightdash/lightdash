@@ -9,6 +9,7 @@ import {
     ParameterError,
     PullRequestProvider,
     PullRequestSource,
+    SupportedDbtVersions,
     WarehouseTypes,
     type AiWritebackRunResult,
     type AiWritebackStep,
@@ -78,6 +79,7 @@ import type {
 } from './types';
 import {
     classifyToolStep,
+    dbtSandboxVenvBin,
     extractPrMetadata,
     formatWritebackStep,
     interpretAgentEvent,
@@ -85,6 +87,7 @@ import {
     parsePullNumber,
     progressTextForStage,
     resolvePrMetadataValue,
+    resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
     summarizeToolInput,
@@ -607,6 +610,7 @@ export class AiWritebackService extends BaseService {
                 recordStep,
                 skillKey,
                 warehouseType: turn.warehouseType,
+                dbtVersion: turn.dbtVersion,
             });
 
             const {
@@ -801,6 +805,12 @@ export class AiWritebackService extends BaseService {
         // connection — the agent then gets `shared.md` only.
         const warehouseType = project.warehouseConnection?.type ?? null;
 
+        // Resolve to a concrete, sandbox-installed version here so downstream
+        // (the compile wrapper's PATH prefix) always maps to an installed venv:
+        // `latest` becomes the newest version and pins older than the supported
+        // range clamp up. Never re-resolved downstream.
+        const dbtVersion = resolveSandboxDbtVersion(project.dbtVersion);
+
         return {
             organizationUuid: user.organizationUuid,
             projectName: project.name,
@@ -809,6 +819,7 @@ export class AiWritebackService extends BaseService {
             existingRow,
             isResume: existingRow !== null,
             warehouseType,
+            dbtVersion,
         };
     }
 
@@ -1060,6 +1071,7 @@ export class AiWritebackService extends BaseService {
         recordStep,
         skillKey,
         warehouseType,
+        dbtVersion,
     }: {
         sandbox: Sandbox;
         systemPrompt: string;
@@ -1069,6 +1081,7 @@ export class AiWritebackService extends BaseService {
         recordStep: (step: AiWritebackStep) => void;
         skillKey: WarehouseSkillKey | null;
         warehouseType: WarehouseTypes | null;
+        dbtVersion: SupportedDbtVersions;
     }): Promise<{ stdout: string; exitCode: number }> {
         await sandbox.files.write(SYSTEM_PROMPT_PATH, systemPrompt);
         await sandbox.files.write(PROMPT_PATH, prompt);
@@ -1082,6 +1095,12 @@ export class AiWritebackService extends BaseService {
         const unsetFlags = COMPILE_STRIPPED_ENV_VARS.map(
             (name) => `-u ${name}`,
         ).join(' ');
+        // Prepend the project's dbt-version venv bin to PATH so the bare `dbt`
+        // the Lightdash CLI invokes resolves to the version the project is
+        // configured to use (the image installs every supported version in its
+        // own venv). `lightdash` still resolves via the inherited PATH. This is
+        // the only place `dbt` runs — the agent is allowlisted to this wrapper.
+        const dbtBin = dbtSandboxVenvBin(dbtVersion);
         // Time each compile and append `<elapsedMs> <exitCode>` to a log we read
         // after the run. We drop `exec` (one extra shell frame) so the timing
         // can be recorded after the child returns; secrets are still stripped via
@@ -1090,7 +1109,7 @@ export class AiWritebackService extends BaseService {
             COMPILE_WRAPPER_PATH,
             `#!/usr/bin/env bash\n` +
                 `__ld_start=$(date +%s%3N)\n` +
-                `env ${unsetFlags} lightdash compile "$@"\n` +
+                `env ${unsetFlags} PATH="${dbtBin}:$PATH" lightdash compile "$@"\n` +
                 `__ld_code=$?\n` +
                 `echo "$(( $(date +%s%3N) - __ld_start )) $__ld_code" >> ${COMPILE_TIMINGS_PATH}\n` +
                 `exit $__ld_code\n`,
