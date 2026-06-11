@@ -26,7 +26,7 @@ export interface EmbedContext {
     // The content claim decoded from the JWT
     content?: CreateEmbedJwt['content'];
     // Write-action configuration decoded from the JWT
-    modifiableActions?: CreateEmbedJwt['modifiableActions'];
+    writeActions?: CreateEmbedJwt['writeActions'];
     // An optional org palette override for SDK dashboards
     paletteUuid?: string;
     // Powers localization of the dashboard

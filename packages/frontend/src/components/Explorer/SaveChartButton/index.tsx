@@ -250,9 +250,7 @@ const SaveChartButton: FC<{
                     redirectOnSuccess={!isEmbedded}
                     showViewChartAction={!isEmbedded}
                     forcedSpaceUuid={
-                        isEmbedded
-                            ? embed.modifiableActions?.spaceUuid
-                            : undefined
+                        isEmbedded ? embed.writeActions?.spaceUuid : undefined
                     }
                 />
             )}

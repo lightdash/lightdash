@@ -105,13 +105,13 @@ export type ChartInteractivityOptions = z.infer<
     typeof ChartInteractivityOptionsSchema
 >;
 
-export type EmbedModifiableActions = {
+export type EmbedWriteActions = {
     serviceAccountUserUuid?: string;
     userUuid?: string;
     spaceUuid: string;
 };
 
-export const EmbedModifiableActionsSchema: z.ZodType<EmbedModifiableActions> = z
+export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
     .object({
         serviceAccountUserUuid: z.string().uuid().optional(),
         userUuid: z.string().uuid().optional(),
@@ -122,7 +122,7 @@ export const EmbedModifiableActionsSchema: z.ZodType<EmbedModifiableActions> = z
             serviceAccountUserUuid !== undefined || userUuid !== undefined,
         {
             message:
-                'Either serviceAccountUserUuid or userUuid is required for modifiable actions',
+                'Either serviceAccountUserUuid or userUuid is required for write actions',
         },
     );
 
@@ -161,7 +161,7 @@ export const EmbedJwtSchema = z
                 })
                 .merge(ChartInteractivityOptionsSchema),
         ]),
-        modifiableActions: EmbedModifiableActionsSchema.optional(),
+        writeActions: EmbedWriteActionsSchema.optional(),
         iat: z.number().optional(),
         exp: z.number(),
     })
@@ -223,7 +223,7 @@ export type CreateEmbedJwt = {
         | EmbedJwtContentDashboardUuid
         | EmbedJwtContentDashboardSlug
         | EmbedJwtContentChart;
-    modifiableActions?: EmbedModifiableActions;
+    writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
     user?: {
         email?: string;

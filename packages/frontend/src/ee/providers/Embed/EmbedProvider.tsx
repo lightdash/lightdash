@@ -34,7 +34,7 @@ type Props = {
 
 const decodeEmbedJwtPayload = (
     token: string | undefined,
-): Pick<CreateEmbedJwt, 'content' | 'modifiableActions'> | undefined => {
+): Pick<CreateEmbedJwt, 'content' | 'writeActions'> | undefined => {
     const payload = token?.split('.')[1];
     if (!payload) {
         return undefined;
@@ -48,7 +48,7 @@ const decodeEmbedJwtPayload = (
         );
         return JSON.parse(window.atob(paddedPayload)) as Pick<
             CreateEmbedJwt,
-            'content' | 'modifiableActions'
+            'content' | 'writeActions'
         >;
     } catch {
         return undefined;
@@ -136,7 +136,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             t: (input: string) => get(contentOverrides, input),
             projectUuid: embed?.projectUuid || projectUuid,
             content: embedJwtPayload?.content,
-            modifiableActions: embedJwtPayload?.modifiableActions,
+            writeActions: embedJwtPayload?.writeActions,
             paletteUuid,
             languageMap: contentOverrides,
             onExplore,
@@ -151,7 +151,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         embed?.projectUuid,
         tokenFromStorageOrProps,
         embedJwtPayload?.content,
-        embedJwtPayload?.modifiableActions,
+        embedJwtPayload?.writeActions,
         filters,
         projectUuid,
         paletteUuid,

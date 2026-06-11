@@ -48,15 +48,12 @@ const getCreateSavedChartContext = async (
         );
     }
 
-    const { modifiableActions } = req.account.authentication.data;
+    const { writeActions } = req.account.authentication.data;
     const actorUserUuid =
-        modifiableActions?.userUuid ??
-        modifiableActions?.serviceAccountUserUuid;
+        writeActions?.userUuid ?? writeActions?.serviceAccountUserUuid;
 
-    if (!modifiableActions?.spaceUuid || !actorUserUuid) {
-        throw new ForbiddenError(
-            'Embed token does not allow modifiable actions',
-        );
+    if (!writeActions?.spaceUuid || !actorUserUuid) {
+        throw new ForbiddenError('Embed token does not allow write actions');
     }
 
     const userService = req.services.getUserService();
@@ -65,7 +62,7 @@ const getCreateSavedChartContext = async (
         req.account.embed.organization.organizationUuid,
     );
 
-    if (modifiableActions.userUuid !== undefined) {
+    if (writeActions.userUuid !== undefined) {
         if (!actor.isActive) {
             throw new ForbiddenError(
                 'Embed token actor is not active for this organization',
@@ -77,7 +74,7 @@ const getCreateSavedChartContext = async (
             savedChart: {
                 ...(req.body as CreateSavedChart),
                 dashboardUuid: undefined,
-                spaceUuid: modifiableActions.spaceUuid,
+                spaceUuid: writeActions.spaceUuid,
             },
         };
     }
@@ -105,7 +102,7 @@ const getCreateSavedChartContext = async (
         savedChart: {
             ...(req.body as CreateSavedChart),
             dashboardUuid: undefined,
-            spaceUuid: modifiableActions.spaceUuid,
+            spaceUuid: writeActions.spaceUuid,
         },
     };
 };

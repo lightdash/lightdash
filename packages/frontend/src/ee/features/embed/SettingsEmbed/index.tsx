@@ -30,9 +30,9 @@ import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCharts } from '../../../../hooks/useCharts';
 import useApp from '../../../../providers/App/useApp';
 import EmbedAllowListForm from './EmbedAllowListForm';
-import EmbedModifiableActionsForm from './EmbedModifiableActionsForm';
 import EmbedPreviewChartForm from './EmbedPreviewChartForm';
 import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
+import EmbedWriteActionsForm from './EmbedWriteActionsForm';
 
 const useEmbedConfig = (projectUuid: string) => {
     return useQuery<DecodedEmbed, ApiError>({
@@ -130,8 +130,8 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         useEmbedConfigCreateMutation(projectUuid);
     const { mutate: updateEmbedConfig, isLoading: isUpdating } =
         useEmbedConfigUpdateMutation(projectUuid);
-    const [modifiableActions, setModifiableActions] =
-        useState<CreateEmbedJwt['modifiableActions']>();
+    const [writeActions, setWriteActions] =
+        useState<CreateEmbedJwt['writeActions']>();
 
     const isSaving = isCreating || isUpdating;
     const allowedDashboards = useMemo(() => {
@@ -254,17 +254,17 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             </SettingsCard>
             <SettingsCard>
                 <Stack gap="xs" mb="md">
-                    <Title order={4}>Modifiable actions</Title>
+                    <Title order={4}>Write actions</Title>
                     <Text c="dimmed" fz="sm">
                         Choose which Lightdash actor should power embedded
                         actions like creating scheduled deliveries or saving
                         charts.
                     </Text>
                 </Stack>
-                <EmbedModifiableActionsForm
+                <EmbedWriteActionsForm
                     projectUuid={projectUuid}
-                    value={modifiableActions}
-                    onChange={setModifiableActions}
+                    value={writeActions}
+                    onChange={setWriteActions}
                 />
             </SettingsCard>
             <SettingsCard>
@@ -286,7 +286,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 projectUuid={projectUuid}
                                 siteUrl={health.data.siteUrl}
                                 dashboards={allowedDashboards}
-                                modifiableActions={modifiableActions}
+                                writeActions={writeActions}
                             />
                         </Stack>
                     </Tabs.Panel>
@@ -296,7 +296,7 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 projectUuid={projectUuid}
                                 siteUrl={health.data.siteUrl}
                                 charts={charts || []}
-                                modifiableActions={modifiableActions}
+                                writeActions={writeActions}
                             />
                         </Stack>
                     </Tabs.Panel>

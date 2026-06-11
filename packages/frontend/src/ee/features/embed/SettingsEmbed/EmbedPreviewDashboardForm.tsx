@@ -92,8 +92,8 @@ const EmbedPreviewDashboardForm: FC<{
     projectUuid: string;
     siteUrl: string;
     dashboards: DashboardBasicDetails[];
-    modifiableActions?: CreateEmbedJwt['modifiableActions'];
-}> = ({ projectUuid, siteUrl, dashboards, modifiableActions }) => {
+    writeActions?: CreateEmbedJwt['writeActions'];
+}> = ({ projectUuid, siteUrl, dashboards, writeActions }) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
     const { colorScheme } = useMantineColorScheme();
@@ -169,7 +169,7 @@ const EmbedPreviewDashboardForm: FC<{
                     canViewUnderlyingData: values.canViewUnderlyingData,
                     canViewDataApps: values.canViewDataApps,
                 },
-                modifiableActions,
+                writeActions,
                 userAttributes: values.userAttributes.reduce(
                     (acc, item) => ({
                         ...acc,
@@ -183,7 +183,7 @@ const EmbedPreviewDashboardForm: FC<{
                 },
             };
         },
-        [modifiableActions, projectUuid],
+        [writeActions, projectUuid],
     );
 
     const handlePreview = useCallback(async () => {

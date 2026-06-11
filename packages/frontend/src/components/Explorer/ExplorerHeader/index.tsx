@@ -81,14 +81,14 @@ const ExplorerHeader: FC = memo(() => {
     );
     const embed = useEmbed();
     const isEmbedded = embed.embedToken !== undefined;
-    const hasEmbedModifiableActions =
-        !!embed.modifiableActions?.spaceUuid &&
-        (!!embed.modifiableActions.userUuid ||
-            !!embed.modifiableActions.serviceAccountUserUuid);
+    const hasEmbedWriteActions =
+        !!embed.writeActions?.spaceUuid &&
+        (!!embed.writeActions.userUuid ||
+            !!embed.writeActions.serviceAccountUserUuid);
 
     const buttonDisabledMessage = useMemo(() => {
         if (isEmbedded) {
-            return hasEmbedModifiableActions
+            return hasEmbedWriteActions
                 ? null
                 : 'This embed token does not allow saving charts';
         }
@@ -100,7 +100,7 @@ const ExplorerHeader: FC = memo(() => {
         // The user lacks permission to save a chart in any space
         return "You don't have permission to save charts in this project";
     }, [
-        hasEmbedModifiableActions,
+        hasEmbedWriteActions,
         isEmbedded,
         userCanCreateChartsInSpace,
         userCanCreateSpace,
@@ -210,7 +210,7 @@ const ExplorerHeader: FC = memo(() => {
 
                 <RefreshButton size="xs" />
 
-                {!savedChart && (!isEmbedded || hasEmbedModifiableActions) && (
+                {!savedChart && (!isEmbedded || hasEmbedWriteActions) && (
                     <Tooltip
                         disabled={buttonDisabledMessage === null}
                         withinPortal

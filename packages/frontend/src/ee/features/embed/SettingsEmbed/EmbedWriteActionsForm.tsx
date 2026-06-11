@@ -92,15 +92,11 @@ const MODIFIABLE_ACTIONS = [
 
 type Props = {
     projectUuid: string;
-    value: CreateEmbedJwt['modifiableActions'] | undefined;
-    onChange: (value: CreateEmbedJwt['modifiableActions'] | undefined) => void;
+    value: CreateEmbedJwt['writeActions'] | undefined;
+    onChange: (value: CreateEmbedJwt['writeActions'] | undefined) => void;
 };
 
-const EmbedModifiableActionsForm: FC<Props> = ({
-    projectUuid,
-    value,
-    onChange,
-}) => {
+const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
     const { listAccounts, createAccount } = useServiceAccounts();
     const { listRoles } = useCustomRoles();
     const createSpaceMutation = useCreateMutation(projectUuid);
@@ -257,7 +253,7 @@ const EmbedModifiableActionsForm: FC<Props> = ({
             <Switch
                 checked={isEnabled}
                 onChange={(event) => setIsEnabled(event.currentTarget.checked)}
-                label="Enable modifiable actions"
+                label="Enable write actions"
                 description="Allow embedded users to perform actions that create or update Lightdash resources."
             />
 
@@ -331,7 +327,7 @@ const EmbedModifiableActionsForm: FC<Props> = ({
                             </Menu.Dropdown>
                         </Menu>
                         <Text c="dimmed" fz="xs">
-                            Required before modifiable actions can be enabled.
+                            Required before write actions can be enabled.
                         </Text>
                     </Stack>
 
@@ -429,7 +425,7 @@ const EmbedModifiableActionsForm: FC<Props> = ({
 
                     <Callout variant="info" title="JWT user override">
                         <Text fz="sm">
-                            By default, modifiable actions run as the selected
+                            By default, write actions run as the selected
                             service account user. To run them as a specific
                             Lightdash user instead, include a proposed{' '}
                             <Code>userUuid</Code> claim in the embed JWT. You
@@ -443,7 +439,7 @@ const EmbedModifiableActionsForm: FC<Props> = ({
 
                     <Stack gap="xs">
                         <Text size="sm" fw={500}>
-                            Modifiable actions covered
+                            Write actions covered
                         </Text>
                         {MODIFIABLE_ACTIONS.map((action) => (
                             <Group key={action.label} gap="sm" wrap="nowrap">
@@ -565,4 +561,4 @@ const EmbedModifiableActionsForm: FC<Props> = ({
     );
 };
 
-export default EmbedModifiableActionsForm;
+export default EmbedWriteActionsForm;

@@ -74,8 +74,8 @@ const EmbedPreviewChartForm: FC<{
     projectUuid: string;
     siteUrl: string;
     charts: Pick<SavedChart, 'uuid' | 'name'>[];
-    modifiableActions?: CreateEmbedJwt['modifiableActions'];
-}> = ({ projectUuid, siteUrl, charts, modifiableActions }) => {
+    writeActions?: CreateEmbedJwt['writeActions'];
+}> = ({ projectUuid, siteUrl, charts, writeActions }) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
     const { colorScheme } = useMantineColorScheme();
@@ -126,7 +126,7 @@ const EmbedPreviewChartForm: FC<{
                     dashboardFiltersInteractivity: undefined,
                     parameterInteractivity: undefined,
                 },
-                modifiableActions,
+                writeActions,
                 userAttributes: values.userAttributes.reduce(
                     (acc, item) => ({
                         ...acc,
@@ -140,7 +140,7 @@ const EmbedPreviewChartForm: FC<{
                 },
             };
         },
-        [modifiableActions, projectUuid],
+        [writeActions, projectUuid],
     );
 
     const handlePreview = useCallback(async () => {
