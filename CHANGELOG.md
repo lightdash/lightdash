@@ -1,3 +1,10 @@
+## [0.3143.1](https://github.com/lightdash/lightdash/compare/0.3143.0...0.3143.1) (2026-06-11)
+
+
+### Performance Improvements
+
+* deduplicate projectParametersModel.find() in dashboard chart query path ([#21547](https://github.com/lightdash/lightdash/issues/21547)) ([05f5e04](https://github.com/lightdash/lightdash/commit/05f5e04f464369439d5dbb540302b202f73c7f75))
+
 # [0.3143.0](https://github.com/lightdash/lightdash/compare/0.3142.0...0.3143.0) (2026-06-11)
 
 
