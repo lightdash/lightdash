@@ -1,6 +1,7 @@
 import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
+    type AiAgentReviewBatchJobPayload,
     type AiAgentReviewClassifierJobPayload,
     type AiAgentReviewRemediationCompileJobPayload,
     type AiAgentReviewRemediationPreviewJobPayload,
@@ -67,6 +68,7 @@ export const EE_SCHEDULER_TASKS = {
     AI_AGENT_EVAL_RESULT: 'aiAgentEvalResult',
     AI_AGENT_REVIEW_CLASSIFIER: 'aiAgentReviewClassifier',
     AI_AGENT_REVIEW_WRITEBACK: 'aiAgentReviewWriteback',
+    AI_AGENT_REVIEW_BATCH: 'aiAgentReviewBatch',
     AI_AGENT_REVIEW_REMEDIATION_PREVIEW: 'aiAgentReviewRemediationPreview',
     AI_AGENT_REVIEW_REMEDIATION_COMPILE: 'aiAgentReviewRemediationCompile',
     AI_AGENT_REVIEW_REMEDIATION_RUN: 'aiAgentReviewRemediationRun',
@@ -157,6 +159,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
+    [SCHEDULER_TASKS.AI_AGENT_REVIEW_BATCH]: AiAgentReviewBatchJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: AiAgentReviewRemediationPreviewJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: AiAgentReviewRemediationCompileJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
@@ -171,6 +174,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_AGENT_EVAL_RESULT]: AiAgentEvalRunJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
+    [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_BATCH]: AiAgentReviewBatchJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: AiAgentReviewRemediationPreviewJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: AiAgentReviewRemediationCompileJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
