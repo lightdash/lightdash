@@ -1005,3 +1005,65 @@ export const getAiAgentReviewItemFingerprint = (
 
     return `ai_agent_review_item:${hashCanonicalJson(canonicalJson)}`;
 };
+
+export type AiAgentReviewBatchAction = {
+    primaryRootCause: AiAgentRootCause;
+    ownerType: AiAgentReviewItemOwnerType;
+    fixTarget: AiAgentFixTarget | null;
+    count: number;
+};
+
+export type AiAgentReviewBatchExample = {
+    promptUuid: string;
+    threadUuid: string;
+    title: string;
+    primaryRootCause: AiAgentRootCause;
+    confidence: AiAgentReviewClassifierConfidence;
+};
+
+export type AiAgentReviewBatchReport = {
+    runUuid: string;
+    window: { startedAt: Date; endedAt: Date };
+    scope: { projectUuid: string | null; agentUuid: string | null };
+    turnsReviewed: number;
+    flaggedTurns: number;
+    flaggedRate: number;
+    actions: AiAgentReviewBatchAction[];
+    signalsByType: Partial<Record<AiAgentTurnSignal, number>>;
+    topExamples: AiAgentReviewBatchExample[];
+};
+
+export type AiAgentReviewBatchRunSummary = {
+    runUuid: string;
+    status: AiAgentReviewClassifierRunStatus;
+    window: { startedAt: Date; endedAt: Date };
+    scope: { projectUuid: string | null; agentUuid: string | null };
+    totalTurns: number;
+    processedTurns: number;
+    findingCount: number;
+    errorMessage: string | null;
+    createdAt: Date;
+    completedAt: Date | null;
+};
+
+export type CreateAiAgentReviewBatch = {
+    projectUuid: string | null;
+    agentUuid: string | null;
+    startedAt: Date;
+    endedAt: Date;
+};
+
+export type AiAgentReviewBatchStarted = {
+    runUuid: string;
+    estimatedTurns: number;
+};
+
+export type ApiAiAgentReviewBatchStartedResponse =
+    ApiSuccess<AiAgentReviewBatchStarted>;
+export type ApiAiAgentReviewBatchRunResponse =
+    ApiSuccess<AiAgentReviewBatchRunSummary>;
+export type ApiAiAgentReviewBatchReportResponse =
+    ApiSuccess<AiAgentReviewBatchReport>;
+export type ApiAiAgentReviewBatchRunsResponse = ApiSuccess<
+    AiAgentReviewBatchRunSummary[]
+>;
