@@ -1,3 +1,11 @@
+# [0.3146.0](https://github.com/lightdash/lightdash/compare/0.3145.0...0.3146.0) (2026-06-11)
+
+
+### Features
+
+* **ai-review:** add Validate link to the review verification panel ([#24207](https://github.com/lightdash/lightdash/issues/24207)) ([3799a3b](https://github.com/lightdash/lightdash/commit/3799a3b1c10352b6473223ecf5a52ad1b1298327)), closes [#24193](https://github.com/lightdash/lightdash/issues/24193) [#123](https://github.com/lightdash/lightdash/issues/123)
+* **ai-writeback:** guard follow-ups on merged/closed PRs + card polish ([#24209](https://github.com/lightdash/lightdash/issues/24209)) ([82af9dc](https://github.com/lightdash/lightdash/commit/82af9dc86642f84a3cbe9d372dccd9bb570818f8))
+
 # [0.3145.0](https://github.com/lightdash/lightdash/compare/0.3144.0...0.3145.0) (2026-06-11)
 
 
