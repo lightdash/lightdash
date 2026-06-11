@@ -67,12 +67,26 @@ const makeService = ({
     searchCatalog = jest.fn(),
     verifiedFieldUsage = new Map<string, number>(),
     searchFieldUniqueValues = jest.fn(),
+    projectSpaces = [],
+    spaceModel = {
+        hasSpaceWithPathAndUuids: jest.fn().mockResolvedValue(true),
+    },
+    dashboardService = {},
+    savedChartService = {},
+    coderService = {},
+    aiAgentContentValidation = {},
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
     searchCatalog?: jest.Mock;
     verifiedFieldUsage?: Map<string, number>;
     searchFieldUniqueValues?: jest.Mock;
+    projectSpaces?: Array<{ uuid: string; path: string }>;
+    spaceModel?: Record<string, unknown>;
+    dashboardService?: Record<string, unknown>;
+    savedChartService?: Record<string, unknown>;
+    coderService?: Record<string, unknown>;
+    aiAgentContentValidation?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -108,7 +122,7 @@ const makeService = ({
         },
         projectService: {
             searchFieldUniqueValues,
-            getSpaces: jest.fn().mockResolvedValue([]),
+            getSpaces: jest.fn().mockResolvedValue(projectSpaces),
         },
         userAttributesModel: {
             getAttributeValuesForOrgMember: jest
@@ -124,12 +138,12 @@ const makeService = ({
         searchModel: {},
         searchService: {},
         spaceService: {},
-        spaceModel: {},
-        dashboardService: {},
-        savedChartService: {},
-        coderService: {},
+        spaceModel,
+        dashboardService,
+        savedChartService,
+        coderService,
         contentService: {},
-        aiAgentContentValidation: {},
+        aiAgentContentValidation,
         projectContextModel: {},
         aiAgentDocumentModel: {},
         changesetModel: {},
@@ -258,6 +272,27 @@ describe('AiAgentToolsService', () => {
         );
     });
 
+    const denySpaceAccessModel = () => ({
+        hasSpaceWithPathAndUuids: jest.fn().mockResolvedValue(false),
+    });
+
+    const makeDashboardContent = (spaceSlug: string) => ({
+        slug: 'test-dashboard',
+        name: 'Test dashboard',
+        description: 'Test dashboard',
+        spaceSlug,
+        version: 1,
+        verified: false,
+        verification: null,
+        tiles: [],
+        tabs: [],
+        filters: {
+            dimensions: [],
+            metrics: [],
+            tableCalculations: [],
+        },
+    });
+
     it('does not search MCP field values when the field is outside the scoped explore', async () => {
         const searchFieldUniqueValues = jest.fn();
         const service = makeService({
@@ -292,5 +327,89 @@ describe('AiAgentToolsService', () => {
             }),
         ).rejects.toThrow(NotFoundError);
         expect(searchFieldUniqueValues).not.toHaveBeenCalled();
+    });
+
+    it('does not read content outside the scoped agent spaces', async () => {
+        const dashboardService = { getByIdOrSlug: jest.fn() };
+        const service = makeService({
+            spaceModel: denySpaceAccessModel(),
+            dashboardService,
+            coderService: {
+                getDashboards: jest.fn().mockResolvedValue({
+                    dashboards: [makeDashboardContent('blocked-space')],
+                }),
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.readContent({ slug: 'test-dashboard', type: 'dashboard' }),
+        ).rejects.toThrow(NotFoundError);
+        expect(dashboardService.getByIdOrSlug).not.toHaveBeenCalled();
+    });
+
+    it('does not create content outside the scoped agent spaces', async () => {
+        const upsertDashboard = jest.fn();
+        const service = makeService({
+            spaceModel: denySpaceAccessModel(),
+            coderService: { upsertDashboard },
+            aiAgentContentValidation: { validateContent: jest.fn() },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.createContent({
+                type: 'dashboard',
+                content: makeDashboardContent('blocked-space'),
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(upsertDashboard).not.toHaveBeenCalled();
+    });
+
+    it('does not edit content into a space outside the scoped agent spaces', async () => {
+        const upsertDashboard = jest.fn();
+        const service = makeService({
+            spaceModel: denySpaceAccessModel(),
+            dashboardService: {
+                getByIdOrSlug: jest
+                    .fn()
+                    .mockResolvedValue({ uuid: 'dashboard-uuid' }),
+            },
+            coderService: {
+                getDashboards: jest.fn().mockResolvedValue({
+                    dashboards: [makeDashboardContent('allowed-space')],
+                }),
+                getCurrentContentVersionBySlug: jest.fn().mockResolvedValue({
+                    versionUuid: 'version-before',
+                }),
+                upsertDashboard,
+            },
+            aiAgentContentValidation: {
+                validatePatch: jest.fn(),
+                validateContent: jest.fn(),
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.editContent({
+                slug: 'test-dashboard',
+                type: 'dashboard',
+                patch: [
+                    {
+                        op: 'replace',
+                        path: '/spaceSlug',
+                        value: 'blocked-space',
+                    },
+                ],
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(upsertDashboard).not.toHaveBeenCalled();
     });
 });
