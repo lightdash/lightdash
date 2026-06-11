@@ -442,6 +442,7 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                 <Stack gap="md">
                     <TextInput
                         label="Description"
+                        description="Service accounts created here do not expire."
                         value={newServiceAccountDescription}
                         onChange={(event) =>
                             setNewServiceAccountDescription(

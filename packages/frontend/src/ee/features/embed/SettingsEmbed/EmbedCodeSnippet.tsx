@@ -125,10 +125,12 @@ const languageWriteActionsSnippet = (
 
     switch (language) {
         case SnippetLanguage.NODE:
-            return `    // To override the selected service account, use userUuid instead of serviceAccountUserUuid.
+            return `    // serviceAccountUserUuid is the selected service account's user UUID.
+    // To run actions as a user instead, replace it with userUuid: '<USER_UUID>'.
     writeActions: ${JSON.stringify(value)},`;
         case SnippetLanguage.PYTHON:
-            return `    # To override the selected service account, use userUuid instead of serviceAccountUserUuid.
+            return `    # serviceAccountUserUuid is the selected service account's user UUID.
+    # To run actions as a user instead, replace it with "userUuid": "<USER_UUID>".
     "writeActions": ${JSON.stringify(value)},`;
         case SnippetLanguage.GO:
             return '';
@@ -270,7 +272,8 @@ func main() {
             Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
-        // To override the selected service account, use UserUuid instead of ServiceAccountUserUuid.
+        // ServiceAccountUserUuid is the selected service account's user UUID.
+        // To run actions as a user instead, set UserUuid and leave ServiceAccountUserUuid empty.
         WriteActions: {{writeActionsGo}},
         StandardClaims: jwt.StandardClaims{
             ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
@@ -475,7 +478,8 @@ func main() {
             Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
-        // To override the selected service account, use UserUuid instead of ServiceAccountUserUuid.
+        // ServiceAccountUserUuid is the selected service account's user UUID.
+        // To run actions as a user instead, set UserUuid and leave ServiceAccountUserUuid empty.
         WriteActions: {{writeActionsGo}},
         StandardClaims: jwt.StandardClaims{
             ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
@@ -610,7 +614,8 @@ func main() {
             Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
-        // To override the selected service account, use UserUuid instead of ServiceAccountUserUuid.
+        // ServiceAccountUserUuid is the selected service account's user UUID.
+        // To run actions as a user instead, set UserUuid and leave ServiceAccountUserUuid empty.
         WriteActions: {{writeActionsGo}},
         StandardClaims: jwt.StandardClaims{
             ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
@@ -805,7 +810,8 @@ func main() {
             Email:      {{emailUsage}},
         },
         UserAttributes: map[string]string{{userAttributes}},
-        // To override the selected service account, use UserUuid instead of ServiceAccountUserUuid.
+        // ServiceAccountUserUuid is the selected service account's user UUID.
+        // To run actions as a user instead, set UserUuid and leave ServiceAccountUserUuid empty.
         WriteActions: {{writeActionsGo}},
         StandardClaims: jwt.StandardClaims{
             ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
