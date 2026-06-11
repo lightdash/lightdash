@@ -3,9 +3,13 @@ import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import {
+    closePullRequest,
+    getCommitDiff,
     getInstallationToken,
     getPullRequest,
+    getPullRequestDiff,
     listCheckRunsForRef,
+    mergePullRequest,
 } from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
@@ -458,6 +462,10 @@ export class ServiceRepository
                         getInstallationToken,
                         getPullRequest,
                         listCheckRunsForRef,
+                        mergePullRequest,
+                        closePullRequest,
+                        getPullRequestDiff,
+                        getCommitDiff,
                     },
                 }),
         );

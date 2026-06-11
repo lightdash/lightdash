@@ -1,4 +1,9 @@
-import { CiCheckState, CiMergeState, type CiCheck } from '@lightdash/common';
+import {
+    CiCheckState,
+    CiMergeState,
+    type CiCheck,
+    type CiChecks,
+} from '@lightdash/common';
 import {
     Anchor,
     Box,
@@ -18,13 +23,13 @@ import {
     IconCircleMinus,
     IconCircleX,
     IconClock,
+    IconGitMerge,
     IconPlayerSkipForward,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../../components/common/PolymorphicGroupButton';
-import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import styles from './PullRequestCiChecks.module.css';
 
 type StateStyle = {
@@ -166,28 +171,30 @@ const CheckRow: FC<{ check: CiCheck }> = ({ check }) => (
  * CI status for a write-back PR, distilled to a single Codex-style roll-up row:
  * a small merge-readiness icon, the verdict, and a one-line check summary, with
  * the per-check list tucked behind a disclosure. No segmented bar, no coloured
- * banner — colour lives only in the status icons. Renders nothing while
- * loading, when CI can't be resolved, or when the ref has no checks, so the PR
- * card stays clean for projects without CI.
+ * banner — colour lives only in the status icons. Renders nothing when CI can't
+ * be resolved or the ref has no checks, so the PR card stays clean for projects
+ * without CI. The query is owned by the parent card (which also drives the
+ * merge action) and passed in.
  */
 export const PullRequestCiChecks: FC<{
-    projectUuid: string;
     prUrl: string;
-    /** Pins the checks to this card's own commit; null falls back to PR head. */
-    commitSha: string | null;
-}> = ({ projectUuid, prUrl, commitSha }) => {
-    const { data: ciChecks } = usePullRequestCiChecks(
-        projectUuid,
-        prUrl,
-        commitSha,
-    );
+    ciChecks: CiChecks | null;
+}> = ({ prUrl, ciChecks }) => {
     const [expanded, setExpanded] = useState(false);
 
     if (!ciChecks || ciChecks.checks.length === 0) {
         return null;
     }
 
-    const { color, icon, title } = READINESS[ciChecks.mergeState];
+    // Once merged the policy verdict is no longer meaningful — show a terminal
+    // "Merged" roll-up instead of the (now stale) merge-readiness state.
+    const { color, icon, title } = ciChecks.merged
+        ? {
+              color: 'green' as DefaultMantineColor,
+              icon: IconGitMerge,
+              title: 'Merged',
+          }
+        : READINESS[ciChecks.mergeState];
 
     return (
         <Stack gap={4}>
@@ -210,7 +217,7 @@ export const PullRequestCiChecks: FC<{
                         ) : (
                             <MantineIcon icon={icon} size={14} color={color} />
                         )}
-                        <Text size="xs" fw={600} c="foreground">
+                        <Text size="xs" c="foreground">
                             {title}
                         </Text>
                         <Text size="xs" c="dimmed">

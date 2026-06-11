@@ -46,7 +46,10 @@ export const usePullRequestCiChecks = (
         queryFn: () => getPullRequestCiChecks(projectUuid!, prUrl!, commitSha),
         enabled: !!projectUuid && !!prUrl,
         refetchInterval: (data) =>
+            // A merged PR is terminal — its mergeable_state often reads
+            // `unknown`, so without this guard the poll would never settle.
             data &&
+            !data.merged &&
             (data.overall === CiCheckState.PENDING ||
                 data.mergeState === CiMergeState.UNKNOWN)
                 ? CI_POLL_INTERVAL_MS

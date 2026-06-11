@@ -1,8 +1,12 @@
-import { type ToolEditDbtProjectOutput } from '@lightdash/common';
 import {
-    Box,
+    CiMergeState,
+    type CiChecks,
+    type ToolEditDbtProjectOutput,
+} from '@lightdash/common';
+import {
     Button,
     Group,
+    Menu,
     Paper,
     Stack,
     Text,
@@ -12,17 +16,25 @@ import {
     IconAlertTriangle,
     IconBrandGithub,
     IconBrandGitlab,
-    IconExternalLink,
+    IconChevronDown,
     IconEye,
+    IconFileDiff,
+    IconGitMerge,
     IconGitPullRequest,
+    IconGitPullRequestClosed,
     IconSettings,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import styles from './AiEditDbtProjectToolCall.module.css';
+import MantineModal from '../../../../../../components/common/MantineModal';
+import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
+import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
+import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
+import { isMergeable } from './pullRequestActions';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
+import { WritebackDiffModal } from './WritebackDiffModal';
 
 type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
@@ -97,6 +109,209 @@ const InstallAppButton: FC<{
 );
 
 /**
+ * The "View" half of the card's action group: a single dropdown that opens the
+ * Lightdash preview, the pull request on its host, or the diff viewer. The
+ * preview entry is omitted when there's no preview (non-GitHub run, failed
+ * preview, or a setup PR). Owns the diff modal it launches.
+ */
+const PullRequestViewMenu: FC<{
+    projectUuid: string;
+    prUrl: string;
+    previewUrl: string | null;
+    commitSha: string | null;
+    ciChecks: CiChecks | null;
+}> = ({ projectUuid, prUrl, previewUrl, commitSha, ciChecks }) => {
+    const [diffOpened, setDiffOpened] = useState(false);
+
+    return (
+        <>
+            <Menu position="bottom-start" withinPortal>
+                <Menu.Target>
+                    <Button
+                        variant="default"
+                        size="compact-sm"
+                        leftSection={<MantineIcon icon={IconEye} size={14} />}
+                        rightSection={
+                            <MantineIcon icon={IconChevronDown} size={14} />
+                        }
+                    >
+                        View
+                    </Button>
+                </Menu.Target>
+                <Menu.Dropdown>
+                    {previewUrl && (
+                        <Menu.Item
+                            component="a"
+                            href={previewUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            leftSection={
+                                <MantineIcon icon={IconEye} size={14} />
+                            }
+                        >
+                            Preview
+                        </Menu.Item>
+                    )}
+                    <Menu.Item
+                        component="a"
+                        href={prUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        leftSection={
+                            <MantineIcon icon={IconGitPullRequest} size={14} />
+                        }
+                    >
+                        Pull request
+                    </Menu.Item>
+                    <Menu.Item
+                        leftSection={
+                            <MantineIcon icon={IconFileDiff} size={14} />
+                        }
+                        onClick={() => setDiffOpened(true)}
+                    >
+                        Diff
+                    </Menu.Item>
+                </Menu.Dropdown>
+            </Menu>
+            <WritebackDiffModal
+                projectUuid={projectUuid}
+                prUrl={prUrl}
+                commitSha={commitSha}
+                ciChecks={ciChecks}
+                opened={diffOpened}
+                onClose={() => setDiffOpened(false)}
+            />
+        </>
+    );
+};
+
+/**
+ * Terminal "Close PR" / "Merge PR" actions for the PR card, joined in a button
+ * group. Collapses to a single disabled "Merged" or "Closed" marker once the PR
+ * reaches that state. While open, both actions show; "Merge PR" is disabled
+ * until the PR is actually mergeable (the CI roll-up row explains why). Each
+ * action confirms first — merging can't be undone from here, and closing,
+ * while reopenable, shouldn't be a stray click.
+ */
+const PullRequestActionButtons: FC<{
+    projectUuid: string;
+    prUrl: string;
+    /** Pinned commit merged as the expected head, so a stale card can't merge a newer commit. */
+    commitSha: string | null;
+    ciChecks: CiChecks | null;
+}> = ({ projectUuid, prUrl, commitSha, ciChecks }) => {
+    const { mutate: merge, isLoading: isMerging } =
+        useMergePullRequest(projectUuid);
+    const { mutate: close, isLoading: isClosing } =
+        useClosePullRequest(projectUuid);
+    const [mergeConfirmOpened, setMergeConfirmOpened] = useState(false);
+    const [closeConfirmOpened, setCloseConfirmOpened] = useState(false);
+
+    if (!ciChecks) {
+        return null;
+    }
+
+    if (ciChecks.merged) {
+        return (
+            <Button
+                variant="light"
+                color="green"
+                size="compact-sm"
+                disabled
+                leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
+            >
+                Merged
+            </Button>
+        );
+    }
+
+    if (ciChecks.state === 'closed') {
+        return (
+            <Button
+                variant="light"
+                color="ldGray"
+                size="compact-sm"
+                disabled
+                leftSection={
+                    <MantineIcon icon={IconGitPullRequestClosed} size={14} />
+                }
+            >
+                Closed
+            </Button>
+        );
+    }
+
+    return (
+        <>
+            <Button.Group>
+                <Button
+                    variant="default"
+                    size="compact-sm"
+                    leftSection={
+                        <MantineIcon
+                            icon={IconGitPullRequestClosed}
+                            size={14}
+                        />
+                    }
+                    onClick={() => setCloseConfirmOpened(true)}
+                >
+                    Close PR
+                </Button>
+                <Button
+                    variant="filled"
+                    color="green"
+                    size="compact-sm"
+                    disabled={!isMergeable(ciChecks)}
+                    leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
+                    onClick={() => setMergeConfirmOpened(true)}
+                >
+                    Merge PR
+                </Button>
+            </Button.Group>
+
+            <MantineModal
+                opened={mergeConfirmOpened}
+                onClose={() => setMergeConfirmOpened(false)}
+                title="Merge pull request"
+                icon={IconGitMerge}
+                size="md"
+                description={
+                    ciChecks.mergeState === CiMergeState.UNSTABLE
+                        ? "This pull request is mergeable but some non-required checks are failing or still running. Merge it into the project's base branch anyway? This can't be undone from here."
+                        : "This merges the pull request into the project's base branch. This can't be undone from here."
+                }
+                confirmLabel="Merge PR"
+                confirmLoading={isMerging}
+                cancelDisabled={isMerging}
+                onConfirm={() =>
+                    merge(
+                        { prUrl, sha: commitSha },
+                        { onSuccess: () => setMergeConfirmOpened(false) },
+                    )
+                }
+            />
+            <MantineModal
+                opened={closeConfirmOpened}
+                onClose={() => setCloseConfirmOpened(false)}
+                title="Close pull request"
+                icon={IconGitPullRequestClosed}
+                size="md"
+                description="Close this pull request without merging? You can reopen it on GitHub later."
+                confirmLabel="Close PR"
+                confirmLoading={isClosing}
+                cancelDisabled={isClosing}
+                onConfirm={() =>
+                    close(
+                        { prUrl },
+                        { onSuccess: () => setCloseConfirmOpened(false) },
+                    )
+                }
+            />
+        </>
+    );
+};
+
+/**
  * Inline card rendered after a `editDbtProject` tool call lands. The
  * agent's textual reply intentionally omits the URL (the editDbtProject
  * tool result instructs it to) on the expectation that this card surfaces
@@ -108,6 +323,17 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     projectUuid,
     isPreviewDeploySetup,
 }) => {
+    // Hooks must run before the early returns below; the query is disabled until
+    // there's a PR URL, so the error/no-PR branches don't fetch anything.
+    const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
+    const ciCommitSha =
+        metadata.status === 'success' ? (metadata.commitSha ?? null) : null;
+    const { data: ciChecks } = usePullRequestCiChecks(
+        projectUuid,
+        prUrl,
+        ciCommitSha,
+    );
+
     if (metadata.status === 'error') {
         // When the project just needs its git app installed, the agent's reply
         // already explains it — surface only the one-click install action.
@@ -226,17 +452,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const additions = metadata.additions ?? null;
     const deletions = metadata.deletions ?? null;
     const hasDiffStat = additions !== null || deletions !== null;
-    // Short PR/MR reference for the link button (e.g. "#123").
-    const prNumberMatch = metadata.prUrl.match(
-        /\/(?:pull|merge_requests)\/(\d+)/,
-    );
-    const prLinkLabel = prNumberMatch
-        ? `#${prNumberMatch[1]}`
-        : 'View pull request';
     const title = 'Edited semantic layer';
 
     return (
-        <Paper withBorder p="sm" radius="md" className={styles.card}>
+        <Paper withBorder p="sm" radius="md">
             <Stack gap="xs">
                 <Group
                     gap="sm"
@@ -303,47 +522,34 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             )}
                         </Stack>
                     </Group>
-                    <Box className={styles.actions}>
-                        {/* Preview URL is generated server-side during the run
-                            and carried in the tool metadata — no PR-comment
-                            lookup. A setup PR never previews itself. */}
-                        {!isPreviewDeploySetup && metadata.previewUrl && (
-                            <Button
-                                component="a"
-                                href={metadata.previewUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                variant="default"
-                                size="compact-sm"
-                                leftSection={
-                                    <MantineIcon icon={IconEye} size={14} />
-                                }
-                            >
-                                View preview
-                            </Button>
-                        )}
-                        <Button
-                            component="a"
-                            href={metadata.prUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            variant="default"
-                            size="compact-sm"
-                            rightSection={
-                                <MantineIcon
-                                    icon={IconExternalLink}
-                                    size={14}
-                                />
+                    <Group gap="xs" wrap="nowrap">
+                        {/* View (preview / PR / diff) stands alone; the Close and
+                            Merge terminal actions are joined in their own group.
+                            Preview URL is generated server-side during the run
+                            and carried in the tool metadata — a setup PR never
+                            previews itself. */}
+                        <PullRequestViewMenu
+                            projectUuid={projectUuid}
+                            prUrl={metadata.prUrl}
+                            previewUrl={
+                                isPreviewDeploySetup
+                                    ? null
+                                    : (metadata.previewUrl ?? null)
                             }
-                        >
-                            {prLinkLabel}
-                        </Button>
-                    </Box>
+                            commitSha={metadata.commitSha ?? null}
+                            ciChecks={ciChecks ?? null}
+                        />
+                        <PullRequestActionButtons
+                            projectUuid={projectUuid}
+                            prUrl={metadata.prUrl}
+                            commitSha={metadata.commitSha ?? null}
+                            ciChecks={ciChecks ?? null}
+                        />
+                    </Group>
                 </Group>
                 <PullRequestCiChecks
-                    projectUuid={projectUuid}
                     prUrl={metadata.prUrl}
-                    commitSha={metadata.commitSha ?? null}
+                    ciChecks={ciChecks ?? null}
                 />
             </Stack>
         </Paper>
