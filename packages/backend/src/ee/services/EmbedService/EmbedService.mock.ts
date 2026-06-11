@@ -17,6 +17,7 @@ import { UserModel } from '../../../models/UserModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { EmbedModel } from '../../models/EmbedModel';
 import { EmbedService } from './EmbedService';
@@ -116,6 +117,7 @@ export const EmbedServiceArgumentsMock: ConstructorParameters<
     userAttributesModel: {} as UserAttributesModel,
     userModel: {} as UserModel,
     projectService: {} as ProjectService,
+    spacePermissionService: {} as SpacePermissionService,
     asyncQueryService: {} as AsyncQueryService,
     permissionsService: {} as PermissionsService,
     featureFlagModel: featureFlagModelMock,

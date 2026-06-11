@@ -1953,7 +1953,7 @@ const models: TsoaRoute.Models = {
         },
     },
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
-    EmbedModifiableActions: {
+    EmbedWriteActions: {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
@@ -1986,7 +1986,7 @@ const models: TsoaRoute.Models = {
                     nestedProperties: {},
                     additionalProperties: { dataType: 'string' },
                 },
-                modifiableActions: { ref: 'EmbedModifiableActions' },
+                writeActions: { ref: 'EmbedWriteActions' },
                 content: {
                     dataType: 'union',
                     subSchemas: [

@@ -1,4 +1,5 @@
 import {
+    type AnonymousAccount,
     type CreateEmbedJwt,
     type LanguageMap,
     type SavedChart,
@@ -27,6 +28,8 @@ export interface EmbedContext {
     content?: CreateEmbedJwt['content'];
     // Write-action configuration decoded from the JWT
     writeActions?: CreateEmbedJwt['writeActions'];
+    // Server-computed permissions for the write-action actor
+    embedWriteContext?: AnonymousAccount['embedWriteContext'];
     // An optional org palette override for SDK dashboards
     paletteUuid?: string;
     // Powers localization of the dashboard

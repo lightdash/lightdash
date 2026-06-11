@@ -1,8 +1,6 @@
 import {
-    ForbiddenError,
     getObjectValue,
     getRequestMethod,
-    isJwtUser,
     LightdashRequestMethodHeader,
     NotFoundError,
     ProjectCatalog,
@@ -178,34 +176,11 @@ projectRouter.post(
                 return;
             }
 
-            let results;
-            if (isJwtUser(req.account)) {
-                const { embedWriteUser } = req.account;
-                const { spaceUuid } =
-                    req.account.authentication.data.writeActions ?? {};
-
-                if (!embedWriteUser || !spaceUuid) {
-                    throw new ForbiddenError(
-                        'Embed token does not allow write actions',
-                    );
-                }
-
-                results = await savedChartsService.create(
-                    embedWriteUser,
-                    projectUuid,
-                    {
-                        ...req.body,
-                        dashboardUuid: undefined,
-                        spaceUuid,
-                    },
-                );
-            } else {
-                results = await savedChartsService.create(
-                    req.user!,
-                    projectUuid,
-                    req.body,
-                );
-            }
+            const results = await savedChartsService.create(
+                req.account!,
+                projectUuid,
+                req.body,
+            );
 
             res.json({
                 status: 'ok',

@@ -194,6 +194,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                     }),
                     projectService: repository.getProjectService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     permissionsService: repository.getPermissionsService(),
                     dashboardModel: models.getDashboardModel(),

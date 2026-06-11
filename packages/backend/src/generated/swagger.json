@@ -1994,7 +1994,7 @@
                     }
                 ]
             },
-            "EmbedModifiableActions": {
+            "EmbedWriteActions": {
                 "properties": {
                     "spaceUuid": {
                         "type": "string"
@@ -2040,8 +2040,8 @@
                         },
                         "type": "object"
                     },
-                    "modifiableActions": {
-                        "$ref": "#/components/schemas/EmbedModifiableActions"
+                    "writeActions": {
+                        "$ref": "#/components/schemas/EmbedWriteActions"
                     },
                     "content": {
                         "anyOf": [

@@ -66,6 +66,7 @@ import {
     LightdashAnalytics,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { getAccountWriteContext } from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -1316,20 +1317,42 @@ export class SavedChartService
         });
     }
 
+    private static getCreateSavedChartContext(
+        account: Account,
+        savedChart: CreateSavedChart,
+    ): { user: SessionUser; savedChart: CreateSavedChart } {
+        const { user, embedWriteActions } = getAccountWriteContext(account);
+
+        if (!embedWriteActions) {
+            return { user, savedChart };
+        }
+
+        return {
+            user,
+            savedChart: {
+                ...savedChart,
+                dashboardUuid: undefined,
+                spaceUuid: embedWriteActions.spaceUuid,
+            },
+        };
+    }
+
     async create(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
+        const { user, savedChart: chartToSave } =
+            SavedChartService.getCreateSavedChartContext(account, savedChart);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
         // When saving to a dashboard, always check permissions against the
         // dashboard's space — the chart's spaceUuid may refer to a different
         // space where the user has no access.
-        const resolvedSpaceUuid = savedChart.dashboardUuid
+        const resolvedSpaceUuid = chartToSave.dashboardUuid
             ? undefined
-            : (savedChart.spaceUuid ??
+            : (chartToSave.spaceUuid ??
               (await this.spacePermissionService.getFirstViewableSpaceUuid(
                   user,
                   projectUuid,
@@ -1346,9 +1369,9 @@ export class SavedChartService
             inheritsFromOrgOrProject =
                 spaceAccessContext.inheritsFromOrgOrProject;
             access = spaceAccessContext.access;
-        } else if (savedChart.dashboardUuid) {
+        } else if (chartToSave.dashboardUuid) {
             const dashboard = await this.dashboardModel.getByIdOrSlug(
-                savedChart.dashboardUuid,
+                chartToSave.dashboardUuid,
             );
             const dashboardSpaceAccessContext =
                 await this.spacePermissionService.getSpaceAccessContext(
@@ -1371,7 +1394,7 @@ export class SavedChartService
                     access,
                     metadata: {
                         resolvedSpaceUuid,
-                        dashboardUuid: savedChart.dashboardUuid,
+                        dashboardUuid: chartToSave.dashboardUuid,
                     },
                 }),
             )
@@ -1379,7 +1402,7 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {
+        if (!resolvedSpaceUuid && !chartToSave.dashboardUuid) {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
             );
@@ -1387,15 +1410,15 @@ export class SavedChartService
 
         const chartToCreate = resolvedSpaceUuid
             ? {
-                  ...savedChart,
+                  ...chartToSave,
                   spaceUuid: resolvedSpaceUuid,
                   dashboardUuid: null as null,
-                  slug: generateSlug(savedChart.name),
+                  slug: generateSlug(chartToSave.name),
                   updatedByUser: user,
               }
             : {
-                  ...savedChart,
-                  slug: generateSlug(savedChart.name),
+                  ...chartToSave,
+                  slug: generateSlug(chartToSave.name),
                   updatedByUser: user,
               };
         const newSavedChart = await this.savedChartModel.create(
@@ -1406,7 +1429,7 @@ export class SavedChartService
 
         const cachedExplore = await this.projectModel.getExploreFromCache(
             projectUuid,
-            savedChart.tableName,
+            chartToSave.tableName,
         );
 
         this.analytics.track({

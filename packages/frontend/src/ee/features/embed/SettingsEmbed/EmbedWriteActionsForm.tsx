@@ -11,6 +11,7 @@ import {
     Divider,
     Group,
     Menu,
+    ScrollArea,
     SegmentedControl,
     Select,
     Stack,
@@ -255,6 +256,7 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                         <Menu
                             width="target"
                             position="bottom-start"
+                            middlewares={{ flip: true, shift: true }}
                             withinPortal
                         >
                             <Menu.Target>
@@ -272,30 +274,33 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                                         : 'Select service account'}
                                 </Button>
                             </Menu.Target>
-                            <Menu.Dropdown
-                                className={styles.scrollableDropdown}
-                            >
-                                {serviceAccounts.map((account) => (
-                                    <Menu.Item
-                                        key={account.uuid}
-                                        onClick={() =>
-                                            setSelectedServiceAccountUuid(
-                                                account.uuid,
-                                            )
-                                        }
-                                    >
-                                        <Stack gap={0}>
-                                            <Text fz="sm">
-                                                {account.description}
-                                            </Text>
-                                            <Text fz="xs" c="dimmed">
-                                                {getServiceAccountRoleLabel(
-                                                    account,
-                                                )}
-                                            </Text>
-                                        </Stack>
-                                    </Menu.Item>
-                                ))}
+                            <Menu.Dropdown>
+                                <ScrollArea.Autosize
+                                    className={styles.dropdownScrollArea}
+                                    type="auto"
+                                >
+                                    {serviceAccounts.map((account) => (
+                                        <Menu.Item
+                                            key={account.uuid}
+                                            onClick={() =>
+                                                setSelectedServiceAccountUuid(
+                                                    account.uuid,
+                                                )
+                                            }
+                                        >
+                                            <Stack gap={0}>
+                                                <Text fz="sm">
+                                                    {account.description}
+                                                </Text>
+                                                <Text fz="xs" c="dimmed">
+                                                    {getServiceAccountRoleLabel(
+                                                        account,
+                                                    )}
+                                                </Text>
+                                            </Stack>
+                                        </Menu.Item>
+                                    ))}
+                                </ScrollArea.Autosize>
                                 <Menu.Divider />
                                 <Menu.Item
                                     leftSection={
@@ -336,6 +341,7 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                         <Menu
                             width="target"
                             position="bottom-start"
+                            middlewares={{ flip: true, shift: true }}
                             withinPortal
                         >
                             <Menu.Target>
@@ -353,26 +359,31 @@ const EmbedWriteActionsForm: FC<Props> = ({ projectUuid, value, onChange }) => {
                                         : 'Select space'}
                                 </Button>
                             </Menu.Target>
-                            <Menu.Dropdown
-                                className={styles.scrollableDropdown}
-                            >
-                                {spaces.map((space) => (
-                                    <Menu.Item
-                                        key={space.uuid}
-                                        onClick={() =>
-                                            setSelectedSpaceUuid(space.uuid)
-                                        }
-                                    >
-                                        <Stack gap={0}>
-                                            <Text fz="sm">{space.name}</Text>
-                                            <Text fz="xs" c="dimmed">
-                                                {space.parentSpaceUuid
-                                                    ? 'Nested space'
-                                                    : 'Top-level space'}
-                                            </Text>
-                                        </Stack>
-                                    </Menu.Item>
-                                ))}
+                            <Menu.Dropdown>
+                                <ScrollArea.Autosize
+                                    className={styles.dropdownScrollArea}
+                                    type="auto"
+                                >
+                                    {spaces.map((space) => (
+                                        <Menu.Item
+                                            key={space.uuid}
+                                            onClick={() =>
+                                                setSelectedSpaceUuid(space.uuid)
+                                            }
+                                        >
+                                            <Stack gap={0}>
+                                                <Text fz="sm">
+                                                    {space.name}
+                                                </Text>
+                                                <Text fz="xs" c="dimmed">
+                                                    {space.parentSpaceUuid
+                                                        ? 'Nested space'
+                                                        : 'Top-level space'}
+                                                </Text>
+                                            </Stack>
+                                        </Menu.Item>
+                                    ))}
+                                </ScrollArea.Autosize>
                                 <Menu.Divider />
                                 <Menu.Item
                                     leftSection={

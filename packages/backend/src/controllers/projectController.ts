@@ -982,7 +982,7 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         this.setStatus(201);
 
         const results = await dashboardService.createDashboardWithCharts(
-            toSessionUser(req.account),
+            req.account,
             projectUuid,
             body,
         );

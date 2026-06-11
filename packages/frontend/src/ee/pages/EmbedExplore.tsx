@@ -1,8 +1,4 @@
-import {
-    isChartContent,
-    type CreateEmbedJwt,
-    type SavedChart,
-} from '@lightdash/common';
+import { isChartContent, type SavedChart } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams, useSearchParams } from 'react-router';
@@ -10,30 +6,6 @@ import SuboptimalState from '../../components/common/SuboptimalState/SuboptimalS
 import { useSavedQuery } from '../../hooks/useSavedQuery';
 import EmbedExplore from '../features/embed/EmbedExplore/components/EmbedExplore';
 import useEmbed from '../providers/Embed/useEmbed';
-
-const decodeEmbedJwtContent = (
-    token: string | undefined,
-): CreateEmbedJwt['content'] | undefined => {
-    const payload = token?.split('.')[1];
-    if (!payload) {
-        return undefined;
-    }
-
-    try {
-        const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
-        const paddedPayload = normalizedPayload.padEnd(
-            Math.ceil(normalizedPayload.length / 4) * 4,
-            '=',
-        );
-        const decoded = JSON.parse(window.atob(paddedPayload)) as Pick<
-            CreateEmbedJwt,
-            'content'
-        >;
-        return decoded.content;
-    } catch {
-        return undefined;
-    }
-};
 
 const EmbedExplorePage: FC<{
     containerStyles?: React.CSSProperties;
@@ -55,11 +27,8 @@ const EmbedExplorePage: FC<{
     }>();
     const [searchParams] = useSearchParams();
     const projectUuid = embedProjectUuid ?? paramsProjectUuid;
-    const jwtContent = content ?? decodeEmbedJwtContent(embedToken);
     const chartUuidFromJwt =
-        jwtContent && isChartContent(jwtContent)
-            ? jwtContent.contentId
-            : undefined;
+        content && isChartContent(content) ? content.contentId : undefined;
     const chartUuid = searchParams.get('chartUuid') ?? chartUuidFromJwt;
     const chartQuery = useSavedQuery({
         uuidOrSlug: chartUuid,

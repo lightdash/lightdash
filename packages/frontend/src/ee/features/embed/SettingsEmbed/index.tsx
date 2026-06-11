@@ -132,6 +132,9 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         useEmbedConfigUpdateMutation(projectUuid);
     const [writeActions, setWriteActions] =
         useState<CreateEmbedJwt['writeActions']>();
+    const [activeTab, setActiveTab] = useState<'dashboards' | 'charts'>(
+        'dashboards',
+    );
 
     const isSaving = isCreating || isUpdating;
     const allowedDashboards = useMemo(() => {
@@ -254,28 +257,21 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
             </SettingsCard>
             <SettingsCard>
                 <Stack gap="xs" mb="md">
-                    <Title order={4}>Write actions</Title>
-                    <Text c="dimmed" fz="sm">
-                        Choose which Lightdash actor should power embedded
-                        actions like creating scheduled deliveries or saving
-                        charts.
-                    </Text>
-                </Stack>
-                <EmbedWriteActionsForm
-                    projectUuid={projectUuid}
-                    value={writeActions}
-                    onChange={setWriteActions}
-                />
-            </SettingsCard>
-            <SettingsCard>
-                <Stack gap="xs" mb="md">
                     <Title order={4}>Preview & embed code</Title>
                     <Text c="dimmed" fz="sm">
                         Configure your content, preview it, and copy the right
                         embed code for your integration method.
                     </Text>
                 </Stack>
-                <Tabs defaultValue="dashboards" keepMounted>
+                <Tabs
+                    value={activeTab}
+                    onChange={(value) =>
+                        setActiveTab(
+                            value === 'charts' ? 'charts' : 'dashboards',
+                        )
+                    }
+                    keepMounted
+                >
                     <Tabs.List>
                         <Tabs.Tab value="dashboards">Dashboards</Tabs.Tab>
                         <Tabs.Tab value="charts">Charts</Tabs.Tab>
@@ -287,6 +283,15 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 siteUrl={health.data.siteUrl}
                                 dashboards={allowedDashboards}
                                 writeActions={writeActions}
+                                writeActionsPanel={
+                                    activeTab === 'dashboards' ? (
+                                        <EmbedWriteActionsForm
+                                            projectUuid={projectUuid}
+                                            value={writeActions}
+                                            onChange={setWriteActions}
+                                        />
+                                    ) : null
+                                }
                             />
                         </Stack>
                     </Tabs.Panel>
@@ -297,6 +302,15 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                                 siteUrl={health.data.siteUrl}
                                 charts={charts || []}
                                 writeActions={writeActions}
+                                writeActionsPanel={
+                                    activeTab === 'charts' ? (
+                                        <EmbedWriteActionsForm
+                                            projectUuid={projectUuid}
+                                            value={writeActions}
+                                            onChange={setWriteActions}
+                                        />
+                                    ) : null
+                                }
                             />
                         </Stack>
                     </Tabs.Panel>

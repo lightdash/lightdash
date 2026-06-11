@@ -92,6 +92,7 @@ import {
     getDashboardParametersValuesMap,
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -111,6 +112,7 @@ type Dependencies = {
     userAttributesModel: UserAttributesModel;
     userModel: UserModel;
     projectService: ProjectService;
+    spacePermissionService: SpacePermissionService;
     asyncQueryService: AsyncQueryService;
     permissionsService: PermissionsService;
     featureFlagModel: FeatureFlagModel;
@@ -140,6 +142,8 @@ export class EmbedService extends BaseService {
 
     private readonly projectService: ProjectService;
 
+    private readonly spacePermissionService: SpacePermissionService;
+
     private readonly featureFlagModel: FeatureFlagModel;
 
     private readonly organizationModel: OrganizationModel;
@@ -163,6 +167,7 @@ export class EmbedService extends BaseService {
         this.userAttributesModel = dependencies.userAttributesModel;
         this.userModel = dependencies.userModel;
         this.projectService = dependencies.projectService;
+        this.spacePermissionService = dependencies.spacePermissionService;
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
     }
@@ -2187,6 +2192,12 @@ export class EmbedService extends BaseService {
                         embedWriteUserPromise,
                     ]);
 
+                const embedWriteContext = await this.getEmbedWriteContext(
+                    decodedToken,
+                    embedWriteUser,
+                    projectUuid,
+                );
+
                 if (!content) {
                     throw new NotFoundError(
                         'Cannot verify JWT. Content not found',
@@ -2200,9 +2211,62 @@ export class EmbedService extends BaseService {
                     content,
                     userAttributes,
                     embedWriteUser,
+                    embedWriteContext,
                 });
             },
         );
+    }
+
+    private async getEmbedWriteContext(
+        decodedToken: CreateEmbedJwt,
+        embedWriteUser: SessionUser | undefined,
+        projectUuid: string,
+    ): Promise<AnonymousAccount['embedWriteContext']> {
+        const { writeActions } = decodedToken;
+        if (!writeActions || !embedWriteUser) {
+            return undefined;
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        try {
+            const spaceAccessContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    embedWriteUser.userUuid,
+                    writeActions.spaceUuid,
+                );
+
+            if (spaceAccessContext.projectUuid !== projectUuid) {
+                return { canCreateSavedChart: false };
+            }
+
+            const auditedAbility = this.createAuditedAbility(embedWriteUser);
+            return {
+                canCreateSavedChart: auditedAbility.can(
+                    'create',
+                    subject('SavedChart', {
+                        organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject:
+                            spaceAccessContext.inheritsFromOrgOrProject,
+                        access: spaceAccessContext.access,
+                        metadata: {
+                            resolvedSpaceUuid: writeActions.spaceUuid,
+                            dashboardUuid: undefined,
+                        },
+                    }),
+                ),
+            };
+        } catch (error) {
+            if (
+                error instanceof ForbiddenError ||
+                error instanceof NotFoundError
+            ) {
+                return { canCreateSavedChart: false };
+            }
+            throw error;
+        }
     }
 
     private async getEmbedWriteUser(

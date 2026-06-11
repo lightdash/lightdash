@@ -82,6 +82,10 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
     const tokenFromStorageOrProps = embedToken || embed?.token;
+    const embedWriteContext =
+        account && 'embedWriteContext' in account
+            ? account.embedWriteContext
+            : undefined;
     const embedJwtPayload = useMemo(
         () => decodeEmbedJwtPayload(tokenFromStorageOrProps),
         [tokenFromStorageOrProps],
@@ -137,6 +141,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             projectUuid: embed?.projectUuid || projectUuid,
             content: embedJwtPayload?.content,
             writeActions: embedJwtPayload?.writeActions,
+            embedWriteContext,
             paletteUuid,
             languageMap: contentOverrides,
             onExplore,
@@ -152,6 +157,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         tokenFromStorageOrProps,
         embedJwtPayload?.content,
         embedJwtPayload?.writeActions,
+        embedWriteContext,
         filters,
         projectUuid,
         paletteUuid,
