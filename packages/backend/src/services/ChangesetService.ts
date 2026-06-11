@@ -220,7 +220,6 @@ export class ChangesetService extends BaseService {
             projectUuid,
             'name',
             originalChangeset.changes.map((c) => c.entityTableName),
-            { applyChangeset: false },
         );
 
         // Delete the change
@@ -272,7 +271,6 @@ export class ChangesetService extends BaseService {
             projectUuid,
             'name',
             changeset.changes.map((change) => change.entityTableName),
-            { applyChangeset: false },
         );
 
         await this.changesetModel.revertChanges({ changeUuids });

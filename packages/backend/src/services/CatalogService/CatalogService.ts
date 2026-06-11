@@ -280,12 +280,6 @@ export class CatalogService<
         fullTextSearchOperator?: 'OR' | 'AND';
         filteredExplores?: Explore[];
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
-        const changeset = args.filteredExplores
-            ? // Do not pass changeset as we expect `filteredExplores` to have changeset already applied
-              undefined
-            : await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                  args.projectUuid,
-              );
         return wrapSentryTransaction(
             'CatalogService.searchCatalog',
             {
@@ -305,7 +299,6 @@ export class CatalogService<
                     () =>
                         this.catalogModel.search({
                             projectUuid: args.projectUuid,
-                            changeset,
                             catalogSearch: args.catalogSearch,
                             paginateArgs: args.paginateArgs,
                             userAttributes: args.userAttributes,
