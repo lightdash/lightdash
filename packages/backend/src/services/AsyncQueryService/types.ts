@@ -95,6 +95,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dateZoom?: DateZoom;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    sessionTimezone?: string | null;
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
