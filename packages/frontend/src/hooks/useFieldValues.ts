@@ -1,9 +1,13 @@
 import {
+    FeatureFlags,
     getFilterRulesFromGroup,
     getItemId,
     isField,
+    QueryHistoryStatus,
     type AndFilterGroup,
     type ApiError,
+    type ApiExecuteAsyncFieldValueSearchResults,
+    type ApiGetAsyncQueryResults,
     type DashboardFilterRule,
     type FieldValueSearchResult,
     type FilterableItem,
@@ -14,6 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
+import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 export const MAX_AUTOCOMPLETE_RESULTS = 50;
 
@@ -90,6 +95,115 @@ const getFieldValues = async (
     });
 };
 
+export const MAX_POLL_ATTEMPTS = 30; // ~30s with backoff (250ms → 1s)
+
+export const pollForFieldValueResults = async (
+    projectUuid: string,
+    queryUuid: string,
+    backoffMs: number = 250,
+    attempt: number = 0,
+): Promise<ApiGetAsyncQueryResults> => {
+    if (attempt >= MAX_POLL_ATTEMPTS) {
+        throw new Error('Field value search timed out. Please try again.');
+    }
+
+    const results = await lightdashApi<ApiGetAsyncQueryResults>({
+        url: `/projects/${projectUuid}/query/${queryUuid}`,
+        version: 'v2',
+        method: 'GET',
+        body: undefined,
+    });
+
+    if (
+        results.status === QueryHistoryStatus.PENDING ||
+        results.status === QueryHistoryStatus.QUEUED ||
+        results.status === QueryHistoryStatus.EXECUTING
+    ) {
+        const nextBackoff = Math.min(backoffMs * 2, 1000);
+        await new Promise((resolve) => {
+            setTimeout(resolve, backoffMs);
+        });
+        return pollForFieldValueResults(
+            projectUuid,
+            queryUuid,
+            nextBackoff,
+            attempt + 1,
+        );
+    }
+
+    return results;
+};
+
+export const getFieldValuesAsync = async (
+    projectId: string,
+    table: string | undefined,
+    fieldId: string,
+    search: string,
+    forceRefresh: boolean,
+    filters: AndFilterGroup | undefined,
+    limit: number = MAX_AUTOCOMPLETE_RESULTS,
+    parameterValues?: ParametersValuesMap,
+): Promise<FieldValueSearchResult> => {
+    if (!table) {
+        throw new Error('Table is required to search for field values');
+    }
+
+    const executeResult =
+        await lightdashApi<ApiExecuteAsyncFieldValueSearchResults>({
+            url: `/projects/${projectId}/query/field-values`,
+            version: 'v2',
+            method: 'POST',
+            body: JSON.stringify({
+                table,
+                fieldId,
+                search,
+                limit,
+                filters: stripTileTargetsFromFilters(filters),
+                forceRefresh,
+                parameters: parameterValues,
+            }),
+        });
+
+    const queryResult = await pollForFieldValueResults(
+        projectId,
+        executeResult.queryUuid,
+    );
+
+    if (
+        queryResult.status === QueryHistoryStatus.ERROR ||
+        queryResult.status === QueryHistoryStatus.EXPIRED
+    ) {
+        throw new Error(queryResult.error || 'Error fetching field values');
+    }
+
+    if (queryResult.status !== QueryHistoryStatus.READY) {
+        throw new Error('Unexpected query status');
+    }
+
+    // The backend may rewrite the fieldId (e.g. aliased joins), so read the
+    // single result column key from the response instead
+    const resultColumn = Object.keys(queryResult.columns)[0] ?? fieldId;
+
+    const results: string[] = queryResult.rows
+        .map((row) => {
+            const cell = row[resultColumn];
+            if (!cell?.value) return undefined;
+            const { raw } = cell.value;
+            if (raw === null || raw === undefined) return undefined;
+            return String(raw);
+        })
+        .filter((v): v is string => v !== undefined);
+
+    return {
+        search,
+        results,
+        cached: executeResult.cacheMetadata.cacheHit,
+        refreshedAt: executeResult.cacheMetadata.cacheUpdatedTime
+            ? new Date(executeResult.cacheMetadata.cacheUpdatedTime)
+            : new Date(),
+    };
+};
+
 export const useFieldValues = (
     search: string,
     initialData: string[],
@@ -103,6 +217,10 @@ export const useFieldValues = (
     parameterValues?: ParametersValuesMap,
 ) => {
     const { embedToken } = useEmbed();
+    const { data: resultsCacheFlag } = useServerFeatureFlag(
+        FeatureFlags.ResultsCacheEnabled,
+    );
+    const useAsyncPath = resultsCacheFlag?.enabled === true;
     const [fieldName, setFieldName] = useState<string>(field.name);
     const [debouncedSearch, setDebouncedSearch] = useState<string>(search);
     const [searches, setSearches] = useState(new Set<string>());
@@ -157,6 +275,7 @@ export const useFieldValues = (
         'search',
         debouncedSearch,
         parameterValues,
+        useAsyncPath ? 'v2' : 'v1',
     ];
 
     const query = useQuery<FieldValueSearchResult, ApiError>(
@@ -173,8 +292,9 @@ export const useFieldValues = (
                     tableName,
                     fieldId,
                 });
-            } else {
-                return getFieldValues(
+            }
+            if (useAsyncPath) {
+                return getFieldValuesAsync(
                     projectId!,
                     tableName,
                     fieldId,
@@ -185,6 +305,16 @@ export const useFieldValues = (
                     parameterValues,
                 );
             }
+            return getFieldValues(
+                projectId!,
+                tableName,
+                fieldId,
+                debouncedSearch,
+                forceRefresh,
+                filters,
+                undefined,
+                parameterValues,
+            );
         },
         {
             // make sure we don't cache for too long
@@ -232,6 +362,12 @@ export const useFieldValues = (
         }
     }, [initialData, fieldName, field.name, forceRefresh]);
 
+    const reset = useCallback(() => {
+        setSearches(new Set<string>());
+        setResults(new Set(initialData));
+        setResultCounts(new Map());
+    }, [initialData]);
+
     return {
         ...query,
         debouncedSearch,
@@ -239,6 +375,7 @@ export const useFieldValues = (
         results,
         resultCounts,
         refreshedAt,
+        reset,
     };
 };
 
@@ -307,6 +444,7 @@ export const useFieldValuesSafely = (
             results: undefined,
             resultCounts: undefined,
             refreshedAt: undefined,
+            reset: undefined,
         };
     }
 

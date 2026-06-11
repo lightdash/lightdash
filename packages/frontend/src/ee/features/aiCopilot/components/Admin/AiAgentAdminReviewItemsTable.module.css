@@ -1,0 +1,108 @@
+.expandableText {
+    cursor: zoom-in;
+}
+
+.expandableText:hover {
+    color: light-dark(
+        var(--mantine-color-ldGray-8),
+        var(--mantine-color-dark-1)
+    );
+}
+
+.suggestedStep {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-dark-2)
+    );
+    line-height: 1;
+}
+
+.suggestedStepArrow {
+    color: light-dark(
+        var(--mantine-color-ldGray-5),
+        var(--mantine-color-dark-3)
+    );
+}
+
+.confidenceIcon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    color: light-dark(
+        var(--mantine-color-ldGray-6),
+        var(--mantine-color-dark-2)
+    );
+}
+
+.headerHelpIcon {
+    display: inline-flex;
+    align-items: center;
+    cursor: help;
+}
+
+.toolbarGroup {
+    align-items: center;
+}
+
+.toolbarHeading {
+    display: inline-flex;
+    align-items: center;
+    height: 32px;
+    padding-top: 1px;
+}
+
+.threadIcon {
+    opacity: 0;
+    transition: opacity 120ms ease-out;
+}
+
+.bodyRow {
+    transition:
+        background-color 120ms ease-out,
+        box-shadow 120ms ease-out;
+}
+
+.bodyRow:hover {
+    background-color: light-dark(
+        var(--mantine-color-ldGray-0),
+        var(--mantine-color-dark-6)
+    );
+}
+
+.bodyRow:hover .threadIcon,
+.threadIcon:focus-visible {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .threadIcon {
+        transition: none;
+    }
+}
+
+.statusDot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.countPill {
+    display: flex;
+    align-items: center;
+    height: 30px;
+    padding: 0 var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-ldGray-1);
+    color: var(--mantine-color-ldGray-9);
+}
+
+.exampleRow td {
+    opacity: 0.6;
+    cursor: default;
+}

@@ -3,8 +3,15 @@ import * as Sentry from '@sentry/node';
 import Logger from '../../../../logging/logger';
 import { serializeData } from './serializeData';
 
-export const toolErrorHandler = (error: unknown, message: string) => {
-    Sentry.captureException(error);
+export const toolErrorHandler = (
+    error: unknown,
+    message: string,
+    options: { captureToSentry?: boolean } = {},
+) => {
+    const { captureToSentry = true } = options;
+    if (captureToSentry) {
+        Sentry.captureException(error);
+    }
 
     const errorMessage = `${message}
 

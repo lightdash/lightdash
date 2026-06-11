@@ -10,13 +10,16 @@ import { getDockerHubVersion } from '../../clients/DockerHub/DockerHub';
 import { LightdashConfig } from '../../config/parseConfig';
 import { MigrationModel } from '../../models/MigrationModel/MigrationModel';
 import { OrganizationModel } from '../../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import { VERSION } from '../../version';
 import { BaseService } from '../BaseService';
+import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 
 type HealthServiceArguments = {
     lightdashConfig: LightdashConfig;
     organizationModel: OrganizationModel;
     migrationModel: MigrationModel;
+    organizationSettingsModel: OrganizationSettingsModel;
 };
 
 export class HealthService extends BaseService {
@@ -26,15 +29,19 @@ export class HealthService extends BaseService {
 
     private readonly migrationModel: MigrationModel;
 
+    private readonly organizationSettingsModel: OrganizationSettingsModel;
+
     constructor({
         organizationModel,
         migrationModel,
         lightdashConfig,
+        organizationSettingsModel,
     }: HealthServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.organizationModel = organizationModel;
         this.migrationModel = migrationModel;
+        this.organizationSettingsModel = organizationSettingsModel;
     }
 
     private isEnterpriseEnabled(): boolean {
@@ -43,6 +50,23 @@ export class HealthService extends BaseService {
 
     async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
         const isAuthenticated: boolean = !!user?.userUuid;
+
+        // Resolve the query/CSV limits for the requesting org (override ?? the
+        // instance env default). Unauthenticated callers (e.g. the login page)
+        // have no org, so they see the instance defaults — unchanged behavior.
+        const {
+            maxLimit: effectiveMaxLimit,
+            csvCellsLimit: effectiveCsvCellsLimit,
+        } = user?.organizationUuid
+            ? await resolveOrganizationExportLimits(
+                  this.organizationSettingsModel,
+                  this.lightdashConfig.query,
+                  user.organizationUuid,
+              )
+            : {
+                  maxLimit: this.lightdashConfig.query.maxLimit,
+                  csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
+              };
 
         const migrationStartTime = performance.now();
         const { status: migrationStatus, currentVersion } =
@@ -115,12 +139,23 @@ export class HealthService extends BaseService {
             staticIp: this.lightdashConfig.staticIp,
             signupUrl: this.lightdashConfig.signupUrl,
             helpMenuUrl: this.lightdashConfig.helpMenuUrl,
-            posthog: this.lightdashConfig.posthog,
             query: {
-                csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
-                maxLimit: this.lightdashConfig.query.maxLimit,
+                // Effective for this org (override ?? env default).
+                csvCellsLimit: effectiveCsvCellsLimit,
+                maxLimit: effectiveMaxLimit,
+                // The instance ceilings an org admin can set the per-org limits
+                // to (the env values) — used by the admin panel's "Up to" hints.
+                csvMaxLimit: Math.max(
+                    this.lightdashConfig.query.csvMaxLimit,
+                    this.lightdashConfig.query.csvCellsLimit,
+                ),
+                queryMaxLimit: this.lightdashConfig.query.maxLimit,
                 maxPageSize: this.lightdashConfig.query.maxPageSize,
-                defaultLimit: this.lightdashConfig.query.defaultLimit,
+                // The new-query default, never above this org's effective max.
+                defaultLimit: Math.min(
+                    this.lightdashConfig.query.defaultLimit,
+                    effectiveMaxLimit,
+                ),
                 retryQueryOnTransientErrors:
                     this.lightdashConfig.query.retryQueryOnTransientErrors,
             },
@@ -231,11 +266,14 @@ export class HealthService extends BaseService {
                 enabled: this.lightdashConfig.softDelete.enabled,
                 retentionDays: this.lightdashConfig.softDelete.retentionDays,
             },
+            dashboardComments: {
+                enabled: this.lightdashConfig.dashboardComments.enabled,
+            },
             preAggregates: {
                 enabled: this.lightdashConfig.preAggregates.enabled,
             },
             dataApps: {
-                enabled: this.lightdashConfig.appRuntime.enabled,
+                previewOrigin: this.lightdashConfig.appRuntime.previewOrigin,
             },
         };
     }

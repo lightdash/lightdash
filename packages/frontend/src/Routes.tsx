@@ -7,6 +7,7 @@ import JobDetailsDrawer from './components/JobDetailsDrawer';
 import NavBar from './components/NavBar';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
+import CreateProjectSettings from './components/Settings/CreateProjectSettings';
 import UserCompletionModal from './components/UserCompletionModal';
 import FunnelBuilder from './features/funnelBuilder/FunnelBuilderPage';
 import { MetricCatalogView } from './features/metricsCatalog/types';
@@ -15,7 +16,6 @@ import AppPreviewTest from './pages/AppPreviewTest';
 import AuthPopupResult from './pages/AuthPopupResult';
 import ChartHistory from './pages/ChartHistory';
 import CreateProject from './pages/CreateProject';
-import CreateProjectSettings from './pages/CreateProjectSettings';
 import Dashboard from './pages/Dashboard';
 import DashboardHistory from './pages/DashboardHistory';
 import Explorer from './pages/Explorer';
@@ -25,8 +25,10 @@ import JoinOrganization from './pages/JoinOrganization';
 import LegacySqlRunner from './pages/LegacySqlRunner';
 import Login from './pages/Login';
 import MetricsCatalog from './pages/MetricsCatalog';
+import MinimalApp from './pages/MinimalApp';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
+import MinimalSqlChart from './pages/MinimalSqlChart';
 import PasswordRecovery from './pages/PasswordRecovery';
 import PasswordReset from './pages/PasswordReset';
 import Projects from './pages/Projects';
@@ -40,7 +42,6 @@ import SourceCodeEditorRedirect from './pages/SourceCodeEditorRedirect';
 import Space from './pages/Space';
 import Spaces from './pages/Spaces';
 import SqlRunner from './pages/SqlRunner';
-import UnusedContent from './pages/UnusedContent';
 import UserActivity from './pages/UserActivity';
 import VerifyEmailPage from './pages/VerifyEmail';
 import ViewSqlChart from './pages/ViewSqlChart';
@@ -118,6 +119,7 @@ const PUBLIC_ROUTES: RouteObject[] = [
 const MINIMAL_ROUTES: RouteObject[] = [
     {
         path: '/minimal',
+        handle: { hideAILauncher: true },
         children: [
             {
                 path: '/minimal/projects/:projectUuid/saved/:savedQueryUuid',
@@ -134,6 +136,18 @@ const MINIMAL_ROUTES: RouteObject[] = [
             {
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid',
                 element: <MinimalDashboard />,
+            },
+            {
+                path: '/minimal/projects/:projectUuid/sql-runner/:savedSqlUuid',
+                element: (
+                    <Stack p="lg" h="100vh">
+                        <MinimalSqlChart />
+                    </Stack>
+                ),
+            },
+            {
+                path: '/minimal/projects/:projectUuid/apps/:appUuid',
+                element: <MinimalApp />,
             },
         ],
     },
@@ -340,19 +354,35 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         ),
     },
     {
+        path: 'autopilot',
+        lazy: async () => {
+            const { ManagedAgentActivityPage } =
+                await import('./ee/features/managedAgent/ManagedAgentActivityPage');
+            return { Component: ManagedAgentActivityPage };
+        },
+    },
+    {
+        path: 'improve',
+        element: <Navigate to="../autopilot" replace />,
+    },
+    {
         path: 'apps/generate',
+        handle: { hideAILauncher: true },
         element: <AppGenerate />,
     },
     {
         path: 'apps/:appUuid',
+        handle: { hideAILauncher: true },
         element: <AppGenerate />,
     },
     {
         path: 'apps/:appUuid/versions/:version/preview',
+        handle: { hideAILauncher: true },
         element: <AppPreviewTest />,
     },
     {
         path: 'apps/:appUuid/preview',
+        handle: { hideAILauncher: true },
         element: <AppPreviewTest />,
     },
     {
@@ -364,15 +394,8 @@ const PROJECT_LAYOUT_ROUTES: RouteObject[] = [
         ),
     },
     {
-        path: 'unused-content',
-        element: (
-            <TrackPage name={PageName.USER_ACTIVITY}>
-                <UnusedContent />
-            </TrackPage>
-        ),
-    },
-    {
         path: 'funnel-builder',
+        handle: { hideAILauncher: true },
         element: (
             <TrackPage name={PageName.FUNNEL_BUILDER}>
                 <FunnelBuilder />
@@ -402,6 +425,7 @@ const APP_ROUTES: RouteObject[] = [
                     </ProjectRoute>
                 ),
                 children: [
+                    { index: true, element: <Navigate to="home" replace /> },
                     // Legacy sqlRunner redirect (no layout needed)
                     {
                         path: 'sqlRunner',
@@ -451,6 +475,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/createProjectSettings/:projectUuid',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -462,6 +487,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/generalSettings/*',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -473,6 +499,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/no-access',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -484,6 +511,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/no-project-access',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />
@@ -495,6 +523,7 @@ const PRIVATE_ROUTES: RouteObject[] = [
             },
             {
                 path: '/share/:shareNanoid',
+                handle: { hideAILauncher: true },
                 element: (
                     <>
                         <NavBar />

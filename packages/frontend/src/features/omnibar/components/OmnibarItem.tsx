@@ -1,7 +1,6 @@
 import { Badge, Box, Group, Stack, Text } from '@mantine-8/core';
 import { IconCircleCheckFilled } from '@tabler/icons-react';
 import { type FC, type MutableRefObject } from 'react';
-import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { type SearchItem } from '../types/searchItem';
 import classes from './OmnibarItem.module.css';
 import {
@@ -38,7 +37,6 @@ const OmnibarItem: FC<Props> = ({
     onClick,
     scrollRef,
 }) => {
-    const isContentVerificationEnabled = useContentVerificationEnabled();
     return (
         <Group
             role="menuitem"
@@ -64,25 +62,27 @@ const OmnibarItem: FC<Props> = ({
             <Stack gap="two" className={classes.content}>
                 <Group gap="xs" wrap="nowrap">
                     <Text fw={500} size="sm" truncate ref={scrollRef}>
-                        {item.prefix} {item.title}
+                        {item.prefix ? <>{item.prefix} </> : null}
+                        {item.title}
                     </Text>
-                    {isContentVerificationEnabled &&
-                        itemHasVerification(item) && (
-                            <Badge
-                                size="xs"
-                                variant="light"
-                                color="green"
-                                leftSection={
-                                    <IconCircleCheckFilled size={10} />
-                                }
-                                style={{ flexShrink: 0 }}
-                            >
-                                Verified
-                            </Badge>
-                        )}
+                    {itemHasVerification(item) && (
+                        <Badge
+                            size="xs"
+                            variant="light"
+                            color="green"
+                            leftSection={<IconCircleCheckFilled size={10} />}
+                            style={{ flexShrink: 0 }}
+                        >
+                            Verified
+                        </Badge>
+                    )}
                 </Group>
 
-                {item.description || item.typeLabel ? (
+                {item.contextLabel ? (
+                    <Text size="xs" truncate c="dimmed">
+                        {item.contextLabel}
+                    </Text>
+                ) : item.description || item.typeLabel ? (
                     <Text size="xs" truncate c="dimmed">
                         {item.typeLabel}
                         {item.typeLabel && item.description ? <> · </> : null}

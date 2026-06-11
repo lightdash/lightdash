@@ -42,11 +42,13 @@ export const runSqlQuery = createAsyncThunk<
         { rejectWithValue },
     ) => {
         try {
+            // SQL Runner is edit-only — always skip cache, matching explore edit mode.
             return await executeSqlQuery(
                 projectUuid,
                 sql,
                 limit,
                 parameterValues,
+                true,
             );
         } catch (error) {
             if (isApiError(error)) {

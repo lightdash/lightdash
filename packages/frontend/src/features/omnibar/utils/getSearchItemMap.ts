@@ -46,7 +46,6 @@ export const getSearchItemMap = (
 
     const savedCharts = results.savedCharts.map<SearchItem>((item) => ({
         type: SearchItemType.CHART,
-        icon: 'chart',
         title: item.name,
         description: item.description,
         item: item,
@@ -58,7 +57,6 @@ export const getSearchItemMap = (
 
     const sqlCharts = results.sqlCharts.map<SearchItem>((item) => ({
         type: SearchItemType.SQL_CHART,
-        icon: 'chart',
         title: item.name,
         description: item.description || undefined,
         item: item,
@@ -151,6 +149,17 @@ export const getSearchItemMap = (
         location: { pathname: item.url },
     }));
 
+    const dataApps = results.dataApps.map<SearchItem>((item) => ({
+        type: SearchItemType.DATA_APP,
+        title: item.name,
+        description: item.description || undefined,
+        item: item,
+        searchRank: item.search_rank,
+        location: {
+            pathname: `/projects/${projectUuid}/apps/${item.uuid}/preview`,
+        },
+    }));
+
     return {
         spaces,
         dashboards,
@@ -160,5 +169,6 @@ export const getSearchItemMap = (
         fields,
         pages,
         dashboardTabs,
+        dataApps,
     };
 };

@@ -107,6 +107,8 @@ export const useSyncModalForm = (chartUuid: string, projectUuid?: string) => {
                 targets: [],
                 // TODO: Related to scheduled deliveries, not syncs. Irrelevant.
                 includeLinks: false,
+                appUuid: null,
+                appName: null,
             };
 
             const payload = {

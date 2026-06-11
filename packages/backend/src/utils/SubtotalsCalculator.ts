@@ -22,6 +22,7 @@ export interface SubtotalQueryConfig {
 /**
  * Utility class for shared subtotals calculation logic.
  * Eliminates duplication between ProjectService and EmbedService.
+ * @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal').
  */
 export class SubtotalsCalculator {
     /**

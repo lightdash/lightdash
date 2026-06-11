@@ -1,4 +1,5 @@
 import {
+    assertRegisteredAccount,
     type ApiErrorPayload,
     type ApiFavoriteItems,
     type ApiToggleFavorite,
@@ -18,6 +19,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -39,9 +41,10 @@ export class FavoritesController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiFavoriteItems> {
+        assertRegisteredAccount(req.account);
         const items = await this.services
             .getFavoritesService()
-            .getFavorites(req.user!, projectUuid);
+            .getFavorites(toSessionUser(req.account), projectUuid);
         this.setStatus(200);
         return {
             status: 'ok',
@@ -65,10 +68,11 @@ export class FavoritesController extends BaseController {
         @Request() req: express.Request,
         @Body() body: ToggleFavoriteRequest,
     ): Promise<ApiToggleFavorite> {
+        assertRegisteredAccount(req.account);
         const result = await this.services
             .getFavoritesService()
             .toggleFavorite(
-                req.user!,
+                toSessionUser(req.account),
                 projectUuid,
                 body.contentType,
                 body.contentUuid,

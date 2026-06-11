@@ -17,9 +17,7 @@ import { verticalBarMetricVizConfigSchema } from '../visualizations';
 
 export const TOOL_VERTICAL_BAR_VIZ_DESCRIPTION = `Use this tool to generate a Bar Chart Visualization.`;
 
-export const toolVerticalBarArgsSchema = createToolSchema({
-    description: TOOL_VERTICAL_BAR_VIZ_DESCRIPTION,
-})
+export const toolVerticalBarArgsSchema = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
         customMetrics: customMetricsSchema,

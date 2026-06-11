@@ -1,8 +1,10 @@
 import {
+    type ApiDataTimezonePreviewResults,
     type ApiError,
     type ApiJobStartedResults,
     type CreateProject,
     type CreateWarehouseCredentials,
+    type DataTimezonePreviewRequest,
     type MostPopularAndRecentlyUpdated,
     type Project,
     type UpdateDefaultUserSpaces,
@@ -40,6 +42,22 @@ const getProject = async (uuid: string) =>
         url: `/projects/${uuid}`,
         method: 'GET',
         body: undefined,
+    });
+
+const postDataTimezonePreview = async (body: DataTimezonePreviewRequest) =>
+    lightdashApi<ApiDataTimezonePreviewResults>({
+        url: `/projects/preview-data-timezone`,
+        method: 'POST',
+        body: JSON.stringify(body),
+    });
+
+export const useDataTimezonePreviewMutation = () =>
+    useMutation<
+        ApiDataTimezonePreviewResults,
+        ApiError,
+        DataTimezonePreviewRequest
+    >({
+        mutationFn: postDataTimezonePreview,
     });
 
 const updateProjectSchedulerSettings = async (
@@ -215,6 +233,39 @@ const updateDefaultUserSpaces = async (
         method: 'PATCH',
         body: JSON.stringify(data),
     });
+
+const updateProjectColorPalette = async (
+    uuid: string,
+    colorPaletteUuid: string | null,
+) =>
+    lightdashApi<undefined>({
+        url: `/projects/${uuid}/colorPalette`,
+        method: 'PATCH',
+        body: JSON.stringify({ colorPaletteUuid }),
+    });
+
+export const useUpdateProjectColorPalette = (uuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastSuccess, showToastApiError } = useToaster();
+    return useMutation<undefined, ApiError, string | null>(
+        (colorPaletteUuid) => updateProjectColorPalette(uuid, colorPaletteUuid),
+        {
+            mutationKey: ['project_color_palette_update', uuid],
+            onSuccess: async () => {
+                await queryClient.invalidateQueries(['project', uuid]);
+                showToastSuccess({
+                    title: 'Project color palette updated',
+                });
+            },
+            onError: ({ error }) => {
+                showToastApiError({
+                    title: 'Failed to update project color palette',
+                    apiError: error,
+                });
+            },
+        },
+    );
+};
 
 export const useUpdateDefaultUserSpaces = (uuid: string) => {
     const queryClient = useQueryClient();

@@ -83,6 +83,7 @@ export enum EventName {
     UPDATE_TABLE_CALCULATION_BUTTON_CLICKED = 'update_table_calculation_button.click',
     DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'delete_table_calculation_button.click',
     CONFIRM_DELETE_TABLE_CALCULATION_BUTTON_CLICKED = 'confirm_delete_table_calculation_button.click',
+    FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED = 'formula_table_calculation_ai_generate.clicked',
     UPDATE_PROJECT_BUTTON_CLICKED = 'update_project_button.click',
     CREATE_PROJECT_BUTTON_CLICKED = 'create_project_button.click',
     REFRESH_DBT_CONNECTION_BUTTON_CLICKED = 'refresh_dbt_connection_button.click',
@@ -97,6 +98,7 @@ export enum EventName {
     LANDING_RUN_QUERY_CLICKED = 'landing_run_query.click',
     SETUP_STEP_CLICKED = 'setup_step.click',
     ADD_FILTER_CLICKED = 'add_filter.click',
+    DASHBOARD_FILTER_LOCK_TOGGLED = 'dashboard_filter_lock.toggled',
     GO_TO_LINK_CLICKED = 'go_to_link.click',
     ADD_CUSTOM_METRIC_CLICKED = 'add_custom_metric.click',
     REMOVE_CUSTOM_METRIC_CLICKED = 'remove_custom_metric.click',
@@ -163,6 +165,10 @@ export enum EventName {
     AI_AGENT_CHART_HOW_ITS_CALCULATED_CLICKED = 'ai_agent_chart_how_its_calculated.clicked',
     AI_AGENT_CHART_CREATED = 'ai_agent_chart.created',
     AI_AGENT_CHART_EXPLORED = 'ai_agent_chart.explored',
+    AI_AGENT_ASK_CLICKED = 'ai_agent_ask.clicked',
+    AI_AGENT_CHAT_MINIMIZED = 'ai_agent_chat.minimized',
+    AI_AGENT_SUGGESTION_IMPRESSION = 'ai_agent.suggestion_impression',
+    AI_AGENT_SUGGESTION_CLICK = 'ai_agent.suggestion_click',
 
     // Theme
     THEME_TOGGLED = 'theme.toggled',

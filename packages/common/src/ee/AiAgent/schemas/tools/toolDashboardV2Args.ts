@@ -25,16 +25,14 @@ Recommended Dashboard Structure:
 7. **Detailed Breakdowns**: Add tables with more detail and specific line items that have the biggest impact on metrics
 `;
 
-// Dashboard visualization schema - use runQuery format for each visualization
+// Dashboard visualization schema - use generateVisualization format for each visualization
 const dashboardV2VisualizationSchema = toolRunQueryArgsSchema;
 
 export type DashboardV2Visualization = z.infer<
     typeof dashboardV2VisualizationSchema
 >;
 
-export const toolDashboardV2ArgsSchema = createToolSchema({
-    description: TOOL_DASHBOARD_V2_DESCRIPTION,
-})
+export const toolDashboardV2ArgsSchema = createToolSchema()
     .extend({
         title: z.string().describe('A descriptive title for the dashboard'),
         description: z

@@ -13,6 +13,7 @@ export enum ContentTypePriority {
     SPACE = 1,
     DASHBOARD = 2,
     CHART = 3,
+    DATA_APP = 4,
 }
 
 export type ContentFilters = {
@@ -72,6 +73,10 @@ export type SummaryContentRow<
     deleted_by_user_uuid: string | null;
     deleted_by_user_first_name: string | null;
     deleted_by_user_last_name: string | null;
+    verified_at: Date | null;
+    verified_by_user_uuid: string | null;
+    verified_by_user_first_name: string | null;
+    verified_by_user_last_name: string | null;
     metadata: T;
 };
 

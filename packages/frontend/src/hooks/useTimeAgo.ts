@@ -1,5 +1,5 @@
 import { formatDistanceToNow, parseISO } from 'date-fns';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useInterval } from 'react-use';
 
 export const useTimeAgo = (
@@ -21,14 +21,23 @@ export const useTimeAgo = (
     }, [parsed]);
 
     const [timeAgo, setTimeAgo] = useState<string>(getTimeAgo());
+    const timeAgoRef = useRef(timeAgo);
+    const updateTimeAgo = useCallback(() => {
+        const nextTimeAgo = getTimeAgo();
+
+        if (timeAgoRef.current === nextTimeAgo) return;
+
+        timeAgoRef.current = nextTimeAgo;
+        setTimeAgo(nextTimeAgo);
+    }, [getTimeAgo]);
 
     useInterval(() => {
-        setTimeAgo(getTimeAgo());
+        updateTimeAgo();
     }, interval);
 
     useEffect(() => {
-        setTimeAgo(getTimeAgo());
-    }, [parsed, getTimeAgo]);
+        updateTimeAgo();
+    }, [parsed, updateTimeAgo]);
 
     return timeAgo;
 };

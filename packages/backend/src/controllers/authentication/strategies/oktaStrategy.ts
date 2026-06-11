@@ -2,18 +2,24 @@
 /// <reference path="../../../@types/express-session.d.ts" />
 import {
     LightdashError,
+    OktaSsoConfig,
     OpenIdIdentityIssuerType,
     OpenIdUser,
+    OrganizationSsoProvider,
     UnexpectedServerError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Request, RequestHandler } from 'express';
+import isString from 'lodash/isString';
 import { generators, Issuer, UserinfoResponse } from 'openid-client';
 import { Strategy } from 'passport-strategy';
 import { URL } from 'url';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import Logger from '../../../logging/logger';
 import { getLoginHint } from '../utils';
+
+const getIssuerHint = (req: Request) =>
+    isString(req.query?.iss) ? req.query.iss : undefined;
 
 const createOpenIdUserFromUserInfo = (
     userInfo: UserinfoResponse,
@@ -53,14 +59,17 @@ const createOpenIdUserFromUserInfo = (
     return openIdUser;
 };
 
-const setupOktaIssuerClient = async () => {
-    const { okta } = lightdashConfig.auth;
-
+/**
+ * Builds the Okta `openid-client` Client for a given config. Used by both the
+ * env-based (single-tenant) path and the per-org DB-config path, so the config
+ * is always passed in explicitly rather than read from `lightdashConfig`.
+ */
+const setupOktaIssuerClient = async (config: OktaSsoConfig) => {
     const oktaIssuerUri = new URL(
-        okta.authorizationServerId
-            ? `/oauth2/${okta.authorizationServerId}`
+        config.authorizationServerId
+            ? `/oauth2/${config.authorizationServerId}`
             : '',
-        `https://${okta.oktaDomain}`,
+        `https://${config.oktaDomain}`,
     ).href;
 
     const oktaIssuer = await Issuer.discover(oktaIssuerUri);
@@ -71,13 +80,80 @@ const setupOktaIssuerClient = async () => {
     ).href;
 
     const client = new oktaIssuer.Client({
-        client_id: okta.oauth2ClientId ?? '',
-        client_secret: okta.oauth2ClientSecret,
+        client_id: config.oauth2ClientId,
+        client_secret: config.oauth2ClientSecret,
         redirect_uris: [redirectUri],
         response_types: ['code'],
     });
 
     return client;
+};
+
+/**
+ * Builds an OktaSsoConfig from the instance-level env config, or returns
+ * undefined when the instance isn't configured for Okta. Retained as a
+ * fallback for single-tenant env-driven instances.
+ */
+export const getOktaConfigFromEnv = (): OktaSsoConfig | undefined => {
+    const { okta } = lightdashConfig.auth;
+    if (
+        okta.oauth2ClientId &&
+        okta.oauth2ClientSecret &&
+        okta.oauth2Issuer &&
+        okta.oktaDomain
+    ) {
+        return {
+            oauth2Issuer: okta.oauth2Issuer,
+            oktaDomain: okta.oktaDomain,
+            oauth2ClientId: okta.oauth2ClientId,
+            oauth2ClientSecret: okta.oauth2ClientSecret,
+            authorizationServerId: okta.authorizationServerId ?? null,
+            extraScopes: okta.extraScopes ?? null,
+        };
+    }
+    return undefined;
+};
+
+/**
+ * Resolves the Okta config to use for this request. Prefers a per-org
+ * DB-stored config matching the email login hint; falls back to the
+ * instance-level env config. Returns the resolved organization (if any) so
+ * the callback can re-resolve the same config from the session.
+ */
+export const resolveOktaConfig = async (
+    req: Request,
+): Promise<
+    { config: OktaSsoConfig; organizationUuid: string | null } | undefined
+> => {
+    const email = getLoginHint(req);
+    if (email) {
+        const method = await req.services
+            .getOrganizationSsoService()
+            .findEnabledMethodForEmail(email, OrganizationSsoProvider.OKTA);
+        if (method) {
+            return {
+                config: method.config,
+                organizationUuid: method.organizationUuid,
+            };
+        }
+    }
+    const issuer = getIssuerHint(req);
+    if (issuer) {
+        const method = await req.services
+            .getOrganizationSsoService()
+            .findEnabledOktaMethodForIssuer(issuer);
+        if (method) {
+            return {
+                config: method.config,
+                organizationUuid: method.organizationUuid,
+            };
+        }
+    }
+    const envConfig = getOktaConfigFromEnv();
+    if (envConfig) {
+        return { config: envConfig, organizationUuid: null };
+    }
+    return undefined;
 };
 
 export class OpenIDClientOktaStrategy extends Strategy {
@@ -108,7 +184,26 @@ export class OpenIDClientOktaStrategy extends Strategy {
                 );
             }
 
-            const client = await setupOktaIssuerClient();
+            // Resolve the config used at login: the per-org config stored on
+            // the session (if login was initiated for a per-org Okta method),
+            // else the instance-level env config.
+            const organizationUuid = req.session.oauth?.oktaOrganizationUuid;
+            const config = organizationUuid
+                ? await req.services
+                      .getOrganizationSsoService()
+                      .getConfigForOrganization(
+                          organizationUuid,
+                          OrganizationSsoProvider.OKTA,
+                      )
+                : getOktaConfigFromEnv();
+            if (!config) {
+                return this.fail(
+                    { message: 'Okta SSO is not configured' },
+                    404,
+                );
+            }
+
+            const client = await setupOktaIssuerClient(config);
 
             const redirectUri = new URL(
                 `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
@@ -141,7 +236,16 @@ export class OpenIDClientOktaStrategy extends Strategy {
                 if (openIdUser) {
                     const user = await req.services
                         .getUserService()
-                        .loginWithOpenId(openIdUser, req.user, inviteCode);
+                        .loginWithOpenId(
+                            openIdUser,
+                            req.user,
+                            inviteCode,
+                            undefined,
+                            {
+                                ip: req.ip,
+                                userAgent: req.get('user-agent'),
+                            },
+                        );
                     return this.success(user);
                 }
 
@@ -174,7 +278,17 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
     next,
 ) => {
     try {
-        const client = await setupOktaIssuerClient();
+        const resolved = await resolveOktaConfig(req);
+        if (!resolved) {
+            res.status(404).json({
+                status: 'error',
+                message: 'Okta SSO is not configured',
+            });
+            return;
+        }
+        const { config, organizationUuid } = resolved;
+
+        const client = await setupOktaIssuerClient(config);
 
         const redirectUri = new URL(
             `/api/v1${lightdashConfig.auth.okta.callbackPath}`,
@@ -189,9 +303,7 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
             redirect_uri: redirectUri,
             response_type: 'code',
             scope: 'openid profile email'.concat(
-                lightdashConfig.auth.okta.extraScopes
-                    ? ` ${lightdashConfig.auth.okta.extraScopes}`
-                    : '',
+                config.extraScopes ? ` ${config.extraScopes}` : '',
             ),
             code_challenge: codeChallenge,
             code_challenge_method: 'S256',
@@ -199,21 +311,17 @@ export const initiateOktaOpenIdLogin: RequestHandler = async (
             state,
         });
 
+        // Persist the resolved org so the callback re-resolves the same config
+        // (the login hint isn't available on the provider's redirect back).
         req.session.oauth = {
             ...(req.session.oauth ?? {}),
             codeVerifier,
             state,
+            oktaOrganizationUuid: organizationUuid ?? undefined,
         };
 
-        return res.redirect(authorizationUrl);
+        res.redirect(authorizationUrl);
     } catch (e) {
-        return next(e);
+        next(e);
     }
 };
-
-export const isOktaPassportStrategyAvailableToUse = !!(
-    lightdashConfig.auth.okta.oauth2ClientId &&
-    lightdashConfig.auth.okta.oauth2ClientSecret &&
-    lightdashConfig.auth.okta.oauth2Issuer &&
-    lightdashConfig.auth.okta.oktaDomain
-);

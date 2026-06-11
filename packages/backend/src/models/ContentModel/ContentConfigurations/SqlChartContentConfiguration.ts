@@ -5,6 +5,7 @@ import {
     ContentType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import { ContentVerificationTableName } from '../../../database/entities/contentVerification';
 import { DashboardsTableName } from '../../../database/entities/dashboards';
 import { OrganizationTableName } from '../../../database/entities/organizations';
 import { ProjectTableName } from '../../../database/entities/projects';
@@ -17,13 +18,21 @@ import {
     ContentTypePriority,
     SummaryContentRow,
 } from '../ContentModelTypes';
+import { applyContentNameSearch } from '../ContentSearchUtils';
 
 type SelectSavedSql = SummaryContentRow<{
     source: ChartSourceType.SQL;
-    chart_kind: ChartKind;
+    chart_kind: string;
     dashboard_uuid: string | null;
     dashboard_name: string | null;
 }>;
+
+const VALID_CHART_KINDS = new Set<string>(Object.values(ChartKind));
+
+const coerceChartKind = (value: string): ChartKind =>
+    VALID_CHART_KINDS.has(value)
+        ? (value as ChartKind)
+        : ChartKind.VERTICAL_BAR;
 
 export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> =
     {
@@ -77,6 +86,25 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     `${SavedSqlTableName}.last_version_updated_by_user_uuid`,
                     `updatedByUser.user_uuid`,
                 )
+                .leftJoin(
+                    ContentVerificationTableName,
+                    function verificationJoin() {
+                        this.on(
+                            `${ContentVerificationTableName}.content_uuid`,
+                            '=',
+                            `${SavedSqlTableName}.saved_sql_uuid`,
+                        ).andOn(
+                            `${ContentVerificationTableName}.content_type`,
+                            '=',
+                            knex.raw('?', [ContentType.CHART]),
+                        );
+                    },
+                )
+                .leftJoin(
+                    `${UserTableName} as verifiedByUser`,
+                    `verifiedByUser.user_uuid`,
+                    `${ContentVerificationTableName}.verified_by_user_uuid`,
+                )
                 .select<SelectSavedSql[]>([
                     knex.raw(`'${ContentType.CHART}' as content_type`),
                     knex.raw(
@@ -123,6 +151,10 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     knex.raw(
                         `(SELECT last_name FROM ${UserTableName} WHERE user_uuid = ${SavedSqlTableName}.deleted_by_user_uuid) as deleted_by_user_last_name`,
                     ),
+                    `${ContentVerificationTableName}.verified_at as verified_at`,
+                    `verifiedByUser.user_uuid as verified_by_user_uuid`,
+                    `verifiedByUser.first_name as verified_by_user_first_name`,
+                    `verifiedByUser.last_name as verified_by_user_last_name`,
                     knex.raw(`json_build_object(
                     'source','${ChartSourceType.SQL}',
                     'chart_kind', ${SavedSqlTableName}.last_version_chart_kind,
@@ -161,9 +193,10 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                         );
                     }
                     if (filters.search) {
-                        void builder.whereRaw(
-                            `LOWER(${SavedSqlTableName}.name) LIKE ?`,
-                            [`%${filters.search.toLowerCase()}%`],
+                        applyContentNameSearch(
+                            builder,
+                            `${SavedSqlTableName}.name`,
+                            filters.search,
                         );
                     }
 
@@ -211,7 +244,7 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     name: value.organization_name,
                 },
                 source: value.metadata.source,
-                chartKind: value.metadata.chart_kind,
+                chartKind: coerceChartKind(value.metadata.chart_kind),
                 space: {
                     uuid: value.space_uuid,
                     name: value.space_name,
@@ -229,7 +262,20 @@ export const sqlChartContentConfiguration: ContentConfiguration<SelectSavedSql> 
                     : null,
                 views: value.views,
                 firstViewedAt: value.first_viewed_at,
-                verification: null,
+                verification:
+                    value.verified_at !== null &&
+                    value.verified_by_user_uuid !== null &&
+                    value.verified_by_user_first_name !== null &&
+                    value.verified_by_user_last_name !== null
+                        ? {
+                              verifiedBy: {
+                                  userUuid: value.verified_by_user_uuid,
+                                  firstName: value.verified_by_user_first_name,
+                                  lastName: value.verified_by_user_last_name,
+                              },
+                              verifiedAt: value.verified_at,
+                          }
+                        : null,
             };
         },
     };

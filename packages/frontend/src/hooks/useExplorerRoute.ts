@@ -304,6 +304,7 @@ export const useExplorerUrlState = (): ExplorerReduceState | undefined => {
                           ]
                         : [ExplorerSection.RESULTS],
                     unsavedChartVersion,
+                    unsavedColorPaletteUuid: null,
                     modals: {
                         format: {
                             isOpen: false,

@@ -1,6 +1,5 @@
 import {
     DatabricksAuthenticationType,
-    FeatureFlags,
     WarehouseTypes,
 } from '@lightdash/common';
 import {
@@ -23,9 +22,7 @@ import {
     useDatabricksLoginPopup,
     useIsDatabricksAuthenticated,
 } from '../../../hooks/useDatabricks';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
-import TimeZonePicker from '../../common/TimeZonePicker';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -33,6 +30,7 @@ import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
+import DataTimezoneField from './DataTimezoneField';
 import { DatabricksDefaultValues } from './defaultValues';
 import { getSsoLabel, PERSONAL_ACCESS_TOKEN_LABEL } from './util';
 
@@ -107,10 +105,6 @@ const DatabricksForm: FC<{
     const form = useFormContext();
     const [isOpen, toggleOpen] = useToggle(false);
     const { savedProject } = useProjectFormContext();
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
     const requireSecrets: boolean =
         savedProject?.warehouseConnection?.type !== WarehouseTypes.DATABRICKS;
 
@@ -178,23 +172,24 @@ const DatabricksForm: FC<{
         form.values.warehouse.authenticationType ?? defaultAuthType;
 
     // Build authentication options based on SSO availability
-    const authOptions = isSsoEnabled
-        ? [
-              {
-                  value: DatabricksAuthenticationType.OAUTH_U2M,
-                  label: getSsoLabel(WarehouseTypes.DATABRICKS),
-              },
-              {
-                  value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
-                  label: PERSONAL_ACCESS_TOKEN_LABEL,
-              },
-          ]
-        : [
-              {
-                  value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
-                  label: PERSONAL_ACCESS_TOKEN_LABEL,
-              },
-          ];
+    const authOptions = [
+        ...(isSsoEnabled
+            ? [
+                  {
+                      value: DatabricksAuthenticationType.OAUTH_U2M,
+                      label: getSsoLabel(WarehouseTypes.DATABRICKS),
+                  },
+              ]
+            : []),
+        {
+            value: DatabricksAuthenticationType.PERSONAL_ACCESS_TOKEN,
+            label: PERSONAL_ACCESS_TOKEN_LABEL,
+        },
+        {
+            value: DatabricksAuthenticationType.OAUTH_M2M,
+            label: 'OAuth Machine-to-Machine (Service Principal)',
+        },
+    ];
 
     const computes = form.values.warehouse?.compute ?? [];
     const addCompute = () => {
@@ -320,10 +315,46 @@ const DatabricksForm: FC<{
                         }
                         disabled={disabled}
                     />
+                ) : authenticationType ===
+                  DatabricksAuthenticationType.OAUTH_M2M ? (
+                    <Stack spacing="sm">
+                        <PasswordInput
+                            name="warehouse.oauthClientId"
+                            {...form.getInputProps('warehouse.oauthClientId')}
+                            label="OAuth Client ID"
+                            description="Service principal client ID (UUID)."
+                            required={requireSecrets}
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
+                            disabled={disabled}
+                        />
+                        <PasswordInput
+                            name="warehouse.oauthClientSecret"
+                            {...form.getInputProps(
+                                'warehouse.oauthClientSecret',
+                            )}
+                            label="OAuth Client Secret"
+                            description="Service principal client secret."
+                            required={requireSecrets}
+                            placeholder={
+                                disabled || !requireSecrets
+                                    ? '**************'
+                                    : undefined
+                            }
+                            disabled={disabled}
+                        />
+                    </Stack>
                 ) : (
                     <DatabricksSSOInput
                         isAuthenticated={isAuthenticated}
-                        disabled={disabled || !isServerHostNameProvided}
+                        // OAuth re-auth writes to the current user's own credentials,
+                        // not the project's warehouse config — so it must stay
+                        // available even when the rest of the form is locked
+                        // (preview projects, missing update permission, mid-save).
+                        disabled={!isServerHostNameProvided}
                         disabledTooltip={databricksSsoDisabledTooltip}
                         openLoginPopup={openLoginPopup}
                     />
@@ -351,21 +382,7 @@ const DatabricksForm: FC<{
                                 { type: 'checkbox' },
                             )}
                         />
-                        {isTimezoneSupportEnabled && (
-                            <TimeZonePicker
-                                size="sm"
-                                maw="100%"
-                                label="Data timezone"
-                                description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
-                                searchable
-                                clearable
-                                placeholder="Not set (uses warehouse default)"
-                                disabled={disabled}
-                                {...form.getInputProps(
-                                    'warehouse.dataTimezone',
-                                )}
-                            />
-                        )}
+                        <DataTimezoneField disabled={disabled} />
                         <StartOfWeekSelect disabled={disabled} />
                         <Stack spacing="xs">
                             <Stack spacing={0}>

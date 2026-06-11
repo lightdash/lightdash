@@ -7,6 +7,16 @@ export interface TestCase {
     columns: Record<string, string>;
     sourceTable: string;
     orderBy?: string;
+    // Passed through to compile() as `defaultOrderBy`. Exercises the
+    // fallback ORDER BY that queryCompiler.ts injects from the containing
+    // query's sort fields, so formulas like `=LAG(A)` (no explicit ORDER BY)
+    // generate valid SQL on BigQuery/Snowflake and pick the visually-previous
+    // row on every dialect.
+    defaultOrderBy?: { column: string; direction?: 'ASC' | 'DESC' }[];
+    // Passed through to compile() as `weekStartDay` (0=Mon..6=Sun, matching
+    // @lightdash/common's WeekDay enum). Exercises the project-level
+    // startOfWeek that DATE_TRUNC and DATE_DIFF respect.
+    weekStartDay?: 0 | 1 | 2 | 3 | 4 | 5 | 6;
     expectedRows: Record<string, any>[];
     expectedError?: string;
     warehouses: WarehouseType[];

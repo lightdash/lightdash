@@ -40,6 +40,7 @@ ScreenshotReadyIndicator                    page.waitForSelector(
 | Dashboards               | `MinimalDashboard.tsx`     | `/minimal/projects/:projectUuid/dashboards/:dashboardUuid` | Uses minimal page                                  |
 | Single Charts            | `MinimalSavedExplorer.tsx` | `/minimal/projects/:projectUuid/saved/:savedQueryUuid`     | Uses minimal page                                  |
 | Explore (unsaved charts) | `Explorer/index.tsx`       | `/projects/:projectUuid/tables/:tableName`                 | Uses full page, screenshots only the visualization |
+| Data Apps                | `MinimalApp.tsx`           | `/minimal/projects/:projectUuid/apps/:appUuid`             | Indicator lives on parent, not in sandboxed iframe |
 
 For EXPLORE pages, the indicator is rendered in the regular `Explorer` component (not a minimal page). The UnfurlService screenshots only the `[data-testid="visualization"]` element, so the sidebar and other UI elements are excluded from the screenshot.
 
@@ -51,6 +52,15 @@ For EXPLORE pages, the indicator is rendered in the regular `Explorer` component
 | SQL Charts   | `DashboardSqlChartTile.tsx` | `markTileScreenshotReady` | `markTileScreenshotErrored` (includes deleted SQL charts) |
 
 **Non-chart tiles** (Markdown, Loom, Heading) don't affect screenshot readiness - only chart tiles are tracked.
+
+### Data Apps (`MinimalApp`)
+
+Data apps render inside a sandboxed cross-origin iframe with no `allow-same-origin`, so an indicator mounted *inside* the iframe wouldn't be reachable by Playwright on the parent page. Instead, `MinimalApp` tracks readiness on the parent:
+
+1. The iframe's SDK routes every metric query through `useAppSdkBridge` → `onQueryEvent` on the parent. The parent maintains the set of in-flight query IDs (pending/running).
+2. When the iframe `onload` has fired AND the in-flight set is empty for `APP_QUIET_DEBOUNCE_MS` (1.5s), the parent mounts `ScreenshotReadyIndicator`.
+3. The backend (`UnfurlService`) waits for the indicator (60s timeout), then sleeps an additional `APP_ANIMATION_BUFFER_MS` (5s) to let CSS / chart entrance animations finish before screenshotting.
+4. If the indicator never appears (older app bundle, broken render), we still take the screenshot after the animation buffer — preserves forward progress at the cost of capturing a half-loaded UI.
 
 ### Error Handling
 

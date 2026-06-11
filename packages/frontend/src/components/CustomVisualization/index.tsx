@@ -1,6 +1,14 @@
 import { Anchor, Text, useMantineColorScheme } from '@mantine-8/core';
 import { IconGraphOff } from '@tabler/icons-react';
-import { lazy, Suspense, useEffect, useMemo, useRef, type FC } from 'react';
+import {
+    lazy,
+    Suspense,
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    type FC,
+} from 'react';
 import { dark as vegaDarkTheme } from 'vega-themes';
 import { type CustomVisualizationConfigAndData } from '../../hooks/useCustomVisualizationConfig';
 import LoadingChart from '../common/LoadingChart';
@@ -48,14 +56,17 @@ const CustomVisualization: FC<Props> = ({
         [isDarkMode],
     );
 
-    useEffect(() => {
+    const handleVegaEmbed = useCallback(() => {
         if (hasSignaledScreenshotReady.current) return;
-        if (!onScreenshotReady && !onScreenshotError) return;
-        if (!isLoading) {
-            onScreenshotReady?.();
-            hasSignaledScreenshotReady.current = true;
-        }
-    }, [isLoading, visualizationConfig, onScreenshotReady, onScreenshotError]);
+        onScreenshotReady?.();
+        hasSignaledScreenshotReady.current = true;
+    }, [onScreenshotReady]);
+
+    const handleVegaError = useCallback(() => {
+        if (hasSignaledScreenshotReady.current) return;
+        onScreenshotError?.();
+        hasSignaledScreenshotReady.current = true;
+    }, [onScreenshotError]);
 
     useEffect(() => {
         // Load all the rows
@@ -117,6 +128,14 @@ const CustomVisualization: FC<Props> = ({
 
     const data = { values: visProps.series };
 
+    // Vega-Embed measures the container synchronously when the spec is embedded.
+    // useElementSize() reports 0 until ResizeObserver fires, so mounting VegaEmbed
+    // before the container has been measured produces an SVG locked at 0x0 that
+    // never recovers. Wait for a real measurement before handing the spec to Vega.
+    if (!containerWidth || !containerHeight) {
+        return <LoadingChart />;
+    }
+
     return (
         <div
             className={props.className}
@@ -142,9 +161,9 @@ const CustomVisualization: FC<Props> = ({
                     spec={{
                         ...spec,
                         // @ts-ignore, see above
-                        width: 'container',
+                        width: containerWidth,
                         // @ts-ignore, see above
-                        height: 'container',
+                        height: containerHeight,
                         // @ts-ignore, see above
                         data: data,
                         // Merge configs: our defaults first, then user's config overrides
@@ -156,6 +175,8 @@ const CustomVisualization: FC<Props> = ({
                     options={{
                         actions: false,
                     }}
+                    onEmbed={handleVegaEmbed}
+                    onError={handleVegaError}
                 />
             </Suspense>
         </div>

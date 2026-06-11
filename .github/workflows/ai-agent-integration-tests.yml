@@ -35,7 +35,16 @@ jobs:
                     - 5432:5432
 
         steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+            - name: Setup Socket Firewall
+              uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+              with:
+                  mode: firewall-free
 
             - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
             - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
@@ -45,7 +54,7 @@ jobs:
                   cache-dependency-path: 'pnpm-lock.yaml'
 
             - name: Install packages
-              run: pnpm install --frozen-lockfile --prefer-offline
+              run: sfw pnpm install --frozen-lockfile --prefer-offline
 
             - name: Build common
               run: pnpm common-build
@@ -142,6 +151,10 @@ jobs:
                     - 5432:5432
 
         steps:
+            - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+              with:
+                  egress-policy: audit
+
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
             - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
@@ -221,7 +234,6 @@ jobs:
                   AI_DEFAULT_PROVIDER: ${{ matrix.ai_provider }}
                   OPENAI_MODEL_NAME: ${{ matrix.ai_provider == 'openai' && matrix.model_name || '' }}
                   ANTHROPIC_MODEL_NAME: ${{ matrix.ai_provider == 'anthropic' && matrix.model_name || '' }}
-                  OPENAI_REASONING_ENABLED: ${{ matrix.model_name == 'gpt-5.1-2025-11-13' && 'true' || 'false' }}
                   OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
                   ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
                   LIGHTDASH_LICENSE_KEY: ${{ secrets.LIGHTDASH_LICENSE_KEY }}

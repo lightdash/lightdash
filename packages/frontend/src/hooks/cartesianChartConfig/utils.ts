@@ -8,14 +8,11 @@ import {
     type ItemsMap,
     type Series,
 } from '@lightdash/common';
-import {
-    getPivotedData,
-    getPivotedDataFromPivotDetails,
-} from '../plottedData/getPlottedData';
+import { getPivotedDataFromPivotDetails } from '../plottedData/getPlottedData';
 import type { InfiniteQueryResults } from '../useQueryResults';
 
 type RowKeyValue = ReturnType<
-    typeof getPivotedData | typeof getPivotedDataFromPivotDetails
+    typeof getPivotedDataFromPivotDetails
 >['rowKeyMap'][string];
 
 const getPivotGroupKey = (
@@ -71,8 +68,8 @@ export type GetExpectedSeriesMapArgs = {
     pivotKeys: string[] | undefined;
     yFields: string[];
     xField: string;
-    availableDimensions: string[];
     defaultLabel?: Series['label'];
+    defaultStackLabel?: Series['stackLabel'];
     itemsMap: ItemsMap | undefined;
     columnLimit?: number;
 };
@@ -87,13 +84,17 @@ export const getExpectedSeriesMap = ({
     pivotKeys,
     yFields,
     xField,
-    availableDimensions,
     defaultLabel,
+    defaultStackLabel,
     itemsMap,
     columnLimit,
 }: GetExpectedSeriesMapArgs) => {
     let expectedSeriesMap: Record<string, Series>;
 
+    // stackLabel is conditionally spread so series shape stays identical to
+    // pre-fix when callers do not opt in. Adding `stackLabel: undefined`
+    // unconditionally would surface a new key on every series and break
+    // toStrictEqual snapshots used by other tests.
     const defaultProperties = {
         smooth: defaultSmooth,
         showSymbol: defaultShowSymbol,
@@ -101,21 +102,15 @@ export const getExpectedSeriesMap = ({
         areaStyle: defaultAreaStyle,
         yAxisIndex: 0,
         label: defaultLabel,
+        ...(defaultStackLabel !== undefined && {
+            stackLabel: defaultStackLabel,
+        }),
     };
     if (pivotKeys && pivotKeys.length > 0) {
-        // Use new pivoted data format if available
-        const { rowKeyMap } = resultsData.pivotDetails
-            ? getPivotedDataFromPivotDetails(resultsData, itemsMap)
-            : getPivotedData(
-                  resultsData.rows,
-                  pivotKeys,
-                  yFields.filter(
-                      (yField) => !availableDimensions.includes(yField),
-                  ),
-                  yFields.filter((yField) =>
-                      availableDimensions.includes(yField),
-                  ),
-              );
+        const { rowKeyMap } = getPivotedDataFromPivotDetails(
+            resultsData,
+            itemsMap,
+        );
 
         let rowKeyValues = Object.values(rowKeyMap);
         if (columnLimit !== undefined && columnLimit > 0) {
@@ -175,6 +170,24 @@ export const getExpectedSeriesMap = ({
     }
     return expectedSeriesMap;
 };
+
+// A pivoted chart's series order follows the SQL result's DENSE_RANK
+// columnIndex, which the backend builds from the active sort. Re-sort
+// merged series to that order when the sort references either a pivot
+// dimension (PROD-2927) or a y-axis metric (PROD-2999) — both cases
+// produce a deterministic pivot-value ranking that should drive the
+// legend instead of the saved series order.
+export const isPivotSeriesOrderDeterminedByQuery = (
+    pivotKeys: string[] | undefined,
+    yField: string[] | undefined,
+    sorts: { fieldId: string }[] | undefined,
+): boolean =>
+    !!pivotKeys?.length &&
+    !!sorts?.some(
+        (sort) =>
+            pivotKeys.includes(sort.fieldId) ||
+            !!yField?.includes(sort.fieldId),
+    );
 
 type MergeExistingAndExpectedSeriesArgs = {
     expectedSeriesMap: Record<string, Series>;

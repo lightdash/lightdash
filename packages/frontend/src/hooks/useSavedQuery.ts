@@ -23,6 +23,13 @@ import useToaster from './toaster/useToaster';
 import { invalidateContent } from './useContent';
 import useSearchParams from './useSearchParams';
 
+const isCustomSqlDimensionForbiddenError = (
+    error: ApiError['error'],
+): boolean =>
+    error.statusCode === 403 &&
+    typeof error.message === 'string' &&
+    error.message.toLowerCase().includes('custom sql dimensions');
+
 const createSavedQuery = async (
     projectUuid: string,
     payload: CreateSavedChart,
@@ -72,11 +79,12 @@ const updateSavedQuery = async (
             name: data.name,
             description: data.description,
             spaceUuid: data.spaceUuid,
+            colorPaletteUuid: data.colorPaletteUuid,
         }),
     });
 };
 
-const getSavedQuery = async (
+export const getSavedQuery = async (
     id: string,
     projectUuid: string,
 ): Promise<SavedChart> =>
@@ -194,6 +202,15 @@ export const useChartVersionRollbackMutation = (
             ...useMutationOptions,
             onSuccess: async (...args) => {
                 await queryClient.invalidateQueries(['saved_query']);
+                await queryClient.invalidateQueries([
+                    'chart_history',
+                    chartUuid,
+                ]);
+                await queryClient.resetQueries({
+                    predicate: (query) =>
+                        query.queryKey[0] === 'dashboard_chart_ready_query' &&
+                        query.queryKey[2] === chartUuid,
+                });
                 showToastSuccess({
                     title: `Success! Chart was reverted.`,
                 });
@@ -266,7 +283,7 @@ export const useUpdateMutation = (
     return useMutation<
         SavedChart,
         ApiError,
-        Pick<UpdateSavedChart, 'name' | 'description'>
+        Pick<UpdateSavedChart, 'name' | 'description' | 'colorPaletteUuid'>
     >(
         (data) => {
             if (savedQueryUuid) {
@@ -289,21 +306,28 @@ export const useUpdateMutation = (
 
                 await queryClient.invalidateQueries(['spaces']);
 
-                queryClient.setQueryData(['saved_query', data.uuid], data);
+                await queryClient.invalidateQueries([
+                    'project',
+                    data.projectUuid,
+                    'color-palette',
+                ]);
+
                 queryClient.setQueryData(
-                    ['saved_query', params.savedQueryUuid],
+                    ['saved_query', data.uuid, data.projectUuid],
+                    data,
+                );
+                queryClient.setQueryData(
+                    ['saved_query', params.savedQueryUuid, data.projectUuid],
                     data,
                 );
 
-                if (dashboardUuid) {
-                    // Invalidate dashboard chart queries to refresh charts on dashboards
-                    await queryClient.resetQueries([
-                        'dashboard_chart_ready_query',
-                        data.projectUuid,
-                        data.uuid,
-                        dashboardUuid,
-                    ]);
-                }
+                // Always invalidate dashboard chart queries for this chart,
+                // regardless of whether we came from a dashboard
+                await queryClient.resetQueries({
+                    predicate: (query) =>
+                        query.queryKey[0] === 'dashboard_chart_ready_query' &&
+                        query.queryKey[2] === data.uuid,
+                });
 
                 showToastSuccess({
                     title: `Success! Chart was saved.`,
@@ -336,7 +360,8 @@ export const useCreateMutation = ({
     const navigate = useNavigate();
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastError, showToastApiError } =
+        useToaster();
     return useMutation<SavedChart, ApiError, CreateSavedChart>(
         (data) =>
             projectUuid
@@ -346,7 +371,10 @@ export const useCreateMutation = ({
             mutationKey: ['saved_query_create', projectUuid],
             onSuccess: (data) => {
                 const navigateUrl = `/projects/${projectUuid}/saved/${data.uuid}/view`;
-                queryClient.setQueryData(['saved_query', data.uuid], data);
+                queryClient.setQueryData(
+                    ['saved_query', data.uuid, data.projectUuid],
+                    data,
+                );
                 if (showToastOnSuccess) {
                     showToastSuccess({
                         title: `Success! Chart was saved.`,
@@ -366,6 +394,14 @@ export const useCreateMutation = ({
                 }
             },
             onError: ({ error }) => {
+                if (isCustomSqlDimensionForbiddenError(error)) {
+                    showToastError({
+                        title: "Can't save chart",
+                        subtitle:
+                            "You don't have permission to author custom SQL dimensions. Remove them from your chart to save.",
+                    });
+                    return;
+                }
                 showToastApiError({
                     title: `Failed to save chart`,
                     apiError: error,
@@ -451,7 +487,8 @@ export const useAddVersionMutation = () => {
     const queryClient = useQueryClient();
     const dashboardUuid = useSearchParams('fromDashboard');
 
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastSuccess, showToastError, showToastApiError } =
+        useToaster();
     return useMutation<
         SavedChart,
         ApiError,
@@ -464,17 +501,28 @@ export const useAddVersionMutation = () => {
                 'most-popular-and-recently-updated',
             ]);
 
-            queryClient.setQueryData(['saved_query', data.uuid], data);
+            await queryClient.invalidateQueries([
+                'project',
+                data.projectUuid,
+                'color-palette',
+            ]);
+
+            queryClient.setQueryData(
+                ['saved_query', data.uuid, data.projectUuid],
+                data,
+            );
             await queryClient.resetQueries(['savedChartResults', data.uuid]);
+            await queryClient.invalidateQueries(['chart_history', data.uuid]);
+
+            // Always invalidate dashboard chart queries for this chart,
+            // regardless of whether we came from a dashboard
+            await queryClient.resetQueries({
+                predicate: (query) =>
+                    query.queryKey[0] === 'dashboard_chart_ready_query' &&
+                    query.queryKey[2] === data.uuid,
+            });
 
             if (dashboardUuid) {
-                // Invalidate dashboard chart queries to refresh charts on dashboards
-                await queryClient.resetQueries([
-                    'dashboard_chart_ready_query',
-                    data.projectUuid,
-                    data.uuid,
-                    dashboardUuid,
-                ]);
                 // Reset create-query cache to sync with Redux state reset
                 // This ensures auto-fetch triggers when returning to view mode
                 await queryClient.resetQueries(['create-query']);
@@ -502,6 +550,14 @@ export const useAddVersionMutation = () => {
             }
         },
         onError: ({ error }) => {
+            if (isCustomSqlDimensionForbiddenError(error)) {
+                showToastError({
+                    title: "Can't update chart",
+                    subtitle:
+                        "You don't have permission to author custom SQL dimensions. Remove them from your chart to save.",
+                });
+                return;
+            }
             showToastApiError({
                 title: `Failed to update chart`,
                 apiError: error,

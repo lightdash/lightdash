@@ -16,6 +16,7 @@ import {
     OauthAccount,
     Organization,
     OssEmbed,
+    RegisteredAccount,
     ServiceAcctAccount,
     SessionAccount,
     SessionUser,
@@ -118,19 +119,24 @@ export const fromJwt = ({
     });
 };
 
-// TODO: This uses the hacky method of copying over an admin user. Long-term, we'll want to have a proper
-// service-account/principle-user unrelated to a real admin-user.
-// @see https://github.com/lightdash/lightdash/issues/15466
 export const fromServiceAccount = (
     sessionUser: SessionUser,
     source: string,
 ): ServiceAcctAccount => {
+    if (!sessionUser.serviceAccount) {
+        throw new ForbiddenError(
+            'SessionUser is missing serviceAccount context; the service-account auth middleware must run first.',
+        );
+    }
     const [organization, user] = extractOrganizationFromUser(sessionUser);
 
     return createAccount({
         authentication: {
             type: 'service-account',
             source,
+            serviceAccountUuid: sessionUser.serviceAccount.uuid,
+            serviceAccountDescription:
+                sessionUser.serviceAccount.description ?? '',
         },
         organization,
         user: {
@@ -160,6 +166,21 @@ export const fromApiKey = (
         },
     });
 };
+
+export const toSessionUser = (account: RegisteredAccount): SessionUser => ({
+    ...account.user,
+    organizationUuid: account.organization.organizationUuid,
+    organizationName: account.organization.name,
+    organizationCreatedAt: account.organization.createdAt,
+    requestContext: account.requestContext,
+    serviceAccount:
+        account.authentication.type === 'service-account'
+            ? {
+                  uuid: account.authentication.serviceAccountUuid,
+                  description: account.authentication.serviceAccountDescription,
+              }
+            : undefined,
+});
 
 export const fromSession = (
     sessionUser: SessionUser,

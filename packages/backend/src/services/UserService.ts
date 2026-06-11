@@ -24,6 +24,7 @@ import {
     isOpenIdIdentityIssuerType,
     isOpenIdUser,
     isUserWithOrg,
+    isValidTimezone,
     LightdashMode,
     LightdashUser,
     LocalIssuerTypes,
@@ -40,6 +41,8 @@ import {
     PasswordReset,
     ProjectMemberRole,
     RegisterOrActivateUser,
+    resolveEffectiveOrganizationSettings,
+    ServiceAccount,
     SessionUser,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
@@ -49,15 +52,29 @@ import {
     validateOrganizationEmailDomains,
     validateOrganizationNameOrThrow,
     WarehouseTypes,
+    type RegisteredAccount,
 } from '@lightdash/common';
 import { randomInt } from 'crypto';
 import { uniq } from 'lodash';
 import { nanoid } from 'nanoid';
 import refresh from 'passport-oauth2-refresh';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import * as AccountFactory from '../auth/account';
 import EmailClient from '../clients/EmailClient/EmailClient';
 import { LightdashConfig } from '../config/parseConfig';
+import {
+    createAuditLogEvent,
+    createUnknownAuthActor,
+    type AuditActor,
+    type AuditResource,
+    type AuditStatusType,
+} from '../logging/auditLog';
+import {
+    createActorFromUser,
+    type AuditableUser,
+} from '../logging/caslAuditWrapper';
 import Logger from '../logging/logger';
+import { logAuditEvent } from '../logging/winston';
 import { PersonalAccessTokenModel } from '../models/DashboardModel/PersonalAccessTokenModel';
 import { EmailModel } from '../models/EmailModel';
 import { FeatureFlagModel } from '../models/FeatureFlagModel/FeatureFlagModel';
@@ -67,15 +84,17 @@ import { OpenIdIdentityModel } from '../models/OpenIdIdentitiesModel';
 import { OrganizationAllowedEmailDomainsModel } from '../models/OrganizationAllowedEmailDomainsModel';
 import { OrganizationMemberProfileModel } from '../models/OrganizationMemberProfileModel';
 import { OrganizationModel } from '../models/OrganizationModel';
+import { OrganizationSettingsModel } from '../models/OrganizationSettingsModel';
+import { OrganizationSsoModel } from '../models/OrganizationSsoModel';
 import { PasswordResetLinkModel } from '../models/PasswordResetLinkModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
 import { SessionModel } from '../models/SessionModel';
 import { UserModel } from '../models/UserModel';
 import { UserWarehouseCredentialsModel } from '../models/UserWarehouseCredentials/UserWarehouseCredentialsModel';
 import { WarehouseAvailableTablesModel } from '../models/WarehouseAvailableTablesModel/WarehouseAvailableTablesModel';
-import { postHogClient } from '../postHog';
 import { wrapSentryTransaction } from '../utils';
 import { BaseService } from './BaseService';
+import { getOrganizationSettingsInstanceDefaults } from './OrganizationSettingsService/getInstanceDefaults';
 
 type UserServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -92,6 +111,8 @@ type UserServiceArguments = {
     organizationModel: OrganizationModel;
     personalAccessTokenModel: PersonalAccessTokenModel;
     organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
+    organizationSsoModel: OrganizationSsoModel;
+    organizationSettingsModel: OrganizationSettingsModel;
     userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
     warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
     projectModel: ProjectModel;
@@ -102,6 +123,70 @@ function isSameMinute(a: Date | null, b: Date): boolean {
     if (!a) return false;
     return Math.floor(a.getTime() / 60000) === Math.floor(b.getTime() / 60000);
 }
+
+export type AuthAuditContext = {
+    ip?: string;
+    userAgent?: string;
+    requestId?: string;
+};
+
+const emitAuthAuditEvent = ({
+    actor,
+    action,
+    resourceType,
+    status,
+    reason,
+    organizationUuid,
+    metadata,
+    context,
+}: {
+    actor: AuditActor;
+    action:
+        | 'login'
+        | 'logout'
+        | 'impersonation_start'
+        | 'impersonation_stop'
+        | 'leave_organization';
+    resourceType:
+        | 'Session'
+        | 'PersonalAccessToken'
+        | 'ServiceAccount'
+        | 'EmbedJwt'
+        | 'User'
+        | 'OrganizationMembership';
+    status: AuditStatusType;
+    reason?: string;
+    organizationUuid?: string;
+    metadata?: Record<string, unknown>;
+    context?: AuthAuditContext;
+}): void => {
+    try {
+        const resource: AuditResource = {
+            type: resourceType,
+            organizationUuid: organizationUuid ?? 'unknown',
+            metadata,
+        };
+        const event = createAuditLogEvent(
+            actor,
+            action,
+            resource,
+            {
+                ip: context?.ip,
+                userAgent: context?.userAgent,
+                requestId: context?.requestId,
+            },
+            status,
+            reason,
+        );
+        logAuditEvent(event);
+    } catch (err) {
+        Logger.warn('Failed to log auth audit event', {
+            error: err instanceof Error ? err.message : String(err),
+            action,
+            resourceType,
+        });
+    }
+};
 
 export class UserService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
@@ -132,6 +217,10 @@ export class UserService extends BaseService {
 
     private readonly organizationAllowedEmailDomainsModel: OrganizationAllowedEmailDomainsModel;
 
+    private readonly organizationSsoModel: OrganizationSsoModel;
+
+    private readonly organizationSettingsModel: OrganizationSettingsModel;
+
     private readonly userWarehouseCredentialsModel: UserWarehouseCredentialsModel;
 
     private readonly warehouseAvailableTablesModel: WarehouseAvailableTablesModel;
@@ -159,6 +248,8 @@ export class UserService extends BaseService {
         organizationMemberProfileModel,
         personalAccessTokenModel,
         organizationAllowedEmailDomainsModel,
+        organizationSsoModel,
+        organizationSettingsModel,
         userWarehouseCredentialsModel,
         warehouseAvailableTablesModel,
         projectModel,
@@ -180,6 +271,8 @@ export class UserService extends BaseService {
         this.personalAccessTokenModel = personalAccessTokenModel;
         this.organizationAllowedEmailDomainsModel =
             organizationAllowedEmailDomainsModel;
+        this.organizationSsoModel = organizationSsoModel;
+        this.organizationSettingsModel = organizationSettingsModel;
         this.userWarehouseCredentialsModel = userWarehouseCredentialsModel;
         this.warehouseAvailableTablesModel = warehouseAvailableTablesModel;
         this.projectModel = projectModel;
@@ -205,20 +298,6 @@ export class UserService extends BaseService {
                   },
         });
 
-        postHogClient?.identify({
-            distinctId: user.userUuid,
-            properties: {
-                uuid: user.userUuid,
-                ...(user.isTrackingAnonymized
-                    ? {}
-                    : {
-                          email: user.email,
-                          first_name: user.firstName,
-                          last_name: user.lastName,
-                      }),
-            },
-        });
-
         if (user.organizationUuid) {
             this.analytics.group({
                 userId: user.userUuid,
@@ -226,16 +305,6 @@ export class UserService extends BaseService {
                 traits: {
                     name: user.organizationName,
                 },
-            });
-
-            postHogClient?.groupIdentify({
-                groupType: 'organization',
-                groupKey: user.organizationUuid,
-                properties: {
-                    uuid: user.organizationUuid,
-                    name: user.organizationName,
-                },
-                distinctId: user.userUuid,
             });
         }
     }
@@ -366,7 +435,46 @@ export class UserService extends BaseService {
         return user;
     }
 
+    /**
+     * Destroys a user's sessions, their `users` row (cascading every
+     * user-scoped table — sessions, personal_access_tokens, schedulers,
+     * project_memberships, space_user_access, …), and emits the
+     * `user.deleted` analytics event with the supplied context.
+     *
+     * Shared by the admin-remove path (`delete`) and the self-serve leave
+     * path (`leaveOrganization`); each owns its own authorization + business
+     * rule checks and calls this helper once it has decided the user is
+     * going to be removed.
+     */
+    private async destroyUser({
+        actor,
+        userToDelete,
+        context,
+    }: {
+        actor: SessionUser;
+        userToDelete: NonNullable<
+            Awaited<ReturnType<UserModel['getUserDetailsByUuid']>>
+        >;
+        context: 'delete_self' | 'delete_org_member' | 'leave_organization';
+    }): Promise<void> {
+        await this.sessionModel.deleteAllByUserUuid(userToDelete.userUuid);
+        await this.userModel.delete(userToDelete.userUuid);
+        this.analytics.track({
+            event: 'user.deleted',
+            userId: actor.userUuid,
+            properties: {
+                context,
+                firstName: userToDelete.firstName,
+                lastName: userToDelete.lastName,
+                email: userToDelete.email,
+                organizationId: userToDelete.organizationUuid,
+                deletedUserId: userToDelete.userUuid,
+            },
+        });
+    }
+
     async delete(user: SessionUser, userUuidToDelete: string): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         const userToDelete =
             await this.userModel.getUserDetailsByUuid(userUuidToDelete);
         // The user might not have an org yet
@@ -375,10 +483,11 @@ export class UserService extends BaseService {
             // We assume only one org per user
 
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'delete',
                     subject('OrganizationMemberProfile', {
                         organizationUuid: userToDelete.organizationUuid,
+                        metadata: { userUuid: userUuidToDelete },
                     }),
                 )
             ) {
@@ -400,23 +509,21 @@ export class UserService extends BaseService {
             }
         }
 
-        await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
+        if (!userToDelete) {
+            // Pre-org "Cancel registration" path: there is no org-scoped state
+            // to clean up, just remove the row. Fall back to a direct delete.
+            await this.sessionModel.deleteAllByUserUuid(userUuidToDelete);
+            await this.userModel.delete(userUuidToDelete);
+            return;
+        }
 
-        await this.userModel.delete(userUuidToDelete);
-        this.analytics.track({
-            event: 'user.deleted',
-            userId: user.userUuid,
-            properties: {
-                context:
-                    user.userUuid !== userUuidToDelete
-                        ? 'delete_org_member'
-                        : 'delete_self',
-                firstName: userToDelete.firstName,
-                lastName: userToDelete.lastName,
-                email: userToDelete.email,
-                organizationId: userToDelete.organizationUuid,
-                deletedUserId: userUuidToDelete,
-            },
+        await this.destroyUser({
+            actor: user,
+            userToDelete,
+            context:
+                user.userUuid !== userUuidToDelete
+                    ? 'delete_org_member'
+                    : 'delete_self',
         });
     }
 
@@ -424,13 +531,14 @@ export class UserService extends BaseService {
         user: SessionUser,
         createInviteLink: CreateInviteLink,
     ): Promise<InviteLink> {
+        const auditedAbility = this.createAuditedAbility(user);
         // We assume users can only have one org
         const { organizationUuid } = user;
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
-                subject('InviteLink', { organizationUuid }),
+                subject('InviteLink', { organizationUuid: organizationUuid! }),
             )
         ) {
             throw new ForbiddenError();
@@ -446,7 +554,7 @@ export class UserService extends BaseService {
         if (existingUserWithEmail && existingUserWithEmail.organizationUuid) {
             if (existingUserWithEmail.organizationUuid !== organizationUuid) {
                 throw new ParameterError(
-                    'Email is already used by a user in another organization',
+                    'Email is already used by a user in another organization. Ask them to leave their organisation before inviting them.',
                 );
             } else if (!existingUserWithEmail.isPending) {
                 throw new ParameterError(
@@ -456,7 +564,7 @@ export class UserService extends BaseService {
         }
 
         let userUuid: string;
-        const userRole = user.ability.can(
+        const userRole = auditedAbility.can(
             'manage',
             subject('OrganizationMemberProfile', { organizationUuid }),
         )
@@ -522,13 +630,14 @@ export class UserService extends BaseService {
     }
 
     async revokeAllInviteLinks(user: SessionUser) {
+        const auditedAbility = this.createAuditedAbility(user);
         // We assume users can only have one org
         const { organizationUuid } = user;
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'delete',
-                subject('InviteLink', { organizationUuid }),
+                subject('InviteLink', { organizationUuid: organizationUuid! }),
             )
         ) {
             throw new ForbiddenError();
@@ -608,6 +717,7 @@ export class UserService extends BaseService {
         authenticatedUser: SessionUser | undefined,
         inviteCode: string | undefined,
         refreshToken?: string,
+        context?: AuthAuditContext,
     ): Promise<SessionUser> {
         this.logger.info(
             `Starting loginWithOpenId - Email: ${
@@ -617,6 +727,85 @@ export class UserService extends BaseService {
             }, Has invite code: ${!!inviteCode}, Is authenticated: ${!!authenticatedUser}`,
         );
 
+        try {
+            const loggedInUser = await this.loginWithOpenIdInner(
+                openIdUser,
+                authenticatedUser,
+                inviteCode,
+                refreshToken,
+            );
+            emitAuthAuditEvent({
+                actor: createActorFromUser(loggedInUser),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'allowed',
+                organizationUuid: loggedInUser.organizationUuid,
+                metadata: { loginProvider: openIdUser.openId.issuerType },
+                context,
+            });
+            return loggedInUser;
+        } catch (e) {
+            emitAuthAuditEvent({
+                actor: createUnknownAuthActor(openIdUser.openId.email),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'denied',
+                reason: e instanceof Error ? e.message : 'OpenID login failure',
+                metadata: {
+                    loginProvider: openIdUser.openId.issuerType,
+                },
+                context,
+            });
+            throw e;
+        }
+    }
+
+    /**
+     * Whether auto-linking a new OIDC identity to an existing user (matched by
+     * a shared OIDC email) is allowed for the target user's org. The per-org
+     * `organization_settings.oidc_linking_enabled` takes priority; when it's
+     * unset (null) we fall back to the instance `AUTH_ENABLE_OIDC_LINKING`.
+     */
+    private async isOidcLinkingEnabledForOrg(
+        organizationUuid: string | undefined,
+    ): Promise<boolean> {
+        const raw = organizationUuid
+            ? await this.organizationSettingsModel.get(organizationUuid)
+            : {};
+        return (
+            resolveEffectiveOrganizationSettings(
+                raw,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            ).oidcLinkingEnabled ?? false
+        );
+    }
+
+    /**
+     * Whether auto-linking an OIDC identity to an existing user matched by
+     * verified primary email is allowed for the target user's org. The per-org
+     * `organization_settings.oidc_to_email_linking_enabled` takes priority;
+     * when unset (null) we fall back to `AUTH_ENABLE_OIDC_TO_EMAIL_LINKING`.
+     */
+    private async isOidcToEmailLinkingEnabledForOrg(
+        organizationUuid: string | undefined,
+    ): Promise<boolean> {
+        const raw = organizationUuid
+            ? await this.organizationSettingsModel.get(organizationUuid)
+            : {};
+        return (
+            resolveEffectiveOrganizationSettings(
+                raw,
+                getOrganizationSettingsInstanceDefaults(this.lightdashConfig),
+            ).oidcToEmailLinkingEnabled ?? false
+        );
+    }
+
+    private async loginWithOpenIdInner(
+        openIdUser: OpenIdUser,
+        authenticatedUser: SessionUser | undefined,
+        inviteCode: string | undefined,
+        refreshToken: string | undefined,
+    ): Promise<SessionUser> {
         const openIdSession = await this.userModel.findSessionUserByOpenId(
             openIdUser.openId.issuer,
             openIdUser.openId.subject,
@@ -719,17 +908,20 @@ export class UserService extends BaseService {
             return loginUser;
         }
 
-        // Link the new openid identity to an existing user if they already have another OIDC with the same email
-        if (!authenticatedUser && this.lightdashConfig.auth.enableOidcLinking) {
+        // Link the new openid identity to an existing user if they already
+        // have another OIDC with the same email. Allowed instance-wide via env
+        // OR per-org via organization_settings — so we resolve the candidate
+        // user first, then check the effective toggle for their org.
+        if (!authenticatedUser) {
             const identities =
                 await this.openIdIdentityModel.findIdentitiesByEmail(
                     openIdUser.openId.email,
                 );
-            this.logger.info(
-                `OIDC linking enabled - Found ${identities.length} existing identities for email ${openIdUser.openId.email}`,
-            );
             const identitiesUsers = uniq(
                 identities.map((identity) => identity.userUuid),
+            );
+            this.logger.info(
+                `OIDC account-linking check for ${openIdUser.openId.email} — found ${identities.length} existing identities (linking decided per-org)`,
             );
             if (identitiesUsers.length > 1) {
                 this.logger.warn(
@@ -739,51 +931,60 @@ export class UserService extends BaseService {
                 const sessionUser = await this.userModel.findSessionUserByUUID(
                     identitiesUsers[0],
                 );
-                this.logger.info(
-                    `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,
-                );
 
                 if (
-                    this.lightdashConfig.groups.enabled === true &&
-                    this.lightdashConfig.auth.enableGroupSync === true &&
-                    Array.isArray(openIdUser.openId.groups) &&
-                    openIdUser.openId.groups.length &&
-                    sessionUser.organizationUuid
+                    await this.isOidcLinkingEnabledForOrg(
+                        sessionUser.organizationUuid,
+                    )
                 ) {
                     this.logger.info(
-                        `Syncing groups for existing user ${
-                            sessionUser.userUuid
-                        } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                        `Linking new OpenID identity to existing user ${sessionUser.userUuid}`,
                     );
-                    await this.tryAddUserToGroups({
-                        userUuid: sessionUser.userUuid,
-                        groups: openIdUser.openId.groups,
-                        organizationUuid: sessionUser.organizationUuid,
-                    });
-                }
 
-                return this.linkOpenIdIdentityToUser(
-                    sessionUser,
-                    openIdUser,
-                    refreshToken,
-                );
+                    if (
+                        this.lightdashConfig.groups.enabled === true &&
+                        this.lightdashConfig.auth.enableGroupSync === true &&
+                        Array.isArray(openIdUser.openId.groups) &&
+                        openIdUser.openId.groups.length &&
+                        sessionUser.organizationUuid
+                    ) {
+                        this.logger.info(
+                            `Syncing groups for existing user ${
+                                sessionUser.userUuid
+                            } - Groups: ${openIdUser.openId.groups.join(', ')}`,
+                        );
+                        await this.tryAddUserToGroups({
+                            userUuid: sessionUser.userUuid,
+                            groups: openIdUser.openId.groups,
+                            organizationUuid: sessionUser.organizationUuid,
+                        });
+                    }
+
+                    return this.linkOpenIdIdentityToUser(
+                        sessionUser,
+                        openIdUser,
+                        refreshToken,
+                    );
+                }
             }
         }
 
-        // Link the new openid identity to an existing user if they already have the same primary email and it's verified
-        if (
-            !authenticatedUser &&
-            this.lightdashConfig.auth.enableOidcToEmailLinking
-        ) {
+        // Link the new openid identity to an existing user if they already
+        // have the same verified primary email. Allowed instance-wide via env
+        // OR per-org via organization_settings — resolve the candidate user,
+        // then check the effective toggle for their org.
+        if (!authenticatedUser) {
             const userWithSameEmail =
                 await this.userModel.findSessionUserByPrimaryEmail(
                     openIdUser.openId.email,
                 );
-            this.logger.info(
-                `Email linking enabled - Found user with same email: ${!!userWithSameEmail}`,
-            );
 
-            if (userWithSameEmail) {
+            if (
+                userWithSameEmail &&
+                (await this.isOidcToEmailLinkingEnabledForOrg(
+                    userWithSameEmail.organizationUuid,
+                ))
+            ) {
                 const emailStatus = await this.emailModel.getPrimaryEmailStatus(
                     userWithSameEmail.userUuid,
                 );
@@ -983,9 +1184,10 @@ export class UserService extends BaseService {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
+        const auditedAbility = this.createAuditedAbility(user);
         if (organizationName) {
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'update',
                     subject('Organization', {
                         organizationUuid: user.organizationUuid,
@@ -1105,11 +1307,26 @@ export class UserService extends BaseService {
     async loginWithPassword(
         email: string,
         password: string,
+        context?: AuthAuditContext,
     ): Promise<LightdashUser> {
+        const emitFailure = (reason: string) =>
+            emitAuthAuditEvent({
+                actor: createUnknownAuthActor(email),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'denied',
+                reason,
+                metadata: { loginProvider: 'password' },
+                context,
+            });
+
         if (
             (await this.isLoginMethodAllowed(email, LocalIssuerTypes.EMAIL)) ===
             false
         ) {
+            emitFailure(
+                `User with email ${email} is not allowed to login with password`,
+            );
             throw new ForbiddenError(
                 `User with email ${email} is not allowed to login with password`,
             );
@@ -1146,12 +1363,31 @@ export class UserService extends BaseService {
                     loginProvider: 'password',
                 },
             });
+            emitAuthAuditEvent({
+                actor: createActorFromUser(userWithOrganization),
+                action: 'login',
+                resourceType: 'Session',
+                status: 'allowed',
+                organizationUuid: userWithOrganization.organizationUuid,
+                metadata: { loginProvider: 'password' },
+                context,
+            });
             return user;
         } catch (e) {
             if (e instanceof NotFoundError) {
+                emitFailure('Email and password not recognized');
                 throw new AuthorizationError(
                     'Email and password not recognized',
                 );
+            }
+            if (e instanceof DeactivatedAccountError) {
+                emitFailure('Account is deactivated');
+            } else if (e instanceof AuthorizationError) {
+                emitFailure('Email and password not recognized');
+            } else if (e instanceof ForbiddenError) {
+                emitFailure('Login not permitted for this account');
+            } else {
+                emitFailure('Login failed');
             }
             throw e;
         }
@@ -1191,6 +1427,14 @@ export class UserService extends BaseService {
     ): Promise<LightdashUser> {
         const emailChanged = data.email && user.email !== data.email;
 
+        if (
+            data.timezone !== undefined &&
+            data.timezone !== null &&
+            !isValidTimezone(data.timezone)
+        ) {
+            throw new ParameterError(`Invalid timezone: ${data.timezone}`);
+        }
+
         const updatedUser = await this.userModel.updateUser(
             user.userUuid,
             user.email,
@@ -1200,6 +1444,7 @@ export class UserService extends BaseService {
                 email: data.email,
                 isMarketingOptedIn: data.isMarketingOptedIn,
                 isTrackingAnonymized: data.isTrackingAnonymized,
+                timezone: data.timezone,
             },
         );
         this.identifyUser(updatedUser);
@@ -1348,17 +1593,63 @@ export class UserService extends BaseService {
         }
     }
 
-    async loginWithPersonalAccessToken(token: string): Promise<SessionUser> {
-        const results =
-            await this.userModel.findSessionUserByPersonalAccessToken(token);
+    async loginWithPersonalAccessToken(
+        token: string,
+        context?: AuthAuditContext,
+    ): Promise<SessionUser> {
+        const emitDenied = (reason: string, user?: AuditableUser) =>
+            emitAuthAuditEvent({
+                actor: user
+                    ? createActorFromUser(user)
+                    : createUnknownAuthActor(),
+                action: 'login',
+                resourceType: 'PersonalAccessToken',
+                status: 'denied',
+                reason,
+                organizationUuid: user?.organizationUuid,
+                context,
+            });
+
+        const results = await wrapSentryTransaction(
+            'UserService.findSessionUserByPersonalAccessToken',
+            {},
+            async (span) => {
+                const lookup =
+                    await this.userModel.findSessionUserByPersonalAccessToken(
+                        token,
+                    );
+                span.setAttribute('cacheHit', lookup?.cacheHit ?? false);
+                return lookup;
+            },
+        );
         if (results === undefined) {
+            emitDenied('Personal access token not recognized');
             throw new AuthorizationError();
         }
-        const { user, personalAccessToken } = results;
+        const {
+            data: { user, personalAccessToken },
+            cacheHit,
+        } = results;
         if (!user.isActive) {
+            emitDenied('Account is deactivated', user);
             throw new DeactivatedAccountError();
         }
-        if (user.ability.cannot('view', subject('PersonalAccessToken', {}))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('PersonalAccessToken', {
+                    organizationUuid: user.organizationUuid!,
+                    metadata: {
+                        personalAccessTokenUuid: personalAccessToken.uuid,
+                    },
+                }),
+            )
+        ) {
+            emitDenied(
+                'User lacks permission to login with personal access tokens',
+                user,
+            );
             throw new ForbiddenError(
                 'You do not have permission to login with personal access tokens',
             );
@@ -1379,10 +1670,12 @@ export class UserService extends BaseService {
                     personalAccessToken.uuid,
                 );
             }
+            emitDenied('Personal access token expired', user);
             throw new AuthorizationError();
         }
-        // Update last used date (throttled to once per minute)
-        if (!isSameMinute(personalAccessToken.lastUsedAt, now)) {
+        // Update last used date (throttled to once per minute).
+        // Skip on cache hits so bursts don't fire many concurrent UPDATEs.
+        if (!cacheHit && !isSameMinute(personalAccessToken.lastUsedAt, now)) {
             await this.personalAccessTokenModel.updateUsedDate(
                 personalAccessToken.uuid,
             );
@@ -1392,6 +1685,42 @@ export class UserService extends BaseService {
 
     async getSessionByUserUuid(userUuid: string): Promise<SessionUser> {
         return this.userModel.findSessionUserByUUID(userUuid);
+    }
+
+    async getSessionByUserUuidAndOrg(
+        userUuid: string,
+        organizationUuid: string,
+    ): Promise<SessionUser> {
+        return this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+    }
+
+    async getAccountByUserUuid(userUuid: string): Promise<RegisteredAccount> {
+        const sessionUser = await this.getSessionByUserUuid(userUuid);
+
+        if (!this.lightdashConfig.serviceAccount.enabled) {
+            return AccountFactory.fromSession(sessionUser);
+        }
+
+        const serviceAccount =
+            await this.userModel.findServiceAccountByUserUuid(userUuid);
+
+        if (serviceAccount) {
+            return AccountFactory.fromServiceAccount(
+                {
+                    ...sessionUser,
+                    serviceAccount: {
+                        uuid: serviceAccount.uuid,
+                        description: serviceAccount.description,
+                    },
+                },
+                '',
+            );
+        }
+
+        return AccountFactory.fromSession(sessionUser);
     }
 
     private otpExpirationDate(createdAt: Date) {
@@ -1555,6 +1884,118 @@ export class UserService extends BaseService {
         });
     }
 
+    async leaveOrganization(
+        user: SessionUser,
+        context?: AuthAuditContext,
+    ): Promise<void> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User does not belong to an organization');
+        }
+        const { organizationUuid } = user;
+        const actor = createActorFromUser(user);
+
+        const flag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.LeaveOrganization,
+        });
+        if (!flag.enabled) {
+            this.logger.warn('Leave organization denied: feature disabled', {
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+            emitAuthAuditEvent({
+                actor,
+                action: 'leave_organization',
+                resourceType: 'OrganizationMembership',
+                status: 'denied',
+                reason: 'Feature disabled',
+                organizationUuid,
+                context,
+            });
+            throw new ForbiddenError(
+                'Leaving the organization is not enabled for this instance',
+            );
+        }
+
+        const member =
+            await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
+                organizationUuid,
+                user.userUuid,
+            );
+
+        this.logger.info('User attempting to leave organization', {
+            userUuid: user.userUuid,
+            organizationUuid,
+            role: member.role,
+        });
+
+        // Race condition between check and delete is acceptable here — worst
+        // case the last admin slips out concurrently, matching the same trade-off
+        // accepted in `delete()` above.
+        const admins =
+            await this.organizationMemberProfileModel.getOrganizationAdmins(
+                organizationUuid,
+            );
+        if (
+            member.role === OrganizationMemberRole.ADMIN &&
+            admins.length === 1 &&
+            admins[0].userUuid === user.userUuid
+        ) {
+            const reason = 'Last admin in organization';
+            this.logger.warn('Leave organization denied: last admin', {
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+            emitAuthAuditEvent({
+                actor,
+                action: 'leave_organization',
+                resourceType: 'OrganizationMembership',
+                status: 'denied',
+                reason,
+                organizationUuid,
+                metadata: { role: member.role },
+                context,
+            });
+            throw new ForbiddenError(
+                'You are the only admin in this organization. Promote another member to admin before leaving.',
+            );
+        }
+
+        // Leaving an organization deletes the user record entirely. The
+        // single-org-per-user invariant means there is no other org for the
+        // user to remain a member of, and deleting the `users` row CASCADEs
+        // through every user-scoped table — matching the cleanup that admin
+        // remove-user already performs. If the leaver is later invited
+        // again, the invite flow creates a fresh `users` row.
+        const userToDelete = await this.userModel.getUserDetailsByUuid(
+            user.userUuid,
+        );
+        if (!userToDelete) {
+            throw new NotFoundError(`User ${user.userUuid} not found`);
+        }
+        await this.destroyUser({
+            actor: user,
+            userToDelete,
+            context: 'leave_organization',
+        });
+
+        this.logger.info('User left organization', {
+            userUuid: user.userUuid,
+            organizationUuid,
+            role: member.role,
+        });
+
+        emitAuthAuditEvent({
+            actor,
+            action: 'leave_organization',
+            resourceType: 'OrganizationMembership',
+            status: 'allowed',
+            organizationUuid,
+            metadata: { role: member.role },
+            context,
+        });
+    }
+
     async loginToOrganization(
         userUuid: string,
         loginMethod: LoginOptionTypes,
@@ -1609,12 +2050,9 @@ export class UserService extends BaseService {
     private async ensureDefaultUserSpaces(
         sessionUser: SessionUser,
     ): Promise<void> {
-        const { enabled } = await this.featureFlagModel.get({
-            user: sessionUser,
-            featureFlagId: FeatureFlags.DefaultUserSpaces,
-        });
-        if (!enabled) return;
         if (!sessionUser.organizationUuid) return;
+
+        const auditedAbility = this.createAuditedAbility(sessionUser);
 
         const projects =
             await this.projectModel.getProjectsWithDefaultUserSpaces(
@@ -1626,11 +2064,11 @@ export class UserService extends BaseService {
         await Promise.all(
             projects.map(async (project) => {
                 if (
-                    sessionUser.ability.cannot(
+                    auditedAbility.cannot(
                         'manage',
                         subject('SavedChart', {
                             projectUuid: project.projectUuid,
-                            organizationUuid: sessionUser.organizationUuid,
+                            organizationUuid: sessionUser.organizationUuid!,
                             access: [
                                 {
                                     userUuid: sessionUser.userUuid,
@@ -1641,11 +2079,11 @@ export class UserService extends BaseService {
                             ],
                         }),
                     ) ||
-                    sessionUser.ability.cannot(
+                    auditedAbility.cannot(
                         'manage',
                         subject('Explore', {
                             projectUuid: project.projectUuid,
-                            organizationUuid: sessionUser.organizationUuid,
+                            organizationUuid: sessionUser.organizationUuid!,
                         }),
                     )
                 )
@@ -1676,7 +2114,15 @@ export class UserService extends BaseService {
     async resolveSessionUser(
         passportUser: { id: string; organization: string },
         impersonation:
-            | { targetUserUuid: string; startedAt: string }
+            | {
+                  adminUserUuid: string;
+                  adminEmail: string;
+                  adminFirstName?: string;
+                  adminLastName?: string;
+                  adminRole: string;
+                  targetUserUuid: string;
+                  startedAt: string;
+              }
             | undefined,
         clearImpersonation: () => void,
     ): Promise<SessionUser> {
@@ -1708,12 +2154,13 @@ export class UserService extends BaseService {
         }
 
         // Validate admin can still impersonate
+        const auditedAbility = this.createAuditedAbility(requestUser);
         if (
             !requestUser.isActive ||
-            requestUser.ability.cannot(
+            auditedAbility.cannot(
                 'impersonate',
                 subject('User', {
-                    organizationUuid: requestUser.organizationUuid,
+                    organizationUuid: requestUser.organizationUuid!,
                     isActive: requestUser.isActive,
                 }),
             )
@@ -1741,7 +2188,16 @@ export class UserService extends BaseService {
             return requestUser;
         }
 
-        return targetUser;
+        return {
+            ...targetUser,
+            impersonation: {
+                adminId: impersonation.adminUserUuid,
+                adminEmail: impersonation.adminEmail,
+                adminFirstName: impersonation.adminFirstName,
+                adminLastName: impersonation.adminLastName,
+                adminRole: impersonation.adminRole,
+            },
+        };
     }
 
     static async generateGoogleAccessToken(
@@ -1842,7 +2298,7 @@ export class UserService extends BaseService {
                 user.userUuid,
                 OpenIdIdentityIssuerType.SNOWFLAKE,
             );
-            const accessToken =
+            const { accessToken } =
                 await UserService.generateSnowflakeAccessToken(refreshToken);
             return accessToken;
         }
@@ -1874,17 +2330,24 @@ export class UserService extends BaseService {
 
     static async generateSnowflakeAccessToken(
         refreshToken: string,
-    ): Promise<string> {
+    ): Promise<{ accessToken: string; refreshToken: string }> {
         return new Promise((resolve, reject) => {
             refresh.requestNewAccessToken(
                 'snowflake',
                 refreshToken,
-                (err: AnyType, accessToken: string, _refreshToken, result) => {
+                (
+                    err: AnyType,
+                    accessToken: string,
+                    newRefreshToken: string | undefined,
+                ) => {
                     if (err || !accessToken) {
                         reject(err);
                         return;
                     }
-                    resolve(accessToken);
+                    resolve({
+                        accessToken,
+                        refreshToken: newRefreshToken || refreshToken,
+                    });
                 },
             );
         });
@@ -1908,12 +2371,44 @@ export class UserService extends BaseService {
         });
     }
 
-    async isLoginMethodAllowed(_email: string, loginMethod: LoginOptionTypes) {
+    /**
+     * Whether Google sign-in is disabled for the given email's domain by the
+     * owning organization. Google is enabled by default (shared instance OAuth
+     * app); a per-org `google` policy row with enabled=false opts out. For
+     * existing users we only honour policies from orgs they belong to — same
+     * domain-hijack guard as getLoginOptions.
+     */
+    private async isGoogleDisabledForEmail(email: string): Promise<boolean> {
+        const domain = email?.split('@')[1]?.toLowerCase();
+        if (!domain) return false;
+        const googleMethods =
+            await this.organizationSsoModel.findGoogleMethodsForEmailDomain(
+                domain,
+            );
+        if (googleMethods.length === 0) return false;
+
+        const existingUser = await this.userModel.findUserByEmail(email);
+        if (!existingUser) {
+            return googleMethods.some((m) => !m.enabled);
+        }
+        const userOrgs = await this.userModel.getOrganizationsForUser(
+            existingUser.userUuid,
+        );
+        const userOrgUuids = new Set(userOrgs.map((o) => o.organizationUuid));
+        return googleMethods
+            .filter((m) => userOrgUuids.has(m.organizationUuid))
+            .some((m) => !m.enabled);
+    }
+
+    async isLoginMethodAllowed(email: string, loginMethod: LoginOptionTypes) {
         switch (loginMethod) {
             case LocalIssuerTypes.EMAIL:
                 return !this.lightdashConfig.auth.disablePasswordAuthentication;
-            case LocalIssuerTypes.API_TOKEN:
             case OpenIdIdentityIssuerType.GOOGLE:
+                // Enabled by default, but an org can disable Google sign-in
+                // for its domains via a per-org policy.
+                return !(await this.isGoogleDisabledForEmail(email));
+            case LocalIssuerTypes.API_TOKEN:
             case OpenIdIdentityIssuerType.OKTA:
             case OpenIdIdentityIssuerType.ONELOGIN:
             case OpenIdIdentityIssuerType.AZUREAD:
@@ -1963,6 +2458,12 @@ export class UserService extends BaseService {
         user: SessionUser,
         refreshToken: string,
     ) {
+        // Remove old BigQuery credentials to prevent duplicates on re-authentication
+        await this.userWarehouseCredentialsModel.deleteAllByUserAndWarehouseType(
+            user.userUuid,
+            WarehouseTypes.BIGQUERY,
+        );
+
         const bigqueryCredentials: UpsertUserWarehouseCredentials = {
             name: 'Default',
             credentials: {
@@ -2218,30 +2719,130 @@ export class UserService extends BaseService {
             };
         }
 
-        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
-        const hasPassword = await this.userModel.hasPasswordByEmail(email);
-        const userOptions = hasPassword
-            ? [LocalIssuerTypes.EMAIL, ...openIdIssuers]
-            : openIdIssuers;
-        // Filter out the options that are not available for the instance. eg: user connected to google drive but google auth is not enabled
-        const validUserOptions = userOptions.filter((option) =>
-            instancesOptions.has(option),
+        // Discover all enabled per-org SSO methods whose effective whitelist
+        // matches the email's domain. When any per-org method matches, it
+        // takes precedence over instance-level SSO providers for this user.
+        const domain = email.split('@')[1]?.toLowerCase();
+        const allMatchingMethods = domain
+            ? await this.organizationSsoModel.findEnabledMethodsForEmailDomain(
+                  domain,
+              )
+            : [];
+        // Per-org Google policy rows for the domain (includes disabled rows —
+        // a `google` row exists precisely to record an opt-out, which the
+        // enabled-only discovery above would never surface).
+        const allGoogleMethods = domain
+            ? await this.organizationSsoModel.findGoogleMethodsForEmailDomain(
+                  domain,
+              )
+            : [];
+
+        // Security: if the email belongs to an existing Lightdash user, only
+        // surface SSO methods from orgs they actually belong to. Prevents a
+        // malicious admin of org B from silently re-routing org A's existing
+        // users to their own Azure tenant by claiming the domain. Brand-new
+        // users (no account yet) still see all matching methods — the
+        // upstream feature flag + ops vetting is the gate for that case.
+        const existingUser = await this.userModel.findUserByEmail(email);
+        let matchingPerOrgMethods = allMatchingMethods;
+        let matchingGoogleMethods = allGoogleMethods;
+        if (existingUser) {
+            const userOrgs = await this.userModel.getOrganizationsForUser(
+                existingUser.userUuid,
+            );
+            const userOrgUuids = new Set(
+                userOrgs.map((o) => o.organizationUuid),
+            );
+            matchingPerOrgMethods = allMatchingMethods.filter((m) =>
+                userOrgUuids.has(m.organizationUuid),
+            );
+            matchingGoogleMethods = allGoogleMethods.filter((m) =>
+                userOrgUuids.has(m.organizationUuid),
+            );
+        }
+
+        // Google is enabled by default (shared instance OAuth app), so absence
+        // of a `google` row means "follow the instance default". An org opts
+        // out by storing a row with enabled=false for its domains — that
+        // suppresses the instance Google button here and is enforced
+        // server-side by isLoginMethodAllowed.
+        const googleEnabledForUser =
+            instancesOptions.has(OpenIdIdentityIssuerType.GOOGLE) &&
+            !matchingGoogleMethods.some((m) => !m.enabled);
+
+        // Each SSO provider enum value maps 1:1 to its OpenIdIdentityIssuerType
+        // string (e.g. 'azuread'); funnel through unknown to satisfy TS.
+        const matchingPerOrgProviders = new Set<OpenIdIdentityIssuerType>(
+            matchingPerOrgMethods.map(
+                (m) => m.provider as unknown as OpenIdIdentityIssuerType,
+            ),
         );
 
-        // if user has no valid options, return instance options
-        if (validUserOptions.length === 0) {
+        const openIdIssuers = await this.userModel.getOpenIdIssuers(email);
+        const hasPassword = await this.userModel.hasPasswordByEmail(email);
+
+        let ssoOptionsForUser: OpenIdIdentityIssuerType[];
+        let passwordAllowedForUser: boolean;
+
+        if (matchingPerOrgMethods.length > 0) {
+            // Per-org SSO suppresses instance-level SSO providers for this
+            // email's domain. Google is a per-org provider like the others:
+            // an enabled `google` row flows through discovery above and shows
+            // here; otherwise it follows the instance default.
+            ssoOptionsForUser = Array.from(matchingPerOrgProviders);
+            // Password visibility is governed by the SSO rows: lenient rule
+            // — ANY matching method that permits password → show password.
+            passwordAllowedForUser = matchingPerOrgMethods.some(
+                (m) => m.allowPassword,
+            );
+        } else {
+            // No per-org SSO matches: instance-level behavior preserved.
+            // Show OIDC issuers the user has previously linked (filtered to
+            // instance-supported providers), dropping Google if the org
+            // opted out for this domain.
+            ssoOptionsForUser = openIdIssuers.filter(
+                (o) =>
+                    instancesOptions.has(o) &&
+                    (googleEnabledForUser ||
+                        o !== OpenIdIdentityIssuerType.GOOGLE),
+            );
+            passwordAllowedForUser = true;
+        }
+
+        const showOptions: LoginOptionTypes[] = [...ssoOptionsForUser];
+        if (
+            passwordAllowedForUser &&
+            hasPassword &&
+            instancesOptions.has(LocalIssuerTypes.EMAIL)
+        ) {
+            showOptions.unshift(LocalIssuerTypes.EMAIL);
+        }
+
+        // If the precheck yielded nothing for this email, fall back to
+        // instance-level options so the user isn't shown an empty form.
+        // This branch only fires when no per-org SSO matched and the user
+        // has no linked identity or password — i.e. they're effectively a
+        // new signup.
+        if (showOptions.length === 0) {
             return {
-                showOptions: Array.from(instancesOptions),
+                showOptions: Array.from(instancesOptions).filter(
+                    (o) =>
+                        googleEnabledForUser ||
+                        o !== OpenIdIdentityIssuerType.GOOGLE,
+                ),
                 forceRedirect: false,
                 redirectUri: undefined,
             };
         }
 
-        const oidcOptions = validUserOptions.filter(isOpenIdIdentityIssuerType);
-        if (oidcOptions.length === 1) {
-            // Force redirect to the only issuer option
+        const oidcOptions = showOptions.filter(isOpenIdIdentityIssuerType);
+        // Auto-redirect when there is genuinely a single option (one OIDC
+        // provider, no password input). Wrong-account loops are mitigated
+        // by forwarding `login_hint` to the provider so the right account
+        // is surfaced.
+        if (oidcOptions.length === 1 && showOptions.length === 1) {
             return {
-                showOptions: validUserOptions,
+                showOptions,
                 forceRedirect: true,
                 redirectUri: new URL(
                     `/api/v1${this.getRedirectUri(
@@ -2252,45 +2853,25 @@ export class UserService extends BaseService {
             };
         }
         return {
-            showOptions: validUserOptions,
+            showOptions,
             forceRedirect: false,
             redirectUri: undefined,
         };
     }
 
-    /*
-    For service accounts, we get the admin user from the userUuid who created the user
-    if this user no longer exist, then we will get another admin user from the org
-    */
-    async getAdminUser(userUuid: string | null, organizationUuid: string) {
-        try {
-            if (!userUuid) {
-                throw new Error('User uuid is required');
-            }
-            return await this.userModel.findSessionUserAndOrgByUuid(
-                userUuid,
-                organizationUuid,
-            );
-        } catch (error) {
-            const members =
-                await this.organizationMemberProfileModel.getOrganizationMembers(
-                    {
-                        organizationUuid,
-                        searchQuery: 'admin', // Filtering by role
-                    },
-                );
-
-            const adminUser = members.data.find(
-                (member) => member.role === 'admin',
-            );
-            if (adminUser) {
-                return this.userModel.findSessionUserAndOrgByUuid(
-                    adminUser.userUuid,
-                    organizationUuid,
-                );
-            }
-            throw new Error('No admin user found');
-        }
+    /**
+     * Loads the SessionUser for the dedicated `users` row provisioned for this
+     * service account. Abilities are derived from the SA's scopes via
+     * `applyServiceAccountAbilities` inside
+     * `UserModel.generateUserAbilityBuilder`.
+     */
+    async getSessionUserForServiceAccount(
+        serviceAccount: ServiceAccount,
+    ): Promise<SessionUser> {
+        return this.userModel.findSessionUserAndOrgByUuid(
+            serviceAccount.userUuid,
+            serviceAccount.organizationUuid,
+        );
     }
 
     async isOpenIdLinked(
@@ -2326,22 +2907,43 @@ export class UserService extends BaseService {
             isSessionAuth,
             getImpersonation,
             setImpersonation,
+            context,
         }: {
             isSessionAuth: boolean;
             getImpersonation: () => { targetUserUuid: string } | undefined;
             setImpersonation: (data: {
                 adminUserUuid: string;
                 adminName: string;
+                adminEmail: string;
+                adminFirstName?: string;
+                adminLastName?: string;
+                adminRole: string;
                 targetUserUuid: string;
                 startedAt: string;
             }) => void;
+            context?: AuthAuditContext;
         },
     ): Promise<void> {
+        const emitDenied = (reason: string, targetOrgUuid?: string) =>
+            emitAuthAuditEvent({
+                actor: createActorFromUser(adminUser),
+                action: 'impersonation_start',
+                resourceType: 'User',
+                status: 'denied',
+                reason,
+                organizationUuid:
+                    targetOrgUuid ?? adminUser.organizationUuid ?? undefined,
+                metadata: { targetUserUuid },
+                context,
+            });
+
         if (!(await this.isImpersonationEnabled(adminUser))) {
+            emitDenied('User impersonation is not enabled');
             throw new ForbiddenError('User impersonation is not enabled');
         }
 
         if (!isSessionAuth) {
+            emitDenied('Impersonation requires session authentication');
             throw new ForbiddenError(
                 'Impersonation requires session authentication',
             );
@@ -2349,6 +2951,9 @@ export class UserService extends BaseService {
 
         // Prevent recursive impersonation
         if (getImpersonation()) {
+            emitDenied(
+                'Cannot start impersonation while already impersonating',
+            );
             throw new ForbiddenError(
                 'Cannot start impersonation while already impersonating',
             );
@@ -2356,6 +2961,7 @@ export class UserService extends BaseService {
 
         // Prevent self-impersonation
         if (adminUser.userUuid === targetUserUuid) {
+            emitDenied('Cannot impersonate yourself');
             throw new ParameterError('Cannot impersonate yourself');
         }
 
@@ -2364,15 +2970,21 @@ export class UserService extends BaseService {
             await this.userModel.getUserDetailsByUuid(targetUserUuid);
 
         // Check permissions using CASL (includes org match and isActive)
+        const auditedAbility = this.createAuditedAbility(adminUser);
         if (
-            adminUser.ability.cannot(
+            auditedAbility.cannot(
                 'impersonate',
                 subject('User', {
-                    organizationUuid: targetUser.organizationUuid,
+                    organizationUuid: targetUser.organizationUuid!,
                     isActive: targetUser.isActive,
+                    metadata: { targetUserUuid },
                 }),
             )
         ) {
+            emitDenied(
+                "You don't have permissions to impersonate this user",
+                targetUser.organizationUuid ?? undefined,
+            );
             throw new ForbiddenError(
                 "You don't have permissions to impersonate this user",
             );
@@ -2381,6 +2993,10 @@ export class UserService extends BaseService {
         setImpersonation({
             adminUserUuid: adminUser.userUuid,
             adminName: `${adminUser.firstName} ${adminUser.lastName}`,
+            adminEmail: adminUser.email ?? '',
+            adminFirstName: adminUser.firstName,
+            adminLastName: adminUser.lastName,
+            adminRole: adminUser.role ?? 'unknown',
             targetUserUuid,
             startedAt: new Date().toISOString(),
         });
@@ -2398,16 +3014,31 @@ export class UserService extends BaseService {
                 organizationUuid: adminUser.organizationUuid!,
             },
         });
+
+        emitAuthAuditEvent({
+            actor: createActorFromUser(adminUser),
+            action: 'impersonation_start',
+            resourceType: 'User',
+            status: 'allowed',
+            organizationUuid:
+                targetUser.organizationUuid ??
+                adminUser.organizationUuid ??
+                undefined,
+            metadata: { targetUserUuid },
+            context,
+        });
     }
 
     async stopImpersonation({
         getImpersonation,
         clearImpersonation,
+        context,
     }: {
         getImpersonation: () =>
             | { adminUserUuid: string; targetUserUuid: string }
             | undefined;
         clearImpersonation: () => void;
+        context?: AuthAuditContext;
     }): Promise<void> {
         const impersonation = getImpersonation();
 
@@ -2433,6 +3064,16 @@ export class UserService extends BaseService {
                 targetUserUuid,
                 organizationUuid: adminUser.organizationUuid!,
             },
+        });
+
+        emitAuthAuditEvent({
+            actor: createActorFromUser(adminUser),
+            action: 'impersonation_stop',
+            resourceType: 'User',
+            status: 'allowed',
+            organizationUuid: adminUser.organizationUuid ?? undefined,
+            metadata: { targetUserUuid },
+            context,
         });
     }
 }

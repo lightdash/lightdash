@@ -1,4 +1,4 @@
-import { Button, Group, Stack, Title } from '@mantine/core';
+import { Button, Group, Stack, Title } from '@mantine-8/core';
 import { useDisclosure } from '@mantine/hooks';
 import { IconUsersGroup } from '@tabler/icons-react';
 import { useState } from 'react';
@@ -23,25 +23,20 @@ export function ServiceAccountsPage() {
         setToken(data.token);
     };
 
-    const hasAccounts = listAccounts?.data?.length ?? 0 > 0;
+    const accountsData = listAccounts?.data;
+    // First-load vs background refetch: only block UI on the first fetch.
+    // Subsequent refetches keep the existing rows visible (and ContentTable's
+    // loading state will dim them via state.isLoading inside the table) so
+    // the page doesn't flash on every revalidation.
+    const isInitialLoading = listAccounts.isLoading && !accountsData;
+    const hasAccounts = (accountsData?.length ?? 0) > 0;
 
-    return (
-        <Stack mb="lg">
-            {hasAccounts ? (
-                <>
-                    <Group position="apart">
-                        <Title size="h5">Service accounts</Title>
-                        <Button onClick={open} size="xs">
-                            Add service account
-                        </Button>
-                    </Group>
-                    <ServiceAccountsTable
-                        accounts={listAccounts?.data ?? []}
-                        onDelete={deleteAccount.mutate}
-                        isDeleting={deleteAccount.isLoading}
-                    />
-                </>
-            ) : (
+    // Truly-empty path keeps the friendly EmptyState with the Create CTA;
+    // the table's own renderEmptyRowsFallback handles "filters returned 0"
+    // separately so the toolbar stays visible while filters are applied.
+    if (!isInitialLoading && !hasAccounts) {
+        return (
+            <Stack mb="lg">
                 <EmptyState
                     icon={
                         <MantineIcon
@@ -56,7 +51,33 @@ export function ServiceAccountsPage() {
                 >
                     <Button onClick={open}>Create service account</Button>
                 </EmptyState>
-            )}
+
+                <ServiceAccountsCreateModal
+                    isOpen={opened}
+                    onClose={handleCloseModal}
+                    onSave={handleSaveAccount}
+                    isWorking={createAccount.isLoading}
+                    token={token}
+                />
+            </Stack>
+        );
+    }
+
+    return (
+        <Stack mb="lg">
+            <Group justify="space-between">
+                <Title order={5}>Service accounts</Title>
+                <Button onClick={open} size="xs">
+                    Add service account
+                </Button>
+            </Group>
+
+            <ServiceAccountsTable
+                accounts={accountsData ?? []}
+                isLoading={isInitialLoading}
+                onDelete={deleteAccount.mutate}
+                isDeleting={deleteAccount.isLoading}
+            />
 
             <ServiceAccountsCreateModal
                 isOpen={opened}

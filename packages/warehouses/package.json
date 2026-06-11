@@ -1,6 +1,6 @@
 {
   "name": "@lightdash/warehouses",
-  "version": "0.2742.2",
+  "version": "0.3140.0",
   "description": "Warehouse connectors for Lightdash",
   "license": "MIT",
   "repository": {
@@ -21,9 +21,12 @@
     "fix-format": "oxfmt ./src",
     "test": "jest",
     "typecheck": "tsc --project tsconfig.json --noEmit",
+    "typecheck:fast": "tsgo --project tsconfig.fast.json --noEmit",
     "copy-files": "copyfiles -u 1 src/warehouseClients/ca-bundle-aws-redshift.crt src/warehouseClients/ca-bundle-aws-rds-global.pem dist/",
     "build": "pnpm run copy-files && tsc --build tsconfig.json",
+    "build:fast": "pnpm run copy-files && tsgo --build ./tsconfig.fast.json",
     "dev": "pnpm run copy-files && tsc --build --watch --preserveWatchOutput tsconfig.json",
+    "dev:fast": "pnpm run copy-files && tsgo --build --watch --preserveWatchOutput ./tsconfig.fast.json",
     "release": "pnpm publish --no-git-checks --access public"
   },
   "dependencies": {
@@ -31,13 +34,14 @@
     "@aws-sdk/credential-providers": "3.995.0",
     "@clickhouse/client": "1.12.1",
     "@databricks/sql": "1.13.0",
-    "@duckdb/node-api": "1.4.4-r.1",
+    "@duckdb/node-api": "1.5.2-r.2",
     "@google-cloud/bigquery": "7.9.2",
     "@lightdash/common": "workspace:*",
-    "lodash": "4.17.23",
+    "lodash": "4.18.1",
     "node-fetch": "2.7.0",
     "pg": "8.13.1",
     "pg-cursor": "2.10.0",
+    "pg-protocol": "1.10.3",
     "snowflake-sdk": "2.3.4",
     "ssh2": "1.14.0",
     "trino-client": "0.2.9"
@@ -47,7 +51,8 @@
     "@types/pg": "8.11.10",
     "@types/pg-cursor": "2.7.0",
     "@types/ssh2": "1.11.15",
+    "@typescript/native-preview": "7.0.0-dev.20260527.2",
     "copyfiles": "2.4.1",
-    "typescript": "6.0.0-beta"
+    "typescript": "6.0.3"
   }
 }

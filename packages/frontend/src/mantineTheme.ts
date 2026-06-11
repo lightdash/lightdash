@@ -376,6 +376,22 @@ export const getMantineThemeOverride = (
             '.wmde-markdown img': {
                 backgroundColor: 'transparent',
             },
+            // CJK font selection for headless browser screenshots/PDFs.
+            // Chromium on Linux ignores fontconfig, so we use :lang() CSS
+            // selectors to explicitly pick the correct Noto Sans CJK variant.
+            ':lang(ja)': {
+                fontFamily: `'Noto Sans CJK JP', ${theme.fontFamily}`,
+            },
+            ':lang(zh-CN), :lang(zh-Hans)': {
+                fontFamily: `'Noto Sans CJK SC', ${theme.fontFamily}`,
+            },
+            ':lang(zh-TW), :lang(zh-Hant)': {
+                fontFamily: `'Noto Sans CJK TC', ${theme.fontFamily}`,
+            },
+            ':lang(ko)': {
+                fontFamily: `'Noto Sans CJK KR', ${theme.fontFamily}`,
+            },
+
             '@keyframes fadeIn': {
                 from: { opacity: 0 },
                 to: { opacity: 1 },

@@ -82,6 +82,7 @@ export class ScimGroupController extends BaseController {
     ): Promise<ScimListResponse<ScimGroup>> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
         return this.getScimService().listGroups({
+            account: req.account!,
             organizationUuid,
             filter,
             itemsPerPage: count,
@@ -123,7 +124,11 @@ export class ScimGroupController extends BaseController {
         @Path() id: string,
     ): Promise<ScimGroup> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
-        return this.getScimService().getGroup(organizationUuid, id);
+        return this.getScimService().getGroup(
+            req.account!,
+            organizationUuid,
+            id,
+        );
     }
 
     /**
@@ -143,7 +148,11 @@ export class ScimGroupController extends BaseController {
         @Body() body: ScimUpsertGroup,
     ): Promise<ScimGroup> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
-        return this.getScimService().createGroup(organizationUuid, body);
+        return this.getScimService().createGroup(
+            req.account!,
+            organizationUuid,
+            body,
+        );
     }
 
     /**
@@ -165,6 +174,7 @@ export class ScimGroupController extends BaseController {
         @Body() body: ScimPatch,
     ): Promise<ScimGroup> {
         return this.getScimService().updateGroup(
+            req.account!,
             req.serviceAccount?.organizationUuid as string,
             id,
             body,
@@ -190,7 +200,12 @@ export class ScimGroupController extends BaseController {
         @Body() body: ScimUpsertGroup,
     ): Promise<ScimGroup> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
-        return this.getScimService().replaceGroup(organizationUuid, id, body);
+        return this.getScimService().replaceGroup(
+            req.account!,
+            organizationUuid,
+            id,
+            body,
+        );
     }
 
     /**
@@ -209,7 +224,11 @@ export class ScimGroupController extends BaseController {
         @Path() id: string,
     ): Promise<void> {
         const organizationUuid = req.serviceAccount?.organizationUuid as string;
-        await this.getScimService().deleteGroup(organizationUuid, id);
+        await this.getScimService().deleteGroup(
+            req.account!,
+            organizationUuid,
+            id,
+        );
         this.setStatus(204);
     }
 }

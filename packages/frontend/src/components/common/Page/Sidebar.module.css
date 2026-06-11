@@ -1,0 +1,171 @@
+.floatContainer {
+    --sidebar-ease-reveal: cubic-bezier(0.22, 1, 0.36, 1);
+    --sidebar-ease-conceal: cubic-bezier(0.22, 1, 0.36, 1);
+    --sidebar-reveal-duration: 340ms;
+    --sidebar-conceal-duration: 300ms;
+
+    position: relative;
+    height: calc(100% - 1px);
+    max-height: 100%;
+    flex-shrink: 0;
+    z-index: var(--mantine-z-index-app);
+    transition: width var(--sidebar-reveal-duration) var(--sidebar-ease-reveal);
+    top: 1px;
+    width: var(--sidebar-width);
+}
+
+.floatContainer:has(.floatingPanel[data-collapsed='true']) {
+    width: 0;
+    z-index: calc(var(--mantine-z-index-popover) + 1);
+}
+
+.floatingPanel {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding: 16px;
+    padding-bottom: 0;
+    width: var(--sidebar-width);
+    /* Default = conceal: governs hide-on-leave and the unpin slide-out. */
+    transition: transform var(--sidebar-conceal-duration)
+        var(--sidebar-ease-conceal);
+}
+
+/* Pinned: flush against content — a single clean hairline, no shadow. */
+.floatingPanel[data-collapsed='false'] {
+    transform: translateX(0);
+    border-radius: 0;
+    border-right: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    box-shadow: none;
+    transition: transform var(--sidebar-reveal-duration)
+        var(--sidebar-ease-reveal);
+}
+
+/* Off-screen at rest; the extra 24px clears the shadow and floating margin. */
+/* Floating: lifts off the page — soft border + a gentle, diffuse shadow. */
+.floatingPanel[data-collapsed='true'] {
+    transform: translateX(calc(-100% - 24px));
+    margin: 8px;
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-4));
+    box-shadow: light-dark(
+        0 8px 24px -6px rgba(15, 18, 22, 0.12),
+        0 8px 24px -6px rgba(0, 0, 0, 0.5)
+    );
+    will-change: transform;
+}
+
+.floatContainer:has(.edgeTrigger:hover) .floatingPanel[data-collapsed='true'],
+.floatContainer:has(.floatingPanel:hover)
+    .floatingPanel[data-collapsed='true'] {
+    transform: translateX(0);
+    /* Reveal: the panel glides in and decelerates into place. */
+    transition: transform var(--sidebar-reveal-duration)
+        var(--sidebar-ease-reveal);
+}
+
+/* Invisible full-height hover zone along the page's left edge — approaching it
+   reveals the sidebar. Kept generous so the panel reveals as the cursor nears
+   the edge, well before reaching the collapsed panel itself. */
+.edgeTrigger {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 30px;
+    z-index: 1;
+}
+
+.floatingPanelInner {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Sits below the panel so the revealed panel covers it cleanly instead of
+   doubling up with the panel's own header controls. */
+.trigger {
+    position: absolute;
+    top: 10px;
+    left: 20px;
+    z-index: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .floatContainer,
+    .floatingPanel {
+        transition: none !important;
+    }
+}
+
+.resizeHandle {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    width: var(--sidebar-resize-handle-width);
+    cursor: col-resize;
+    z-index: calc(var(--mantine-z-index-app) + 1);
+}
+
+.resizeHandle[data-position='left'] {
+    right: calc(-1 * var(--sidebar-resize-handle-width));
+}
+
+.resizeHandle[data-position='right'] {
+    left: calc(-1 * var(--sidebar-resize-handle-width));
+}
+
+.resizeHandle[data-resizing='true'] {
+    background: linear-gradient(
+        90deg,
+        light-dark(var(--mantine-color-blue-3), var(--mantine-color-blue-5)),
+        transparent
+    );
+}
+
+.resizeHandle[data-resizing='false']:hover {
+    background: linear-gradient(
+        90deg,
+        light-dark(var(--mantine-color-blue-1), var(--mantine-color-blue-7)),
+        transparent
+    );
+}
+
+.sidebarContainer {
+    position: relative;
+    height: 100%;
+    max-height: 100%;
+    z-index: 1;
+}
+
+.sidebarPaper {
+    --sidebar-padding: 16px;
+
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+    overflow: hidden;
+    width: var(--sidebar-width);
+    padding: var(--sidebar-padding);
+    padding-bottom: 0;
+}
+
+.sidebarPaper[data-no-padding='true'] {
+    --sidebar-padding: 0px;
+}
+
+.sidebarContent {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+    width: calc(var(--sidebar-width) - 2 * var(--sidebar-padding));
+    min-height: 0;
+}

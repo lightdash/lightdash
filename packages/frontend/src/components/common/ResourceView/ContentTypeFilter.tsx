@@ -24,6 +24,10 @@ const ContentTypeOptions = [
         value: ContentType.CHART,
         label: <ContentTypeSelectOption label={'Charts'} />,
     },
+    {
+        value: ContentType.DATA_APP,
+        label: <ContentTypeSelectOption label={'Data Apps'} />,
+    },
 ];
 type ContentTypeFilterProps = {
     value: ContentType | undefined;

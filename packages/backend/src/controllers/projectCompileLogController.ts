@@ -73,7 +73,7 @@ export class ProjectCompileLogController extends BaseController {
             results: await this.services
                 .getProjectCompileLogService()
                 .getProjectCompileLogs(
-                    req.user!,
+                    req.account!,
                     projectUuid,
                     paginateArgs,
                     sort,
@@ -105,7 +105,11 @@ export class ProjectCompileLogController extends BaseController {
             results: {
                 log: await this.services
                     .getProjectCompileLogService()
-                    .getProjectCompileLogByJob(req.user!, projectUuid, jobUuid),
+                    .getProjectCompileLogByJob(
+                        req.account!,
+                        projectUuid,
+                        jobUuid,
+                    ),
             },
         };
     }

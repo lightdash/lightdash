@@ -23,6 +23,7 @@
 // 6. passport.GoogleStrategy creates a full user object and attaches it to `req.user`
 // 7. Follow steps 4-6 from "How a user is logs in"
 
+export * from './deprecation';
 export * from './middlewares';
 export * from './strategies/apiKeyStrategy';
 export * from './strategies/azureStrategy';

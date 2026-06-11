@@ -1,6 +1,6 @@
 import { ProjectType, type AnyType } from '@lightdash/common';
-import { Box, createStyles } from '@mantine/core';
-import { useDisclosure, useElementSize } from '@mantine/hooks';
+import { Box } from '@mantine-8/core';
+import { useDisclosure, useElementSize } from '@mantine-8/hooks';
 import { type FC } from 'react';
 import ErrorBoundary from '../../../features/errorBoundary/ErrorBoundary';
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
@@ -10,16 +10,7 @@ import { TrackSection } from '../../../providers/Tracking/TrackingProvider';
 import { SectionName } from '../../../types/Events';
 import AboutFooter from '../../AboutFooter';
 import { DocumentTitle } from '../DocumentTitle';
-import {
-    BANNER_HEIGHT,
-    FOOTER_HEIGHT,
-    FOOTER_MARGIN,
-    NAVBAR_HEIGHT,
-    PAGE_CONTENT_MAX_WIDTH_LARGE,
-    PAGE_CONTENT_WIDTH,
-    PAGE_HEADER_HEIGHT,
-    PAGE_MIN_CONTENT_WIDTH,
-} from './constants';
+import classes from './Page.module.css';
 import Sidebar from './Sidebar';
 import { SidebarPosition, type SidebarWidthProps } from './types';
 
@@ -44,161 +35,18 @@ type StyleProps = {
     noContentPadding?: boolean;
     noSidebarPadding?: boolean;
     isSidebarResizing?: boolean;
-    backgroundColor?: string;
+    reserveSidebarToggle?: boolean;
     fullPageScroll?: boolean;
 };
-
-const usePageStyles = createStyles<string, StyleProps>((theme, params) => {
-    let containerHeight = '100vh';
-
-    if (params.withNavbar && !params.fullPageScroll) {
-        containerHeight = `calc(${containerHeight} - ${NAVBAR_HEIGHT}px)`;
-    }
-    if (params.withHeader) {
-        containerHeight = `calc(${containerHeight} - ${PAGE_HEADER_HEIGHT}px)`;
-    }
-    if (params.hasBanner && !params.fullPageScroll) {
-        containerHeight = `calc(${containerHeight} - ${BANNER_HEIGHT}px)`;
-    }
-
-    return {
-        root: {
-            ...(params.fullPageScroll
-                ? {
-                      minHeight: '100%',
-                  }
-                : params.withFullHeight
-                  ? {
-                        height: containerHeight,
-                        maxHeight: containerHeight,
-                    }
-                  : {
-                        height: containerHeight,
-
-                        overflowY: 'auto',
-                    }),
-
-            ...(params.withSidebar || params.withRightSidebar
-                ? {
-                      display: 'flex',
-                      flexDirection: 'row',
-                  }
-                : {}),
-
-            ...(params.isSidebarResizing
-                ? {
-                      userSelect: 'none',
-                  }
-                : {}),
-
-            ...(params.withCenteredRoot
-                ? {
-                      display: 'flex',
-                      justifyContent: 'center',
-                  }
-                : {}),
-
-            ...(params.backgroundColor
-                ? {
-                      backgroundColor: params.backgroundColor,
-                  }
-                : {}),
-        },
-
-        content: {
-            width: '100%',
-            minWidth: PAGE_CONTENT_WIDTH,
-
-            ...(params.flexContent ? { display: 'flex' } : {}),
-            ...(params.noContentPadding
-                ? {
-                      padding: 0,
-                  }
-                : {
-                      paddingTop: theme.spacing.lg,
-                      paddingBottom: theme.spacing.lg,
-                  }),
-
-            ...(params.withSidebar || params.withRightSidebar
-                ? {
-                      minWidth: PAGE_MIN_CONTENT_WIDTH,
-                  }
-                : {}),
-
-            ...(params.withFooter
-                ? {
-                      minHeight: `calc(100% - ${FOOTER_HEIGHT}px - ${theme.spacing[FOOTER_MARGIN]} - 1px)`,
-                  }
-                : {}),
-
-            ...(params.withFullHeight
-                ? {
-                      display: 'flex',
-                      flexDirection: 'column',
-
-                      height: '100%',
-                      maxHeight: '100%',
-
-                      ...(params.fullPageScroll ? {} : { overflowY: 'auto' }),
-                  }
-                : {}),
-
-            ...(params.withFitContent
-                ? {
-                      width: 'fit-content',
-                      marginLeft: 'auto',
-                      marginRight: 'auto',
-                  }
-                : {}),
-
-            ...(params.withLargeContent
-                ? {
-                      maxWidth: PAGE_CONTENT_MAX_WIDTH_LARGE,
-                  }
-                : {}),
-
-            ...(params.withPaddedContent
-                ? {
-                      paddingLeft: theme.spacing.lg,
-                      paddingRight: theme.spacing.lg,
-                  }
-                : {}),
-
-            ...(params.withXLargePaddedContent
-                ? {
-                      padding: theme.spacing.xxl,
-                  }
-                : {}),
-
-            ...(params.withCenteredContent
-                ? {
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                  }
-                : {}),
-
-            ...(params.withSidebarBorder
-                ? {
-                      borderLeft: `1px solid ${theme.colors.ldGray[3]}`,
-                  }
-                : {}),
-        },
-
-        fixedContainer: {
-            marginLeft: 'auto',
-            marginRight: 'auto',
-
-            width: PAGE_CONTENT_WIDTH,
-            flexShrink: 0,
-        },
-    };
-});
 
 type Props = {
     title?: string;
     sidebar?: React.ReactNode;
     isSidebarOpen?: boolean;
+    isSidebarCollapsed?: boolean;
+    isSidebarCollapsible?: boolean;
+    collapsedSidebarContent?: React.ReactNode;
+    sidebarWidthProps?: SidebarWidthProps;
     rightSidebar?: React.ReactNode;
     isRightSidebarOpen?: boolean;
     rightSidebarWidthProps?: SidebarWidthProps;
@@ -210,6 +58,10 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     header,
     sidebar,
     isSidebarOpen = true,
+    isSidebarCollapsed = false,
+    isSidebarCollapsible = false,
+    collapsedSidebarContent,
+    sidebarWidthProps,
     rightSidebar,
     isRightSidebarOpen = false,
     rightSidebarWidthProps,
@@ -229,7 +81,6 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
     noContentPadding = false,
     noSidebarPadding = false,
     flexContent = false,
-    backgroundColor,
     fullPageScroll = false,
     children,
 }) => {
@@ -247,33 +98,10 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
     const isCurrentProjectPreview = project?.type === ProjectType.PREVIEW;
     const { isImpersonating } = useImpersonation();
+    const hasBanner = isCurrentProjectPreview || isImpersonating;
 
-    const { classes } = usePageStyles(
-        {
-            withCenteredContent,
-            withCenteredRoot,
-            withFitContent,
-            withFixedContent,
-            withLargeContent,
-            withXLargePaddedContent,
-            withFooter,
-            withFullHeight,
-            withHeader: !!header,
-            withNavbar,
-            withPaddedContent,
-            withSidebar: !!sidebar,
-            withSidebarFooter,
-            withSidebarBorder,
-            withRightSidebar: !!rightSidebar,
-            hasBanner: isCurrentProjectPreview || isImpersonating,
-            noContentPadding,
-            flexContent,
-            isSidebarResizing,
-            backgroundColor,
-            fullPageScroll,
-        },
-        { name: 'Page' },
-    );
+    const withSidebar = !!sidebar || !!rightSidebar;
+    const reserveSidebarToggle = isSidebarCollapsible && isSidebarCollapsed;
 
     return (
         <>
@@ -281,11 +109,26 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
 
             {header}
 
-            <Box id="page-root" className={classes.root}>
+            <Box
+                id="page-root"
+                className={classes.root}
+                data-with-navbar={withNavbar}
+                data-with-header={!!header}
+                data-has-banner={hasBanner}
+                data-full-page-scroll={fullPageScroll}
+                data-full-height={withFullHeight}
+                data-with-sidebar={withSidebar}
+                data-sidebar-resizing={isSidebarResizing}
+                data-centered-root={withCenteredRoot}
+            >
                 {sidebar ? (
                     <Sidebar
                         noSidebarPadding={noSidebarPadding}
                         isOpen={isSidebarOpen}
+                        isCollapsed={isSidebarCollapsed}
+                        collapsible={isSidebarCollapsible}
+                        collapsedContent={collapsedSidebarContent}
+                        widthProps={sidebarWidthProps}
                         onResizeStart={startSidebarResizing}
                         onResizeEnd={stopSidebarResizing}
                     >
@@ -296,7 +139,23 @@ const Page: FC<React.PropsWithChildren<Props>> = ({
                     </Sidebar>
                 ) : null}
 
-                <main className={classes.content} ref={mainRef}>
+                <main
+                    className={classes.content}
+                    ref={mainRef}
+                    data-flex-content={flexContent}
+                    data-no-content-padding={noContentPadding}
+                    data-with-sidebar={withSidebar}
+                    data-with-footer={withFooter}
+                    data-full-height={withFullHeight}
+                    data-full-page-scroll={fullPageScroll}
+                    data-fit-content={withFitContent}
+                    data-large-content={withLargeContent}
+                    data-padded-content={withPaddedContent}
+                    data-reserve-sidebar-toggle={reserveSidebarToggle}
+                    data-xlarge-padded-content={withXLargePaddedContent}
+                    data-centered-content={withCenteredContent}
+                    data-sidebar-border={withSidebarBorder}
+                >
                     <TrackSection name={SectionName.PAGE_CONTENT}>
                         <ErrorBoundary wrapper={{ mt: '4xl' }}>
                             {withFixedContent ? (

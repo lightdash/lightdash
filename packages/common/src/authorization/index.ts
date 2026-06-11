@@ -1,6 +1,7 @@
 import { Ability, AbilityBuilder } from '@casl/ability';
 import { NotFoundError } from '../types/errors';
 import { type ProjectMemberProfile } from '../types/projectMemberProfile';
+import { type ProjectType } from '../types/projects';
 import { type Role, type RoleWithScopes } from '../types/roles';
 import { type LightdashUser } from '../types/user';
 import applyOrganizationMemberAbilities, {
@@ -10,15 +11,24 @@ import { projectMemberAbilities } from './projectMemberAbility';
 import { buildAbilityFromScopes } from './scopeAbilityBuilder';
 import { type MemberAbility } from './types';
 
+/**
+ * Project membership plus the project metadata needed by @self scope
+ * conditions (resolved at ability-build time, not per permission check).
+ */
+export type ProjectAbilityProfile = Pick<
+    ProjectMemberProfile,
+    'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
+> & {
+    projectType?: ProjectType;
+    projectCreatedByUserUuid?: string | null;
+};
+
 type UserAbilityBuilderArgs = {
     user: Pick<
         LightdashUser,
         'role' | 'organizationUuid' | 'userUuid' | 'roleUuid'
     >;
-    projectProfiles: Pick<
-        ProjectMemberProfile,
-        'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
-    >[];
+    projectProfiles: ProjectAbilityProfile[];
     permissionsConfig: OrganizationMemberAbilitiesArgs['permissionsConfig'];
     customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>;
     customRolesEnabled?: boolean;
@@ -27,6 +37,11 @@ type UserAbilityBuilderArgs = {
 
 export const JWT_HEADER_NAME = 'lightdash-embed-token';
 
+export type UserAbilityBuilderResult = {
+    builder: AbilityBuilder<MemberAbility>;
+    invalidScopes: string[];
+};
+
 export const getUserAbilityBuilder = ({
     user,
     projectProfiles,
@@ -34,19 +49,45 @@ export const getUserAbilityBuilder = ({
     customRoleScopes,
     customRolesEnabled,
     isEnterprise,
-}: UserAbilityBuilderArgs) => {
+}: UserAbilityBuilderArgs): UserAbilityBuilderResult => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
+    const invalidScopes: string[] = [];
     if (user.role && user.organizationUuid) {
-        // TODO custom roles at organization level are not supported yet
-        applyOrganizationMemberAbilities({
-            role: user.role,
-            member: {
-                organizationUuid: user.organizationUuid,
-                userUuid: user.userUuid,
-            },
-            builder,
-            permissionsConfig,
-        });
+        // Org-level custom role: if the user's organization_memberships row
+        // points at a role_uuid AND custom roles are enabled AND we have the
+        // role's scopes, build CASL from those scopes (same path as
+        // project-level custom roles below). Falls back to the system role
+        // path otherwise.
+        const orgCustomRoleScopes =
+            customRolesEnabled && user.roleUuid
+                ? customRoleScopes?.[user.roleUuid]
+                : undefined;
+
+        if (orgCustomRoleScopes) {
+            invalidScopes.push(
+                ...buildAbilityFromScopes(
+                    {
+                        organizationUuid: user.organizationUuid,
+                        userUuid: user.userUuid,
+                        scopes: orgCustomRoleScopes,
+                        isEnterprise,
+                        organizationRole: user.role,
+                        permissionsConfig,
+                    },
+                    builder,
+                ),
+            );
+        } else {
+            applyOrganizationMemberAbilities({
+                role: user.role,
+                member: {
+                    organizationUuid: user.organizationUuid,
+                    userUuid: user.userUuid,
+                },
+                builder,
+                permissionsConfig,
+            });
+        }
 
         projectProfiles.forEach((projectProfile) => {
             if (projectProfile.roleUuid && customRolesEnabled) {
@@ -65,16 +106,21 @@ export const getUserAbilityBuilder = ({
                     return;
                 }
 
-                buildAbilityFromScopes(
-                    {
-                        projectUuid: projectProfile.projectUuid,
-                        userUuid: user.userUuid,
-                        scopes,
-                        isEnterprise,
-                        organizationRole: user.role,
-                        permissionsConfig,
-                    },
-                    builder,
+                invalidScopes.push(
+                    ...buildAbilityFromScopes(
+                        {
+                            projectUuid: projectProfile.projectUuid,
+                            projectType: projectProfile.projectType,
+                            projectCreatedByUserUuid:
+                                projectProfile.projectCreatedByUserUuid,
+                            userUuid: user.userUuid,
+                            scopes,
+                            isEnterprise,
+                            organizationRole: user.role,
+                            permissionsConfig,
+                        },
+                        builder,
+                    ),
                 );
             } else {
                 projectMemberAbilities[projectProfile.role](
@@ -84,7 +130,7 @@ export const getUserAbilityBuilder = ({
             }
         });
     }
-    return builder;
+    return { builder, invalidScopes };
 };
 
 // Defines user ability for test purposes
@@ -93,13 +139,10 @@ export const defineUserAbility = (
         LightdashUser,
         'role' | 'organizationUuid' | 'userUuid' | 'roleUuid'
     >,
-    projectProfiles: Pick<
-        ProjectMemberProfile,
-        'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
-    >[],
+    projectProfiles: ProjectAbilityProfile[],
     customRoleScopes?: Record<Role['roleUuid'], RoleWithScopes['scopes']>,
 ): MemberAbility => {
-    const builder = getUserAbilityBuilder({
+    const { builder } = getUserAbilityBuilder({
         user,
         projectProfiles,
         permissionsConfig: {

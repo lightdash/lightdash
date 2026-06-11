@@ -13,6 +13,7 @@ export const useEmbedDashboardChartDownload = (
     tileUuid: string,
     projectUuid: string | undefined,
     originalQueryUuid: string,
+    canExportPivotedData: boolean,
 ) => {
     const dashboardFilters = useDashboardFiltersForTile(tileUuid);
     const chartSort = useDashboardContext((c) => c.chartSort);
@@ -26,13 +27,24 @@ export const useEmbedDashboardChartDownload = (
     );
 
     const getDownloadQueryUuid = useCallback(
-        async (limit: number | null, limitType: Limit): Promise<string> => {
+        async (
+            limit: number | null,
+            limitType: Limit,
+            exportPivotedData: boolean = true,
+        ): Promise<string> => {
             if (!projectUuid) {
                 throw new Error('Missing required parameters');
             }
 
+            const originalQueryIsPivoted = canExportPivotedData;
+            const shouldPivotResults =
+                exportPivotedData && originalQueryIsPivoted;
+
             // When limiting to the table, use the original query uuid
-            if (limitType === Limit.TABLE) {
+            if (
+                limitType === Limit.TABLE &&
+                originalQueryIsPivoted === shouldPivotResults
+            ) {
                 return originalQueryUuid;
             }
 
@@ -51,6 +63,7 @@ export const useEmbedDashboardChartDownload = (
                         limit,
                         invalidateCache: false,
                         parameters,
+                        pivotResults: shouldPivotResults,
                     }),
                 });
 
@@ -79,6 +92,7 @@ export const useEmbedDashboardChartDownload = (
             dashboardSorts,
             dateZoomGranularity,
             parameters,
+            canExportPivotedData,
             originalQueryUuid,
         ],
     );

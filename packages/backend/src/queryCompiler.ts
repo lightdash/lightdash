@@ -33,6 +33,13 @@ import {
 import { mapAdapterToFormulaDialect } from './formulaDialectMapper';
 import { compileTableCalculationFromTemplate } from './tableCalculationTemplateQueryCompiler';
 
+const formatFormulaError = (displayName: string, error: unknown): string => {
+    const message = error instanceof Error ? error.message : String(error);
+    return displayName
+        ? `Error in formula "${displayName}": ${message}`
+        : `Formula error: ${message}`;
+};
+
 const getTableCalculationReferences = (sql: string): string[] => {
     const matches = sql.match(lightdashVariablePattern) || [];
     return matches.map((match) => match.slice(2, -1)); // Remove ${ and }
@@ -84,7 +91,7 @@ const buildTableCalculationDependencyGraph = (
                 };
             } catch (e) {
                 throw new CompileError(
-                    `Error in formula "${calc.displayName}": ${e instanceof Error ? e.message : String(e)}`,
+                    formatFormulaError(calc.displayName, e),
                     {},
                 );
             }
@@ -173,11 +180,35 @@ const compileTableCalculation = (
                 columns[fieldId] = fieldId;
             }
             for (const dep of dependencyGraph) {
-                columns[dep.name] = dep.name;
+                if (dep.name !== tableCalculation.name) {
+                    columns[dep.name] = dep.name;
+                }
             }
+            // Filter out sorts on table calculations: a formula table calc
+            // and its siblings are projected in the same SELECT, so ordering
+            // by a sibling alias inside its OVER clause self-references
+            // within that SELECT and every warehouse rejects it.
+            const validFieldIdsForSort = new Set(validFieldIds);
+            const defaultOrderBy = sortFields
+                .filter((s) => validFieldIdsForSort.has(s.fieldId))
+                .map((s) => ({
+                    column: customBinDimensionIds.has(s.fieldId)
+                        ? `${s.fieldId}_order`
+                        : s.fieldId,
+                    direction: (s.descending ? 'DESC' : 'ASC') as
+                        | 'ASC'
+                        | 'DESC',
+                }));
+            // Table calcs land in a post-aggregation SELECT alongside non-
+            // aggregate dimension columns, so bare SQL aggregates would be
+            // rejected by the warehouse. Wrapping as `AGG(x) OVER ()` turns
+            // them into window aggregates — legal in that context and
+            // preserving Sheets-like whole-result-set semantics.
             const compiledSql = compileFormula(tableCalculation.formula, {
                 dialect,
                 columns,
+                renderAggregate: (inner) => `${inner} OVER ()`,
+                defaultOrderBy,
             });
             return {
                 ...tableCalculation,
@@ -187,7 +218,7 @@ const compileTableCalculation = (
         } catch (e) {
             if (e instanceof CompileError) throw e;
             throw new CompileError(
-                `Error in formula "${tableCalculation.displayName}": ${e instanceof Error ? e.message : String(e)}`,
+                formatFormulaError(tableCalculation.displayName, e),
                 {},
             );
         }
@@ -319,10 +350,28 @@ export function compilePostCalculationMetric({
     }
 
     if (type === MetricType.PERCENT_OF_TOTAL) {
+        // Only emit a row-total partition when the data is actually pivoted
+        // (groupByColumns non-empty). For a regular table view (row dims, no
+        // pivot) we want the grand total — partitioning by the row dim there
+        // would make every row equal 100% of itself.
+        const rawIndexColumn = pivotConfiguration?.indexColumn;
+        let indexColumns: { reference: string }[] = [];
+        if (rawIndexColumn) {
+            indexColumns = Array.isArray(rawIndexColumn)
+                ? rawIndexColumn
+                : [rawIndexColumn];
+        }
+        const isPivoted = groupByColumns.length > 0;
+        const indexPartitionByClause: string | undefined =
+            isPivoted && indexColumns.length > 0
+                ? `PARTITION BY ${indexColumns
+                      .map((col) => `${q}${col.reference}${q}`)
+                      .join(', ')}`
+                : undefined;
         return (
             `(CAST(${sql} AS ${floatType}) / ` +
             `CAST(NULLIF(SUM(${sql}) OVER(${
-                partitionByClause ?? ''
+                indexPartitionByClause ?? ''
             }), 0) AS ${floatType}))`
         );
     }

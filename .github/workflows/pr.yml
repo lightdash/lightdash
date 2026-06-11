@@ -24,6 +24,9 @@ jobs:
     name: Enforce Exact Dependency Versions
     runs-on: ubuntu-latest
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Check for range specifiers in package.json files
         run: |
@@ -82,7 +85,14 @@ jobs:
       TURBO_API: https://cache.depot.dev
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -90,7 +100,7 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build
         run: pnpm build
       - name: Run quality checks in parallel
@@ -115,12 +125,15 @@ jobs:
     name: Select Tests to Run
     runs-on: depot-ubuntu-24.04-4
     outputs:
-      preview: ${{ steps.changes.outputs.preview == 'true' || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
+      preview: ${{ (steps.changes.outputs.preview == 'true' && github.event.pull_request.user.login != 'lightdash-renovate-bot[bot]' && !startsWith(github.event.pull_request.title, 'docs')) || contains(github.event.pull_request.body, 'deploy-preview') || contains(github.event.pull_request.body, 'test-all') }}
       frontend: ${{ steps.changes.outputs.frontend == 'true' || contains(github.event.pull_request.body, 'test-frontend') || contains(github.event.pull_request.body, 'test-all') }}
       backend: ${{ steps.changes.outputs.backend == 'true' || contains(github.event.pull_request.body, 'test-backend') || contains(github.event.pull_request.body, 'test-all') }}
       timezone: ${{ steps.changes.outputs.timezone == 'true' || contains(github.event.pull_request.body, 'test-timezone') || contains(github.event.pull_request.body, 'test-all') }}
       cli: ${{ steps.changes.outputs.cli == 'true' || contains(github.event.pull_request.body, 'test-cli') || contains(github.event.pull_request.body, 'test-all') }}
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Check for files changes
         uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
@@ -134,6 +147,9 @@ jobs:
     runs-on: depot-ubuntu-24.04-4
     needs: files-changed
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Post comment with test selection info
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         with:
@@ -230,8 +246,12 @@ jobs:
     outputs:
       url: ${{ steps.deploy.outputs.url }}
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
       - name: Context
-        uses: okteto/context@bff593401ac86e181bab973c61b35816bd52587a # latest
+        uses: okteto/context@5212ce5ebf9d3584bafd33f4a295a8521fc5abe7 # latest
         with:
           url: ${{ secrets.OKTETO_CONTEXT }}
           token: ${{ secrets.OKTETO_TOKEN }}
@@ -247,7 +267,7 @@ jobs:
 
       - name: Deploy preview environment
         id: deploy
-        uses: okteto/deploy-preview@ec76bb82c13aa0f748fc687ee622c96282890150 # latest
+        uses: okteto/deploy-preview@86c45b05007dbdd42a5c8c74372f7a5912608827 # latest
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -317,6 +337,9 @@ jobs:
     if: needs.files-changed.outputs.frontend == 'true' || needs.files-changed.outputs.timezone == 'true'
     name: Build E2E Image
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Set up Docker Buildx
@@ -338,15 +361,22 @@ jobs:
 
   api-tests:
     if: needs.files-changed.outputs.backend == 'true'
-    timeout-minutes: 10
+    timeout-minutes: 20
     runs-on: depot-ubuntu-24.04-4
     needs: [preview, files-changed]
     name: "E2E: API (Vitest)"
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - name: Setup Socket Firewall
+        uses: socketdev/action@ba6de6cc0565af1f42295590380973573297e31f # v1.3.2
+        with:
+          mode: firewall-free
       - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v5
       - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6
         with:
@@ -354,7 +384,7 @@ jobs:
           cache: "pnpm"
           cache-dependency-path: "pnpm-lock.yaml"
       - name: Install packages
-        run: pnpm install --frozen-lockfile --prefer-offline
+        run: sfw pnpm install --frozen-lockfile --prefer-offline
       - name: Build packages/common module
         run: pnpm common-build
       - name: Create BigQuery credentials file
@@ -503,6 +533,9 @@ jobs:
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
@@ -512,7 +545,7 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
@@ -536,6 +569,9 @@ jobs:
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
@@ -571,7 +607,7 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
@@ -603,6 +639,9 @@ jobs:
     env:
       NODE_OPTIONS: "--max-old-space-size=8192"
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup Node, PNPM, and Cypress
@@ -643,7 +682,7 @@ jobs:
       - name: Build packages/warehouses module
         run: pnpm warehouses-build
       - name: Build and install packages/cli module
-        run: cd packages/cli && pnpm build && npm install -g
+        run: cd packages/cli && pnpm build && sfw npm install -g
       - name: Test lightdash version
         run: |
           lightdash_version=$(lightdash --version)
@@ -668,6 +707,9 @@ jobs:
     needs: [files-changed, cli-tests-without-dbt, cli-tests, cli-dbt-tests]
     name: Cleanup test schemas
     steps:
+      - uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
       - name: Drop test schemas
         run: |
           PATTERN="^(jaffle_cli_tests_${{ github.run_id }}|jaffle_dbt_tests_${{ github.run_id }}_[0-9]+)$"

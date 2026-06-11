@@ -1,6 +1,7 @@
 import { subject } from '@casl/ability';
 import {
     ContentType,
+    FeatureFlags,
     LightdashMode,
     ResourceViewItemType,
     type ResourceViewSpaceItem,
@@ -37,6 +38,7 @@ import { AddToSpaceResources } from '../components/Explorer/SpaceBrowser/types';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import { useSpacePinningMutation } from '../hooks/pinning/useSpaceMutation';
 import { useContentAction } from '../hooks/useContent';
+import { useServerFeatureFlag } from '../hooks/useServerOrClientFeatureFlag';
 import { useSpace } from '../hooks/useSpaces';
 import { Can } from '../providers/Ability';
 import useApp from '../providers/App/useApp';
@@ -71,6 +73,8 @@ const Space: FC = () => {
     );
 
     const isDemo = health.data?.mode === LightdashMode.DEMO;
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -127,6 +131,22 @@ const Space: FC = () => {
         'create',
         subject('SavedChart', { ...space }),
     );
+
+    // Data apps have a project-level `create:DataApp` scope (no @space variant
+    // for create), so we combine it with `manage:DataApp` against the space —
+    // the latter is only granted to space EDITOR/ADMIN (or project admins),
+    // mirroring the implicit space-role check that dashboards/charts get for
+    // free via their space-scoped create scope.
+    const userCanCreateDataApps =
+        dataAppsEnabled &&
+        user.data?.ability?.can(
+            'create',
+            subject('DataApp', {
+                organizationUuid: user.data?.organizationUuid,
+                projectUuid,
+            }),
+        ) &&
+        user.data?.ability?.can('manage', subject('DataApp', { ...space }));
 
     const userCanManageProject = user.data?.ability?.can(
         'manage',
@@ -229,6 +249,7 @@ const Space: FC = () => {
                             {!isDemo &&
                                 (userCanCreateDashboards ||
                                     userCanCreateCharts ||
+                                    userCanCreateDataApps ||
                                     userCanManageSpace) && (
                                     <Menu
                                         position="bottom-end"
@@ -306,6 +327,23 @@ const Space: FC = () => {
                                                     }}
                                                 >
                                                     Create new chart
+                                                </Menu.Item>
+                                            ) : null}
+
+                                            {userCanCreateDataApps ? (
+                                                <Menu.Item
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconPlus}
+                                                        />
+                                                    }
+                                                    onClick={() => {
+                                                        void navigate(
+                                                            `/projects/${projectUuid}/apps/generate?spaceUuid=${space.uuid}`,
+                                                        );
+                                                    }}
+                                                >
+                                                    Create new data app
                                                 </Menu.Item>
                                             ) : null}
                                         </Menu.Dropdown>
@@ -395,11 +433,18 @@ const Space: FC = () => {
                                 ContentType.DASHBOARD,
                                 ContentType.CHART,
                                 ContentType.SPACE,
+                                ContentType.DATA_APP,
                             ],
                         }}
                         contentTypeFilter={{
                             defaultValue: undefined,
-                            options: [ContentType.DASHBOARD, ContentType.CHART],
+                            options: [
+                                ContentType.DASHBOARD,
+                                ContentType.CHART,
+                                ...(dataAppsEnabled
+                                    ? [ContentType.DATA_APP]
+                                    : []),
+                            ],
                         }}
                         columnVisibility={{
                             [ColumnVisibility.SPACE]: false,
@@ -461,6 +506,7 @@ const Space: FC = () => {
                                         dashboardCount: 0,
                                         chartCount: 0,
                                         childSpaceCount: 0,
+                                        appCount: 0,
                                     },
                                     type: ResourceViewItemType.SPACE,
                                 } satisfies ResourceViewSpaceItem,

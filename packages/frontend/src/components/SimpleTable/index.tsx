@@ -23,7 +23,9 @@ import { useVisualizationContext } from '../LightdashVisualization/useVisualizat
 import CellContextMenu from './CellContextMenu';
 import DashboardCellContextMenu from './DashboardCellContextMenu';
 import DashboardHeaderContextMenu from './DashboardHeaderContextMenu';
+import ExplorerPivotTable from './ExplorerPivotTable';
 import MinimalCellContextMenu from './MinimalCellContextMenu';
+import PivotRerunState from './PivotRerunState';
 
 type SimpleTableProps = {
     isDashboard: boolean;
@@ -52,20 +54,21 @@ const SimpleTable: FC<SimpleTableProps> = ({
         resultsData,
         isLoading,
         isEditMode,
+        parameters,
     } = useVisualizationContext();
 
-    const hasSignaledScreenshotReady = useRef(false);
-    const { data: showHideRowsFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowHideRows,
+    const { data: pivotColumnSortFlag } = useServerFeatureFlag(
+        FeatureFlags.PivotColumnSort,
     );
-    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
+    const isPivotColumnSortEnabled = pivotColumnSortFlag?.enabled ?? false;
+
+    const hasSignaledScreenshotReady = useRef(false);
 
     const rowLimit = isTableVisualizationConfig(visualizationConfig)
         ? visualizationConfig.chartConfig.rowLimit
         : undefined;
 
     const needsAllRows =
-        isShowHideRowsEnabled &&
         rowLimit != null &&
         rowLimit.count > 0 &&
         (rowLimit.direction === 'last' || rowLimit.mode === 'hide');
@@ -209,19 +212,13 @@ const SimpleTable: FC<SimpleTableProps> = ({
     }, [visualizationConfig]);
 
     const slicedRows = useMemo(
-        () =>
-            sliceRows(resultsData?.rows || [], isShowHideRowsEnabled, rowLimit),
-        [resultsData?.rows, isShowHideRowsEnabled, rowLimit],
+        () => sliceRows(resultsData?.rows || [], rowLimit),
+        [resultsData?.rows, rowLimit],
     );
 
     const totalRowsCount = useMemo(
-        () =>
-            computeLimitedRowCount(
-                resultsData?.totalResults || 0,
-                isShowHideRowsEnabled,
-                rowLimit,
-            ),
-        [resultsData?.totalResults, isShowHideRowsEnabled, rowLimit],
+        () => computeLimitedRowCount(resultsData?.totalResults || 0, rowLimit),
+        [resultsData?.totalResults, rowLimit],
     );
 
     if (!isTableVisualizationConfig(visualizationConfig)) return null;
@@ -231,10 +228,14 @@ const SimpleTable: FC<SimpleTableProps> = ({
         minMaxMap,
         hideRowNumbers,
         pivotTableData,
+        isPivotTableEnabled,
+        isPivotResultStale,
         getFieldLabel,
         getField,
         showResultsTotal,
         showSubtotals,
+        showSubtotalsExpanded,
+        showRowGrouping,
         updateColumnProperty,
     } = visualizationConfig.chartConfig;
 
@@ -284,7 +285,22 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 icon={IconAlertCircle}
             />
         );
-    } else if (pivotTableData.loading || pivotTableData.data) {
+    }
+
+    // Pivot is configured but the current results weren't computed with the same
+    // pivot dimensions (pivot just added, or config changed without re-running).
+    // Prompt a re-run in the editor instead of an empty/stale table.
+    if (
+        isPivotTableEnabled &&
+        isPivotResultStale &&
+        !isDashboard &&
+        isEditMode &&
+        !isLoading
+    ) {
+        return <PivotRerunState />;
+    }
+
+    if (pivotTableData.loading || pivotTableData.data) {
         return (
             <Box
                 p={isDashboard ? 0 : 'xs'}
@@ -294,23 +310,55 @@ const SimpleTable: FC<SimpleTableProps> = ({
             >
                 {pivotTableData.data && resultsData?.hasFetchedAllRows ? (
                     <>
-                        <PivotTable
-                            className={className}
-                            data={pivotTableData.data}
-                            isMinimal={minimal}
-                            isDashboard={isDashboard}
-                            conditionalFormattings={conditionalFormattings}
-                            minMaxMap={minMaxMap}
-                            getFieldLabel={getFieldLabel}
-                            getField={getField}
-                            hideRowNumbers={hideRowNumbers}
-                            showSubtotals={showSubtotals}
-                            columnProperties={
-                                visualizationConfig.chartConfig.columnProperties
-                            }
-                            onColumnWidthChange={onColumnWidthChange}
-                            {...rest}
-                        />
+                        {/* Dashboard mode has no explorer store — use plain
+                         * table. Gated behind PivotColumnSort flag so we can
+                         * validate the new sort UX with design partners before
+                         * GA. */}
+                        {isDashboard || !isPivotColumnSortEnabled ? (
+                            <PivotTable
+                                className={className}
+                                data={pivotTableData.data}
+                                isMinimal={minimal}
+                                isDashboard={isDashboard}
+                                conditionalFormattings={conditionalFormattings}
+                                minMaxMap={minMaxMap}
+                                getFieldLabel={getFieldLabel}
+                                getField={getField}
+                                hideRowNumbers={hideRowNumbers}
+                                showSubtotals={showSubtotals}
+                                showSubtotalsExpanded={showSubtotalsExpanded}
+                                showRowGrouping={showRowGrouping}
+                                columnProperties={
+                                    visualizationConfig.chartConfig
+                                        .columnProperties
+                                }
+                                onColumnWidthChange={onColumnWidthChange}
+                                parameters={parameters}
+                                {...rest}
+                            />
+                        ) : (
+                            <ExplorerPivotTable
+                                className={className}
+                                data={pivotTableData.data}
+                                isMinimal={minimal}
+                                isDashboard={isDashboard}
+                                conditionalFormattings={conditionalFormattings}
+                                minMaxMap={minMaxMap}
+                                getFieldLabel={getFieldLabel}
+                                getField={getField}
+                                hideRowNumbers={hideRowNumbers}
+                                showSubtotals={showSubtotals}
+                                showSubtotalsExpanded={showSubtotalsExpanded}
+                                showRowGrouping={showRowGrouping}
+                                columnProperties={
+                                    visualizationConfig.chartConfig
+                                        .columnProperties
+                                }
+                                onColumnWidthChange={onColumnWidthChange}
+                                parameters={parameters}
+                                {...rest}
+                            />
+                        )}
                         {showResultsTotal && (
                             <Flex justify="flex-end" pt="xxs" align="center">
                                 <ResultCount
@@ -345,6 +393,7 @@ const SimpleTable: FC<SimpleTableProps> = ({
                 hideRowNumbers={hideRowNumbers}
                 showColumnCalculation={showColumnCalculation}
                 showSubtotals={showSubtotals}
+                showSubtotalsExpanded={showSubtotalsExpanded}
                 conditionalFormattings={conditionalFormattings}
                 minMaxMap={minMaxMap}
                 onColumnWidthChange={onColumnWidthChange}

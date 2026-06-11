@@ -1,0 +1,100 @@
+.floatingPanel {
+    height: 100%;
+    width: 100%;
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-dark-8)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-dark-5));
+    border-radius: 12px;
+    box-shadow:
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 8px 20px rgba(15, 23, 42, 0.05);
+    overflow: hidden;
+    position: relative;
+    animation: floatingPanelEnter 320ms cubic-bezier(0.16, 1, 0.3, 1);
+    transform-origin: top right;
+}
+
+@mixin dark {
+    .floatingPanel {
+        box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.2),
+            0 10px 28px rgba(0, 0, 0, 0.28);
+    }
+}
+
+.floatingContent {
+    height: 100%;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md)
+        calc(var(--mantine-spacing-md) + 40px);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+/* Same outer chrome as the chart panel, but no pill clearance — the
+ * dashboard's own header + scrollable tile list lives directly inside. */
+.dashboardContent {
+    height: 100%;
+    padding: var(--mantine-spacing-md);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.head {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+}
+
+.headRight {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.floatingPill {
+    position: absolute;
+    bottom: var(--mantine-spacing-md);
+    left: 50%;
+    transform: translateX(-50%);
+    background: light-dark(
+        var(--mantine-color-white),
+        var(--mantine-color-ldDark-4)
+    );
+    border: 1px solid
+        light-dark(var(--mantine-color-ldGray-2), var(--mantine-color-ldDark-5));
+    border-radius: 10px;
+    padding: 3px;
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.04),
+        0 6px 16px rgba(0, 0, 0, 0.06);
+    z-index: 3;
+}
+
+.loading {
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
+
+@keyframes floatingPanelEnter {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .floatingPanel {
+        animation: none;
+    }
+}

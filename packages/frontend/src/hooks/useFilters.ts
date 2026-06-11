@@ -26,12 +26,13 @@ export const useAddFilter = () => {
     const store = useExplorerStore();
 
     const addFilter = useCallback(
-        (field: FilterableField, value: any) => {
+        (field: FilterableField, value: any, timezone?: string) => {
             const currentFilters = selectFilters(store.getState());
             const newFilters = addFilterRule({
                 filters: currentFilters,
                 field,
                 value,
+                timezone,
             });
             dispatch(explorerActions.setFilters(newFilters));
 
@@ -74,12 +75,13 @@ export const useFilteredFields = () => {
     );
 
     const addFilter = useCallback(
-        (field: FilterableField, value: any) => {
+        (field: FilterableField, value: any, timezone?: string) => {
             const currentFilters = selectFilters(store.getState());
             const newFilters = addFilterRule({
                 filters: currentFilters,
                 field,
                 value,
+                timezone,
             });
             dispatch(explorerActions.setFilters(newFilters));
 
@@ -130,7 +132,7 @@ export const useFilters = () => {
     );
 
     const addFilter = useCallback(
-        (field: FilterableField, value: any) => {
+        (field: FilterableField, value: any, timezone?: string) => {
             const currentFilters = selectFilters(store.getState());
             const isFiltersExpanded = selectIsFiltersExpanded(store.getState());
 
@@ -138,6 +140,7 @@ export const useFilters = () => {
                 filters: currentFilters,
                 field,
                 value,
+                timezone,
             });
             dispatch(explorerActions.setFilters(newFilters));
 

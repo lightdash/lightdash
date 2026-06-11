@@ -91,7 +91,8 @@
         "databricks": "1.10.0",
         "trino": "1.10.0",
         "clickhouse": "1.9.0",
-        "athena": "1.10.0"
+        "athena": "1.10.0",
+        "duckdb": "1.10.0"
       }
     },
     {
@@ -105,7 +106,8 @@
         "databricks": "1.11.0",
         "trino": "1.10.0",
         "clickhouse": "1.9.0",
-        "athena": "1.10.0"
+        "athena": "1.10.0",
+        "duckdb": "1.10.0"
       }
     }
   ]

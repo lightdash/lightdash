@@ -3,6 +3,7 @@ import {
     AnyType,
     ApiErrorPayload,
     ApiQueryResults,
+    assertRegisteredAccount,
     CacheMetadata,
     Item,
     MetricQuery,
@@ -13,6 +14,7 @@ import {
 import {
     Body,
     Deprecated,
+    Extension,
     Middlewares,
     OperationId,
     Path,
@@ -25,6 +27,7 @@ import {
 } from '@tsoa/runtime';
 import express from 'express';
 import { getContextFromHeader } from '../analytics/LightdashAnalytics';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     deprecatedResultsRoute,
@@ -47,13 +50,23 @@ export type ApiRunQueryResponse = {
 @Tags('Exploring')
 export class RunViewChartQueryController extends BaseController {
     /**
-     * Run a query for underlying data results
+     * Deprecated — use the v2 Execute underlying data endpoint instead.
+     *
+     * This endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute underlying data, then Get results.
      * @summary Run underlying data query
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/underlying-data instead
      * @param projectUuid The uuid of the project
      * @param body metricQuery for the chart to run
      * @param exploreId table name
      * @param req express request
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute underlying data](https://docs.lightdash.com/api-reference/v2/execute-underlying-data) (\`POST /api/v2/projects/{projectUuid}/query/underlying-data\`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).
+</Warning>`,
+    })
     @Deprecated()
     @Middlewares([
         allowApiKeyAuthentication,
@@ -69,13 +82,14 @@ export class RunViewChartQueryController extends BaseController {
         @Path() exploreId: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        assertRegisteredAccount(req.account);
         const context = getContextFromHeader(req);
         await this.services
             .getLightdashAnalyticsService()
             .trackDeprecatedRouteCalled(
                 {
                     event: 'deprecated_route.called',
-                    userId: req.user!.userUuid,
+                    userId: toSessionUser(req.account).userUuid,
                     properties: {
                         route: req.path,
                         context: context ?? QueryExecutionContext.API,
@@ -101,7 +115,7 @@ export class RunViewChartQueryController extends BaseController {
         const results: ApiQueryResults = await this.services
             .getProjectService()
             .runUnderlyingDataQuery(
-                req.account!,
+                req.account,
                 metricQuery,
                 projectUuid,
                 exploreId,
@@ -116,13 +130,23 @@ export class RunViewChartQueryController extends BaseController {
     }
 
     /**
-     * Run a query for explore
+     * Deprecated — use the v2 Execute metric query endpoint instead.
+     *
+     * This endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute metric query, then Get results.
      * @summary Run metric query
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/metric-query instead
      * @param projectUuid The uuid of the project
      * @param body metricQuery for the chart to run
      * @param exploreId table name
      * @param req express request
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute metric query](https://docs.lightdash.com/api-reference/v2/execute-metric-query) (\`POST /api/v2/projects/{projectUuid}/query/metric-query\`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).
+</Warning>`,
+    })
     @Deprecated()
     @Middlewares([
         allowApiKeyAuthentication,
@@ -139,13 +163,14 @@ export class RunViewChartQueryController extends BaseController {
 
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        assertRegisteredAccount(req.account);
         const context = getContextFromHeader(req);
         await this.services
             .getLightdashAnalyticsService()
             .trackDeprecatedRouteCalled(
                 {
                     event: 'deprecated_route.called',
-                    userId: req.user!.userUuid,
+                    userId: toSessionUser(req.account).userUuid,
                     properties: {
                         route: req.path,
                         context: context ?? QueryExecutionContext.API,
@@ -174,7 +199,7 @@ export class RunViewChartQueryController extends BaseController {
         const results: ApiQueryResults = await this.services
             .getProjectService()
             .runExploreQuery(
-                req.account!,
+                req.account,
                 metricQuery,
                 projectUuid,
                 exploreId,

@@ -37,6 +37,21 @@ module.exports = {
         '@typescript-eslint/no-throw-literal': 'off',
         // no-throw-literal replaced with only-throw-error
         '@typescript-eslint/only-throw-error': 'off',
+        'no-restricted-imports': [
+            'error',
+            {
+                patterns: [
+                    {
+                        group: [
+                            '@lightdash/common/src',
+                            '@lightdash/common/src/*',
+                        ],
+                        message:
+                            'Backend runtime code must import from @lightdash/common, not @lightdash/common/src. Deep source imports are not available in the production image.',
+                    },
+                ],
+            },
+        ],
     },
     overrides: [
         {
@@ -77,9 +92,6 @@ module.exports = {
             files: [
                 'src/database/migrations/*.ts',
                 'src/routers/*.ts',
-                '*.mock.ts',
-                '*.test.ts',
-                '*.spec.ts',
             ],
             rules: {
                 '@typescript-eslint/no-unsafe-member-access': 'off',
@@ -88,22 +100,21 @@ module.exports = {
             },
         },
         {
-            // Warn on direct ability checks in services - use createAuditedAbility() instead
             files: [
-                'src/services/**/*.ts',
-                'src/ee/services/**/*.ts',
+                '*.mock.ts',
+                '*.test.ts',
+                '*.spec.ts',
             ],
             rules: {
-                'no-direct-ability-check': 'warn',
+                '@typescript-eslint/no-unsafe-member-access': 'off',
+                '@typescript-eslint/no-unsafe-assignment': 'off',
+                '@typescript-eslint/no-unsafe-call': 'off',
+                'no-restricted-imports': 'off',
             },
         },
         {
-            // Error on direct ability checks in fully migrated services
-            files: [
-                'src/services/DashboardService/**/*.ts',
-                'src/services/SavedChartsService/**/*.ts',
-                'src/services/SavedSqlService/**/*.ts',
-            ],
+            // Warn on direct ability checks in services - use createAuditedAbility() instead
+            files: ['src/services/**/*.ts', 'src/ee/services/**/*.ts'],
             rules: {
                 'no-direct-ability-check': 'error',
             },

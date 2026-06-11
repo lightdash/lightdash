@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { ProjectType } from '@lightdash/common';
 import { Stack } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
@@ -13,6 +14,7 @@ import PageSpinner from '../components/PageSpinner';
 import PinnedAndFavoritesSection from '../components/PinnedAndFavoritesSection';
 import AiSearchBox from '../ee/components/Home/AiSearchBox';
 import { useAiAgentButtonVisibility } from '../ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
+import { ManagedAgentHomeCard } from '../ee/features/managedAgent/ManagedAgentHomeCard';
 import { useFavorites } from '../hooks/favorites/useFavorites';
 import { usePinnedItems } from '../hooks/pinning/usePinnedItems';
 import { useOnboardingStatus } from '../hooks/useOnboardingStatus';
@@ -83,6 +85,11 @@ const Home: FC = () => {
                             userName={user.data?.firstName}
                             projectUuid={project.data.projectUuid}
                         />
+                        {project.data.type !== ProjectType.PREVIEW && (
+                            <ManagedAgentHomeCard
+                                projectUuid={project.data.projectUuid}
+                            />
+                        )}
                         {isAiAgentsEnabled && (
                             <AiSearchBox
                                 projectUuid={project.data.projectUuid}

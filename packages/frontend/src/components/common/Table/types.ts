@@ -46,6 +46,7 @@ export type TableColumn = ColumnDef<ResultRow, ResultRow[0]> & {
         className?: string;
         style?: CSSProperties;
         frozen?: boolean;
+        frozenLayout?: { left: number; isLast: boolean };
         isVisible?: boolean;
         isReadOnly?: boolean; // For computed/derived columns like period-over-period
     };
@@ -67,6 +68,7 @@ export type ProviderProps = {
         showResultsTotal?: boolean;
     };
     showSubtotals?: boolean;
+    showSubtotalsExpanded?: boolean;
     hideRowNumbers?: boolean;
     showColumnCalculation?: boolean;
     conditionalFormattings?: ConditionalFormattingConfig[];

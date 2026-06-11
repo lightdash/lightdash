@@ -22,12 +22,13 @@ const ExportDataModal: FC<ExportDataModalProps> = ({
             onClose={onClose}
             title="Export Data"
             icon={IconTableExport}
+            size="md"
             cancelLabel={false}
         >
             <ExportResults
                 {...exportResultsProps}
                 renderDialogActions={({ onExport, isExporting }) => (
-                    <Group justify="flex-end" mt="md">
+                    <Group justify="flex-end" gap="xs">
                         <Button variant="default" onClick={onClose}>
                             Cancel
                         </Button>

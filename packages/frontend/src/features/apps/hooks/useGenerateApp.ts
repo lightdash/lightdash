@@ -1,7 +1,11 @@
 import {
     type ApiError,
     type ApiGenerateAppResponse,
-    type AppImageAttachment,
+    type AppChartReference,
+    type AppClarification,
+    type AppDashboardReference,
+    type DataAppClaudeModel,
+    type DataAppTemplate,
 } from '@lightdash/common';
 import { useMutation } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
@@ -9,8 +13,18 @@ import { lightdashApi } from '../../../api';
 type GenerateAppParams = {
     projectUuid: string;
     prompt: string;
-    image?: AppImageAttachment;
+    template?: DataAppTemplate;
+    imageIds?: string[];
     appUuid?: string; // pre-generated UUID so images are scoped to the app in S3
+    charts?: AppChartReference[];
+    dashboard?: AppDashboardReference;
+    clarifications?: AppClarification[];
+    spaceUuid?: string; // create directly inside this space (skips the personal-app step)
+    claudeModel?: DataAppClaudeModel;
+    // Theme (org design) to apply. `undefined` lets the server fall back to
+    // the org default; `null` explicitly opts out of any theme; a uuid picks
+    // a specific theme.
+    designUuid?: string | null;
 };
 
 type GenerateAppResult = ApiGenerateAppResponse['results'];
@@ -18,13 +32,34 @@ type GenerateAppResult = ApiGenerateAppResponse['results'];
 const generateApp = async ({
     projectUuid,
     prompt,
-    image,
+    template,
+    imageIds,
     appUuid,
+    charts,
+    dashboard,
+    clarifications,
+    spaceUuid,
+    claudeModel,
+    designUuid,
 }: GenerateAppParams): Promise<GenerateAppResult> => {
     const data = await lightdashApi<GenerateAppResult>({
         method: 'POST',
         url: `/ee/projects/${projectUuid}/apps/`,
-        body: JSON.stringify({ prompt, image, appUuid }),
+        body: JSON.stringify({
+            prompt,
+            template,
+            imageIds,
+            appUuid,
+            charts,
+            dashboard,
+            clarifications,
+            spaceUuid,
+            claudeModel,
+            // Send only when defined: `null` means "no theme"; `undefined`
+            // means "honor org default" and omitting from the JSON body lets
+            // the backend distinguish the two.
+            ...(designUuid !== undefined ? { designUuid } : {}),
+        }),
     });
     return data;
 };

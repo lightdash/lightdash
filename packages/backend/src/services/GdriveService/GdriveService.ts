@@ -1,13 +1,12 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     CustomSqlQueryForbiddenError,
     ForbiddenError,
     isCustomSqlDimension,
-    SessionUser,
     UploadMetricGsheet,
     UploadMetricGsheetPayload,
 } from '@lightdash/common';
-import { fromSession } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -62,18 +61,24 @@ export class GdriveService extends BaseService {
     }
 
     async scheduleUploadGsheet(
-        user: SessionUser,
+        account: Account,
         gsheetOptions: UploadMetricGsheet,
     ) {
         const projectSummary = await this.projectModel.getSummary(
             gsheetOptions.projectUuid,
         );
+        const auditedAbility = this.createAuditedAbility(account);
+        const projectMetadata = {
+            projectUuid: projectSummary.projectUuid,
+            projectName: projectSummary.name,
+        };
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ExportCsv', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
+                    metadata: projectMetadata,
                 }),
             )
         ) {
@@ -81,40 +86,26 @@ export class GdriveService extends BaseService {
         }
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('GoogleSheets', {
                     organizationUuid: projectSummary.organizationUuid,
                     projectUuid: projectSummary.projectUuid,
+                    metadata: projectMetadata,
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        if (
-            gsheetOptions.metricQuery.customDimensions?.some(
-                isCustomSqlDimension,
-            ) &&
-            user.ability.cannot(
-                'manage',
-                subject('CustomSql', {
-                    organizationUuid: projectSummary.organizationUuid,
-                    projectUuid: projectSummary.projectUuid,
-                }),
-            )
-        ) {
-            throw new CustomSqlQueryForbiddenError();
-        }
-
         const { organizationUuid } = await this.projectService.getProject(
             gsheetOptions.projectUuid,
-            fromSession(user),
+            account,
         );
 
         const payload: UploadMetricGsheetPayload = {
             ...gsheetOptions,
-            userUuid: user.userUuid,
+            userUuid: account.user.id,
             organizationUuid,
         };
 

@@ -14,10 +14,10 @@ import {
 } from '../types/field';
 import {
     FilterOperator,
+    isDateFilterRule,
     isFilterTarget,
     isMetricFilterTarget,
     UnitOfTime,
-    type DateFilterRule,
     type FilterRule,
 } from '../types/filter';
 import { type WarehouseTypes } from '../types/projects';
@@ -26,7 +26,23 @@ import { convertToBooleanValue } from '../utils/booleanConverter';
 import { formatDate } from '../utils/formatting';
 import { getItemId } from '../utils/item';
 import { getMomentDateWithCustomStartOfWeek } from '../utils/time';
-import { WeekDay } from '../utils/timeFrames';
+import {
+    dateTruncTimezoneConversions,
+    isTimezoneRoundTripNoOp,
+    WeekDay,
+} from '../utils/timeFrames';
+
+export const DEFAULT_FILTER_CASE_SENSITIVE = true;
+
+/**
+ * Formats computed Date boundaries for relative date operators (IN_THE_PAST, etc.)
+ * by converting UTC back to the project timezone before formatting as YYYY-MM-DD.
+ * Used only when timezone-aware DATE_TRUNC is enabled.
+ */
+export const createBoundaryDateFormatter =
+    (timezone: string) =>
+    (date: Date): string =>
+        moment(date).utc().tz(timezone).format('YYYY-MM-DD');
 
 /**
  * Returns the default week start day for a given warehouse adapter.
@@ -104,15 +120,15 @@ export const renderStringFilterSql = (
     dimensionSql: string,
     filter: FilterRule<FilterOperator, unknown>,
     stringQuoteChar: string,
-    caseSensitive: boolean = true,
+    caseSensitive: boolean = DEFAULT_FILTER_CASE_SENSITIVE,
 ): string => {
     const nonEmptyFilterValues = filter.values?.filter((v) => v !== '');
 
     // Apply UPPER() to both dimension and values when case insensitive (caseSensitive = false)
     const wrapDimension = (sql: string) =>
         !caseSensitive ? `UPPER(${sql})` : sql;
-    const wrapValue = (value: string) =>
-        !caseSensitive ? value.toUpperCase() : value;
+    const wrapValue = (value: unknown) =>
+        !caseSensitive ? String(value).toUpperCase() : value;
 
     switch (filter.operator) {
         case FilterOperator.EQUALS:
@@ -261,21 +277,71 @@ export const renderNumberFilterSql = (
     }
 };
 
-export const renderDateFilterSql = (
-    dimensionSql: string,
-    filter: DateFilterRule,
-    adapterType: SupportedDbtAdapter,
-    timezone: string,
-    dateFormatter: (date: Date) => string = formatDate,
-    startOfWeek: WeekDay | null | undefined = undefined,
-    baseDimensionSql?: string,
-): string => {
+/**
+ * Shared filter SQL for date and timestamp dimensions.
+ * literalFormatter handles user-provided values; boundaryFormatter handles computed boundaries.
+ */
+const renderDateOrTimestampFilterSql = ({
+    dimensionSql,
+    filter,
+    adapterType,
+    timezone,
+    literalFormatter,
+    boundaryFormatter,
+    startOfWeek,
+    baseDimensionSql,
+    useTimezoneAwareDateTrunc,
+    sourceTimezone,
+}: {
+    dimensionSql: string;
+    filter: FilterRule<FilterOperator, unknown>;
+    adapterType: SupportedDbtAdapter;
+    timezone: string;
+    literalFormatter: (date: Date) => string;
+    boundaryFormatter: (date: Date) => string;
+    startOfWeek?: WeekDay | null;
+    baseDimensionSql?: string;
+    useTimezoneAwareDateTrunc?: boolean;
+    sourceTimezone?: string;
+}): string => {
     // When startOfWeek is not explicitly configured, use the warehouse's default
     // to ensure JS-side week boundaries match the warehouse's DATE_TRUNC behavior.
     const effectiveStartOfWeek =
         startOfWeek ?? getDefaultStartOfWeek(adapterType);
 
+    // Mirror the dim-side `resolveTimezoneWrap` short-circuit: when target tz
+    // equals source tz, dropping the literal's TIMESTAMP cast keeps both sides
+    // symmetric (a custom dim SQL emitting DATETIME can otherwise mismatch a
+    // TIMESTAMP boundary on BigQuery).
+    const wrapTimezoneLiteral =
+        !!useTimezoneAwareDateTrunc &&
+        !isTimezoneRoundTripNoOp(timezone, sourceTimezone);
+
     const castValue = (value: string): string => {
+        if (wrapTimezoneLiteral) {
+            // Column is a timestamptz (round-trip through project TZ). Tag
+            // the literal in project TZ so coercion aligns with the column.
+            const { toUTC } = dateTruncTimezoneConversions[adapterType];
+            const naive = (() => {
+                switch (adapterType) {
+                    case SupportedDbtAdapter.TRINO:
+                    case SupportedDbtAdapter.ATHENA:
+                        return `CAST('${value}' AS timestamp)`;
+                    case SupportedDbtAdapter.SNOWFLAKE:
+                        return `'${value}'::timestamp_ntz`;
+                    case SupportedDbtAdapter.DATABRICKS:
+                        return `'${value}'`;
+                    case SupportedDbtAdapter.BIGQUERY:
+                        // No `::` cast; TIMESTAMP(s, tz) yields the UTC instant.
+                        return `TIMESTAMP('${value}', '${timezone}')`;
+                    case SupportedDbtAdapter.CLICKHOUSE:
+                        return `toDateTime('${value}', '${timezone}')`;
+                    default:
+                        return `'${value}'::timestamp`;
+                }
+            })();
+            return toUTC(naive, timezone);
+        }
         switch (adapterType) {
             case SupportedDbtAdapter.TRINO:
             case SupportedDbtAdapter.ATHENA: {
@@ -286,14 +352,16 @@ export const renderDateFilterSql = (
         }
     };
 
+    const settings = isDateFilterRule(filter) ? filter.settings : undefined;
+
     switch (filter.operator) {
         case FilterOperator.EQUALS:
             return `(${dimensionSql}) = ${castValue(
-                dateFormatter(filter.values?.[0]),
+                literalFormatter(filter.values?.[0]),
             )}`;
         case FilterOperator.NOT_EQUALS:
             return `((${dimensionSql}) != ${castValue(
-                dateFormatter(filter.values?.[0]),
+                literalFormatter(filter.values?.[0]),
             )} OR (${dimensionSql}) IS NULL)`;
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;
@@ -301,25 +369,25 @@ export const renderDateFilterSql = (
             return `(${dimensionSql}) IS NOT NULL`;
         case FilterOperator.GREATER_THAN:
             return `(${dimensionSql}) > ${castValue(
-                dateFormatter(filter.values?.[0]),
+                literalFormatter(filter.values?.[0]),
             )}`;
         case FilterOperator.GREATER_THAN_OR_EQUAL:
             return `(${dimensionSql}) >= ${castValue(
-                dateFormatter(filter.values?.[0]),
+                literalFormatter(filter.values?.[0]),
             )}`;
         case FilterOperator.LESS_THAN:
             return `(${dimensionSql}) < ${castValue(
-                dateFormatter(filter.values?.[0]),
+                literalFormatter(filter.values?.[0]),
             )}`;
         case FilterOperator.LESS_THAN_OR_EQUAL:
             return `(${dimensionSql}) <= ${castValue(
-                dateFormatter(filter.values?.[0]),
+                literalFormatter(filter.values?.[0]),
             )}`;
         case FilterOperator.NOT_IN_THE_PAST:
         case FilterOperator.IN_THE_PAST: {
             const unitOfTime: UnitOfTime =
-                filter.settings?.unitOfTime || UnitOfTime.days;
-            const completed: boolean = !!filter.settings?.completed;
+                settings?.unitOfTime || UnitOfTime.days;
+            const completed: boolean = !!settings?.completed;
             const not =
                 filter.operator === FilterOperator.NOT_IN_THE_PAST
                     ? 'NOT '
@@ -333,7 +401,7 @@ export const renderDateFilterSql = (
                     .startOf(unitOfTime)
                     .utc()
                     .toDate();
-                const untilDate = dateFormatter(
+                const untilDate = boundaryFormatter(
                     getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                         .tz(timezone)
                         .startOf(unitOfTime)
@@ -341,7 +409,7 @@ export const renderDateFilterSql = (
                         .toDate(),
                 );
                 return `${not}((${dimensionSql}) >= ${castValue(
-                    dateFormatter(
+                    boundaryFormatter(
                         getMomentDateWithCustomStartOfWeek(
                             effectiveStartOfWeek,
                             completedDate,
@@ -353,14 +421,14 @@ export const renderDateFilterSql = (
                     ),
                 )} AND (${dimensionSql}) < ${castValue(untilDate)})`;
             }
-            const untilDate = dateFormatter(
+            const untilDate = boundaryFormatter(
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .utc()
                     .toDate(),
             );
             return `${not}((${dimensionSql}) >= ${castValue(
-                dateFormatter(
+                boundaryFormatter(
                     getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                         .tz(timezone)
                         .subtract(filter.values?.[0], unitOfTime)
@@ -371,8 +439,8 @@ export const renderDateFilterSql = (
         }
         case FilterOperator.IN_THE_NEXT: {
             const unitOfTime: UnitOfTime =
-                filter.settings?.unitOfTime || UnitOfTime.days;
-            const completed: boolean = !!filter.settings?.completed;
+                settings?.unitOfTime || UnitOfTime.days;
+            const completed: boolean = !!settings?.completed;
 
             if (completed) {
                 const fromDate = getMomentDateWithCustomStartOfWeek(
@@ -383,7 +451,7 @@ export const renderDateFilterSql = (
                     .startOf(unitOfTime)
                     .utc()
                     .toDate();
-                const toDate = dateFormatter(
+                const toDate = boundaryFormatter(
                     getMomentDateWithCustomStartOfWeek(
                         effectiveStartOfWeek,
                         fromDate,
@@ -394,16 +462,16 @@ export const renderDateFilterSql = (
                         .toDate(),
                 );
                 return `((${dimensionSql}) >= ${castValue(
-                    dateFormatter(fromDate),
+                    boundaryFormatter(fromDate),
                 )} AND (${dimensionSql}) < ${castValue(toDate)})`;
             }
-            const fromDate = dateFormatter(
+            const fromDate = boundaryFormatter(
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .utc()
                     .toDate(),
             );
-            const toDate = dateFormatter(
+            const toDate = boundaryFormatter(
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .add(filter.values?.[0], unitOfTime)
@@ -416,16 +484,16 @@ export const renderDateFilterSql = (
         }
         case FilterOperator.IN_THE_CURRENT: {
             const unitOfTime: UnitOfTime =
-                filter.settings?.unitOfTime || UnitOfTime.days;
+                settings?.unitOfTime || UnitOfTime.days;
 
-            const fromDate = dateFormatter(
+            const fromDate = boundaryFormatter(
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .startOf(unitOfTime)
                     .utc()
                     .toDate(),
             );
-            const untilDate = dateFormatter(
+            const untilDate = boundaryFormatter(
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .endOf(unitOfTime)
@@ -440,16 +508,16 @@ export const renderDateFilterSql = (
         }
         case FilterOperator.NOT_IN_THE_CURRENT: {
             const unitOfTime: UnitOfTime =
-                filter.settings?.unitOfTime || UnitOfTime.days;
+                settings?.unitOfTime || UnitOfTime.days;
 
-            const fromDate = dateFormatter(
+            const fromDate = boundaryFormatter(
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .startOf(unitOfTime)
                     .utc()
                     .toDate(),
             );
-            const untilDate = dateFormatter(
+            const untilDate = boundaryFormatter(
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek)
                     .tz(timezone)
                     .endOf(unitOfTime)
@@ -467,7 +535,7 @@ export const renderDateFilterSql = (
                 getMomentDateWithCustomStartOfWeek(effectiveStartOfWeek).tz(
                     timezone,
                 );
-            const periodUnit = (filter as DateFilterRule).settings?.unitOfTime;
+            const periodUnit = settings?.unitOfTime;
             // Use the raw base dimension SQL for date extraction when available
             // (e.g., when filtering on a DATE_TRUNC'd dimension like order_date_year)
             const extractSql = baseDimensionSql || dimensionSql;
@@ -529,8 +597,8 @@ export const renderDateFilterSql = (
             }
         }
         case FilterOperator.IN_BETWEEN: {
-            const startDate = dateFormatter(filter.values?.[0]);
-            const endDate = dateFormatter(filter.values?.[1]);
+            const startDate = literalFormatter(filter.values?.[0]);
+            const endDate = literalFormatter(filter.values?.[1]);
 
             return `((${dimensionSql}) >= ${castValue(
                 startDate,
@@ -540,6 +608,90 @@ export const renderDateFilterSql = (
             return raiseInvalidFilterError('date', filter);
     }
 };
+
+/**
+ * Renders filter SQL for DATE-type dimensions.
+ *
+ * When no explicit boundaryDateFormatter is provided, both boundary
+ * computation and formatting default to UTC.  This matches the warehouse's
+ * UTC-based DATE_TRUNC and removes any dependency on the server's local
+ * timezone.  Callers that enable timezone-aware DATE_TRUNC should pass
+ * createBoundaryDateFormatter(timezone) so both sides use the project
+ * timezone instead.
+ */
+export const renderDateFilterSql = ({
+    dimensionSql,
+    filter,
+    adapterType,
+    timezone,
+    boundaryDateFormatter,
+    startOfWeek,
+    baseDimensionSql,
+    useTimezoneAwareDateTrunc,
+    sourceTimezone,
+}: {
+    dimensionSql: string;
+    filter: FilterRule<FilterOperator, unknown>;
+    adapterType: SupportedDbtAdapter;
+    timezone: string;
+    boundaryDateFormatter?: (date: Date) => string;
+    startOfWeek?: WeekDay | null;
+    baseDimensionSql?: string;
+    useTimezoneAwareDateTrunc?: boolean;
+    sourceTimezone?: string;
+}): string => {
+    const effectiveTimezone = boundaryDateFormatter ? timezone : 'UTC';
+    const effectiveFormatter =
+        boundaryDateFormatter ?? createBoundaryDateFormatter('UTC');
+
+    return renderDateOrTimestampFilterSql({
+        dimensionSql,
+        filter,
+        adapterType,
+        timezone: effectiveTimezone,
+        literalFormatter: formatDate,
+        boundaryFormatter: effectiveFormatter,
+        startOfWeek,
+        baseDimensionSql,
+        useTimezoneAwareDateTrunc,
+        sourceTimezone,
+    });
+};
+
+/** Renders filter SQL for TIMESTAMP-type dimensions. Both literals and boundaries use the same UTC formatter. */
+export const renderTimestampFilterSql = ({
+    dimensionSql,
+    filter,
+    adapterType,
+    timezone,
+    timestampFormatter,
+    startOfWeek,
+    baseDimensionSql,
+    useTimezoneAwareDateTrunc,
+    sourceTimezone,
+}: {
+    dimensionSql: string;
+    filter: FilterRule<FilterOperator, unknown>;
+    adapterType: SupportedDbtAdapter;
+    timezone: string;
+    timestampFormatter: (date: Date) => string;
+    startOfWeek?: WeekDay | null;
+    baseDimensionSql?: string;
+    useTimezoneAwareDateTrunc?: boolean;
+    sourceTimezone?: string;
+}): string =>
+    renderDateOrTimestampFilterSql({
+        dimensionSql,
+        filter,
+        adapterType,
+        timezone,
+        literalFormatter: timestampFormatter,
+        boundaryFormatter: timestampFormatter,
+        startOfWeek,
+        baseDimensionSql,
+        useTimezoneAwareDateTrunc,
+        sourceTimezone,
+    });
 
 export const renderBooleanFilterSql = (
     dimensionSql: string,
@@ -606,14 +758,13 @@ export const renderTableCalculationFilterRuleSql = (
             );
         case TableCalculationType.DATE:
         case TableCalculationType.TIMESTAMP:
-            return renderDateFilterSql(
-                fieldSql,
-                escapedFilterRule,
+            return renderDateFilterSql({
+                dimensionSql: fieldSql,
+                filter: escapedFilterRule,
                 adapterType,
                 timezone,
-                undefined,
                 startOfWeek,
-            );
+            });
         case TableCalculationType.NUMBER:
             return renderNumberFilterSql(fieldSql, escapedFilterRule);
         case TableCalculationType.BOOLEAN:
@@ -647,8 +798,11 @@ export const renderFilterRuleSql = (
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
-    caseSensitive: boolean = true,
+    caseSensitive: boolean = DEFAULT_FILTER_CASE_SENSITIVE,
     baseDimensionSql?: string,
+    useTimezoneAwareDateTrunc?: boolean,
+    baseTimeIntervalDimensionType?: DimensionType,
+    sourceTimezone?: string,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -687,30 +841,41 @@ export const renderFilterRuleSql = (
         }
         case DimensionType.DATE:
         case MetricType.DATE: {
-            return renderDateFilterSql(
-                fieldSql,
-                escapedFilterRule,
+            // Only truncations over a TIMESTAMP base carry a timestamptz
+            // SQL expression; pure DATE columns stay bare DATE, so wrapping
+            // the literal would break BigQuery's DATE vs TIMESTAMP check.
+            const wrapLiteralAsTimestamptz =
+                !!useTimezoneAwareDateTrunc &&
+                baseTimeIntervalDimensionType === DimensionType.TIMESTAMP;
+            return renderDateFilterSql({
+                dimensionSql: fieldSql,
+                filter: escapedFilterRule,
                 adapterType,
                 timezone,
-                undefined,
+                boundaryDateFormatter: useTimezoneAwareDateTrunc
+                    ? createBoundaryDateFormatter(timezone)
+                    : undefined,
                 startOfWeek,
                 baseDimensionSql,
-            );
+                useTimezoneAwareDateTrunc: wrapLiteralAsTimestamptz,
+                sourceTimezone,
+            });
         }
         case DimensionType.TIMESTAMP:
         case MetricType.TIMESTAMP: {
-            return renderDateFilterSql(
-                fieldSql,
-                escapedFilterRule,
+            return renderTimestampFilterSql({
+                dimensionSql: fieldSql,
+                filter: escapedFilterRule,
                 adapterType,
                 timezone,
-                adapterType === SupportedDbtAdapter.CLICKHOUSE ||
+                timestampFormatter:
+                    adapterType === SupportedDbtAdapter.CLICKHOUSE ||
                     adapterType === SupportedDbtAdapter.BIGQUERY
-                    ? formatTimestampAsUTCNoOffset
-                    : formatTimestampAsUTC,
+                        ? formatTimestampAsUTCNoOffset
+                        : formatTimestampAsUTC,
                 startOfWeek,
                 baseDimensionSql,
-            );
+            });
         }
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN: {
@@ -735,8 +900,10 @@ export const renderFilterRuleSqlFromField = (
     startOfWeek: WeekDay | null | undefined,
     adapterType: SupportedDbtAdapter,
     timezone: string = 'UTC',
-    exploreCaseSensitive: boolean = true,
+    exploreCaseSensitive: boolean = DEFAULT_FILTER_CASE_SENSITIVE,
     baseDimensionSql?: string,
+    useTimezoneAwareDateTrunc?: boolean,
+    sourceTimezone?: string,
 ): string => {
     const fieldType = isCompiledCustomSqlDimension(field)
         ? field.dimensionType
@@ -746,15 +913,22 @@ export const renderFilterRuleSqlFromField = (
         : field.compiledSql;
 
     // Determine if this filter should be case sensitive
-    // Priority: field-level setting > explore-level setting > default true
+    // Priority: filter-rule-level override > field-level setting > explore-level setting > default
     let caseSensitive: boolean;
-    if (isMetric(field)) {
-        caseSensitive = true;
+    if (filterRule.caseSensitive !== undefined) {
+        caseSensitive = filterRule.caseSensitive;
+    } else if (isMetric(field)) {
+        caseSensitive = DEFAULT_FILTER_CASE_SENSITIVE;
     } else if ('caseSensitive' in field && field.caseSensitive !== undefined) {
         caseSensitive = field.caseSensitive;
     } else {
         caseSensitive = exploreCaseSensitive;
     }
+
+    const baseTimeIntervalDimensionType =
+        !isCompiledCustomSqlDimension(field) && !isMetric(field)
+            ? field.timeIntervalBaseDimensionType
+            : undefined;
 
     return renderFilterRuleSql(
         filterRule,
@@ -767,5 +941,8 @@ export const renderFilterRuleSqlFromField = (
         timezone,
         caseSensitive,
         baseDimensionSql,
+        useTimezoneAwareDateTrunc,
+        baseTimeIntervalDimensionType,
+        sourceTimezone,
     );
 };

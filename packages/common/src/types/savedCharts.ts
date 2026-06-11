@@ -7,6 +7,7 @@ import { type ContentVerificationInfo } from './contentVerification';
 import { type CompactOrAlias, type FieldId } from './field';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type MetricQuery, type MetricQueryRequest } from './metricQuery';
+import { type ResolvedProjectColorPalette } from './organization';
 import { type ParametersValuesMap } from './parameters';
 import type { SchedulerAndTargets } from './scheduler';
 // eslint-disable-next-line import/no-cycle
@@ -200,6 +201,14 @@ export type GaugeChart = {
     customPercentageLabel?: string;
 };
 
+/**
+ * How nodes are laid out:
+ * - `multi-step`: depth-unrolled journeys (default)
+ * - `merged`: one node per label, journeys preserved (acyclic flows only)
+ * - `direct`: two-column source→target pairs, no chaining
+ */
+export type SankeyNodeLayout = 'multi-step' | 'merged' | 'direct';
+
 export type SankeyChart = {
     /** Field ID for the source node dimension */
     sourceFieldId?: string;
@@ -211,6 +220,8 @@ export type SankeyChart = {
     nodeAlign?: 'left' | 'right' | 'justify';
     /** Orientation of the diagram */
     orient?: 'horizontal' | 'vertical';
+    /** How nodes are laid out across steps */
+    nodeLayout?: SankeyNodeLayout;
 };
 
 export enum MapChartLocation {
@@ -224,6 +235,28 @@ export enum MapChartType {
     SCATTER = 'scatter',
     AREA = 'area',
     HEATMAP = 'heatmap',
+    HEXBIN = 'hexbin',
+}
+
+export enum MapHexbinSizingMode {
+    /** Resolution is derived from current map zoom level. */
+    DYNAMIC = 'dynamic',
+    /** Resolution is fixed by the user, independent of zoom. */
+    FIXED = 'fixed',
+}
+
+export enum MapHexbinValueBasis {
+    /** Color cells by the count of points they contain. */
+    COUNT = 'count',
+    /** Color cells by an aggregation over a chosen value field. */
+    FIELD = 'field',
+}
+
+export enum MapHexbinAggregation {
+    SUM = 'sum',
+    AVG = 'avg',
+    MIN = 'min',
+    MAX = 'max',
 }
 
 export enum MapTileBackground {
@@ -285,6 +318,26 @@ export type MapChart = {
         blur?: number;
         /** Opacity of the heatmap layer */
         opacity?: number;
+    };
+    /** Configuration for H3 hexagonal binning visualization */
+    hexbinConfig?: {
+        /** Opacity of hex polygons (0.1 to 1) */
+        opacity?: number;
+        /** How bin size is determined. Defaults to DYNAMIC if unset. */
+        sizingMode?: MapHexbinSizingMode;
+        /** H3 resolution (0-15) used when sizingMode is FIXED. Ignored otherwise. */
+        fixedResolution?: number;
+        /** What drives cell color: count of points (default) or an aggregation
+         *  over a chosen value field (controlled via the chart's `valueFieldId`). */
+        valueBasis?: MapHexbinValueBasis;
+        /** Aggregation applied when valueBasis = FIELD. Defaults to SUM. */
+        aggregation?: MapHexbinAggregation;
+        /** Render outlined empty cells across the visible map area, so the user
+         *  can see "where there is no data" relative to the hex grid. */
+        showEmptyBins?: boolean;
+        /** Fill color for empty bins. Hex6 (#rrggbb) = solid fill, hex8
+         *  (#rrggbbaa) = fill with alpha, null/undefined = outline only. */
+        emptyBinColor?: string | null;
     };
     /** Data layer opacity (0.1 to 1) */
     dataLayerOpacity?: number;
@@ -381,6 +434,14 @@ export type TableChart = {
     showResultsTotal?: boolean;
     /** Show subtotal rows */
     showSubtotals?: boolean;
+    /** Default subtotal rows to expanded (vs. collapsed). Only meaningful when showSubtotals is true. */
+    showSubtotalsExpanded?: boolean;
+    /**
+     * Visually deduplicate repeated row-index dimension values across consecutive
+     * rows without showing aggregate subtotal rows. When `showSubtotals` is true,
+     * grouping is implicitly active and this flag is ignored. Defaults to false.
+     */
+    showRowGrouping?: boolean;
     /** Column-specific configuration */
     columns?: Record<string, ColumnProperties>;
     /** Conditional formatting rules */
@@ -521,6 +582,11 @@ export type Series = {
     isFilteredOut?: boolean;
 };
 
+/** High-level legend placement preset. Set to 'outsideRight' or 'outsideLeft' to
+ * render the legend beside the plot with reserved grid space. Undefined behaves
+ * like 'custom' (no override of the existing legend position fields). */
+export type LegendPlacement = 'custom' | 'outsideRight' | 'outsideLeft';
+
 export type EchartsLegend = {
     /** Show the legend */
     show?: boolean;
@@ -552,6 +618,9 @@ export type EchartsLegend = {
         | 'pin'
         | 'arrow'
         | 'none';
+    /** High-level placement preset. Overrides orient/top/right/bottom/left
+     * when set to an outside value. */
+    placement?: LegendPlacement;
 };
 
 export type EchartsGrid = {
@@ -628,6 +697,10 @@ export type XAxis = Axis & {
     sortType?: XAxisSortType;
     /** Enable data zoom slider for this axis */
     enableDataZoom?: boolean;
+    /** Where the initial data-zoom window anchors when data zoom is enabled */
+    dataZoomAnchor?: 'start' | 'end';
+    /** Number of items visible at once in the data-zoom window */
+    dataZoomItemCount?: number;
 };
 
 export enum XAxisSortType {
@@ -840,7 +913,25 @@ export type SavedChart = {
     pinnedListOrder: number | null;
     dashboardUuid: string | null;
     dashboardName: string | null;
+    /**
+     * @deprecated Use `resolvedColorPalette.colors` instead. This field carries
+     * only the resolved colors and will be removed once renderers migrate to
+     * `resolvedColorPalette`, which also exposes the source entity, palette
+     * UUID/name, and dark colors.
+     */
     colorPalette: string[];
+    /**
+     * Chart-level palette override pointer. `null` means inherit from the
+     * containing dashboard / space / project / org. Writable via
+     * `UpdateSavedChart`.
+     */
+    colorPaletteUuid: string | null;
+    /**
+     * Fully resolved palette for this chart, computed from the
+     * org → project → space → dashboard → chart hierarchy. Read-only — set
+     * the chart's own palette via `colorPaletteUuid`.
+     */
+    readonly resolvedColorPalette: ResolvedProjectColorPalette;
     inheritsFromOrgOrProject: boolean;
     access: SpaceAccess[];
     /** Unique identifier slug for this chart */
@@ -894,6 +985,8 @@ export type CreateSavedChartVersion = Omit<
     | 'dashboardUuid'
     | 'dashboardName'
     | 'colorPalette'
+    | 'colorPaletteUuid'
+    | 'resolvedColorPalette'
     | 'inheritsFromOrgOrProject'
     | 'access'
     | 'slug'
@@ -903,7 +996,7 @@ export type CreateSavedChartVersion = Omit<
     Partial<Pick<SavedChart, 'dashboardUuid' | 'dashboardName'>>;
 
 export type UpdateSavedChart = Partial<
-    Pick<SavedChart, 'name' | 'description' | 'spaceUuid'>
+    Pick<SavedChart, 'name' | 'description' | 'spaceUuid' | 'colorPaletteUuid'>
 >;
 
 export type UpdateMultipleSavedChart = Pick<
@@ -987,6 +1080,15 @@ export const ECHARTS_DEFAULT_COLORS = [
 
 export const getDefaultSeriesColor = (index: number) =>
     ECHARTS_DEFAULT_COLORS[index % ECHARTS_DEFAULT_COLORS.length];
+
+export const getDefaultResolvedColorPalette =
+    (): ResolvedProjectColorPalette => ({
+        colors: ECHARTS_DEFAULT_COLORS,
+        darkColors: null,
+        paletteUuid: null,
+        paletteName: null,
+        source: { type: 'default' },
+    });
 
 export const isSeriesWithMixedChartTypes = (
     series: Series[] | undefined,
@@ -1187,6 +1289,7 @@ export type CalculateTotalFromQuery = {
     metricQuery: MetricQueryRequest;
     explore: string;
     parameters?: ParametersValuesMap;
+    invalidateCache?: boolean;
 };
 
 export type ApiCalculateTotalResponse = {

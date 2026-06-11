@@ -1,12 +1,14 @@
-import { type ResourceViewSpaceItem } from '@lightdash/common';
+import { FeatureFlags, type ResourceViewSpaceItem } from '@lightdash/common';
 import { Box, Flex, Group, Paper, Stack, Text } from '@mantine-8/core';
 import { useDisclosure, useHover } from '@mantine/hooks';
 import {
+    IconAppWindow,
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import { type FC, type ReactNode } from 'react';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import { ResourceIcon } from '../../ResourceIcon';
 import ResourceViewActionMenu, {
     type ResourceViewActionMenuCommonProps,
@@ -31,6 +33,8 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
 }) => {
     const { hovered, ref } = useHover();
     const [opened, handlers] = useDisclosure(false);
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
 
     return (
         <Paper
@@ -64,6 +68,12 @@ const ResourceViewGridSpaceItem: FC<ResourceViewGridSpaceItemProps> = ({
                             Icon={IconChartBar}
                             count={item.data.chartCount}
                         />
+                        {dataAppsEnabled && (
+                            <AttributeCount
+                                Icon={IconAppWindow}
+                                count={item.data.appCount}
+                            />
+                        )}
                         <AttributeCount
                             Icon={IconFolder}
                             count={item.data.childSpaceCount}

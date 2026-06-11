@@ -1262,6 +1262,63 @@ describe('renameSavedChart', () => {
         expect(updatedChart.pivotConfig?.columns).toEqual(['invoice_type']);
     });
 
+    // Regression test for PROD-7548: model rename silently skipped charts
+    // whose fields were all sourced from a joined table.
+    test('should rename tableName/exploreName when all fields come from a joined table', () => {
+        const chart = {
+            name: 'Joined-only Chart',
+            tableName: 'model_a',
+            metricQuery: {
+                exploreName: 'model_a',
+                dimensions: ['joined_b_id'],
+                metrics: ['joined_b_amount'],
+                sorts: [
+                    {
+                        fieldId: 'joined_b_id',
+                        descending: true,
+                    },
+                ],
+                filters: {},
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+            },
+            chartConfig: {
+                type: ChartType.CARTESIAN,
+                config: {
+                    layout: {
+                        xField: 'joined_b_id',
+                        yField: ['joined_b_amount'],
+                    },
+                },
+            },
+            tableConfig: {
+                columnOrder: ['joined_b_id', 'joined_b_amount'],
+            },
+        } as unknown as SavedChartDAO;
+
+        const { updatedChart, hasChanges } = renameSavedChart({
+            type: RenameType.MODEL,
+            chart,
+            nameChanges: {
+                from: 'model_a',
+                fromReference: 'model_a',
+                to: 'model_a_v2',
+                toReference: 'model_a_v2',
+                fromFieldName: undefined,
+                toFieldName: undefined,
+            },
+            validate: false,
+        });
+
+        expect(hasChanges).toBe(true);
+        expect(updatedChart.tableName).toBe('model_a_v2');
+        expect(updatedChart.metricQuery.exploreName).toBe('model_a_v2');
+        // Joined-table field references should remain untouched
+        expect(updatedChart.metricQuery.dimensions).toEqual(['joined_b_id']);
+        expect(updatedChart.metricQuery.metrics).toEqual(['joined_b_amount']);
+    });
+
     test('should return unchanged chart when no matches found', () => {
         const chart = {
             name: 'Payment Analysis',
@@ -1505,5 +1562,84 @@ describe('getNameChanges', () => {
             fromReference: 'payments',
             toReference: 'orders',
         });
+    });
+});
+
+describe('idempotent model rename (new name extends old, e.g. orders -> orders_restricted)', () => {
+    const nameChanges = {
+        from: 'orders',
+        to: 'orders_restricted',
+        fromReference: 'orders',
+        toReference: 'orders_restricted',
+        fromFieldName: undefined,
+        toFieldName: undefined,
+    };
+    const factory = createRenameFactory({ ...nameChanges, isPrefix: true });
+
+    test('replaceId renames bare ids but is a no-op on already-renamed ids', () => {
+        expect(factory.replaceId('orders_status')).toBe(
+            'orders_restricted_status',
+        );
+        // already renamed -> unchanged (previously doubled to orders_restricted_restricted_status)
+        expect(factory.replaceId('orders_restricted_status')).toBe(
+            'orders_restricted_status',
+        );
+    });
+
+    test('replaceString is a no-op on already-renamed ids', () => {
+        expect(factory.replaceString('orders_status')).toBe(
+            'orders_restricted_status',
+        );
+        expect(factory.replaceString('orders_restricted_status')).toBe(
+            'orders_restricted_status',
+        );
+    });
+
+    test('replaceFull renames the bare model but is a no-op on the renamed model', () => {
+        expect(factory.replaceFull('orders')).toBe('orders_restricted');
+        expect(factory.replaceFull('orders_restricted')).toBe(
+            'orders_restricted',
+        );
+    });
+
+    test('renameSavedChart is idempotent: applying the rename twice equals applying it once', () => {
+        const once = renameSavedChart({
+            type: RenameType.MODEL,
+            chart: chartMocked,
+            nameChanges,
+            validate: false,
+        }).updatedChart;
+        const twice = renameSavedChart({
+            type: RenameType.MODEL,
+            chart: once,
+            nameChanges,
+            validate: false,
+        }).updatedChart;
+
+        expect(twice).toEqual(once);
+        // sanity: the first rename happened and did not double anything
+        expect(once.tableName).toBe('orders_restricted');
+        expect(once.metricQuery.exploreName).toBe('orders_restricted');
+        expect(once.metricQuery.dimensions).toEqual([
+            'orders_restricted_status',
+            'orders_restricted_order_date_week',
+        ]);
+        expect(JSON.stringify(twice)).not.toContain(
+            'orders_restricted_restricted',
+        );
+    });
+
+    test('a normal rename (new name does not extend old) is unaffected by the guard', () => {
+        const normal = createRenameFactory({
+            from: 'payment',
+            to: 'invoice',
+            fromReference: 'payment',
+            toReference: 'invoice',
+            fromFieldName: undefined,
+            toFieldName: undefined,
+            isPrefix: true,
+        });
+        expect(normal.replaceId('payment_amount')).toBe('invoice_amount');
+        expect(normal.replaceFull('payment')).toBe('invoice');
     });
 });

@@ -4,6 +4,7 @@ import {
     MetricQuery,
     PivotConfig,
     PivotConfiguration,
+    type AndFilterGroup,
     type CacheMetadata,
     type DashboardFilters,
     type DateZoom,
@@ -50,6 +51,7 @@ export type DownloadAsyncQueryResultsArgs = Omit<
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    exportPivotedData?: boolean;
     attachmentDownloadName?: string;
     expirationSecondsOverride?: number;
 };
@@ -60,11 +62,21 @@ export type ScheduleDownloadAsyncQueryResultsArgs = Omit<
 > &
     Omit<DownloadAsyncQueryResultsPayload, 'userUuid' | 'organizationUuid'>;
 
+export type ExecuteAsyncFieldValueSearchArgs = CommonAsyncQueryArgs & {
+    table: string;
+    fieldId: string;
+    search: string;
+    limit?: number;
+    filters?: AndFilterGroup;
+    forceRefresh?: boolean;
+};
+
 export type ExecuteAsyncMetricQueryArgs = CommonAsyncQueryArgs & {
     metricQuery: MetricQuery;
     dateZoom?: DateZoom;
     pivotConfiguration?: PivotConfiguration;
     materializationRole?: UserAccessControls;
+    dashboardFilters?: DashboardFilters;
 };
 
 export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
@@ -83,6 +95,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     dateZoom?: DateZoom;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    sessionTimezone?: string | null;
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
@@ -176,6 +189,7 @@ export const SCHEDULER_POLLING_OPTIONS: PollingOptions = {
 export type RunAsyncWarehouseQueryArgs = {
     projectUuid: string;
     userUuid: string;
+    organizationUuid: string;
     queryUuid: string;
     isRegisteredUser: boolean;
     isServiceAccount?: boolean;
@@ -190,6 +204,7 @@ export type RunAsyncWarehouseQueryArgs = {
     originalColumns?: ResultColumns;
     query: string;
     queryCreatedAt: Date;
+    displayTimezone: string | null;
 };
 
 export type RunAsyncPreAggregateQueryArgs = Omit<

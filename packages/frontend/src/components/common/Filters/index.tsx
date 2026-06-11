@@ -2,7 +2,9 @@ import {
     addFilterRule,
     deleteFilterRuleFromGroup,
     getFiltersFromGroup,
+    getFilterTypeFromItem,
     getItemId,
+    getItemLabelWithoutTableName,
     getTotalFilterRules,
     hasNestedGroups,
     isAndFilterGroup,
@@ -17,6 +19,7 @@ import {
     ActionIcon,
     Box,
     Button,
+    Code,
     Divider,
     Group,
     Stack,
@@ -24,7 +27,7 @@ import {
     Tooltip,
     useMantineColorScheme,
 } from '@mantine-8/core';
-import { IconAlertCircle, IconPlus, IconX } from '@tabler/icons-react';
+import { IconAlertTriangle, IconPlus, IconX } from '@tabler/icons-react';
 import { memo, useCallback, useMemo, useRef, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { v4 as uuidv4 } from 'uuid';
@@ -36,6 +39,7 @@ import FieldSelect from '../FieldSelect';
 import MantineIcon from '../MantineIcon';
 import { FILTER_SELECT_LIMIT } from './constants';
 import FilterGroupForm from './FilterGroupForm';
+import { getFilterOperatorOptions } from './FilterInputs/utils';
 import SimplifiedFilterGroupForm from './SimplifiedFilterGroupForm';
 import useFiltersContext from './useFiltersContext';
 
@@ -45,17 +49,49 @@ type Props = {
     isEditMode: boolean;
 };
 
+type InvalidFilterRule =
+    | { reason: 'unknown_field'; rule: FilterRule }
+    | {
+          reason: 'invalid_operator';
+          rule: FilterRule;
+          fieldLabel: string;
+      };
+
 const getInvalidFilterRules = (
     fields: FieldWithSuggestions[],
     filterRules: FilterRule[],
-) =>
-    filterRules.reduce<FilterRule[]>((accumulator, filterRule) => {
+): InvalidFilterRule[] =>
+    filterRules.reduce<InvalidFilterRule[]>((accumulator, filterRule) => {
         const fieldInRule = fields.find(
             (field) => getItemId(field) === filterRule.target.fieldId,
         );
 
         if (!fieldInRule) {
-            return [...accumulator, filterRule];
+            return [
+                ...accumulator,
+                { reason: 'unknown_field', rule: filterRule },
+            ];
+        }
+
+        if (!isFilterableField(fieldInRule)) {
+            return accumulator;
+        }
+
+        const filterType = getFilterTypeFromItem(fieldInRule);
+        const validOperators = getFilterOperatorOptions(
+            filterType,
+            fieldInRule,
+        ).map((option) => option.value);
+
+        if (!validOperators.includes(filterRule.operator)) {
+            return [
+                ...accumulator,
+                {
+                    reason: 'invalid_operator',
+                    rule: filterRule,
+                    fieldLabel: getItemLabelWithoutTableName(fieldInRule),
+                },
+            ];
         }
 
         return accumulator;
@@ -300,38 +336,55 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                     </>
                 ))}
 
-            {hasInvalidFilterRules &&
-                invalidFilterRules.map((rule, index) => (
-                    <Stack
-                        key={index}
-                        ml={showSimplifiedForm ? undefined : 'xl'}
-                        gap="two"
-                        align="flex-start"
-                    >
+            {hasInvalidFilterRules && (
+                <Stack gap="xs" pl={showSimplifiedForm ? undefined : 36}>
+                    {invalidFilterRules.map((entry) => (
                         <Group
-                            key={rule.id}
+                            key={entry.rule.id}
                             gap="xs"
-                            pl="xs"
+                            px="xs"
+                            h={30}
+                            wrap="nowrap"
                             style={{
-                                border: '1px solid var(--mantine-color-ldGray-2)',
+                                border: '1px solid var(--mantine-color-yellow-6)',
                                 borderRadius: 'var(--mantine-radius-sm)',
                             }}
                         >
-                            <MantineIcon icon={IconAlertCircle} />
-                            <Text c="dimmed" fz="xs">
-                                Tried to reference field with unknown id:{' '}
-                                <Text span fw={500} c="ldGray.7">
-                                    {rule.target.fieldId}
-                                </Text>
+                            <MantineIcon
+                                icon={IconAlertTriangle}
+                                color="yellow.6"
+                            />
+                            <Text c="yellow.6" fz="xs" style={{ flex: 1 }}>
+                                {entry.reason === 'unknown_field' ? (
+                                    <>
+                                        Tried to reference field with unknown
+                                        id:{' '}
+                                        <Code fw={500} fz="xs">
+                                            {entry.rule.target.fieldId}
+                                        </Code>
+                                    </>
+                                ) : (
+                                    <>
+                                        Filter on{' '}
+                                        <Code fw={500} fz="xs">
+                                            {entry.fieldLabel}
+                                        </Code>{' '}
+                                        uses an invalid operator:{' '}
+                                        <Code fw={500} fz="xs">
+                                            {entry.rule.operator}
+                                        </Code>
+                                    </>
+                                )}
                             </Text>
                             <ActionIcon
                                 variant="subtle"
+                                size="sm"
                                 color="gray"
                                 onClick={() =>
                                     updateFiltersFromGroup(
                                         deleteFilterRuleFromGroup(
                                             rootFilterGroup,
-                                            rule.id,
+                                            entry.rule.id,
                                         ),
                                     )
                                 }
@@ -339,8 +392,9 @@ const FiltersForm: FC<Props> = memo(({ filters, setFilters, isEditMode }) => {
                                 <MantineIcon icon={IconX} size="sm" />
                             </ActionIcon>
                         </Group>
-                    </Stack>
-                ))}
+                    ))}
+                </Stack>
+            )}
 
             {isEditMode && (
                 <AddFilterSection

@@ -56,6 +56,7 @@ const formatComparisonValue = (
     value: number | string,
     bigNumberComparisonStyle: CompactOrAlias | undefined,
     parameters?: ParametersValuesMap,
+    timezone?: string,
 ) => {
     const prefix =
         comparisonDiff === ComparisonDiffTypes.POSITIVE ||
@@ -78,35 +79,44 @@ const formatComparisonValue = (
                     value,
                     false,
                     parameters,
+                    timezone,
                 )}`;
             }
 
+            const metricRoundRaw = isField(item) ? item.round : undefined;
             const formattedValue = bigNumberComparisonStyle
                 ? applyCustomFormat(
                       value,
                       getCustomFormatFromLegacy({
                           format: isField(item) ? item.format : undefined,
-                          round: 2,
+                          round: metricRoundRaw ?? 2,
                           compact: bigNumberComparisonStyle,
                       }),
                   )
-                : formatItemValue(item, value, false, parameters);
+                : formatItemValue(item, value, false, parameters, timezone);
 
             return `${prefix}${formattedValue}`;
         default:
             if (item !== undefined && isTableCalculation(item)) {
-                return formatItemValue(item, value, false, parameters);
+                return formatItemValue(
+                    item,
+                    value,
+                    false,
+                    parameters,
+                    timezone,
+                );
             }
+            const metricRoundDefault = isField(item) ? item.round : undefined;
             return bigNumberComparisonStyle
                 ? applyCustomFormat(
                       value,
                       getCustomFormatFromLegacy({
                           format: isField(item) ? item.format : undefined,
-                          round: 2,
+                          round: metricRoundDefault ?? 2,
                           compact: bigNumberComparisonStyle,
                       }),
                   )
-                : formatItemValue(item, value, false, parameters);
+                : formatItemValue(item, value, false, parameters, timezone);
     }
 };
 
@@ -125,7 +135,9 @@ const getItemPriority = (item: ItemsMap[string]): number => {
 
 const useBigNumberConfig = (
     bigNumberConfigData: BigNumber | undefined,
-    resultsData: InfiniteQueryResults | undefined,
+    resultsData:
+        | (InfiniteQueryResults & { resolvedTimezone?: string })
+        | undefined,
     itemsMap: ItemsMap | undefined,
     tableCalculationsMetadata?: TableCalculationMetadata[],
     parameters?: ParametersValuesMap,
@@ -308,13 +320,25 @@ const useBigNumberConfig = (
                 resultsData?.rows?.[0]?.[selectedField]?.value.formatted
             );
         } else if (item !== undefined && isTableCalculation(item)) {
-            return formatItemValue(item, firstRowValueRaw, false, parameters);
+            return formatItemValue(
+                item,
+                firstRowValueRaw,
+                false,
+                parameters,
+                resultsData?.resolvedTimezone,
+            );
         } else if (
             item !== undefined &&
             hasValidFormatExpression(item) &&
             !bigNumberStyle // If the big number has a comparison style, don't use the format expression returned by the backend
         ) {
-            return formatItemValue(item, firstRowValueRaw, false, parameters);
+            return formatItemValue(
+                item,
+                firstRowValueRaw,
+                false,
+                parameters,
+                resultsData?.resolvedTimezone,
+            );
         } else if (item !== undefined && hasFormatOptions(item)) {
             // Custom metrics case
 
@@ -333,15 +357,13 @@ const useBigNumberConfig = (
                 compact: bigNumberStyle ?? item.formatOptions?.compact,
             });
         } else {
+            const metricRound = isField(item) ? item.round : undefined;
+            const compactStyleDefault = bigNumberStyle ? 2 : undefined;
             return applyCustomFormat(
                 firstRowValueRaw,
                 getCustomFormatFromLegacy({
                     format: isField(item) ? item.format : undefined,
-                    round: bigNumberStyle
-                        ? 2
-                        : isField(item)
-                          ? item.round
-                          : undefined,
+                    round: metricRound ?? compactStyleDefault,
                     compact: bigNumberStyle,
                 }),
             );
@@ -402,6 +424,7 @@ const useBigNumberConfig = (
                   unformattedValue,
                   bigNumberComparisonStyle,
                   parameters,
+                  resultsData?.resolvedTimezone,
               );
     }, [
         comparisonFormat,
@@ -411,6 +434,7 @@ const useBigNumberConfig = (
         secondRowValueFormatted,
         bigNumberComparisonStyle,
         parameters,
+        resultsData?.resolvedTimezone,
     ]);
 
     const comparisonTooltip = useMemo(() => {

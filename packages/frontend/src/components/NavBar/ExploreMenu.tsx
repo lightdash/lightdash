@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { FeatureFlags } from '@lightdash/common';
 import { Button, getDefaultZIndex, Menu } from '@mantine-8/core';
 import {
     IconAppWindow,
@@ -11,6 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { memo, useState, type FC } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../providers/Ability';
 import useApp from '../../providers/App/useApp';
 import LargeMenuItem from '../common/LargeMenuItem';
@@ -27,7 +29,8 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const { user, health } = useApp();
+    const { user } = useApp();
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
 
     const [isOpen, setIsOpen] = useState(false);
     const [isCreateSpaceOpen, setIsCreateSpaceOpen] = useState(false);
@@ -108,18 +111,25 @@ const ExploreMenu: FC<Props> = memo(({ projectUuid }) => {
                                 icon={IconTerminal2}
                             />
                         </Can>
-                        <LargeMenuItem
-                            // Users who manage explores should be able to create dashboards in any space
-                            title="Dashboard"
-                            description="Arrange multiple charts into a single view."
-                            onClick={() => setIsCreateDashboardOpen(true)}
-                            icon={IconLayoutDashboard}
-                            data-testid="ExploreMenu/NewDashboardButton"
-                        />
+                        <Can
+                            I="create"
+                            this={subject('Dashboard', {
+                                organizationUuid: user.data?.organizationUuid,
+                                projectUuid,
+                            })}
+                        >
+                            <LargeMenuItem
+                                title="Dashboard"
+                                description="Arrange multiple charts into a single view."
+                                onClick={() => setIsCreateDashboardOpen(true)}
+                                icon={IconLayoutDashboard}
+                                data-testid="ExploreMenu/NewDashboardButton"
+                            />
+                        </Can>
 
-                        {health.data?.dataApps.enabled && (
+                        {dataAppsFlag.data?.enabled && (
                             <Can
-                                I="manage"
+                                I="create"
                                 this={subject('DataApp', {
                                     organizationUuid:
                                         user.data?.organizationUuid,

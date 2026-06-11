@@ -2,8 +2,8 @@ import { SpotlightTableColumns, type CatalogField } from '@lightdash/common';
 import { Box, Button, Flex, Group, Text } from '@mantine/core';
 import { useHover } from '@mantine/hooks';
 import { IconPlus, IconUser } from '@tabler/icons-react';
-import { type MRT_ColumnDef } from 'mantine-react-table';
 import { useMemo } from 'react';
+import { type ContentTableColumnDef } from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import {
     createMetricPreviewUnsavedChartVersion,
@@ -28,7 +28,7 @@ import { MetricsCatalogColumnDescription } from './MetricsCatalogColumnDescripti
 import { MetricsCatalogColumnName } from './MetricsCatalogColumnName';
 import { MetricsCatalogColumnOwner } from './MetricsCatalogColumnOwner';
 
-export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
+export const MetricsCatalogColumns: ContentTableColumnDef<CatalogField>[] = [
     {
         accessorKey: SpotlightTableColumns.METRIC,
         header: 'Metric',
@@ -72,8 +72,14 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableSorting: true,
         enableEditing: false,
         size: 150,
-        Header: ({ column }) => (
-            <MetricCatalogColumnHeaderCell Icon={Table} tooltipLabel="Table">
+        Header: ({ column, table }) => (
+            <MetricCatalogColumnHeaderCell
+                disabled={Boolean(
+                    table.getState().columnSizingInfo.isResizingColumn,
+                )}
+                Icon={Table}
+                tooltipLabel="Table"
+            >
                 {column.columnDef.header}
             </MetricCatalogColumnHeaderCell>
         ),
@@ -140,8 +146,11 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         size: 400,
         minSize: 200,
         header: 'Description',
-        Header: ({ column }) => (
+        Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
+                disabled={Boolean(
+                    table.getState().columnSizingInfo.isResizingColumn,
+                )}
                 Icon={Description}
                 tooltipLabel="Defined in the metric's .yml file"
             >
@@ -162,16 +171,21 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         mantineTableBodyCellProps: () => {
             return {
                 pos: 'relative',
-                sx: {
+                style: {
                     padding: 0,
+                },
+                sx: {
                     '&:hover': {
                         outline: 'none',
                     },
                 },
             };
         },
-        Header: ({ column }) => (
+        Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
+                disabled={Boolean(
+                    table.getState().columnSizingInfo.isResizingColumn,
+                )}
                 Icon={Tag}
                 tooltipLabel="Categories help you organize your metrics and KPIs. Click on the cell to add or edit a category, if you have the required permissions."
             >
@@ -313,15 +327,19 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableEditing: false,
         size: 150,
         minSize: 100,
+        maxSize: 150,
         mantineTableBodyCellProps: () => {
             return {
-                sx: {
-                    justifyContent: 'center',
+                style: {
+                    textAlign: 'center',
                 },
             };
         },
-        Header: ({ column }) => (
+        Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
+                disabled={Boolean(
+                    table.getState().columnSizingInfo.isResizingColumn,
+                )}
                 Icon={Popularity}
                 tooltipLabel="Shows how many charts use this metric"
             >
@@ -337,8 +355,12 @@ export const MetricsCatalogColumns: MRT_ColumnDef<CatalogField>[] = [
         enableEditing: false,
         size: 200,
         minSize: 100,
-        Header: ({ column }) => (
+        maxSize: 200,
+        Header: ({ column, table }) => (
             <MetricCatalogColumnHeaderCell
+                disabled={Boolean(
+                    table.getState().columnSizingInfo.isResizingColumn,
+                )}
                 Icon={() => (
                     <MantineIcon icon={IconUser} size={14} color="ldGray.5" />
                 )}

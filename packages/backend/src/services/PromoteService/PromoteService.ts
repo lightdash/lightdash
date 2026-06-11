@@ -1,4 +1,4 @@
-import { subject } from '@casl/ability';
+import { Ability, subject } from '@casl/ability';
 import {
     AlreadyExistsError,
     ChartSummary,
@@ -8,6 +8,7 @@ import {
     getDeepestPaths,
     getErrorMessage,
     isDashboardChartTileType,
+    isDashboardDataAppTileType,
     isSubPath,
     NotFoundError,
     ParameterError,
@@ -27,6 +28,8 @@ import {
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { LightdashConfig } from '../../config/parseConfig';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
+import type { CaslAuditWrapper } from '../../logging/caslAuditWrapper';
 import Logger from '../../logging/logger';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -108,6 +111,11 @@ type PromoteServiceArguments = {
     savedSqlModel: SavedSqlModel;
     dashboardModel: DashboardModel;
     spacePermissionService: SpacePermissionService;
+    // Lazily resolves the EE data-app service so dashboard promotion can promote
+    // embedded DATA_APP tiles. A thunk — not the instance — because
+    // AppGenerateService depends on PromoteService, so eager injection would
+    // create a construction cycle. Resolves undefined in core (non-EE) builds.
+    getAppGenerateService?: () => AppGenerateService | undefined;
 };
 
 type SavedSqlChart = Awaited<ReturnType<SavedSqlModel['getByUuid']>>;
@@ -132,6 +140,10 @@ export class PromoteService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly getAppGenerateService?: () =>
+        | AppGenerateService
+        | undefined;
+
     constructor(args: PromoteServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -142,6 +154,7 @@ export class PromoteService extends BaseService {
         this.spaceModel = args.spaceModel;
         this.dashboardModel = args.dashboardModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.getAppGenerateService = args.getAppGenerateService;
     }
 
     private async trackAnalytics(
@@ -355,17 +368,17 @@ export class PromoteService extends BaseService {
     }
 
     private static checkPromoteSpacePermissions(
-        user: SessionUser,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
         upstreamContent: Pick<
             UpstreamChart | UpstreamDashboard | UpstreamSqlChart,
             'space' | 'projectUuid' | 'spaceAccessContext'
         >,
     ) {
-        const { organizationUuid } = user;
         if (upstreamContent.space) {
             // If upstreamContent has a matching space, we check if we have access
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('Space', {
                         organizationUuid,
@@ -375,6 +388,10 @@ export class PromoteService extends BaseService {
                                 ?.inheritsFromOrgOrProject,
                         access:
                             upstreamContent.spaceAccessContext?.access ?? [],
+                        metadata: {
+                            spaceUuid: upstreamContent.space.uuid,
+                            spaceName: upstreamContent.space.name,
+                        },
                     }),
                 )
             ) {
@@ -384,7 +401,7 @@ export class PromoteService extends BaseService {
             }
         } // If upstreamContent has no space, we check if we have permissions to create new spaces
         else if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'create',
                 subject('Space', {
                     organizationUuid,
@@ -399,17 +416,21 @@ export class PromoteService extends BaseService {
     }
 
     private static checkPromoteChartPermissions(
-        user: SessionUser,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
         promotedChart: PromotedChart,
         upstreamChart: UpstreamChart,
         promotedDashboard?: PromotedDashboard,
     ) {
-        const { organizationUuid } = user;
+        const chartMetadata = {
+            savedChartUuid: promotedChart.chart.uuid,
+            savedChartName: promotedChart.chart.name,
+        };
         // Check permissions on `from project`
         if (promotedChart.space) {
             // Charts within space
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
                         organizationUuid,
@@ -418,6 +439,7 @@ export class PromoteService extends BaseService {
                             promotedChart.spaceAccessContext
                                 ?.inheritsFromOrgOrProject,
                         access: promotedChart.spaceAccessContext?.access ?? [],
+                        metadata: chartMetadata,
                     }),
                 )
             )
@@ -428,11 +450,12 @@ export class PromoteService extends BaseService {
                 );
         } // Charts within dashboard
         else if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('SavedChart', {
                     organizationUuid,
                     projectUuid: promotedChart.projectUuid,
+                    metadata: chartMetadata,
                 }),
             )
         )
@@ -448,7 +471,7 @@ export class PromoteService extends BaseService {
 
             if (upstreamChart.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('SavedChart', {
                             organizationUuid,
@@ -458,6 +481,7 @@ export class PromoteService extends BaseService {
                                     ?.inheritsFromOrgOrProject,
                             access:
                                 upstreamChart.spaceAccessContext?.access ?? [],
+                            metadata: chartMetadata,
                         }),
                     )
                 ) {
@@ -468,11 +492,12 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
+                        metadata: chartMetadata,
                     }),
                 )
             ) {
@@ -485,12 +510,13 @@ export class PromoteService extends BaseService {
         } else if (upstreamChart.space !== undefined) {
             // If upstreamContent has no matching chart, we check if we have access to create, if space already exists
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamChart.projectUuid,
                         access: upstreamChart.spaceAccessContext?.access ?? [],
+                        metadata: chartMetadata,
                     }),
                 )
             ) {
@@ -502,19 +528,39 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(user, upstreamChart);
+        // Promotion only mutates the upstream space when creating a new one or
+        // renaming an existing one (see isSpaceUpdated). When the upstream
+        // space already exists and won't be renamed, the entity-level checks
+        // above already gate the operation — no `manage Space` required.
+        const promotionWillModifyChartSpace =
+            !upstreamChart.space ||
+            PromoteService.isSpaceUpdated(
+                promotedChart.space,
+                upstreamChart.space,
+            );
+        if (promotionWillModifyChartSpace) {
+            PromoteService.checkPromoteSpacePermissions(
+                auditedAbility,
+                organizationUuid,
+                upstreamChart,
+            );
+        }
     }
 
     private static checkPromoteSqlChartPermissions(
-        user: SessionUser,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
         promotedSqlChart: PromotedSqlChart,
         upstreamSqlChart: UpstreamSqlChart,
         promotedDashboard?: PromotedDashboard,
     ) {
-        const { organizationUuid } = user;
+        const sqlChartMetadata = {
+            savedSqlUuid: promotedSqlChart.chart.savedSqlUuid,
+            savedSqlName: promotedSqlChart.chart.name,
+        };
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('SavedChart', {
                     organizationUuid,
@@ -523,6 +569,7 @@ export class PromoteService extends BaseService {
                         promotedSqlChart.spaceAccessContext
                             ?.inheritsFromOrgOrProject,
                     access: promotedSqlChart.spaceAccessContext?.access ?? [],
+                    metadata: sqlChartMetadata,
                 }),
             )
         ) {
@@ -536,7 +583,7 @@ export class PromoteService extends BaseService {
         if (upstreamSqlChart.chart !== undefined) {
             if (upstreamSqlChart.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('SavedChart', {
                             organizationUuid,
@@ -547,6 +594,7 @@ export class PromoteService extends BaseService {
                             access:
                                 upstreamSqlChart.spaceAccessContext?.access ??
                                 [],
+                            metadata: sqlChartMetadata,
                         }),
                     )
                 ) {
@@ -557,11 +605,12 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
+                        metadata: sqlChartMetadata,
                     }),
                 )
             ) {
@@ -573,13 +622,14 @@ export class PromoteService extends BaseService {
             }
         } else if (upstreamSqlChart.space !== undefined) {
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('SavedChart', {
                         organizationUuid,
                         projectUuid: upstreamSqlChart.projectUuid,
                         access:
                             upstreamSqlChart.spaceAccessContext?.access ?? [],
+                        metadata: sqlChartMetadata,
                     }),
                 )
             ) {
@@ -591,18 +641,34 @@ export class PromoteService extends BaseService {
             }
         }
 
-        PromoteService.checkPromoteSpacePermissions(user, upstreamSqlChart);
+        const promotionWillModifySqlChartSpace =
+            !upstreamSqlChart.space ||
+            PromoteService.isSpaceUpdated(
+                promotedSqlChart.space,
+                upstreamSqlChart.space,
+            );
+        if (promotionWillModifySqlChartSpace) {
+            PromoteService.checkPromoteSpacePermissions(
+                auditedAbility,
+                organizationUuid,
+                upstreamSqlChart,
+            );
+        }
     }
 
     static checkPromoteDashboardPermissions(
-        user: SessionUser,
+        auditedAbility: CaslAuditWrapper<Ability>,
+        organizationUuid: string,
         promotedDashboard: PromotedDashboard,
         upstreamDashboard: UpstreamDashboard,
     ) {
+        const dashboardMetadata = {
+            dashboardUuid: promotedDashboard.dashboard.uuid,
+            dashboardName: promotedDashboard.dashboard.name,
+        };
         // Check permissions on `from project`
-        const { organizationUuid } = user;
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'promote',
                 subject('Dashboard', {
                     organizationUuid,
@@ -611,6 +677,7 @@ export class PromoteService extends BaseService {
                         promotedDashboard.spaceAccessContext
                             ?.inheritsFromOrgOrProject,
                     access: promotedDashboard.spaceAccessContext?.access ?? [],
+                    metadata: dashboardMetadata,
                 }),
             )
         )
@@ -624,7 +691,7 @@ export class PromoteService extends BaseService {
 
             if (upstreamDashboard.space) {
                 if (
-                    user.ability.cannot(
+                    auditedAbility.cannot(
                         'promote',
                         subject('Dashboard', {
                             organizationUuid,
@@ -635,6 +702,7 @@ export class PromoteService extends BaseService {
                             access:
                                 upstreamDashboard.spaceAccessContext?.access ??
                                 [],
+                            metadata: dashboardMetadata,
                         }),
                     )
                 ) {
@@ -643,11 +711,12 @@ export class PromoteService extends BaseService {
                     );
                 }
             } else if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'promote',
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
+                        metadata: dashboardMetadata,
                     }),
                 )
             ) {
@@ -658,13 +727,14 @@ export class PromoteService extends BaseService {
         } else if (upstreamDashboard.space !== undefined) {
             // If upstreamContent has no matching dashboard, we check if we have access to create, if space already exists
             if (
-                user.ability.cannot(
+                auditedAbility.cannot(
                     'manage',
                     subject('Dashboard', {
                         organizationUuid,
                         projectUuid: upstreamDashboard.projectUuid,
                         access:
                             upstreamDashboard.spaceAccessContext?.access ?? [],
+                        metadata: dashboardMetadata,
                     }),
                 )
             ) {
@@ -673,7 +743,19 @@ export class PromoteService extends BaseService {
                 );
             }
         }
-        PromoteService.checkPromoteSpacePermissions(user, upstreamDashboard);
+        const promotionWillModifyDashboardSpace =
+            !upstreamDashboard.space ||
+            PromoteService.isSpaceUpdated(
+                promotedDashboard.space,
+                upstreamDashboard.space,
+            );
+        if (promotionWillModifyDashboardSpace) {
+            PromoteService.checkPromoteSpacePermissions(
+                auditedAbility,
+                organizationUuid,
+                upstreamDashboard,
+            );
+        }
     }
 
     private static isSpaceUpdated(
@@ -1003,6 +1085,150 @@ export class PromoteService extends BaseService {
         };
     }
 
+    private static getDataAppUuidsFromChanges(
+        promotionChanges: PromotionChanges,
+    ): string[] {
+        return Array.from(
+            promotionChanges.dashboards.reduce<Set<string>>(
+                (acc, dashboardChange) => {
+                    dashboardChange.data.tiles.forEach((tile) => {
+                        if (
+                            isDashboardDataAppTileType(tile) &&
+                            tile.properties.appUuid
+                        ) {
+                            acc.add(tile.properties.appUuid);
+                        }
+                    });
+                    return acc;
+                },
+                new Set<string>(),
+            ),
+        );
+    }
+
+    /**
+     * Promote the data apps referenced by a dashboard's DATA_APP tiles into the
+     * upstream project, then remap each tile's `appUuid` to the freshly promoted
+     * upstream app — the data-app equivalent of `upsertCharts`/`upsertSqlCharts`.
+     *
+     * Runs after the upstream dashboard exists but before `updateDashboard`
+     * persists the tiles, so the upstream `apps` row is in place before the
+     * `dashboard_tile_data_apps` FK references it.
+     *
+     * The actual app promotion (S3 copy, versioning, permission checks) lives in
+     * the EE AppGenerateService, reached via the injected accessor. Apps whose
+     * referenced row no longer exists (soft-deleted placeholder tiles) are left
+     * untouched rather than failing the whole dashboard promotion.
+     */
+    async upsertDataApps(
+        user: SessionUser,
+        promotionChanges: PromotionChanges,
+        sourceProjectUuid: string,
+    ): Promise<PromotionChanges> {
+        const appUuids =
+            PromoteService.getDataAppUuidsFromChanges(promotionChanges);
+        if (appUuids.length === 0) {
+            return promotionChanges;
+        }
+
+        const appGenerateService = this.getAppGenerateService?.();
+        if (!appGenerateService) {
+            throw new ParameterError(
+                'Data apps are not available in this instance',
+            );
+        }
+
+        const promotedApps = await appGenerateService.promoteAppsForDashboard(
+            user,
+            sourceProjectUuid,
+            appUuids,
+        );
+        const appUuidMap = new Map(
+            promotedApps.map(({ sourceAppUuid, upstreamAppUuid }) => [
+                sourceAppUuid,
+                upstreamAppUuid,
+            ]),
+        );
+
+        const updatedDashboards = promotionChanges.dashboards.map(
+            (dashboardChange) => ({
+                ...dashboardChange,
+                data: {
+                    ...dashboardChange.data,
+                    tiles: dashboardChange.data.tiles.map((tile) => {
+                        if (
+                            !isDashboardDataAppTileType(tile) ||
+                            !tile.properties.appUuid
+                        ) {
+                            return tile;
+                        }
+                        const upstreamAppUuid = appUuidMap.get(
+                            tile.properties.appUuid,
+                        );
+                        // No mapping → the app was soft-deleted and skipped;
+                        // leave the placeholder tile pointing at its original
+                        // reference.
+                        if (!upstreamAppUuid) {
+                            return tile;
+                        }
+                        return {
+                            ...tile,
+                            properties: {
+                                ...tile.properties,
+                                appUuid: upstreamAppUuid,
+                                appDeletedAt: null,
+                            },
+                        };
+                    }),
+                },
+            }),
+        );
+
+        return {
+            ...promotionChanges,
+            dashboards: updatedDashboards,
+        };
+    }
+
+    /**
+     * Read-only diff of the data apps a dashboard promotion would create/update,
+     * for the promote confirmation dialog. Mirrors how `getPromoteDashboardDiff`
+     * surfaces charts and SQL charts. Returns [] when the dashboard has no
+     * DATA_APP tiles.
+     */
+    private async getDataAppDiffChanges(
+        user: SessionUser,
+        sourceProjectUuid: string,
+        promotionChanges: PromotionChanges,
+    ): Promise<NonNullable<PromotionChanges['dataApps']>> {
+        const appUuids =
+            PromoteService.getDataAppUuidsFromChanges(promotionChanges);
+        if (appUuids.length === 0) {
+            return [];
+        }
+
+        const appGenerateService = this.getAppGenerateService?.();
+        if (!appGenerateService) {
+            throw new ParameterError(
+                'Data apps are not available in this instance',
+            );
+        }
+
+        const changes = await appGenerateService.getDataAppPromoteChanges(
+            user,
+            sourceProjectUuid,
+            appUuids,
+        );
+
+        return changes.map(({ uuid, name, action }) => ({
+            action:
+                action === 'create'
+                    ? PromotionAction.CREATE
+                    : PromotionAction.UPDATE,
+            data: { uuid, name },
+        }));
+    }
+
     async promoteChart(user: SessionUser, chartUuid: string) {
         const { projectUuid } =
             await this.savedChartModel.getSummary(chartUuid);
@@ -1027,8 +1253,10 @@ export class PromoteService extends BaseService {
             );
         }
         try {
+            const auditedAbility = this.createAuditedAbility(user);
             PromoteService.checkPromoteChartPermissions(
-                user,
+                auditedAbility,
+                user.organizationUuid!,
                 promotedChart,
                 upstreamChart,
             );
@@ -1083,6 +1311,14 @@ export class PromoteService extends BaseService {
             chartUuid,
         );
 
+        const auditedAbility = this.createAuditedAbility(user);
+        PromoteService.checkPromoteChartPermissions(
+            auditedAbility,
+            user.organizationUuid!,
+            promotedChart,
+            upstreamChart,
+        );
+
         const promotionChanges = await this.getChartChanges(
             promotedChart,
             upstreamChart,
@@ -1118,6 +1354,14 @@ export class PromoteService extends BaseService {
                 upstreamProjectUuid,
                 savedSqlUuid,
             );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        PromoteService.checkPromoteSqlChartPermissions(
+            auditedAbility,
+            user.organizationUuid!,
+            promotedSqlChart,
+            upstreamSqlChart,
+        );
 
         const { promotionChanges, sqlChartChange } =
             await this.getSqlChartChanges(promotedSqlChart, upstreamSqlChart);
@@ -1162,8 +1406,10 @@ export class PromoteService extends BaseService {
             );
 
         try {
+            const auditedAbility = this.createAuditedAbility(user);
             PromoteService.checkPromoteSqlChartPermissions(
-                user,
+                auditedAbility,
+                user.organizationUuid!,
                 promotedSqlChart,
                 upstreamSqlChart,
             );
@@ -1220,12 +1466,44 @@ export class PromoteService extends BaseService {
             );
 
         // We're going to be updating this structure with new UUIDs if we need to create the items (eg: spaces)
-        const [promotionChanges, , , sqlCharts] =
+        const [promotionChanges, promotedCharts, promotedSqlCharts, sqlCharts] =
             await this.getPromotionDashboardChanges(
                 user,
                 promotedDashboard,
                 upstreamDashboard,
             );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        PromoteService.checkPromoteDashboardPermissions(
+            auditedAbility,
+            user.organizationUuid!,
+            promotedDashboard,
+            upstreamDashboard,
+        );
+        promotedCharts.forEach(({ promotedChart, upstreamChart }) =>
+            PromoteService.checkPromoteChartPermissions(
+                auditedAbility,
+                user.organizationUuid!,
+                promotedChart,
+                upstreamChart,
+                promotedDashboard,
+            ),
+        );
+        promotedSqlCharts.forEach(({ promotedSqlChart, upstreamSqlChart }) =>
+            PromoteService.checkPromoteSqlChartPermissions(
+                auditedAbility,
+                user.organizationUuid!,
+                promotedSqlChart,
+                upstreamSqlChart,
+                promotedDashboard,
+            ),
+        );
+
+        const dataApps = await this.getDataAppDiffChanges(
+            user,
+            dashboard.projectUuid,
+            promotionChanges,
+        );
 
         return {
             ...promotionChanges,
@@ -1233,6 +1511,7 @@ export class PromoteService extends BaseService {
                 action: sqlChartChange.action,
                 data: PromoteService.toPromotedSqlChartChange(sqlChartChange),
             })),
+            dataApps,
             spaces: PromoteService.sortSpaceChanges(promotionChanges.spaces),
         };
     }
@@ -1353,6 +1632,53 @@ export class PromoteService extends BaseService {
                 },
             ],
         };
+    }
+
+    /**
+     * Resolve a single source space (by its path) into the upstream project,
+     * creating it — and any missing ancestors — when absent. Returns the
+     * upstream space uuid.
+     *
+     * Data-app promotion needs only to place one entity into a space, so this
+     * builds the minimal space change set (the space plus its ancestors) and
+     * reuses `upsertSpaces` for the actual create + parent-chain + permission
+     * copy, rather than assembling a full chart/dashboard PromotionChanges.
+     */
+    async getOrCreateUpstreamSpace(
+        user: SessionUser,
+        sourceSpaceUuid: string,
+        upstreamProjectUuid: string,
+    ): Promise<string> {
+        const promotedSpace =
+            await this.spaceModel.getSpaceSummary(sourceSpaceUuid);
+
+        const ancestorUuids = await this.spaceModel.getSpaceAncestors({
+            spaceUuid: sourceSpaceUuid,
+            projectUuid: promotedSpace.projectUuid,
+        });
+        const ancestors =
+            ancestorUuids.length > 0
+                ? await this.spaceModel.find({ spaceUuids: ancestorUuids })
+                : [];
+
+        const spaceChanges = await Promise.all(
+            [promotedSpace, ...ancestors].map((space) =>
+                this.getSpaceChange(upstreamProjectUuid, space),
+            ),
+        );
+
+        const result = await this.upsertSpaces(
+            user,
+            promotedSpace.projectUuid,
+            {
+                spaces: spaceChanges,
+                dashboards: [],
+                charts: [],
+            },
+        );
+
+        return PromoteService.getSpaceByPath(result.spaces, promotedSpace.path)
+            .uuid;
     }
 
     async upsertSpaces(
@@ -1507,6 +1833,7 @@ export class PromoteService extends BaseService {
                 chartCount: 0,
                 dashboardCount: 0,
                 childSpaceCount: 0,
+                appCount: 0,
             };
             return {
                 action: PromotionAction.CREATE,
@@ -2132,8 +2459,10 @@ export class PromoteService extends BaseService {
             );
 
         try {
+            const auditedAbility = this.createAuditedAbility(user);
             PromoteService.checkPromoteDashboardPermissions(
-                user,
+                auditedAbility,
+                user.organizationUuid!,
                 promotedDashboard,
                 upstreamDashboard,
             );
@@ -2141,7 +2470,8 @@ export class PromoteService extends BaseService {
             // Check permissions for all chart tiles
             promotedCharts.forEach(({ promotedChart, upstreamChart }) =>
                 PromoteService.checkPromoteChartPermissions(
-                    user,
+                    auditedAbility,
+                    user.organizationUuid!,
                     promotedChart,
                     upstreamChart,
                     promotedDashboard,
@@ -2150,7 +2480,8 @@ export class PromoteService extends BaseService {
             promotedSqlCharts.forEach(
                 ({ promotedSqlChart, upstreamSqlChart }) =>
                     PromoteService.checkPromoteSqlChartPermissions(
-                        user,
+                        auditedAbility,
+                        user.organizationUuid!,
                         promotedSqlChart,
                         upstreamSqlChart,
                         promotedDashboard,
@@ -2184,6 +2515,14 @@ export class PromoteService extends BaseService {
                 user,
                 promotionChanges,
                 sqlChanges,
+            );
+
+            // Promote embedded data apps and remap their tiles. Must run before
+            // updateDashboard so the upstream apps row exists for the tile FK.
+            promotionChanges = await this.upsertDataApps(
+                user,
+                promotionChanges,
+                dashboard.projectUuid,
             );
 
             promotionChanges = await this.updateDashboard(

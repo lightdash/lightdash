@@ -12,9 +12,7 @@ Usage tips:
 - Results are paginated — use the page parameter to get more results if needed.
 - Each chart includes its name, description, type, and view count.`;
 
-export const toolGetDashboardChartsArgsSchema = createToolSchema({
-    description: TOOL_GET_DASHBOARD_CHARTS_DESCRIPTION,
-})
+export const toolGetDashboardChartsArgsSchema = createToolSchema()
     .extend({
         dashboardUuid: z
             .string()

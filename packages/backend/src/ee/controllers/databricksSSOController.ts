@@ -1,6 +1,8 @@
 import {
     ApiErrorPayload,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
+    DatabricksAuthenticationType,
     NotFoundError,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -15,6 +17,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -34,6 +37,7 @@ export class DatabricksSSOController extends BaseController {
     @Get('/is-authenticated')
     @OperationId('getDatabricksAccessToken')
     async get(@Request() req: express.Request): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         const projectUuid =
             typeof req.query.projectUuid === 'string'
@@ -44,9 +48,29 @@ export class DatabricksSSOController extends BaseController {
                 ? req.query.serverHostName
                 : undefined;
         if (projectUuid) {
+            const authInfo = await this.services
+                .getProjectService()
+                .getProjectWarehouseAuthInfo(
+                    toSessionUser(req.account),
+                    projectUuid,
+                );
+            // M2M auth uses project-level credentials, so no per-user SSO is expected.
+            if (
+                authInfo.type === WarehouseTypes.DATABRICKS &&
+                authInfo.authenticationType ===
+                    DatabricksAuthenticationType.OAUTH_M2M
+            ) {
+                return {
+                    status: 'ok',
+                    results: undefined,
+                };
+            }
             const credentials = await this.services
                 .getProjectService()
-                .getProjectCredentialsPreference(req.user!, projectUuid);
+                .getProjectCredentialsPreference(
+                    toSessionUser(req.account),
+                    projectUuid,
+                );
             if (credentials?.credentials.type !== WarehouseTypes.DATABRICKS) {
                 throw new NotFoundError(
                     'Databricks credentials not found for this project',
@@ -55,7 +79,10 @@ export class DatabricksSSOController extends BaseController {
         } else if (serverHostName) {
             const hasHostCredential = await this.services
                 .getUserService()
-                .hasDatabricksOAuthCredentialForHost(req.user!, serverHostName);
+                .hasDatabricksOAuthCredentialForHost(
+                    toSessionUser(req.account),
+                    serverHostName,
+                );
             if (!hasHostCredential) {
                 throw new NotFoundError(
                     'Databricks credentials not found for this workspace',
@@ -65,7 +92,7 @@ export class DatabricksSSOController extends BaseController {
             // Fallback for non-project scoped checks
             await this.services
                 .getUserService()
-                .getAccessToken(req.user!, 'databricks');
+                .getAccessToken(toSessionUser(req.account), 'databricks');
         }
         return {
             status: 'ok',

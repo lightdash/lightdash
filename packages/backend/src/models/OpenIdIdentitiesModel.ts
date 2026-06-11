@@ -36,6 +36,7 @@ export class OpenIdIdentityModel {
             createdAt: identity.created_at,
             userUuid: identity.user_uuid,
             email: identity.email,
+            teamId: identity.team_id,
         };
     }
 
@@ -49,6 +50,7 @@ export class OpenIdIdentityModel {
                 'openid_identities.created_at',
                 'users.user_uuid',
                 'openid_identities.email',
+                'openid_identities.team_id',
             );
     }
 
@@ -76,17 +78,10 @@ export class OpenIdIdentityModel {
     async findIdentityByOpenId(
         issuerType: OpenIdIdentityIssuerType,
         subject: string,
-        teamId?: string,
     ): Promise<OpenIdIdentity | null> {
-        const query = this.getOpenIdQueryBuilder()
+        const [identity] = await this.getOpenIdQueryBuilder()
             .where('issuer_type', issuerType)
             .andWhere('subject', subject);
-
-        if (teamId) {
-            void query.andWhere(`${OpenIdIdentitiesTableName}.team_id`, teamId);
-        }
-
-        const [identity] = await query;
 
         if (identity === undefined) {
             return null;

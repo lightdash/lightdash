@@ -4,11 +4,15 @@ import type {
     Dashboard,
     DashboardAsCodeLanguageMap,
     DashboardChartTileProperties,
+    DashboardDataAppTileProperties,
     DashboardFilterRule,
     DashboardHeadingTileProperties,
     DashboardLoomTileProperties,
     DashboardMarkdownTileProperties,
+    DashboardSqlChartTileProperties,
+    DashboardTab,
     DashboardTile,
+    DashboardTileTypes,
     FilterRule,
     MetricQuery,
     PromotionChanges,
@@ -80,7 +84,13 @@ export type ChartAsCode = Omit<
     spaceSlug: string;
     /** Timestamp when this chart was downloaded from Lightdash */
     downloadedAt?: Date;
-    /** Verification status of this chart. Read-only; ignored on upload. */
+    /**
+     * Declarative verification state.
+     * `true` verifies the chart on upload, `false` unverifies it, `undefined` leaves the
+     * current state untouched. Download sets this to `true` when the chart is verified.
+     */
+    verified?: boolean;
+    /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
 };
 
@@ -138,27 +148,108 @@ export type ApiSqlChartAsCodeListResponse = {
     };
 };
 
-export type DashboardTileAsCode = Omit<DashboardTile, 'properties' | 'uuid'> & {
-    uuid: DashboardTile['uuid'] | undefined; // Allows us to remove the uuid from the object
+type DashboardTileAsCodeBase = {
+    uuid: DashboardTile['uuid'] | undefined;
     tileSlug: string | undefined;
-    properties:
-        | Pick<
-              DashboardChartTileProperties['properties'],
-              'title' | 'hideTitle' | 'chartSlug' | 'chartName'
-          >
-        | DashboardMarkdownTileProperties['properties']
-        | DashboardLoomTileProperties['properties']
-        | DashboardHeadingTileProperties['properties'];
+    type: DashboardTileTypes;
+    /**
+     * @minimum 0
+     * @maximum 35
+     */
+    x: DashboardTile['x'];
+    /**
+     * @minimum 0
+     */
+    y: DashboardTile['y'];
+    /**
+     * @minimum 1
+     */
+    h: DashboardTile['h'];
+    /**
+     * @minimum 1
+     * @maximum 36
+     */
+    w: DashboardTile['w'];
+    tabUuid: DashboardTile['tabUuid'];
 };
+
+export type DashboardChartTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.SAVED_CHART;
+    properties: Pick<
+        DashboardChartTileProperties['properties'],
+        'title' | 'hideTitle' | 'chartName'
+    > & { chartSlug: string | null };
+};
+
+export type DashboardSqlChartTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.SQL_CHART;
+    properties: Pick<
+        DashboardSqlChartTileProperties['properties'],
+        'title' | 'hideTitle' | 'chartName'
+    > & { chartSlug: string | null };
+};
+
+export type DashboardMarkdownTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.MARKDOWN;
+    properties: DashboardMarkdownTileProperties['properties'];
+};
+
+export type DashboardLoomTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.LOOM;
+    properties: DashboardLoomTileProperties['properties'];
+};
+
+export type DashboardHeadingTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.HEADING;
+    properties: DashboardHeadingTileProperties['properties'];
+};
+
+export type DashboardDataAppTileAsCode = DashboardTileAsCodeBase & {
+    type: DashboardTileTypes.DATA_APP;
+    properties: DashboardDataAppTileProperties['properties'];
+};
+
+export type DashboardTileAsCode =
+    | DashboardChartTileAsCode
+    | DashboardSqlChartTileAsCode
+    | DashboardMarkdownTileAsCode
+    | DashboardLoomTileAsCode
+    | DashboardHeadingTileAsCode
+    | DashboardDataAppTileAsCode;
 
 export type DashboardTileWithSlug = DashboardTile & {
     tileSlug: string | undefined;
 };
 
-export type DashboardAsCode = Pick<
-    Dashboard,
-    'name' | 'description' | 'tabs' | 'slug' | 'config' | 'parameters'
+export type DashboardTabAsCode = {
+    uuid: DashboardTab['uuid'];
+    /**
+     * @minLength 1
+     */
+    name: string;
+    /**
+     * @minimum 0
+     */
+    order: number;
+    hidden?: DashboardTab['hidden'];
+};
+
+export type DashboardAsCode = Omit<
+    Pick<
+        Dashboard,
+        'name' | 'description' | 'tabs' | 'slug' | 'config' | 'parameters'
+    >,
+    'name' | 'slug' | 'tabs'
 > & {
+    /**
+     * @minLength 1
+     */
+    name: string;
+    /**
+     * @pattern ^[a-z0-9-]+$
+     */
+    slug: string;
+    tabs: DashboardTabAsCode[];
     /** Not modifiable by user, but useful to know if it has been updated. Defaults to now if omitted. */
     updatedAt?: Date;
     tiles: DashboardTileAsCode[];
@@ -171,7 +262,13 @@ export type DashboardAsCode = Pick<
         metrics?: DashboardFilterRule[];
         tableCalculations?: DashboardFilterRule[];
     };
-    /** Verification status of this dashboard. Read-only; ignored on upload. */
+    /**
+     * Declarative verification state.
+     * `true` verifies the dashboard on upload, `false` unverifies it, `undefined` leaves the
+     * current state untouched. Download sets this to `true` when the dashboard is verified.
+     */
+    verified?: boolean;
+    /** Detailed verification info (who/when). Read-only; ignored on upload. */
     verification?: ContentVerificationInfo | null;
 };
 

@@ -1,6 +1,7 @@
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import {
     convertAiTableCalcsSchemaToTableCalcs,
+    filterAggregationCustomMetrics,
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
@@ -100,7 +101,9 @@ export const parseVizConfig = (
                 maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
             ),
             filters: vizTool.filters,
-            additionalMetrics: vizTool.customMetrics ?? [],
+            additionalMetrics: filterAggregationCustomMetrics(
+                vizTool.customMetrics,
+            ),
             tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
                 vizTool.tableCalculations,
             ),

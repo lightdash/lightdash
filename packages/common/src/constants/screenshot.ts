@@ -16,6 +16,25 @@
 export const SCREENSHOT_READY_INDICATOR_ID = 'lightdash-ready-indicator';
 
 /**
+ * ID of an element that is always mounted on minimal pages and exposes the
+ * current screenshot progress: which tiles are expected, ready, and errored.
+ *
+ * Unlike SCREENSHOT_READY_INDICATOR_ID, this element exists from first paint
+ * so the UnfurlService can read it on timeout to identify which tile UUIDs
+ * are still unaccounted for.
+ *
+ * Data attributes:
+ * - data-tiles-expected: JSON array of tile UUIDs expected to render
+ * - data-tiles-ready:    JSON array of tile UUIDs that called markTileScreenshotReady
+ * - data-tiles-errored:  JSON array of tile UUIDs that called markTileScreenshotErrored
+ *
+ * Usage:
+ * - Frontend: Rendered by ScreenshotProgressIndicator on minimal pages
+ * - Backend:  Read by UnfurlService when waitForSelector(READY_INDICATOR) times out
+ */
+export const SCREENSHOT_PROGRESS_INDICATOR_ID = 'lightdash-screenshot-progress';
+
+/**
  * Class name for tile loading skeleton overlays.
  * The UnfurlService waits for these elements to be hidden (loading complete).
  *
@@ -46,14 +65,21 @@ export const LOADING_CHART_CLASS = 'loading_chart';
 export const MARKDOWN_TILE_CLASS = 'markdown-tile';
 
 /**
- * Class name for the dashboard grid layout container.
- * This is the screenshot target for dashboard screenshots.
+ * Class name for the dashboard screenshot/PDF target wrapper.
+ * Wraps the dashboard's grid(s) so the backend can measure and screenshot a
+ * single deterministic element. When a multi-tab PDF export is rendered we
+ * stack one <ResponsiveGridLayout> per tab; this wrapper encompasses all of
+ * them so getBoundingClientRect / locator.screenshot capture every tab.
+ *
+ * Note: do NOT use `react-grid-layout` here — that class is also applied by
+ * the third-party grid library to every grid instance, so a multi-grid render
+ * would yield multiple matches and the backend would only see the first one.
  *
  * Usage:
- * - Frontend: Applied to ResponsiveGridLayout in MinimalDashboard
+ * - Frontend: Applied to the wrapper <div> in MinimalDashboardContent
  * - Backend: Screenshot selector in UnfurlService.saveScreenshot()
  */
-export const DASHBOARD_GRID_CLASS = 'react-grid-layout';
+export const DASHBOARD_GRID_CLASS = 'lightdash-dashboard-screenshot-target';
 
 /**
  * ID of the element rendered by the error boundary fallback.
@@ -82,6 +108,8 @@ export const LOGIN_PAGE_ID = 'lightdash-login-page';
 export const SCREENSHOT_SELECTORS = {
     /** ID selector: #lightdash-ready-indicator */
     READY_INDICATOR: `#${SCREENSHOT_READY_INDICATOR_ID}`,
+    /** ID selector: #lightdash-screenshot-progress */
+    PROGRESS_INDICATOR: `#${SCREENSHOT_PROGRESS_INDICATOR_ID}`,
     /** Class selector: .loading_chart_overlay */
     LOADING_OVERLAY: `.${LOADING_CHART_OVERLAY_CLASS}`,
     /** Class selector: .loading_chart */

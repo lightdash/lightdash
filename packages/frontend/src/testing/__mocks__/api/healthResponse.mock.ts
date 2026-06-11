@@ -40,20 +40,18 @@ export default function mockHealthResponse(
         staticIp: '',
         signupUrl: undefined,
         helpMenuUrl: undefined,
-        posthog: undefined,
         query: {
             maxPageSize: 2500,
             maxLimit: 1000000,
+            queryMaxLimit: 1000000,
             defaultLimit: 500,
             csvCellsLimit: 100,
+            csvMaxLimit: 5000000,
             retryQueryOnTransientErrors: true,
         },
         dashboard: {
             maxTilesPerTab: 50,
             maxTabsPerDashboard: 20,
-            versionHistory: {
-                daysLimit: 3,
-            },
             disableSentryTracking: false,
         },
         pivotTable: {
@@ -130,11 +128,14 @@ export default function mockHealthResponse(
             enabled: false,
             retentionDays: 30,
         },
+        dashboardComments: {
+            enabled: true,
+        },
         preAggregates: {
             enabled: false,
         },
         dataApps: {
-            enabled: false,
+            previewOrigin: null,
         },
         ...overrides,
     };

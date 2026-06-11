@@ -12,6 +12,7 @@ import {
     type TooltipProps,
 } from '@mantine-8/core';
 import {
+    IconAppWindow,
     IconFolder,
     IconLayoutDashboard,
     type Icon as TablerIconType,
@@ -75,6 +76,8 @@ export const ResourceIcon: FC<ResourceIconProps> = ({ item }) => {
             return <IconBox icon={IconFolder} color="violet.6" />;
         case ResourceViewItemType.CHART:
             return <ChartIcon chartKind={item.data.chartKind} />;
+        case ResourceViewItemType.DATA_APP:
+            return <IconBox icon={IconAppWindow} color="orange.6" />;
         default:
             return assertUnreachable(item, 'Resource type not supported');
     }

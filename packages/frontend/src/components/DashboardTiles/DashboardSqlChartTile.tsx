@@ -41,6 +41,11 @@ interface Props extends Pick<
 > {
     tile: DashboardSqlChartTile;
     minimal?: boolean;
+    /**
+     * Render via the embed-only API surface (JWT-authorized via dashboard
+     * tile membership) instead of the registered chart endpoints.
+     */
+    isEmbed?: boolean;
 }
 
 /**
@@ -69,7 +74,7 @@ const DashboardOptions = memo(
     ),
 );
 
-const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
+const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
     const { user } = useApp();
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
@@ -115,16 +120,29 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
             isFetching: isChartResultsFetching,
         },
         getDownloadQueryUuid,
-    } = useSavedSqlChartResults({
-        projectUuid,
-        savedSqlUuid,
-        context,
-        dashboardUuid,
-        tileUuid: tile.uuid,
-        dashboardFilters,
-        dashboardSorts: [],
-        parameters,
-    });
+    } = useSavedSqlChartResults(
+        isEmbed
+            ? {
+                  projectUuid,
+                  savedSqlUuid,
+                  context,
+                  tileUuid: tile.uuid,
+                  dashboardFilters,
+                  dashboardSorts: [],
+                  parameters,
+                  isEmbed: true,
+              }
+            : {
+                  projectUuid,
+                  savedSqlUuid,
+                  context,
+                  dashboardUuid: dashboardUuid!,
+                  tileUuid: tile.uuid,
+                  dashboardFilters,
+                  dashboardSorts: [],
+                  parameters,
+              },
+    );
 
     // Charts in Dashboard shouldn't have animation
     const specWithoutAnimation = useMemo(() => {
@@ -244,7 +262,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, ...rest }) => {
                         title={tile.properties.chartName}
                         description={
                             chartResultsError?.error?.message ||
-                            'No data available'
+                            'Error running query'
                         }
                     />
                 )}

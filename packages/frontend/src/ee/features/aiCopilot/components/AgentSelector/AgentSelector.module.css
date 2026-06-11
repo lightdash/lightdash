@@ -1,0 +1,87 @@
+.target {
+    display: inline-flex;
+    align-items: center;
+    width: 200px;
+    padding: 4px 8px;
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid var(--mantine-color-ldGray-2);
+    background: transparent;
+    box-shadow: var(--mantine-shadow-subtle);
+    cursor: pointer;
+    font-size: var(--mantine-font-size-xs);
+    font-family: var(--mantine-font-family);
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease;
+}
+
+.target:hover {
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldGray-2);
+    }
+}
+
+.label {
+    flex: 1;
+    text-align: left;
+    font-family: var(--mantine-font-family);
+}
+
+.headerTarget {
+    width: auto;
+    min-width: 0;
+    max-width: 260px;
+    padding: 4px 6px;
+    border-color: transparent;
+    box-shadow: none;
+    background: transparent;
+}
+
+.headerTarget:hover,
+.headerTarget:focus-visible,
+.headerTarget[data-open='true'] {
+    border-color: transparent;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+    }
+}
+
+.compact {
+    width: auto;
+    height: rem(30px);
+    padding: 0 var(--mantine-spacing-xs);
+    border-color: transparent;
+    border-radius: var(--mantine-radius-xl);
+    box-shadow: none;
+    background: transparent;
+}
+
+.compact:hover,
+.compact:focus-visible,
+.compact[data-open='true'] {
+    border-color: transparent;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldGray-2);
+    }
+}
+
+.compact .label {
+    flex: none;
+    width: auto;
+    max-width: rem(140px);
+    overflow: hidden;
+    white-space: nowrap;
+    font-weight: 600;
+    color: var(--mantine-color-ldGray-8);
+}

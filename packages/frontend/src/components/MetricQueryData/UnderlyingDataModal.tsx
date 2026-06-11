@@ -11,6 +11,7 @@ import {
     isDimension,
     isField,
     isMetric,
+    normalizeCellRawForFilter,
     QueryExecutionContext,
     type CreateSavedChartVersion,
     type FilterRule,
@@ -41,6 +42,7 @@ import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import { type TableColumn } from '../common/Table/types';
 import ExportResults from '../ExportResults';
+import { getZoomedDimFilter } from './dateZoomFilter';
 import UnderlyingDataResultsTable from './UnderlyingDataResultsTable';
 import { useMetricQueryDataContext } from './useMetricQueryDataContext';
 
@@ -54,6 +56,7 @@ const UnderlyingDataModalContent: FC = () => {
         underlyingDataConfig,
         queryUuid,
         parameters,
+        resolvedTimezone,
     } = useMetricQueryDataContext();
 
     const [sorts, setSorts] = useState<SortField[]>([]);
@@ -106,19 +109,24 @@ const UnderlyingDataModalContent: FC = () => {
     );
 
     const showUnderlyingValues: string[] | undefined = useMemo(() => {
-        return underlyingDataConfig?.item !== undefined &&
+        if (
+            underlyingDataConfig?.item !== undefined &&
             isField(underlyingDataConfig.item) &&
-            isMetric(underlyingDataConfig.item)
-            ? underlyingDataConfig?.item.showUnderlyingValues
-            : undefined;
-    }, [underlyingDataConfig?.item]);
+            isMetric(underlyingDataConfig.item) &&
+            underlyingDataConfig.item.showUnderlyingValues !== undefined
+        ) {
+            return underlyingDataConfig.item.showUnderlyingValues;
+        }
+        // Fallback to base table's default for table calculations and custom metrics
+        return explore?.tables[explore.baseTable]?.defaultShowUnderlyingValues;
+    }, [underlyingDataConfig?.item, explore]);
 
     const sortByUnderlyingValues = useCallback(
         (columnA: TableColumn, columnB: TableColumn) => {
             if (showUnderlyingValues === undefined) return 0;
 
             const indexOfUnderlyingValue = (column: TableColumn): number => {
-                const columnDimension = allDimensions.find(
+                const columnDimension = allFields.find(
                     (dimension) => getItemId(dimension) === column.id,
                 );
                 if (columnDimension === undefined) return -1;
@@ -135,12 +143,12 @@ const UnderlyingDataModalContent: FC = () => {
                 indexOfUnderlyingValue(columnB)
             );
         },
-        [showUnderlyingValues, allDimensions],
+        [showUnderlyingValues, allFields],
     );
 
     const filters = useMemo<Filters>(() => {
         if (!underlyingDataConfig) return {};
-        const { item, fieldValues, pivotReference, value } =
+        const { item, fieldValues, pivotReference, value, dateZoom } =
             underlyingDataConfig;
 
         if (item === undefined) return {};
@@ -149,6 +157,14 @@ const UnderlyingDataModalContent: FC = () => {
         const dimensionFilters = !isDimension(item)
             ? Object.entries(fieldValues).reduce((acc, r) => {
                   const [key, { raw }] = r;
+
+                  const isValidDimension = allDimensions.find(
+                      (dimension) => getItemId(dimension) === key,
+                  );
+                  if (!isValidDimension) return acc;
+
+                  const zoomedFilters = getZoomedDimFilter(key, raw, dateZoom);
+                  if (zoomedFilters) return [...acc, ...zoomedFilters];
 
                   const dimensionFilter: FilterRule = {
                       id: uuidv4(),
@@ -159,18 +175,20 @@ const UnderlyingDataModalContent: FC = () => {
                           raw === null
                               ? FilterOperator.NULL
                               : FilterOperator.EQUALS,
-                      values: raw === null ? undefined : [raw],
+                      values:
+                          raw === null
+                              ? undefined
+                              : [
+                                    normalizeCellRawForFilter(
+                                        raw,
+                                        isValidDimension,
+                                        resolvedTimezone,
+                                    ),
+                                ],
                   };
-                  const isValidDimension = allDimensions.find(
-                      (dimension) => getItemId(dimension) === key,
-                  );
-
-                  if (isValidDimension) {
-                      return [...acc, dimensionFilter];
-                  }
-                  return acc;
+                  return [...acc, dimensionFilter];
               }, [] as FilterRule[])
-            : [
+            : (getZoomedDimFilter(getItemId(item), value.raw, dateZoom) ?? [
                   {
                       id: uuidv4(),
                       target: {
@@ -180,9 +198,18 @@ const UnderlyingDataModalContent: FC = () => {
                           value.raw === null
                               ? FilterOperator.NULL
                               : FilterOperator.EQUALS,
-                      values: value.raw === null ? undefined : [value.raw],
+                      values:
+                          value.raw === null
+                              ? undefined
+                              : [
+                                    normalizeCellRawForFilter(
+                                        value.raw,
+                                        item,
+                                        resolvedTimezone,
+                                    ),
+                                ],
                   },
-              ];
+              ]);
 
         const pivotFilter: FilterRule[] = (
             pivotReference?.pivotValues || []
@@ -231,7 +258,13 @@ const UnderlyingDataModalContent: FC = () => {
             },
             allFields,
         );
-    }, [underlyingDataConfig, metricQuery, allFields, allDimensions]);
+    }, [
+        underlyingDataConfig,
+        metricQuery,
+        allFields,
+        allDimensions,
+        resolvedTimezone,
+    ]);
 
     const {
         error,

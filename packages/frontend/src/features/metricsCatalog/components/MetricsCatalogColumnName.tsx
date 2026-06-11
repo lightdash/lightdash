@@ -16,8 +16,11 @@ import EmojiPicker, {
     EmojiStyle,
     type EmojiClickData,
 } from 'emoji-picker-react';
-import { type MRT_Row, type MRT_TableInstance } from 'mantine-react-table';
 import { forwardRef, useCallback, useEffect, useState } from 'react';
+import {
+    type ContentTableRow,
+    type ContentTableInstance,
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { MetricIconPlaceholder } from '../../../svgs/metricsCatalog';
@@ -98,8 +101,8 @@ const SharedEmojiPicker = forwardRef(
 );
 
 type Props = {
-    row: MRT_Row<CatalogField>;
-    table: MRT_TableInstance<CatalogField>;
+    row: ContentTableRow<CatalogField>;
+    table: ContentTableInstance<CatalogField>;
 };
 
 export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(

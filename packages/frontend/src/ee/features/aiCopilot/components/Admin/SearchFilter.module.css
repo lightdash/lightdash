@@ -1,16 +1,17 @@
 .searchInput {
     height: 32px;
-    width: 309px;
+    width: 340px;
     text-overflow: ellipsis;
     font-size: var(--mantine-font-size-sm);
     font-weight: 400;
     color: var(--mantine-color-ldGray-5);
-    box-shadow: var(--mantine-shadow-subtle);
-    border: 1px solid var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-white);
+    box-shadow: none;
+    border: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .searchInput:hover {
-    border: 1px solid var(--mantine-color-ldGray-4);
+    border: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .searchInput:focus {
@@ -19,17 +20,18 @@
 
 .searchInputWithValue {
     height: 32px;
-    width: 309px;
+    width: 340px;
     text-overflow: ellipsis;
     font-size: var(--mantine-font-size-sm);
     font-weight: 400;
     color: var(--mantine-color-ldGray-8);
-    box-shadow: var(--mantine-shadow-subtle);
-    border: 1px solid var(--mantine-color-ldGray-3);
+    background: var(--mantine-color-white);
+    box-shadow: none;
+    border: 1px solid var(--mantine-color-ldGray-2);
 }
 
 .searchInputWithValue:hover {
-    border: 1px solid var(--mantine-color-ldGray-4);
+    border: 1px solid var(--mantine-color-ldGray-3);
 }
 
 .searchInputWithValue:focus {

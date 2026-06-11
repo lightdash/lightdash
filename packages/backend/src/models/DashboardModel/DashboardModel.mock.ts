@@ -137,6 +137,7 @@ export const spaceEntry: SpaceTable['base'] = {
     inherit_parent_permissions: true,
     project_member_access_role: null,
     is_default_user_space: false,
+    color_palette_uuid: null,
 
     deleted_at: null,
     deleted_by_user_uuid: null,
@@ -159,6 +160,7 @@ export const savedChartEntry: SavedChartTable['base'] = {
     first_viewed_at: null,
     deleted_at: null,
     deleted_by_user_uuid: null,
+    color_palette_uuid: null,
 };
 
 export const dashboardEntry: DashboardTable['base'] = {
@@ -176,6 +178,7 @@ export const dashboardEntry: DashboardTable['base'] = {
 
     deleted_at: null,
     deleted_by_user_uuid: null,
+    color_palette_uuid: null,
 };
 
 export const dashboardVersionEntry: DashboardVersionTable['base'] = {
@@ -333,6 +336,7 @@ export const expectedDashboard: DashboardDAO = {
     views: 1,
     firstViewedAt: new Date(1),
     tabs: [],
+    colorPaletteUuid: null,
 };
 
 export const expectedAllDashboards: DashboardBasicDetailsWithTileTypes[] = [
@@ -369,6 +373,7 @@ export const user: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    timezone: null,
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { SEED_PROJECT } from '@lightdash/common';
 
 describe('Pivot Tables', () => {
@@ -41,10 +40,14 @@ describe('Pivot Tables', () => {
 
         cy.dragAndDrop(dragSelector, dropSelector);
 
+        // Pivoting now runs in SQL, so re-run the query to fetch pivoted results.
+        cy.get('button').contains('Run query').click();
+
         cy.get('[data-testid="visualization"]').as('chartArea'); // Using an alias aviod querying the DOM for the same element multiple times
 
         cy.get('@chartArea').findByText('Loading chart').should('not.exist');
-        cy.get('@chartArea').contains('Is completed'); // Check that the chart updated successfully with the pivot table(containing 'is completed' column)
+        // Generous timeout to cover the pivoted query round-trip.
+        cy.get('@chartArea').contains('Is completed', { timeout: 30000 }); // Check that the chart updated successfully with the pivot table(containing 'is completed' column)
     });
 
     // todo: remove

@@ -3,6 +3,23 @@
     overflow: hidden;
 }
 
+/* A fixed NavBar banner (preview / impersonation) reserves an extra 35px at
+   the top, so shrink to fit when one is present — otherwise the page overflows
+   the viewport and can be scrolled. Mirrors dashboardTabs/tabs.module.css. */
+:global(body:has(#preview-banner)) .layout,
+:global(body:has(#impersonation-banner)) .layout {
+    height: calc(100vh - 50px - 35px);
+}
+
+/* Hard pixel floor for the chat panel — react-resizable-panels' minSize is
+   a percent of the group width, so on wide viewports a low percent still
+   produces a sidebar too narrow for the prompt UI to render legibly.
+   Applied on the Panel element (not the inner chatPanel) so the flex item
+   itself stops shrinking instead of letting content overflow. */
+.chatPanelOuter {
+    min-width: 300px;
+}
+
 .chatPanel {
     display: flex;
     flex-direction: column;
@@ -18,6 +35,7 @@
 
 .chatMessages {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
     padding: var(--mantine-spacing-md);
     display: flex;
@@ -44,27 +62,28 @@
 
 .userBubble {
     max-width: 85%;
-    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
-    border-radius: var(--mantine-radius-lg);
-    border-bottom-right-radius: var(--mantine-radius-xs);
+    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    border-radius: var(--mantine-radius-md);
     font-size: var(--mantine-font-size-sm);
     line-height: 1.5;
     white-space: pre-wrap;
+    border: 1px solid;
 
     @mixin light {
-        background-color: var(--mantine-color-violet-6);
-        color: var(--mantine-color-white);
+        background-color: var(--mantine-color-ldGray-0);
+        color: var(--mantine-color-black);
+        border-color: var(--mantine-color-ldGray-3);
     }
     @mixin dark {
-        background-color: var(--mantine-color-violet-8);
+        background-color: var(--mantine-color-dark-6);
         color: var(--mantine-color-white);
+        border-color: var(--mantine-color-dark-4);
     }
 }
 
 .assistantMessage {
     display: flex;
-    gap: var(--mantine-spacing-sm);
-    align-items: flex-start;
+    justify-content: flex-start;
 }
 
 .assistantBubble {
@@ -80,9 +99,18 @@
     font-family: inherit !important;
 }
 
+.markdownDimmed,
+.markdownDimmed * {
+    color: var(--mantine-color-dimmed) !important;
+}
+
+.markdownInline p {
+    margin: 0 !important;
+}
+
 .chatInputArea {
     flex-shrink: 0;
-    padding: var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-sm) 48px;
     border-top: 1px solid;
 
     @mixin light {
@@ -95,9 +123,10 @@
 
 .inputWrapper {
     display: flex;
-    align-items: flex-end;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
     border-radius: var(--mantine-radius-lg);
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: var(--mantine-spacing-sm);
     transition:
         border-color 150ms ease,
         box-shadow 150ms ease;
@@ -113,13 +142,24 @@
 
     &:focus-within {
         @mixin light {
-            border-color: var(--mantine-color-ldGray-4);
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+            border-color: var(--mantine-color-ldGray-5);
+            box-shadow: 0 0 0 4px var(--mantine-color-ldGray-2);
         }
         @mixin dark {
-            border-color: var(--mantine-color-ldDark-5);
+            border-color: var(--mantine-color-ldDark-7);
+            box-shadow: 0 0 0 4px var(--mantine-color-ldDark-4);
         }
     }
+}
+
+.attachedResources {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-xs);
+}
+
+.inputBottomRow {
+    flex-wrap: nowrap;
 }
 
 .textarea {
@@ -153,6 +193,12 @@
     transition:
         transform 150ms ease,
         opacity 150ms ease;
+
+    background-color: var(--mantine-color-foreground-0);
+
+    &:hover:not(:disabled) {
+        background-color: var(--mantine-color-foreground-1);
+    }
 
     &:disabled {
         opacity: 0.4;
@@ -207,7 +253,7 @@
     display: flex;
     align-items: center;
     gap: var(--mantine-spacing-sm);
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-md);
+    padding: var(--mantine-spacing-md);
     border-bottom: 1px solid;
 
     @mixin light {
@@ -223,7 +269,7 @@
 .previewHeaderInfo {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 2px;
     min-width: 0;
     flex: 1;
 }
@@ -234,6 +280,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    position: relative;
 }
 
 .previewEmpty {
@@ -294,35 +341,143 @@
     }
 }
 
-.imagePreview {
+.bubbleQueryList {
     display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.bubbleQueryItem {
+    display: inline-flex;
     align-items: center;
-    gap: var(--mantine-spacing-xs);
-    padding: var(--mantine-spacing-xs) 0;
+    gap: 4px;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1px solid;
+    height: 22px;
+    max-width: 100%;
+    min-width: 0;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+        border-color: var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-ldDark-4);
+        border-color: var(--mantine-color-ldDark-6);
+    }
 }
 
-.imagePreviewThumbnail {
-    height: 48px;
-    max-width: 120px;
-    border-radius: var(--mantine-radius-sm);
-    object-fit: cover;
+.bubbleQueryItemIcon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
 }
 
-.textareaColumn {
+.bubbleQueryItemName {
+    min-width: 0;
+    flex: 0 1 auto;
+    font-size: 11px;
+    line-height: 1;
+}
+
+/* Full-width framed panel that hosts the clarifying questions. Sits on the
+ * chat-panel bg with a slight tint + border so the user's eye is anchored
+ * here (paired with `.dimmedHistory` on the messages above). */
+.clarifyContainer {
     display: flex;
     flex-direction: column;
-    flex: 1;
-    min-width: 0;
+    gap: var(--mantine-spacing-sm);
+    width: 100%;
+    padding: var(--mantine-spacing-md);
+    border-radius: var(--mantine-radius-md);
+    border: 1px solid;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-1);
+        border-color: var(--mantine-color-ldGray-3);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+        border-color: var(--mantine-color-dark-4);
+    }
 }
 
-.imagePickerButton {
-    flex-shrink: 0;
-    opacity: 0.6;
-    transition: opacity 150ms ease;
+/* Wraps the rendered chat history. Reproduces `.chatMessages` flex-column
+ * gap so layout is identical with or without the wrapper, and lets us dim
+ * the whole group via a sibling class. */
+.chatMessageGroup {
+    display: flex;
+    flex-direction: column;
+    gap: var(--mantine-spacing-lg);
+}
 
-    &:hover {
-        opacity: 1;
+.dimmedHistory {
+    opacity: 0.4;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+}
+
+.clarifyCard {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 10px;
+    border-radius: var(--mantine-radius-sm);
+    transition: background-color 100ms ease;
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
     }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-6);
+    }
+
+    &:focus-within {
+        @mixin light {
+            background-color: var(--mantine-color-ldGray-0);
+        }
+        @mixin dark {
+            background-color: var(--mantine-color-dark-5);
+        }
+    }
+}
+
+/* Strip the default Mantine Textarea framing so the answer reads as flowing
+ * chat text inside the card instead of an embedded form field. */
+.clarifyCardInput {
+    padding: 0 !important;
+    min-height: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    font-size: var(--mantine-font-size-sm) !important;
+    line-height: 1.5 !important;
+}
+
+.bubbleClarificationList {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.bubbleClarificationItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px;
+    border-radius: var(--mantine-radius-sm);
+
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+    @mixin dark {
+        background-color: var(--mantine-color-dark-5);
+    }
+}
+
+.bubbleClarificationQuestion {
+    color: var(--mantine-color-dimmed);
 }
 
 .sentImageThumbnail {

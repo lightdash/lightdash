@@ -2,14 +2,13 @@ import {
     Stack,
     Text,
     Title,
-    type BoxProps,
     type StackProps,
     type TextProps,
     type TitleProps,
 } from '@mantine-8/core';
 import { type FC, type ReactNode } from 'react';
 
-type EmptyStateProps = BoxProps & {
+type EmptyStateProps = Omit<StackProps, 'title'> & {
     icon?: ReactNode;
     title?: ReactNode;
     titleProps?: TitleProps;

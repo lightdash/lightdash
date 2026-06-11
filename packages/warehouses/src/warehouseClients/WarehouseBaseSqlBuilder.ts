@@ -1,4 +1,5 @@
 import {
+    defaultNullSafeEqualSql,
     Metric,
     SupportedDbtAdapter,
     TimeIntervalUnit,
@@ -35,6 +36,14 @@ export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBui
 
     getFloatingType(): string {
         return 'FLOAT';
+    }
+
+    getNullSafeEqualSql(left: string, right: string): string {
+        return defaultNullSafeEqualSql(left, right);
+    }
+
+    getNullSafeEqualJoinSql(left: string, right: string): string {
+        return defaultNullSafeEqualSql(left, right);
     }
 
     getMetricSql(sql: string, metric: Metric): string {

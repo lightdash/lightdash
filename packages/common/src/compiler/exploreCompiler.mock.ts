@@ -19,6 +19,7 @@ import {
     type WarehouseClient,
     type WarehouseTables,
 } from '../types/warehouse';
+import { defaultNullSafeEqualSql } from '../utils/warehouse';
 import { type UncompiledExplore } from './exploreCompiler';
 
 export const warehouseClientMock: WarehouseClient = {
@@ -31,15 +32,6 @@ export const warehouseClientMock: WarehouseClient = {
                 },
             },
         },
-    }),
-    getAsyncQueryResults: async () => ({
-        queryId: null,
-        queryMetadata: null,
-        totalRows: 0,
-        durationMs: 0,
-        fields: {},
-        pageCount: 0,
-        rows: [],
     }),
     streamQuery: async (_query, streamCallback) => {
         await streamCallback({
@@ -64,6 +56,8 @@ export const warehouseClientMock: WarehouseClient = {
     getStringQuoteChar: () => "'",
     getEscapeStringQuoteChar: () => "'",
     getFloatingType: () => 'FLOAT',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     getMetricSql: (sql, metric) => {
         switch (metric.type) {
@@ -179,6 +173,46 @@ export const exploreOneEmptyTableCompiled: Explore = {
         },
     },
 };
+
+export const createExploreWithRequiredFilters = (
+    requiredFilters: UncompiledExplore['tables'][string]['requiredFilters'],
+): UncompiledExplore => ({
+    ...exploreOneEmptyTable,
+    name: 'orders',
+    label: 'Orders',
+    baseTable: 'orders',
+    tables: {
+        orders: {
+            ...exploreOneEmptyTable.tables.a,
+            name: 'orders',
+            label: 'Orders',
+            dimensions: {
+                credit_card_amount: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.NUMBER,
+                    name: 'credit_card_amount',
+                    label: 'Credit card amount',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.credit_card_amount',
+                    hidden: true,
+                },
+                has_credit_card_payment: {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.BOOLEAN,
+                    name: 'has_credit_card_payment',
+                    label: 'Has credit card payment',
+                    table: 'orders',
+                    tableLabel: 'Orders',
+                    sql: '${TABLE}.credit_card_amount > 0',
+                    hidden: false,
+                    isAdditionalDimension: true,
+                },
+            },
+            requiredFilters,
+        },
+    },
+});
 
 export const exploreMissingBaseTable: UncompiledExplore = {
     ...exploreBase,

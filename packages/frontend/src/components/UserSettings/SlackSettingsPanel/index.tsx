@@ -10,6 +10,7 @@ import {
     Badge,
     Box,
     Button,
+    Divider,
     Flex,
     Group,
     Loader,
@@ -28,9 +29,10 @@ import {
     IconRefresh,
     IconTrash,
 } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { useEffect, useMemo, type FC } from 'react';
 import { Link } from 'react-router';
 import { z } from 'zod';
+import { useAiAgentAdminAgents } from '../../../ee/features/aiCopilot/hooks/useAiAgentAdmin';
 import { useAiOrganizationSettings } from '../../../ee/features/aiCopilot/hooks/useAiOrganizationSettings';
 import {
     useDeleteSlack,
@@ -40,8 +42,7 @@ import {
 import { useActiveProjectUuid } from '../../../hooks/useActiveProject';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import slackSvg from '../../../svgs/slack.svg';
-import { BetaBadge } from '../../common/BetaBadge';
-import { ComingSoonBadge } from '../../common/ComingSoonBadge';
+import Callout from '../../common/Callout';
 import { default as MantineIcon } from '../../common/MantineIcon';
 import { SettingsGridCard } from '../../common/Settings/SettingsCard';
 import { SlackChannelSelect } from '../../common/SlackChannelSelect';
@@ -69,6 +70,7 @@ const formSchema = z.object({
     aiRequireOAuth: z.boolean().optional(),
     aiMultiAgentChannelId: z.string().min(1).optional(),
     aiMultiAgentProjectUuids: z.array(z.string().uuid()).nullable().optional(),
+    unfurlsEnabled: z.boolean().optional(),
 });
 
 const SlackSettingsPanel: FC = () => {
@@ -77,9 +79,6 @@ const SlackSettingsPanel: FC = () => {
     const { data: aiCopilotFlag } = useServerFeatureFlag(
         CommercialFeatureFlags.AiCopilot,
     );
-    const { data: multiAgentChannelFlag } = useServerFeatureFlag(
-        CommercialFeatureFlags.MultiAgentChannel,
-    );
     const { data: slackInstallation, isInitialLoading } = useGetSlack();
     const organizationHasSlack = !!slackInstallation?.organizationUuid;
     const isAiCopilotEnabledOrTrial =
@@ -87,11 +86,13 @@ const SlackSettingsPanel: FC = () => {
         !!aiOrganizationSettingsQuery.data?.isCopilotEnabled ||
         !!aiOrganizationSettingsQuery.data?.isTrial;
 
-    const isSlackMultiAgentChannelEnabled = !!multiAgentChannelFlag?.enabled;
-
     const { mutate: deleteSlack } = useDeleteSlack();
     const { mutate: updateCustomSettings } =
         useUpdateSlackAppCustomSettingsMutation();
+
+    const { data: aiAgents } = useAiAgentAdminAgents({
+        enabled: organizationHasSlack && isAiCopilotEnabledOrTrial,
+    });
 
     const form = useForm<SlackAppCustomSettings>({
         initialValues: {
@@ -102,6 +103,7 @@ const SlackSettingsPanel: FC = () => {
             aiRequireOAuth: false,
             aiMultiAgentChannelId: undefined,
             aiMultiAgentProjectUuids: null,
+            unfurlsEnabled: true,
         },
         validate: zodResolver(formSchema),
     });
@@ -123,6 +125,7 @@ const SlackSettingsPanel: FC = () => {
                 slackInstallation.aiMultiAgentChannelId ?? undefined,
             aiMultiAgentProjectUuids:
                 slackInstallation.aiMultiAgentProjectUuids ?? null,
+            unfurlsEnabled: slackInstallation.unfurlsEnabled ?? true,
         };
 
         if (form.initialized) {
@@ -133,6 +136,18 @@ const SlackSettingsPanel: FC = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [slackInstallation]);
+
+    const conflictingAgents = useMemo(() => {
+        const channelId = form.values.aiMultiAgentChannelId;
+        if (!channelId || !aiAgents) return [];
+        return aiAgents.filter((agent) =>
+            agent.integrations.some(
+                (integration) =>
+                    integration.type === 'slack' &&
+                    integration.channelId === channelId,
+            ),
+        );
+    }, [form.values.aiMultiAgentChannelId, aiAgents]);
 
     if (isInitialLoading || (organizationHasSlack && !form.initialized)) {
         return <Loader />;
@@ -241,8 +256,40 @@ const SlackSettingsPanel: FC = () => {
                                     }
                                 />
                             </Group>
+                            <Stack gap="sm">
+                                <Divider mt="sm" />
+                                <Title order={5} fw={600}>
+                                    Unfurling
+                                </Title>
+                                <Group gap="two">
+                                    <Title order={6} fw={500}>
+                                        Link previews
+                                    </Title>
+                                    <Tooltip
+                                        multiline
+                                        maw={280}
+                                        label="When enabled, Lightdash posts chart and dashboard previews when links are shared in Slack. Previews are rendered as the user who installed the Slack app, so any queries they trigger are attributed to that user. Disable to stop posting previews."
+                                    >
+                                        <MantineIcon icon={IconHelpCircle} />
+                                    </Tooltip>
+                                </Group>
+                                <Switch
+                                    label="Enable link unfurls"
+                                    checked={form.values.unfurlsEnabled ?? true}
+                                    onChange={(event) => {
+                                        setFieldValue(
+                                            'unfurlsEnabled',
+                                            event.currentTarget.checked,
+                                        );
+                                    }}
+                                />
+                            </Stack>
                             {isAiCopilotEnabledOrTrial && (
                                 <Stack gap="sm">
+                                    <Divider mt="sm" />
+                                    <Title order={5} fw={600}>
+                                        AI in Slack
+                                    </Title>
                                     <Group gap="two">
                                         <Title order={6} fw={500}>
                                             AI Agents thread access consent
@@ -326,28 +373,20 @@ const SlackSettingsPanel: FC = () => {
                                                 Multi-agent channel
                                             </Title>
 
-                                            {isSlackMultiAgentChannelEnabled && (
-                                                <Tooltip
-                                                    multiline
-                                                    maw={250}
-                                                    label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconHelpCircle}
-                                                    />
-                                                </Tooltip>
-                                            )}
-                                            {isSlackMultiAgentChannelEnabled ? (
-                                                <BetaBadge />
-                                            ) : (
-                                                <ComingSoonBadge />
-                                            )}
+                                            <Tooltip
+                                                multiline
+                                                maw={250}
+                                                label="Select a channel where users can interact with any AI agent (excluding from preview projects). When users start a thread in this channel, they'll see a dropdown to select which agent to use."
+                                            >
+                                                <MantineIcon
+                                                    icon={IconHelpCircle}
+                                                />
+                                            </Tooltip>
                                         </Group>
 
                                         <Text c="dimmed" fz="xs">
-                                            In this channel, users starting a
-                                            thread will see a dropdown to choose
-                                            which AI agent to chat with.
+                                            Lightdash picks the best agent
+                                            automatically.
                                         </Text>
 
                                         <SlackChannelSelect
@@ -363,15 +402,42 @@ const SlackSettingsPanel: FC = () => {
                                                     value ?? undefined,
                                                 );
                                             }}
-                                            disabled={
-                                                !isSlackMultiAgentChannelEnabled
-                                            }
-                                            placeholder={
-                                                isSlackMultiAgentChannelEnabled
-                                                    ? 'Select a channel (optional)'
-                                                    : 'Feature not available'
-                                            }
+                                            placeholder="Select a channel (optional)"
                                         />
+
+                                        {conflictingAgents.length > 0 && (
+                                            <Callout
+                                                variant="warning"
+                                                title="Channel already in use by an AI agent"
+                                            >
+                                                <Text fz="xs">
+                                                    Setting this as the
+                                                    multi-agent channel will
+                                                    override the channel
+                                                    configuration on the
+                                                    following{' '}
+                                                    {conflictingAgents.length >
+                                                    1
+                                                        ? 'agents'
+                                                        : 'agent'}
+                                                    :
+                                                </Text>
+                                                <Stack gap={2} mt="xs">
+                                                    {conflictingAgents.map(
+                                                        (agent) => (
+                                                            <Anchor
+                                                                key={agent.uuid}
+                                                                component={Link}
+                                                                to={`/projects/${agent.projectUuid}/ai-agents/${agent.uuid}/edit`}
+                                                                fz="xs"
+                                                            >
+                                                                {agent.name}
+                                                            </Anchor>
+                                                        ),
+                                                    )}
+                                                </Stack>
+                                            </Callout>
+                                        )}
 
                                         {form.values.aiMultiAgentChannelId && (
                                             <Stack gap="xs">
@@ -381,9 +447,6 @@ const SlackSettingsPanel: FC = () => {
                                                         form.values
                                                             .aiMultiAgentProjectUuids ===
                                                         null
-                                                    }
-                                                    disabled={
-                                                        !isSlackMultiAgentChannelEnabled
                                                     }
                                                     onChange={(event) => {
                                                         setFieldValue(
@@ -413,9 +476,6 @@ const SlackSettingsPanel: FC = () => {
                                                                     : [],
                                                             );
                                                         }}
-                                                        disabled={
-                                                            !isSlackMultiAgentChannelEnabled
-                                                        }
                                                     />
                                                 )}
                                             </Stack>

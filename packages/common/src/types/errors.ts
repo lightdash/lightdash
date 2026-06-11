@@ -510,8 +510,24 @@ export class NotImplementedError extends LightdashError {
         });
     }
 }
-export const getErrorMessage = (e: unknown) =>
-    e instanceof Error ? e.message : `Unknown ${typeof e} error`;
+export class DeprecatedRouteError extends LightdashError {
+    constructor(
+        message = 'Deprecated route called past its removal deadline',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'DeprecatedRouteError',
+            statusCode: 410,
+            data,
+        });
+    }
+}
+
+export const getErrorMessage = (e: unknown) => {
+    if (e instanceof Error && e.message) return e.message;
+    return `Unknown ${typeof e} error`;
+};
 
 export class ScreenshotError extends LightdashError {
     constructor(
@@ -673,6 +689,20 @@ export class DatabricksTokenError extends LightdashError {
     }
 }
 
+/* This specific error will be used in the frontend
+to show a "reauthenticate" button in the UI
+*/
+export class BigqueryTokenError extends LightdashError {
+    constructor(message: string) {
+        super({
+            message,
+            name: 'BigqueryTokenError',
+            statusCode: 401,
+            data: {},
+        });
+    }
+}
+
 export class CustomSqlQueryForbiddenError extends LightdashError {
     constructor(
         message: string = 'User cannot run queries with custom SQL dimensions',
@@ -783,5 +813,22 @@ export class InvalidSpaceStateError extends LightdashError {
             statusCode: 500,
             data: {},
         });
+    }
+}
+
+export class JobPollTimeoutError extends LightdashError {
+    jobId: string;
+
+    timeoutMs: number;
+
+    constructor(jobId: string, timeoutMs: number) {
+        super({
+            message: `Scheduler job ${jobId} did not complete within ${timeoutMs}ms`,
+            name: 'JobPollTimeoutError',
+            statusCode: 504,
+            data: { jobId, timeoutMs },
+        });
+        this.jobId = jobId;
+        this.timeoutMs = timeoutMs;
     }
 }

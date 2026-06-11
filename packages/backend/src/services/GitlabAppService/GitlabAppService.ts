@@ -177,13 +177,13 @@ export class GitlabAppService extends BaseService {
         }
     }
 
-    // eslint-disable-next-line class-methods-use-this
     private canManageOrg(user: SessionUser) {
         if (!isUserWithOrg(user)) {
             throw new Error('User is not part of an organization');
         }
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            !user.ability.can(
+            !auditedAbility.can(
                 'manage',
                 subject('Organization', {
                     organizationUuid: user.organizationUuid,

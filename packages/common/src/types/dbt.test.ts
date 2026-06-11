@@ -1,4 +1,4 @@
-import { getModelsFromManifest, type DbtManifest } from './dbt';
+import { getModelsFromManifest, patchPathParts, type DbtManifest } from './dbt';
 
 const makeManifest = (nodes: Record<string, object>): DbtManifest =>
     ({
@@ -163,5 +163,73 @@ describe('getModelsFromManifest', () => {
             'model.test.table_model',
             'model.test.view_model',
         ]);
+    });
+
+    it('should include seed nodes alongside models', () => {
+        const manifest = makeManifest({
+            'model.test.my_model': {
+                ...baseModel,
+                unique_id: 'model.test.my_model',
+                name: 'my_model',
+                config: { materialized: 'table' },
+            },
+            'seed.test.raw_plan': {
+                ...baseModel,
+                unique_id: 'seed.test.raw_plan',
+                name: 'raw_plan',
+                resource_type: 'seed',
+                config: { materialized: 'seed' },
+            },
+        });
+
+        const models = getModelsFromManifest(manifest);
+        expect(models).toHaveLength(2);
+        const ids = models.map((m) => m.unique_id).sort();
+        expect(ids).toEqual(['model.test.my_model', 'seed.test.raw_plan']);
+    });
+});
+
+describe('patchPathParts', () => {
+    it('parses the dbt-core format with project prefix', () => {
+        expect(
+            patchPathParts('dbt_artifacts://models/dim_current_models.yml'),
+        ).toEqual({
+            project: 'dbt_artifacts',
+            path: 'models/dim_current_models.yml',
+        });
+    });
+
+    it('parses dbt-core paths with nested directories', () => {
+        expect(
+            patchPathParts('my_project://models/sources/exposures.yml'),
+        ).toEqual({
+            project: 'my_project',
+            path: 'models/sources/exposures.yml',
+        });
+    });
+
+    it('parses the dbt-fusion format (no project prefix)', () => {
+        expect(patchPathParts('models/dim_current_models.yml')).toEqual({
+            project: null,
+            path: 'models/dim_current_models.yml',
+        });
+    });
+
+    it('normalizes Windows backslashes from dbt-fusion on Windows', () => {
+        expect(patchPathParts('models\\dim_current_models.yml')).toEqual({
+            project: null,
+            path: 'models/dim_current_models.yml',
+        });
+        expect(patchPathParts('models\\sources\\exposures.yml')).toEqual({
+            project: null,
+            path: 'models/sources/exposures.yml',
+        });
+    });
+
+    it('preserves additional :// occurrences after the project separator', () => {
+        expect(patchPathParts('my_project://models/weird://name.yml')).toEqual({
+            project: 'my_project',
+            path: 'models/weird://name.yml',
+        });
     });
 });

@@ -21,6 +21,7 @@ import {
     getCustomRangeSelectSql,
     getFixedWidthBinSelectSql,
 } from './customDimensions';
+import { defaultNullSafeEqualSql } from './warehouse';
 
 export const convertCustomSqlDimensionToDbt = (
     field: CustomSqlDimension,
@@ -87,9 +88,6 @@ const warehouseClientMock: WarehouseClient = {
     getCatalog() {
         throw new NotImplementedError('getCatalog not implemented');
     },
-    getAsyncQueryResults() {
-        throw new NotImplementedError('getAsyncQueryResults not implemented');
-    },
     getAdapterType() {
         throw new NotImplementedError('getCatalog not implemented');
     },
@@ -138,6 +136,8 @@ const warehouseClientMock: WarehouseClient = {
     getFloatingType() {
         return 'FLOAT';
     },
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     escapeString(value) {
         return value;
     },

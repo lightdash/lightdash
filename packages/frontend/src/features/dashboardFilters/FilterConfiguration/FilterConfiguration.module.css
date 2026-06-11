@@ -1,0 +1,4 @@
+.tileScrollArea {
+    max-height: min(50vh, calc(100vh - 200px));
+    overflow: auto;
+}

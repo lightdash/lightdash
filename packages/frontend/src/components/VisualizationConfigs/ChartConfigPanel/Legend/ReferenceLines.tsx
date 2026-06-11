@@ -9,13 +9,14 @@ import {
     type Series,
     type TableCalculation,
 } from '@lightdash/common';
-import { Accordion } from '@mantine/core';
+import { Accordion } from '@mantine-8/core';
 import { useCallback, useMemo, type FC } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useProject } from '../../../../hooks/useProject';
 import { type ReferenceLineField } from '../../../common/ReferenceLine';
 import { isCartesianVisualizationConfig } from '../../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../../LightdashVisualization/useVisualizationContext';
+import accordionClasses from '../../common/Accordion.module.css';
 import { AddButton } from '../../common/AddButton';
 import { Config } from '../../common/Config';
 import { useControlledAccordion } from '../../common/hooks/useControlledAccordion';
@@ -204,19 +205,10 @@ export const ReferenceLines: FC<Props> = ({ items, projectUuid }) => {
                     <Accordion
                         multiple
                         variant="contained"
+                        transparentActiveItem
                         value={openItems}
                         onChange={handleAccordionChange}
-                        styles={(theme) => ({
-                            control: {
-                                padding: theme.spacing.xs,
-                            },
-                            label: {
-                                padding: 0,
-                            },
-                            panel: {
-                                padding: 0,
-                            },
-                        })}
+                        className={accordionClasses.containedList}
                     >
                         {referenceLines.map((line, index) => (
                             <ReferenceLine

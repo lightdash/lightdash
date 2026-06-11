@@ -3,6 +3,7 @@ import {
     DashboardTileTypes,
     defaultTileSize,
     type Dashboard,
+    type DashboardDataAppTileProperties,
     type DashboardHeadingTileProperties,
     type DashboardLoomTileProperties,
     type DashboardMarkdownTile,
@@ -10,10 +11,16 @@ import {
 } from '@lightdash/common';
 import { Button, Stack, Text } from '@mantine-8/core';
 import { useForm, type UseFormReturnType } from '@mantine/form';
-import { IconHeading, IconMarkdown, IconVideo } from '@tabler/icons-react';
+import {
+    IconAppWindow,
+    IconHeading,
+    IconMarkdown,
+    IconVideo,
+} from '@tabler/icons-react';
 import { useMemo, useState, type FC } from 'react';
 import { v4 as uuid4 } from 'uuid';
 import MantineModal from '../../common/MantineModal';
+import DataAppTileForm from './DataAppTileForm';
 import HeadingTileForm from './HeadingTileForm';
 import LoomTileForm from './LoomTileForm';
 import MarkdownTileForm from './MarkdownTileForm';
@@ -28,7 +35,8 @@ type AddProps = {
     type:
         | DashboardTileTypes.LOOM
         | DashboardTileTypes.MARKDOWN
-        | DashboardTileTypes.HEADING;
+        | DashboardTileTypes.HEADING
+        | DashboardTileTypes.DATA_APP;
     onConfirm: (tile: Tile) => void;
 };
 
@@ -53,9 +61,15 @@ export const TileAddModal: FC<AddProps> = ({
             text: (value: string | undefined) =>
                 !value || !value.length ? 'Required field' : null,
         };
+        const appUuidValidator = {
+            appUuid: (value: string | undefined) =>
+                !value || !value.length ? 'Required field' : null,
+        };
         if (type === DashboardTileTypes.LOOM)
             return { ...urlValidator, ...titleValidator };
         if (type === DashboardTileTypes.HEADING) return textValidator;
+        if (type === DashboardTileTypes.DATA_APP)
+            return { ...titleValidator, ...appUuidValidator };
     };
 
     const form = useForm<TileProperties>({
@@ -80,6 +94,8 @@ export const TileAddModal: FC<AddProps> = ({
                 return IconVideo;
             case DashboardTileTypes.HEADING:
                 return IconHeading;
+            case DashboardTileTypes.DATA_APP:
+                return IconAppWindow;
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
@@ -93,6 +109,8 @@ export const TileAddModal: FC<AddProps> = ({
                 return 'Add loom tile';
             case DashboardTileTypes.HEADING:
                 return 'Add heading tile';
+            case DashboardTileTypes.DATA_APP:
+                return 'Add data app tile';
             default:
                 return assertUnreachable(type, 'Tile type not supported');
         }
@@ -181,6 +199,14 @@ export const TileAddModal: FC<AddProps> = ({
                             form={
                                 form as UseFormReturnType<
                                     DashboardHeadingTileProperties['properties']
+                                >
+                            }
+                        />
+                    ) : type === DashboardTileTypes.DATA_APP ? (
+                        <DataAppTileForm
+                            form={
+                                form as UseFormReturnType<
+                                    DashboardDataAppTileProperties['properties']
                                 >
                             }
                         />

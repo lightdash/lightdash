@@ -23,7 +23,13 @@ jest.mock('pg', () => ({
             callback(
                 null,
                 {
-                    query: jest.fn(() => {
+                    query: jest.fn((arg: unknown) => {
+                        // Session statements (SET statement_timeout / timezone)
+                        // are issued as plain string queries and must return a
+                        // thenable, not a stream.
+                        if (typeof arg === 'string') {
+                            return Promise.resolve({ rows: [], fields: [] });
+                        }
                         const mockedStream = new PassThrough();
                         setTimeout(() => {
                             mockedStream.emit('data', {
@@ -59,7 +65,13 @@ describe('PostgresWarehouseClient', () => {
                     callback(
                         null,
                         {
-                            query: jest.fn(() => {
+                            query: jest.fn((arg: unknown) => {
+                                if (typeof arg === 'string') {
+                                    return Promise.resolve({
+                                        rows: [],
+                                        fields: [],
+                                    });
+                                }
                                 const mockedStream = new PassThrough();
                                 setTimeout(() => {
                                     mockedStream.emit('data', {
@@ -83,7 +95,13 @@ describe('PostgresWarehouseClient', () => {
                     callback(
                         null,
                         {
-                            query: jest.fn(() => {
+                            query: jest.fn((arg: unknown) => {
+                                if (typeof arg === 'string') {
+                                    return Promise.resolve({
+                                        rows: [],
+                                        fields: [],
+                                    });
+                                }
                                 const mockedStream = new PassThrough();
                                 setTimeout(() => {
                                     columns.forEach((column) => {
@@ -111,6 +129,85 @@ describe('PostgresWarehouseClient', () => {
     it('expect empty catalog when dbt project has no references', async () => {
         const warehouse = new PostgresWarehouseClient(credentials);
         expect(await warehouse.getCatalog([])).toEqual({});
+    });
+});
+
+describe('PostgresWarehouseClient statement timeout', () => {
+    const mockPoolWithQuery = (queryMock: jest.Mock) => {
+        (pg.Pool as unknown as jest.Mock).mockImplementationOnce(() => ({
+            connect: jest.fn((callback) => {
+                callback(null, { query: queryMock, on: jest.fn() }, jest.fn());
+            }),
+            end: jest.fn(async () => undefined),
+            on: jest.fn(),
+        }));
+    };
+
+    const respondingQueryMock = () =>
+        jest.fn((arg: unknown) => {
+            if (typeof arg === 'string') {
+                return Promise.resolve({ rows: [], fields: [] });
+            }
+            const stream = new PassThrough();
+            setTimeout(() => {
+                stream.emit('data', {
+                    row: expectedRow,
+                    fields: queryColumnsMock,
+                });
+                stream.end();
+            }, 10);
+            return stream;
+        });
+
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
+    it('sets a server-side statement_timeout using the 9-minute default ceiling', async () => {
+        const queryMock = respondingQueryMock();
+        mockPoolWithQuery(queryMock);
+        const warehouse = new PostgresWarehouseClient(credentials);
+        await warehouse.runQuery('select 1');
+        const sessionStatement = queryMock.mock.calls
+            .map((call) => call[0])
+            .find((arg) => typeof arg === 'string');
+        expect(sessionStatement).toContain('SET statement_timeout = 540000');
+    });
+
+    it('honors a configured timeoutSeconds for the statement_timeout', async () => {
+        const queryMock = respondingQueryMock();
+        mockPoolWithQuery(queryMock);
+        const warehouse = new PostgresWarehouseClient({
+            ...credentials,
+            timeoutSeconds: 120,
+        });
+        await warehouse.runQuery('select 1');
+        const sessionStatement = queryMock.mock.calls
+            .map((call) => call[0])
+            .find((arg) => typeof arg === 'string');
+        expect(sessionStatement).toContain('SET statement_timeout = 120000');
+    });
+
+    it('rejects with a timeout error when a query stalls past the client backstop', async () => {
+        jest.useFakeTimers();
+        const queryMock = jest.fn((arg: unknown) => {
+            if (typeof arg === 'string') {
+                return Promise.resolve({ rows: [], fields: [] });
+            }
+            // A stream that never emits or ends — simulates a stalled cursor.
+            return new PassThrough();
+        });
+        mockPoolWithQuery(queryMock);
+        const warehouse = new PostgresWarehouseClient(credentials);
+        const resultPromise = warehouse.runQuery('select pg_sleep(9999)');
+        // Attach the rejection handler before advancing the clock so the
+        // rejection is never momentarily unhandled.
+        const assertion = expect(resultPromise).rejects.toThrow(
+            'Query timed out after 570s',
+        );
+        // 9-minute statement_timeout + 30s client buffer = 570s
+        await jest.advanceTimersByTimeAsync(570 * 1000 + 1000);
+        await assertion;
     });
 });
 

@@ -1,7 +1,7 @@
 import { Score } from 'autoevals';
 import * as fs from 'fs';
 import * as path from 'path';
-import { File, Task, TaskMeta, Test } from 'vitest';
+import { RunnerTask, RunnerTestCase, RunnerTestFile, TaskMeta } from 'vitest';
 import type { Reporter } from 'vitest/node';
 import {
     ContextRelevancyResponse,
@@ -53,7 +53,7 @@ export default class EvalHtmlReporter implements Reporter {
         }
     }
 
-    onFinished(files?: File[]): void {
+    onFinished(files?: RunnerTestFile[]): void {
         // Only process agent integration test files
         if (files) {
             const agentTestFiles = files.filter((file) =>
@@ -90,19 +90,19 @@ export default class EvalHtmlReporter implements Reporter {
         }
     }
 
-    private processFile(file: File) {
+    private processFile(file: RunnerTestFile) {
         // Recursively process all tasks in the file
         this.processTasks(file.tasks, [], file.filepath);
     }
 
     private processTasks(
-        tasks: Task[],
+        tasks: RunnerTask[],
         suitePath: string[] = [],
         file?: string,
     ) {
         for (const task of tasks) {
             if (task.type === 'test' && task.result) {
-                const test = task as Test;
+                const test = task as RunnerTestCase;
                 // Get tool calls data from task metadata
                 const taskMeta = test.meta;
 

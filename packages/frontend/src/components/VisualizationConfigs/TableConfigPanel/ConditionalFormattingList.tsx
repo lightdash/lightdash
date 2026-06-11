@@ -7,12 +7,13 @@ import {
     type ConditionalFormattingConfig,
     type FilterableItem,
 } from '@lightdash/common';
-import { Accordion } from '@mantine/core';
+import { Accordion } from '@mantine-8/core';
 import { produce } from 'immer';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import accordionClasses from '../common/Accordion.module.css';
 import { AddButton } from '../common/AddButton';
 import { Config } from '../common/Config';
 import { useControlledAccordion } from '../common/hooks/useControlledAccordion';
@@ -134,17 +135,8 @@ const ConditionalFormattingList = ({}) => {
                     variant="contained"
                     value={openItems}
                     onChange={handleAccordionChange}
-                    styles={(theme) => ({
-                        control: {
-                            padding: theme.spacing.xs,
-                        },
-                        label: {
-                            padding: 0,
-                        },
-                        panel: {
-                            padding: 0,
-                        },
-                    })}
+                    className={accordionClasses.containedList}
+                    transparentActiveItem
                 >
                     {activeConfigs.map((conditionalFormatting, index) => (
                         <ConditionalFormattingItem

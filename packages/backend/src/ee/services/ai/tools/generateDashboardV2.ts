@@ -1,7 +1,6 @@
 import {
-    toolDashboardV2ArgsSchema,
+    generateDashboardToolDefinition,
     toolDashboardV2ArgsSchemaTransformed,
-    toolDashboardV2OutputSchema,
     type ToolDashboardV2ArgsTransformed,
 } from '@lightdash/common';
 import { tool } from 'ai';
@@ -19,14 +18,14 @@ type Dependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
 };
 
+const toolDefinition = generateDashboardToolDefinition.for('agent');
+
 export const getGenerateDashboardV2 = ({
     getPrompt,
     createOrUpdateArtifact,
 }: Dependencies) =>
     tool({
-        description: toolDashboardV2ArgsSchema.description,
-        inputSchema: toolDashboardV2ArgsSchema,
-        outputSchema: toolDashboardV2OutputSchema,
+        ...toolDefinition,
         execute: async (toolArgs, { experimental_context: context }) => {
             try {
                 const ctx = AgentContext.from(context);

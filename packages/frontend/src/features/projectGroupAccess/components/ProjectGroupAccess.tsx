@@ -27,12 +27,12 @@ import {
     IconTrash,
     IconUsersGroup,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -128,14 +128,8 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         FeatureFlags.UserGroupsEnabled,
     );
 
-    if (userGroupsFeatureFlagQuery.isError) {
-        console.error(userGroupsFeatureFlagQuery.error);
-        throw new Error('Error fetching user groups feature flag');
-    }
-
     const isGroupManagementEnabled =
-        userGroupsFeatureFlagQuery.isSuccess &&
-        userGroupsFeatureFlagQuery.data.enabled;
+        userGroupsFeatureFlagQuery.data?.enabled ?? false;
 
     const { data: groups } = useOrganizationGroups(
         { includeMembers: 5 },
@@ -294,8 +288,8 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             .filter((row): row is EnrichedGroupRow => row !== null);
     }, [projectGroupAccessList, groups, allRoles]);
 
-    const columns: MRT_ColumnDef<EnrichedGroupRow>[] = useMemo(() => {
-        const cols: MRT_ColumnDef<EnrichedGroupRow>[] = [
+    const columns: ContentTableColumnDef<EnrichedGroupRow>[] = useMemo(() => {
+        const cols: ContentTableColumnDef<EnrichedGroupRow>[] = [
             {
                 accessorKey: 'groupUuid',
                 header: 'Group Name',
@@ -380,7 +374,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
         rolesData,
     ]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: enrichedGroups,
         enableColumnResizing: false,
@@ -509,7 +503,7 @@ const ProjectGroupAccessComponent: FC<ProjectGroupAccessProps> = ({
             type={PageType.PAGE}
             category={CategoryName.SETTINGS}
         >
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             {availableGroups && isAddingGroupAccess && (
                 <AddProjectGroupAccessModal

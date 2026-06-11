@@ -4,6 +4,7 @@ import {
     getFilterTypeFromItemType,
     isDashboardChartTileType,
     isDashboardHeadingTileType,
+    isDashboardDataAppTileType,
     isDashboardLoomTileType,
     isDashboardMarkdownTileType,
     isDashboardSqlChartTile,
@@ -33,12 +34,12 @@ import {
     IconLayoutDashboard,
     IconSearch,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useMemo, useRef, useState } from 'react';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+} from '../components/common/ContentTable';
 import { EmptyState } from '../components/common/EmptyState';
 import { getConditionalRuleLabel } from '../components/common/Filters/FilterInputs/utils';
 import MantineIcon from '../components/common/MantineIcon';
@@ -280,7 +281,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
         return data.filter((row) => row.tileType !== 'Total');
     }, [data]);
 
-    const columns = useMemo<MRT_ColumnDef<any>[]>(
+    const columns = useMemo<ContentTableColumnDef<any>[]>(
         () => [
             {
                 accessorKey: 'tileType',
@@ -351,7 +352,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
         );
     }, [dataWithoutTotal, search]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredData,
         enableRowVirtualization: true,
@@ -367,6 +368,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
         enableGlobalFilterModes: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
+        rowVirtualizerProps: { estimateSize: () => 40, overscan: 10 },
         initialState: {
             density: 'xs',
         },
@@ -425,7 +427,7 @@ const TilesTable = ({ data }: { data: any[] }) => {
         ),
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 // Charts Table Component
@@ -440,7 +442,7 @@ const ChartsTable = ({
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const columns = useMemo<MRT_ColumnDef<any>[]>(
+    const columns = useMemo<ContentTableColumnDef<any>[]>(
         () => [
             {
                 accessorKey: 'chartName',
@@ -469,6 +471,7 @@ const ChartsTable = ({
             },
             {
                 accessorFn: (row) => row.currentVersion?.createdAt,
+                id: 'currentVersion',
                 header: 'Current Version',
                 size: 200,
                 Cell: ({ row }) => (
@@ -497,6 +500,7 @@ const ChartsTable = ({
             },
             {
                 accessorFn: (row) => row.selectedVersion?.createdAt,
+                id: 'selectedVersion',
                 header: 'Selected Version',
                 size: 200,
                 Cell: ({ row }) => (
@@ -580,7 +584,7 @@ const ChartsTable = ({
         );
     }, [data, search]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredData,
         enableRowVirtualization: false,
@@ -646,7 +650,7 @@ const ChartsTable = ({
         ),
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 // Filters Table Component
@@ -655,10 +659,11 @@ const FiltersTable = ({ data }: { data: any[] }) => {
     const [search, setSearch] = useState('');
     const tableContainerRef = useRef<HTMLDivElement>(null);
 
-    const columns = useMemo<MRT_ColumnDef<any>[]>(
+    const columns = useMemo<ContentTableColumnDef<any>[]>(
         () => [
             {
                 accessorFn: (row) => row.currentFilter?.label || '-',
+                id: 'currentVersion',
                 header: 'Current Version',
                 size: 300,
                 Cell: ({ row }) => (
@@ -672,6 +677,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
             },
             {
                 accessorFn: (row) => row.versionFilter?.label || '-',
+                id: 'selectedVersion',
                 header: 'Selected Version',
                 size: 300,
                 Cell: ({ row }) => (
@@ -749,7 +755,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
         });
     }, [data, search]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredData,
         enableRowVirtualization: true,
@@ -765,6 +771,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
         enableGlobalFilterModes: false,
         enableTopToolbar: true,
         enableBottomToolbar: false,
+        rowVirtualizerProps: { estimateSize: () => 56, overscan: 10 },
         initialState: {
             density: 'xs',
         },
@@ -814,7 +821,7 @@ const FiltersTable = ({ data }: { data: any[] }) => {
         ),
     });
 
-    return <MantineReactTable table={table} />;
+    return <ContentTable table={table} />;
 };
 
 const DashboardVersionComparison = ({
@@ -1008,6 +1015,12 @@ const DashboardVersionComparison = ({
         const versionHeadingTiles = version.tiles.filter(
             isDashboardHeadingTileType,
         );
+        const currentDataAppTiles = current.tiles.filter(
+            isDashboardDataAppTileType,
+        );
+        const versionDataAppTiles = version.tiles.filter(
+            isDashboardDataAppTileType,
+        );
 
         // Prepare tiles data for table
         const tilesData = [
@@ -1042,6 +1055,13 @@ const DashboardVersionComparison = ({
                 selected: versionHeadingTiles.length,
                 difference:
                     versionHeadingTiles.length - currentHeadingTiles.length,
+            },
+            {
+                tileType: 'Data App',
+                current: currentDataAppTiles.length,
+                selected: versionDataAppTiles.length,
+                difference:
+                    versionDataAppTiles.length - currentDataAppTiles.length,
             },
             {
                 tileType: 'Total',

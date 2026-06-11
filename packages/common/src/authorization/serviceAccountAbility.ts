@@ -1,11 +1,19 @@
 import { type AbilityBuilder } from '@casl/ability';
 import { ServiceAccountScope } from '../ee/serviceAccounts/types';
+import { OrganizationMemberRole } from '../types/organizationMemberProfile';
 import { ProjectType } from '../types/projects';
+import { applyOrganizationMemberStaticAbilities } from './organizationMemberAbility';
 import { type MemberAbility } from './types';
 
 type ServiceAccountAbilitiesArgs = {
     organizationUuid: string;
     builder: Pick<AbilityBuilder<MemberAbility>, 'can'>;
+    // Dedicated user uuid for the service account. Required so that
+    // `*@self`-style ability conditions (e.g. `manage:DeployProject@self`,
+    // `delete:Project@self`) resolve to the SA's own row rather than
+    // matching nothing. Older legacy-scope handlers that don't reference
+    // userUuid keep working unchanged.
+    userUuid: string;
 };
 
 const applyServiceAccountStaticAbilities: Record<
@@ -167,16 +175,24 @@ const applyServiceAccountStaticAbilities: Record<
         can('view', 'AiAgent', {
             organizationUuid,
         });
+        can('view', 'AiAgentDocument', {
+            organizationUuid,
+        });
         can('create', 'AiAgentThread', {
+            organizationUuid,
+        });
+        can('view', 'OrganizationDesign', {
             organizationUuid,
         });
     },
     [ServiceAccountScope.ORG_EDIT]: ({
         organizationUuid,
+        userUuid,
         builder: { can },
     }) => {
         applyServiceAccountStaticAbilities[ServiceAccountScope.ORG_READ]({
             organizationUuid,
+            userUuid,
             builder: { can },
         });
         can('manage', 'Space', {
@@ -205,13 +221,23 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'MetricsTree', {
             organizationUuid,
         });
+        // CLI-driven content-as-code upload (`lightdash upload`) runs as an
+        // SA with `org:edit`. Pre-Phase-C the auth middleware spoofed the
+        // admin user so the call was implicitly allowed; the cutover to a
+        // dedicated SA identity dropped that side-effect, so we restore it
+        // here explicitly to preserve the existing CI workflow.
+        can('manage', 'ContentAsCode', {
+            organizationUuid,
+        });
     },
     [ServiceAccountScope.ORG_ADMIN]: ({
         organizationUuid,
+        userUuid,
         builder: { can },
     }) => {
         applyServiceAccountStaticAbilities[ServiceAccountScope.ORG_EDIT]({
             organizationUuid,
+            userUuid,
             builder: { can },
         });
         can('manage', 'PreAggregation', {
@@ -221,6 +247,12 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
         can('manage', 'CustomSql', {
+            organizationUuid,
+        });
+        can('manage', 'CustomFields', {
+            organizationUuid,
+        });
+        can('manage', 'CustomSqlTableCalculations', {
             organizationUuid,
         });
         can('manage', 'SqlRunner', {
@@ -279,11 +311,17 @@ const applyServiceAccountStaticAbilities: Record<
         can('manage', 'AiAgent', {
             organizationUuid,
         });
+        can('manage', 'AiAgentDocument', {
+            organizationUuid,
+        });
         can('manage', 'AiAgentThread', {
             organizationUuid,
             //  userUuid: userUuid,
         });
         can('manage', 'DataApp', {
+            organizationUuid,
+        });
+        can('manage', 'OrganizationDesign', {
             organizationUuid,
         });
         can('manage', 'Dashboard', {
@@ -330,15 +368,83 @@ const applyServiceAccountStaticAbilities: Record<
             organizationUuid,
         });
     },
-    // TODO migrate SCIM permissions to abilities
     [ServiceAccountScope.SCIM_MANAGE]: ({
-        organizationUuid: _organizationUuid,
-        builder: { can: _can },
-    }) => {},
+        organizationUuid,
+        builder: { can },
+    }) => {
+        can('manage', 'OrganizationMemberProfile', {
+            organizationUuid,
+        });
+        can('manage', 'Group', {
+            organizationUuid,
+        });
+    },
+    // System-role aliases. Each one delegates to the matching org-member
+    // ability builder so the SA's CASL is exactly the user-with-this-role
+    // shape — no parallel scope mapping to drift out of sync.
+    [ServiceAccountScope.SYSTEM_MEMBER]: ({
+        organizationUuid,
+        userUuid,
+        builder: { can },
+    }) => {
+        applyOrganizationMemberStaticAbilities[OrganizationMemberRole.MEMBER](
+            { organizationUuid, userUuid },
+            { can },
+        );
+    },
+    [ServiceAccountScope.SYSTEM_ADMIN]: ({
+        organizationUuid,
+        userUuid,
+        builder: { can },
+    }) => {
+        applyOrganizationMemberStaticAbilities[OrganizationMemberRole.ADMIN](
+            { organizationUuid, userUuid },
+            { can },
+        );
+    },
+    [ServiceAccountScope.SYSTEM_DEVELOPER]: ({
+        organizationUuid,
+        userUuid,
+        builder: { can },
+    }) => {
+        applyOrganizationMemberStaticAbilities[
+            OrganizationMemberRole.DEVELOPER
+        ]({ organizationUuid, userUuid }, { can });
+    },
+    [ServiceAccountScope.SYSTEM_EDITOR]: ({
+        organizationUuid,
+        userUuid,
+        builder: { can },
+    }) => {
+        applyOrganizationMemberStaticAbilities[OrganizationMemberRole.EDITOR](
+            { organizationUuid, userUuid },
+            { can },
+        );
+    },
+    [ServiceAccountScope.SYSTEM_INTERACTIVE_VIEWER]: ({
+        organizationUuid,
+        userUuid,
+        builder: { can },
+    }) => {
+        applyOrganizationMemberStaticAbilities[
+            OrganizationMemberRole.INTERACTIVE_VIEWER
+        ]({ organizationUuid, userUuid }, { can });
+    },
+    [ServiceAccountScope.SYSTEM_VIEWER]: ({
+        organizationUuid,
+        userUuid,
+        builder: { can },
+    }) => {
+        applyOrganizationMemberStaticAbilities[OrganizationMemberRole.VIEWER](
+            { organizationUuid, userUuid },
+            { can },
+        );
+    },
 };
 
 export const applyServiceAccountAbilities = ({
     organizationUuid,
+    userUuid,
     builder,
     scopes,
 }: ServiceAccountAbilitiesArgs & {
@@ -347,6 +453,7 @@ export const applyServiceAccountAbilities = ({
     scopes.forEach((scope) => {
         applyServiceAccountStaticAbilities[scope]({
             organizationUuid,
+            userUuid,
             builder,
         });
     });

@@ -25,6 +25,7 @@ const MinimalChartContent = memo(() => {
             ...queryResults,
             metricQuery: query.data?.metricQuery,
             fields: query.data?.fields,
+            resolvedTimezone: query.data?.resolvedTimezone ?? undefined,
         }),
         [queryResults, query.data],
     );
@@ -47,7 +48,6 @@ const MinimalChartContent = memo(() => {
             resultsData={resultsData}
             isLoading={isLoadingQueryResults}
             columnOrder={savedChart.tableConfig.columnOrder}
-            pivotTableMaxColumnLimit={health.data.pivotTable.maxColumnLimit}
             savedChartUuid={savedChart.uuid}
             colorPalette={savedChart.colorPalette}
             parameters={query.data?.usedParametersValues}

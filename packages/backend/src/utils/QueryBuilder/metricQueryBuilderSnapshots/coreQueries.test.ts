@@ -1,4 +1,10 @@
 import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    type Explore,
+} from '@lightdash/common';
+import {
     bigqueryClientMock,
     EXPLORE,
     EXPLORE_ALL_JOIN_TYPES_CHAIN,
@@ -102,6 +108,64 @@ describe('MetricQueryBuilder snapshot: core queries', () => {
                     dimensions: [],
                     metrics: ['table1_metric1'],
                     sorts: [],
+                },
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // Covers selected dimensions and metrics whose SQL depends on intrinsic user attributes,
+    // ensuring runtime user context is replaced before SELECT expressions reach the warehouse.
+    test('matches snapshot for selected fields using intrinsic user attributes', () => {
+        const explore: Explore = {
+            ...EXPLORE,
+            tables: {
+                ...EXPLORE.tables,
+                table1: {
+                    ...EXPLORE.tables.table1,
+                    dimensions: {
+                        ...EXPLORE.tables.table1.dimensions,
+                        user_email_status: {
+                            type: DimensionType.STRING,
+                            name: 'user_email_status',
+                            label: 'user_email_status',
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            fieldType: FieldType.DIMENSION,
+                            sql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN \${TABLE}.shared ELSE 'other' END`,
+                            compiledSql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "table1".shared ELSE 'other' END`,
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        },
+                    },
+                    metrics: {
+                        ...EXPLORE.tables.table1.metrics,
+                        user_email_metric: {
+                            type: MetricType.SUM,
+                            fieldType: FieldType.METRIC,
+                            table: 'table1',
+                            tableLabel: 'table1',
+                            name: 'user_email_metric',
+                            label: 'user_email_metric',
+                            sql: `CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN \${TABLE}.number_column ELSE 0 END`,
+                            compiledSql: `SUM(CASE WHEN \${ld.user.email} = 'mock@lightdash.com' THEN "table1".number_column ELSE 0 END)`,
+                            tablesReferences: ['table1'],
+                            hidden: false,
+                        },
+                    },
+                },
+            },
+        };
+
+        expect(
+            buildQuery({
+                explore,
+                compiledMetricQuery: {
+                    ...METRIC_QUERY,
+                    dimensions: ['table1_user_email_status'],
+                    metrics: ['table1_user_email_metric'],
+                    sorts: [],
+                    tableCalculations: [],
+                    compiledTableCalculations: [],
                 },
             }),
         ).toMatchSnapshot();

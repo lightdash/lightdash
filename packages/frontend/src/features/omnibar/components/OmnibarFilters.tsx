@@ -9,6 +9,7 @@ import { DatePicker } from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import {
     IconAdjustments,
+    IconAppWindow,
     IconBrowser,
     IconCalendar,
     IconChartBar,
@@ -18,6 +19,7 @@ import {
     IconLayoutDashboard,
     IconLayoutNavbarInactive,
     IconRectangle,
+    IconSettings,
     IconTable,
     IconUser,
     IconX,
@@ -49,6 +51,10 @@ const getOmnibarItemIcon = (itemType: SearchItemType) => {
             return IconBrowser;
         case SearchItemType.SQL_CHART:
             return IconCodeCircle;
+        case SearchItemType.DATA_APP:
+            return IconAppWindow;
+        case SearchItemType.SETTINGS:
+            return IconSettings;
         default:
             return assertUnreachable(
                 itemType,
@@ -94,6 +100,15 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
             filters?.createdByUuid
         );
     }, [filters]);
+
+    const userOptions = useMemo(
+        () =>
+            organizationUsers?.map((user) => ({
+                value: user.userUuid,
+                label: `${user.firstName} ${user.lastName}`,
+            })) || [],
+        [organizationUsers],
+    );
 
     return (
         <Group px="md" py="sm">
@@ -243,20 +258,21 @@ const OmnibarFilters: FC<Props> = ({ filters, onSearchFilterChange }) => {
                     <Select
                         placeholder="Select a user"
                         searchable
-                        value={filters?.createdByUuid}
+                        // null keeps the Select controlled; if uncontrolled, Mantine resets the search text mid-click
+                        value={filters?.createdByUuid ?? null}
                         clearable
-                        data={
-                            organizationUsers?.map((user) => ({
-                                value: user.userUuid,
-                                label: `${user.firstName} ${user.lastName}`,
-                            })) || []
-                        }
+                        allowDeselect={false}
+                        // keep options inside the Menu so clicking one isn't an outside click that closes it
+                        comboboxProps={{ withinPortal: false }}
+                        data={userOptions}
                         onChange={(value) => {
                             onSearchFilterChange({
                                 ...filters,
                                 createdByUuid: value || undefined,
                             });
-
+                        }}
+                        // onChange doesn't fire when re-selecting the current value
+                        onOptionSubmit={() => {
                             createdByMenuHelpers.close();
                         }}
                     />

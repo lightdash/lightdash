@@ -46,7 +46,6 @@ export const AiAgentPageLayout: React.FC<Props> = ({
 }) => {
     const dispatch = useAiAgentStoreDispatch();
     const sidebarPanelRef = useRef<ImperativePanelHandle>(null);
-    const artifactPanelRef = useRef<ImperativePanelHandle>(null);
 
     const [isResizing, setIsResizing] = useState(false);
 
@@ -66,126 +65,154 @@ export const AiAgentPageLayout: React.FC<Props> = ({
 
     useLayoutEffect(() => {
         if (artifact) {
-            artifactPanelRef.current?.expand();
             sidebarPanelRef.current?.collapse();
             setIsAgentSidebarCollapsed?.(true);
-        } else {
-            artifactPanelRef.current?.collapse();
         }
     }, [artifact, setIsAgentSidebarCollapsed]);
 
     return (
-        <PanelGroup
-            direction="horizontal"
-            className={styles.panelGroup}
-            style={{
-                height: `calc(100vh - ${NAVBAR_HEIGHT}px)`,
-            }}
+        <div
+            className={styles.workspace}
+            style={{ height: `calc(100vh - ${NAVBAR_HEIGHT}px)` }}
         >
-            {Sidebar && (
-                <Fragment>
-                    <ErrorBoundary>
-                        <Panel
-                            id="sidebar"
-                            ref={sidebarPanelRef}
-                            defaultSize={20}
-                            minSize={10}
-                            maxSize={40}
-                            collapsible
-                            className={`${styles.sidebar} ${
-                                !isResizing ? styles.sidebarTransition : ''
-                            }`}
-                            onCollapse={() =>
-                                setIsAgentSidebarCollapsed?.(true)
+            <PanelGroup
+                direction="horizontal"
+                className={styles.panelGroup}
+                style={{ flex: 1, minWidth: 0 }}
+            >
+                {Sidebar && (
+                    <Fragment>
+                        <ErrorBoundary>
+                            <Panel
+                                id="sidebar"
+                                ref={sidebarPanelRef}
+                                defaultSize={20}
+                                minSize={10}
+                                maxSize={40}
+                                order={1}
+                                collapsible
+                                className={`${styles.sidebar} ${
+                                    !isResizing ? styles.sidebarTransition : ''
+                                }`}
+                                data-collapsed={
+                                    isAgentSidebarCollapsed ? 'true' : undefined
+                                }
+                                onCollapse={() =>
+                                    setIsAgentSidebarCollapsed?.(true)
+                                }
+                                onExpand={() =>
+                                    setIsAgentSidebarCollapsed?.(false)
+                                }
+                            >
+                                <Flex
+                                    align="center"
+                                    justify="flex-end"
+                                    className={styles.sidebarHeader}
+                                >
+                                    <SidebarButton
+                                        aria-label={
+                                            isAgentSidebarCollapsed
+                                                ? 'Expand Ask AI sidebar'
+                                                : 'Collapse Ask AI sidebar'
+                                        }
+                                        size="sm"
+                                        leftSection={
+                                            <MantineIcon
+                                                size="md"
+                                                icon={
+                                                    isAgentSidebarCollapsed
+                                                        ? IconLayoutSidebarLeftExpand
+                                                        : IconLayoutSidebarLeftCollapse
+                                                }
+                                                stroke={1.8}
+                                                color="ldGray.7"
+                                            />
+                                        }
+                                        onClick={toggleSidebar}
+                                    />
+                                </Flex>
+
+                                {Sidebar}
+                            </Panel>
+                        </ErrorBoundary>
+
+                        <PanelResizeHandle
+                            className={styles.resizeHandle}
+                            onDragging={(isDragging) =>
+                                setIsResizing(isDragging)
                             }
-                            onExpand={() => setIsAgentSidebarCollapsed?.(false)}
-                        >
-                            <Flex justify="flex-end">
-                                <SidebarButton
-                                    size="sm"
-                                    leftSection={
-                                        <MantineIcon
-                                            size="md"
-                                            icon={
-                                                isAgentSidebarCollapsed
-                                                    ? IconLayoutSidebarLeftExpand
-                                                    : IconLayoutSidebarLeftCollapse
-                                            }
-                                            stroke={1.8}
-                                            color="ldGray.7"
-                                        />
-                                    }
-                                    onClick={toggleSidebar}
-                                />
-                            </Flex>
+                        />
+                    </Fragment>
+                )}
 
-                            {Sidebar}
-                        </Panel>
-                    </ErrorBoundary>
-
-                    <PanelResizeHandle
-                        className={styles.resizeHandle}
-                        onDragging={(isDragging) => setIsResizing(isDragging)}
-                    />
-                </Fragment>
-            )}
-            <ErrorBoundary>
-                <Panel className={styles.chat} id="chat" minSize={25}>
-                    {Header && (
-                        <Box className={styles.chatHeader}>{Header}</Box>
-                    )}
-
-                    <Box className={styles.chatContent}>{children}</Box>
-                </Panel>
-
-                {!isMobile && (
-                    <>
-                        {artifact && (
-                            <PanelResizeHandle
-                                className={styles.resizeHandle}
-                            />
+                <ErrorBoundary>
+                    <Panel
+                        className={styles.chat}
+                        id="chat"
+                        minSize={25}
+                        order={2}
+                    >
+                        {Header && (
+                            <Box className={styles.chatHeader}>{Header}</Box>
                         )}
 
-                        <Panel
-                            id="artifact"
-                            ref={artifactPanelRef}
-                            defaultSize={0}
-                            minSize={50}
-                            collapsible
-                            collapsedSize={0}
-                            className={styles.artifact}
-                        >
-                            {artifact && (
-                                <AiArtifactPanel artifact={artifact} />
-                            )}
-                        </Panel>
-                    </>
+                        <Box className={styles.chatContent}>{children}</Box>
+                    </Panel>
+                </ErrorBoundary>
+
+                {!isMobile && artifact && (
+                    <Fragment>
+                        <PanelResizeHandle
+                            aria-label="Resize artifact panel"
+                            className={`${styles.resizeHandle} ${styles.artifactResizeHandle}`}
+                            hitAreaMargins={{ coarse: 16, fine: 8 }}
+                            onDragging={(isDragging) =>
+                                setIsResizing(isDragging)
+                            }
+                        />
+
+                        <ErrorBoundary>
+                            <Panel
+                                className={styles.floatingArtifactRegion}
+                                defaultSize={46}
+                                id="artifact"
+                                minSize={32}
+                                maxSize={64}
+                                order={3}
+                            >
+                                <Box className={styles.floatingArtifactWrap}>
+                                    <AiArtifactPanel artifact={artifact} />
+                                </Box>
+                            </Panel>
+                        </ErrorBoundary>
+                    </Fragment>
                 )}
-                {isMobile && (
-                    <Drawer
-                        opened={!!artifact}
-                        onClose={() => dispatch(clearArtifact())}
-                        size="75%"
-                        position="bottom"
-                        h="75%"
-                        withCloseButton={false}
-                        transitionProps={{
-                            transition: 'slide-up',
-                            duration: 200,
-                            timingFunction: 'ease-out',
-                        }}
-                        styles={{
-                            body: {
-                                padding: 0,
-                                paddingBottom: 'var(--mantine-spacing-lg)',
-                                height: '100%',
-                            },
-                        }}
-                    >
-                        {artifact && <AiArtifactPanel artifact={artifact} />}
-                    </Drawer>
-                )}
-            </ErrorBoundary>
-        </PanelGroup>
+            </PanelGroup>
+
+            {isMobile && (
+                <Drawer
+                    opened={!!artifact}
+                    onClose={() => dispatch(clearArtifact())}
+                    size="75%"
+                    position="bottom"
+                    h="75%"
+                    withCloseButton={false}
+                    transitionProps={{
+                        transition: 'slide-up',
+                        duration: 200,
+                        timingFunction: 'ease-out',
+                    }}
+                    styles={{
+                        body: {
+                            padding: 0,
+                            paddingBottom: 'var(--mantine-spacing-lg)',
+                            height: '100%',
+                        },
+                    }}
+                >
+                    {artifact && <AiArtifactPanel artifact={artifact} />}
+                </Drawer>
+            )}
+        </div>
     );
 };

@@ -64,6 +64,10 @@ export default defineConfig({
                           __dirname,
                           '../common/src/index.ts',
                       ),
+                      '@lightdash/formula': path.resolve(
+                          __dirname,
+                          '../formula/src/index.ts',
+                      ),
                   }
                 : undefined,
     },
@@ -105,7 +109,7 @@ export default defineConfig({
                         },
                         {
                             name: 'thirdparty',
-                            test: /node_modules[\\/](@sentry[\\/]react|rudder-sdk-js|posthog-js)/,
+                            test: /node_modules[\\/](@sentry[\\/]react|rudder-sdk-js)/,
                             priority: 15,
                         },
                         {

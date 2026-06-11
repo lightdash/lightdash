@@ -7,6 +7,7 @@ import {
     convertToAiHints,
     convertToGroups,
     isV9MetricRef,
+    patchPathParts,
     SupportedDbtAdapter,
     type DbtColumnLightdashDimension,
     type DbtColumnMetadata,
@@ -95,6 +96,7 @@ const convertTimezone = (
         case SupportedDbtAdapter.DUCKDB:
             return timestampSql;
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
             return timestampSql;
         // Athena uses Trino SQL, timestamps return in server timezone
         case SupportedDbtAdapter.TRINO:
@@ -155,6 +157,7 @@ const convertDimension = (
         timeInterval === undefined && isInterval(type, meta.dimension);
 
     let timeIntervalBaseDimensionName: string | undefined;
+    let timeIntervalBaseDimensionType: DimensionType | undefined;
 
     const groups: string[] = convertToGroups(
         meta.dimension?.groups,
@@ -163,6 +166,7 @@ const convertDimension = (
 
     if (timeInterval) {
         timeIntervalBaseDimensionName = name;
+        timeIntervalBaseDimensionType = type;
         sql = timeFrameConfigs[timeInterval].getSql(
             targetWarehouse,
             timeInterval,
@@ -195,10 +199,12 @@ const convertDimension = (
         source,
         timeInterval,
         timeIntervalBaseDimensionName,
+        timeIntervalBaseDimensionType,
         hidden: !!meta.dimension?.hidden,
         format: meta.dimension?.format,
         round: meta.dimension?.round,
         compact: meta.dimension?.compact,
+        separator: meta.dimension?.separator,
         requiredAttributes: meta.dimension?.required_attributes,
         anyAttributes: meta.dimension?.any_attributes,
         colors: meta.dimension?.colors,
@@ -208,6 +214,13 @@ const convertDimension = (
             ? { richText: meta.dimension.richText }
             : {}),
         ...(isAdditionalDimension ? { isAdditionalDimension } : {}),
+        // Polarity flip: YAML reads `convert_timezone: false` (defaults true,
+        // matches dbt convention); in-memory we store the inverse so truthiness
+        // matches the semantic — `if (dim.skipTimezoneConversion)` is correct,
+        // no `=== false` trap, and absent collapses to the default.
+        ...(meta.dimension?.convert_timezone === false
+            ? { skipTimezoneConversion: true }
+            : {}),
         groups,
         isIntervalBase,
         ...(meta.dimension && meta.dimension.tags
@@ -421,6 +434,7 @@ const convertDbtMetricToLightdashMetric = (
         round: metric.meta?.round,
         compact: metric.meta?.compact,
         format: metric.meta?.format,
+        separator: metric.meta?.separator,
         groups,
         percentile: metric.meta?.percentile,
         showUnderlyingValues: metric.meta?.show_underlying_values,
@@ -780,6 +794,7 @@ export const convertTable = (
                                 source: undefined,
                                 timeInterval: undefined,
                                 timeIntervalBaseDimensionName: dim.name,
+                                timeIntervalBaseDimensionType: dim.type,
                                 customTimeInterval: customName,
                                 hidden: dim.hidden,
                                 format: undefined,
@@ -791,6 +806,9 @@ export const convertTable = (
                                 isIntervalBase: false,
                                 isAdditionalDimension:
                                     dim.isAdditionalDimension,
+                                ...(dim.skipTimezoneConversion
+                                    ? { skipTimezoneConversion: true }
+                                    : {}),
                             } satisfies Dimension,
                         };
                     }, {});
@@ -1006,10 +1024,21 @@ export const convertTable = (
                   },
               }
             : {}),
+        ...(meta.default_show_underlying_values
+            ? {
+                  defaultShowUnderlyingValues:
+                      meta.default_show_underlying_values,
+              }
+            : {}),
         ...(meta.ai_hint ? { aiHint: convertToAiHints(meta.ai_hint) } : {}),
         ...(meta.parameters ? { parameters: meta.parameters } : {}),
         ...(meta.sets ? { sets: meta.sets } : {}),
         ...(tableWarnings.length > 0 ? { warnings: tableWarnings } : {}),
+        ...(model.package_name ? { dbtPackageName: model.package_name } : {}),
+        ...(model.patch_path
+            ? { ymlPath: patchPathParts(model.patch_path).path }
+            : {}),
+        ...(model.path ? { sqlPath: model.path } : {}),
     };
 };
 
@@ -1131,6 +1160,9 @@ export const convertExplores = async (
                     label: meta.label || friendlyName(model.name),
                     tags,
                     groupLabel: meta.group_label,
+                    ...(meta.groups && meta.groups.length > 0
+                        ? { groups: meta.groups }
+                        : {}),
                     errors: [
                         {
                             type:
@@ -1154,7 +1186,11 @@ export const convertExplores = async (
         {},
     );
     const validModels = models.filter(
-        (model) => tableLookup[model.name] !== undefined,
+        (model) =>
+            tableLookup[model.name] !== undefined &&
+            // Seeds are compiled as tables (for join resolution) but should
+            // not generate standalone explores — they're join targets only.
+            model.resource_type !== 'seed',
     );
 
     const exploreCompiler = new ExploreCompiler(warehouseSqlBuilder, {
@@ -1179,6 +1215,9 @@ export const convertExplores = async (
                 name: model.name,
                 label: meta.label || friendlyName(model.name),
                 groupLabel: meta.group_label,
+                ...(meta.groups && meta.groups.length > 0
+                    ? { groups: meta.groups }
+                    : {}),
                 joins: meta?.joins || [],
                 description: meta.description,
                 caseSensitive: meta.case_sensitive,
@@ -1228,6 +1267,14 @@ export const convertExplores = async (
                                   friendlyName(exploreName),
                               groupLabel:
                                   exploreConfig.group_label || meta.group_label,
+                              ...((exploreConfig.groups &&
+                                  exploreConfig.groups.length > 0) ||
+                              (meta.groups && meta.groups.length > 0)
+                                  ? {
+                                        groups:
+                                            exploreConfig.groups || meta.groups,
+                                    }
+                                  : {}),
                               // Inherit joins from base model if not specified in explore config
                               joins: exploreConfig.joins || meta?.joins || [],
                               description: exploreConfig.description,
@@ -1237,6 +1284,10 @@ export const convertExplores = async (
                                   // Override the base table with required filters and explore-scoped dimensions
                                   [model.name]: {
                                       ...baseTable,
+                                      sqlWhere:
+                                          exploreConfig.sql_filter ||
+                                          exploreConfig.sql_where ||
+                                          baseTable.sqlWhere,
                                       requiredFilters:
                                           parseModelRequiredFilters({
                                               requiredFilters:
@@ -1268,6 +1319,10 @@ export const convertExplores = async (
                     tags: tags || [],
                     baseTable: model.name,
                     groupLabel: exploreToCreate.groupLabel,
+                    ...(exploreToCreate.groups &&
+                    exploreToCreate.groups.length > 0
+                        ? { groups: exploreToCreate.groups }
+                        : {}),
                     caseSensitive: exploreToCreate.caseSensitive,
                     joinedTables: exploreToCreate.joins.map((join) => ({
                         table: join.join,
@@ -1285,7 +1340,9 @@ export const convertExplores = async (
                     targetDatabase: adapterType,
                     warehouse: model.config?.snowflake_warehouse,
                     databricksCompute: model.config?.databricks_compute,
-                    ymlPath: model.patch_path?.split('://')?.[1],
+                    ymlPath: model.patch_path
+                        ? patchPathParts(model.patch_path).path
+                        : undefined,
                     sqlPath: model.path,
                     spotlightConfig: lightdashProjectConfig.spotlight,
                     ...(meta.ai_hint
@@ -1306,6 +1363,10 @@ export const convertExplores = async (
                     name: exploreToCreate.name,
                     label: exploreToCreate.label,
                     groupLabel: exploreToCreate.groupLabel,
+                    ...(exploreToCreate.groups &&
+                    exploreToCreate.groups.length > 0
+                        ? { groups: exploreToCreate.groups }
+                        : {}),
                     errors: [
                         {
                             // TODO improve parsing of error type

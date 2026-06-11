@@ -1,20 +1,10 @@
 import { FeatureFlags } from '@lightdash/common';
-import {
-    Badge,
-    Button,
-    Checkbox,
-    Popover,
-    ScrollArea,
-    Stack,
-    Text,
-    Tooltip,
-} from '@mantine-8/core';
 import { useMemo, type FC } from 'react';
 import { type DestinationType } from '../../../features/scheduler/hooks/useSchedulerFilters';
 import useHealth from '../../../hooks/health/useHealth';
 import { useGetSlack } from '../../../hooks/slack/useSlack';
 import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
-import classes from './FormatFilter.module.css';
+import FilterFacet, { type FilterFacetOption } from '../../common/FilterFacet';
 
 interface DestinationFilterProps {
     selectedDestinations: DestinationType[];
@@ -40,119 +30,29 @@ const DestinationFilter: FC<DestinationFilterProps> = ({
     const slack = useGetSlack();
     const organizationHasSlack = !!slack.data?.organizationUuid;
 
-    // Compute available destinations based on integrations
-    const availableDestinations = useMemo<DestinationType[]>(() => {
+    const options = useMemo<FilterFacetOption[]>(() => {
         const destinations: DestinationType[] = [];
-        if (health.data?.hasEmailClient) {
-            destinations.push('email');
-        }
-        if (organizationHasSlack) {
-            destinations.push('slack');
-        }
-        if (health.data?.hasMicrosoftTeams) {
-            destinations.push('msteams');
-        }
-        if (isGoogleChatEnabled) {
-            destinations.push('googlechat');
-        }
-        return destinations;
+        if (health.data?.hasEmailClient) destinations.push('email');
+        if (organizationHasSlack) destinations.push('slack');
+        if (health.data?.hasMicrosoftTeams) destinations.push('msteams');
+        if (isGoogleChatEnabled) destinations.push('googlechat');
+        return destinations.map((destination) => ({
+            value: destination,
+            label: DESTINATION_LABELS[destination],
+        }));
     }, [health.data, organizationHasSlack, isGoogleChatEnabled]);
-    const hasSelectedDestinations = selectedDestinations.length > 0;
 
     return (
-        <Popover width={250} position="bottom-start">
-            <Popover.Target>
-                <Tooltip
-                    withinPortal
-                    variant="xs"
-                    label="Filter by destination type"
-                >
-                    <Button
-                        h={32}
-                        c="foreground"
-                        fw={500}
-                        fz="sm"
-                        variant="default"
-                        radius="md"
-                        px="sm"
-                        className={
-                            hasSelectedDestinations
-                                ? classes.filterButtonSelected
-                                : classes.filterButton
-                        }
-                        classNames={{
-                            label: classes.buttonLabel,
-                        }}
-                        rightSection={
-                            hasSelectedDestinations ? (
-                                <Badge
-                                    size="xs"
-                                    variant="filled"
-                                    color="indigo.6"
-                                    circle
-                                    styles={{
-                                        root: {
-                                            minWidth: 18,
-                                            height: 18,
-                                            padding: '0 4px',
-                                        },
-                                    }}
-                                >
-                                    {selectedDestinations.length}
-                                </Badge>
-                            ) : null
-                        }
-                    >
-                        Destination
-                    </Button>
-                </Tooltip>
-            </Popover.Target>
-            <Popover.Dropdown p="sm">
-                <Stack gap={4}>
-                    <Text fz="xs" c="ldGray.9" fw={600}>
-                        Filter by destination:
-                    </Text>
-
-                    <ScrollArea.Autosize mah={200} type="always" scrollbars="y">
-                        <Stack gap="xs">
-                            {availableDestinations.map((destination) => (
-                                <Checkbox
-                                    key={destination}
-                                    label={DESTINATION_LABELS[destination]}
-                                    checked={selectedDestinations.includes(
-                                        destination,
-                                    )}
-                                    size="xs"
-                                    classNames={{
-                                        body: classes.checkboxBody,
-                                        input: classes.checkboxInput,
-                                        label: classes.checkboxLabel,
-                                    }}
-                                    onChange={() => {
-                                        if (
-                                            selectedDestinations.includes(
-                                                destination,
-                                            )
-                                        ) {
-                                            setSelectedDestinations(
-                                                selectedDestinations.filter(
-                                                    (d) => d !== destination,
-                                                ),
-                                            );
-                                        } else {
-                                            setSelectedDestinations([
-                                                ...selectedDestinations,
-                                                destination,
-                                            ]);
-                                        }
-                                    }}
-                                />
-                            ))}
-                        </Stack>
-                    </ScrollArea.Autosize>
-                </Stack>
-            </Popover.Dropdown>
-        </Popover>
+        <FilterFacet
+            label="Destination"
+            options={options}
+            selected={selectedDestinations}
+            onChange={(values) =>
+                setSelectedDestinations(values as DestinationType[])
+            }
+            tooltipLabel="Filter by destination type"
+            emptyLabel="No destinations configured."
+        />
     );
 };
 

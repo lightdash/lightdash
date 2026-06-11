@@ -1,13 +1,19 @@
+import { FeatureFlags } from '@lightdash/common';
 import { type S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import type { LightdashConfig } from '../../config/parseConfig';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import { QueryHistoryModel } from '../../models/QueryHistoryModel/QueryHistoryModel';
-import type { ICacheService } from '../../services/CacheService/ICacheService';
+import type {
+    CacheServiceUser,
+    ICacheService,
+} from '../../services/CacheService/ICacheService';
 import { type CacheHitCacheResult } from '../../services/CacheService/types';
 
 type CacheServiceDependencies = {
     queryHistoryModel: QueryHistoryModel;
     lightdashConfig: LightdashConfig;
     storageClient: S3ResultsFileStorageClient;
+    featureFlagModel: FeatureFlagModel;
 };
 
 // Buffer time to ensure cache doesn't expire while being fetched
@@ -19,28 +25,41 @@ export class CommercialCacheService implements ICacheService {
 
     private readonly lightdashConfig: LightdashConfig;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     storageClient: S3ResultsFileStorageClient;
 
     constructor({
         queryHistoryModel,
         lightdashConfig,
         storageClient,
+        featureFlagModel,
     }: CacheServiceDependencies) {
         this.queryHistoryModel = queryHistoryModel;
         this.lightdashConfig = lightdashConfig;
         this.storageClient = storageClient;
+        this.featureFlagModel = featureFlagModel;
     }
 
-    get isEnabled() {
-        return this.lightdashConfig.results.cacheEnabled;
+    async isResultsCacheEnabled(
+        user: CacheServiceUser | undefined,
+    ): Promise<boolean> {
+        const { enabled } = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.ResultsCacheEnabled,
+        });
+        return enabled;
     }
 
     async findCachedResultsFile(
         projectUuid: string,
         cacheKey: string,
+        user: CacheServiceUser,
     ): Promise<CacheHitCacheResult | null> {
-        // If caching is disabled, return null
-        if (!this.isEnabled) {
+        // Self-protect: gate every cache lookup on the FF, regardless of how
+        // the caller arrived here. Belt-and-suspenders for embed and any
+        // future caller that might forget the outer gate.
+        if (!(await this.isResultsCacheEnabled(user))) {
             return null;
         }
 

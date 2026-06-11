@@ -8,16 +8,6 @@ i18next
     .use(LanguageDetector)
     .use(initReactI18next) // bind react-i18next to the instance
     .init({
-        // Options for using Locize as the backend
-        /*
-        backend: {
-            projectId: import.meta.env.VITE_LOCIZE_PROJECT_ID,
-            apiKey: import.meta.env.VITE_LOCIZE_API_KEY,
-            version: 'latest',
-            private: false,
-            referenceLng: 'en',
-        },
-        */
         fallbackLng: 'en',
         debug: true,
 

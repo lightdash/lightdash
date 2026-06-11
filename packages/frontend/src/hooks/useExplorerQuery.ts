@@ -1,9 +1,7 @@
-import { FeatureFlags } from '@lightdash/common';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import {
     explorerActions,
-    selectIsMinimal,
     selectUnpivotedQueryArgs,
     useExplorerDispatch,
     useExplorerSelector,
@@ -14,7 +12,6 @@ import {
     useCancelQuery,
     type QueryResultsProps,
 } from './useQueryResults';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
  * Public API for Explorer query management
@@ -28,10 +25,8 @@ import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
  */
 export const useExplorerQuery = () => {
     // Get all state and runQuery from manager (single source of truth)
-    const minimal = useExplorerSelector(selectIsMinimal);
     const manager = useExplorerQueryManager();
-    const { queryResults, runQuery, validQueryArgs, unpivotedQueryResults } =
-        manager;
+    const { queryResults, validQueryArgs, unpivotedQueryResults } = manager;
 
     // Redux dispatch and query client for actions
     const dispatch = useExplorerDispatch();
@@ -41,10 +36,6 @@ export const useExplorerQuery = () => {
     const unpivotedQueryArgs = useExplorerSelector(selectUnpivotedQueryArgs);
     const unpivotedEnabled = !!unpivotedQueryArgs;
 
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
-
     // Action: Reset query results
     const resetQueryResults = useCallback(() => {
         dispatch(explorerActions.resetQueryExecution());
@@ -52,13 +43,21 @@ export const useExplorerQuery = () => {
             queryKey: ['create-query'],
             exact: false,
         });
+        queryClient.removeQueries({
+            queryKey: ['calculate_total'],
+            exact: false,
+        });
+        queryClient.removeQueries({
+            queryKey: ['calculate_subtotals'],
+            exact: false,
+        });
     }, [queryClient, dispatch]);
 
     // Action: Fetch results (force refresh - bypasses auto-fetch setting)
     const fetchResults = useCallback(() => {
         resetQueryResults();
-        runQuery();
-    }, [resetQueryResults, runQuery]);
+        dispatch(explorerActions.requestQueryExecution());
+    }, [resetQueryResults, dispatch]);
 
     // Action: Get download query UUID
     const getDownloadQueryUuid = useCallback(
@@ -71,14 +70,12 @@ export const useExplorerQuery = () => {
                     : queryResults.queryUuid;
 
             if (limit === null || limit !== queryResults.totalResults) {
-                const shouldPivot =
-                    exportPivotedResults && !!useSqlPivotResults?.enabled;
+                const shouldPivot = exportPivotedResults;
                 const queryArgsWithLimit: QueryResultsProps | null =
                     validQueryArgs
                         ? {
                               ...validQueryArgs,
                               csvLimit: limit,
-                              invalidateCache: minimal,
                               pivotResults: shouldPivot,
                               pivotConfiguration: shouldPivot
                                   ? validQueryArgs.pivotConfiguration
@@ -100,8 +97,6 @@ export const useExplorerQuery = () => {
             queryResults.queryUuid,
             queryResults.totalResults,
             validQueryArgs,
-            minimal,
-            useSqlPivotResults?.enabled,
         ],
     );
 

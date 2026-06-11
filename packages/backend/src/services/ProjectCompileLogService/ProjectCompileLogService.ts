@@ -4,8 +4,8 @@ import {
     ForbiddenError,
     KnexPaginateArgs,
     KnexPaginatedData,
+    type Account,
     type ProjectCompileLog,
-    type SessionUser,
 } from '@lightdash/common';
 import {
     DbProjectCompileLogSortColumns,
@@ -26,7 +26,7 @@ export class ProjectCompileLogService extends BaseService {
     }
 
     async getProjectCompileLogs(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         paginateArgs?: KnexPaginateArgs,
         sort?: {
@@ -38,17 +38,22 @@ export class ProjectCompileLogService extends BaseService {
             source?: CompilationSource;
         },
     ): Promise<KnexPaginatedData<ProjectCompileLog[]>> {
-        const { organizationUuid } = user;
+        const { organizationUuid } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError(
                 'User does not have access to an organization',
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
             )
         ) {
             throw new ForbiddenError();
@@ -64,28 +69,34 @@ export class ProjectCompileLogService extends BaseService {
     }
 
     async getProjectCompileLogByJob(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         jobUuid: string,
     ): Promise<ProjectCompileLog | undefined> {
-        const { organizationUuid } = user;
+        const { organizationUuid } = account.organization;
         if (!organizationUuid) {
             throw new ForbiddenError(
                 'User does not have access to an organization',
             );
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('Project', { organizationUuid, projectUuid }),
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid },
+                }),
             ) ||
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('JobStatus', {
                     organizationUuid,
                     jobUuid,
                     projectUuid,
+                    metadata: { projectUuid, jobUuid },
                 }),
             )
         ) {

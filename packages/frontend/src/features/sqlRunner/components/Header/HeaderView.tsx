@@ -124,6 +124,14 @@ export const HeaderView: FC = () => {
         }),
     );
 
+    const canCreateScheduledDeliveries = user.data?.ability?.can(
+        'create',
+        subject('ScheduledDeliveries', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
     const hasGoogleDriveEnabled =
         health.data?.auth.google.oauth2ClientId !== undefined &&
         health.data?.auth.google.googleDriveApiKey !== undefined;
@@ -233,29 +241,33 @@ export const HeaderView: FC = () => {
                                     >
                                         Add to dashboard
                                     </Menu.Item>
-                                    {hasGoogleDriveEnabled && (
-                                        <Can
-                                            I="manage"
-                                            this={subject('GoogleSheets', {
-                                                organizationUuid:
-                                                    user.data?.organizationUuid,
-                                                projectUuid,
-                                            })}
-                                        >
-                                            <Menu.Item
-                                                icon={
-                                                    <MantineIcon
-                                                        icon={
-                                                            IconCirclesRelation
-                                                        }
-                                                    />
-                                                }
-                                                onClick={syncModalHandlers.open}
+                                    {hasGoogleDriveEnabled &&
+                                        canCreateScheduledDeliveries && (
+                                            <Can
+                                                I="manage"
+                                                this={subject('GoogleSheets', {
+                                                    organizationUuid:
+                                                        user.data
+                                                            ?.organizationUuid,
+                                                    projectUuid,
+                                                })}
                                             >
-                                                Google Sheets Sync
-                                            </Menu.Item>
-                                        </Can>
-                                    )}
+                                                <Menu.Item
+                                                    icon={
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconCirclesRelation
+                                                            }
+                                                        />
+                                                    }
+                                                    onClick={
+                                                        syncModalHandlers.open
+                                                    }
+                                                >
+                                                    Google Sheets Sync
+                                                </Menu.Item>
+                                            </Can>
+                                        )}
                                     {canPromoteChart && (
                                         <Tooltip
                                             label="You must enable first an upstream project in settings > Data ops"

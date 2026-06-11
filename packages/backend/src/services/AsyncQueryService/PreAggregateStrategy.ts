@@ -3,12 +3,17 @@ import {
     CreateWarehouseCredentials,
     DateZoom,
     ItemsMap,
+    NotImplementedError,
     ParameterDefinitions,
     ParametersValuesMap,
     PivotConfiguration,
     UserAccessControls,
     WarehouseClient,
+    type Account,
     type CacheMetadata,
+    type DashboardDAO,
+    type DashboardFilters,
+    type DashboardPreAggregateAudit,
     type Explore,
     type KnexPaginateArgs,
     type KnexPaginatedData,
@@ -74,6 +79,13 @@ export interface PreAggregateStrategy {
     ): Promise<KnexPaginatedData<ApiPreAggregateStatsResults>>;
 
     getResultsStorageClient(): S3ResultsFileStorageClient | undefined;
+
+    auditDashboard(params: {
+        account: Account;
+        projectUuid: string;
+        dashboard: DashboardDAO;
+        runtimeFilters?: DashboardFilters;
+    }): Promise<DashboardPreAggregateAudit>;
 }
 
 export type ResolveExecutionArgs = {
@@ -86,6 +98,7 @@ export type ResolveExecutionArgs = {
     startOfWeek: CreateWarehouseCredentials['startOfWeek'];
     userAccessControls?: UserAccessControls;
     availableParameterDefinitions?: ParameterDefinitions;
+    useTimezoneAwareDateTrunc?: boolean;
 };
 
 export type PreAggregateExecutionResolution =
@@ -134,5 +147,11 @@ export class NoOpPreAggregateStrategy implements PreAggregateStrategy {
 
     getResultsStorageClient(): undefined {
         return undefined;
+    }
+
+    async auditDashboard(): Promise<DashboardPreAggregateAudit> {
+        throw new NotImplementedError(
+            'Dashboard pre-aggregate audit is not available in this edition',
+        );
     }
 }

@@ -1,3 +1,20 @@
 .noSelect {
     user-select: none;
 }
+
+.floatingTooltip {
+    position: fixed;
+    z-index: 10000;
+    width: max-content;
+    max-width: 250px;
+    padding: 4px 8px;
+    color: var(--mantine-color-white);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 500;
+    line-height: 1.3;
+    background-color: var(--mantine-color-dark-7);
+    border-radius: var(--mantine-radius-sm);
+    box-shadow: var(--mantine-shadow-sm);
+    pointer-events: none;
+    white-space: normal;
+}

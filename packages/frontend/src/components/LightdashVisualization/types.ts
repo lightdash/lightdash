@@ -30,6 +30,7 @@ export type VisualizationConfigCommon<T extends VisualizationConfig> = {
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined;
     initialChartConfig: T['chartConfig']['validConfig'] | undefined;
@@ -150,7 +151,6 @@ export type VisualizationTableConfigProps =
         itemsMap: ItemsMap | undefined;
         columnOrder: string[];
         validPivotDimensions: string[] | undefined;
-        pivotTableMaxColumnLimit: number;
         savedChartUuid: string | undefined;
         dashboardFilters: DashboardFilters | undefined;
         invalidateCache: boolean | undefined;

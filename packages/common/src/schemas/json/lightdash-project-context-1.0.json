@@ -1,0 +1,73 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$id": "https://schemas.lightdash.com/lightdash/project-context.json",
+    "description": "Project-scoped AI agent context loaded from lightdash.project_context.yml",
+    "oneOf": [
+        {
+            "$ref": "#/definitions/document"
+        },
+        {
+            "$ref": "#/definitions/entries"
+        }
+    ],
+    "definitions": {
+        "document": {
+            "type": "object",
+            "properties": {
+                "version": {
+                    "type": "number",
+                    "const": 1
+                },
+                "entries": {
+                    "$ref": "#/definitions/entries"
+                }
+            },
+            "required": ["version", "entries"],
+            "additionalProperties": false
+        },
+        "entries": {
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/entry"
+            }
+        },
+        "entry": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Stable entry id. Optional; derived from terms/content when omitted."
+                },
+                "kind": {
+                    "type": "string",
+                    "enum": ["definition", "context"],
+                    "description": "definition for acronyms/vocabulary; context for object-scoped guidance."
+                },
+                "content": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "One self-contained sentence."
+                },
+                "terms": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Prompt-facing trigger words/phrases.",
+                    "default": []
+                },
+                "objects": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "description": "Semantic objects this fact concerns.",
+                    "default": []
+                }
+            },
+            "required": ["kind", "content"],
+            "additionalProperties": true
+        }
+    }
+}

@@ -1,25 +1,33 @@
 import {
     ConditionalFormattingColorApplyTo,
+    FieldType,
     formatItemValue,
     getConditionalFormattingColor,
     getConditionalFormattingConfig,
     getConditionalFormattingDescription,
+    getRowConditionalFormattingColor,
     getItemId,
+    getPivotRowContextKey,
     isDimension,
     isField,
     isHexCodeColor,
     isNumericItem,
-    isSummable,
     type ColumnProperties,
+    type ConditionalFormattingColorRange,
     type ConditionalFormattingConfig,
+    type ConditionalFormattingMinMax,
     type ConditionalFormattingMinMaxMap,
     type ConditionalFormattingRowFields,
     type ItemsMap,
+    type ParametersValuesMap,
     type PivotData,
     type ResultRow,
     type ResultValue,
+    type SortField,
 } from '@lightdash/common';
+import { Menu } from '@mantine-8/core';
 import {
+    Box,
     Button,
     Group,
     Text,
@@ -32,6 +40,7 @@ import {
     getCoreRowModel,
     getExpandedRowModel,
     useReactTable,
+    type ExpandedState,
     type GroupingState,
     type Row,
 } from '@tanstack/react-table';
@@ -39,8 +48,16 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import isEqual from 'lodash/isEqual';
 import last from 'lodash/last';
 import { readableColor } from 'polished';
-import React, { useCallback, useEffect, useMemo, useRef, type FC } from 'react';
+import React, {
+    useCallback,
+    useEffect,
+    useMemo,
+    useRef,
+    useState,
+    type FC,
+} from 'react';
 import {
+    findMatchingSubtotal,
     getGroupingValuesAndSubtotalKey,
     getSubtotalValueFromGroup,
 } from '../../../hooks/tableVisualization/getDataAndColumns';
@@ -52,6 +69,11 @@ import {
     getColorFromRange,
     transformColorsForDarkMode,
 } from '../../../utils/colorUtils';
+import {
+    getMetricLabelHeaderRowIndex,
+    getPivotColumnIdentities,
+} from '../../../utils/pivotColumnIdentity';
+import { getSortIcon } from '../../../utils/sortUtils';
 import { getConditionalRuleLabelFromItem } from '../Filters/FilterInputs/utils';
 import Table from '../LightTable';
 import { CELL_HEIGHT } from '../LightTable/constants';
@@ -61,12 +83,36 @@ import { getGroupedRowModelLightdash } from '../Table/getGroupedRowModelLightdas
 import { columnHelper, type TableColumn } from '../Table/types';
 import { useColumnResize } from '../Table/useColumnResize';
 import { countSubRows } from '../Table/utils';
+import {
+    getFrozenColumnLayout,
+    type FrozenColumnEntry,
+} from './getFrozenColumnLayout';
+import { getGroupedDimColumnIds, getRowSpanMerges } from './getRowSpanMerges';
 import pivotStyles from './PivotTable.module.css';
 import TotalCellMenu from './TotalCellMenu';
 import ValueCellMenu from './ValueCellMenu';
 
-const ROW_NUMBER_COL_WIDTH = 50;
 const MIN_AUTO_COL_WIDTH = 50;
+
+const getStickyCellProps = (frozen: FrozenColumnEntry | undefined) => {
+    if (!frozen) return {};
+    return {
+        className: `${pivotStyles.stickyColumn}${
+            frozen.isLast ? ` ${pivotStyles.stickyColumnLast}` : ''
+        }`,
+        style: { left: frozen.left },
+    };
+};
+
+const getStickyHeaderProps = (frozen: FrozenColumnEntry | undefined) => {
+    if (!frozen) return {};
+    return {
+        className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}${
+            frozen.isLast ? ` ${pivotStyles.stickyColumnLast}` : ''
+        }`,
+        style: { left: frozen.left },
+    };
+};
 
 type MenuCallbackProps = {
     isOpen: boolean;
@@ -122,11 +168,32 @@ type PivotTableProps = BoxProps & // TODO: remove this
         getFieldLabel: (fieldId: string) => string | undefined;
         getField: (fieldId: string) => ItemsMap[string] | undefined;
         showSubtotals?: boolean;
+        showSubtotalsExpanded?: boolean;
+        /**
+         * When true, visually deduplicate repeated row-index dim values
+         * without rendering aggregate subtotal rows. Implicitly true when
+         * `showSubtotals` is true (subtotals always group).
+         */
+        showRowGrouping?: boolean;
         columnProperties?: Record<string, ColumnProperties>;
         isMinimal: boolean;
         isDashboard?: boolean;
         onColumnWidthChange?: (fieldId: string, width: number) => void;
+        parameters?: ParametersValuesMap;
+        sortBy?: SortField[];
+        /** Renders inside a Mantine Menu opened by clicking sortable headers. */
+        renderSortMenu?: (target: PivotSortMenuTarget) => React.ReactNode;
     };
+
+export type PivotSortMenuTarget =
+    | {
+          kind: 'pivotColumn';
+          dataColIndex: number;
+          metricReference: string;
+          pivotValues: Array<{ reference: string; value: unknown }>;
+      }
+    | { kind: 'indexDim'; reference: string }
+    | { kind: 'groupByDim'; reference: string };
 
 const PivotTable: FC<PivotTableProps> = ({
     data,
@@ -137,19 +204,93 @@ const PivotTable: FC<PivotTableProps> = ({
     getField,
     className,
     showSubtotals = false,
+    showSubtotalsExpanded = false,
+    showRowGrouping = false,
     columnProperties = {},
     isMinimal = false,
     isDashboard = false,
     onColumnWidthChange,
+    parameters,
+    sortBy,
+    renderSortMenu,
     ...tableProps
 }) => {
     const { colorScheme } = useMantineColorScheme();
     const containerRef = useRef<HTMLDivElement>(null);
     const [grouping, setGrouping] = React.useState<GroupingState>([]);
+    // Row grouping without subtotals must always render expanded — there's
+    // no UI affordance to expand groups in that mode (no carat) and
+    // collapsed groups would hide all leaf data. Force-expanded when
+    // showRowGrouping is on without subtotals; otherwise honor showSubtotalsExpanded.
+    const groupingOnlyMode = showRowGrouping && !showSubtotals;
+    const expandAllByDefault = showSubtotalsExpanded || groupingOnlyMode;
+    const [expanded, setExpanded] = React.useState<ExpandedState>(
+        expandAllByDefault ? true : {},
+    );
+    // Re-derive `expanded` when the "should expand all" predicate flips
+    // (e.g. user toggles row grouping or subtotals-expanded). React's
+    // recommended render-time setState pattern for derived state from
+    // props — not a useEffect, no extra render (React detects the
+    // setState before commit and just renders once with the new value).
+    // We rely on `autoResetExpanded: false` (table config below) so
+    // TanStack doesn't wipe this on setGrouping calls.
+    const [prevExpandAllByDefault, setPrevExpandAllByDefault] =
+        React.useState(expandAllByDefault);
+    if (expandAllByDefault !== prevExpandAllByDefault) {
+        setPrevExpandAllByDefault(expandAllByDefault);
+        setExpanded(expandAllByDefault ? true : {});
+    }
 
     const { handleResizeStart, resizeHandleClassName } = useColumnResize({
         onColumnWidthChange,
     });
+
+    // Track actual rendered widths of body cells by column id, used to keep
+    // frozen-column offsets aligned with reality. Without measurement, the
+    // layout has to guess (defaultColumnWidth) and offsets visibly drift
+    // when auto-sized cells differ from the guess.
+    const [measuredColumnWidths, setMeasuredColumnWidths] = useState<
+        Map<string, number>
+    >(() => new Map());
+    const cellObserversRef = useRef<Map<string, ResizeObserver>>(new Map());
+
+    useEffect(
+        () => () => {
+            cellObserversRef.current.forEach((obs) => obs.disconnect());
+            cellObserversRef.current.clear();
+        },
+        [],
+    );
+
+    const measureCellRef = useCallback(
+        (columnId: string) => (el: HTMLTableCellElement | null) => {
+            const existing = cellObserversRef.current.get(columnId);
+            if (existing) {
+                existing.disconnect();
+                cellObserversRef.current.delete(columnId);
+            }
+            if (!el) return;
+            const obs = new ResizeObserver(() => {
+                const width = el.getBoundingClientRect().width;
+                if (width === 0) return;
+                setMeasuredColumnWidths((prev) => {
+                    const current = prev.get(columnId);
+                    if (
+                        current !== undefined &&
+                        Math.abs(current - width) < 0.5
+                    ) {
+                        return prev;
+                    }
+                    const next = new Map(prev);
+                    next.set(columnId, width);
+                    return next;
+                });
+            });
+            obs.observe(el);
+            cellObserversRef.current.set(columnId, obs);
+        },
+        [],
+    );
 
     // Count label/index columns to compute offset from headerColIndex to pivotColumnInfo
     const numLabelCols = useMemo(
@@ -162,6 +303,84 @@ const PivotTable: FC<PivotTableProps> = ({
         [data],
     );
 
+    const metricLabelHeaderRowIndex = useMemo(
+        () => getMetricLabelHeaderRowIndex(data),
+        [data],
+    );
+    const pivotColumnIdentities = useMemo(
+        () => getPivotColumnIdentities(data),
+        [data],
+    );
+
+    // Data-column index → matching sort entry. Built once so header render is O(1).
+    const sortMatchByDataColIndex = useMemo(() => {
+        const result = new Map<number, SortField>();
+        if (!sortBy?.length) return result;
+
+        for (const sort of sortBy) {
+            const pivots = sort.pivotValues ?? [];
+
+            if (pivots.length > 0) {
+                // Pinned: pivot values must match, plus metric (when known)
+                // — distinguishes per-metric sorts under the same pin.
+                for (
+                    let colIdx = 0;
+                    colIdx < pivotColumnIdentities.length;
+                    colIdx += 1
+                ) {
+                    const identity = pivotColumnIdentities[colIdx];
+                    const allMatch = pivots.every((pv) => {
+                        const found = identity.pivotValues.find(
+                            (p) => p.reference === pv.reference,
+                        );
+                        return (
+                            found !== undefined && found.rawValue === pv.value
+                        );
+                    });
+                    if (!allMatch) continue;
+                    const colMetric = identity.metricFieldId;
+                    const metricMatches =
+                        colMetric === undefined || colMetric === sort.fieldId;
+                    if (metricMatches && !result.has(colIdx)) {
+                        result.set(colIdx, sort);
+                        break;
+                    }
+                }
+                continue;
+            }
+
+            // Unpinned: surface on leftmost matching column, or col 0 when
+            // there's no metric-label row (metricsAsRows: true).
+            const item = getField?.(sort.fieldId);
+            const isValueColumnSort =
+                item && isField(item) && item.fieldType === FieldType.METRIC;
+            if (!isValueColumnSort) continue;
+
+            if (metricLabelHeaderRowIndex < 0) {
+                if (pivotColumnIdentities.length > 0 && !result.has(0)) {
+                    result.set(0, sort);
+                }
+                continue;
+            }
+
+            for (
+                let colIdx = 0;
+                colIdx < pivotColumnIdentities.length;
+                colIdx += 1
+            ) {
+                if (
+                    pivotColumnIdentities[colIdx].metricFieldId ===
+                        sort.fieldId &&
+                    !result.has(colIdx)
+                ) {
+                    result.set(colIdx, sort);
+                    break;
+                }
+            }
+        }
+        return result;
+    }, [getField, sortBy, pivotColumnIdentities, metricLabelHeaderRowIndex]);
+
     const hasColumnTotals = data.pivotConfig.columnTotals;
 
     const hasRowTotals = data.pivotConfig.rowTotals;
@@ -172,6 +391,53 @@ const PivotTable: FC<PivotTableProps> = ({
                 (prop) => prop?.width !== undefined,
             ),
         [columnProperties],
+    );
+
+    // Width of the leftmost row-number column. Mirrors the formula used by
+    // the non-pivoted Table (see Table/TableProvider.tsx) so freeze offsets
+    // line up with the actual rendered column width.
+    const rowNumberWidth = useMemo(() => {
+        if (hideRowNumbers) return 0;
+        const rowCount = data.retrofitData.allCombinedData.length;
+        return `${rowCount}`.length * 10 + 20;
+    }, [hideRowNumbers, data.retrofitData.allCombinedData.length]);
+
+    // In metricsAsRows mode the leftmost label column shows metric names
+    // (Total order amount / Total completed order amount). Its synthetic
+    // fieldId in pivotColumnInfo isn't a key in columnProperties — the
+    // freeze toggle writes to the underlying metric fieldId instead. Map
+    // the metric flags to a single "is the label column frozen?" signal.
+    const isLabelColumnFrozen = useMemo(() => {
+        if (!data.pivotConfig.metricsAsRows) return false;
+        const labelMetricIds = new Set<string>();
+        for (const row of data.indexValues) {
+            for (const entry of row) {
+                if (entry.type === 'label') labelMetricIds.add(entry.fieldId);
+            }
+        }
+        for (const id of labelMetricIds) {
+            if (columnProperties[id]?.frozen === true) return true;
+        }
+        return false;
+    }, [data.indexValues, data.pivotConfig.metricsAsRows, columnProperties]);
+
+    const frozenLayout = useMemo(
+        () =>
+            getFrozenColumnLayout({
+                pivotColumnInfo: data.retrofitData.pivotColumnInfo,
+                columnProperties,
+                rowNumberWidth,
+                defaultColumnWidth: 100,
+                measuredWidths: measuredColumnWidths,
+                labelColumnFrozen: isLabelColumnFrozen,
+            }),
+        [
+            data.retrofitData.pivotColumnInfo,
+            columnProperties,
+            rowNumberWidth,
+            measuredColumnWidths,
+            isLabelColumnFrozen,
+        ],
     );
 
     const { columns, columnOrder, colWidths } = useMemo(() => {
@@ -210,7 +476,7 @@ const PivotTable: FC<PivotTableProps> = ({
         const newColWidths: (number | undefined)[] = [];
         if (!hideRowNumbers) {
             newColumnOrder.push(ROW_NUMBER_COLUMN_ID);
-            newColWidths.push(ROW_NUMBER_COL_WIDTH);
+            newColWidths.push(rowNumberWidth);
         }
         if (allDimensionsPivoted) {
             newColumnOrder.push(allPivotedSpacerColumn.id);
@@ -249,6 +515,7 @@ const PivotTable: FC<PivotTableProps> = ({
                                 colIndex < finalHeaderInfoForColumns.length
                                     ? finalHeaderInfoForColumns[colIndex]
                                     : undefined,
+                            frozenLayout: frozenLayout.get(col.fieldId),
                         },
                         aggregatedCell: (info) => {
                             if (info.row.getIsGrouped()) {
@@ -267,36 +534,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                     finalHeaderInfoForColumns[colIndex];
 
                                 // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                                const subtotal = data.groupedSubtotals?.[
-                                    subtotalGroupKey
-                                ]?.find((sub) => {
-                                    try {
-                                        return (
-                                            // All grouping values in the row must match the subtotal values
-                                            Object.keys(groupingValues).every(
-                                                (key) => {
-                                                    return (
-                                                        groupingValues[key]
-                                                            ?.value.raw ===
-                                                        sub[key]
-                                                    );
-                                                },
-                                            ) &&
-                                            // All pivoted header values in the row must match the subtotal values
-                                            Object.keys(
-                                                pivotedHeaderValues,
-                                            ).every((key) => {
-                                                return (
-                                                    pivotedHeaderValues[key]
-                                                        ?.raw === sub[key]
-                                                );
-                                            })
-                                        );
-                                    } catch (e) {
-                                        console.error(e);
-                                        return false;
-                                    }
-                                });
+                                const subtotal = findMatchingSubtotal(
+                                    data.groupedSubtotals?.[subtotalGroupKey],
+                                    groupingValues,
+                                    pivotedHeaderValues,
+                                );
 
                                 const subtotalValue = getSubtotalValueFromGroup(
                                     subtotal,
@@ -309,7 +551,12 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 return (
                                     <Text span fw={600}>
-                                        {formatItemValue(item, subtotalValue)}
+                                        {formatItemValue(
+                                            item,
+                                            subtotalValue,
+                                            false,
+                                            parameters,
+                                        )}
                                     </Text>
                                 );
                             }
@@ -329,7 +576,15 @@ const PivotTable: FC<PivotTableProps> = ({
             columnOrder: newColumnOrder,
             colWidths: newColWidths,
         };
-    }, [data, hideRowNumbers, getField, columnProperties]);
+    }, [
+        data,
+        hideRowNumbers,
+        getField,
+        columnProperties,
+        frozenLayout,
+        rowNumberWidth,
+        parameters,
+    ]);
 
     // Minimum table width so auto columns don't get squeezed to zero
     const minTableWidth = useMemo(() => {
@@ -340,17 +595,40 @@ const PivotTable: FC<PivotTableProps> = ({
         );
     }, [hasCustomWidths, colWidths]);
 
+    // Passthrough columns are registered with TanStack so their values
+    // surface in `getAllCells()` for richText / image row context, but they
+    // must not render as headers or body cells.
+    const columnVisibility = useMemo(() => {
+        const visibility: Record<string, boolean> = {};
+        for (const col of data.retrofitData.pivotColumnInfo) {
+            if (col.columnType === 'passthrough') {
+                visibility[col.fieldId] = false;
+            }
+        }
+        return visibility;
+    }, [data.retrofitData.pivotColumnInfo]);
+
     const table = useReactTable({
         data: data.retrofitData.allCombinedData,
         columns: columns,
         state: {
             grouping,
+            expanded,
             columnOrder: columnOrder,
+            columnVisibility,
             columnPinning: {
                 left: [ROW_NUMBER_COLUMN_ID],
             },
         },
         onGroupingChange: setGrouping,
+        onExpandedChange: setExpanded,
+        // Don't let TanStack auto-collapse all rows when grouping changes —
+        // the expanded state is driven by `expandAllByDefault` (above) and
+        // we want it to survive the setGrouping call. Without this,
+        // toggling row-grouping leaves us with only top-level aggregate
+        // rows visible because TanStack resets expanded={} on every
+        // grouping change.
+        autoResetExpanded: false,
         getExpandedRowModel: getExpandedRowModel(),
         getGroupedRowModel: getGroupedRowModelLightdash(),
         getCoreRowModel: getCoreRowModel(),
@@ -370,40 +648,86 @@ const PivotTable: FC<PivotTableProps> = ({
     });
     const virtualRows = rowVirtualizer.getVirtualItems();
 
+    // Grouping-only mode renders a flat row model and visually merges repeated
+    // row-index dimension values with rowSpan instead of TanStack group rows.
+    const rowSpanMergesByColumnId = useMemo(() => {
+        if (!groupingOnlyMode) return null;
+        const groupedColumnIds = getGroupedDimColumnIds(
+            data.indexValueTypes,
+            columnOrder,
+        );
+        if (groupedColumnIds.length === 0) return null;
+        return getRowSpanMerges(
+            rows.length,
+            groupedColumnIds,
+            (rowIndex, columnId) => {
+                const cell = rows[rowIndex]?.getValue(columnId) as
+                    | { value?: ResultValue }
+                    | undefined;
+                return cell?.value?.raw;
+            },
+        );
+    }, [groupingOnlyMode, data.indexValueTypes, columnOrder, rows]);
+
+    // In merge mode, render every row (no virtualization) so rowSpans stay
+    // contiguous — a block's first row must never be unmounted while its
+    // absorbed siblings are visible.
+    const renderedBodyRows = groupingOnlyMode
+        ? rows.map((row, rowIndex) => ({ row, rowIndex }))
+        : virtualRows.map((virtualRow) => ({
+              row: rows[virtualRow.index],
+              rowIndex: virtualRow.index,
+          }));
+
     const getColumnTotalValueFromAxis = useCallback(
         (total: unknown, colIndex: number): ResultValue | null => {
             const value = last(data.headerValues)?.[colIndex];
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
-            if (!isSummable(item)) {
+            // Column totals are warehouse-computed for every metric type, so
+            // there is no `isSummable` gate; a null total just renders blank.
+            if (total === null || total === undefined) {
                 return null;
             }
-            const formattedValue = formatItemValue(item, total);
+            const formattedValue = formatItemValue(
+                item,
+                total,
+                false,
+                parameters,
+            );
 
             return {
                 raw: total,
                 formatted: formattedValue,
             };
         },
-        [data.headerValues, getField],
+        [data.headerValues, getField, parameters],
     );
 
     const getMetricAsRowColumnTotalValueFromAxis = useCallback(
-        (total: unknown, rowIndex: number): ResultValue => {
+        (total: unknown, rowIndex: number): ResultValue | null => {
             const value = last(data.columnTotalFields?.[rowIndex]);
             if (!value || !value.fieldId) throw new Error('Invalid pivot data');
 
             const item = getField(value.fieldId);
+            if (total === null || total === undefined) {
+                return null;
+            }
 
-            const formattedValue = formatItemValue(item, total);
+            const formattedValue = formatItemValue(
+                item,
+                total,
+                false,
+                parameters,
+            );
 
             return {
                 raw: total,
                 formatted: formattedValue,
             };
         },
-        [data.columnTotalFields, getField],
+        [data.columnTotalFields, getField, parameters],
     );
 
     const getUnderlyingFieldValues = useCallback(
@@ -501,6 +825,31 @@ const PivotTable: FC<PivotTableProps> = ({
         [getField],
     );
 
+    // Merge hidden metric values from hiddenContextValues into rowFields
+    // for conditional formatting rules that reference hidden metrics
+    const mergeHiddenContextValues = useCallback(
+        (
+            dimValues: Record<string, unknown>,
+        ): ConditionalFormattingRowFields => {
+            if (!data.hiddenContextValues) return {};
+            const key = getPivotRowContextKey(dimValues);
+            const hidden = data.hiddenContextValues[key];
+            if (!hidden) return {};
+            return Object.entries(
+                hidden,
+            ).reduce<ConditionalFormattingRowFields>(
+                (acc, [fieldId, resultValue]) => {
+                    const field = getField(fieldId);
+                    if (field)
+                        acc[fieldId] = { field, value: resultValue?.raw };
+                    return acc;
+                },
+                {},
+            );
+        },
+        [data.hiddenContextValues, getField],
+    );
+
     // Build rowFields for metricsAsRows mode by looking up metric values across rows
     // that share the same index dimension values (same "row group" in the original data)
     const buildRowFieldsForMetricsAsRows = useCallback(
@@ -566,11 +915,26 @@ const PivotTable: FC<PivotTableProps> = ({
                     {},
                 );
 
-            // Merge pivoted dimensions, row dimensions, and metrics
+            // Build dim map for hidden context key lookup:
+            // use display index dims (rowDimensionFields) + header dims (headerInfo)
+            const dimValuesForKey: Record<string, unknown> = {};
+            Object.entries(rowDimensionFields).forEach(
+                ([fieldId, { value }]) => {
+                    dimValuesForKey[fieldId] = value;
+                },
+            );
+            if (headerInfo) {
+                Object.entries(headerInfo).forEach(([fieldId, rv]) => {
+                    dimValuesForKey[fieldId] = rv?.raw;
+                });
+            }
+
+            // Merge pivoted dimensions, row dimensions, metrics, and hidden metric values
             return {
                 ...pivotedDimensionFields,
                 ...rowDimensionFields,
                 ...metricFields,
+                ...mergeHiddenContextValues(dimValuesForKey),
             };
         },
         [
@@ -579,6 +943,7 @@ const PivotTable: FC<PivotTableProps> = ({
             findDataColumnIndex,
             getField,
             buildRowFieldsFromHeaderInfo,
+            mergeHiddenContextValues,
         ],
     );
 
@@ -618,10 +983,41 @@ const PivotTable: FC<PivotTableProps> = ({
                     return acc;
                 }, {});
 
-            // Merge pivoted dimensions with cell fields
-            return { ...pivotedDimensionFields, ...cellFields };
+            // Build dim map for hidden context key lookup:
+            // use index dimension cells + header dims (headerInfo)
+            const dimValuesForKey: Record<string, unknown> = {};
+            Object.values(cellFields).forEach(({ field, value }) => {
+                if (isDimension(field))
+                    dimValuesForKey[getItemId(field)] = value;
+            });
+            if (headerInfo) {
+                Object.entries(headerInfo).forEach(([fieldId, rv]) => {
+                    dimValuesForKey[fieldId] = rv?.raw;
+                });
+            }
+
+            // Merge pivoted dimensions, cell fields, and hidden metric values
+            return {
+                ...pivotedDimensionFields,
+                ...cellFields,
+                ...mergeHiddenContextValues(dimValuesForKey),
+            };
         },
-        [buildRowFieldsFromHeaderInfo],
+        [buildRowFieldsFromHeaderInfo, mergeHiddenContextValues],
+    );
+    const getEffectiveColorFromRange = useCallback(
+        (
+            val: number,
+            colorRange: ConditionalFormattingColorRange,
+            minMaxRange: ConditionalFormattingMinMax,
+        ) => {
+            const effectiveColorRange =
+                colorScheme === 'dark'
+                    ? transformColorsForDarkMode(colorRange)
+                    : colorRange;
+            return getColorFromRange(val, effectiveColorRange, minMaxRange);
+        },
+        [colorScheme],
     );
 
     const paddingTop = useMemo(() => {
@@ -640,32 +1036,32 @@ const PivotTable: FC<PivotTableProps> = ({
     }, [hideRowNumbers, data.cellsCount]);
 
     useEffect(() => {
-        // TODO: Remove code duplicated from non-pivot table version.
-        if (showSubtotals) {
-            const groupedColumns = data.indexValueTypes.map(
-                (valueType) => valueType.fieldId,
+        // Grouping is driven by subtotals only. Row-grouping without subtotals
+        // (groupingOnlyMode) now renders a FLAT row model with merged rowSpan
+        // cells (see getRowSpanMerges / the body renderer below), so it must
+        // NOT engage the TanStack grouping machinery.
+        const groupingActive =
+            showSubtotals || (showRowGrouping && !groupingOnlyMode);
+        if (groupingActive) {
+            const sortedColumns = getGroupedDimColumnIds(
+                data.indexValueTypes,
+                table.getState().columnOrder,
             );
-
-            const sortedColumns = table
-                .getState()
-                .columnOrder.reduce<string[]>((acc, sortedId) => {
-                    return groupedColumns.includes(sortedId)
-                        ? [...acc, sortedId]
-                        : acc;
-                }, [])
-                // The last dimension column essentially groups rows for each unique value in that column.
-                // Grouping on it would result in many useless expandable groups containing just one item.
-                .slice(0, -1);
 
             if (!isEqual(sortedColumns, table.getState().grouping)) {
                 table.setGrouping(sortedColumns);
             }
-        } else {
-            if (table.getState().grouping.length > 0) {
-                table.resetGrouping();
-            }
+        } else if (table.getState().grouping.length > 0) {
+            table.resetGrouping();
         }
-    }, [showSubtotals, data.indexValueTypes, table, columnOrder]);
+    }, [
+        showSubtotals,
+        showRowGrouping,
+        groupingOnlyMode,
+        data.indexValueTypes,
+        table,
+        columnOrder,
+    ]);
 
     return (
         <Table
@@ -701,21 +1097,43 @@ const PivotTable: FC<PivotTableProps> = ({
                         index={headerRowIndex}
                     >
                         {/* shows empty cell if row numbers are visible */}
-                        {hideRowNumbers ? null : headerRowIndex <
-                          data.headerValues.length - 1 ? (
-                            <Table.Cell
-                                isMinimal={isMinimal}
-                                withMinimalWidth={!hasCustomWidths}
-                            />
-                        ) : (
-                            <Table.CellHead
-                                isMinimal={isMinimal}
-                                withMinimalWidth={!hasCustomWidths}
-                                withBoldFont
-                            >
-                                #
-                            </Table.CellHead>
-                        )}
+                        {hideRowNumbers
+                            ? null
+                            : (() => {
+                                  const rowNumberSticky =
+                                      frozenLayout.size > 0
+                                          ? {
+                                                className: `${pivotStyles.stickyColumn} ${pivotStyles.stickyHeaderColumn}`,
+                                                style: { left: 0 },
+                                            }
+                                          : ({} as {
+                                                className?: string;
+                                                style?: React.CSSProperties;
+                                            });
+                                  return headerRowIndex <
+                                      data.headerValues.length - 1 ? (
+                                      <Table.Cell
+                                          className={rowNumberSticky.className}
+                                          style={rowNumberSticky.style}
+                                          isMinimal={isMinimal}
+                                          w={rowNumberWidth}
+                                          miw={rowNumberWidth}
+                                          maw={rowNumberWidth}
+                                      />
+                                  ) : (
+                                      <Table.CellHead
+                                          className={rowNumberSticky.className}
+                                          style={rowNumberSticky.style}
+                                          isMinimal={isMinimal}
+                                          w={rowNumberWidth}
+                                          miw={rowNumberWidth}
+                                          maw={rowNumberWidth}
+                                          withBoldFont
+                                      >
+                                          #
+                                      </Table.CellHead>
+                                  );
+                              })()}
                         {/* renders the title labels */}
                         {data.titleFields[headerRowIndex].map(
                             (titleField, titleFieldIndex) => {
@@ -728,9 +1146,74 @@ const PivotTable: FC<PivotTableProps> = ({
                                 const isHeaderTitle =
                                     titleField?.direction === 'header';
 
+                                const isIndexTitle =
+                                    titleField?.direction === 'index';
+
+                                const isGroupByTitle =
+                                    titleField?.direction === 'header';
+
                                 const isLastHeaderRow =
                                     headerRowIndex ===
                                     data.headerValues.length - 1;
+
+                                const titleMenuTarget:
+                                    | PivotSortMenuTarget
+                                    | undefined =
+                                    isIndexTitle && titleField?.fieldId
+                                        ? {
+                                              kind: 'indexDim',
+                                              reference: titleField.fieldId,
+                                          }
+                                        : isGroupByTitle && titleField?.fieldId
+                                          ? {
+                                                kind: 'groupByDim',
+                                                reference: titleField.fieldId,
+                                            }
+                                          : undefined;
+                                const titleIsClickable =
+                                    !!titleMenuTarget && !!renderSortMenu;
+                                const titleSortMatch =
+                                    (isIndexTitle || isGroupByTitle) &&
+                                    titleField?.fieldId
+                                        ? sortBy?.find(
+                                              (s) =>
+                                                  s.fieldId ===
+                                                      titleField.fieldId &&
+                                                  !s.pivotValues?.length,
+                                          )
+                                        : undefined;
+                                const titleSortField = titleSortMatch
+                                    ? getField(titleSortMatch.fieldId)
+                                    : undefined;
+                                const titleSortIcon =
+                                    titleSortMatch && titleSortField
+                                        ? getSortIcon(
+                                              titleSortField,
+                                              titleSortMatch.descending,
+                                          )
+                                        : undefined;
+
+                                const titleInnerContent =
+                                    titleField?.fieldId ? (
+                                        titleSortIcon ? (
+                                            <Group
+                                                display="inline-flex"
+                                                spacing={4}
+                                                noWrap
+                                                align="center"
+                                            >
+                                                {getFieldLabel(
+                                                    titleField.fieldId,
+                                                )}
+                                                <MantineIcon
+                                                    icon={titleSortIcon}
+                                                    size={14}
+                                                />
+                                            </Group>
+                                        ) : (
+                                            getFieldLabel(titleField.fieldId)
+                                        )
+                                    ) : undefined;
 
                                 const titleWidthKey = titleField?.fieldId;
                                 const titleWidth = titleWidthKey
@@ -742,9 +1225,23 @@ const PivotTable: FC<PivotTableProps> = ({
                                     !isMinimal &&
                                     titleWidthKey;
 
+                                const titlePivotCol =
+                                    data.retrofitData.pivotColumnInfo[
+                                        titleFieldIndex
+                                    ];
+                                const titleStickyProps = titlePivotCol
+                                    ? getStickyHeaderProps(
+                                          frozenLayout.get(
+                                              titlePivotCol.fieldId,
+                                          ),
+                                      )
+                                    : {};
+
                                 return isEmpty ? (
                                     <Table.Cell
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        className={titleStickyProps.className}
+                                        style={titleStickyProps.style}
                                         isMinimal={isMinimal}
                                         withMinimalWidth={
                                             !hasCustomWidths && !titleWidth
@@ -753,6 +1250,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                 ) : (
                                     <Table.CellHead
                                         key={`title-${headerRowIndex}-${titleFieldIndex}`}
+                                        className={
+                                            [
+                                                titleStickyProps.className,
+                                                titleIsClickable
+                                                    ? pivotStyles.clickableHeader
+                                                    : undefined,
+                                            ]
+                                                .filter(Boolean)
+                                                .join(' ') || undefined
+                                        }
+                                        style={titleStickyProps.style}
                                         withAlignRight={isHeaderTitle}
                                         isMinimal={isMinimal}
                                         withMinimalWidth={
@@ -781,9 +1289,33 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 : undefined
                                         }
                                     >
-                                        {titleField?.fieldId
-                                            ? getFieldLabel(titleField?.fieldId)
-                                            : undefined}
+                                        {titleIsClickable &&
+                                        titleField &&
+                                        titleMenuTarget &&
+                                        renderSortMenu ? (
+                                            <Menu
+                                                shadow="md"
+                                                position="bottom-start"
+                                                withinPortal
+                                            >
+                                                <Menu.Target>
+                                                    <Box
+                                                        component="span"
+                                                        role="button"
+                                                        tabIndex={0}
+                                                    >
+                                                        {titleInnerContent}
+                                                    </Box>
+                                                </Menu.Target>
+                                                <Menu.Dropdown>
+                                                    {renderSortMenu(
+                                                        titleMenuTarget,
+                                                    )}
+                                                </Menu.Dropdown>
+                                            </Menu>
+                                        ) : (
+                                            titleInnerContent
+                                        )}
                                         {canResizeTitle && (
                                             <div
                                                 className={
@@ -841,9 +1373,89 @@ const PivotTable: FC<PivotTableProps> = ({
                                     ? colWidth
                                     : undefined;
 
+                            const headerValueStickyProps = colInfo
+                                ? getStickyHeaderProps(
+                                      frozenLayout.get(colInfo.fieldId),
+                                  )
+                                : {};
+
+                            const isMetricLabelRow =
+                                metricLabelHeaderRowIndex >= 0 &&
+                                headerRowIndex === metricLabelHeaderRowIndex;
+                            const columnIdentity =
+                                pivotColumnIdentities[headerColIndex];
+                            const columnMetricRef =
+                                columnIdentity?.metricFieldId;
+                            const isClickableHeader =
+                                isMetricLabelRow &&
+                                isLabel &&
+                                !!renderSortMenu &&
+                                !!columnMetricRef;
+                            const sortMatch =
+                                isMetricLabelRow && isLabel
+                                    ? sortMatchByDataColIndex.get(
+                                          headerColIndex,
+                                      )
+                                    : undefined;
+                            const sortMatchItem = sortMatch
+                                ? getField(sortMatch.fieldId)
+                                : undefined;
+                            const sortIcon =
+                                sortMatch && sortMatchItem
+                                    ? getSortIcon(
+                                          sortMatchItem,
+                                          sortMatch.descending,
+                                      )
+                                    : undefined;
+
+                            const cellClassName = [
+                                headerValueStickyProps.className,
+                                isClickableHeader
+                                    ? pivotStyles.clickableHeader
+                                    : undefined,
+                            ]
+                                .filter(Boolean)
+                                .join(' ');
+
+                            const headerInnerContent = sortIcon ? (
+                                <Group
+                                    display="inline-flex"
+                                    spacing={4}
+                                    noWrap
+                                    align="center"
+                                >
+                                    {isLabel
+                                        ? getFieldLabel(headerValue.fieldId)
+                                        : formatCellContent(headerValue)}
+                                    <MantineIcon icon={sortIcon} size={14} />
+                                </Group>
+                            ) : isLabel ? (
+                                getFieldLabel(headerValue.fieldId)
+                            ) : (
+                                formatCellContent(headerValue)
+                            );
+
+                            const pivotMenuTarget: PivotSortMenuTarget | null =
+                                columnMetricRef && columnIdentity
+                                    ? {
+                                          kind: 'pivotColumn',
+                                          dataColIndex: headerColIndex,
+                                          metricReference: columnMetricRef,
+                                          pivotValues:
+                                              columnIdentity.pivotValues.map(
+                                                  (p) => ({
+                                                      reference: p.reference,
+                                                      value: p.rawValue,
+                                                  }),
+                                              ),
+                                      }
+                                    : null;
+
                             return isLabel || headerValue.colSpan > 0 ? (
                                 <Table.CellHead
                                     key={`header-${headerRowIndex}-${headerColIndex}`}
+                                    className={cellClassName || undefined}
+                                    style={headerValueStickyProps.style}
                                     isMinimal={isMinimal}
                                     withBoldFont={isLabel}
                                     withTooltip={description}
@@ -856,9 +1468,30 @@ const PivotTable: FC<PivotTableProps> = ({
                                     miw={effectiveWidth}
                                     maw={effectiveWidth}
                                 >
-                                    {isLabel
-                                        ? getFieldLabel(headerValue.fieldId)
-                                        : formatCellContent(headerValue)}
+                                    {isClickableHeader && pivotMenuTarget ? (
+                                        <Menu
+                                            shadow="md"
+                                            position="bottom-start"
+                                            withinPortal
+                                        >
+                                            <Menu.Target>
+                                                <Box
+                                                    component="span"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                >
+                                                    {headerInnerContent}
+                                                </Box>
+                                            </Menu.Target>
+                                            <Menu.Dropdown>
+                                                {renderSortMenu?.(
+                                                    pivotMenuTarget,
+                                                )}
+                                            </Menu.Dropdown>
+                                        </Menu>
+                                    ) : (
+                                        headerInnerContent
+                                    )}
                                     {canResize && (
                                         <div
                                             className={resizeHandleClassName}
@@ -907,19 +1540,52 @@ const PivotTable: FC<PivotTableProps> = ({
             </Table.Head>
 
             <Table.Body>
-                {paddingTop > 0 && (
+                {!groupingOnlyMode && paddingTop > 0 && (
                     <VirtualizedArea
                         cellCount={cellsCountWithRowNumber}
                         height={paddingTop}
                     />
                 )}
 
-                {virtualRows.map((virtualRow) => {
-                    const rowIndex = virtualRow.index;
-                    const row = rows[rowIndex];
+                {renderedBodyRows.map(({ row, rowIndex }) => {
                     if (!row) return null;
 
                     const toggleExpander = row.getToggleExpandedHandler();
+
+                    // Row-level conditional formatting (PROD-8058): evaluate
+                    // once per row using a representative data column's pivot
+                    // context, then paint every cell in the row.
+                    const representativeHeaderInfo = row
+                        .getVisibleCells()
+                        .find((c) => {
+                            const m = c.column.columnDef.meta;
+                            return (
+                                c.column.id !== ROW_NUMBER_COLUMN_ID &&
+                                m?.type !== 'indexValue' &&
+                                m?.type !== 'label' &&
+                                m?.type !== 'rowTotal'
+                            );
+                        })?.column.columnDef.meta?.headerInfo;
+
+                    const rowLevelFields = representativeHeaderInfo
+                        ? data.pivotConfig.metricsAsRows
+                            ? buildRowFieldsForMetricsAsRows(
+                                  rowIndex,
+                                  representativeHeaderInfo,
+                              )
+                            : buildRowFieldsFromVisibleCells(
+                                  row,
+                                  representativeHeaderInfo,
+                              )
+                        : buildRowFieldsFromVisibleCells(row, undefined);
+
+                    const rowBackgroundColor = getRowConditionalFormattingColor(
+                        {
+                            conditionalFormattings,
+                            rowFields: rowLevelFields,
+                            minMaxMap,
+                        },
+                    );
 
                     return (
                         <Table.Row
@@ -927,6 +1593,75 @@ const PivotTable: FC<PivotTableProps> = ({
                             index={rowIndex}
                         >
                             {row.getVisibleCells().map((cell, colIndex) => {
+                                // Measure body cell widths in the first row only.
+                                // Column widths are uniform across rows (CSS table
+                                // layout), so one measurement per column is enough.
+                                const measureRef =
+                                    rowIndex === 0
+                                        ? measureCellRef(cell.column.id)
+                                        : undefined;
+                                if (cell.column.id === ROW_NUMBER_COLUMN_ID) {
+                                    const rowNumberStickyBody =
+                                        frozenLayout.size > 0
+                                            ? {
+                                                  className:
+                                                      pivotStyles.stickyColumn,
+                                                  style: { left: 0 },
+                                              }
+                                            : ({} as {
+                                                  className?: string;
+                                                  style?: React.CSSProperties;
+                                              });
+                                    return (
+                                        <Table.Cell
+                                            key={`row-number-${rowIndex}`}
+                                            ref={measureRef}
+                                            className={
+                                                rowNumberStickyBody.className
+                                            }
+                                            style={rowNumberStickyBody.style}
+                                            isMinimal={isMinimal}
+                                            w={rowNumberWidth}
+                                            miw={rowNumberWidth}
+                                            maw={rowNumberWidth}
+                                        >
+                                            {/* Suppress the row number on
+                                             * group-header rows when we're
+                                             * in grouping-only mode — those
+                                             * rows act as visual headers
+                                             * for the merged dim value, not
+                                             * data rows, so a counter on
+                                             * them reads as a parallel
+                                             * sequence interleaved with the
+                                             * leaf-row counter. */}
+                                            {groupingOnlyMode &&
+                                            row.getIsGrouped()
+                                                ? null
+                                                : flexRender(
+                                                      cell.column.columnDef
+                                                          .cell,
+                                                      cell.getContext(),
+                                                  )}
+                                        </Table.Cell>
+                                    );
+                                }
+
+                                // Grouping-only mode: merge repeated row-index
+                                // dimension values with rowSpan. The block's
+                                // first row renders the value spanning the
+                                // block; absorbed rows render no <td> so the
+                                // span covers their position.
+                                const rowSpanMerge =
+                                    rowSpanMergesByColumnId?.get(
+                                        cell.column.id,
+                                    )?.[rowIndex];
+                                if (
+                                    rowSpanMerge &&
+                                    !rowSpanMerge.isBlockStart
+                                ) {
+                                    return null;
+                                }
+
                                 const meta = cell.column.columnDef.meta;
                                 const isRowTotal = meta?.type === 'rowTotal';
                                 const isDataColumn =
@@ -966,6 +1701,17 @@ const PivotTable: FC<PivotTableProps> = ({
                                     cell.getValue() as ResultRow[0];
                                 const value = fullValue?.value;
 
+                                // In merge mode an empty pivot data cell renders
+                                // blank instead of the `∅`/`-` placeholder. An
+                                // empty cell still carries a value wrapper whose
+                                // `raw` is null (formatted as `∅`), or no wrapper
+                                // at all, so we key off `value?.raw`; a real
+                                // `raw: 0`/`''` is kept.
+                                const isBlankMergeDataCell =
+                                    groupingOnlyMode &&
+                                    isDataColumn &&
+                                    value?.raw == null;
+
                                 // Build rowFields for this cell's pivot context only
                                 // This ensures field comparisons use values from the same pivot column
                                 const currentHeaderInfo =
@@ -982,77 +1728,121 @@ const PivotTable: FC<PivotTableProps> = ({
                                           currentHeaderInfo,
                                       );
 
-                                const conditionalFormattingConfig =
+                                const cellConditionalFormattingConfig =
                                     getConditionalFormattingConfig({
                                         field: item,
                                         value: value?.raw,
                                         minMaxMap,
                                         conditionalFormattings,
                                         rowFields: rowFieldsForCell,
+                                        applyTo:
+                                            ConditionalFormattingColorApplyTo.CELL,
+                                    });
+                                const textConditionalFormattingConfig =
+                                    getConditionalFormattingConfig({
+                                        field: item,
+                                        value: value?.raw,
+                                        minMaxMap,
+                                        conditionalFormattings,
+                                        rowFields: rowFieldsForCell,
+                                        applyTo:
+                                            ConditionalFormattingColorApplyTo.TEXT,
                                     });
 
-                                const conditionalFormattingResult =
+                                const cellConditionalFormattingResult =
                                     getConditionalFormattingColor({
                                         field: item,
                                         value: value?.raw,
-                                        config: conditionalFormattingConfig,
+                                        config: cellConditionalFormattingConfig,
                                         minMaxMap,
-                                        getColorFromRange: (
-                                            val,
-                                            colorRange,
-                                            minMaxRange,
-                                        ) => {
-                                            const effectiveColorRange =
-                                                colorScheme === 'dark'
-                                                    ? transformColorsForDarkMode(
-                                                          colorRange,
-                                                      )
-                                                    : colorRange;
-                                            return getColorFromRange(
-                                                val,
-                                                effectiveColorRange,
-                                                minMaxRange,
-                                            );
-                                        },
+                                        getColorFromRange:
+                                            getEffectiveColorFromRange,
                                     });
-
-                                const applyToText =
-                                    conditionalFormattingResult?.applyTo ===
-                                    ConditionalFormattingColorApplyTo.TEXT;
+                                const textConditionalFormattingResult =
+                                    getConditionalFormattingColor({
+                                        field: item,
+                                        value: value?.raw,
+                                        config: textConditionalFormattingConfig,
+                                        minMaxMap,
+                                        getColorFromRange:
+                                            getEffectiveColorFromRange,
+                                    });
 
                                 const conditionalFormatting = (() => {
                                     const tooltipContent =
-                                        getConditionalFormattingDescription(
-                                            item,
-                                            conditionalFormattingConfig,
-                                            rowFieldsForCell,
-                                            getConditionalRuleLabelFromItem,
-                                        );
+                                        [
+                                            getConditionalFormattingDescription(
+                                                item,
+                                                cellConditionalFormattingConfig,
+                                                rowFieldsForCell,
+                                                getConditionalRuleLabelFromItem,
+                                            ),
+                                            getConditionalFormattingDescription(
+                                                item,
+                                                textConditionalFormattingConfig,
+                                                rowFieldsForCell,
+                                                getConditionalRuleLabelFromItem,
+                                            ),
+                                        ]
+                                            .filter(
+                                                (
+                                                    description,
+                                                    index,
+                                                    descriptions,
+                                                ) =>
+                                                    description &&
+                                                    descriptions.indexOf(
+                                                        description,
+                                                    ) === index,
+                                            )
+                                            .join('; ') || undefined;
 
+                                    // No cell-level result → fall back to the row fill (if any).
                                     if (
-                                        !conditionalFormattingResult ||
-                                        !isHexCodeColor(
-                                            conditionalFormattingResult.color,
+                                        !cellConditionalFormattingResult &&
+                                        !textConditionalFormattingResult
+                                    ) {
+                                        return rowBackgroundColor
+                                            ? {
+                                                  tooltipContent,
+                                                  color: readableColor(
+                                                      rowBackgroundColor,
+                                                  ),
+                                                  backgroundColor:
+                                                      rowBackgroundColor,
+                                              }
+                                            : undefined;
+                                    }
+
+                                    const backgroundColor =
+                                        cellConditionalFormattingResult &&
+                                        isHexCodeColor(
+                                            cellConditionalFormattingResult.color,
+                                        )
+                                            ? cellConditionalFormattingResult.color
+                                            : rowBackgroundColor;
+                                    let color: string | undefined;
+                                    if (
+                                        textConditionalFormattingResult &&
+                                        isHexCodeColor(
+                                            textConditionalFormattingResult.color,
                                         )
                                     ) {
+                                        color =
+                                            textConditionalFormattingResult.color;
+                                    } else if (backgroundColor) {
+                                        color = readableColor(backgroundColor);
+                                    }
+
+                                    if (!color && !backgroundColor) {
                                         return undefined;
                                     }
 
-                                    // When applying to text, set color directly without background
-                                    // When applying to cell, set background and calculate readable text color
-                                    return applyToText
-                                        ? {
-                                              tooltipContent,
-                                              color: conditionalFormattingResult.color,
-                                          }
-                                        : {
-                                              tooltipContent,
-                                              color: readableColor(
-                                                  conditionalFormattingResult.color,
-                                              ),
-                                              backgroundColor:
-                                                  conditionalFormattingResult.color,
-                                          };
+                                    return {
+                                        tooltipContent,
+                                        color,
+                                        backgroundColor,
+                                    };
                                 })();
 
                                 // Font color is set by conditionalFormatting above
@@ -1088,12 +1878,33 @@ const PivotTable: FC<PivotTableProps> = ({
 
                                 const cellWidth = meta?.width;
 
+                                const stickyCellProps = getStickyCellProps(
+                                    meta?.frozenLayout,
+                                );
+
                                 const TableCellComponent = isRowTotal
                                     ? Table.CellHead
                                     : Table.Cell;
                                 return (
                                     <TableCellComponent
                                         key={`value-${rowIndex}-${colIndex}-${data.pivotConfig.metricsAsRows}`}
+                                        ref={measureRef}
+                                        rowSpan={
+                                            rowSpanMerge &&
+                                            rowSpanMerge.rowSpan > 1
+                                                ? rowSpanMerge.rowSpan
+                                                : undefined
+                                        }
+                                        className={
+                                            rowSpanMerge
+                                                ? `${pivotStyles.mergedDimCell}${
+                                                      stickyCellProps.className
+                                                          ? ` ${stickyCellProps.className}`
+                                                          : ''
+                                                  }`
+                                                : stickyCellProps.className
+                                        }
+                                        style={stickyCellProps.style}
                                         isMinimal={isMinimal}
                                         withAlignRight={isNumericItem(item)}
                                         w={cellWidth}
@@ -1138,65 +1949,93 @@ const PivotTable: FC<PivotTableProps> = ({
                                         )}
                                     >
                                         {cell.getIsGrouped() ? (
-                                            <Group spacing="two" noWrap>
-                                                <Button
-                                                    compact
-                                                    size="xs"
-                                                    variant="subtle"
-                                                    styles={(theme) => ({
-                                                        root: {
-                                                            height: 'unset',
-                                                            paddingLeft:
-                                                                theme.spacing
-                                                                    .two,
-                                                            paddingRight:
-                                                                theme.spacing
-                                                                    .xxs,
-                                                            fontFeatureSettings:
-                                                                "'tnum'",
-                                                        },
-                                                        leftIcon: {
-                                                            marginRight: 0,
-                                                        },
-                                                    })}
-                                                    onClick={(
-                                                        e: React.MouseEvent<HTMLButtonElement>,
-                                                    ) => {
-                                                        e.stopPropagation();
-                                                        e.preventDefault();
-                                                        toggleExpander();
-                                                    }}
-                                                    leftIcon={
-                                                        <MantineIcon
-                                                            size={14}
-                                                            icon={
-                                                                row.getIsExpanded()
-                                                                    ? IconChevronDown
-                                                                    : IconChevronRight
-                                                            }
-                                                        />
-                                                    }
-                                                    style={{
-                                                        color:
-                                                            fontColor ??
-                                                            'inherit',
-                                                    }}
-                                                >
-                                                    ({countSubRows(row)})
-                                                </Button>
-                                                {flexRender(
+                                            // Grouping-only mode (row dedup
+                                            // without subtotals): suppress the
+                                            // carat + group count chrome and
+                                            // just render the dim value. The
+                                            // expand-toggle would be a no-op
+                                            // anyway since groups are forced
+                                            // expanded in this mode.
+                                            groupingOnlyMode ? (
+                                                flexRender(
                                                     cell.column.columnDef.cell,
                                                     cell.getContext(),
-                                                )}
-                                            </Group>
-                                        ) : cell.getIsAggregated() ? (
-                                            flexRender(
-                                                cell.column.columnDef
-                                                    .aggregatedCell ??
-                                                    cell.column.columnDef.cell,
-                                                cell.getContext(),
+                                                )
+                                            ) : (
+                                                <Group spacing="two" noWrap>
+                                                    <Button
+                                                        compact
+                                                        size="xs"
+                                                        variant="subtle"
+                                                        styles={(theme) => ({
+                                                            root: {
+                                                                height: 'unset',
+                                                                paddingLeft:
+                                                                    theme
+                                                                        .spacing
+                                                                        .two,
+                                                                paddingRight:
+                                                                    theme
+                                                                        .spacing
+                                                                        .xxs,
+                                                                fontFeatureSettings:
+                                                                    "'tnum'",
+                                                            },
+                                                            leftIcon: {
+                                                                marginRight: 0,
+                                                            },
+                                                        })}
+                                                        onClick={(
+                                                            e: React.MouseEvent<HTMLButtonElement>,
+                                                        ) => {
+                                                            e.stopPropagation();
+                                                            e.preventDefault();
+                                                            toggleExpander();
+                                                        }}
+                                                        leftIcon={
+                                                            <MantineIcon
+                                                                size={14}
+                                                                icon={
+                                                                    row.getIsExpanded()
+                                                                        ? IconChevronDown
+                                                                        : IconChevronRight
+                                                                }
+                                                            />
+                                                        }
+                                                        style={{
+                                                            color:
+                                                                fontColor ??
+                                                                'inherit',
+                                                        }}
+                                                    >
+                                                        ({countSubRows(row)})
+                                                    </Button>
+                                                    {flexRender(
+                                                        cell.column.columnDef
+                                                            .cell,
+                                                        cell.getContext(),
+                                                    )}
+                                                </Group>
                                             )
-                                        ) : cell.getIsPlaceholder() ? null : (
+                                        ) : cell.getIsAggregated() ? (
+                                            // In grouping-only mode the
+                                            // aggregate row stands in for a
+                                            // dedup "header" — render the dim
+                                            // cells via getIsGrouped() above,
+                                            // but suppress the subtotal metric
+                                            // values so the row looks like a
+                                            // leaf row with the dim filled in.
+                                            groupingOnlyMode ? null : (
+                                                flexRender(
+                                                    cell.column.columnDef
+                                                        .aggregatedCell ??
+                                                        cell.column.columnDef
+                                                            .cell,
+                                                    cell.getContext(),
+                                                )
+                                            )
+                                        ) : cell.getIsPlaceholder() ||
+                                          isBlankMergeDataCell ? null : (
                                             flexRender(
                                                 cell.column.columnDef.cell,
                                                 cell.getContext(),
@@ -1209,7 +2048,7 @@ const PivotTable: FC<PivotTableProps> = ({
                     );
                 })}
 
-                {paddingBottom > 0 && (
+                {!groupingOnlyMode && paddingBottom > 0 && (
                     <VirtualizedArea
                         cellCount={cellsCountWithRowNumber}
                         height={paddingBottom}
@@ -1228,14 +2067,56 @@ const PivotTable: FC<PivotTableProps> = ({
                                 index={stickyIndex}
                             >
                                 {/* shows empty cell if row numbers are visible */}
-                                {hideRowNumbers ? null : <Table.Cell />}
+                                {hideRowNumbers
+                                    ? null
+                                    : (() => {
+                                          const footerRowNumberSticky =
+                                              frozenLayout.size > 0
+                                                  ? {
+                                                        className:
+                                                            pivotStyles.stickyColumn,
+                                                        style: { left: 0 },
+                                                    }
+                                                  : ({} as {
+                                                        className?: string;
+                                                        style?: React.CSSProperties;
+                                                    });
+                                          return (
+                                              <Table.Cell
+                                                  className={
+                                                      footerRowNumberSticky.className
+                                                  }
+                                                  style={
+                                                      footerRowNumberSticky.style
+                                                  }
+                                                  w={rowNumberWidth}
+                                                  miw={rowNumberWidth}
+                                                  maw={rowNumberWidth}
+                                              />
+                                          );
+                                      })()}
 
                                 {/* render the total label */}
                                 {data.columnTotalFields?.[totalRowIndex].map(
-                                    (totalLabel, totalColIndex) =>
-                                        totalLabel ? (
+                                    (totalLabel, totalColIndex) => {
+                                        const footerPivotCol =
+                                            data.retrofitData.pivotColumnInfo[
+                                                totalColIndex
+                                            ];
+                                        const footerStickyProps = footerPivotCol
+                                            ? getStickyCellProps(
+                                                  frozenLayout.get(
+                                                      footerPivotCol.fieldId,
+                                                  ),
+                                              )
+                                            : {};
+                                        return totalLabel ? (
                                             <Table.CellHead
                                                 key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                className={
+                                                    footerStickyProps.className
+                                                }
+                                                style={footerStickyProps.style}
                                                 isMinimal={isMinimal}
                                                 withAlignRight
                                                 withBoldFont
@@ -1249,9 +2130,14 @@ const PivotTable: FC<PivotTableProps> = ({
                                         ) : (
                                             <Table.Cell
                                                 key={`footer-total-${totalRowIndex}-${totalColIndex}`}
+                                                className={
+                                                    footerStickyProps.className
+                                                }
+                                                style={footerStickyProps.style}
                                                 isMinimal={isMinimal}
                                             />
-                                        ),
+                                        );
+                                    },
                                 )}
 
                                 {row.map((total, totalColIndex) => {

@@ -148,6 +148,12 @@ const CreateMetricFallback = ({
 
     const { metric } = proposedChange.value.value;
 
+    // Only aggregation custom metrics are valid for proposeChange; PoP
+    // entries are handled inside runQuery and never reach this surface.
+    if (metric.kind !== 'aggregation') {
+        return null;
+    }
+
     return (
         <Box mx="xs">
             <Paper bg="ldGray.0" p="xs">

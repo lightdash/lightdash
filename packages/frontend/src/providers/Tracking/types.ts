@@ -1,4 +1,9 @@
-import { type SearchItemType, type TimeFrames } from '@lightdash/common';
+import {
+    type CustomFormatType,
+    type SearchItemType,
+    type TableCalculationType,
+    type TimeFrames,
+} from '@lightdash/common';
 import type * as rudderSDK from 'rudder-sdk-js';
 import {
     type CategoryName,
@@ -22,8 +27,6 @@ type GenericEvent = {
         | EventName.REFRESH_DBT_CONNECTION_BUTTON_CLICKED
         | EventName.UPDATE_PROJECT_TABLES_CONFIGURATION_BUTTON_CLICKED
         | EventName.UPDATE_PROJECT_BUTTON_CLICKED
-        | EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED
-        | EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.FORMAT_METRIC_BUTTON_CLICKED
         | EventName.CREATE_QUICK_TABLE_CALCULATION_BUTTON_CLICKED
         | EventName.ADD_FILTER_CLICKED
@@ -439,6 +442,58 @@ type AiAgentChartExploredEvent = {
     };
 };
 
+export type AiAgentAskClickedSource =
+    | 'dashboard_header'
+    | 'dashboard_chart_tile'
+    | 'saved_chart_header'
+    | 'resource_action_menu';
+
+type AiAgentAskClickedEvent = {
+    name: EventName.AI_AGENT_ASK_CLICKED;
+    properties: {
+        userId: string | undefined;
+        organizationId: string | undefined;
+        projectId: string | undefined;
+        clickedFrom: AiAgentAskClickedSource;
+    };
+};
+
+type AiAgentChatMinimizedEvent = {
+    name: EventName.AI_AGENT_CHAT_MINIMIZED;
+    properties: {
+        userId: string | undefined;
+        organizationId: string | undefined;
+        projectId: string;
+        agentUuid: string;
+        threadUuid: string | undefined;
+    };
+};
+
+type AiAgentSuggestionImpressionEvent = {
+    name: EventName.AI_AGENT_SUGGESTION_IMPRESSION;
+    properties: {
+        projectId: string;
+        agentId: string;
+        chipCount: number;
+    };
+};
+
+type AiAgentSuggestionClickEvent = {
+    name: EventName.AI_AGENT_SUGGESTION_CLICK;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        threadId?: string;
+        afterMessageId?: string;
+        chipLabel: string;
+        chipKind: 'prompt' | 'navigate';
+        chipTool?: string;
+        chipIndex: number;
+        mode: 'empty-state' | 'post-response';
+    };
+};
+
 type ThemeToggledEvent = {
     name: EventName.THEME_TOGGLED;
     properties: {
@@ -449,6 +504,30 @@ type ThemeToggledEvent = {
     };
 };
 
+export type TableCalculationSaveMode = 'sql' | 'template' | 'formula';
+
+type TableCalculationSaveEvent = {
+    name:
+        | EventName.CREATE_TABLE_CALCULATION_BUTTON_CLICKED
+        | EventName.UPDATE_TABLE_CALCULATION_BUTTON_CLICKED;
+    properties: {
+        mode: TableCalculationSaveMode;
+        generatedByAi: boolean;
+        resultType: TableCalculationType;
+        formatType: CustomFormatType;
+    };
+};
+
+type FormulaTableCalculationAiGenerateClickedEvent = {
+    name: EventName.FORMULA_TABLE_CALCULATION_AI_GENERATE_CLICKED;
+    properties: {
+        userId: string;
+        organizationId: string;
+        projectId: string;
+        isEdit: boolean;
+    };
+};
+
 type DashboardUiVersionToggledEvent = {
     name: EventName.DASHBOARD_UI_VERSION_TOGGLED;
     properties: {
@@ -456,6 +535,17 @@ type DashboardUiVersionToggledEvent = {
         organizationId: string | undefined;
         projectId: string | undefined;
         userId: string | undefined;
+    };
+};
+
+type DashboardFilterLockToggledEvent = {
+    name: EventName.DASHBOARD_FILTER_LOCK_TOGGLED;
+    properties: {
+        action: 'lock' | 'unlock';
+        dashboardUuid: string | undefined;
+        tabUuid: string | undefined;
+        fieldId: string;
+        tableName: string;
     };
 };
 
@@ -496,8 +586,15 @@ export type EventData =
     | AiAgentChartHowItsCalculatedClickedEvent
     | AiAgentChartCreatedEvent
     | AiAgentChartExploredEvent
+    | AiAgentAskClickedEvent
+    | AiAgentChatMinimizedEvent
+    | AiAgentSuggestionImpressionEvent
+    | AiAgentSuggestionClickEvent
     | ThemeToggledEvent
-    | DashboardUiVersionToggledEvent;
+    | DashboardUiVersionToggledEvent
+    | TableCalculationSaveEvent
+    | FormulaTableCalculationAiGenerateClickedEvent
+    | DashboardFilterLockToggledEvent;
 
 export type IdentifyData = {
     id: string;

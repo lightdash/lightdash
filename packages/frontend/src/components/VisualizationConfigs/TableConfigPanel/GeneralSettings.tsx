@@ -1,9 +1,9 @@
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd';
-import { FeatureFlags } from '@lightdash/common';
 import { Box, Checkbox, Stack, Switch, Tooltip } from '@mantine-8/core';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useIsHidePivotDimsEnabled } from '../../../hooks/useIsHidePivotDimsEnabled';
+import { useIsPivotRowGroupingEnabled } from '../../../hooks/useIsPivotRowGroupingEnabled';
 import { isTableVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
 import { Config } from '../common/Config';
@@ -27,10 +27,9 @@ const GeneralSettings: FC = () => {
     } = useVisualizationContext();
     const [isDragging, setIsDragging] = useState<boolean>(false);
     const { showToastError } = useToaster();
-    const { data: showHideRowsFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowHideRows,
-    );
-    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
+
+    const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
+    const isPivotRowGroupingEnabled = useIsPivotRowGroupingEnabled();
     const { dimensions } = resultsData?.metricQuery || {
         dimensions: [] as string[],
     };
@@ -110,6 +109,13 @@ const GeneralSettings: FC = () => {
                         fieldId,
                         ...columns.slice(destination.index),
                     ]);
+                    // Pivot columns are always visible — a dim hidden as a row
+                    // would otherwise carry visible:false in and blank the table.
+                    if (!isHidePivotDimsEnabled) {
+                        chartConfig.updateColumnProperty(fieldId, {
+                            visible: true,
+                        });
+                    }
                 } else {
                     // Remove pivot
                     const fieldId = columns[source.index];
@@ -145,6 +151,7 @@ const GeneralSettings: FC = () => {
             setPivotDimensions,
             showToastError,
             handleToggleMetricsAsRows,
+            isHidePivotDimsEnabled,
         ],
     );
 
@@ -160,11 +167,15 @@ const GeneralSettings: FC = () => {
         setShowResultsTotal,
         setShowRowCalculation,
         setShowSubtotals,
+        setShowSubtotalsExpanded,
+        setShowRowGrouping,
         setShowTableNames,
         showColumnCalculation,
         showResultsTotal,
         showRowCalculation,
         showSubtotals,
+        showSubtotalsExpanded,
+        showRowGrouping,
         showTableNames,
         rowLimit,
         setRowLimit,
@@ -187,6 +198,7 @@ const GeneralSettings: FC = () => {
                             placeholder={
                                 'Drag dimensions into this area to pivot your table'
                             }
+                            allowHidePivotDimension={isHidePivotDimsEnabled}
                         />
 
                         <Config.Heading>Rows</Config.Heading>
@@ -198,6 +210,7 @@ const GeneralSettings: FC = () => {
                             placeholder={
                                 'Drag dimensions into this area to group your data'
                             }
+                            allowHidePivotDimension={isHidePivotDimsEnabled}
                         />
                     </Config.Section>
                 </Config>
@@ -233,7 +246,13 @@ const GeneralSettings: FC = () => {
 
             <Config.Section>
                 {metrics.map((itemId) => (
-                    <ColumnConfiguration key={itemId} fieldId={itemId} />
+                    <ColumnConfiguration
+                        key={itemId}
+                        fieldId={itemId}
+                        // metricsAsRows: there's one shared label column for
+                        // all metrics, so freeze lock icons should sync.
+                        syncFreezeWith={metricsAsRows ? metrics : undefined}
+                    />
                 ))}
             </Config.Section>
 
@@ -256,7 +275,7 @@ const GeneralSettings: FC = () => {
                 />
             </Config.Section>
 
-            {isShowHideRowsEnabled && !isPivotTableEnabled && (
+            {!isPivotTableEnabled && (
                 <Config.Section>
                     <Config.Heading>Data</Config.Heading>
                     <RowLimitControls
@@ -320,6 +339,55 @@ const GeneralSettings: FC = () => {
                         />
                     </Box>
                 </Tooltip>
+                <Checkbox
+                    ml="lg"
+                    label="Expand subtotals by default"
+                    checked={showSubtotalsExpanded ?? false}
+                    onChange={() => {
+                        setShowSubtotalsExpanded(!showSubtotalsExpanded);
+                    }}
+                    disabled={
+                        !canUseSubtotals || metricsAsRows || !showSubtotals
+                    }
+                />
+                {isPivotRowGroupingEnabled && (
+                    <Tooltip
+                        disabled={canUseSubtotals && !showSubtotals}
+                        label={
+                            showSubtotals
+                                ? 'Row grouping is always on when subtotals are enabled.'
+                                : metricsAsRows
+                                  ? 'Row grouping cannot be used with metrics as rows'
+                                  : `Row grouping can only be used on tables with at least two ${
+                                        isPivotTableEnabled ? 'un-pivoted' : ''
+                                    } dimensions`
+                        }
+                        w={300}
+                        multiline
+                        withinPortal
+                        position="top-start"
+                    >
+                        <Box>
+                            <Checkbox
+                                label="Group repeated row values"
+                                checked={
+                                    showSubtotals ||
+                                    (canUseSubtotals &&
+                                        !metricsAsRows &&
+                                        (showRowGrouping ?? false))
+                                }
+                                onChange={() => {
+                                    setShowRowGrouping(!showRowGrouping);
+                                }}
+                                disabled={
+                                    !canUseSubtotals ||
+                                    metricsAsRows ||
+                                    showSubtotals
+                                }
+                            />
+                        </Box>
+                    </Tooltip>
+                )}
             </Config.Section>
         </Stack>
     );

@@ -6,6 +6,7 @@ import {
 import { Divider, Stack } from '@mantine-8/core';
 import { ActionIcon, HoverCard } from '@mantine/core';
 import {
+    IconClock,
     IconClockBolt,
     IconClockPlay,
     IconDatabase,
@@ -15,10 +16,7 @@ import {
     IconServer,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../common/MantineIcon';
 import InfoRow from '../common/PageHeader/InfoRow';
 
@@ -41,11 +39,10 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
     totalClientFetchTimeMs,
     totalResults,
 }) => {
-    const { data: serverFlag } = useServerFeatureFlag(
+    const { data: showExecutionTimeFlag } = useServerFeatureFlag(
         FeatureFlags.ShowExecutionTime,
     );
-    const posthogFlag = useClientFeatureFlag(FeatureFlags.ShowExecutionTime);
-    const isEnabled = serverFlag?.enabled || posthogFlag;
+    const isEnabled = showExecutionTimeFlag?.enabled ?? false;
 
     if (
         !isEnabled ||
@@ -108,7 +105,13 @@ const TileExecutionInfo: FC<TileExecutionInfoProps> = ({
             </HoverCard.Dropdown>
             <HoverCard.Target>
                 <ActionIcon size="sm">
-                    <MantineIcon icon={IconClockBolt} />
+                    <MantineIcon
+                        icon={
+                            cacheMetadata.preAggregate?.hit
+                                ? IconClockBolt
+                                : IconClock
+                        }
+                    />
                 </ActionIcon>
             </HoverCard.Target>
         </HoverCard>

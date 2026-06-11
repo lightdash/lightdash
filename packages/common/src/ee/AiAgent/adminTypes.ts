@@ -69,13 +69,13 @@ export type ComputedAiOrganizationSettings = {
 export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
+    aiAgentReviewsEnabled: boolean;
 };
 
 export type CreateAiOrganizationSettings = AiOrganizationSettings;
 
-export type UpdateAiOrganizationSettings = Omit<
-    AiOrganizationSettings,
-    'organizationUuid' | 'isTrial' | 'isCopilotEnabled'
+export type UpdateAiOrganizationSettings = Partial<
+    Omit<AiOrganizationSettings, 'organizationUuid'>
 >;
 
 export type ApiAiOrganizationSettingsResponse = ApiSuccess<

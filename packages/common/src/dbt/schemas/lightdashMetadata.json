@@ -84,6 +84,17 @@
         "Format": {
             "type": "string"
         },
+        "Separator": {
+            "type": "string",
+            "enum": [
+                "default",
+                "commaPeriod",
+                "spacePeriod",
+                "periodComma",
+                "noSeparatorPeriod",
+                "apostrophePeriod"
+            ]
+        },
         "Urls": {
             "type": "array",
             "items": {
@@ -172,6 +183,10 @@
                         }
                     ]
                 },
+                "convert_timezone": {
+                    "type": "boolean",
+                    "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
+                },
                 "hidden": {
                     "type": "boolean"
                 },
@@ -183,6 +198,9 @@
                 },
                 "format": {
                     "$ref": "#/definitions/Format"
+                },
+                "separator": {
+                    "$ref": "#/definitions/Separator"
                 },
                 "group_label": {
                     "type": "string",
@@ -223,6 +241,10 @@
                 "sql": {
                     "type": "string"
                 },
+                "convert_timezone": {
+                    "type": "boolean",
+                    "description": "When false, this dimension is rendered in its raw warehouse value and is not converted to the project timezone for display. Filter SQL still converts. Defaults to true."
+                },
                 "hidden": {
                     "type": "boolean"
                 },
@@ -234,6 +256,9 @@
                 },
                 "format": {
                     "$ref": "#/definitions/Format"
+                },
+                "separator": {
+                    "$ref": "#/definitions/Separator"
                 },
                 "group_label": {
                     "type": "string",
@@ -303,6 +328,9 @@
                 },
                 "format": {
                     "$ref": "#/definitions/Format"
+                },
+                "separator": {
+                    "$ref": "#/definitions/Separator"
                 },
                 "group_label": {
                     "type": "string",
@@ -443,6 +471,20 @@
                 },
                 "sql_from": {
                     "type": "string"
+                },
+                "group_label": {
+                    "type": "string",
+                    "deprecated": true,
+                    "description": "Deprecated: use groups instead"
+                },
+                "groups": {
+                    "type": "array",
+                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 3 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
+                    "items": {
+                        "type": "string",
+                        "minLength": 1
+                    },
+                    "maxItems": 3
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"

@@ -112,7 +112,6 @@ export const SearchDropdown: FC<Props> = ({
                                 </ActionIcon>
                             ) : null
                         }
-                        autoFocus
                         classNames={{
                             root: styles.searchRoot,
                             input: styles.searchInput,

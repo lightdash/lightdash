@@ -5,17 +5,20 @@ import {
     formatItemValue,
     formatRows,
     getErrorMessage,
-    getFormatExpression,
+    getExcelFormatExpression,
     isDimension,
     isField,
     isNumber,
     ItemsMap,
-    MetricQuery,
     PivotConfig,
     pivotResultsAsCsv,
     pivotResultsAsData,
     ResultRow,
+    shouldShiftItemTimezone,
     timeIntervalToExcelNumFmt,
+    toExcelWallClockDate,
+    UnexpectedServerError,
+    type PivotRowTotalsByIndex,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import * as Excel from 'exceljs';
@@ -38,10 +41,23 @@ import {
 export class ExcelService {
     private static readonly EXCEL_ROW_LIMIT = 1_000_000;
 
-    static convertToExcelDate(value: unknown): Date | unknown {
+    private static isTzActive(
+        timezone: string | undefined,
+    ): timezone is string {
+        return !!timezone && timezone !== 'UTC';
+    }
+
+    static convertToExcelDate(
+        value: unknown,
+        timezone?: string,
+    ): Date | unknown {
         if (typeof value === 'string') {
             const dateValue = moment(value, moment.ISO_8601, true);
             if (dateValue.isValid()) {
+                // Bare date strings (no 'T') skip the shift to keep calendar values.
+                if (ExcelService.isTzActive(timezone) && value.includes('T')) {
+                    return toExcelWallClockDate(value, timezone);
+                }
                 return dateValue.toDate();
             }
         }
@@ -66,6 +82,7 @@ export class ExcelService {
         itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ): (string | number | Date | null)[] {
         return sortedFieldIds.map((fieldId) => {
             const rawValue = row[fieldId];
@@ -81,12 +98,17 @@ export class ExcelService {
             const item = itemMap[fieldId];
             const isItemField = isField(item);
 
-            // For date/timestamp fields with custom formatting, convert to Date object first
             if (
                 isItemField &&
                 (item.type === DimensionType.DATE ||
                     item.type === DimensionType.TIMESTAMP)
             ) {
+                if (
+                    ExcelService.isTzActive(timezone) &&
+                    shouldShiftItemTimezone(item)
+                ) {
+                    return toExcelWallClockDate(rawValue, timezone);
+                }
                 return moment(rawValue).toDate();
             }
 
@@ -105,43 +127,64 @@ export class ExcelService {
             }
 
             // Otherwise, use standard Lightdash formatting as there won't be a format expression
-            return formatItemValue(item, rawValue);
+            return formatItemValue(
+                item,
+                rawValue,
+                undefined,
+                undefined,
+                timezone,
+            );
         });
     }
 
     static async downloadPivotTableXlsx({
         rows,
         itemMap,
-        metricQuery,
         pivotConfig,
         onlyRaw,
         customLabels,
-        maxColumnLimit,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         enableImprovedExcelDates = false,
+        timezone,
     }: {
         rows: Record<string, AnyType>[];
         itemMap: ItemsMap;
-        metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
-        maxColumnLimit: number;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         enableImprovedExcelDates?: boolean;
+        timezone?: string;
     }): Promise<Excel.Buffer> {
-        const formattedRows = formatRows(rows, itemMap);
+        if (!pivotDetails) {
+            throw new UnexpectedServerError(
+                'Cannot export pivot table XLSX without SQL pivot details',
+            );
+        }
+
+        const formattedRows = formatRows(
+            rows,
+            itemMap,
+            undefined,
+            undefined,
+            timezone,
+        );
 
         if (!enableImprovedExcelDates) {
             return ExcelService.downloadPivotTableXlsxLegacy({
                 formattedRows,
                 itemMap,
-                metricQuery,
                 pivotConfig,
                 onlyRaw,
                 customLabels,
-                maxColumnLimit,
                 pivotDetails,
+                warehouseRowTotals,
+                warehouseColumnTotals,
+                timezone,
             });
         }
 
@@ -149,17 +192,24 @@ export class ExcelService {
             pivotConfig,
             rows: formattedRows,
             itemMap,
-            metricQuery,
             customLabels,
             onlyRaw,
-            maxColumnLimit,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
         });
 
         // Build date column metadata: for each data column, determine if
         // it's a date/timestamp dimension and what Excel numFmt to apply.
-        const dateColumnFormats = new Map<number, { numFmt: string }>();
+        const dateColumnFormats = new Map<
+            number,
+            {
+                numFmt: string;
+                shouldShift: boolean;
+            }
+        >();
         if (!onlyRaw) {
+            const tzActive = ExcelService.isTzActive(timezone);
             pivotData.fieldIds.forEach((fieldId, colIndex) => {
                 const field = itemMap[fieldId];
                 if (
@@ -175,7 +225,11 @@ export class ExcelService {
                     );
                     if (numFmt) {
                         const offset = pivotData.hasIndex ? 0 : 1;
-                        dateColumnFormats.set(colIndex + offset, { numFmt });
+                        dateColumnFormats.set(colIndex + offset, {
+                            numFmt,
+                            shouldShift:
+                                tzActive && shouldShiftItemTimezone(field),
+                        });
                     }
                 }
             });
@@ -211,7 +265,9 @@ export class ExcelService {
                 ) {
                     const m = moment.utc(cell.raw);
                     if (m.isValid()) {
-                        return m.toDate();
+                        return dateFmt.shouldShift && timezone
+                            ? toExcelWallClockDate(cell.raw, timezone)
+                            : m.toDate();
                     }
                 }
                 return cell.formatted;
@@ -255,31 +311,33 @@ export class ExcelService {
     private static async downloadPivotTableXlsxLegacy({
         formattedRows,
         itemMap,
-        metricQuery,
         pivotConfig,
         onlyRaw,
         customLabels,
-        maxColumnLimit,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
+        timezone,
     }: {
         formattedRows: ResultRow[];
         itemMap: ItemsMap;
-        metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
         onlyRaw: boolean;
         customLabels: Record<string, string> | undefined;
-        maxColumnLimit: number;
-        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        pivotDetails: NonNullable<ReadyQueryResultsPage['pivotDetails']>;
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
+        timezone?: string;
     }): Promise<Excel.Buffer> {
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,
             itemMap,
-            metricQuery,
             customLabels,
             onlyRaw,
-            maxColumnLimit,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
         });
 
         const workbook = new Excel.Workbook();
@@ -287,7 +345,7 @@ export class ExcelService {
 
         csvResults.forEach((row, index) => {
             const excelRow = row.map((value) =>
-                ExcelService.convertToExcelDate(value),
+                ExcelService.convertToExcelDate(value, timezone),
             );
             worksheet.addRow(excelRow);
 
@@ -328,20 +386,24 @@ export class ExcelService {
     static async downloadAsyncPivotTableXlsx({
         resultsFileName,
         fields,
-        metricQuery,
         resultsStorageClient,
         exportsStorageClient,
         lightdashConfig,
         options,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
+        timezone,
+        csvCellsLimit,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
-        metricQuery: MetricQuery;
         resultsStorageClient: S3ResultsFileStorageClient;
         exportsStorageClient: FileStorageClient;
         lightdashConfig: LightdashConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -351,6 +413,10 @@ export class ExcelService {
             pivotConfig: PivotConfig;
             attachmentDownloadName?: string;
         };
+        timezone?: string;
+        // Per-org export limit resolved by the caller; falls back to the
+        // instance default when not provided.
+        csvCellsLimit?: number;
     }): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
@@ -361,7 +427,8 @@ export class ExcelService {
             await resultsStorageClient.getDownloadStream(resultsFileName);
 
         const fieldCount = Object.keys(fields).length;
-        const cellsLimit = lightdashConfig.query?.csvCellsLimit || 100000;
+        const cellsLimit =
+            csvCellsLimit ?? lightdashConfig.query?.csvCellsLimit ?? 100000;
 
         // Use standard csvCellsLimit calculation - same as original downloadPivotTableCsv
         const maxRows = Math.floor(cellsLimit / fieldCount);
@@ -393,13 +460,14 @@ export class ExcelService {
         const excelBuffer = await ExcelService.downloadPivotTableXlsx({
             rows,
             itemMap: fields,
-            metricQuery,
             pivotConfig,
             onlyRaw,
             customLabels,
-            maxColumnLimit: lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
             enableImprovedExcelDates: lightdashConfig.enableImprovedExcelDates,
+            timezone,
         });
 
         // Upload the Excel buffer to exports bucket using cross-bucket transform
@@ -452,6 +520,7 @@ export class ExcelService {
         fields: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ): Promise<{ truncated: boolean }> {
         // Use the same approach as our working tests - direct filename instead of stream
         const workbook = new Excel.stream.xlsx.WorkbookWriter({
@@ -465,7 +534,7 @@ export class ExcelService {
         worksheet.columns = headers.map((header, index) => {
             const fieldId = sortedFieldIds[index];
             const item = fields[fieldId];
-            const formatExpression = getFormatExpression(item);
+            const formatExpression = getExcelFormatExpression(item);
 
             const column: Partial<Excel.Column> = {
                 header,
@@ -493,6 +562,7 @@ export class ExcelService {
                     fields,
                     onlyRaw,
                     sortedFieldIds,
+                    timezone,
                 );
 
                 if (Array.isArray(rowData) && rowData.length > 0) {
@@ -550,6 +620,7 @@ export class ExcelService {
             hiddenFields?: string[];
             attachmentDownloadName?: string;
         } = {},
+        timezone?: string,
     ): Promise<{ fileUrl: string; truncated: boolean; s3Key: string }> {
         // Handle column ordering and filtering
         const {
@@ -587,6 +658,7 @@ export class ExcelService {
                 fields,
                 onlyRaw,
                 sortedFieldIds,
+                timezone,
             );
 
             // Generate filename with truncated flag

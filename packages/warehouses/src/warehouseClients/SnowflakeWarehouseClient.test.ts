@@ -236,6 +236,26 @@ describe('SnowflakeErrorParsing', () => {
             "You don't have access to the {snowflakeTable} table. Please go to 'analytics_{snowflakeSchema}' in sailpoint and request access",
         );
     });
+
+    it('should convert literal \\n escape sequences into real newlines', () => {
+        process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE =
+            'No access to {snowflakeTable}.\\n1) Step one\\n2) Step two';
+
+        const error = {
+            message:
+                "Object 'DB.MY_SCHEMA.MY_TABLE' does not exist or not authorized.",
+            code: 'COMPILATION',
+            data: { type: 'COMPILATION' },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = warehouse.parseError(error as any);
+
+        expect(result.message).toBe(
+            'No access to MY_TABLE.\n1) Step one\n2) Step two',
+        );
+        expect(result.message).not.toContain('\\n');
+    });
 });
 
 describe('SnowflakeWarehouseClient.parseError - warehouse access errors', () => {
@@ -284,7 +304,7 @@ describe('SnowflakeWarehouseClient.parseError - warehouse access errors', () => 
         );
     });
 
-    it('should return original warehouse error message when SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE is not set', () => {
+    it('should append the configured warehouse to the original error when SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE is not set', () => {
         // Ensure environment variable is not set
         delete process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE;
 
@@ -299,7 +319,32 @@ describe('SnowflakeWarehouseClient.parseError - warehouse access errors', () => 
         const result = warehouse.parseError(error as any);
 
         expect(result.message).toBe(
-            "No active warehouse selected in the current session. Select an active warehouse with the 'use warehouse' command",
+            `No active warehouse selected in the current session. Select an active warehouse with the 'use warehouse' command (configured warehouse: "TEST_WAREHOUSE")`,
+        );
+    });
+
+    it('should flag missing warehouse credentials when no warehouse is configured on the connection', () => {
+        delete process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE;
+
+        const warehouseWithoutWarehouse = new SnowflakeWarehouseClient({
+            account: 'test-account',
+            user: 'test-user',
+            password: 'test-password',
+            database: 'test-database',
+        } as CreateSnowflakeCredentials);
+
+        const error = {
+            message:
+                "No active warehouse selected in the current session. Select an active warehouse with the 'use warehouse' command",
+            code: 'SESSION_ERROR',
+            data: { type: 'SESSION_ERROR' },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = warehouseWithoutWarehouse.parseError(error as any);
+
+        expect(result.message).toBe(
+            "No active warehouse selected in the current session. Select an active warehouse with the 'use warehouse' command (no warehouse was configured on the connection — credentials may be missing this field)",
         );
     });
 
@@ -337,5 +382,25 @@ describe('SnowflakeWarehouseClient.parseError - warehouse access errors', () => 
         const result = warehouse.parseError(error as any);
 
         expect(result.message).toBe('Some other SQL error');
+    });
+
+    it('should convert literal \\n escape sequences into real newlines', () => {
+        process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE =
+            'No access to warehouse {warehouseName}.\\n1) Step one\\n2) Step two';
+
+        const error = {
+            message:
+                "No active warehouse selected in the current session. Select an active warehouse with the 'use warehouse' command",
+            code: 'SESSION_ERROR',
+            data: { type: 'SESSION_ERROR' },
+        };
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const result = warehouse.parseError(error as any);
+
+        expect(result.message).toBe(
+            'No access to warehouse TEST_WAREHOUSE.\n1) Step one\n2) Step two',
+        );
+        expect(result.message).not.toContain('\\n');
     });
 });

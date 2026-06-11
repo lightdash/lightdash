@@ -146,6 +146,26 @@ export class S3CacheClient extends S3BaseClient {
         );
     }
 
+    async getIfFresh(
+        key: string,
+        ttlSeconds: number,
+    ): Promise<string | undefined> {
+        const metadata = await this.getResultsMetadata(key).catch(
+            () => undefined,
+        );
+
+        if (
+            !metadata?.LastModified ||
+            new Date().getTime() - metadata.LastModified.getTime() >=
+                ttlSeconds * 1000
+        ) {
+            return undefined;
+        }
+
+        const entry = await this.getResults(key);
+        return entry.Body?.transformToString();
+    }
+
     async getResults(key: string, extension: string = 'json') {
         return wrapSentryTransaction('s3.getResults', { key }, async (span) => {
             if (!this.configuration || !this.s3) {

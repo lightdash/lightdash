@@ -12,6 +12,10 @@ export type RunQueryTags = {
     organization_uuid?: string;
     chart_uuid?: string;
     dashboard_uuid?: string;
+    saved_sql_uuid?: string;
+    scheduler_uuid?: string;
+    scheduler_name?: string;
+    job_id?: string;
     explore_name?: string;
     query_context: QueryExecutionContext;
 };
@@ -48,11 +52,6 @@ export type WarehouseResults = {
     rows: Record<string, AnyType>[];
 };
 
-export type WarehousePaginationArgs = {
-    page: number;
-    pageSize: number;
-};
-
 export type WarehouseExecuteAsyncQueryArgs = {
     tags: Record<string, string>;
     timezone?: string;
@@ -66,22 +65,6 @@ export type WarehouseExecuteAsyncQuery = {
     queryMetadata: WarehouseQueryMetadata | null;
     totalRows: number;
     durationMs: number;
-};
-
-export type WarehouseGetAsyncQueryResultsArgs = WarehousePaginationArgs & {
-    sql: string;
-    queryId: string | null;
-    queryMetadata: WarehouseQueryMetadata | null;
-};
-
-export type WarehouseGetAsyncQueryResults<
-    TFormattedRow extends Record<string, unknown>,
-> = {
-    queryId: string | null;
-    fields: Record<string, { type: DimensionType }>;
-    pageCount: number;
-    totalRows: number;
-    rows: TFormattedRow[];
 };
 
 export enum TimeIntervalUnit {
@@ -101,6 +84,8 @@ export interface WarehouseSqlBuilder {
     getEscapeStringQuoteChar: () => string;
     getFieldQuoteChar: () => string;
     getFloatingType: () => string;
+    getNullSafeEqualSql: (left: string, right: string) => string;
+    getNullSafeEqualJoinSql: (left: string, right: string) => string;
     getMetricSql: (sql: string, metric: Metric) => string;
     concatString: (...args: string[]) => string;
     escapeString: (value: string) => string;
@@ -126,11 +111,6 @@ export interface WarehouseClient extends WarehouseSqlBuilder {
             table: string;
         }[],
     ) => Promise<WarehouseCatalog>;
-
-    getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
-        args: WarehouseGetAsyncQueryResultsArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>>;
 
     streamQuery(
         query: string,

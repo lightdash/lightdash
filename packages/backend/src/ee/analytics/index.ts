@@ -88,6 +88,24 @@ export type GenerateTableCalculationGenerated = BaseTrack & {
     };
 };
 
+export type GenerateFormulaTableCalculationGenerated = BaseTrack & {
+    event: 'ai.formula_table_calculation.generated';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
+    };
+};
+
+export type ConvertSqlToFormulaGenerated = BaseTrack & {
+    event: 'ai.formula_table_calculation.converted_from_sql';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        userId: string;
+    };
+};
+
 export type GenerateTooltipGenerated = BaseTrack & {
     event: 'ai.tooltip.generated';
     properties: {
@@ -115,7 +133,8 @@ export type ScimAccessTokenEvent = BaseTrack & {
     event:
         | 'scim_access_token.created'
         | 'scim_access_token.deleted'
-        | 'scim_access_token.rotated';
+        | 'scim_access_token.rotated'
+        | 'scim_access_token.updated';
     userId: string;
     properties: {
         organizationId: string;

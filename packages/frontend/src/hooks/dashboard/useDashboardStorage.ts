@@ -6,6 +6,16 @@ import {
 } from '@lightdash/common';
 import { useCallback, useEffect, useState } from 'react';
 
+const tilesKey = (dashboardUuid: string) =>
+    `unsavedDashboardTiles:${dashboardUuid}`;
+const tabsKey = (dashboardUuid: string) => `dashboardTabs:${dashboardUuid}`;
+const filtersKey = (dashboardUuid: string) =>
+    `unsavedDashboardFilters:${dashboardUuid}`;
+const activeTabKey = (dashboardUuid: string) =>
+    `activeTabUuid:${dashboardUuid}`;
+const hasChangesKey = (dashboardUuid: string) =>
+    `hasDashboardChanges:${dashboardUuid}`;
+
 const getIsEditingDashboardChart = () => {
     return (
         !!sessionStorage.getItem('fromDashboard') ||
@@ -36,10 +46,13 @@ const useDashboardStorage = () => {
     }, []);
 
     const getEditingDashboardInfo = useCallback(() => {
+        const dashboardUuid = sessionStorage.getItem('dashboardUuid');
         return {
             name: sessionStorage.getItem('fromDashboard'),
-            dashboardUuid: sessionStorage.getItem('dashboardUuid'),
-            activeTabUuid: sessionStorage.getItem('activeTabUuid'),
+            dashboardUuid,
+            activeTabUuid: dashboardUuid
+                ? sessionStorage.getItem(activeTabKey(dashboardUuid))
+                : null,
         };
     }, []);
 
@@ -57,22 +70,32 @@ const useDashboardStorage = () => {
     );
 
     const getHasDashboardChanges = useCallback(() => {
-        return JSON.parse(
-            sessionStorage.getItem('getHasDashboardChanges') ?? 'false',
-        );
+        const dashboardUuid = sessionStorage.getItem('dashboardUuid');
+        if (!dashboardUuid) return false;
+        try {
+            return JSON.parse(
+                sessionStorage.getItem(hasChangesKey(dashboardUuid)) ?? 'false',
+            );
+        } catch {
+            return false;
+        }
     }, []);
 
-    const getDashboardActiveTabUuid = useCallback(() => {
-        return sessionStorage.getItem('activeTabUuid');
+    const getDashboardActiveTabUuid = useCallback((dashboardUuid: string) => {
+        return sessionStorage.getItem(activeTabKey(dashboardUuid));
     }, []);
 
     const clearDashboardStorage = useCallback(() => {
+        const dashboardUuid = sessionStorage.getItem('dashboardUuid');
         sessionStorage.removeItem('fromDashboard');
         sessionStorage.removeItem('dashboardUuid');
-        sessionStorage.removeItem('unsavedDashboardTiles');
-        sessionStorage.removeItem('unsavedDashboardFilters');
-        sessionStorage.removeItem('hasDashboardChanges');
-        sessionStorage.removeItem('activeTabUuid');
+        if (dashboardUuid) {
+            sessionStorage.removeItem(tilesKey(dashboardUuid));
+            sessionStorage.removeItem(tabsKey(dashboardUuid));
+            sessionStorage.removeItem(filtersKey(dashboardUuid));
+            sessionStorage.removeItem(activeTabKey(dashboardUuid));
+            sessionStorage.removeItem(hasChangesKey(dashboardUuid));
+        }
         // Trigger storage event to update NavBar
         window.dispatchEvent(new Event('storage'));
     }, []);
@@ -83,20 +106,21 @@ const useDashboardStorage = () => {
             dashboardFilters: DashboardFilters,
             haveTilesChanged: boolean,
             haveFiltersChanged: boolean,
-            dashboardUuid?: string,
-            dashboardName?: string,
+            dashboardUuid: string | undefined,
+            dashboardName: string | undefined,
             activeTabUuid?: string,
             dashboardTabs?: DashboardTab[],
         ) => {
+            if (!dashboardUuid) return;
             sessionStorage.setItem('fromDashboard', dashboardName ?? '');
-            sessionStorage.setItem('dashboardUuid', dashboardUuid ?? '');
+            sessionStorage.setItem('dashboardUuid', dashboardUuid);
             sessionStorage.setItem(
-                'unsavedDashboardTiles',
+                tilesKey(dashboardUuid),
                 JSON.stringify(dashboardTiles ?? []),
             );
             if (dashboardTabs && dashboardTabs.length > 0) {
                 sessionStorage.setItem(
-                    'dashboardTabs',
+                    tabsKey(dashboardUuid),
                     JSON.stringify(dashboardTabs),
                 );
             }
@@ -105,16 +129,19 @@ const useDashboardStorage = () => {
                 dashboardFilters.metrics.length > 0
             ) {
                 sessionStorage.setItem(
-                    'unsavedDashboardFilters',
+                    filtersKey(dashboardUuid),
                     JSON.stringify(dashboardFilters),
                 );
             }
             sessionStorage.setItem(
-                'hasDashboardChanges',
+                hasChangesKey(dashboardUuid),
                 JSON.stringify(haveTilesChanged || haveFiltersChanged),
             );
             if (activeTabUuid) {
-                sessionStorage.setItem('activeTabUuid', activeTabUuid);
+                sessionStorage.setItem(
+                    activeTabKey(dashboardUuid),
+                    activeTabUuid,
+                );
             }
             // Trigger storage event to update NavBar
             window.dispatchEvent(new Event('storage'));
@@ -122,18 +149,28 @@ const useDashboardStorage = () => {
         [],
     );
 
-    const getUnsavedDashboardTiles = useCallback(() => {
-        return JSON.parse(
-            sessionStorage.getItem('unsavedDashboardTiles') ?? '[]',
-        );
-    }, []);
+    const getUnsavedDashboardTiles = useCallback(
+        (dashboardUuid: string): DashboardTile[] => {
+            try {
+                return JSON.parse(
+                    sessionStorage.getItem(tilesKey(dashboardUuid)) ?? '[]',
+                );
+            } catch {
+                return [];
+            }
+        },
+        [],
+    );
 
     const setUnsavedDashboardTiles = useCallback(
         (
-            unsavedDashboardTiles: DashboardTile[] | CreateDashboardChartTile[],
+            dashboardUuid: string,
+            unsavedDashboardTiles: Array<
+                DashboardTile | CreateDashboardChartTile
+            >,
         ) => {
             sessionStorage.setItem(
-                'unsavedDashboardTiles',
+                tilesKey(dashboardUuid),
                 JSON.stringify(unsavedDashboardTiles),
             );
         },

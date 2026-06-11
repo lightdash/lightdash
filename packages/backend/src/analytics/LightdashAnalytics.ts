@@ -6,6 +6,7 @@ import {
     CartesianSeriesType,
     ChartKind,
     ChartType,
+    ContentType,
     DbtProjectType,
     getRequestMethod,
     LightdashInstallType,
@@ -25,6 +26,14 @@ import {
     TableSelectionType,
     ValidateProjectPayload,
     WarehouseTypes,
+    type AiAgentReviewItemStatus,
+    type AiAgentReviewItemWritebackBlockedReason,
+    type AiAgentReviewItemWritebackStrategy,
+    type AiAgentRootCause,
+    type AiRouterDecisionConfidence,
+    type AiRouterRouteNextAction,
+    type DataAppClaudeModel,
+    type PullRequestProvider,
 } from '@lightdash/common';
 import Analytics, {
     Track as AnalyticsTrack,
@@ -249,6 +258,7 @@ type QueryExecutionEvent = BaseTrack & {
         context: QueryExecutionContext;
         organizationId: string;
         projectId: string;
+        executionSource?: QueryExecutionSource;
         cacheMetadata?: CacheMetadata;
     } & (
         | PaginatedMetricQueryExecutionProperties
@@ -257,12 +267,15 @@ type QueryExecutionEvent = BaseTrack & {
     );
 };
 
+type QueryExecutionSource = 'warehouse' | 'pre_aggregate_duckdb';
+
 type QueryReadyEvent = BaseTrack & {
     event: 'query.ready';
     properties: {
         queryId: string;
         projectId: string;
         warehouseType: WarehouseTypes;
+        executionSource: QueryExecutionSource;
         warehouseExecutionTimeMs: number | null;
         totalRowCount: number | null;
         columnsCount: number | null;
@@ -275,6 +288,45 @@ type QueryErrorEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         warehouseType: WarehouseTypes | undefined;
+        executionSource: QueryExecutionSource;
+    };
+};
+
+type PreAggregateQueryEvent = BaseTrack & {
+    event: 'pre_aggregate.hit' | 'pre_aggregate.miss';
+    properties: {
+        organizationId: string | undefined;
+        projectId: string;
+        context: QueryExecutionContext;
+        exploreName: string;
+        routingTarget: 'warehouse' | 'pre_aggregate' | 'materialization';
+        routeMode?: 'required' | 'opportunistic';
+        preAggregateName?: string;
+        chartId?: string;
+        dashboardId?: string;
+        missReason?: string;
+    };
+};
+
+type MaterializationEvent = BaseTrack & {
+    event: 'materialization.completed' | 'materialization.failed';
+    properties: {
+        organizationId: string | undefined;
+        materializationUuid: string;
+        projectId: string;
+        preAggregateDefinitionUuid: string;
+        preAggregateName?: string;
+        trigger: string;
+        queryId?: string;
+        materializationStatus?: 'active' | 'superseded' | 'failed';
+        queryStatus?: QueryHistoryStatus;
+        format?: 'jsonl' | 'parquet';
+        rowCount?: number | null;
+        columnCount?: number | null;
+        totalBytes?: number | null;
+        warehouseExecutionTimeMs?: number | null;
+        totalDurationMs: number;
+        errorMessage?: string;
     };
 };
 
@@ -312,6 +364,7 @@ type ResultsCacheWriteEvent = BaseTrack & {
         queryId: string;
         projectId: string;
         cacheKey: string;
+        executionSource: QueryExecutionSource;
         totalRowCount: number | null;
     };
 };
@@ -432,6 +485,46 @@ type RestoredSavedChartEvent = BaseTrack & {
     properties: {
         projectId: string;
         savedQueryId: string;
+    };
+};
+
+type FormulaTableCalculationSavedEvent = BaseTrack & {
+    event: 'formula_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        // `created` covers first-time chart creation AND duplication; `updated`
+        // covers saveVersion (the path that persists table-calc edits on an
+        // existing chart). The two together let us separate adopters from
+        // iterators in Lightdash analytics.
+        action: 'created' | 'updated';
+        formulaCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
+type SqlTableCalculationSavedEvent = BaseTrack & {
+    event: 'sql_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        action: 'created' | 'updated';
+        sqlCount: number;
+        totalTableCalculationCount: number;
+    };
+};
+
+type TemplateTableCalculationSavedEvent = BaseTrack & {
+    event: 'template_table_calculation.saved';
+    properties: {
+        organizationId: string;
+        projectId: string;
+        savedChartUuid: string;
+        action: 'created' | 'updated';
+        templateCount: number;
+        totalTableCalculationCount: number;
     };
 };
 
@@ -826,6 +919,18 @@ type ShareUrl = BaseTrack & {
     };
 };
 
+type AiAgentThreadShareEvent = BaseTrack & {
+    event: 'ai_agent_thread_share.created' | 'ai_agent_thread_share.cloned';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        threadId: string;
+        aiThreadShareId: string;
+    };
+};
+
 type ShareSlack = BaseTrack & {
     event:
         | 'share_slack.unfurl'
@@ -1110,8 +1215,255 @@ export type SchedulerNotificationJobEvent = BaseTrack & {
     };
 };
 
+export type DataAppCreatedEvent = BaseTrack & {
+    event: 'data_app.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        promptLength: number;
+        imageCount: number;
+        claudeModel: DataAppClaudeModel;
+    };
+};
+
+export type DataAppIteratedEvent = BaseTrack & {
+    event: 'data_app.iterated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        iterationNumber: number;
+        promptLength: number;
+        imageCount: number;
+        claudeModel: DataAppClaudeModel;
+        previousVersionStatus: string | null;
+        msSinceLastVersion: number | null;
+    };
+};
+
+export type DataAppVersionCancelledEvent = BaseTrack & {
+    event: 'data_app.version.cancelled';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        stageAtCancellation: string;
+        msElapsedBeforeCancel: number;
+    };
+};
+
+export type DataAppVersionCompletedEvent = BaseTrack & {
+    event: 'data_app.version.completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        isIteration: boolean;
+        claudeModel: DataAppClaudeModel;
+        wasResumed: boolean;
+        totalDurationMs: number;
+        sandboxMs?: number;
+        resumeMs?: number;
+        restoreMs?: number;
+        catalogMs?: number;
+        generateMs?: number;
+        buildMs?: number;
+        packageMs?: number;
+        uploadMs?: number;
+        buildFixAttempts: number;
+        buildFixGenerationMs: number;
+        toolCallCount: number;
+        catalogTableCount: number;
+        catalogDimensionCount: number;
+        catalogMetricCount: number;
+        catalogYamlBytes: number;
+        distBytes: number;
+        sourceBytes: number;
+    };
+};
+
+export type DataAppVersionFailedEvent = BaseTrack & {
+    event: 'data_app.version.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        isIteration: boolean;
+        claudeModel: DataAppClaudeModel;
+        failureStage:
+            | 'sandbox'
+            | 'catalog'
+            | 'generating'
+            | 'building'
+            | 'packaging'
+            | 'db'
+            | 'config'
+            | 'timeout';
+        errorMessage: string;
+        buildFixAttempts: number;
+        totalDurationMs: number;
+        sandboxMs?: number;
+        resumeMs?: number;
+        restoreMs?: number;
+        catalogMs?: number;
+        generateMs?: number;
+        buildMs?: number;
+    };
+};
+
+export type DataAppImageUploadedEvent = BaseTrack & {
+    event: 'data_app.image_uploaded';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid?: string;
+        mimeType: string;
+        sizeBytes?: number;
+    };
+};
+
+export type DataAppViewedEvent = BaseTrack & {
+    event: 'data_app.view';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+    };
+};
+
+export type DataAppVersionRestoredEvent = BaseTrack & {
+    event: 'data_app.version.restored';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        restoredFromVersion: number;
+    };
+};
+
+export type DataAppDuplicatedEvent = BaseTrack & {
+    event: 'data_app.duplicated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        duplicatedFromAppUuid: string;
+        duplicatedFromVersion: number;
+    };
+};
+
+export type DataAppPromotedEvent = BaseTrack & {
+    event: 'data_app.promoted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        appUuid: string;
+        version: number;
+        action: 'create' | 'update';
+        promotedFromAppUuid: string;
+        promotedFromProjectId: string;
+    };
+};
+
+export type DataAppEvent =
+    | DataAppCreatedEvent
+    | DataAppIteratedEvent
+    | DataAppVersionCancelledEvent
+    | DataAppVersionCompletedEvent
+    | DataAppVersionFailedEvent
+    | DataAppImageUploadedEvent
+    | DataAppViewedEvent
+    | DataAppVersionRestoredEvent
+    | DataAppDuplicatedEvent
+    | DataAppPromotedEvent;
+
+export type AiWritebackStartedEvent = BaseTrack & {
+    event: 'ai_writeback.started';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        owner: string;
+        repo: string;
+        // Whether this turn resumed an existing conversation (and its sandbox)
+        // rather than starting a fresh one.
+        isResume: boolean;
+    };
+};
+
+export type AiWritebackCompletedEvent = BaseTrack & {
+    event: 'ai_writeback.completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        owner: string;
+        repo: string;
+        isResume: boolean;
+        exitCode: number;
+        // Whether the agent changed any files. When false no PR is opened.
+        hasChanges: boolean;
+        prCreated: boolean;
+        totalDurationMs: number;
+    };
+};
+
+// Pipeline stage that was running when an AI writeback run failed.
+export const AI_WRITEBACK_STAGES = [
+    'install',
+    'sandbox',
+    'clone',
+    'agent',
+    'commit',
+    'push',
+    'pull_request',
+] as const;
+
+export type AiWritebackFailureStage = (typeof AI_WRITEBACK_STAGES)[number];
+
+export type AiWritebackFailedEvent = BaseTrack & {
+    event: 'ai_writeback.failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        owner: string;
+        repo: string;
+        isResume: boolean;
+        failureStage: AiWritebackFailureStage;
+        errorMessage: string;
+        totalDurationMs: number;
+    };
+};
+
+export type AiWritebackEvent =
+    | AiWritebackStartedEvent
+    | AiWritebackCompletedEvent
+    | AiWritebackFailedEvent;
+
 export type CommentsEvent = BaseTrack & {
-    event: 'comment.created' | 'comment.deleted' | 'comment.resolved';
+    event:
+        | 'comment.created'
+        | 'comment.deleted'
+        | 'comment.resolved'
+        | 'comment.unresolved';
     userId: string;
     properties: {
         dashboardTileUuid: string;
@@ -1121,6 +1473,115 @@ export type CommentsEvent = BaseTrack & {
         isOwner?: boolean;
     };
 };
+
+export type ManagedAgentSettingsCreatedEvent = BaseTrack & {
+    event: 'managed_agent.settings_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        schedule: string;
+        hasSlackChannel: boolean;
+        enabledTools: string[];
+        disabledTools: string[];
+    };
+};
+
+export type ManagedAgentSettingsUpdatedEvent = BaseTrack & {
+    event: 'managed_agent.settings_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        enabled: boolean;
+        schedule: string;
+        hasSlackChannel: boolean;
+        enabledTools: string[];
+        disabledTools: string[];
+        changes: Array<
+            'enabled' | 'disabled' | 'schedule' | 'slack_channel' | 'tools'
+        >;
+        previousEnabled: boolean;
+        previousSchedule: string;
+    };
+};
+
+export type ManagedAgentRunNowTriggeredEvent = BaseTrack & {
+    event: 'managed_agent.run_now_triggered';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        schedule: string;
+    };
+};
+
+export type ManagedAgentActionReversedEvent = BaseTrack & {
+    event: 'managed_agent.action_reversed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        actionType: string;
+        actionCategory: 'undo' | 'dismiss';
+        targetType: string;
+        sessionId: string;
+        actionAgeMs: number;
+    };
+};
+
+export type ManagedAgentRunStartedEvent = BaseTrack & {
+    event: 'managed_agent.run_started';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string;
+        triggeredBy: 'cron' | 'manual' | 'on_enable';
+        schedule: string;
+        hasSlackChannel: boolean;
+    };
+};
+
+export type ManagedAgentRunCompletedEvent = BaseTrack & {
+    event: 'managed_agent.run_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string;
+        triggeredBy: 'cron' | 'manual' | 'on_enable';
+        status: 'completed' | 'error';
+        durationMs: number;
+        actionCount: number;
+        actionCountsByType: Record<string, number>;
+        slackPosted: boolean;
+        error: string | null;
+    };
+};
+
+export type ManagedAgentActionCreatedEvent = BaseTrack & {
+    event: 'managed_agent.action_created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        runUuid: string | null;
+        sessionId: string;
+        actionType: string;
+        targetType: string;
+    };
+};
+
+export type ManagedAgentEvent =
+    | ManagedAgentSettingsCreatedEvent
+    | ManagedAgentSettingsUpdatedEvent
+    | ManagedAgentRunNowTriggeredEvent
+    | ManagedAgentActionReversedEvent
+    | ManagedAgentRunStartedEvent
+    | ManagedAgentRunCompletedEvent
+    | ManagedAgentActionCreatedEvent;
 
 export const parseAnalyticsLimit = (
     limit: 'table' | 'all' | number | null | undefined,
@@ -1282,6 +1743,19 @@ export type GithubInstallEvent = BaseTrack & {
     };
 };
 
+export type GithubUserLinkEvent = BaseTrack & {
+    event:
+        | 'github_user_link.started'
+        | 'github_user_link.completed'
+        | 'github_user_link.error'
+        | 'github_user_link.revoked';
+    userId: string;
+    properties: {
+        organizationId: string;
+        error?: string; // only for error
+    };
+};
+
 export type WriteBackEvent = BaseTrack & {
     event: 'write_back.created' | 'write_back.previewed';
     userId: string;
@@ -1387,6 +1861,17 @@ export type AiAgentCreatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentGithubMcpConnectedEvent = BaseTrack & {
+    event: 'ai_agent.github_mcp_connected';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        mcpServerId: string;
+        method: 'one_click' | 'one_click_reconnect';
+    };
+};
+
 export type AiAgentDeletedEvent = BaseTrack & {
     event: 'ai_agent.deleted';
     userId: string;
@@ -1411,6 +1896,29 @@ export type AiAgentUpdatedEvent = BaseTrack & {
     };
 };
 
+export type AiAgentDocumentCreatedEvent = BaseTrack & {
+    event: 'ai_agent_document.created';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        documentId: string;
+        mimeType: string;
+        contentSizeBytes: number;
+        agentAccessCount: number;
+    };
+};
+
+export type AiAgentDocumentDeletedEvent = BaseTrack & {
+    event: 'ai_agent_document.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        documentId: string;
+    };
+};
+
 export type AiAgentPromptCreatedEvent = BaseTrack & {
     event: 'ai_agent_prompt.created';
     userId: string;
@@ -1420,6 +1928,10 @@ export type AiAgentPromptCreatedEvent = BaseTrack & {
         aiAgentId: string;
         threadId: string | undefined;
         context: 'slack' | 'web_app';
+        hasPinnedContext: boolean;
+        pinnedContextCount: number;
+        pinnedChartCount: number;
+        pinnedDashboardCount: number;
     };
 };
 
@@ -1445,6 +1957,8 @@ export type AiAgentResponseStreamed = BaseTrack & {
         usageTokensCount: number;
         stepsCount: number;
         model: string;
+        finishReason: string;
+        stepCapReached: boolean;
     };
 };
 
@@ -1545,6 +2059,17 @@ export type AiAgentToolCallEvent = BaseTrack & {
     };
 };
 
+export type ContentVerificationEvent = BaseTrack & {
+    event: 'content_verification.created' | 'content_verification.deleted';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        contentType: ContentType;
+        contentId: string;
+    };
+};
+
 export type AiAgentArtifactVersionVerifiedEvent = BaseTrack & {
     event: 'ai_agent.artifact_version_verified';
     userId: string;
@@ -1567,6 +2092,202 @@ export type AiAgentArtifactsRetrievedEvent = BaseTrack & {
         promptId: string;
         artifactCount: number;
         averageSimilarity: number;
+    };
+};
+
+export type AiAgentFindContentCoverageEvent = BaseTrack & {
+    event: 'ai_agent.find_content_coverage';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        aiAgentId: string;
+        agentName: string;
+        threadId: string;
+        promptId: string;
+        searchQuery: string;
+        totalResultCount: number;
+        verifiedResultCount: number;
+        topResultVerified: boolean;
+    };
+};
+
+export type AiAgentSuggestionsGeneratedEvent = BaseTrack & {
+    event: 'ai_agent.suggestions_generated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipCount: number;
+        exploreCount: number;
+        verifiedQuestionsCount: number;
+        latencyMs: number;
+        modelId: string;
+        usingFallback: boolean;
+    };
+};
+
+export type AiAgentSuggestionImpressionEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_impression';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipCount: number;
+    };
+};
+
+export type AiAgentSuggestionClickEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_click';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        chipLabel: string;
+        chipTool: string;
+        chipIndex: number;
+    };
+};
+
+export type AiAgentSuggestionSubmitEvent = BaseTrack & {
+    event: 'ai_agent.suggestion_submit';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        agentId: string;
+        toolHints: string[];
+    };
+};
+
+export type AiAgentPullRequestViewedEvent = BaseTrack & {
+    event: 'ai_agent.pull_request_viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        prUrl: string | null;
+    };
+};
+
+export type AiAgentReviewItemsListedEvent = BaseTrack & {
+    event: 'ai_agent_review_items.listed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        totalCount: number;
+        eligibleCount: number;
+        statuses: AiAgentReviewItemStatus[] | null;
+        blockedReasons: Partial<
+            Record<AiAgentReviewItemWritebackBlockedReason, number>
+        >;
+    };
+};
+
+export type AiAgentReviewItemStatusChangedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.status_changed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        previousStatus: AiAgentReviewItemStatus;
+        newStatus: AiAgentReviewItemStatus;
+    };
+};
+
+export type AiAgentReviewItemWritebackQueuedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_queued';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy;
+        provider: PullRequestProvider;
+    };
+};
+
+export type AiAgentReviewItemWritebackPreviewViewedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_preview_viewed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string | null;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        available: boolean;
+        strategy: AiAgentReviewItemWritebackStrategy | null;
+    };
+};
+
+export type AiAgentReviewItemWritebackCompletedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_completed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy;
+        prCreated: boolean;
+    };
+};
+
+export type AiAgentReviewItemWritebackFailedEvent = BaseTrack & {
+    event: 'ai_agent_review_item.writeback_failed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        fingerprint: string;
+        rootCause: AiAgentRootCause;
+        strategy: AiAgentReviewItemWritebackStrategy | null;
+        errorMessage: string;
+    };
+};
+
+export type AiAgentReviewEvent =
+    | AiAgentReviewItemsListedEvent
+    | AiAgentReviewItemStatusChangedEvent
+    | AiAgentReviewItemWritebackQueuedEvent
+    | AiAgentReviewItemWritebackPreviewViewedEvent
+    | AiAgentReviewItemWritebackCompletedEvent
+    | AiAgentReviewItemWritebackFailedEvent;
+
+export type AiRouterConfigUpdatedEvent = BaseTrack & {
+    event: 'ai_router.config_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        enabled: boolean;
+        projectsCount: number;
+    };
+};
+
+export type AiRouterInstructionsUpdatedEvent = BaseTrack & {
+    event: 'ai_router.instructions_updated';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        instructionLength: number;
+        taggedAgentsCount: number;
+    };
+};
+
+export type AiRouterMessageRoutedEvent = BaseTrack & {
+    event: 'ai_router.message_routed';
+    userId: string;
+    properties: {
+        organizationId: string;
+        projectId: string;
+        confidence: AiRouterDecisionConfidence;
+        nextAction: AiRouterRouteNextAction;
+        candidatesCount: number;
     };
 };
 
@@ -1599,6 +2320,8 @@ type TypedEvent =
     | QueryExecutionEvent
     | QueryReadyEvent
     | QueryErrorEvent
+    | PreAggregateQueryEvent
+    | MaterializationEvent
     | QueryPageEvent
     | ResultsCacheCreateEvent
     | ResultsCacheWriteEvent
@@ -1608,6 +2331,9 @@ type TypedEvent =
     | UpdateSavedChartEvent
     | DeleteSavedChartEvent
     | RestoredSavedChartEvent
+    | FormulaTableCalculationSavedEvent
+    | SqlTableCalculationSavedEvent
+    | TemplateTableCalculationSavedEvent
     | CreateSavedChartEvent
     | ChartHistoryEvent
     | ViewChartVersionEvent
@@ -1646,6 +2372,7 @@ type TypedEvent =
     | FieldValueSearch
     | PermissionsUpdated
     | ShareUrl
+    | AiAgentThreadShareEvent
     | ShareSlack
     | SavedChartView
     | DashboardView
@@ -1656,6 +2383,8 @@ type TypedEvent =
     | SchedulerRestoredEvent
     | SchedulerJobEvent
     | SchedulerNotificationJobEvent
+    | DataAppEvent
+    | AiWritebackEvent
     | PinnedListUpdated
     | FavoriteToggled
     | DownloadCsv
@@ -1676,8 +2405,10 @@ type TypedEvent =
     | RestoredSqlChartEvent
     | CreateSqlChartVersionEvent
     | CommentsEvent
+    | ManagedAgentEvent
     | VirtualViewEvent
     | GithubInstallEvent
+    | GithubUserLinkEvent
     | WriteBackEvent
     | WriteBackErrorEvent
     | SourceCodeEvent
@@ -1689,8 +2420,11 @@ type TypedEvent =
     | SubtotalQueryEvent
     | DeprecatedRouteCalled
     | AiAgentCreatedEvent
+    | AiAgentGithubMcpConnectedEvent
     | AiAgentDeletedEvent
     | AiAgentUpdatedEvent
+    | AiAgentDocumentCreatedEvent
+    | AiAgentDocumentDeletedEvent
     | AiAgentPromptCreatedEvent
     | AiAgentPromptFeedbackEvent
     | AiAgentEvalCreatedEvent
@@ -1700,6 +2434,17 @@ type TypedEvent =
     | AiAgentToolCallEvent
     | AiAgentArtifactVersionVerifiedEvent
     | AiAgentArtifactsRetrievedEvent
+    | AiAgentFindContentCoverageEvent
+    | AiAgentSuggestionsGeneratedEvent
+    | AiAgentSuggestionImpressionEvent
+    | AiAgentSuggestionClickEvent
+    | AiAgentSuggestionSubmitEvent
+    | AiAgentPullRequestViewedEvent
+    | AiAgentReviewEvent
+    | AiRouterConfigUpdatedEvent
+    | AiRouterInstructionsUpdatedEvent
+    | AiRouterMessageRoutedEvent
+    | ContentVerificationEvent
     | SchedulerOwnershipReassignedEvent
     | ImpersonationEvent;
 

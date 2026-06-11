@@ -5,6 +5,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Anchor,
     Badge,
     Button,
     Group,
@@ -41,12 +42,6 @@ import {
     IconTable,
 } from '@tabler/icons-react';
 import cronstrue from 'cronstrue';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-} from 'mantine-react-table';
 import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { usePreAggregateMaterializations } from '../../hooks/usePreAggregateMaterializations';
 import {
@@ -56,11 +51,17 @@ import {
 import { useProject } from '../../hooks/useProject';
 import { useTimeAgo } from '../../hooks/useTimeAgo';
 import useSchedulerJobsContext from '../../providers/SchedulerJobs/useSchedulerJobsContext';
+import { formatDuration, formatFileSize } from '../../utils/formatters';
 import Callout from '../common/Callout';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
-import { formatDuration, formatFileSize } from './formatters';
 import MaterializationDetailDrawer from './MaterializationDetailDrawer';
 import classes from './PreAggregateMaterializations.module.css';
 import { StatusBadge } from './StatusBadge';
@@ -165,7 +166,10 @@ const StatusFilter: FC<{
 };
 
 const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
-    const { isLoading: isLoadingProject } = useProject(projectUuid);
+    const { data: project, isLoading: isLoadingProject } =
+        useProject(projectUuid);
+    const requiresUserCredentials =
+        project?.warehouseConnection?.requireUserCredentials ?? false;
     const { hasActiveJobs } = useSchedulerJobsContext();
     const { mutate: refreshAll, isLoading: isRefreshingAll } =
         useRefreshAllPreAggregates(projectUuid, { showToast: true });
@@ -219,7 +223,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         [data],
     );
 
-    const [sorting, setSorting] = useState<MRT_SortingState>([]);
+    const [sorting, setSorting] = useState<ContentTableSortingState>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedStatus, setSelectedStatus] = useState<StatusType | null>(
         null,
@@ -272,7 +276,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
     }, [filteredMaterializations]);
 
     const columns = useMemo<
-        MRT_ColumnDef<PreAggregateMaterializationSummary>[]
+        ContentTableColumnDef<PreAggregateMaterializationSummary>[]
     >(
         () => [
             {
@@ -556,7 +560,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
         [isRefreshingOne, refreshingDefinitionName, refreshByName],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: filteredMaterializations,
         enableColumnResizing: false,
@@ -738,6 +742,25 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 </Group>
 
+                {requiresUserCredentials && (
+                    <Callout variant="warning">
+                        <Text fz="xs">
+                            Pre-aggregates aren't compatible with personal
+                            warehouse connections. Materialized results are
+                            shared across all viewers and may not match what
+                            each user would see querying the warehouse directly.{' '}
+                            <Anchor
+                                href="https://docs.lightdash.com/references/pre-aggregates/overview#personal-warehouse-connections"
+                                target="_blank"
+                                inherit
+                            >
+                                Learn more
+                            </Anchor>
+                            .
+                        </Text>
+                    </Callout>
+                )}
+
                 {!isLoading && materializations.length === 0 ? (
                     <Paper withBorder radius="md" p="xxl">
                         <SuboptimalState
@@ -747,7 +770,7 @@ const PreAggregateMaterializations: FC<Props> = ({ projectUuid }) => {
                         />
                     </Paper>
                 ) : (
-                    <MantineReactTable table={table} />
+                    <ContentTable table={table} />
                 )}
             </Stack>
 

@@ -16,9 +16,7 @@ Usage tips:
 - Results are paginated — use the next page token to get more results if needed.
 `;
 
-export const toolFindFieldsArgsSchema = createToolSchema({
-    description: TOOL_FIND_FIELDS_DESCRIPTION,
-})
+export const toolFindFieldsArgsSchema = createToolSchema()
     .extend({
         table: z.string().describe('The table to search in.'),
         fieldSearchQueries: z.array(
@@ -44,6 +42,7 @@ export const findFieldsRankingMetadataSchema = z.object({
                     fieldType: z.string(),
                     searchRank: z.number().nullable().optional(),
                     chartUsage: z.number().nullable().optional(),
+                    verifiedChartUsage: z.number().nullable().optional(),
                 }),
             ),
             pagination: z

@@ -8,7 +8,6 @@ import {
     CustomFormatType,
     DimensionType,
     evaluateConditionalFormatExpression,
-    FeatureFlags,
     formatItemValue,
     formatNumberValue,
     formatValueWithExpression,
@@ -38,7 +37,7 @@ import {
     getValueLabelStyle,
     hashFieldReference,
     hasValidFormatExpression,
-    isCompleteLayout,
+    isCalendarValueDimension,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -58,6 +57,7 @@ import {
     type CartesianChart,
     type CustomDimension,
     type EChartsSeries,
+    type EchartsLegend,
     type Field,
     type Item,
     type ItemsMap,
@@ -96,12 +96,15 @@ import { sliceRows } from '../../utils/sliceRows';
 import { EMPTY_X_AXIS } from '../cartesianChartConfig/useCartesianChartConfig';
 import {
     getPivotedDataFromPivotDetails,
-    getPlottedData,
     type RowKeyMap,
 } from '../plottedData/getPlottedData';
 import { type InfiniteQueryResults } from '../useQueryResults';
-import { useServerFeatureFlag } from '../useServerOrClientFeatureFlag';
 import { getCartesianConditionalFormattingColor } from './cartesianConditionalFormatting';
+import {
+    applyTimezoneShiftToEchartsOptions,
+    resolveAxisTimezone,
+    TIME_INTERVALS_FOR_CATEGORY_AXIS,
+} from './timezoneShift';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
 // NOTE: CallbackDataParams type doesn't have axisValue, axisValueLabel properties: https://github.com/apache/echarts/issues/17561
@@ -186,15 +189,6 @@ export const getAxisTypeFromField = (item?: ItemsMap[string]): string => {
         return 'value';
     }
 };
-
-// Time intervals that benefit from category axis in bar charts.
-// These must match intervals handled by getCategoryDateAxisConfig.
-const TIME_INTERVALS_FOR_CATEGORY_AXIS: TimeFrames[] = [
-    TimeFrames.WEEK,
-    TimeFrames.MONTH,
-    TimeFrames.QUARTER,
-    TimeFrames.YEAR,
-];
 
 type GetAxisTypeArg = {
     validCartesianConfig: CartesianChart;
@@ -362,22 +356,28 @@ const convertPivotValuesColumnsIntoMap = (
     );
 };
 
-const removeEmptyProperties = <T = Record<any, any>>(obj: T | undefined) => {
+const removeEmptyProperties = <
+    T extends Record<string, any> = Record<any, any>,
+>(
+    obj: T | undefined,
+): Partial<T> | undefined => {
     if (!obj) return undefined;
-    return Object.entries(obj).reduce(
+    return Object.entries(obj).reduce<Partial<T>>(
         (sum, [key, value]) =>
             value !== undefined && value !== ''
-                ? { ...sum, [key]: value }
+                ? { ...sum, [key as keyof T]: value }
                 : sum,
         {},
     );
 };
 
-const mergeLegendSettings = <T = Record<any, any>>(
+export const mergeLegendSettings = <
+    T extends Record<string, any> = Record<any, any>,
+>(
     legendConfig: T | undefined,
     legendsSelected: LegendValues,
     series: EChartsSeries[],
-) => {
+): Record<string, unknown> => {
     const normalizedConfig = removeEmptyProperties(legendConfig);
     if (!normalizedConfig) {
         return {
@@ -388,15 +388,88 @@ const mergeLegendSettings = <T = Record<any, any>>(
             selected: legendsSelected,
         };
     }
+
+    const { placement, ...rest } = normalizedConfig;
+
+    // Truncate long series labels so they don't bleed into the plot area
+    // when the legend column is narrower than the label width. Hover shows
+    // the full label via the legend's built-in tooltip.
+    const outsideLegendOverflow = {
+        textStyle: {
+            overflow: 'truncate',
+            width: 150,
+        },
+        tooltip: { show: true },
+    };
+
+    if (placement === 'outsideRight') {
+        return {
+            ...rest,
+            // Force scroll: 'plain' wraps items into a grid that overruns the
+            // reserved grid.right margin when there are many series or long labels.
+            type: 'scroll',
+            orient: 'vertical',
+            // Center vertically: top 'middle' aligns the legend's centre with
+            // the canvas middle; height caps the bounding box so scroll
+            // pagination still works for legends with many series.
+            top: 'middle',
+            height: '80%',
+            right: '2%',
+            left: undefined,
+            bottom: undefined,
+            ...outsideLegendOverflow,
+            selected: legendsSelected,
+        };
+    }
+
+    if (placement === 'outsideLeft') {
+        return {
+            ...rest,
+            type: 'scroll',
+            orient: 'vertical',
+            top: 'middle',
+            height: '80%',
+            left: '2%',
+            right: undefined,
+            bottom: undefined,
+            ...outsideLegendOverflow,
+            selected: legendsSelected,
+        };
+    }
+
     return {
         orient: 'horizontal',
         // After echarts v6, the new default legend is positioned at bottom. We need to keep old behavior in placeholders
         // so we only define top 0 if there is no 'bottom' configuration.
-        // spreading `normalizedConfig` will overwrite top value if needed
-        top: 'bottom' in normalizedConfig ? undefined : 0,
-        ...normalizedConfig,
+        // spreading `rest` will overwrite top value if needed
+        top: 'bottom' in rest ? undefined : 0,
+        ...rest,
         selected: legendsSelected,
     };
+};
+
+type GridLike = {
+    containLabel: boolean;
+    left: string;
+    right: string;
+    top: string;
+    bottom: string;
+};
+
+export const applyLegendPlacementToGrid = (
+    grid: GridLike,
+    legendConfig: Pick<EchartsLegend, 'placement'> | undefined,
+    isLegendShown: boolean,
+    userGrid?: { left?: string; right?: string },
+): GridLike => {
+    if (!isLegendShown) return grid;
+    if (legendConfig?.placement === 'outsideRight') {
+        return { ...grid, right: userGrid?.right ?? '25%' };
+    }
+    if (legendConfig?.placement === 'outsideLeft') {
+        return { ...grid, left: userGrid?.left ?? '25%' };
+    }
+    return grid;
 };
 
 const minDate = (a: number | string, b: string) => {
@@ -667,9 +740,10 @@ type GetPivotSeriesArg = {
     yFieldHash: string;
     xFieldHash: string;
     pivotReference: Required<PivotReference>;
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
+    resolvedTimezone?: string;
 };
 
 const seriesValueFormatter = (
@@ -878,6 +952,7 @@ const getPivotSeries = ({
     pivotValuesColumnsMap,
     parameters,
     isStack100,
+    resolvedTimezone,
 }: GetPivotSeriesArg): EChartsSeries => {
     const pivotLabel = pivotReference.pivotValues.reduce(
         (acc, { field, value }) => {
@@ -888,6 +963,7 @@ const getPivotSeries = ({
                 undefined,
                 pivotValuesColumnsMap,
                 parameters,
+                resolvedTimezone,
             );
             return acc ? `${acc} - ${formattedValue}` : formattedValue;
         },
@@ -940,6 +1016,7 @@ const getPivotSeries = ({
                 itemsMap,
                 pivotValuesColumnsMap,
                 parameters,
+                resolvedTimezone,
             ),
         },
         showSymbol: series.showSymbol ?? true,
@@ -1072,10 +1149,11 @@ type GetSimpleSeriesArg = {
     flipAxes: boolean | undefined;
     yFieldHash: string;
     xFieldHash: string;
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null;
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
     parameters?: ParametersValuesMap;
     isStack100?: boolean;
     backgroundColor?: string;
+    resolvedTimezone?: string;
 };
 
 const getSimpleSeries = ({
@@ -1089,6 +1167,7 @@ const getSimpleSeries = ({
     parameters,
     isStack100,
     backgroundColor,
+    resolvedTimezone,
 }: GetSimpleSeriesArg) => ({
     ...series,
     xAxisIndex: flipAxes ? series.yAxisIndex : undefined,
@@ -1125,6 +1204,7 @@ const getSimpleSeries = ({
             itemsMap,
             pivotValuesColumnsMap,
             parameters,
+            resolvedTimezone,
         ),
     },
     ...getSimpleSeriesSymbolConfig(series),
@@ -1198,9 +1278,10 @@ const getEchartsSeriesFromPivotedData = (
     itemsMap: ItemsMap,
     cartesianChart: CartesianChart,
     rowKeyMap: RowKeyMap,
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn> | null,
+    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
     parameters?: ParametersValuesMap,
     backgroundColor?: string,
+    resolvedTimezone?: string,
 ): EChartsSeries[] => {
     // Check if 100% stacking is enabled
     const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
@@ -1266,6 +1347,7 @@ const getEchartsSeriesFromPivotedData = (
                     pivotValuesColumnsMap,
                     parameters,
                     isStack100,
+                    resolvedTimezone,
                 });
             }
 
@@ -1281,52 +1363,11 @@ const getEchartsSeriesFromPivotedData = (
                 parameters,
                 isStack100,
                 backgroundColor,
+                resolvedTimezone,
             });
         });
 
     return resultSeries;
-};
-
-const getEchartsSeries = (
-    itemsMap: ItemsMap,
-    cartesianChart: CartesianChart,
-    pivotKeys: string[] | undefined,
-    parameters?: ParametersValuesMap,
-): EChartsSeries[] => {
-    // Check if 100% stacking is enabled
-    const isStack100 = cartesianChart.layout.stack === StackType.PERCENT;
-
-    return (cartesianChart.eChartsConfig.series || [])
-        .filter((s) => !s.hidden)
-        .map<EChartsSeries>((series) => {
-            const { flipAxes } = cartesianChart.layout;
-            const xFieldHash = hashFieldReference(series.encode.xRef);
-            const yFieldHash = hashFieldReference(series.encode.yRef);
-            if (pivotKeys && isPivotReferenceWithValues(series.encode.yRef)) {
-                return getPivotSeries({
-                    series,
-                    itemsMap,
-                    cartesianChart,
-                    pivotReference: series.encode.yRef,
-                    flipAxes,
-                    xFieldHash,
-                    yFieldHash,
-                    parameters,
-                    isStack100,
-                });
-            }
-
-            return getSimpleSeries({
-                series,
-                itemsMap,
-                connectNulls: cartesianChart.layout.connectNulls,
-                flipAxes,
-                yFieldHash,
-                xFieldHash,
-                parameters,
-                isStack100,
-            });
-        });
 };
 
 const calculateWidthText = (text: string | undefined): number => {
@@ -1396,10 +1437,9 @@ const getLongestLabel = ({
 export const filterSeriesWithNoData = (
     unfilteredSeries: EChartsSeries[],
     results: Record<string, unknown>[],
-    isShowHideRowsEnabled: boolean,
     rowLimit: RowLimit | undefined,
 ): EChartsSeries[] => {
-    if (!isShowHideRowsEnabled || !rowLimit) {
+    if (!rowLimit) {
         return unfilteredSeries;
     }
     if (results.length === 0) return unfilteredSeries;
@@ -1475,6 +1515,7 @@ export const getCategoryDateAxisConfig = (
     rows?: ResultRow[],
     axisType?: string,
     series?: Series[],
+    resolvedTimezone?: string,
 ): CategoryDateAxisConfig => {
     if (!axisId || !rows || !axisField || axisType !== 'category') return {};
     if (!('timeInterval' in axisField)) return {};
@@ -1494,14 +1535,30 @@ export const getCategoryDateAxisConfig = (
     );
     const boundaryGap = hasBarSeries;
 
+    // Calendar values (wall-clock dates) are raw — snap in UTC to match.
+    const tz =
+        isCalendarValueDimension(axisField) || !resolvedTimezone
+            ? 'UTC'
+            : resolvedTimezone;
+    // Skip dayjs.tz for UTC: .add() chains drift sub-ms vs fresh .tz() objects
+    // and break .isBefore at the boundary.
+    const inTz = (v: string | number) =>
+        tz === 'UTC' ? dayjs.utc(v) : dayjs.tz(dayjs.utc(v).toDate(), tz);
+
+    // dayjs `.add(unit)` keeps the source UTC offset rather than re-resolving
+    // DST in the target zone; re-parse the wall-clock to fix that. No-op for UTC.
+    const reAnchor = (d: dayjs.Dayjs) =>
+        tz === 'UTC' ? d : dayjs.tz(d.format('YYYY-MM-DD HH:mm:ss'), tz);
+
     if (timeInterval === TimeFrames.WEEK) {
         const continuousRange: string[] = [];
-        let nextDate = dayjs.utc(minX);
-        while (nextDate.isBefore(dayjs(maxX))) {
-            continuousRange.push(nextDate.format());
-            nextDate = nextDate.add(1, 'week');
+        let nextDate = inTz(minX);
+        const endDate = inTz(maxX);
+        while (nextDate.isBefore(endDate)) {
+            continuousRange.push(nextDate.utc().format());
+            nextDate = reAnchor(nextDate.add(1, 'week'));
         }
-        continuousRange.push(dayjs.utc(maxX).format());
+        continuousRange.push(endDate.utc().format());
         return {
             data: continuousRange,
             axisTick: { alignWithLabel: true, interval: 0 },
@@ -1511,11 +1568,11 @@ export const getCategoryDateAxisConfig = (
 
     if (timeInterval === TimeFrames.YEAR) {
         const continuousRange: string[] = [];
-        let nextDate = dayjs.utc(minX).startOf('year');
-        const endDate = dayjs.utc(maxX).startOf('year');
+        let nextDate = inTz(minX).startOf('year');
+        const endDate = inTz(maxX).startOf('year');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.format());
-            nextDate = nextDate.add(1, 'year');
+            continuousRange.push(nextDate.utc().format());
+            nextDate = reAnchor(nextDate.add(1, 'year'));
         }
         return {
             data: continuousRange,
@@ -1526,12 +1583,12 @@ export const getCategoryDateAxisConfig = (
 
     if (timeInterval === TimeFrames.QUARTER) {
         const continuousRange: string[] = [];
-        let nextDate = dayjs.utc(minX).startOf('quarter');
-        const endDate = dayjs.utc(maxX).startOf('quarter');
+        let nextDate = inTz(minX).startOf('quarter');
+        const endDate = inTz(maxX).startOf('quarter');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.format());
+            continuousRange.push(nextDate.utc().format());
             // dayjs requires quarterOfYear plugin for .add(1, 'quarter')
-            nextDate = nextDate.add(3, 'months');
+            nextDate = reAnchor(nextDate.add(3, 'months'));
         }
         return {
             data: continuousRange,
@@ -1542,11 +1599,11 @@ export const getCategoryDateAxisConfig = (
 
     if (timeInterval === TimeFrames.MONTH) {
         const continuousRange: string[] = [];
-        let nextDate = dayjs.utc(minX).startOf('month');
-        const endDate = dayjs.utc(maxX).startOf('month');
+        let nextDate = inTz(minX).startOf('month');
+        const endDate = inTz(maxX).startOf('month');
         while (!nextDate.isAfter(endDate)) {
-            continuousRange.push(nextDate.format());
-            nextDate = nextDate.add(1, 'month');
+            continuousRange.push(nextDate.utc().format());
+            nextDate = reAnchor(nextDate.add(1, 'month'));
         }
         return {
             data: continuousRange,
@@ -1558,6 +1615,15 @@ export const getCategoryDateAxisConfig = (
     return {};
 };
 
+// Read from the axis holding the X field — bottom (normal) or left (flipped).
+// Top/right hold Y-field metrics; leaking them corrupts the X field column.
+export const selectContinuousDateRange = (
+    flipAxes: boolean | undefined,
+    bottomAxisExtraConfig: CategoryDateAxisConfig,
+    leftAxisExtraConfig: CategoryDateAxisConfig,
+): string[] | undefined =>
+    flipAxes ? leftAxisExtraConfig.data : bottomAxisExtraConfig.data;
+
 const getEchartAxes = ({
     itemsMap,
     validCartesianConfig,
@@ -1566,6 +1632,8 @@ const getEchartAxes = ({
     displayedRows,
     minsAndMaxes,
     parameters,
+    resolvedTimezone,
+    displayTimezone,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1574,6 +1642,8 @@ const getEchartAxes = ({
     displayedRows?: ResultRow[];
     minsAndMaxes: ReturnType<typeof getResultValueArray>['minsAndMaxes'];
     parameters?: ParametersValuesMap;
+    resolvedTimezone?: string;
+    displayTimezone?: string;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1750,6 +1820,7 @@ const getEchartAxes = ({
         axisRows,
         bottomAxisType,
         eChartsSeries,
+        resolvedTimezone,
     );
     const topAxisExtraConfig = getCategoryDateAxisConfig(
         topAxisXId,
@@ -1757,6 +1828,7 @@ const getEchartAxes = ({
         axisRows,
         topAxisType,
         eChartsSeries,
+        resolvedTimezone,
     );
     const rightAxisExtraConfig = getCategoryDateAxisConfig(
         rightAxisYId,
@@ -1764,6 +1836,7 @@ const getEchartAxes = ({
         axisRows,
         rightAxisType,
         eChartsSeries,
+        resolvedTimezone,
     );
     const leftAxisExtraConfig = getCategoryDateAxisConfig(
         leftAxisYId,
@@ -1771,6 +1844,7 @@ const getEchartAxes = ({
         axisRows,
         leftAxisType,
         eChartsSeries,
+        resolvedTimezone,
     );
 
     const axisLabelFontSize =
@@ -1785,6 +1859,8 @@ const getEchartAxes = ({
         defaultNameGap: 30,
         show: showXAxis,
         parameters,
+        timezone: resolvedTimezone,
+        displayTimezone,
     });
     const bottomAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1805,6 +1881,8 @@ const getEchartAxes = ({
         defaultNameGap: 30,
         show: showXAxis,
         parameters,
+        timezone: resolvedTimezone,
+        displayTimezone,
     });
     const topAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1824,6 +1902,8 @@ const getEchartAxes = ({
         defaultNameGap: leftYaxisGap + defaultAxisLabelGap,
         show: showLeftYAxis,
         parameters,
+        timezone: resolvedTimezone,
+        displayTimezone,
     });
     const leftAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -1843,6 +1923,8 @@ const getEchartAxes = ({
         defaultNameGap: rightYaxisGap + defaultAxisLabelGap,
         show: showRightYAxis,
         parameters,
+        timezone: resolvedTimezone,
+        displayTimezone,
     });
     const rightAxisConfigWithStyle: Record<string, unknown> = Object.assign(
         {},
@@ -2223,12 +2305,11 @@ const getEchartAxes = ({
                 ...rightAxisExtraConfig,
             },
         ],
-        continuousDateRange:
-            bottomAxisExtraConfig.data ??
-            topAxisExtraConfig.data ??
-            leftAxisExtraConfig.data ??
-            rightAxisExtraConfig.data ??
-            undefined,
+        continuousDateRange: selectContinuousDateRange(
+            validCartesianConfig.layout.flipAxes,
+            bottomAxisExtraConfig,
+            leftAxisExtraConfig,
+        ),
     };
 };
 
@@ -2241,7 +2322,7 @@ const getValidStack = (series: EChartsSeries | undefined) => {
 type LegendValues = { [name: string]: boolean } | undefined;
 
 const calculateStackTotal = (
-    row: ResultRow,
+    row: Record<string, unknown>,
     series: EChartsSeries[],
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
@@ -2255,8 +2336,7 @@ const calculateStackTotal = (
                 selected = selectedLegendNames[key];
             }
         }
-        const numberValue =
-            hash && selected ? toNumber(row[hash]?.value.raw) : 0;
+        const numberValue = hash && selected ? toNumber(row[hash]) : 0;
         if (!Number.isNaN(numberValue)) {
             acc += numberValue;
         }
@@ -2270,7 +2350,7 @@ const calculateStackTotal = (
 // - the total of that stack to be used in the label
 // The x/axis value and the "0" need to flip position if the axis are flipped
 const getStackTotalRows = (
-    rows: ResultRow[],
+    rows: Record<string, unknown>[],
     series: EChartsSeries[],
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
@@ -2281,7 +2361,18 @@ const getStackTotalRows = (
             s.type === CartesianSeriesType.SCATTER,
     );
     if (isNonStackable) return [];
-    return rows.map((row) => {
+    return rows.reduce<[unknown, unknown, number][]>((acc, row) => {
+        // Skip padded gap rows: when every stacked series value is absent from
+        // the row, this is a date inserted by padDatasetForContinuousAxis and
+        // should not render a stack-total label.
+        const hasAnyValue = series.some((s) => {
+            const valueHash = flipAxis ? s.encode?.x : s.encode?.y;
+            return (
+                typeof valueHash === 'string' && row[valueHash] !== undefined
+            );
+        });
+        if (!hasAnyValue) return acc;
+
         const total = calculateStackTotal(
             row,
             series,
@@ -2290,28 +2381,37 @@ const getStackTotalRows = (
         );
         const hash = flipAxis ? series[0].encode?.y : series[0].encode?.x;
         if (!hash) {
-            return [null, null, 0];
+            acc.push([null, null, 0]);
+            return acc;
         }
-        return flipAxis
-            ? [0, row[hash]?.value.raw, total]
-            : [row[hash]?.value.raw, 0, total];
-    });
+        acc.push(flipAxis ? [0, row[hash], total] : [row[hash], 0, total]);
+        return acc;
+    }, []);
 };
 
 // To hack the stack totals in echarts we need to create a fake series with the value 0 and display the total in the label
-const getStackTotalSeries = (
-    rows: ResultRow[],
+export const getStackTotalSeries = (
+    rows: Record<string, unknown>[],
     seriesWithStack: EChartsSeries[],
     itemsMap: ItemsMap,
     flipAxis: boolean | undefined,
     selectedLegendNames: LegendValues,
     isStack100: boolean,
     connectNulls: boolean | undefined = true,
+    resolvedTimezone?: string,
 ) => {
     const seriesGroupedByStack = groupBy(seriesWithStack, 'stack');
     return Object.entries(seriesGroupedByStack).reduce<EChartsSeries[]>(
         (acc, [stack, series]) => {
-            if (!stack || !series[0] || !series[0].stackLabel?.show) {
+            // A series can land at index 0 without a `stackLabel` config (e.g.
+            // auto-generated for a new pivot value after a metric-sort reorder).
+            // Drive the synthetic stack-total off any saved series in the
+            // stack, not just the first one.
+            if (
+                !stack ||
+                !series.length ||
+                !series.some((s) => s.stackLabel?.show)
+            ) {
                 return acc;
             }
             const stackSeries: EChartsSeries = {
@@ -2326,7 +2426,7 @@ const getStackTotalSeries = (
                 clip: !isStack100,
                 label: {
                     ...getBarTotalLabelStyle(),
-                    show: series[0].stackLabel?.show,
+                    show: true,
                     formatter: (param) => {
                         const stackTotal = param.data[2];
                         const fieldId = series[0].pivotReference?.field;
@@ -2335,6 +2435,10 @@ const getStackTotalSeries = (
                                 stackTotal,
                                 fieldId,
                                 itemsMap,
+                                undefined,
+                                undefined,
+                                undefined,
+                                resolvedTimezone,
                             );
                         }
                         return '';
@@ -2375,18 +2479,25 @@ const useEchartsCartesianConfig = (
         parameters,
         isTouchDevice,
         colorPalette,
+        resolvedTimezone,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
-    const { data: showHideRowsFlag } = useServerFeatureFlag(
-        FeatureFlags.ShowHideRows,
-    );
-    const isShowHideRowsEnabled = showHideRowsFlag?.enabled ?? false;
 
     const validCartesianConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
+
+    const { shiftedField, axisTimezone, axisDisplayTimezone } = useMemo(
+        () =>
+            resolveAxisTimezone({
+                validCartesianConfig,
+                itemsMap,
+                resolvedTimezone,
+            }),
+        [resolvedTimezone, validCartesianConfig, itemsMap],
+    );
 
     const tooltipConfig = useMemo(() => {
         if (!isCartesianVisualizationConfig(visualizationConfig)) return;
@@ -2398,32 +2509,6 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.tooltipSort;
     }, [visualizationConfig]);
 
-    const [pivotedKeys, nonPivotedKeys] = useMemo(() => {
-        if (
-            itemsMap &&
-            validCartesianConfig &&
-            isCompleteLayout(validCartesianConfig.layout)
-        ) {
-            const yFieldPivotedKeys = validCartesianConfig.layout.yField.filter(
-                (yField) =>
-                    !itemsMap[yField] ||
-                    (itemsMap[yField] && !isDimension(itemsMap[yField])),
-            );
-            const yFieldNonPivotedKeys =
-                validCartesianConfig.layout.yField.filter(
-                    (yField) =>
-                        !itemsMap[yField] ||
-                        (itemsMap[yField] && isDimension(itemsMap[yField])),
-                );
-
-            return [
-                yFieldPivotedKeys,
-                [...yFieldNonPivotedKeys, validCartesianConfig.layout.xField],
-            ];
-        }
-        return [];
-    }, [itemsMap, validCartesianConfig]);
-
     const pivotValuesColumnsMap = useMemo(() => {
         if (!resultsData?.pivotDetails) return;
         return convertPivotValuesColumnsIntoMap(
@@ -2431,28 +2516,14 @@ const useEchartsCartesianConfig = (
         );
     }, [resultsData?.pivotDetails]);
 
-    const { rows: allRows, rowKeyMap } = useMemo(() => {
-        if (resultsData?.pivotDetails) {
-            return getPivotedDataFromPivotDetails(resultsData, undefined);
-        }
-
-        // Legacy implementation - comment out when fully migrated
-        return getPlottedData(
-            resultsData?.rows,
-            pivotDimensions,
-            pivotedKeys,
-            nonPivotedKeys,
-        );
-    }, [resultsData, pivotDimensions, pivotedKeys, nonPivotedKeys]);
+    const { rows: allRows, rowKeyMap } = useMemo(
+        () => getPivotedDataFromPivotDetails(resultsData, undefined),
+        [resultsData],
+    );
 
     const rows = useMemo(
-        () =>
-            sliceRows(
-                allRows,
-                isShowHideRowsEnabled,
-                validCartesianConfig?.rowLimit,
-            ),
-        [allRows, isShowHideRowsEnabled, validCartesianConfig?.rowLimit],
+        () => sliceRows(allRows, validCartesianConfig?.rowLimit),
+        [allRows, validCartesianConfig?.rowLimit],
     );
 
     // Pivot references from hidden series, used for resolving custom tooltip references
@@ -2477,42 +2548,30 @@ const useEchartsCartesianConfig = (
             return [];
         }
 
-        // Use new series generation for pre-pivoted data
-        let unfilteredSeries: EChartsSeries[];
-        if (resultsData?.pivotDetails && rowKeyMap) {
-            unfilteredSeries = getEchartsSeriesFromPivotedData(
-                itemsMap,
-                validCartesianConfig,
-                rowKeyMap,
-                pivotValuesColumnsMap,
-                parameters,
-            );
-        } else {
-            // Legacy implementation
-            unfilteredSeries = getEchartsSeries(
-                itemsMap,
-                validCartesianConfig,
-                pivotDimensions,
-                parameters,
-            );
-        }
+        const unfilteredSeries = getEchartsSeriesFromPivotedData(
+            itemsMap,
+            validCartesianConfig,
+            rowKeyMap,
+            pivotValuesColumnsMap,
+            parameters,
+            undefined,
+            resolvedTimezone,
+        );
 
         return filterSeriesWithNoData(
             unfilteredSeries,
             resultsAndMinsAndMaxes.results,
-            isShowHideRowsEnabled,
             validCartesianConfig?.rowLimit,
         );
     }, [
         validCartesianConfig,
         resultsData,
         itemsMap,
-        pivotDimensions,
         rowKeyMap,
         pivotValuesColumnsMap,
         parameters,
         resultsAndMinsAndMaxes.results,
-        isShowHideRowsEnabled,
+        resolvedTimezone,
     ]);
 
     const axes = useMemo(() => {
@@ -2529,12 +2588,11 @@ const useEchartsCartesianConfig = (
             series,
             validCartesianConfig,
             resultsData,
-            displayedRows:
-                isShowHideRowsEnabled && validCartesianConfig?.rowLimit
-                    ? rows
-                    : undefined,
+            displayedRows: validCartesianConfig?.rowLimit ? rows : undefined,
             minsAndMaxes: resultsAndMinsAndMaxes.minsAndMaxes,
             parameters,
+            resolvedTimezone: axisTimezone,
+            displayTimezone: axisDisplayTimezone,
         });
     }, [
         itemsMap,
@@ -2542,10 +2600,31 @@ const useEchartsCartesianConfig = (
         series,
         resultsData,
         rows,
-        isShowHideRowsEnabled,
         resultsAndMinsAndMaxes.minsAndMaxes,
         parameters,
+        axisTimezone,
+        axisDisplayTimezone,
     ]);
+
+    // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
+    // decoratedSeriesForChart (stacked rounded corners). Same inputs in both
+    // places — keep the calc in one spot.
+    const dynamicRadius = useMemo(() => {
+        const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
+        const barSeries = series.filter(
+            (s) => s.type === CartesianSeriesType.BAR,
+        );
+        const isStacked = barSeries.some((s) => s.stack);
+        const nonStackedBarCount = isStacked
+            ? barSeries.filter((s) => !s.stack).length
+            : barSeries.length;
+        return calculateDynamicBorderRadius(
+            rows.length,
+            Math.max(1, nonStackedBarCount),
+            isStacked,
+            isHorizontal,
+        );
+    }, [rows.length, series, validCartesianConfig?.layout.flipAxes]);
 
     const stackedSeriesWithColorAssignments = useMemo(() => {
         if (!itemsMap) return;
@@ -2560,7 +2639,6 @@ const useEchartsCartesianConfig = (
         // it does NOT swap xField/yField in the layout.
         const categoryFieldId = validCartesianConfig?.layout?.xField;
 
-        // Calculate dynamic border radius based on chart characteristics
         const barSeries = series.filter(
             (s) => s.type === CartesianSeriesType.BAR,
         );
@@ -2583,17 +2661,6 @@ const useEchartsCartesianConfig = (
             !isColorByCategory &&
             !hasCustomColorsStacking &&
             Boolean(conditionalFormattings?.length);
-        const isStacked = barSeries.some((s) => s.stack);
-        const nonStackedBarCount = isStacked
-            ? barSeries.filter((s) => !s.stack).length
-            : barSeries.length;
-
-        const dynamicRadius = calculateDynamicBorderRadius(
-            rows.length,
-            Math.max(1, nonStackedBarCount),
-            isStacked,
-            isHorizontal,
-        );
 
         const seriesColors = series.map((serie) => getSeriesColor(serie));
 
@@ -2704,55 +2771,23 @@ const useEchartsCartesianConfig = (
             },
         );
 
-        // Apply border radius to stacked bar charts (only regular stacked, not 100%)
-        const isStack100 =
-            validCartesianConfig?.layout?.stack === StackType.PERCENT;
-
-        const isStackNone =
-            validCartesianConfig?.layout?.stack === StackType.NONE;
-
-        const stackedBarSeries = seriesWithValidStack.filter(
-            (s) =>
-                s.type === CartesianSeriesType.BAR &&
-                s.stack &&
-                !isStack100 &&
-                !isStackNone,
-        );
-
-        const seriesWithRoundedStacks =
-            stackedBarSeries.length > 0
-                ? applyRoundedCornersToStackData(seriesWithValidStack, rows, {
-                      radius: dynamicRadius,
-                      isHorizontal: !!isHorizontal,
-                      legendSelected: validCartesianConfigLegend,
-                  })
-                : seriesWithValidStack;
-
-        return [
-            ...seriesWithRoundedStacks,
-            ...getStackTotalSeries(
-                rows,
-                seriesWithRoundedStacks,
-                itemsMap,
-                validCartesianConfig?.layout.flipAxes,
-                validCartesianConfigLegend,
-                isStack100,
-                validCartesianConfig?.layout.connectNulls,
-            ),
-        ];
+        // Rounded corners and stack-total labels are applied downstream in
+        // `decoratedSeriesForChart` so they can consume `paddedSortedResults`
+        // (the canonicalized, flat dataset that backs xAxis.data). Returning
+        // the un-decorated series here keeps internal consumers (sort,
+        // 100%-stack, color overrides) reading raw values as before.
+        return seriesWithValidStack;
     }, [
         itemsMap,
         validCartesianConfig?.layout.flipAxes,
         validCartesianConfig?.layout?.stack,
-        validCartesianConfig?.layout.connectNulls,
         validCartesianConfig?.layout?.colorByCategory,
         validCartesianConfig?.layout?.categoryColorOverrides,
         validCartesianConfig?.layout?.xField,
         validCartesianConfig?.conditionalFormattings,
         series,
-        rows,
+        dynamicRadius,
         pivotDimensions,
-        validCartesianConfigLegend,
         getSeriesColor,
         colorPalette,
         theme.colors.background,
@@ -2876,6 +2911,16 @@ const useEchartsCartesianConfig = (
         const xFieldId = validCartesianConfig?.layout?.xField;
         const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
 
+        // When xField is EMPTY_X_AXIS (no x-axis dimension, bars are pivoted series),
+        // row-based sorting is meaningless (single row) and produces undefined category values.
+        // Series-level sorting for this case is handled separately in sortedSeriesForChart.
+        if (xFieldId === EMPTY_X_AXIS) {
+            return {
+                xAxisSortedResults: sortedResults,
+                xAxisSortedCategoryValues: undefined,
+            };
+        }
+
         // Handle bar totals sorting
         if (
             xFieldId &&
@@ -2887,7 +2932,7 @@ const useEchartsCartesianConfig = (
                 : 0;
 
             const stackTotals = getStackTotalRows(
-                rows,
+                sortedResults,
                 stackedSeriesWithColorAssignments,
                 validCartesianConfig?.layout.flipAxes,
                 validCartesianConfigLegend,
@@ -2978,11 +3023,26 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.eChartsConfig.xAxis,
         axes.yAxis,
         axes.xAxis,
-        rows,
         validCartesianConfigLegend,
     ]);
 
-    // Apply 100% stacking transformation if needed
+    const paddedSortedResults = useMemo(() => {
+        const continuousRange = axes.continuousDateRange;
+        const dateFieldId = validCartesianConfig?.layout?.xField;
+        if (!continuousRange || !dateFieldId) return xAxisSortedResults;
+        return padDatasetForContinuousAxis(
+            xAxisSortedResults,
+            continuousRange,
+            dateFieldId,
+        );
+    }, [
+        xAxisSortedResults,
+        axes.continuousDateRange,
+        validCartesianConfig?.layout?.xField,
+    ]);
+
+    // Convert raw values to per-x percentages for 100% stacking. Stack-total
+    // labels read `paddedSortedResults` directly so they see raw values.
     const { dataToRender, originalValues } = useMemo(() => {
         const stackValue = validCartesianConfig?.layout?.stack;
         const shouldStack100 = stackValue === StackType.PERCENT;
@@ -2996,7 +3056,7 @@ const useEchartsCartesianConfig = (
             !stackedSeriesWithColorAssignments
         ) {
             return {
-                dataToRender: xAxisSortedResults,
+                dataToRender: paddedSortedResults,
                 originalValues: undefined,
             };
         }
@@ -3018,49 +3078,81 @@ const useEchartsCartesianConfig = (
 
         // Use shared transformation utility
         const { transformedResults, originalValues: originalValuesMap } =
-            transformToPercentageStacking(sortedResults, xFieldId, yFieldRefs);
+            transformToPercentageStacking(
+                paddedSortedResults,
+                xFieldId,
+                yFieldRefs,
+            );
 
         return {
             dataToRender: transformedResults,
             originalValues: originalValuesMap,
         };
     }, [
-        sortedResults,
+        paddedSortedResults,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.xField,
         validCartesianConfig?.layout.flipAxes,
         stackedSeriesWithColorAssignments,
-        xAxisSortedResults,
     ]);
 
-    // When the axis has a continuous date range and row limiting is active,
-    // pad the dataset with empty rows for gap dates so ECharts positional
-    // mapping (row index → category index) stays correct.
-    const paddedDataToRender = useMemo(() => {
-        const continuousRange = axes.continuousDateRange;
-        if (
-            !continuousRange ||
-            !isShowHideRowsEnabled ||
-            !validCartesianConfig?.rowLimit
-        )
-            return dataToRender;
-        const xFieldId = validCartesianConfig?.layout?.flipAxes
-            ? validCartesianConfig?.layout?.yField?.[0]
-            : validCartesianConfig?.layout?.xField;
-        if (!xFieldId) return dataToRender;
-        return padDatasetForContinuousAxis(
-            dataToRender,
-            continuousRange,
-            xFieldId,
+    // Decorate the stacked series off the same padded dataset: cats match
+    // xAxis.data exactly, and stack totals read raw values instead of the
+    // 100%-stack ratios. Rounded corners are skipped in 100% mode.
+    const decoratedSeriesForChart = useMemo(() => {
+        if (!stackedSeriesWithColorAssignments || !itemsMap) {
+            return stackedSeriesWithColorAssignments;
+        }
+
+        const isHorizontal = !!validCartesianConfig?.layout?.flipAxes;
+        const stackValue = validCartesianConfig?.layout?.stack;
+        const isStack100 = stackValue === StackType.PERCENT;
+        const isStackNone = stackValue === StackType.NONE;
+
+        const stackedBarSeries = stackedSeriesWithColorAssignments.filter(
+            (s) =>
+                s.type === CartesianSeriesType.BAR &&
+                s.stack &&
+                !isStack100 &&
+                !isStackNone,
         );
+
+        const seriesWithRoundedStacks =
+            stackedBarSeries.length > 0
+                ? applyRoundedCornersToStackData(
+                      stackedSeriesWithColorAssignments,
+                      paddedSortedResults,
+                      {
+                          radius: dynamicRadius,
+                          isHorizontal,
+                          legendSelected: validCartesianConfigLegend,
+                      },
+                  )
+                : stackedSeriesWithColorAssignments;
+
+        return [
+            ...seriesWithRoundedStacks,
+            ...getStackTotalSeries(
+                paddedSortedResults,
+                seriesWithRoundedStacks,
+                itemsMap,
+                validCartesianConfig?.layout.flipAxes,
+                validCartesianConfigLegend,
+                isStack100,
+                validCartesianConfig?.layout.connectNulls,
+                resolvedTimezone,
+            ),
+        ];
     }, [
-        dataToRender,
-        axes.continuousDateRange,
-        isShowHideRowsEnabled,
-        validCartesianConfig?.rowLimit,
+        stackedSeriesWithColorAssignments,
+        paddedSortedResults,
+        dynamicRadius,
+        itemsMap,
+        validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
-        validCartesianConfig?.layout?.yField,
-        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.layout.connectNulls,
+        validCartesianConfigLegend,
+        resolvedTimezone,
     ]);
 
     const tooltip = useMemo<TooltipOption>(() => {
@@ -3094,6 +3186,8 @@ const useEchartsCartesianConfig = (
                 pivotValuesColumnsMap,
                 parameters,
                 rows: dataToRender,
+                timezone: axisTimezone,
+                displayTimezone: axisDisplayTimezone,
             }),
         };
     }, [
@@ -3110,6 +3204,8 @@ const useEchartsCartesianConfig = (
         hiddenSeriesPivotRefs,
         dataToRender,
         isTouchDevice,
+        axisTimezone,
+        axisDisplayTimezone,
     ]);
 
     // Calculate max stack label padding for 100% stacking grid
@@ -3121,7 +3217,7 @@ const useEchartsCartesianConfig = (
             !isStack100 ||
             !stackedSeriesWithColorAssignments ||
             !itemsMap ||
-            !rows
+            !paddedSortedResults
         )
             return { right: 0, top: 0 };
 
@@ -3140,10 +3236,10 @@ const useEchartsCartesianConfig = (
         let maxCharCount = 0;
 
         Object.entries(seriesGroupedByStack).forEach(([stack, stackSeries]) => {
-            if (!stack || !stackSeries[0]?.stackLabel?.show) return;
+            if (!stack || !stackSeries.some((s) => s.stackLabel?.show)) return;
 
             const stackTotalData = getStackTotalRows(
-                rows,
+                paddedSortedResults,
                 stackSeries,
                 flipAxis,
                 validCartesianConfigLegend,
@@ -3157,6 +3253,10 @@ const useEchartsCartesianConfig = (
                         total,
                         fieldId,
                         itemsMap,
+                        undefined,
+                        undefined,
+                        undefined,
+                        resolvedTimezone,
                     );
                     maxCharCount = Math.max(maxCharCount, formatted.length);
                 });
@@ -3174,10 +3274,11 @@ const useEchartsCartesianConfig = (
     }, [
         stackedSeriesWithColorAssignments,
         itemsMap,
-        rows,
+        paddedSortedResults,
         validCartesianConfig?.layout?.stack,
         validCartesianConfig?.layout?.flipAxes,
         validCartesianConfigLegend,
+        resolvedTimezone,
     ]);
 
     const currentGrid = useMemo(() => {
@@ -3210,6 +3311,15 @@ const useEchartsCartesianConfig = (
         if (isLegendShown && !hasExplicitTop && isPxValue(grid.top)) {
             grid.top = addPx(grid.top, legendTopSpacing);
         }
+
+        const gridWithPlacement = applyLegendPlacementToGrid(
+            grid,
+            legendConfig,
+            isLegendShown,
+            validCartesianConfig?.eChartsConfig.grid,
+        );
+        grid.left = gridWithPlacement.left;
+        grid.right = gridWithPlacement.right;
 
         const gridLeft = grid.left;
         const gridRight = grid.right;
@@ -3375,21 +3485,109 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.flipAxes,
     ]);
 
+    // When xField is EMPTY_X_AXIS (pivoted bars with no x-axis dimension),
+    // sorting must reorder the series array since bars are series, not categories.
+    const sortedSeriesForChart = useMemo(() => {
+        if (!decoratedSeriesForChart?.length) {
+            return decoratedSeriesForChart;
+        }
+
+        const xFieldId = validCartesianConfig?.layout?.xField;
+        if (xFieldId !== EMPTY_X_AXIS) {
+            return decoratedSeriesForChart;
+        }
+
+        const xAxisConfig = validCartesianConfig?.eChartsConfig.xAxis?.[0];
+        const sortType = xAxisConfig?.sortType ?? XAxisSortType.DEFAULT;
+        const isInverse = xAxisConfig?.inverse ?? false;
+
+        if (sortType === XAxisSortType.DEFAULT && !isInverse) {
+            return decoratedSeriesForChart;
+        }
+
+        const sorted = [...decoratedSeriesForChart];
+
+        if (sortType === XAxisSortType.CATEGORY) {
+            // Sort by series name (pivot value label) alphabetically
+            sorted.sort((a, b) => {
+                const nameA = String(a.name ?? '');
+                const nameB = String(b.name ?? '');
+                return nameA.localeCompare(nameB);
+            });
+        } else if (sortType === XAxisSortType.BAR_TOTALS) {
+            // Sort by metric value from the dataset row
+            const row = xAxisSortedResults[0];
+            if (row) {
+                sorted.sort((a, b) => {
+                    const yKeyA = a.encode?.y;
+                    const yKeyB = b.encode?.y;
+                    const rawA = yKeyA
+                        ? (row as Record<string, unknown>)[yKeyA]
+                        : undefined;
+                    const rawB = yKeyB
+                        ? (row as Record<string, unknown>)[yKeyB]
+                        : undefined;
+                    const valA = Number(
+                        typeof rawA === 'object' && rawA !== null
+                            ? (rawA as { value: unknown }).value
+                            : (rawA ?? 0),
+                    );
+                    const valB = Number(
+                        typeof rawB === 'object' && rawB !== null
+                            ? (rawB as { value: unknown }).value
+                            : (rawB ?? 0),
+                    );
+                    return valA - valB;
+                });
+            }
+        }
+
+        // For DEFAULT with inverse, or CATEGORY/BAR_TOTALS with inverse (descending),
+        // reverse the sorted order
+        if (isInverse) {
+            sorted.reverse();
+        }
+
+        return sorted;
+    }, [
+        decoratedSeriesForChart,
+        validCartesianConfig?.layout?.xField,
+        validCartesianConfig?.eChartsConfig.xAxis,
+        xAxisSortedResults,
+    ]);
+
     const eChartsOptions = useMemo(() => {
         const enableDataZoom =
             validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom;
         const flipAxes = validCartesianConfig?.layout?.flipAxes;
 
-        return {
+        const dataZoomAnchor =
+            validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.dataZoomAnchor ??
+            'start';
+        const dataZoomItemCount =
+            validCartesianConfig?.eChartsConfig?.xAxis?.[0]
+                ?.dataZoomItemCount ?? 10;
+        const dataZoomSpan = Math.max(1, dataZoomItemCount - 1);
+        const dataZoomLastIndex = Math.max(0, dataToRender.length - 1);
+        const dataZoomStartValue =
+            dataZoomAnchor === 'end'
+                ? Math.max(0, dataZoomLastIndex - dataZoomSpan)
+                : 0;
+        const dataZoomEndValue =
+            dataZoomAnchor === 'end'
+                ? dataZoomLastIndex
+                : Math.min(dataZoomLastIndex, dataZoomSpan);
+
+        const baseOptions = {
             xAxis: sortedAxes.xAxis,
             yAxis: sortedAxes.yAxis,
             useUTC: true,
-            series: stackedSeriesWithColorAssignments,
+            series: sortedSeriesForChart,
             animation: !(isInDashboard || minimal),
             legend: legendConfigWithInstructionsTooltip,
             dataset: {
                 id: 'lightdashResults',
-                source: paddedDataToRender,
+                source: dataToRender,
             },
             tooltip,
             grid: currentGrid,
@@ -3406,12 +3604,12 @@ const useEchartsCartesianConfig = (
                         type: 'slider',
                         show: true,
                         [flipAxes ? 'yAxisIndex' : 'xAxisIndex']: 0,
-                        startValue: 0,
-                        endValue: 10,
+                        startValue: dataZoomStartValue,
+                        endValue: dataZoomEndValue,
                         brushSelect: false,
                         zoomLock: true,
-                        minValueSpan: 5,
-                        maxValueSpan: 30,
+                        minValueSpan: dataZoomSpan,
+                        maxValueSpan: dataZoomSpan,
                         // Reduce scroll bar size
                         ...(flipAxes && {
                             width: 20,
@@ -3423,17 +3621,22 @@ const useEchartsCartesianConfig = (
                 ],
             }),
         };
+
+        return shiftedField
+            ? applyTimezoneShiftToEchartsOptions(baseOptions, shiftedField)
+            : baseOptions;
     }, [
         sortedAxes,
-        stackedSeriesWithColorAssignments,
+        sortedSeriesForChart,
         isInDashboard,
         minimal,
         legendConfigWithInstructionsTooltip,
-        paddedDataToRender,
+        dataToRender,
         tooltip,
         currentGrid,
         theme?.other.chartFont,
         validCartesianConfig,
+        shiftedField,
     ]);
 
     if (

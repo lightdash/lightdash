@@ -11,7 +11,7 @@ import {
     type CompiledModelNode,
     type ParsedMetric,
 } from './dbtFromSchema';
-import { DbtError, ParseError } from './errors';
+import { ParseError } from './errors';
 import { type JoinRelationship } from './explore';
 import {
     FieldType,
@@ -22,6 +22,7 @@ import {
     type Format,
     type Metric,
     type MetricType,
+    type NumberSeparator,
     type Source,
 } from './field';
 import { parseFilters, type RequiredFilter } from './filterGrammar';
@@ -39,6 +40,7 @@ export enum SupportedDbtAdapter {
     TRINO = 'trino',
     CLICKHOUSE = 'clickhouse',
     ATHENA = 'athena',
+    SPARK = 'spark',
 }
 
 export type DbtNodeConfig = {
@@ -50,7 +52,13 @@ export type DbtNode = {
     resource_type: string;
     config?: DbtNodeConfig;
 };
-export type DbtRawModelNode = CompiledModelNode & {
+export type DbtRawModelNode = Omit<
+    CompiledModelNode,
+    'resource_type' | 'compiled' | 'language'
+> & {
+    resource_type: 'model' | 'seed';
+    compiled?: boolean;
+    language?: string;
     columns: { [name: string]: DbtModelColumn };
     config?: CompiledModelNode['config'] & { meta?: DbtModelMetadata };
     meta: DbtModelMetadata;
@@ -94,9 +102,18 @@ export type DbtExploreLightdashAdditionalDimension =
 type ExploreConfig = {
     label?: string;
     description?: string;
+    /** @deprecated Use groups instead */
     group_label?: string;
+    /**
+     * Nested groups for tables in the sidebar (max 3 levels). Group keys
+     * resolve to labels via `table_groups` in lightdash.config.yml; missing
+     * keys fall back to using the key as the label.
+     */
+    groups?: string[];
     joins?: DbtModelJoin[];
     case_sensitive?: boolean; // When false, all string filters in this explore will be case insensitive. Default is true
+    sql_filter?: string;
+    sql_where?: string; // alias for sql_filter
     /**
      * Explore-scoped custom dimensions.
      * These dimensions are only available within this specific explore
@@ -207,12 +224,16 @@ export type DbtColumnLightdashDimension = {
     description?: string;
     sql?: string;
     time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];
+    /** Set to false to opt this dim out of display-tz conversion. Defaults to true. */
+    convert_timezone?: boolean;
     hidden?: boolean;
     // @deprecated Use format expression instead
     round?: number;
     // @deprecated Use format expression instead
     compact?: CompactOrAlias;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
+    /** Number separator style for grouping/decimal characters */
+    separator?: NumberSeparator;
     /** @deprecated Use groups instead */
     group_label?: string;
     groups?: string[] | string;
@@ -251,6 +272,8 @@ export type DbtColumnLightdashMetric = {
     // @deprecated Use format expression instead
     round?: number;
     format?: Format | string; // Format type is deprecated, use format expression(string) instead
+    /** Number separator style for grouping/decimal characters */
+    separator?: NumberSeparator;
     /** @deprecated Use groups instead */
     group_label?: string;
     groups?: string[];
@@ -267,6 +290,8 @@ export type DbtColumnLightdashMetric = {
         categories?: string[]; // yaml_reference
         filter_by?: string[]; // dimension IDs allowlist
         segment_by?: string[]; // dimension IDs allowlist
+        default_segment?: string; // dimension name pre-selected in Segment by
+        default_filter?: Record<string, AnyType>; // { dimension: value | value[] }, metric filter DSL
         owner?: string; // metric owner email
     };
     drivers?: string[]; // metrics that drive this metric (same-table: 'name', cross-table: 'table.name')
@@ -299,6 +324,7 @@ export const normaliseModelDatabase = (
         case SupportedDbtAdapter.CLICKHOUSE:
             return { ...model, database: '' }; // Clickhouse doesn't have a database field
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
             return { ...model, database: model.database || 'DEFAULT' };
         default:
             return assertUnreachable(
@@ -307,16 +333,22 @@ export const normaliseModelDatabase = (
             );
     }
 };
-export const patchPathParts = (patchPath: string) => {
-    const [project, ...rest] = patchPath.split('://');
-    if (rest.length === 0) {
-        throw new DbtError(
-            'Could not parse dbt manifest. It looks like you might be using an old version of dbt. You must be using dbt version 0.20.0 or above.',
-        );
+export const patchPathParts = (
+    patchPath: string,
+): { project: string | null; path: string } => {
+    // dbt-core format: `project://path/to/file.yml`
+    // dbt-fusion format: raw path with no project prefix, may contain Windows backslashes
+    const normalized = patchPath.replace(/\\/g, '/');
+    const separatorIndex = normalized.indexOf('://');
+    if (separatorIndex === -1) {
+        return {
+            project: null,
+            path: normalized,
+        };
     }
     return {
-        project,
-        path: rest.join('://'),
+        project: normalized.slice(0, separatorIndex),
+        path: normalized.slice(separatorIndex + '://'.length),
     };
 };
 
@@ -602,6 +634,15 @@ export const convertModelMetric = ({
 
     // Metric owner takes precedence over model owner
     const owner = metric.spotlight?.owner ?? modelOwner;
+    const [parsedDefaultFilter] = parseFilters(
+        metric.spotlight?.default_filter
+            ? [metric.spotlight.default_filter]
+            : undefined,
+    );
+    // A spotlight default filter is pre-applied but removable, i.e. non-required.
+    const defaultFilter = parsedDefaultFilter
+        ? { ...parsedDefaultFilter, required: false }
+        : undefined;
 
     return {
         fieldType: FieldType.METRIC,
@@ -617,6 +658,7 @@ export const convertModelMetric = ({
         round: metric.round,
         compact: metric.compact,
         format: metric.format,
+        separator: metric.separator,
         groups,
         showUnderlyingValues:
             metric.show_underlying_values ?? defaultShowUnderlyingValues,
@@ -653,6 +695,8 @@ export const convertModelMetric = ({
             categories: spotlightCategories,
             filterBy: metric.spotlight?.filter_by,
             segmentBy: metric.spotlight?.segment_by,
+            defaultSegment: metric.spotlight?.default_segment,
+            defaultFilter,
             owner,
         }),
         ...(metric.drivers ? { drivers: metric.drivers } : {}),
@@ -783,7 +827,7 @@ export const getModelsFromManifest = (
 ): DbtModelNode[] => {
     const models = Object.values(manifest.nodes).filter(
         (node) =>
-            node.resource_type === 'model' &&
+            ['model', 'seed'].includes(node.resource_type) &&
             node.config?.materialized !== 'ephemeral',
     ) as DbtRawModelNode[];
 
@@ -804,6 +848,10 @@ export function getCompiledModels(
     const isAnyModelCompiled = manifestModels.some((model) => model.compiled);
 
     return manifestModels.filter((model) => {
+        // Seeds are always included — they don't appear in dbt ls output
+        // and don't have a compiled field.
+        if (model.resource_type === 'seed') return true;
+
         if (compiledModelIds) {
             return compiledModelIds.includes(model.unique_id);
         }

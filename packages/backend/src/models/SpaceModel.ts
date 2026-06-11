@@ -15,6 +15,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { AppsTableName } from '../database/entities/apps';
 import {
     DashboardsTableName,
     DashboardVersionsTableName,
@@ -87,6 +88,32 @@ export class SpaceModel {
             .whereNull(`${SpaceTableName}.deleted_at`)
             .select(`${SpaceTableName}.space_uuid`);
         return spaces.map((s: { space_uuid: string }) => s.space_uuid);
+    }
+
+    async hasSpaceWithPathAndUuids({
+        projectUuid,
+        path,
+        spaceUuids,
+    }: {
+        projectUuid: string;
+        path: string;
+        spaceUuids: string[];
+    }): Promise<boolean> {
+        if (spaceUuids.length === 0) return false;
+
+        const space = await this.database(SpaceTableName)
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .where(`${SpaceTableName}.path`, path)
+            .whereIn(`${SpaceTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${SpaceTableName}.deleted_at`)
+            .first(`${SpaceTableName}.space_uuid`);
+
+        return space !== undefined;
     }
 
     async getChildSpaceUuidsForParents(
@@ -177,6 +204,13 @@ export class SpaceModel {
                                 `child_space.parent_space_uuid = ${SpaceTableName}.space_uuid`,
                             )
                             .whereNull('child_space.deleted_at'),
+                        appCount: trx
+                            .count('*')
+                            .from(AppsTableName)
+                            .whereRaw(
+                                `${AppsTableName}.space_uuid = ${SpaceTableName}.space_uuid`,
+                            )
+                            .whereNull(`${AppsTableName}.deleted_at`),
                         slug: `${SpaceTableName}.slug`,
                         parentSpaceUuid: `${SpaceTableName}.parent_space_uuid`,
                         path: `${SpaceTableName}.path`,
@@ -328,6 +362,7 @@ export class SpaceModel {
             inheritParentPermissions: row.inherit_parent_permissions,
             projectMemberAccessRole:
                 (row.project_member_access_role as SpaceMemberRole) ?? null,
+            colorPaletteUuid: row.color_palette_uuid,
         };
     }
 
@@ -472,6 +507,7 @@ export class SpaceModel {
                 pinnedListOrder: order,
                 validationErrors: validation_errors?.map(
                     (error: DbValidationTable) => ({
+                        validationUuid: error.validation_uuid,
                         validationId: error.validation_id,
                         error: error.error,
                         createdAt: error.created_at,
@@ -815,9 +851,10 @@ export class SpaceModel {
             pinnedListUuid: savedQuery.pinned_list_uuid,
             pinnedListOrder: savedQuery.order,
             validationErrors: savedQuery.validation_errors.map(
-                ({ error, created_at, validation_id }) => ({
+                ({ error, created_at, validation_uuid, validation_id }) => ({
                     error,
                     createdAt: created_at,
+                    validationUuid: validation_uuid,
                     validationId: validation_id,
                 }),
             ),
@@ -829,7 +866,7 @@ export class SpaceModel {
 
     async getSpaceSummary(
         spaceUuid: string,
-        options?: { deleted?: boolean },
+        options?: { deleted?: boolean; projectUuid?: string },
     ): Promise<SpaceSummaryBase> {
         return wrapSentryTransaction(
             'SpaceModel.getSpaceSummary',
@@ -838,6 +875,7 @@ export class SpaceModel {
                 const [space] = await this.find({
                     spaceUuid,
                     deleted: options?.deleted,
+                    projectUuid: options?.projectUuid,
                 });
                 if (space === undefined)
                     throw new NotFoundError(
@@ -1113,6 +1151,7 @@ export class SpaceModel {
             inheritParentPermissions: space.inherit_parent_permissions,
             projectMemberAccessRole:
                 (space.project_member_access_role as SpaceMemberRole) ?? null,
+            colorPaletteUuid: space.color_palette_uuid,
         };
     }
 
@@ -1257,6 +1296,58 @@ export class SpaceModel {
         return dashboards.map((d) => d.dashboard_uuid);
     }
 
+    /**
+     * Returns apps directly assigned to a space. Used by the
+     * space-delete cascade to soft-delete apps alongside the space.
+     * Apps without a space are personal drafts and not returned here.
+     */
+    async getAppsInSpace(
+        spaceUuid: string,
+        options?: { deleted?: boolean; deletedByUserUuid?: string },
+    ): Promise<{ appUuid: string; projectUuid: string }[]> {
+        const query = this.database(AppsTableName)
+            .select(
+                `${AppsTableName}.app_id as app_uuid`,
+                `${AppsTableName}.project_uuid`,
+            )
+            .where(`${AppsTableName}.space_uuid`, spaceUuid);
+
+        if (options?.deleted) {
+            void query.whereNotNull(`${AppsTableName}.deleted_at`);
+            if (options.deletedByUserUuid) {
+                void query.where(
+                    `${AppsTableName}.deleted_by_user_uuid`,
+                    options.deletedByUserUuid,
+                );
+            }
+        } else {
+            void query.whereNull(`${AppsTableName}.deleted_at`);
+        }
+
+        const apps = await query;
+        return apps.map((a) => ({
+            appUuid: a.app_uuid,
+            projectUuid: a.project_uuid,
+        }));
+    }
+
+    async getSpaceApps(
+        spaceUuids: string[],
+    ): Promise<{ uuid: string; spaceUuid: string }[]> {
+        if (spaceUuids.length === 0) return [];
+        const apps = await this.database(AppsTableName)
+            .select({
+                uuid: `${AppsTableName}.app_id`,
+                spaceUuid: `${AppsTableName}.space_uuid`,
+            })
+            .whereIn(`${AppsTableName}.space_uuid`, spaceUuids)
+            .whereNull(`${AppsTableName}.deleted_at`);
+        return apps.map((a) => ({
+            uuid: a.uuid,
+            spaceUuid: a.spaceUuid as string,
+        }));
+    }
+
     async update(
         spaceUuid: string,
         space: Partial<UpdateSpace>,
@@ -1268,6 +1359,9 @@ export class SpaceModel {
         if (space.projectMemberAccessRole !== undefined) {
             updateData.project_member_access_role =
                 space.projectMemberAccessRole;
+        }
+        if (space.colorPaletteUuid !== undefined) {
+            updateData.color_palette_uuid = space.colorPaletteUuid;
         }
         await this.database(SpaceTableName)
             .update(updateData)
@@ -1319,6 +1413,9 @@ export class SpaceModel {
             if (space.projectMemberAccessRole !== undefined) {
                 updateData.project_member_access_role =
                     space.projectMemberAccessRole;
+            }
+            if (space.colorPaletteUuid !== undefined) {
+                updateData.color_palette_uuid = space.colorPaletteUuid;
             }
             await trx(SpaceTableName)
                 .update(updateData)

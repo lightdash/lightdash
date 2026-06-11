@@ -2,6 +2,9 @@ import {
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
     DatabricksAuthenticationType,
+    DuckdbConnectionType,
+    DucklakeCatalogType,
+    DucklakeDataPathType,
     WarehouseTypes,
 } from '@lightdash/common';
 import type {
@@ -10,6 +13,8 @@ import type {
     CreateClickhouseCredentials,
     CreateDatabricksCredentials,
     CreateDuckdbCredentials,
+    CreateDuckdbDucklakeCredentials,
+    CreateDuckdbMotherduckCredentials,
     CreatePostgresCredentials,
     CreateRedshiftCredentials,
     CreateSnowflakeCredentials,
@@ -35,6 +40,7 @@ export const BigQueryDefaultValues: CreateBigqueryCredentials = {
     // we need to set it as undefined to avoid overwritting saved value
     startOfWeek: undefined,
     dataTimezone: undefined,
+    accessUrl: '',
 };
 
 export const DatabricksDefaultValues: CreateDatabricksCredentials = {
@@ -167,14 +173,42 @@ export const AthenaDefaultValues: CreateAthenaCredentials = {
     dataTimezone: undefined,
 };
 
-const DuckdbDefaultValues: CreateDuckdbCredentials = {
+export const DuckdbMotherduckDefaultValues: CreateDuckdbMotherduckCredentials =
+    {
+        type: WarehouseTypes.DUCKDB,
+        connectionType: DuckdbConnectionType.MOTHERDUCK,
+        database: '',
+        schema: 'main',
+        token: '',
+        threads: 1,
+        startOfWeek: undefined,
+    };
+
+export const DuckdbDucklakeDefaultValues: CreateDuckdbDucklakeCredentials = {
     type: WarehouseTypes.DUCKDB,
-    database: '',
+    connectionType: DuckdbConnectionType.DUCKLAKE,
     schema: 'main',
-    token: '',
+    catalogAlias: 'ducklake',
+    catalog: {
+        type: DucklakeCatalogType.POSTGRES,
+        host: '',
+        port: 5432,
+        database: '',
+        user: '',
+        password: '',
+    },
+    dataPath: {
+        type: DucklakeDataPathType.S3,
+        url: '',
+        accessKeyId: '',
+        secretAccessKey: '',
+    },
     threads: 1,
     startOfWeek: undefined,
 };
+
+const DuckdbDefaultValues: CreateDuckdbCredentials =
+    DuckdbMotherduckDefaultValues;
 
 export const warehouseDefaultValues = {
     [WarehouseTypes.BIGQUERY]: BigQueryDefaultValues,

@@ -3,7 +3,15 @@ import {
     TimeFrames,
     type OrganizationProject,
 } from '@lightdash/common';
-import { Avatar, Button, LoadingOverlay, Stack, Text } from '@mantine/core';
+import {
+    Avatar,
+    Button,
+    LoadingOverlay,
+    Stack,
+    Tabs,
+    Text,
+} from '@mantine/core';
+import { useOs } from '@mantine/hooks';
 import { Prism } from '@mantine/prism';
 import { IconChevronLeft, IconClock } from '@tabler/icons-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -100,6 +108,12 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
         track({ name: EventName.COPY_CREATE_PROJECT_CODE_BUTTON_CLICKED });
     }, [showToastSuccess, track]);
 
+    const os = useOs();
+    const isMac = os === 'macos';
+
+    const npmInstall = `npm install -g @lightdash/cli@${version}`;
+    const brewInstall = `brew tap lightdash/lightdash\nbrew install lightdash`;
+
     return (
         <OnboardingWrapper>
             <Button
@@ -141,13 +155,44 @@ const ConnectUsingCLI: FC<ConnectUsingCliProps> = ({
                         <Stack spacing="xs">
                             <Text fw={500}>1. Install lightdash CLI:</Text>
 
-                            <Prism
-                                language="bash"
-                                onCopy={handleCopy}
-                                styles={{ copy: { right: 0 } }}
-                            >
-                                {`npm install -g @lightdash/cli@${version}`}
-                            </Prism>
+                            {isMac ? (
+                                <Tabs defaultValue="npm">
+                                    <Tabs.List>
+                                        <Tabs.Tab value="npm">npm</Tabs.Tab>
+                                        <Tabs.Tab value="brew">
+                                            Homebrew
+                                        </Tabs.Tab>
+                                    </Tabs.List>
+
+                                    <Tabs.Panel value="npm" pt="xs">
+                                        <Prism
+                                            language="bash"
+                                            onCopy={handleCopy}
+                                            styles={{ copy: { right: 0 } }}
+                                        >
+                                            {npmInstall}
+                                        </Prism>
+                                    </Tabs.Panel>
+
+                                    <Tabs.Panel value="brew" pt="xs">
+                                        <Prism
+                                            language="bash"
+                                            onCopy={handleCopy}
+                                            styles={{ copy: { right: 0 } }}
+                                        >
+                                            {brewInstall}
+                                        </Prism>
+                                    </Tabs.Panel>
+                                </Tabs>
+                            ) : (
+                                <Prism
+                                    language="bash"
+                                    onCopy={handleCopy}
+                                    styles={{ copy: { right: 0 } }}
+                                >
+                                    {npmInstall}
+                                </Prism>
+                            )}
                         </Stack>
 
                         <Stack spacing="xs">

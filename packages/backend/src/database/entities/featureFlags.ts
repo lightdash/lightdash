@@ -5,7 +5,7 @@ export const FeatureFlagOverridesTableName = 'feature_flag_overrides';
 
 export type DbFeatureFlag = {
     flag_id: string;
-    default_enabled: boolean;
+    default_enabled: boolean | null;
     created_at: Date;
     updated_at: Date;
 };

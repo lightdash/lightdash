@@ -22,7 +22,6 @@ export function buildQueryArgs(options: {
     tableName: string | undefined;
     projectUuid: string | undefined;
     explore: Explore | undefined;
-    useSqlPivotResults: boolean;
     computedMetricQuery: MetricQuery;
     parameters: ParametersValuesMap | undefined;
     isEditMode: boolean;
@@ -39,7 +38,6 @@ export function buildQueryArgs(options: {
         tableName,
         projectUuid,
         explore,
-        useSqlPivotResults,
         computedMetricQuery,
         parameters,
         isEditMode,
@@ -54,18 +52,19 @@ export function buildQueryArgs(options: {
         return null;
     }
 
-    let pivotConfiguration = undefined;
-
-    if (useSqlPivotResults) {
-        const items = getFieldsFromMetricQuery(computedMetricQuery, explore);
-        pivotConfiguration = derivePivotConfigurationFromChart(
-            options.savedChart,
-            computedMetricQuery,
-            items,
-        );
-    }
+    const items = getFieldsFromMetricQuery(computedMetricQuery, explore);
+    const pivotConfiguration = derivePivotConfigurationFromChart(
+        options.savedChart,
+        computedMetricQuery,
+        items,
+    );
 
     const pivotDimensions = options.savedChart.pivotConfig?.columns;
+
+    // View mode hits the saved-chart path (chartUuid) and respects the
+    // caller's cache flag. Edit mode hits the raw-query path, which must
+    // not be cached — the explore re-run is the user's signal to refetch.
+    const savedChartArgs = !isEditMode ? viewModeQueryArgs : undefined;
 
     return {
         projectUuid,
@@ -74,9 +73,9 @@ export function buildQueryArgs(options: {
             ...computedMetricQuery,
             pivotDimensions,
         },
-        ...(isEditMode ? {} : viewModeQueryArgs),
+        ...savedChartArgs,
         dateZoomGranularity,
-        invalidateCache: minimal,
+        invalidateCache: savedChartArgs ? minimal : true,
         usePreAggregateCache: options.usePreAggregateCache,
         parameters: parameters || {},
         pivotConfiguration,

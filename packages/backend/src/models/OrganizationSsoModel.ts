@@ -1,0 +1,302 @@
+import {
+    AzureAdSsoConfig,
+    GenericOidcSsoConfig,
+    GoogleSsoConfig,
+    OktaSsoConfig,
+    OneLoginSsoConfig,
+    OrganizationSsoMethodFlags,
+    OrganizationSsoProvider,
+    UnexpectedServerError,
+} from '@lightdash/common';
+import { Knex } from 'knex';
+import { OrganizationDomainVerificationsTableName } from '../database/entities/organizationDomainVerifications';
+import { OrganizationSsoConfigurationsTableName } from '../database/entities/organizationSsoConfigurations';
+import { EncryptionUtil } from '../utils/EncryptionUtil/EncryptionUtil';
+
+type OrganizationSsoModelArguments = {
+    database: Knex;
+    encryptionUtil: EncryptionUtil;
+};
+
+type ProviderConfigTypeMap = {
+    [OrganizationSsoProvider.AZUREAD]: AzureAdSsoConfig;
+    [OrganizationSsoProvider.OKTA]: OktaSsoConfig;
+    [OrganizationSsoProvider.GENERIC_OIDC]: GenericOidcSsoConfig;
+    [OrganizationSsoProvider.ONELOGIN]: OneLoginSsoConfig;
+    [OrganizationSsoProvider.GOOGLE]: GoogleSsoConfig;
+};
+
+export type OrganizationSsoMethod<P extends OrganizationSsoProvider> = {
+    organizationUuid: string;
+    provider: P;
+    config: ProviderConfigTypeMap[P];
+} & OrganizationSsoMethodFlags;
+
+export type OrganizationSsoConfigLookup<P extends OrganizationSsoProvider> =
+    Pick<OrganizationSsoMethod<P>, 'organizationUuid' | 'config'>;
+
+/**
+ * Lightweight projection of a per-org Google policy row. Google has no
+ * credentials, so only the flags matter — and unlike the credential
+ * providers, we need disabled rows too (an org's `enabled: false` row is the
+ * whole point of the feature, but it never surfaces via the enabled-only
+ * discovery query).
+ */
+export type OrganizationGoogleMethod = {
+    organizationUuid: string;
+    enabled: boolean;
+    allowPassword: boolean;
+};
+
+/**
+ * Restricts an SSO-config query to rows whose organization has verified the
+ * given (already-normalized) domain. Uses an EXISTS against
+ * {@link OrganizationDomainVerificationsTableName}, which has a partial unique
+ * index on `(domain) WHERE verified_at IS NOT NULL` — so this is an indexed
+ * lookup that resolves the domain to at most one owning organization.
+ */
+const verifiedDomainExists =
+    (database: Knex, normalized: string) => (builder: Knex.QueryBuilder) => {
+        void builder.whereExists((qb) => {
+            void qb
+                .select(database.raw('1'))
+                .from(OrganizationDomainVerificationsTableName)
+                .whereRaw(
+                    `${OrganizationDomainVerificationsTableName}.organization_uuid = ${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                )
+                .andWhere(
+                    `${OrganizationDomainVerificationsTableName}.domain`,
+                    normalized,
+                )
+                .whereNotNull(
+                    `${OrganizationDomainVerificationsTableName}.verified_at`,
+                );
+        });
+    };
+
+export class OrganizationSsoModel {
+    private readonly database: Knex;
+
+    private readonly encryptionUtil: EncryptionUtil;
+
+    constructor(args: OrganizationSsoModelArguments) {
+        this.database = args.database;
+        this.encryptionUtil = args.encryptionUtil;
+    }
+
+    private encryptConfig(config: object): Buffer {
+        return this.encryptionUtil.encrypt(JSON.stringify(config));
+    }
+
+    private decryptConfig<P extends OrganizationSsoProvider>(
+        buffer: Buffer,
+    ): ProviderConfigTypeMap[P] {
+        try {
+            return JSON.parse(
+                this.encryptionUtil.decrypt(buffer),
+            ) as ProviderConfigTypeMap[P];
+        } catch (e) {
+            throw new UnexpectedServerError(
+                'Failed to decrypt organization SSO configuration',
+            );
+        }
+    }
+
+    async findMethod<P extends OrganizationSsoProvider>(
+        organizationUuid: string,
+        provider: P,
+    ): Promise<OrganizationSsoMethod<P> | undefined> {
+        const row = await this.database(OrganizationSsoConfigurationsTableName)
+            .where('organization_uuid', organizationUuid)
+            .where('provider', provider)
+            .first();
+        if (!row) return undefined;
+        return {
+            organizationUuid: row.organization_uuid,
+            provider: row.provider as P,
+            config: this.decryptConfig<P>(row.config),
+            enabled: row.enabled,
+            overrideEmailDomains: row.override_email_domains,
+            emailDomains: row.email_domains ?? [],
+            allowPassword: row.allow_password,
+        };
+    }
+
+    /**
+     * Restricts a query to rows that route the given (already-normalized,
+     * already-verified) domain. When `override_email_domains = false` the
+     * method routes ALL of the org's verified domains, so it matches; when
+     * `true` the domain must be in the method's own `email_domains` subset.
+     * Pair with {@link verifiedDomainExists}, which guarantees the domain is
+     * verified for the org in the first place.
+     */
+    private static emailDomainMatchClause(normalized: string) {
+        return (builder: Knex.QueryBuilder) => {
+            void builder
+                .where(
+                    `${OrganizationSsoConfigurationsTableName}.override_email_domains`,
+                    false,
+                )
+                .orWhere((subOverride) => {
+                    void subOverride
+                        .where(
+                            `${OrganizationSsoConfigurationsTableName}.override_email_domains`,
+                            true,
+                        )
+                        .whereRaw(
+                            `? = ANY (${OrganizationSsoConfigurationsTableName}.email_domains)`,
+                            [normalized],
+                        );
+                });
+        };
+    }
+
+    /**
+     * Finds all enabled SSO methods that route the email's domain — i.e. the
+     * domain is verified for the method's org and (for override methods) is in
+     * the method's subset.
+     */
+    async findEnabledMethodsForEmailDomain(
+        emailDomain: string,
+    ): Promise<OrganizationSsoMethod<OrganizationSsoProvider>[]> {
+        const normalized = emailDomain.toLowerCase();
+        const rows = await this.database(OrganizationSsoConfigurationsTableName)
+            .where(`${OrganizationSsoConfigurationsTableName}.enabled`, true)
+            .andWhere(verifiedDomainExists(this.database, normalized))
+            .andWhere(OrganizationSsoModel.emailDomainMatchClause(normalized))
+            .select(`${OrganizationSsoConfigurationsTableName}.*`);
+
+        return rows.map((row) => ({
+            organizationUuid: row.organization_uuid,
+            provider: row.provider as OrganizationSsoProvider,
+            config: this.decryptConfig(row.config),
+            enabled: row.enabled,
+            overrideEmailDomains: row.override_email_domains,
+            emailDomains: row.email_domains ?? [],
+            allowPassword: row.allow_password,
+        }));
+    }
+
+    async findEnabledOktaMethodByStoredIssuer(
+        oauth2Issuer: string,
+    ): Promise<
+        OrganizationSsoConfigLookup<OrganizationSsoProvider.OKTA> | undefined
+    > {
+        const rows = await this.database(OrganizationSsoConfigurationsTableName)
+            .where(
+                `${OrganizationSsoConfigurationsTableName}.provider`,
+                OrganizationSsoProvider.OKTA,
+            )
+            .where(`${OrganizationSsoConfigurationsTableName}.enabled`, true)
+            .select(
+                `${OrganizationSsoConfigurationsTableName}.organization_uuid`,
+                `${OrganizationSsoConfigurationsTableName}.config`,
+            );
+
+        return rows
+            .map(
+                (
+                    row,
+                ): OrganizationSsoConfigLookup<OrganizationSsoProvider.OKTA> => ({
+                    organizationUuid: row.organization_uuid,
+                    config: this.decryptConfig<OrganizationSsoProvider.OKTA>(
+                        row.config,
+                    ),
+                }),
+            )
+            .find((method) => method.config.oauth2Issuer === oauth2Issuer);
+    }
+
+    /**
+     * Finds every per-org Google policy row matching the email's domain,
+     * including disabled ones. Google is enabled by default (shared instance
+     * OAuth app); a row only exists when an org has set an explicit policy, so
+     * unlike {@link findEnabledMethodsForEmailDomain} we must NOT filter on
+     * `enabled` — a disabled row is exactly what we look for to suppress
+     * Google for that org's domains.
+     */
+    async findGoogleMethodsForEmailDomain(
+        emailDomain: string,
+    ): Promise<OrganizationGoogleMethod[]> {
+        const normalized = emailDomain.toLowerCase();
+        const rows = await this.database(OrganizationSsoConfigurationsTableName)
+            .where(
+                `${OrganizationSsoConfigurationsTableName}.provider`,
+                OrganizationSsoProvider.GOOGLE,
+            )
+            .andWhere(verifiedDomainExists(this.database, normalized))
+            .andWhere(OrganizationSsoModel.emailDomainMatchClause(normalized))
+            .select(`${OrganizationSsoConfigurationsTableName}.*`);
+
+        return rows.map((row) => ({
+            organizationUuid: row.organization_uuid,
+            enabled: row.enabled,
+            allowPassword: row.allow_password,
+        }));
+    }
+
+    async upsert<P extends OrganizationSsoProvider>(
+        organizationUuid: string,
+        provider: P,
+        config: ProviderConfigTypeMap[P],
+        flags: Partial<OrganizationSsoMethodFlags>,
+        userUuid: string | null,
+    ): Promise<void> {
+        const encrypted = this.encryptConfig(config);
+        const insert = {
+            organization_uuid: organizationUuid,
+            provider,
+            config: encrypted,
+            ...(flags.enabled !== undefined ? { enabled: flags.enabled } : {}),
+            ...(flags.overrideEmailDomains !== undefined
+                ? { override_email_domains: flags.overrideEmailDomains }
+                : {}),
+            ...(flags.emailDomains !== undefined
+                ? {
+                      email_domains: flags.emailDomains.map((d) =>
+                          d.toLowerCase(),
+                      ),
+                  }
+                : {}),
+            ...(flags.allowPassword !== undefined
+                ? { allow_password: flags.allowPassword }
+                : {}),
+            created_by_user_uuid: userUuid,
+            updated_by_user_uuid: userUuid,
+        };
+        await this.database(OrganizationSsoConfigurationsTableName)
+            .insert(insert)
+            .onConflict(['organization_uuid', 'provider'])
+            .merge({
+                config: encrypted,
+                ...(flags.enabled !== undefined
+                    ? { enabled: flags.enabled }
+                    : {}),
+                ...(flags.overrideEmailDomains !== undefined
+                    ? { override_email_domains: flags.overrideEmailDomains }
+                    : {}),
+                ...(flags.emailDomains !== undefined
+                    ? {
+                          email_domains: flags.emailDomains.map((d) =>
+                              d.toLowerCase(),
+                          ),
+                      }
+                    : {}),
+                ...(flags.allowPassword !== undefined
+                    ? { allow_password: flags.allowPassword }
+                    : {}),
+                updated_at: new Date(),
+                updated_by_user_uuid: userUuid,
+            });
+    }
+
+    async delete(
+        organizationUuid: string,
+        provider: OrganizationSsoProvider,
+    ): Promise<void> {
+        await this.database(OrganizationSsoConfigurationsTableName)
+            .where('organization_uuid', organizationUuid)
+            .where('provider', provider)
+            .delete();
+    }
+}

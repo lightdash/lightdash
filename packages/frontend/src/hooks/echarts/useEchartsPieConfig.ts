@@ -43,6 +43,7 @@ const useEchartsPieConfig = (
         minimal,
         parameters,
         isTouchDevice,
+        resolvedTimezone,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -197,6 +198,7 @@ const useEchartsPieConfig = (
                         value,
                         false,
                         parameters,
+                        resolvedTimezone,
                     );
 
                     const truncatedName =
@@ -218,7 +220,7 @@ const useEchartsPieConfig = (
                 },
             },
         };
-    }, [chartConfig, seriesData, parameters]);
+    }, [chartConfig, seriesData, parameters, resolvedTimezone]);
 
     const { tooltip: legendDoubleClickTooltip } = useLegendDoubleClickTooltip();
 

@@ -227,6 +227,11 @@ export class SlackClient {
             'app_mentions:read',
             'files:write',
             'files:read',
+            // Used to react with :eyes: on a user's @mention so they get an
+            // immediate visual ack the bot saw their message. Best-effort —
+            // installs that haven't re-authorized for this scope silently
+            // skip the reaction (see AiAgentService.handleAppMention).
+            'reactions:write',
             // 'channels:join', - Made optional since users can manually add the app to channels
         ];
     }
@@ -252,6 +257,27 @@ export class SlackClient {
     public hasRequiredScopes(installationScopes: string[]) {
         const requiredScopes = this.getRequiredScopes();
         return without(requiredScopes, ...installationScopes).length === 0;
+    }
+
+    /**
+     * Add an emoji reaction to a Slack message. Requires the bot to have the
+     * `reactions:write` scope in the destination workspace; callers should
+     * treat failures (notably `missing_scope` on workspaces that haven't
+     * re-authorized after this scope was added) as non-fatal.
+     */
+    public async addReaction({
+        organizationUuid,
+        channel,
+        timestamp,
+        name,
+    }: {
+        organizationUuid: string;
+        channel: string;
+        timestamp: string;
+        name: string;
+    }): Promise<void> {
+        const webClient = await this.getWebClient(organizationUuid);
+        await webClient.reactions.add({ channel, timestamp, name });
     }
 
     async getWebClient(organizationUuid: string): Promise<WebClient> {
@@ -915,7 +941,7 @@ export class SlackClient {
             })
             .catch((e) => {
                 if (getSlackErrorCode(e) === 'invalid_blocks') {
-                    Logger.warn(
+                    Logger.error(
                         `Slack invalid_blocks error for channel ${channel}`,
                         {
                             blocks: JSON.stringify(slackMessageArgs.blocks),

@@ -1,4 +1,9 @@
-import { getEmailSchema, type ApiError } from '@lightdash/common';
+import {
+    FeatureFlags,
+    getEmailSchema,
+    isValidTimezone,
+    type ApiError,
+} from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -18,14 +23,23 @@ import {
     useOneTimePassword,
 } from '../../../hooks/useEmailVerification';
 import { useUserUpdateMutation } from '../../../hooks/user/useUserUpdateMutation';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { VerifyEmailModal } from '../../../pages/VerifyEmail';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
+import TimeZonePicker from '../../common/TimeZonePicker';
 
 const validationSchema = z.object({
     firstName: z.string().nonempty(),
     lastName: z.string().nonempty(),
     email: getEmailSchema().or(z.undefined()),
+    timezone: z
+        .string()
+        .nullable()
+        .refine(
+            (value) => value === null || isValidTimezone(value),
+            'Invalid timezone',
+        ),
 });
 
 type FormValues = z.infer<typeof validationSchema>;
@@ -36,6 +50,11 @@ const ProfilePanel: FC = () => {
         health,
     } = useApp();
     const { showToastSuccess, showToastApiError } = useToaster();
+
+    const { data: userTimezonesFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableUserTimezones,
+    );
+    const userTimezonesEnabled = userTimezonesFlag?.enabled === true;
 
     const form = useForm<FormValues>({
         validate: zodResolver(validationSchema),
@@ -48,6 +67,7 @@ const ProfilePanel: FC = () => {
             firstName: userData.firstName,
             lastName: userData.lastName,
             email: userData.email,
+            timezone: userData.timezone ?? null,
         };
 
         if (form.initialized) {
@@ -177,6 +197,21 @@ const ProfilePanel: FC = () => {
                         ) : null
                     }
                 />
+
+                {userTimezonesEnabled && (
+                    <TimeZonePicker
+                        label="Default timezone"
+                        description="Used to render query results when a chart hasn't pinned its own timezone. Leave empty to use the project default."
+                        variant="default"
+                        maw="100%"
+                        size="sm"
+                        searchable
+                        clearable
+                        placeholder="Project default"
+                        disabled={isLoading}
+                        {...form.getInputProps('timezone')}
+                    />
+                )}
 
                 <Flex justify="flex-end" gap="sm">
                     {form.isDirty() && !isUpdatingUser && (

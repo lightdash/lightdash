@@ -114,6 +114,7 @@ describe('Explore', () => {
         cy.get('button').contains('Run query').click();
 
         // open chart
+        cy.findByTestId('Chart-card-expand').click();
 
         // wait for the chart to finish loading
         cy.contains('Loading chart').should('not.exist');

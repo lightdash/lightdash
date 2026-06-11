@@ -744,4 +744,142 @@ describe('DashboardModel', () => {
             ),
         ).rejects.toThrowError(NotFoundError);
     });
+
+    test('should null out tile.tabUuid that does not match any tab in this version (PROD-5905)', async () => {
+        // Simulates the bad payload that triggered the FK violation in
+        // production: tabs[] empty (or missing the tile's tab) while a tile
+        // still carries a stale tabUuid.
+        const staleTabUuid = '00000000-0000-0000-0000-000000000000';
+        const versionWithStaleTabUuid: typeof addDashboardVersion = {
+            ...addDashboardVersion,
+            tabs: [],
+            tiles: [
+                {
+                    ...addDashboardVersion.tiles[0],
+                    tabUuid: staleTabUuid,
+                },
+            ],
+        };
+
+        tracker.on.select(DashboardsTableName).responseOnce([dashboardEntry]);
+        tracker.on.select(SpaceTableName).responseOnce([spaceEntry]);
+        tracker.on.insert(DashboardsTableName).responseOnce([dashboardEntry]);
+        tracker.on
+            .insert(DashboardVersionsTableName)
+            .responseOnce([dashboardVersionEntry]);
+        tracker.on
+            .insert(DashboardViewsTableName)
+            .responseOnce([dashboardViewEntry]);
+        tracker.on
+            .insert(DashboardTilesTableName)
+            .responseOnce([dashboardTileEntry]);
+        tracker.on.select(SavedChartsTableName).responseOnce([savedChartEntry]);
+        tracker.on.insert(DashboardTileChartTableName).responseOnce([]);
+        tracker.on.update(DashboardViewsTableName).responseOnce([]);
+
+        jest.spyOn(model, 'getByIdOrSlug').mockImplementationOnce(() =>
+            Promise.resolve(expectedDashboard),
+        );
+
+        await expect(
+            model.addVersion(
+                expectedDashboard.uuid,
+                versionWithStaleTabUuid,
+                user,
+                projectUuid,
+            ),
+        ).resolves.not.toThrow();
+
+        const tilesInsert = tracker.history.insert.find((q) =>
+            q.sql.includes(DashboardTilesTableName),
+        );
+        expect(tilesInsert).toBeDefined();
+        // Stale uuid must have been dropped before the FK insert.
+        expect(tilesInsert!.bindings).not.toContain(staleTabUuid);
+        expect(tilesInsert!.bindings).toContain(null);
+    });
+
+    // A dashboard version may have a missing or malformed dashboard_views row
+    // (legacy or partially-written data). Reading such a version must degrade
+    // gracefully rather than throwing an unguarded `view.filters` NPE — this
+    // guards the shared filters-normalisation path used by both getByIdOrSlug
+    // and getVersionByUuid.
+    describe('reading a version degrades gracefully on malformed view data', () => {
+        const setupDashboardQueries = (viewResponse: AnyType[]) => {
+            tracker.on
+                .select(
+                    queryMatcher(DashboardsTableName, [
+                        expectedDashboard.uuid,
+                        1,
+                    ]),
+                )
+                .response([
+                    {
+                        ...dashboardWithVersionEntry,
+                        space_uuid: 'spaceUuid',
+                        space_name: 'space name',
+                    },
+                ]);
+            tracker.on
+                .select(
+                    queryMatcher(DashboardViewsTableName, [
+                        dashboardWithVersionEntry.dashboard_version_id,
+                    ]),
+                )
+                .response(viewResponse);
+            tracker.on
+                .select(
+                    queryMatcher(DashboardTilesTableName, [
+                        dashboardWithVersionEntry.dashboard_version_id,
+                    ]),
+                )
+                .response([]);
+            tracker.on
+                .select(
+                    queryMatcher(DashboardTabsTableName, [
+                        dashboardWithVersionEntry.dashboard_version_id,
+                        dashboardWithVersionEntry.dashboard_id,
+                    ]),
+                )
+                .response([]);
+        };
+
+        test('returns default filters when the version has no dashboard_views row', async () => {
+            setupDashboardQueries([]); // regression: this used to throw an NPE
+
+            const dashboard = await model.getByIdOrSlug(expectedDashboard.uuid);
+
+            expect(dashboard.filters).toEqual({
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            });
+        });
+
+        it.each<[string, AnyType]>([
+            ['null filters', null],
+            ['undefined filters', undefined],
+            ['empty object filters', {}],
+            [
+                'filters missing tableCalculations',
+                { dimensions: [], metrics: [] },
+            ],
+            ['filters with only dimensions', { dimensions: [{ id: 'a' }] }],
+        ])(
+            'does not throw and always normalises tableCalculations to an array: %s',
+            async (_label, filters) => {
+                setupDashboardQueries([
+                    { ...dashboardViewEntry, filters } as AnyType,
+                ]);
+
+                const dashboard = await model.getByIdOrSlug(
+                    expectedDashboard.uuid,
+                );
+
+                expect(Array.isArray(dashboard.filters.tableCalculations)).toBe(
+                    true,
+                );
+            },
+        );
+    });
 });

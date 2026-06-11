@@ -7,6 +7,8 @@ import {
     MetricQuery,
     PivotConfig,
     pivotResultsAsCsv,
+    UnexpectedServerError,
+    type PivotRowTotalsByIndex,
     type ReadyQueryResultsPage,
 } from '@lightdash/common';
 import { stringify } from 'csv-stringify';
@@ -19,11 +21,13 @@ import { S3ResultsFileStorageClient } from '../../clients/ResultsFileStorageClie
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { DownloadFileModel } from '../../models/DownloadFileModel';
+import { OrganizationSettingsModel } from '../../models/OrganizationSettingsModel';
 import {
     generateGenericFileId,
     streamJsonlData,
 } from '../../utils/FileDownloadUtils/FileDownloadUtils';
 import { BaseService } from '../BaseService';
+import { resolveOrganizationExportLimits } from '../OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 
 type PivotTableServiceArguments = {
@@ -31,6 +35,7 @@ type PivotTableServiceArguments = {
     fileStorageClient: FileStorageClient;
     downloadFileModel: DownloadFileModel;
     persistentDownloadFileService: PersistentDownloadFileService;
+    organizationSettingsModel: OrganizationSettingsModel;
 };
 
 export class PivotTableService extends BaseService {
@@ -42,17 +47,21 @@ export class PivotTableService extends BaseService {
 
     persistentDownloadFileService: PersistentDownloadFileService;
 
+    organizationSettingsModel: OrganizationSettingsModel;
+
     constructor({
         lightdashConfig,
         fileStorageClient,
         downloadFileModel,
         persistentDownloadFileService,
+        organizationSettingsModel,
     }: PivotTableServiceArguments) {
         super();
         this.lightdashConfig = lightdashConfig;
         this.fileStorageClient = fileStorageClient;
         this.downloadFileModel = downloadFileModel;
         this.persistentDownloadFileService = persistentDownloadFileService;
+        this.organizationSettingsModel = organizationSettingsModel;
     }
 
     /**
@@ -74,15 +83,16 @@ export class PivotTableService extends BaseService {
     /**
      * Checks if the rows could be truncated based on cell limit
      */
-    private couldBeTruncated(rows: Record<string, AnyType>[]) {
+    private static couldBeTruncated(
+        rows: Record<string, AnyType>[],
+        cellsLimit: number,
+    ) {
         if (rows.length === 0) return false;
 
         const numberRows = rows.length;
         const numberColumns = Object.keys(rows[0]).length;
 
         // we use floor when limiting the rows, so the need to make sure we got the last row valid
-        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
-
         return numberRows * numberColumns >= cellsLimit - numberColumns;
     }
 
@@ -98,9 +108,12 @@ export class PivotTableService extends BaseService {
         storageClient,
         options,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
+        timezone,
     }: {
         resultsFileName: string;
         fields: ItemsMap;
@@ -108,6 +121,8 @@ export class PivotTableService extends BaseService {
         projectUuid: string;
         storageClient: S3ResultsFileStorageClient;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         options: {
             onlyRaw: boolean;
             showTableNames: boolean;
@@ -120,7 +135,8 @@ export class PivotTableService extends BaseService {
         organizationUuid: string;
         createdByUserUuid: string | null;
         expirationSecondsOverride?: number;
-    }): Promise<{ fileUrl: string; truncated: boolean }> {
+        timezone?: string;
+    }): Promise<{ fileUrl: string; s3FileUrl?: string; truncated: boolean }> {
         const { onlyRaw, customLabels, pivotConfig, attachmentDownloadName } =
             options;
 
@@ -130,7 +146,12 @@ export class PivotTableService extends BaseService {
             await storageClient.getDownloadStream(resultsFileName);
 
         const fieldCount = Object.keys(fields).length;
-        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
+        const { csvCellsLimit: cellsLimit } =
+            await resolveOrganizationExportLimits(
+                this.organizationSettingsModel,
+                this.lightdashConfig.query,
+                organizationUuid,
+            );
 
         // Use standard csvCellsLimit calculation - same as original downloadPivotTableCsv
         const maxRows = Math.floor(cellsLimit / fieldCount);
@@ -148,7 +169,8 @@ export class PivotTableService extends BaseService {
         }
 
         // Use same truncation logic as original downloadPivotTableCsv
-        const finalTruncated = truncated || this.couldBeTruncated(rows);
+        const finalTruncated =
+            truncated || PivotTableService.couldBeTruncated(rows, cellsLimit);
 
         if (finalTruncated) {
             Logger.warn(
@@ -163,20 +185,23 @@ export class PivotTableService extends BaseService {
             projectUuid,
             rows,
             itemMap: fields,
-            metricQuery,
             pivotConfig,
             exploreId: metricQuery.exploreName || 'explore',
             onlyRaw,
             truncated: finalTruncated,
             customLabels,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
             organizationUuid,
             createdByUserUuid,
             expirationSecondsOverride,
+            timezone,
         });
 
         return {
             fileUrl: attachmentUrl.path,
+            s3FileUrl: attachmentUrl.localPath,
             truncated: finalTruncated,
         };
     }
@@ -190,24 +215,27 @@ export class PivotTableService extends BaseService {
         projectUuid,
         rows,
         itemMap,
-        metricQuery,
         pivotConfig,
         exploreId,
         onlyRaw,
         truncated,
         customLabels,
         pivotDetails,
+        warehouseRowTotals,
+        warehouseColumnTotals,
         organizationUuid,
         createdByUserUuid,
         expirationSecondsOverride,
+        timezone,
     }: {
         name?: string;
         projectUuid: string;
         rows: Record<string, AnyType>[];
         itemMap: ItemsMap;
-        metricQuery: MetricQuery;
         pivotConfig: PivotConfig;
         pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        warehouseRowTotals?: PivotRowTotalsByIndex;
+        warehouseColumnTotals?: Record<string, number>;
         exploreId: string;
         onlyRaw: boolean;
         truncated: boolean;
@@ -216,28 +244,45 @@ export class PivotTableService extends BaseService {
         organizationUuid: string;
         createdByUserUuid: string | null;
         expirationSecondsOverride?: number;
+        timezone?: string;
     }): Promise<AttachmentUrl> {
         // PivotDetails.valuesColumns is just an array objects, we need to convert it to a map so we can format the pivoted results
         // See AsyncQueryService.ts line 1126 for more details on why we're using pivotColumnName as the key
+        if (!pivotDetails) {
+            throw new UnexpectedServerError(
+                'Cannot export pivot table CSV without SQL pivot details',
+            );
+        }
+
         const pivotValuesColumnsMap = Object.fromEntries(
-            pivotDetails?.valuesColumns?.map((column) => [
+            pivotDetails.valuesColumns?.map((column) => [
                 column.pivotColumnName,
                 column,
             ]) ?? [],
         );
 
-        // PivotQueryResults expects a formatted ResultRow[] type, so we need to convert it first
-        // TODO: refactor pivotQueryResults to accept a Record<string, any>[] simple row type for performance
-        const formattedRows = formatRows(rows, itemMap, pivotValuesColumnsMap);
+        // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
+        const formattedRows = formatRows(
+            rows,
+            itemMap,
+            pivotValuesColumnsMap,
+            undefined,
+            timezone,
+        );
+
+        // Pivot CSV uses the same wall-clock temporal format as non-pivot
+        // CSV so spreadsheet apps auto-detect dates. See GLITCH-406.
         const csvResults = pivotResultsAsCsv({
             pivotConfig,
             rows: formattedRows,
             itemMap,
-            metricQuery,
             customLabels,
             onlyRaw,
-            maxColumnLimit: this.lightdashConfig.pivotTable.maxColumnLimit,
             pivotDetails,
+            warehouseRowTotals,
+            warehouseColumnTotals,
+            timezone,
+            formatTemporalsForSpreadsheet: true,
         });
 
         const csvContent = await new Promise<string>((resolve, reject) => {
@@ -296,7 +341,10 @@ export class PivotTableService extends BaseService {
         await fsPromise.writeFile(filePath, csvWithBOM);
 
         if (this.fileStorageClient.isEnabled()) {
-            await this.fileStorageClient.uploadCsv(csvContent, fileId);
+            const s3FileUrl = await this.fileStorageClient.uploadCsv(
+                csvContent,
+                fileId,
+            );
 
             // Delete local file in 10 minutes, we could still read from the local file to upload to google sheets
             setTimeout(
@@ -324,7 +372,7 @@ export class PivotTableService extends BaseService {
             return {
                 filename: fileName,
                 path: url,
-                localPath: filePath,
+                localPath: s3FileUrl,
                 truncated,
             };
         }

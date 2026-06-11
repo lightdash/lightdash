@@ -7,9 +7,11 @@ import {
     CompiledTableCalculation,
     CompileError,
     createFilterRuleFromModelRequiredFilterRule,
+    DEFAULT_FILTER_CASE_SENSITIVE,
     DimensionType,
     Explore,
     ExploreCompiler,
+    extractableTimeFrames,
     extractTotalReferences,
     FieldReferenceError,
     FieldType,
@@ -23,9 +25,11 @@ import {
     getFieldsFromMetricQuery,
     getFilterRulesFromGroup,
     getItemId,
+    getItemMap,
     getMetricsMapFromTables,
     getParsedReference,
     getPopComparisonConfigKey,
+    getSqlForTruncatedDate,
     hashPopComparisonConfigKeyToSuffix,
     hasPivotFunctions,
     hasRowFunctions,
@@ -34,6 +38,7 @@ import {
     isAndFilterGroup,
     isCompiledCustomSqlDimension,
     isCustomBinDimension,
+    isDimension,
     isFilterGroup,
     isFilterRuleInQuery,
     isJoinModelRequiredFilter,
@@ -56,15 +61,19 @@ import {
     sqlContainsAggregation,
     SupportedDbtAdapter,
     TableCalculationFunctionCompiler,
+    timeFrameConfigs,
     TimeFrames,
+    truncatableTimeFrames,
     UserAttributeValueMap,
     type FieldsContext,
     type ParameterDefinitions,
     type ParametersValuesMap,
     type WarehouseSqlBuilder,
+    type WeekDay,
 } from '@lightdash/common';
 import Logger from '../../logging/logger';
 import { compilePostCalculationMetric } from '../../queryCompiler';
+import { reportMalformedFilterValues } from './malformedFilterValueReporter';
 import {
     safeReplaceParametersWithTypes,
     unsafeReplaceParametersAsRaw,
@@ -127,6 +136,17 @@ export type BuildQueryProps = {
      * this explore for dimension field lookups instead of the zoomed explore.
      */
     originalExplore?: Explore;
+    /**
+     * FieldId of the date-zoom-rewritten dimension. When set, WHERE filter
+     * rules targeting this field are compiled against the zoom-rewritten SQL
+     * so the click-filter grain matches the zoom grain (PROD-880).
+     */
+    dateZoomFilterTargetFieldId?: string;
+    /** Wrap DATE_TRUNC with timezone conversion. Gated behind EnableTimezoneSupport. */
+    useTimezoneAwareDateTrunc?: boolean;
+    /** Timezone the column data is in — source for the timezone-aware wrap.
+     *  Derived from warehouse credentials via `getColumnTimezone`. */
+    columnTimezone?: string;
 };
 
 /**
@@ -187,9 +207,10 @@ export function getIntervalSyntax(
             // BigQuery always uses DATE_ADD/DATE_SUB
             intervalExpression = `DATE_${operation}(DATE(${columnWithInterval}), INTERVAL ${value} ${granularity})`;
             break;
-        case SupportedDbtAdapter.DATABRICKS: {
-            // Databricks uses interval arithmetic with quoted values
-            // Databricks doesn't support QUARTER interval, convert to months
+        case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK: {
+            // Databricks/Spark uses interval arithmetic with quoted values
+            // Doesn't support QUARTER interval, convert to months
             const [dbValue, dbGranularity] = normalizeIntervalGranularity(
                 value,
                 granularity,
@@ -302,6 +323,20 @@ export class MetricQueryBuilder {
         CompiledDimension
     > = {};
 
+    /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise.
+     *  The target-vs-source equality short-circuit lives in `getSqlForTruncatedDate`
+     *  (and its EXTRACT siblings) so any call site that passes a timezone gets the
+     *  same no-op treatment — see `needsTimezoneWrap` in `timeFrames.ts`. */
+    private get timezoneForDateTrunc(): string | undefined {
+        return this.args.useTimezoneAwareDateTrunc
+            ? this.args.timezone
+            : undefined;
+    }
+
+    private get columnTimezone(): string {
+        return this.args.columnTimezone ?? 'UTC';
+    }
+
     // Contains the metrics from the Explore and the custom metrics from the metric query
     private readonly availableMetrics: Record<string, CompiledMetric> = {};
 
@@ -324,15 +359,24 @@ export class MetricQueryBuilder {
             ),
         };
 
-        const selectedPopAdditionalMetrics = (
+        const metricFilterIds = new Set(
+            getFilterRulesFromGroup(compiledMetricQuery.filters.metrics).map(
+                (filter) => filter.target.fieldId,
+            ),
+        );
+        const selectedOrFilteredPopAdditionalMetrics = (
             compiledMetricQuery.additionalMetrics ?? []
         )
             .filter(isPeriodOverPeriodAdditionalMetric)
-            .filter((am) =>
-                compiledMetricQuery.metrics.includes(getItemId(am)),
-            );
+            .filter((am) => {
+                const popMetricId = getItemId(am);
+                return (
+                    compiledMetricQuery.metrics.includes(popMetricId) ||
+                    metricFilterIds.has(popMetricId)
+                );
+            });
 
-        if (selectedPopAdditionalMetrics.length > 0) {
+        if (selectedOrFilteredPopAdditionalMetrics.length > 0) {
             const configsByKey = new Map<
                 string,
                 {
@@ -343,7 +387,7 @@ export class MetricQueryBuilder {
                 }
             >();
 
-            selectedPopAdditionalMetrics.forEach((am) => {
+            selectedOrFilteredPopAdditionalMetrics.forEach((am) => {
                 const configKey = getPopComparisonConfigKey({
                     timeDimensionId: am.timeDimensionId,
                     granularity: am.granularity,
@@ -428,6 +472,35 @@ export class MetricQueryBuilder {
         return metric;
     }
 
+    private getUsedFieldCompilationErrors(): string[] {
+        const { explore, compiledMetricQuery } = this.args;
+        const itemMap = getItemMap(
+            explore,
+            compiledMetricQuery.compiledAdditionalMetrics,
+            compiledMetricQuery.compiledTableCalculations,
+            compiledMetricQuery.compiledCustomDimensions,
+        );
+        const usedFieldIds = new Set<string>([
+            ...compiledMetricQuery.dimensions,
+            ...compiledMetricQuery.metrics,
+            ...compiledMetricQuery.sorts.map((sort) => sort.fieldId),
+            ...getFilterRulesFromGroup(compiledMetricQuery.filters.dimensions)
+                .map((filter) => filter.target.fieldId)
+                .filter((fieldId): fieldId is string => fieldId !== undefined),
+            ...getFilterRulesFromGroup(compiledMetricQuery.filters.metrics)
+                .map((filter) => filter.target.fieldId)
+                .filter((fieldId): fieldId is string => fieldId !== undefined),
+        ]);
+
+        return Array.from(usedFieldIds).flatMap((fieldId) => {
+            const item = itemMap[fieldId];
+            if (item && 'compilationError' in item && item.compilationError) {
+                return (item.compilationError as { message: string }).message;
+            }
+            return [];
+        });
+    }
+
     private isFilterOnPopComparisonTimeDimension(
         filter: FilterRule,
         timeDimensionId: string,
@@ -447,6 +520,8 @@ export class MetricQueryBuilder {
             dimensionsWithoutAccess: this.exploreDimensionsWithoutAccess,
             adapterType,
             startOfWeek,
+            timezone: this.timezoneForDateTrunc,
+            columnTimezone: this.columnTimezone,
         });
         const popDimensionBaseId = `${popDimension.table}_${
             popDimension.timeIntervalBaseDimensionName ?? popDimension.name
@@ -549,6 +624,75 @@ export class MetricQueryBuilder {
         );
     }
 
+    /**
+     * Rewrites `compiledSql` with the project-TZ wrap for truncatable and
+     * extractable intervals.
+     *
+     * Base dims with `convert_timezone: false` are skipped — the dim renders
+     * in its raw warehouse value. Pass `respectConvertTimezone: false` from
+     * filter rendering so WHERE clauses keep wrapping regardless.
+     */
+    private getTimezoneAwareDimensionSql(
+        dimension: CompiledDimension,
+        adapterType: SupportedDbtAdapter,
+        startOfWeek: WeekDay | null | undefined,
+        respectConvertTimezone: boolean = true,
+    ): string {
+        const { timezone, useTimezoneAwareDateTrunc } = this.args;
+
+        if (!useTimezoneAwareDateTrunc || !dimension.timeInterval) {
+            return dimension.compiledSql;
+        }
+
+        const isTruncatable = truncatableTimeFrames.has(dimension.timeInterval);
+        const isExtractable = extractableTimeFrames.has(dimension.timeInterval);
+        if (!isTruncatable && !isExtractable) {
+            return dimension.compiledSql;
+        }
+
+        const baseDimensionId = dimension.timeIntervalBaseDimensionName
+            ? `${dimension.table}_${dimension.timeIntervalBaseDimensionName}`
+            : undefined;
+
+        const baseDimension = baseDimensionId
+            ? this.exploreDimensions[baseDimensionId]
+            : undefined;
+
+        // DATE base: no time component to shift, so the wrap would drift at midnight.
+        if (
+            !baseDimension?.compiledSql ||
+            baseDimension.type !== DimensionType.TIMESTAMP
+        ) {
+            return dimension.compiledSql;
+        }
+
+        if (respectConvertTimezone && baseDimension.skipTimezoneConversion) {
+            return dimension.compiledSql;
+        }
+
+        if (isTruncatable) {
+            return getSqlForTruncatedDate(
+                adapterType,
+                dimension.timeInterval,
+                baseDimension.compiledSql,
+                baseDimension.type,
+                startOfWeek,
+                timezone,
+                this.columnTimezone,
+            );
+        }
+
+        return timeFrameConfigs[dimension.timeInterval].getSql(
+            adapterType,
+            dimension.timeInterval,
+            baseDimension.compiledSql,
+            baseDimension.type,
+            startOfWeek,
+            timezone,
+            this.columnTimezone,
+        );
+    }
+
     private buildDimensionsWhereClause(
         dimensionsFilterGroup?: FilterGroup,
     ): string | undefined {
@@ -632,6 +776,8 @@ export class MetricQueryBuilder {
                             this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
+                        timezone: this.timezoneForDateTrunc,
+                        columnTimezone: this.columnTimezone,
                     });
 
                     assertValidDimensionRequiredAttribute(
@@ -731,7 +877,19 @@ export class MetricQueryBuilder {
         dimensionsObjects.forEach((dimension) => {
             const id = getItemId(dimension);
             const quotedAlias = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
-            selects[id] = `  ${dimension.compiledSql} AS ${quotedAlias}`;
+            const sql = this.getTimezoneAwareDimensionSql(
+                dimension,
+                adapterType,
+                startOfWeek,
+            );
+            const sqlWithUserAttributes = replaceUserAttributesAsStrings(
+                sql,
+                intrinsicUserAttributes,
+                userAttributes,
+                warehouseSqlBuilder,
+                { noWrap: true },
+            );
+            selects[id] = `  ${sqlWithUserAttributes} AS ${quotedAlias}`;
         });
 
         if (customBinDimensionSql?.selects) {
@@ -821,10 +979,13 @@ export class MetricQueryBuilder {
             metrics.filter((metricId) => !this.isPopMetricId(metricId)),
         );
 
-        // Add metrics from filters
-        getFilterRulesFromGroup(filters.metrics).forEach((filter) =>
-            referencedMetricIds.add(filter.target.fieldId),
-        );
+        // Add regular metrics from filters. PoP filter metrics are materialized
+        // by shifted comparison CTEs instead of the raw metric SELECT.
+        getFilterRulesFromGroup(filters.metrics).forEach((filter) => {
+            if (!this.isPopMetricId(filter.target.fieldId)) {
+                referencedMetricIds.add(filter.target.fieldId);
+            }
+        });
 
         // Add metrics referenced in PostCalculation metrics
         this.getPostCalculationMetricReferences(
@@ -884,6 +1045,127 @@ export class MetricQueryBuilder {
         });
     }
 
+    /**
+     * Returns the set of non-aggregate metric IDs whose SQL templates
+     * reference at least one sum_distinct / average_distinct metric.
+     * These metrics must be excluded from the regular SELECT and instead
+     * handled in the dd CTE outer SELECT so their references can be
+     * rewritten to point at the deduplication CTE aliases.
+     */
+    private getNonAggregateMetricsReferencingDistinct(): Set<string> {
+        const allMetricIds = this.getSelectedAndReferencedMetricIds();
+        const ddMetricIds = new Set(
+            allMetricIds.filter((id) => {
+                try {
+                    const m = this.getMetricFromId(id);
+                    return (
+                        m.type === MetricType.SUM_DISTINCT ||
+                        m.type === MetricType.AVERAGE_DISTINCT
+                    );
+                } catch {
+                    return false;
+                }
+            }),
+        );
+        if (ddMetricIds.size === 0) return new Set();
+
+        // Propagate transitively through chains like A -> B -> sum_distinct (PROD-7893).
+        const nonAggRefs = new Map<string, Set<string>>();
+        for (const metricId of allMetricIds) {
+            try {
+                const metric = this.getMetricFromId(metricId);
+                if (isNonAggregateMetric(metric)) {
+                    const refIds = new Set<string>();
+                    for (const ref of parseAllReferences(
+                        metric.sql,
+                        metric.table,
+                    )) {
+                        refIds.add(
+                            getItemId({
+                                table: ref.refTable,
+                                name: ref.refName,
+                            }),
+                        );
+                    }
+                    nonAggRefs.set(metricId, refIds);
+                }
+            } catch {
+                // skip
+            }
+        }
+
+        const result = new Set<string>();
+        let changed = true;
+        while (changed) {
+            changed = false;
+            for (const [metricId, refIds] of nonAggRefs) {
+                if (!result.has(metricId)) {
+                    for (const refId of refIds) {
+                        if (ddMetricIds.has(refId) || result.has(refId)) {
+                            result.add(metricId);
+                            changed = true;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    // Topo sort so wrappers are rewritten before metrics that reference them.
+    private topoSortNonAggDdMetrics(metricIds: Set<string>): string[] {
+        const ids = Array.from(metricIds);
+        const deps = new Map<string, Set<string>>();
+        for (const id of ids) {
+            const set = new Set<string>();
+            try {
+                const metric = this.getMetricFromId(id);
+                for (const ref of parseAllReferences(
+                    metric.sql,
+                    metric.table,
+                )) {
+                    const refId = getItemId({
+                        table: ref.refTable,
+                        name: ref.refName,
+                    });
+                    if (metricIds.has(refId) && refId !== id) {
+                        set.add(refId);
+                    }
+                }
+            } catch {
+                // skip
+            }
+            deps.set(id, set);
+        }
+        const ordered: string[] = [];
+        const remaining = new Set(ids);
+        while (remaining.size > 0) {
+            const ready = ids.filter(
+                (id) =>
+                    remaining.has(id) &&
+                    Array.from(deps.get(id) ?? []).every(
+                        (dep) => !remaining.has(dep),
+                    ),
+            );
+            if (ready.length === 0) {
+                // Cycle — emit the rest in input order.
+                for (const id of ids) {
+                    if (remaining.has(id)) {
+                        ordered.push(id);
+                        remaining.delete(id);
+                    }
+                }
+                break;
+            }
+            for (const id of ready) {
+                ordered.push(id);
+                remaining.delete(id);
+            }
+        }
+        return ordered;
+    }
+
     private getMetricsSQL(): {
         tables: string[];
         selects: string[];
@@ -918,6 +1200,8 @@ export class MetricQueryBuilder {
                         this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
+                    timezone: this.timezoneForDateTrunc,
+                    columnTimezone: this.columnTimezone,
                 });
 
                 assertValidDimensionRequiredAttribute(
@@ -947,6 +1231,12 @@ export class MetricQueryBuilder {
                 }
             }
         }
+        // Non-aggregate metrics that reference sum_distinct/average_distinct
+        // metrics are handled in the dd CTE outer SELECT so their references
+        // can be rewritten to point at the deduplication CTE aliases.
+        const nonAggReferencingDd =
+            this.getNonAggregateMetricsReferencingDistinct();
+
         metrics.forEach((field) => {
             try {
                 const alias = field;
@@ -969,9 +1259,24 @@ export class MetricQueryBuilder {
                     );
                     return;
                 }
+                // Non-aggregate metrics referencing distinct metrics are
+                // handled in the dd CTE outer SELECT
+                if (nonAggReferencingDd.has(field)) {
+                    (metric.tablesReferences || [metric.table]).forEach(
+                        (table) => tables.add(table),
+                    );
+                    return;
+                }
                 // Add select
+                const sqlWithUserAttributes = replaceUserAttributesAsStrings(
+                    metric.compiledSql,
+                    this.args.intrinsicUserAttributes,
+                    this.args.userAttributes ?? {},
+                    warehouseSqlBuilder,
+                    { noWrap: true },
+                );
                 selects.add(
-                    `  ${metric.compiledSql} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
+                    `  ${sqlWithUserAttributes} AS ${fieldQuoteChar}${alias}${fieldQuoteChar}`,
                 );
                 // Add tables
                 (metric.tablesReferences || [metric.table]).forEach((table) =>
@@ -1220,6 +1525,8 @@ export class MetricQueryBuilder {
         };
 
         if (!fieldType) {
+            reportMalformedFilterValues(filterRuleWithParamReplacedValues);
+
             const field = compiledMetricQuery.compiledTableCalculations?.find(
                 (tc) =>
                     getItemId(tc) ===
@@ -1240,8 +1547,17 @@ export class MetricQueryBuilder {
         }
 
         // Use the original (pre-date-zoom) explore for filter dimension lookups
-        // so that WHERE clauses compare against the raw column, not DATE_TRUNC'd expressions
-        const filterExplore = this.args.originalExplore ?? explore;
+        // so that WHERE clauses compare against the raw column, not DATE_TRUNC'd
+        // expressions. PROD-880: if caller opted in and this filter targets the
+        // zoom dimension, use the zoomed explore.
+        const isZoomedFilterField =
+            fieldType === FieldType.DIMENSION &&
+            this.args.dateZoomFilterTargetFieldId !== undefined &&
+            filterRuleWithParamReplacedValues.target.fieldId ===
+                this.args.dateZoomFilterTargetFieldId;
+        const filterExplore = isZoomedFilterField
+            ? explore
+            : (this.args.originalExplore ?? explore);
         const field =
             fieldType === FieldType.DIMENSION
                 ? [
@@ -1269,6 +1585,21 @@ export class MetricQueryBuilder {
             throw new FieldReferenceError(errorMessage);
         }
 
+        // Override filter dimension SQL to match the timezone-aware SELECT
+        // clause. Filters always wrap by project tz — even for dims with
+        // `convert_timezone: false` — so pass `respectConvertTimezone: false`.
+        const filterField = isDimension(field)
+            ? {
+                  ...field,
+                  compiledSql: this.getTimezoneAwareDimensionSql(
+                      field,
+                      adapterType,
+                      startOfWeek,
+                      false,
+                  ),
+              }
+            : field;
+
         // For period-to-date filters on truncated dimensions, resolve the
         // base (raw) dimension SQL so EXTRACT operates on the actual date
         let baseDimensionSql: string | undefined;
@@ -1291,20 +1622,38 @@ export class MetricQueryBuilder {
             }
         }
 
-        return renderWithErrorHandling(() =>
-            renderFilterRuleSqlFromField(
+        const renderedFilterSql = renderWithErrorHandling(() => {
+            reportMalformedFilterValues(filterRuleWithParamReplacedValues);
+
+            return renderFilterRuleSqlFromField(
                 filterRuleWithParamReplacedValues,
-                field,
+                filterField,
                 fieldQuoteChar,
                 stringQuoteChar,
                 escapeString,
                 startOfWeek,
                 adapterType,
                 timezone,
-                this.args.explore.caseSensitive ?? true,
+                this.args.explore.caseSensitive ??
+                    DEFAULT_FILTER_CASE_SENSITIVE,
                 baseDimensionSql,
-            ),
-        );
+                this.args.useTimezoneAwareDateTrunc,
+                this.columnTimezone,
+            );
+        });
+
+        Logger.info('query.case_sensitive_applied', {
+            exploreName: explore.name,
+            ruleCaseSensitive:
+                filterRuleWithParamReplacedValues.caseSensitive ?? null,
+            fieldCaseSensitive:
+                'caseSensitive' in field ? (field.caseSensitive ?? null) : null,
+            exploreCaseSensitive: this.args.explore.caseSensitive ?? null,
+            fieldId: getItemId(field),
+            finalSqlContainsUpper: /UPPER\s*\(/i.test(renderedFilterSql),
+        });
+
+        return renderedFilterSql;
     }
 
     static getNullsFirstLast(sort: SortField) {
@@ -1602,6 +1951,7 @@ export class MetricQueryBuilder {
     private replaceMetricReferencesWithCteReferences(
         metric: CompiledMetric,
         metricCtes: Array<{ name: string; metrics: string[] }>,
+        nonAggRewriteMap?: Map<string, string>,
     ): string {
         const { explore, warehouseSqlBuilder } = this.args;
         const fieldQuoteChar = warehouseSqlBuilder.getFieldQuoteChar();
@@ -1664,6 +2014,13 @@ export class MetricQueryBuilder {
                 );
                 if (containingCte) {
                     return `${containingCte.name}.${fieldQuoteChar}${itemId}${fieldQuoteChar}`;
+                }
+
+                // Inline another non-aggregate metric already rewritten in the same outer
+                // SELECT (PROD-7893). Parens preserve precedence in callers like nullif().
+                const inlinedNonAgg = nonAggRewriteMap?.get(itemId);
+                if (inlinedNonAgg) {
+                    return `(${inlinedNonAgg})`;
                 }
 
                 // Check if it's a dimension — resolve to CTE alias
@@ -1729,8 +2086,33 @@ export class MetricQueryBuilder {
             .map((filter) => filter.target.fieldId)
             .filter((metricId) => !metrics.includes(metricId));
 
-        // Include both selected metrics AND filter-only metrics for fanout protection
-        const allMetricsToProcess = [...metrics, ...filterOnlyMetricIds];
+        const selectedOrFilteredMetricIds = new Set([
+            ...metrics,
+            ...filterOnlyMetricIds,
+        ]);
+        const popMetricIds = new Set(
+            (compiledMetricQuery.additionalMetrics ?? [])
+                .filter(isPeriodOverPeriodAdditionalMetric)
+                .map((metric) => getItemId(metric)),
+        );
+        const selectedOrFilteredPopBaseMetricIds = (
+            compiledMetricQuery.additionalMetrics ?? []
+        )
+            .filter(isPeriodOverPeriodAdditionalMetric)
+            .filter((metric) =>
+                selectedOrFilteredMetricIds.has(getItemId(metric)),
+            )
+            .map((metric) => metric.baseMetricId);
+
+        // Include both selected metrics AND filter-only metrics for fanout protection.
+        // Selected PoP metrics also need their base metrics materialized in shifted CTEs.
+        const allMetricsToProcess = Array.from(
+            new Set([
+                ...metrics,
+                ...filterOnlyMetricIds,
+                ...selectedOrFilteredPopBaseMetricIds,
+            ]),
+        );
         const metricsObjects = allMetricsToProcess.map((field) =>
             this.getMetricFromId(field),
         );
@@ -1739,6 +2121,14 @@ export class MetricQueryBuilder {
                 ({ outerMetricId }) => outerMetricId,
             ),
         );
+        // Non-aggregate metrics that reference a sum_distinct/average_distinct
+        // metric must be projected from the outer dd_base SELECT (where the
+        // dd_* CTE aliases exist), not inlined into this fanout flow's
+        // finalMetricSelects. Inlining would expand the ${sum_distinct} ref
+        // to its raw fallback SUM(...) referencing tables not in scope of
+        // the dd_base CTE. See SPK-333.
+        const nonAggReferencingDd =
+            this.getNonAggregateMetricsReferencingDistinct();
         const metricsWithCteReferences: Array<CompiledMetric> = [];
         const referencedMetricObjects = metricsObjects.reduce<CompiledMetric[]>(
             (acc, metricObject) => {
@@ -1752,7 +2142,14 @@ export class MetricQueryBuilder {
                     isNonAggregateMetric(metricObject) &&
                     referencesAnotherTable
                 ) {
-                    metricsWithCteReferences.push(metricObject);
+                    // Defer dd-referencing metrics to the outer dd_base
+                    // SELECT (see nonAggReferencingDd above), but still
+                    // collect their transitively-referenced metrics so
+                    // non-dd dependencies (e.g. the count_distinct in the
+                    // denominator) still land in cte_unaffected/dd_base.
+                    if (!nonAggReferencingDd.has(getItemId(metricObject))) {
+                        metricsWithCteReferences.push(metricObject);
+                    }
                     const metricReferences = parseAllReferences(
                         metricObject.sql,
                         metricObject.table,
@@ -1861,6 +2258,9 @@ export class MetricQueryBuilder {
             }
 
             metricsFromTable.forEach((metric) => {
+                if (popMetricIds.has(getItemId(metric))) {
+                    return;
+                }
                 // Nested aggregate outer metrics are materialized by the
                 // nested_agg CTE flow and must not also be emitted here.
                 if (nestedAggOuterIds.has(getItemId(metric))) {
@@ -2028,6 +2428,8 @@ export class MetricQueryBuilder {
                                 this.exploreDimensionsWithoutAccess,
                             adapterType,
                             startOfWeek,
+                            timezone: this.timezoneForDateTrunc,
+                            columnTimezone: this.columnTimezone,
                         });
                         const popDimensionFilters =
                             this.getPopDimensionsFilterSQL(popFieldId);
@@ -2147,10 +2549,20 @@ export class MetricQueryBuilder {
                 const notSumDistinct =
                     metric.type !== MetricType.SUM_DISTINCT &&
                     metric.type !== MetricType.AVERAGE_DISTINCT;
+                // Non-aggregate metrics referencing distinct metrics are
+                // projected by the outer dd_base SELECT (SPK-333). Keep
+                // them out of cte_unaffected so their broken compiledSql
+                // (which still inlines the sum_distinct as raw SUM) isn't
+                // emitted here either.
+                const notNonAggReferencingDd = !nonAggReferencingDd.has(
+                    getItemId(metric),
+                );
                 return (
                     notInMetricCtes &&
                     notMetricWithCteReferences &&
+                    !popMetricIds.has(getItemId(metric)) &&
                     notSumDistinct &&
+                    notNonAggReferencingDd &&
                     !nestedAggOuterIds.has(getItemId(metric))
                 );
             });
@@ -2233,6 +2645,8 @@ export class MetricQueryBuilder {
                             this.exploreDimensionsWithoutAccess,
                         adapterType,
                         startOfWeek,
+                        timezone: this.timezoneForDateTrunc,
+                        columnTimezone: this.columnTimezone,
                     });
                     const popDimensionFilters =
                         this.getPopDimensionsFilterSQL(popFieldId);
@@ -2327,7 +2741,7 @@ export class MetricQueryBuilder {
                     metricCte.metrics
                         // excludes metrics only used for references
                         .filter((metric) =>
-                            metricsObjects.find((m) => metric === getItemId(m)),
+                            selectedOrFilteredMetricIds.has(metric),
                         )
                         .map(
                             (metricName) =>
@@ -2338,7 +2752,7 @@ export class MetricQueryBuilder {
                     metricCte.metrics
                         // excludes metrics only used for references
                         .filter((metricId) =>
-                            compiledMetricQuery.metrics.includes(metricId),
+                            selectedOrFilteredMetricIds.has(metricId),
                         )
                         .map(
                             (metricName) =>
@@ -2369,9 +2783,11 @@ export class MetricQueryBuilder {
                             return `CROSS JOIN ${metricCte.name}`;
                         }
                         return `INNER JOIN ${metricCte.name} ON ${dimensionAlias
-                            .map(
-                                (alias) =>
-                                    `( ${unaffectedMetricsCteName}.${alias} = ${metricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${metricCte.name}.${alias} IS NULL ) )`,
+                            .map((alias) =>
+                                warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                    `${unaffectedMetricsCteName}.${alias}`,
+                                    `${metricCte.name}.${alias}`,
+                                ),
                             )
                             .join(' AND ')}`;
                     }),
@@ -2403,7 +2819,10 @@ export class MetricQueryBuilder {
                                     )})`;
                                 }
                                 // default to joining on all dimensions
-                                return `( ${unaffectedMetricsCteName}.${alias} = ${popMetricCte.name}.${alias} OR ( ${unaffectedMetricsCteName}.${alias} IS NULL AND ${popMetricCte.name}.${alias} IS NULL ) )`;
+                                return warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                    `${unaffectedMetricsCteName}.${alias}`,
+                                    `${popMetricCte.name}.${alias}`,
+                                );
                             })
                             .join(' AND ')}`;
                     }),
@@ -2433,11 +2852,18 @@ export class MetricQueryBuilder {
 
     /**
      * Builds CTE(s) for distinct metrics (sum_distinct, average_distinct) using ROW_NUMBER deduplication.
-     * Follows the same pattern as PoP CTEs: separate CTE per metric, joined on dimensions.
+     *
+     * Semantics (SPK-450):
+     *   1. Inner subquery picks one row per distinct_keys combination (PARTITION BY distinct_keys).
+     *   2. Outer CTE aggregates up to the grain of (distinct_keys ∩ selected dimensions).
+     *   3. JOIN to dd_base on the overlapping keys (INNER JOIN), or CROSS JOIN when there is no
+     *      overlap so a single scalar is repeated across every output row.
+     *
+     * Selected dimensions that are NOT part of distinct_keys never affect the dedup or the
+     * partitioning — they ride along on dd_base and receive the same value across all of their rows.
      */
     private buildDistinctMetricCtes({
         dimensionSelects,
-        dimensionGroupBy,
         dimensionFilters,
         sqlFrom,
         joinsSql,
@@ -2445,7 +2871,6 @@ export class MetricQueryBuilder {
         baseCteName,
     }: {
         dimensionSelects: Record<string, string>;
-        dimensionGroupBy: string | undefined;
         dimensionFilters: string | undefined;
         sqlFrom: string;
         joinsSql: string | undefined;
@@ -2469,30 +2894,29 @@ export class MetricQueryBuilder {
             },
         );
 
-        const dimensionAlias = Object.keys(dimensionSelects).map(
-            (alias) => `${fieldQuoteChar}${alias}${fieldQuoteChar}`,
-        );
-
-        // Recompute GROUP BY for the outer CTE using dimension count
-        const ddGroupBy =
-            dimensionAlias.length > 0
-                ? `GROUP BY ${dimensionAlias.map((_, i) => i + 1).join(',')}`
-                : undefined;
+        // Build a map: normalized dimension SQL expression -> dimension id.
+        // Used to detect which distinct_keys overlap with the selected dimensions.
+        const normalizeSql = (sql: string): string => {
+            let s = sql.trim();
+            while (s.startsWith('(') && s.endsWith(')')) {
+                s = s.slice(1, -1).trim();
+            }
+            return s;
+        };
+        const dimensionSqlToId = new Map<string, string>();
+        for (const [id, selectStr] of Object.entries(dimensionSelects)) {
+            const suffix = ` AS ${fieldQuoteChar}${id}${fieldQuoteChar}`;
+            const idx = selectStr.lastIndexOf(suffix);
+            const sqlExpr =
+                idx > -1
+                    ? selectStr.substring(0, idx).trim()
+                    : selectStr.trim();
+            dimensionSqlToId.set(normalizeSql(sqlExpr), id);
+        }
 
         const ctes: string[] = [];
         const ddJoins: string[] = [];
         const ddMetricSelects: string[] = [];
-
-        // Extract raw SQL expressions from dimension selects (strip " AS alias" suffix)
-        const dimensionExprs = Object.entries(dimensionSelects).map(
-            ([id, selectStr]) => {
-                const suffix = ` AS ${fieldQuoteChar}${id}${fieldQuoteChar}`;
-                const idx = selectStr.lastIndexOf(suffix);
-                return idx > -1
-                    ? selectStr.substring(0, idx).trim()
-                    : selectStr.trim();
-            },
-        );
 
         for (const metricId of ddMetricIds) {
             const metric = this.getMetricFromId(metricId);
@@ -2502,18 +2926,32 @@ export class MetricQueryBuilder {
             ) {
                 const ddCteName = `dd_${snakeCaseName(metricId)}`;
 
-                // Include selected dimensions in PARTITION BY so each
-                // (distinct_key, dimension) combination gets its own rn=1
-                const partitionExprs = [
-                    ...metric.compiledDistinctKeys,
-                    ...dimensionExprs,
-                ];
+                // For each distinct_key, find the matching selected dimension (if any).
+                // Joinable keys = distinct_keys that the user is also grouping by, and so
+                // need to flow through to the output as join columns.
+                const joinableKeys: Array<{
+                    keySql: string;
+                    dimId: string;
+                }> = [];
+                for (const keySql of metric.compiledDistinctKeys) {
+                    const matchedDimId = dimensionSqlToId.get(
+                        normalizeSql(keySql),
+                    );
+                    if (matchedDimId) {
+                        joinableKeys.push({ keySql, dimId: matchedDimId });
+                    }
+                }
 
-                // Inner subquery: raw data + ROW_NUMBER
+                // Inner subquery: project joinable keys (so the outer can group by them)
+                // plus the row-numbered metric value.
+                const innerKeySelects = joinableKeys.map(
+                    ({ keySql, dimId }) =>
+                        `  ${keySql} AS ${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                );
                 const innerSelects = [
-                    ...Object.values(dimensionSelects),
+                    ...innerKeySelects,
                     `  ${metric.compiledValueSql} AS __dd_val`,
-                    `  ROW_NUMBER() OVER (PARTITION BY ${partitionExprs.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __dd_rn`,
+                    `  ROW_NUMBER() OVER (PARTITION BY ${metric.compiledDistinctKeys.join(', ')} ORDER BY ${metric.compiledValueSql}) AS __dd_rn`,
                 ];
 
                 const innerSubquery = MetricQueryBuilder.assembleSqlParts([
@@ -2524,7 +2962,6 @@ export class MetricQueryBuilder {
                     dimensionFilters,
                 ]);
 
-                // Outer CTE: aggregate with CASE WHEN on ROW_NUMBER
                 let outerAgg: string;
                 if (metric.type === MetricType.AVERAGE_DISTINCT) {
                     const floatType = warehouseSqlBuilder.getFloatingType();
@@ -2532,29 +2969,43 @@ export class MetricQueryBuilder {
                 } else {
                     outerAgg = `SUM(CASE WHEN __dd_rn = 1 THEN __dd_val ELSE NULL END)`;
                 }
+
+                // Outer CTE: group by the joinable keys (or no group by for a scalar).
+                const outerKeyAliases = joinableKeys.map(
+                    ({ dimId }) => `${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                );
                 const outerSelects = [
-                    ...dimensionAlias,
+                    ...outerKeyAliases.map((alias) => `  ${alias}`),
                     `  ${outerAgg} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                 ];
+                const outerGroupBy =
+                    joinableKeys.length > 0
+                        ? `GROUP BY ${joinableKeys.map((_, i) => i + 1).join(', ')}`
+                        : undefined;
 
-                const cteSql = `${ddCteName} AS (\nSELECT\n${outerSelects.join(',\n')}\nFROM (\n${innerSubquery}\n) __dd_sub\n${ddGroupBy ?? ''}\n)`;
+                const cteParts = [
+                    `SELECT\n${outerSelects.join(',\n')}`,
+                    `FROM (\n${innerSubquery}\n) __dd_sub`,
+                    outerGroupBy,
+                ];
+                const cteSql = `${ddCteName} AS (\n${MetricQueryBuilder.assembleSqlParts(cteParts)}\n)`;
                 ctes.push(cteSql);
 
-                // Build JOIN clause (same NULL-safe pattern as PoP)
-                if (dimensionAlias.length === 0) {
+                if (joinableKeys.length === 0) {
                     ddJoins.push(`CROSS JOIN ${ddCteName}`);
                 } else {
                     ddJoins.push(
-                        `INNER JOIN ${ddCteName} ON ${dimensionAlias
-                            .map(
-                                (alias) =>
-                                    `( ${baseCteName}.${alias} = ${ddCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${ddCteName}.${alias} IS NULL ) )`,
+                        `INNER JOIN ${ddCteName} ON ${outerKeyAliases
+                            .map((alias) =>
+                                warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                    `${baseCteName}.${alias}`,
+                                    `${ddCteName}.${alias}`,
+                                ),
                             )
                             .join(' AND ')}`,
                     );
                 }
 
-                // Metric select for final query
                 ddMetricSelects.push(
                     `  ${ddCteName}.${fieldQuoteChar}${metricId}${fieldQuoteChar} AS ${fieldQuoteChar}${metricId}${fieldQuoteChar}`,
                 );
@@ -2955,33 +3406,29 @@ export class MetricQueryBuilder {
 
             if (hasRawDep) {
                 // Mixed metric: replace aggregate dep refs with CTE 1 column
-                // refs manually, then let compileMetricSql resolve raw refs
-                // and ${TABLE} refs against the base table (which is in scope
-                // in CTE 3).
-                let mixedSql = preSql;
-                for (const [depId, depMetric] of aggregateInnerDeps) {
-                    const escapedName = depMetric.name.replace(
-                        /[.*+?^${}()|[\]\\]/g,
-                        '\\$&',
-                    );
-                    const escapedTable = depMetric.table.replace(
-                        /[.*+?^${}()|[\]\\]/g,
-                        '\\$&',
-                    );
-                    const cteRef = `${naCteName}.${fieldQuoteChar}${depId}${fieldQuoteChar}`;
-                    mixedSql = mixedSql
-                        .replace(
-                            new RegExp(`\\$\\{${escapedName}\\}`, 'g'),
-                            cteRef,
-                        )
-                        .replace(
-                            new RegExp(
-                                `\\$\\{${escapedTable}\\.${escapedName}\\}`,
-                                'g',
-                            ),
-                            cteRef,
+                // refs, then let compileMetricSql resolve raw refs and
+                // ${TABLE} refs against the base table (which is in scope in
+                // CTE 3). Resolve each ${ref} via getParsedReference so the
+                // short form ${name} maps to the outer metric's own table —
+                // not to a same-named metric on a joined table (PROD-7503).
+                const mixedSql = preSql.replace(
+                    lightdashVariablePattern,
+                    (fullMatch, ref) => {
+                        if (ref === 'TABLE') return fullMatch;
+                        const { refTable, refName } = getParsedReference(
+                            ref,
+                            outerMetric.table,
                         );
-                }
+                        const refItemId = getItemId({
+                            table: refTable,
+                            name: refName,
+                        });
+                        if (aggregateInnerDeps.has(refItemId)) {
+                            return `${naCteName}.${fieldQuoteChar}${refItemId}${fieldQuoteChar}`;
+                        }
+                        return fullMatch;
+                    },
+                );
 
                 // Compile remaining refs (raw metric refs, ${TABLE}, dimensions)
                 // against the explore tables — they resolve to base table columns.
@@ -3049,9 +3496,11 @@ export class MetricQueryBuilder {
             } else {
                 naJoins.push(
                     `INNER JOIN ${naResultsCteName} ON ${dimensionAlias
-                        .map(
-                            (alias) =>
-                                `( ${baseCteName}.${alias} = ${naResultsCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${naResultsCteName}.${alias} IS NULL ) )`,
+                        .map((alias) =>
+                            warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                `${baseCteName}.${alias}`,
+                                `${naResultsCteName}.${alias}`,
+                            ),
                         )
                         .join(' AND ')}`,
                 );
@@ -3081,7 +3530,10 @@ export class MetricQueryBuilder {
                         .trim()
                         .replace(/\s+AS\s+.*$/i, '')
                         .trim();
-                    return `( ${expr} = ${naCteName}.${qId} OR ( ${expr} IS NULL AND ${naCteName}.${qId} IS NULL ) )`;
+                    return warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                        expr,
+                        `${naCteName}.${qId}`,
+                    );
                 },
             );
             const cteJoinClause =
@@ -3114,9 +3566,11 @@ export class MetricQueryBuilder {
             } else {
                 naJoins.push(
                     `INNER JOIN ${naMixedCteName} ON ${dimensionAlias
-                        .map(
-                            (alias) =>
-                                `( ${baseCteName}.${alias} = ${naMixedCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${naMixedCteName}.${alias} IS NULL ) )`,
+                        .map((alias) =>
+                            warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                `${baseCteName}.${alias}`,
+                                `${naMixedCteName}.${alias}`,
+                            ),
                         )
                         .join(' AND ')}`,
                 );
@@ -3539,9 +3993,11 @@ export class MetricQueryBuilder {
             );
             if (nonPivotDimIds.length > 0) {
                 const joinCondition = nonPivotDimIds
-                    .map(
-                        (dimId) =>
-                            `(${opts.currentCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar} = row_totals.${fieldQuoteChar}${dimId}${fieldQuoteChar} OR (${opts.currentCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar} IS NULL AND row_totals.${fieldQuoteChar}${dimId}${fieldQuoteChar} IS NULL))`,
+                    .map((dimId) =>
+                        this.args.warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                            `${opts.currentCteName}.${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                            `row_totals.${fieldQuoteChar}${dimId}${fieldQuoteChar}`,
+                        ),
                     )
                     .join(' AND ');
                 joinClauses.push(`LEFT JOIN row_totals ON ${joinCondition}`);
@@ -3689,6 +4145,15 @@ export class MetricQueryBuilder {
     public compileQuery(): CompiledQuery {
         const { explore, compiledMetricQuery } = this.args;
         const fields = getFieldsFromMetricQuery(compiledMetricQuery, explore);
+        const usedFieldCompilationErrors = this.getUsedFieldCompilationErrors();
+
+        if (usedFieldCompilationErrors.length > 0) {
+            if (this.args.continueOnError) {
+                this.compilationErrors.push(...usedFieldCompilationErrors);
+            } else {
+                throw new CompileError(usedFieldCompilationErrors.join('\n'));
+            }
+        }
 
         const dimensionsSQL = this.getDimensionsSQL();
         const metricsSQL = this.getMetricsSQL();
@@ -3779,6 +4244,8 @@ export class MetricQueryBuilder {
                         this.exploreDimensionsWithoutAccess,
                     adapterType,
                     startOfWeek,
+                    timezone: this.timezoneForDateTrunc,
+                    columnTimezone: this.columnTimezone,
                 });
                 const popDimensionFilters =
                     this.getPopDimensionsFilterSQL(popFieldId);
@@ -3855,7 +4322,10 @@ export class MetricQueryBuilder {
                                     true,
                                 )})`;
                             }
-                            return `( ${baseCteName}.${alias} = ${popCteName}.${alias} OR ( ${baseCteName}.${alias} IS NULL AND ${popCteName}.${alias} IS NULL ) )`;
+                            return this.args.warehouseSqlBuilder.getNullSafeEqualJoinSql(
+                                `${baseCteName}.${alias}`,
+                                `${popCteName}.${alias}`,
+                            );
                         })
                         .join(' AND ')}`,
                 );
@@ -3904,7 +4374,6 @@ export class MetricQueryBuilder {
                 ddMetricSelects,
             } = this.buildDistinctMetricCtes({
                 dimensionSelects: dimensionsSQL.selects,
-                dimensionGroupBy: dimensionsSQL.groupBySQL,
                 dimensionFilters: dimensionsSQL.filtersSQL,
                 sqlFrom,
                 joinsSql: joins.joinSQL,
@@ -3913,7 +4382,53 @@ export class MetricQueryBuilder {
             });
             ctes.push(...ddCtes);
 
-            if (hasNonDdSelects) {
+            // Build selects for non-aggregate metrics that reference dd metrics.
+            // Their SQL templates are recompiled so ${ref} expressions pointing
+            // at sum_distinct/average_distinct metrics resolve to the dd CTE
+            // aliases instead of the inlined fallback SUM/AVG SQL.
+            const nonAggDdMetricIds =
+                this.getNonAggregateMetricsReferencingDistinct();
+            const nonAggDdSelects: string[] = [];
+
+            // Build CTE map for replaceMetricReferencesWithCteReferences.
+            // dd_base must come first (its name is used for dimension resolution).
+            // Include all non-dd metrics that land in dd_base so that references
+            // like ${unique_customer_count} resolve to dd_base."metric_id"
+            // instead of being recompiled as raw SQL (which would reference
+            // tables not available in the outer SELECT).
+            const ddMetricIdSet = new Set(ddMetricIds);
+            const metricsInDdBase =
+                this.getSelectedAndReferencedMetricIds().filter(
+                    (id) =>
+                        !ddMetricIdSet.has(id) && !nonAggDdMetricIds.has(id),
+                );
+            const ddCteMap: Array<{ name: string; metrics: string[] }> = [
+                { name: ddBaseCteName, metrics: metricsInDdBase },
+                ...ddMetricIds.map((id) => ({
+                    name: `dd_${snakeCaseName(id)}`,
+                    metrics: [id],
+                })),
+            ];
+            const ddFieldQuoteChar =
+                this.args.warehouseSqlBuilder.getFieldQuoteChar();
+            const orderedNonAggDdIds =
+                this.topoSortNonAggDdMetrics(nonAggDdMetricIds);
+            const nonAggRewriteMap = new Map<string, string>();
+            for (const metricId of orderedNonAggDdIds) {
+                const metric = this.getMetricFromId(metricId);
+                const rewrittenSql =
+                    this.replaceMetricReferencesWithCteReferences(
+                        metric,
+                        ddCteMap,
+                        nonAggRewriteMap,
+                    );
+                nonAggRewriteMap.set(metricId, rewrittenSql);
+                nonAggDdSelects.push(
+                    `  ${rewrittenSql} AS ${ddFieldQuoteChar}${metricId}${ddFieldQuoteChar}`,
+                );
+            }
+
+            if (hasNonDdSelects || nonAggDdSelects.length > 0) {
                 ctes.push(
                     MetricQueryBuilder.wrapAsCte(
                         ddBaseCteName,
@@ -3923,7 +4438,11 @@ export class MetricQueryBuilder {
 
                 finalSelectParts = [
                     `SELECT`,
-                    [`  ${ddBaseCteName}.*`, ...ddMetricSelects].join(',\n'),
+                    [
+                        `  ${ddBaseCteName}.*`,
+                        ...ddMetricSelects,
+                        ...nonAggDdSelects,
+                    ].join(',\n'),
                     `FROM ${ddBaseCteName}`,
                     ...ddJoins,
                 ];

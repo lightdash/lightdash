@@ -59,12 +59,10 @@ services:
             - GROUPS_ENABLED=${GROUPS_ENABLED:-false}
             - SERVICE_ACCOUNT_ENABLED=${SERVICE_ACCOUNT_ENABLED:-false}
             - SAVED_METRICS_TREE_ENABLED=${SAVED_METRICS_TREE_ENABLED:-false}
-            - POSTHOG_PROJECT_API_KEY=${POSTHOG_PROJECT_API_KEY}
-            - POSTHOG_FE_API_HOST=${POSTHOG_FE_API_HOST}
-            - POSTHOG_BE_API_HOST=${POSTHOG_BE_API_HOST}
             - HEADWAY_ENABLED=${HEADWAY_ENABLED:-true}
             - OPENAI_API_KEY=${OPENAI_API_KEY}
             - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+            - AI_WRITEBACK_ANTHROPIC_API_KEY=${AI_WRITEBACK_ANTHROPIC_API_KEY}
             - AI_COPILOT_ENABLED=${AI_COPILOT_ENABLED}
             - AI_DEFAULT_PROVIDER=${AI_DEFAULT_PROVIDER}
             - AI_EMBEDDING_ENABLED=${AI_EMBEDDING_ENABLED}
@@ -115,13 +113,13 @@ services:
             - SIGNUP_URL=${SIGNUP_URL}
             - HELP_MENU_URL=${HELP_MENU_URL}
             - ATHENA_WAREHOUSE_IAM_ROLE_AUTH=${ATHENA_WAREHOUSE_IAM_ROLE_AUTH}
-        volumes:
-            - '${DBT_PROJECT_DIR}:/usr/app/dbt'
+        # volumes:
+        #     - '${DBT_PROJECT_DIR}:/usr/app/dbt'
         ports:
             - ${PORT:-8080}:${PORT:-8080}
 
     db:
-        image: postgres:15.4
+        image: pgvector/pgvector:pg15
         restart: always
         environment:
             POSTGRES_PASSWORD: ${PGPASSWORD}

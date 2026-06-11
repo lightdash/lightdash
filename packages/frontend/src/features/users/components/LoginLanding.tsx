@@ -24,7 +24,7 @@ import {
 import { useForm, zodResolver } from '@mantine/form';
 import { useTimeout } from '@mantine/hooks';
 import { IconX } from '@tabler/icons-react';
-import { useCallback, useEffect, useState, type FC } from 'react';
+import { useCallback, useEffect, useMemo, useState, type FC } from 'react';
 import { Navigate, useLocation } from 'react-router';
 import { z } from 'zod';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -40,6 +40,10 @@ import {
     useLoginWithEmailMutation,
     type LoginParams,
 } from '../hooks/useLogin';
+import {
+    readLastLoginMethod,
+    writeLastLoginMethod,
+} from '../utils/lastLoginMethod';
 
 const Login: FC<{}> = () => {
     const { health } = useApp();
@@ -63,6 +67,17 @@ const Login: FC<{}> = () => {
     const [isLoginOptionsLoadingDebounced, setIsLoginOptionsLoadingDebounced] =
         useState(false);
 
+    // The method this browser last logged in with (recorded client-side on the
+    // previous login). Lets us pre-fill the email and surface a "Last used" SSO
+    // button on the first page — including private per-org SSO methods that are
+    // otherwise hidden until the email is prechecked.
+    const lastLoginMethod = useMemo(() => readLastLoginMethod(), []);
+    const lastUsedSsoProvider =
+        lastLoginMethod &&
+        isOpenIdIdentityIssuerType(lastLoginMethod.issuerType)
+            ? lastLoginMethod.issuerType
+            : undefined;
+
     const redirectUrl = location.state?.from
         ? `${location.state.from.pathname}${location.state.from.search}`
         : redirectParam
@@ -71,7 +86,7 @@ const Login: FC<{}> = () => {
 
     const form = useForm<LoginParams>({
         initialValues: {
-            email: '',
+            email: lastLoginMethod?.email ?? '',
             password: '',
         },
         validate: zodResolver(
@@ -97,16 +112,36 @@ const Login: FC<{}> = () => {
     useEffect(() => {
         if (loginOptions && loginOptionsSuccess) {
             if (loginOptions.forceRedirect && loginOptions.redirectUri) {
-                window.location.href = loginOptions.redirectUri;
+                // Forward the post-login redirect target so the backend can
+                // persist it as `returnTo` (see `storeOIDCRedirect`). Without
+                // this, SSO-only orgs always land on `/` after auth.
+                const ssoUrl = new URL(loginOptions.redirectUri);
+                if (redirectUrl && redirectUrl !== '/') {
+                    ssoUrl.searchParams.set('redirect', redirectUrl);
+                }
+                window.location.href = ssoUrl.href;
             }
         }
-    }, [loginOptionsSuccess, loginOptions]);
+    }, [loginOptionsSuccess, loginOptions, redirectUrl]);
 
     const ssoOptions = loginOptions
         ? (loginOptions.showOptions.filter(
               isOpenIdIdentityIssuerType,
           ) as OpenIdIdentityIssuerType[])
         : [];
+
+    // Pin the last-used SSO provider to the top of the list, and include it even
+    // when it's a private per-org method not in the default options — it reuses
+    // the same public login path/button we'd show after the email precheck step,
+    // so it can surface on the first page.
+    const ssoOptionsLastUsedFirst = lastUsedSsoProvider
+        ? [
+              lastUsedSsoProvider,
+              ...ssoOptions.filter(
+                  (provider) => provider !== lastUsedSsoProvider,
+              ),
+          ]
+        : ssoOptions;
 
     // Delayed loading state - only show loading if request takes longer than 400ms
     const { start: startDelayedState, clear: clearDelayedState } = useTimeout(
@@ -127,6 +162,14 @@ const Login: FC<{}> = () => {
 
     const { mutate, isLoading, isSuccess, isIdle } = useLoginWithEmailMutation({
         onSuccess: (data) => {
+            // Use the authenticated user's email rather than the form value so
+            // it's always the real address (e.g. the demo auto-login path).
+            if (data.email) {
+                writeLastLoginMethod({
+                    issuerType: LocalIssuerTypes.EMAIL,
+                    email: data.email,
+                });
+            }
             identify({ id: data.userUuid });
             window.location.href = redirectUrl;
         },
@@ -268,7 +311,7 @@ const Login: FC<{}> = () => {
                                 Continue
                             </Button>
                         )}
-                        {ssoOptions.length > 0 && (
+                        {ssoOptionsLastUsedFirst.length > 0 && (
                             <>
                                 {(isEmailLoginAvailable ||
                                     formStage === 'precheck') && (
@@ -287,14 +330,36 @@ const Login: FC<{}> = () => {
                                     />
                                 )}
                                 <Stack>
-                                    {ssoOptions.map((providerName) => (
-                                        <ThirdPartySignInButton
-                                            key={providerName}
-                                            providerName={providerName}
-                                            redirect={redirectUrl}
-                                            disabled={isFormLoading}
-                                        />
-                                    ))}
+                                    {ssoOptionsLastUsedFirst.map(
+                                        (providerName) => (
+                                            <ThirdPartySignInButton
+                                                key={providerName}
+                                                providerName={providerName}
+                                                redirect={redirectUrl}
+                                                loginHint={
+                                                    preCheckEmail ??
+                                                    lastLoginMethod?.email
+                                                }
+                                                disabled={isFormLoading}
+                                                forceShow
+                                                lastUsed={
+                                                    providerName ===
+                                                    lastUsedSsoProvider
+                                                }
+                                                onClick={() =>
+                                                    writeLastLoginMethod({
+                                                        issuerType:
+                                                            providerName,
+                                                        email:
+                                                            form.values.email ||
+                                                            preCheckEmail ||
+                                                            lastLoginMethod?.email ||
+                                                            '',
+                                                    })
+                                                }
+                                            />
+                                        ),
+                                    )}
                                 </Stack>
                             </>
                         )}

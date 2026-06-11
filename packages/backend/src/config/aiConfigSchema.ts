@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 export const DEFAULT_OPENAI_MODEL_NAME = 'gpt-5.4';
-export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-5';
+export const DEFAULT_ANTHROPIC_MODEL_NAME = 'claude-sonnet-4-6';
 export const DEFAULT_DEFAULT_AI_PROVIDER = 'openai';
 export const DEFAULT_OPENROUTER_MODEL_NAME = 'openai/gpt-5.2-2025-12-11';
 export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
@@ -9,6 +9,12 @@ export const DEFAULT_BEDROCK_MODEL_NAME = 'claude-sonnet-4-5';
 export const DEFAULT_OPENAI_EMBEDDING_MODEL = 'text-embedding-3-small';
 export const DEFAULT_AZURE_EMBEDDING_MODEL = 'text-embedding-3-small';
 export const DEFAULT_BEDROCK_EMBEDDING_MODEL = 'cohere.embed-english-v3';
+
+const customHeadersSchema = z.record(z.string()).default({});
+
+// Capability of the gateway/endpoint the provider points at, not a feature
+// toggle — some LLM gateways don't support streaming (SSE) completions.
+const supportsStreamingSchema = z.boolean().default(true);
 
 export const aiCopilotConfigSchema = z
     .object({
@@ -29,6 +35,8 @@ export const aiCopilotConfigSchema = z
                     baseUrl: z.string().optional(),
                     availableModels: z.array(z.string()).optional(),
                     zeroDataRetention: z.boolean().default(false),
+                    customHeaders: customHeadersSchema,
+                    supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),
             azure: z
@@ -42,6 +50,8 @@ export const aiCopilotConfigSchema = z
                         .string()
                         .default(DEFAULT_AZURE_EMBEDDING_MODEL),
                     useDeploymentBasedUrls: z.boolean().default(true),
+                    customHeaders: customHeadersSchema,
+                    supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),
             anthropic: z
@@ -49,6 +59,8 @@ export const aiCopilotConfigSchema = z
                     apiKey: z.string(),
                     modelName: z.string().default(DEFAULT_ANTHROPIC_MODEL_NAME),
                     availableModels: z.array(z.string()).optional(),
+                    customHeaders: customHeadersSchema,
+                    supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),
             openrouter: z
@@ -65,6 +77,8 @@ export const aiCopilotConfigSchema = z
                     modelName: z
                         .string()
                         .default(DEFAULT_OPENROUTER_MODEL_NAME),
+                    customHeaders: customHeadersSchema,
+                    supportsStreaming: supportsStreamingSchema,
                 })
                 .optional(),
             bedrock: z
@@ -80,6 +94,8 @@ export const aiCopilotConfigSchema = z
                             .string()
                             .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
                         availableModels: z.array(z.string()).optional(),
+                        customHeaders: customHeadersSchema,
+                        supportsStreaming: supportsStreamingSchema,
                     }),
                     z.object({
                         region: z.string(),
@@ -94,6 +110,8 @@ export const aiCopilotConfigSchema = z
                             .string()
                             .default(DEFAULT_BEDROCK_EMBEDDING_MODEL),
                         availableModels: z.array(z.string()).optional(),
+                        customHeaders: customHeadersSchema,
+                        supportsStreaming: supportsStreamingSchema,
                     }),
                 ])
                 .optional(),
@@ -105,11 +123,13 @@ export const aiCopilotConfigSchema = z
         askAiButtonEnabled: z.boolean(),
         embeddingEnabled: z.boolean(),
         maxQueryLimit: z.number().positive(),
+        runSqlMaxLimit: z.number().positive(),
         verifiedAnswerSimilarityThreshold: z
             .number()
             .min(0)
             .max(1)
             .default(0.6),
+        mcpConnectionTimeoutMs: z.number().positive().default(20_000),
     })
     .refine(
         ({ providers, defaultProvider, enabled }) =>

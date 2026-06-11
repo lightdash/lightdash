@@ -15,6 +15,7 @@ import {
 } from '../types/warehouse';
 import { type VizColumn } from '../visualizations/types';
 import { WeekDay } from './timeFrames';
+import { defaultNullSafeEqualSql } from './warehouse';
 
 export const createVirtualView = (
     virtualViewName: string,
@@ -100,15 +101,6 @@ export const createTemporaryVirtualView = (
             maximumBytesBilled: 0,
         },
         getCatalog: async () => ({}),
-        getAsyncQueryResults: async () => ({
-            queryId: null,
-            queryMetadata: null,
-            totalRows: 0,
-            durationMs: 0,
-            fields: {},
-            pageCount: 0,
-            rows: [],
-        }),
         streamQuery: async () => {},
         executeAsyncQuery: async () => ({
             queryId: null,
@@ -124,6 +116,8 @@ export const createTemporaryVirtualView = (
         getEscapeStringQuoteChar: () => "''",
         getFieldQuoteChar: () => '"',
         getFloatingType: () => 'FLOAT',
+        getNullSafeEqualSql: defaultNullSafeEqualSql,
+        getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
         getMetricSql: () => '',
         concatString: (...args) => args.join(''),
         getAllTables: async () => [],

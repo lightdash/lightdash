@@ -1,9 +1,9 @@
 import { subject } from '@casl/ability';
 import {
     ContentType,
+    FeatureFlags,
     ResourceViewItemType,
     type Dashboard,
-    type FeatureFlags,
 } from '@lightdash/common';
 import {
     ActionIcon,
@@ -48,6 +48,7 @@ import dayjs from 'dayjs';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
 import { useToggle } from 'react-use';
+import { AskAiAgentMenuItem } from '../../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
 import AIDashboardSummary from '../../../ee/features/ambientAi/components/aiDashboardSummary';
 import { PromotionConfirmDialog } from '../../../features/promotion/components/PromotionConfirmDialog';
 import {
@@ -64,9 +65,8 @@ import {
     useUnverifyDashboardMutation,
     useVerifyDashboardMutation,
 } from '../../../hooks/useContentVerification';
-import { useContentVerificationEnabled } from '../../../hooks/useContentVerificationEnabled';
 import { useProject } from '../../../hooks/useProject';
-import { useClientFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import { type TilePreAggregateStatus } from '../../../providers/Dashboard/types';
 import useTracking from '../../../providers/Tracking/useTracking';
@@ -105,7 +105,11 @@ type DashboardHeaderProps = {
     dashboardTiles?: Dashboard['tiles'];
     isMovingDashboardToSpace: boolean;
     onSwitchTab?: (tab: Dashboard['tabs'][number] | undefined) => void;
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles: (
+        tiles: Dashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => void;
     onCancel: () => void;
     onSaveDashboard: () => void;
     onDelete: () => void;
@@ -151,9 +155,11 @@ const DashboardHeader = memo(
             dashboardTiles,
             dashboardTabs,
         );
-        const isDashboardSummariesEnabled = useClientFeatureFlag(
-            'ai-dashboard-summary' as FeatureFlags,
+        const { data: aiDashboardSummaryFlag } = useServerFeatureFlag(
+            FeatureFlags.AiDashboardSummary,
         );
+        const isDashboardSummariesEnabled =
+            aiDashboardSummaryFlag?.enabled ?? false;
 
         const { search, pathname } = useLocation();
         const navigate = useNavigate();
@@ -291,16 +297,26 @@ const DashboardHeader = memo(
             }),
         );
 
-        const userCanPromoteDashboard = user.data?.ability?.can(
-            'promote',
-            subject('Dashboard', {
-                organizationUuid,
-                projectUuid,
-                access: dashboard.access,
-            }),
-        );
-
-        const isContentVerificationEnabled = useContentVerificationEnabled();
+        // Mirror the backend promote check: promoting also requires promote
+        // rights on the upstream (destination) project, so hide the action
+        // when an upstream exists but the user has no promote access there.
+        const userCanPromoteDashboard =
+            user.data?.ability?.can(
+                'promote',
+                subject('Dashboard', {
+                    organizationUuid,
+                    projectUuid,
+                    access: dashboard.access,
+                }),
+            ) &&
+            (project?.upstreamProjectUuid === undefined ||
+                user.data?.ability?.can(
+                    'promote',
+                    subject('Dashboard', {
+                        organizationUuid,
+                        projectUuid: project.upstreamProjectUuid,
+                    }),
+                ));
 
         const canManageContentVerification =
             user.data?.ability?.can(
@@ -378,7 +394,7 @@ const DashboardHeader = memo(
                         </Popover.Dropdown>
                     </Popover>
 
-                    {isContentVerificationEnabled && isDashboardVerified && (
+                    {isDashboardVerified && (
                         <Tooltip
                             label={
                                 dashboard?.verification?.verifiedBy
@@ -731,6 +747,12 @@ const DashboardHeader = memo(
                                 </Menu.Target>
 
                                 <Menu.Dropdown>
+                                    <AskAiAgentMenuItem
+                                        projectUuid={projectUuid}
+                                        dashboardUuid={dashboard.uuid}
+                                        clickedFrom="dashboard_header"
+                                        withDivider
+                                    />
                                     {!!userCanManageDashboard && (
                                         <>
                                             {preAggregatesEnabled &&
@@ -893,8 +915,7 @@ const DashboardHeader = memo(
                                             </Menu.Item>
                                         )}
 
-                                    {isContentVerificationEnabled &&
-                                        canManageContentVerification &&
+                                    {canManageContentVerification &&
                                         dashboardUuid && (
                                             <Menu.Item
                                                 leftSection={

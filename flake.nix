@@ -29,6 +29,12 @@
               ];
             };
           };
+
+          # Socket Firewall Free — blocks malicious npm packages before they hit
+          # disk. Not in nixpkgs, so wrap `npx -y sfw` and expose it on PATH.
+          sfw = pkgs.writeShellScriptBin "sfw" ''
+            exec ${pkgs.nodejs}/bin/npx -y sfw "$@"
+          '';
         in
         {
           default = pkgs.mkShell {
@@ -46,9 +52,9 @@
               lz4
             ];
 
-            buildInputs = with pkgs; [
+            buildInputs = (with pkgs; [
               nodejs
-              pnpm_9
+              pnpm
 
               # for dbt
               python312
@@ -72,7 +78,7 @@
               zlib
               util-linux # libuuid
               xz # liblzma
-            ];
+            ]) ++ [ sfw ];
 
             env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath [
               pkgs.expat

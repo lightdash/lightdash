@@ -1,5 +1,7 @@
 import {
+    ApiGithubUserCredentialResponse,
     ApiSuccessEmpty,
+    assertRegisteredAccount,
     GitIntegrationConfiguration,
     GitRepo,
 } from '@lightdash/common';
@@ -16,6 +18,7 @@ import {
     SuccessResponse,
 } from '@tsoa/runtime';
 import express from 'express';
+import { toSessionUser } from '../auth/account';
 import { isAuthenticated, unauthorisedInDemo } from './authentication';
 import { BaseController } from './baseController';
 
@@ -45,17 +48,89 @@ export class GithubInstallController extends BaseController {
     async installGithubAppForOrganization(
         @Request() req: express.Request,
     ): Promise<void> {
+        assertRegisteredAccount(req.account);
         const context = await this.services
             .getGithubAppService()
-            .installRedirect(req.user!);
+            .installRedirect(toSessionUser(req.account));
 
         req.session.oauth = {};
         req.session.oauth.returnTo = context.returnToUrl;
         req.session.oauth.state = context.state;
         req.session.oauth.inviteCode = context.inviteCode;
+        req.session.oauth.githubFlow = 'installation';
 
         this.setStatus(302);
         this.setHeader('Location', context.installUrl);
+    }
+
+    /**
+     * Link the authenticated user's personal GitHub account so write-backs
+     * can be authored as them instead of the Lightdash GitHub App
+     * @summary Link GitHub account
+     * @param redirect Optional path to return to after authorization
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('302', 'Redirect to GitHub')
+    @Get('/user/authorize')
+    @OperationId('authorizeGithubUser')
+    async authorizeGithubUser(
+        @Request() req: express.Request,
+        @Query() redirect?: string,
+    ): Promise<void> {
+        assertRegisteredAccount(req.account);
+        const context = await this.services
+            .getGithubAppService()
+            .linkUserRedirect(toSessionUser(req.account), redirect);
+
+        req.session.oauth = {};
+        req.session.oauth.returnTo = context.returnToUrl;
+        req.session.oauth.state = context.state;
+        req.session.oauth.githubFlow = 'user_link';
+
+        this.setStatus(302);
+        this.setHeader('Location', context.authorizeUrl);
+    }
+
+    /**
+     * Get the authenticated user's linked GitHub account, if any
+     * @summary Get linked GitHub account
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @SuccessResponse('200')
+    @Get('/user')
+    @OperationId('getGithubUserCredential')
+    async getGithubUserCredential(
+        @Request() req: express.Request,
+    ): Promise<ApiGithubUserCredentialResponse> {
+        assertRegisteredAccount(req.account);
+        const credential = await this.services
+            .getGithubAppService()
+            .getUserCredential(toSessionUser(req.account));
+        return {
+            status: 'ok',
+            results: credential,
+        };
+    }
+
+    /**
+     * Unlink the authenticated user's GitHub account and revoke its token
+     * @summary Unlink GitHub account
+     */
+    @Middlewares([isAuthenticated, unauthorisedInDemo])
+    @Delete('/user')
+    @OperationId('unlinkGithubUser')
+    async unlinkGithubUser(
+        @Request() req: express.Request,
+    ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
+        await this.services
+            .getGithubAppService()
+            .unlinkUser(toSessionUser(req.account));
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: undefined,
+        };
     }
 
     /**
@@ -72,9 +147,10 @@ export class GithubInstallController extends BaseController {
         status: 'ok';
         results: GitIntegrationConfiguration;
     }> {
+        assertRegisteredAccount(req.account);
         const config = await this.services
             .getGitIntegrationService()
-            .getConfiguration(req.user!);
+            .getConfiguration(toSessionUser(req.account));
 
         return {
             status: 'ok',
@@ -100,20 +176,34 @@ export class GithubInstallController extends BaseController {
         @Query() installation_id?: string,
         @Query() setup_action?: string,
     ): Promise<void> {
+        assertRegisteredAccount(req.account);
         if (!state || state !== req.session.oauth?.state) {
             this.setStatus(400);
             throw new Error('State does not match');
         }
-        const redirectUrl = await this.services
-            .getGithubAppService()
-            .installCallback(
-                req.user!,
-                req.session.oauth,
-                code,
-                state,
-                installation_id,
-                setup_action,
-            );
+        // GitHub Apps share one OAuth callback URL between the installation
+        // flow and the user-link flow; the session flag set at redirect time
+        // tells them apart.
+        const redirectUrl =
+            req.session.oauth.githubFlow === 'user_link'
+                ? await this.services
+                      .getGithubAppService()
+                      .linkUserCallback(
+                          toSessionUser(req.account),
+                          req.session.oauth,
+                          code,
+                          state,
+                      )
+                : await this.services
+                      .getGithubAppService()
+                      .installCallback(
+                          toSessionUser(req.account),
+                          req.session.oauth,
+                          code,
+                          state,
+                          installation_id,
+                          setup_action,
+                      );
         this.setStatus(302);
         this.setHeader('Location', redirectUrl);
     }
@@ -128,9 +218,10 @@ export class GithubInstallController extends BaseController {
     async uninstallGithubAppForOrganization(
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         await this.services
             .getGithubAppService()
-            .deleteAppInstallation(req.user!);
+            .deleteAppInstallation(toSessionUser(req.account));
 
         this.setStatus(200);
         return {
@@ -151,13 +242,14 @@ export class GithubInstallController extends BaseController {
         status: 'ok';
         results: Array<GitRepo>;
     }> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
         return {
             status: 'ok',
             results: await this.services
                 .getGithubAppService()
-                .getRepos(req.user!),
+                .getRepos(toSessionUser(req.account)),
         };
     }
 
@@ -186,10 +278,11 @@ export class GithubInstallController extends BaseController {
             defaultBranch: string;
         };
     }> {
+        assertRegisteredAccount(req.account);
         const result = await this.services
             .getGithubAppService()
             .createRepository(
-                req.user!,
+                toSessionUser(req.account),
                 body.name,
                 body.description,
                 body.isPrivate,

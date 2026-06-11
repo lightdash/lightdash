@@ -1,0 +1,41 @@
+version: 2
+models:
+  - name: european_cities
+    description: |
+      # European Cities (top 5,000)
+
+      The 5,000 most populous cities in geographic Europe, derived from the
+      [GeoNames](https://www.geonames.org/) `cities5000` dataset
+      (CC BY 4.0). Includes EU/EEA countries plus the UK, Balkans, Belarus,
+      Moldova, Ukraine, and microstates. Excludes Russia and Turkey because
+      their ISO codes also cover large Asian territories.
+    columns:
+      - name: name
+        description: City name (UTF-8, native script where applicable)
+
+      - name: country_code
+        description: ISO-3166-1 alpha-2 country code
+
+      - name: lon
+        description: Longitude coordinate (-180 to 180)
+
+      - name: lat
+        description: Latitude coordinate (-90 to 90)
+
+      - name: population
+        description: Most recent population estimate from GeoNames
+        config:
+          meta:
+            metrics:
+              total_population:
+                type: sum
+                label: Total population
+                description: Sum of population across cities
+              average_population:
+                type: average
+                label: Average population
+                description: Average city population
+              city_count:
+                type: count
+                label: City count
+                description: Number of cities

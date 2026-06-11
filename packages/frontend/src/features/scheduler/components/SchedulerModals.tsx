@@ -8,6 +8,10 @@ import {
 } from '../../../features/explorer/store';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import {
+    useAppSchedulerCreateMutation,
+    useAppSchedulers,
+} from '../hooks/useAppSchedulers';
+import {
     useChartSchedulerCreateMutation,
     useChartSchedulers,
 } from '../hooks/useChartSchedulers';
@@ -36,6 +40,7 @@ export const DashboardSchedulersModal: FC<DashboardSchedulersProps> = ({
     const schedulersQuery = useDashboardSchedulers({
         dashboardUuid,
         searchQuery: debouncedSearchQuery,
+        includeLatestRun: true,
     });
     const createMutation = useDashboardSchedulerCreateMutation();
 
@@ -82,6 +87,37 @@ const DELIVERY_FORMATS = [
     SchedulerFormat.PDF,
 ];
 
+interface AppSchedulersProps {
+    projectUuid: string;
+    appUuid: string;
+    name: string;
+    isOpen: boolean;
+    onClose: () => void;
+    /** If provided, opens directly in edit mode for this scheduler */
+    initialSchedulerUuid?: string;
+}
+
+export const AppSchedulersModal: FC<AppSchedulersProps> = ({
+    projectUuid,
+    appUuid,
+    name,
+    ...modalProps
+}) => {
+    const schedulersQuery = useAppSchedulers({ projectUuid, appUuid });
+    const createMutation = useAppSchedulerCreateMutation(projectUuid);
+
+    return (
+        <SchedulerModal
+            resourceUuid={appUuid}
+            name={name}
+            schedulersQuery={schedulersQuery}
+            createMutation={createMutation}
+            isApp
+            {...modalProps}
+        />
+    );
+};
+
 export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
     chartUuid,
     name,
@@ -93,6 +129,7 @@ export const ChartSchedulersModal: FC<ChartSchedulersProps> = ({
         chartUuid,
         searchQuery: debouncedSearchQuery,
         formats: DELIVERY_FORMATS,
+        includeLatestRun: true,
     });
     const createMutation = useChartSchedulerCreateMutation();
 

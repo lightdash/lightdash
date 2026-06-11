@@ -13,8 +13,10 @@ import {
     MetricFilterRule,
     MetricOverrides,
     MetricType,
+    PivotSortAnchor,
     TableCalculationTemplate,
     TableCalculationType,
+    TimezoneSetting,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 
@@ -64,6 +66,7 @@ export type SavedChartTable = Knex.CompositeTableType<
             | 'first_viewed_at'
             | 'deleted_at'
             | 'deleted_by_user_uuid'
+            | 'color_palette_uuid'
         >
     >
 >;
@@ -85,6 +88,7 @@ export type DbSavedChart = {
     first_viewed_at: Date | null;
     deleted_at: Date | null;
     deleted_by_user_uuid: string | null;
+    color_palette_uuid: string | null;
 };
 
 export type DbSavedChartVersion = {
@@ -102,7 +106,7 @@ export type DbSavedChartVersion = {
     pivot_dimensions: string[] | null;
     parameters: AnyType | null; // JSONB
     updated_by_user_uuid: string | null;
-    timezone: string | null;
+    timezone: TimezoneSetting;
 };
 
 export type SavedChartVersionsTable = Knex.CompositeTableType<
@@ -152,6 +156,7 @@ type DbSavedChartVersionSort = {
     descending: boolean;
     nulls_first: boolean | null;
     order: number;
+    pivot_values: PivotSortAnchor[] | null;
 };
 
 export type CreateDbSavedChartVersionSort = Pick<
@@ -161,7 +166,10 @@ export type CreateDbSavedChartVersionSort = Pick<
     | 'descending'
     | 'nulls_first'
     | 'order'
->;
+> & {
+    // Caller must JSON.stringify before insert — Knex doesn't auto-serialize JSONB.
+    pivot_values: string | null;
+};
 
 export const SavedChartVersionSortsTableName = 'saved_queries_version_sorts';
 export type SavedChartVersionSortsTable = Knex.CompositeTableType<
@@ -244,7 +252,7 @@ export type DbSavedChartAdditionalMetric = {
     filters: MetricFilterRule[] | null; // JSONB
     base_dimension_name: string | null;
     uuid: string;
-    format_options?: CustomFormat | null; // JSONB
+    format_options?: CustomFormat | string | null; // JSONB
     // PoP metadata (optional)
     generation_type?: string | null;
     base_metric_id?: string | null;

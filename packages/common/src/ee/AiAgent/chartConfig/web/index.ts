@@ -1,5 +1,6 @@
 // runQuery tool
 export { getWebAiChartConfig } from './getWebAiChartConfig';
+export { getRunQueryChartConfig } from './runQueryTool/getRunQueryChartConfig';
 
 // shared utils
 export { getAvailableChartTypes } from './shared/getAvailableChartTypes';

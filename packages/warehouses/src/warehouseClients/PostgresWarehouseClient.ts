@@ -21,6 +21,7 @@ import { Writable } from 'stream';
 import * as tls from 'tls';
 import { rootCertificates } from 'tls';
 import { normalizeUnicode } from '../utils/sql';
+import './pgProtocolGuard';
 import QueryStream from './PgQueryStream';
 import WarehouseBaseClient from './WarehouseBaseClient';
 import WarehouseBaseSqlBuilder from './WarehouseBaseSqlBuilder';
@@ -113,6 +114,20 @@ const mapFieldType = (type: string): DimensionType => {
 
 const { builtins } = pg.types;
 const POSTGRES_NAME_TOO_LONG_SQLSTATE = '42622';
+
+// Server-side ceiling for a single streamed query, bounded just under the
+// 10-min scheduler job timeout so a stalled cursor fails clearly instead of
+// hanging the whole job. The pool's `query_timeout` does not fire on the
+// cursor (pg-cursor) path, so the ceiling is enforced via `statement_timeout`
+// plus a client-side wall-clock backstop. Overridable per-connection via
+// `timeoutSeconds`.
+const DEFAULT_STATEMENT_TIMEOUT_MS = 1000 * 60 * 9; // 9 minutes
+
+// The client-side backstop fires this long after the server-side
+// statement_timeout, so the server's cancellation error wins the race and
+// surfaces a clear message; the client backstop only triggers if the server
+// never reports back (e.g. a dead SSH tunnel socket).
+const CLIENT_STATEMENT_TIMEOUT_BUFFER_MS = 1000 * 30; // 30 seconds
 
 const convertDataTypeIdToDimensionType = (
     dataTypeId: number,
@@ -244,8 +259,30 @@ export class PostgresClient<
         let pool: pg.Pool | undefined;
         let closeClient: (() => void) | undefined;
         let activeStream: QueryStream | undefined;
+        let queryTimeout: ReturnType<typeof setTimeout> | undefined;
+
+        // The pool's `query_timeout` does not fire on the cursor (pg-cursor)
+        // path, so we enforce the ceiling ourselves: a server-side
+        // `statement_timeout` (set below) plus this client-side wall-clock
+        // backstop that fires shortly after, in case the server never reports
+        // back (e.g. a stalled SSH tunnel socket).
+        const statementTimeoutMs = this.credentials.timeoutSeconds
+            ? this.credentials.timeoutSeconds * 1000
+            : DEFAULT_STATEMENT_TIMEOUT_MS;
+        const clientTimeoutMs =
+            statementTimeoutMs + CLIENT_STATEMENT_TIMEOUT_BUFFER_MS;
 
         return new Promise<void>((resolve, reject) => {
+            queryTimeout = setTimeout(() => {
+                const timeoutError = new WarehouseQueryError(
+                    `Query timed out after ${Math.round(
+                        clientTimeoutMs / 1000,
+                    )}s`,
+                );
+                activeStream?.destroy(timeoutError);
+                reject(timeoutError);
+            }, clientTimeoutMs);
+
             pool = new pg.Pool({
                 ...this.config,
                 connectionTimeoutMillis: 30000,
@@ -371,19 +408,29 @@ export class PostgresClient<
                     });
                 };
 
-                if (options?.timezone) {
-                    console.debug(
-                        `Setting postgres session timezone ${options?.timezone}`,
-                    );
-                    client
-                        .query(`SET timezone TO '${options?.timezone}';`)
-                        .then(() => {
-                            runQuery();
-                        })
-                        .catch((sessionError) => {
-                            reject(sessionError);
-                        });
-                } else runQuery();
+                // Always enforce a server-side statement timeout — the pool's
+                // query_timeout is ineffective on the cursor path. Issued as
+                // its own single statement (followed by the optional timezone)
+                // to stay portable across Postgres and Redshift.
+                client
+                    .query(`SET statement_timeout = ${statementTimeoutMs}`)
+                    .then(() => {
+                        if (options?.timezone) {
+                            console.debug(
+                                `Setting postgres session timezone ${options?.timezone}`,
+                            );
+                            return client.query(
+                                `SET timezone TO '${options?.timezone}'`,
+                            );
+                        }
+                        return undefined;
+                    })
+                    .then(() => {
+                        runQuery();
+                    })
+                    .catch((sessionError) => {
+                        reject(sessionError);
+                    });
             });
         })
             .catch((e) => {
@@ -394,6 +441,9 @@ export class PostgresClient<
                 throw this.parseError(error, sql);
             })
             .finally(async () => {
+                if (queryTimeout) {
+                    clearTimeout(queryTimeout);
+                }
                 // Release the client first, then end the pool
                 if (closeClient) {
                     try {

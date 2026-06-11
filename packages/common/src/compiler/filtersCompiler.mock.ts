@@ -760,3 +760,120 @@ export const filterInTheCurrentDayTimezoneMocks = [
         "((customers.created) >= ('2020-04-03 12:00:00+00:00') AND (customers.created) <= ('2020-04-04 11:59:59+00:00'))",
     ],
 ];
+
+// ── Boundary formatter tests (YYYY-MM-DD) ────────────────────────────
+// createBoundaryDateFormatter converts UTC dates back to project TZ
+// before formatting, fixing the positive-offset date shift bug.
+// System time: 04 Apr 2020 06:12:30 GMT
+export const filterInThePastCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) < ('2020-04-04'))",
+    ],
+];
+
+// IN_THE_CURRENT day: all TZs resolve to 2020-04-04
+export const filterInTheCurrentDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-04'))",
+    ],
+];
+
+// IN_THE_PAST 1 day non-completed: (now-1d) to now, formatted as dates
+export const filterInThePastNonCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-04'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-04'))",
+    ],
+];
+
+// IN_THE_NEXT 1 completed day: tomorrow's start-of-day per TZ
+// Asia/Tokyo: without fix, Apr5 JST = Apr4 UTC → wrong date
+export const filterInTheNextCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) < ('2020-04-06'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) < ('2020-04-06'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) < ('2020-04-06'))",
+    ],
+];
+
+// IN_THE_NEXT 1 day non-completed: now to now+1d, formatted as dates
+export const filterInTheNextNonCompletedDayDateFormatterMocks = [
+    [
+        'UTC',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-05'))",
+    ],
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-05'))",
+    ],
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) <= ('2020-04-05'))",
+    ],
+];
+
+// ── Negative-offset edge case: 02:00 UTC = Apr 3 22:00 EDT ──────────
+// System time: 04 Apr 2020 02:00:00 GMT
+// Without fix: endOf(day) crosses midnight UTC → wrong date (Apr 4)
+// With fix: boundaryFormatter converts to EDT → correct date (Apr 3)
+export const filterNegativeOffsetEdgeCaseCurrentDayMocks = [
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-03') AND (customers.created) <= ('2020-04-03'))",
+    ],
+];
+
+export const filterNegativeOffsetEdgeCasePastCompletedDayMocks = [
+    [
+        'America/New_York',
+        "((customers.created) >= ('2020-04-02') AND (customers.created) < ('2020-04-03'))",
+    ],
+];
+
+// ── Positive-offset edge case: 22:00 UTC Apr 4 = Apr 5 07:00 JST ────
+// System time: 04 Apr 2020 22:00:00 GMT
+// Tokyo is already on Apr 5 while UTC is still Apr 4.
+// Without fix: boundaries formatted from UTC dates yield Apr 3/Apr 4
+// With fix: boundaryFormatter converts to JST → correct Apr 4/Apr 5
+export const filterPositiveOffsetEdgeCaseCurrentDayMocks = [
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-05') AND (customers.created) <= ('2020-04-05'))",
+    ],
+];
+
+export const filterPositiveOffsetEdgeCasePastCompletedDayMocks = [
+    [
+        'Asia/Tokyo',
+        "((customers.created) >= ('2020-04-04') AND (customers.created) < ('2020-04-05'))",
+    ],
+];

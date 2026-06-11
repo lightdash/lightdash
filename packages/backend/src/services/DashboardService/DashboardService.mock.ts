@@ -6,6 +6,7 @@ import {
     Dashboard,
     DashboardBasicDetails,
     DashboardTileTypes,
+    getDefaultResolvedColorPalette,
     OrganizationMemberRole,
     PossibleAbilities,
     SavedChart,
@@ -25,6 +26,7 @@ export const user: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    timezone: null,
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
@@ -58,6 +60,7 @@ export const space: SpaceTable['base'] = {
     inherit_parent_permissions: false,
     project_member_access_role: null,
     is_default_user_space: false,
+    color_palette_uuid: null,
     deleted_at: null,
     deleted_by_user_uuid: null,
 };
@@ -80,6 +83,7 @@ export const publicSpace: Space = {
     pinnedListOrder: null,
     parentSpaceUuid: null,
     path: 'public-space',
+    colorPaletteUuid: null,
 };
 export const privateSpace: Space = {
     ...publicSpace,
@@ -129,6 +133,7 @@ export const dashboard: Dashboard = {
     inheritsFromOrgOrProject: true,
     access: [],
     tabs: [],
+    colorPaletteUuid: null,
 };
 
 export const chart: SavedChart = {
@@ -163,6 +168,8 @@ export const chart: SavedChart = {
     dashboardUuid: dashboard.uuid,
     dashboardName: dashboard.name,
     colorPalette: [],
+    colorPaletteUuid: null,
+    resolvedColorPalette: getDefaultResolvedColorPalette(),
     inheritsFromOrgOrProject: true,
     access: [],
 };

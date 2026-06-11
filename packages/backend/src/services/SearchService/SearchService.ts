@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AllChartsSearchResult,
     DashboardSearchResult,
     DashboardTabResult,
     FieldSearchResult,
@@ -14,6 +15,7 @@ import {
     TableSearchResult,
 } from '@lightdash/common';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
+import type { AppGenerateService } from '../../ee/services/AppGenerateService/AppGenerateService';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -29,6 +31,8 @@ type SearchServiceArguments = {
     spaceModel: SpaceModel;
     userAttributesModel: UserAttributesModel;
     spacePermissionService: SpacePermissionService;
+    // EE-only — undefined on OSS builds where data apps don't exist.
+    appGenerateService?: AppGenerateService;
 };
 
 export class SearchService extends BaseService {
@@ -44,6 +48,8 @@ export class SearchService extends BaseService {
 
     private readonly spacePermissionService: SpacePermissionService;
 
+    private readonly appGenerateService?: AppGenerateService;
+
     constructor(args: SearchServiceArguments) {
         super();
         this.analytics = args.analytics;
@@ -52,6 +58,93 @@ export class SearchService extends BaseService {
         this.spaceModel = args.spaceModel;
         this.userAttributesModel = args.userAttributesModel;
         this.spacePermissionService = args.spacePermissionService;
+        this.appGenerateService = args.appGenerateService;
+    }
+
+    async findContent(
+        user: SessionUser,
+        projectUuid: string,
+        query: string,
+    ): Promise<{
+        content: (DashboardSearchResult | AllChartsSearchResult)[];
+    }> {
+        const { organizationUuid, name: projectName } =
+            await this.projectModel.getSummary(projectUuid);
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { projectUuid, projectName },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const dashboardSearchResults = await this.searchModel.searchDashboards(
+            projectUuid,
+            query,
+            undefined,
+            'OR',
+        );
+
+        const chartSearchResults = await this.searchModel.searchAllCharts(
+            projectUuid,
+            query,
+            'OR',
+        );
+
+        const allContent = [
+            ...dashboardSearchResults,
+            ...chartSearchResults,
+        ] satisfies (DashboardSearchResult | AllChartsSearchResult)[];
+        if (allContent.length === 0) {
+            return { content: [] };
+        }
+
+        const spaceUuids = [
+            ...new Set(allContent.map((content) => content.spaceUuid)),
+        ];
+        const spaceContexts =
+            await this.spacePermissionService.getSpacesAccessContext(
+                user.userUuid,
+                spaceUuids,
+            );
+
+        return {
+            content: allContent.filter((content) => {
+                const spaceContext = spaceContexts[content.spaceUuid];
+                if (!spaceContext) return false;
+
+                if ('charts' in content) {
+                    return auditedAbility.can(
+                        'view',
+                        subject('Dashboard', {
+                            ...spaceContext,
+                            metadata: {
+                                dashboardUuid: content.uuid,
+                                dashboardName: content.name,
+                            },
+                        }),
+                    );
+                }
+
+                return auditedAbility.can(
+                    'view',
+                    subject('SavedChart', {
+                        ...spaceContext,
+                        metadata: {
+                            savedChartUuid: content.uuid,
+                            savedChartName: content.name,
+                        },
+                    }),
+                );
+            }),
+        };
     }
 
     async getSearchResults(
@@ -61,15 +154,17 @@ export class SearchService extends BaseService {
         source: 'omnibar' | 'ai_search_box' = 'omnibar',
         filters?: SearchFilters,
     ): Promise<SearchResults> {
-        const { organizationUuid } =
+        const { organizationUuid, name: projectName } =
             await this.projectModel.getSummary(projectUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { projectUuid, projectName },
                 }),
             )
         ) {
@@ -115,11 +210,12 @@ export class SearchService extends BaseService {
             return accessibleSpaceUuids.includes(spaceUuid);
         };
 
-        const hasExploreAccess = user.ability.can(
+        const hasExploreAccess = auditedAbility.can(
             'manage',
             subject('Explore', {
                 organizationUuid,
                 projectUuid,
+                metadata: { projectUuid, projectName },
             }),
         );
 
@@ -211,6 +307,24 @@ export class SearchService extends BaseService {
             results.spaces.map(filterItem),
         );
 
+        // Data apps are EE-only and have a per-app permission shape (space
+        // access OR creator self-access). Skip entirely on OSS builds and
+        // when the feature flag is off; otherwise filter via the bulk helper.
+        let filteredDataApps: SearchResults['dataApps'] = [];
+        if (this.appGenerateService && results.dataApps.length > 0) {
+            const dataAppsEnabled =
+                await this.appGenerateService.dataAppsEnabledFor(user);
+            if (dataAppsEnabled) {
+                filteredDataApps =
+                    await this.appGenerateService.filterAppsUserCanView(
+                        user,
+                        organizationUuid,
+                        projectUuid,
+                        results.dataApps,
+                    );
+            }
+        }
+
         const filteredResults = {
             ...results,
             tables: filteredTables,
@@ -228,14 +342,16 @@ export class SearchService extends BaseService {
                 (_, index) => hasSqlChartAccess[index],
             ),
             spaces: results.spaces.filter((_, index) => hasSpaceAccess[index]),
-            pages: user.ability.can(
+            pages: auditedAbility.can(
                 'view',
                 subject('Analytics', {
                     organizationUuid,
+                    metadata: { projectUuid, projectName },
                 }),
             )
                 ? results.pages
                 : [], // For now there is only 1 page and it is for admins only
+            dataApps: filteredDataApps,
         };
 
         this.analytics.track({
@@ -250,6 +366,7 @@ export class SearchService extends BaseService {
                 tablesResultsCount: filteredResults.tables.length,
                 fieldsResultsCount: filteredResults.fields.length,
                 dashboardTabsResultsCount: filteredResults.dashboardTabs.length,
+                dataAppsResultsCount: filteredResults.dataApps.length,
                 source,
             },
         });

@@ -1,4 +1,4 @@
-import { FeatureFlags, type FieldId } from '@lightdash/common';
+import { type FieldId } from '@lightdash/common';
 import { useCallback, useMemo } from 'react';
 import { useParams } from 'react-router';
 import useEmbed from '../ee/providers/Embed/useEmbed';
@@ -24,7 +24,6 @@ import { buildQueryArgs } from './explorer/buildQueryArgs';
 import { useExplore } from './useExplore';
 import { useDateZoomGranularitySearch } from './useExplorerRoute';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
  * Manager hook for Explorer query state
@@ -88,9 +87,6 @@ export const useExplorerQueryManager = () => {
         refetchOnMount: false,
         refetchOnWindowFocus: false,
     });
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
 
     const [preAggCacheEnabled] = usePreAggregateCacheEnabled();
 
@@ -153,14 +149,12 @@ export const useExplorerQueryManager = () => {
     const { query: unpivotedQuery, queryResults: unpivotedQueryResults } =
         unpivotedQueryExecutor;
 
-    // Function to prepare and set query arguments (single source of truth)
-    const runQuery = useCallback(() => {
+    const runQuery = useCallback((): boolean => {
         const mainQueryArgs = buildQueryArgs({
             activeFields,
             tableName,
             projectUuid,
             explore,
-            useSqlPivotResults: useSqlPivotResults?.enabled ?? false,
             computedMetricQuery: metricQuery,
             parameters,
             isEditMode,
@@ -173,13 +167,14 @@ export const useExplorerQueryManager = () => {
 
         if (mainQueryArgs) {
             dispatch(explorerActions.setValidQueryArgs(mainQueryArgs));
+            return true;
         }
+        return false;
     }, [
         activeFields,
         tableName,
         projectUuid,
         explore,
-        useSqlPivotResults?.enabled,
         metricQuery,
         parameters,
         isEditMode,

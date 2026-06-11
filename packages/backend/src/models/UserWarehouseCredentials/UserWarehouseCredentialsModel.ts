@@ -1,9 +1,13 @@
 import {
     assertUnreachable,
+    bigquerySsoUserCredentialsSchema,
+    BigqueryTokenError,
+    CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     databricksOauthU2mUserCredentialsSchema,
     DatabricksTokenError,
     NotFoundError,
+    ParameterError,
     ProjectType,
     SnowflakeAuthenticationType,
     snowflakeSsoUserCredentialsSchema,
@@ -376,6 +380,25 @@ export class UserWarehouseCredentialsModel {
                 }
             }
 
+            // Reject empty BigQuery keyfiles before they reach the warehouse
+            // client (where they surface as "does not contain a client_email
+            // field"), so the user is prompted to reauthenticate instead.
+            // Per-user BigQuery credentials are always SSO, so the refresh_token
+            // requirement applies to every BigQuery user credential.
+            if (
+                credentialsWithSecrets.credentials.type ===
+                WarehouseTypes.BIGQUERY
+            ) {
+                const result = bigquerySsoUserCredentialsSchema.safeParse(
+                    credentialsWithSecrets.credentials,
+                );
+                if (!result.success) {
+                    throw new BigqueryTokenError(
+                        `Please reauthenticate to access BigQuery`,
+                    );
+                }
+            }
+
             return credentialsWithSecrets;
         }
 
@@ -404,11 +427,31 @@ export class UserWarehouseCredentialsModel {
         }
     }
 
+    // Reject credentials that would be unusable at query time, so we never
+    // persist an empty shell (e.g. a masked BigQuery placeholder keyfile that
+    // overwrites a working credential). Per-user BigQuery credentials are
+    // always SSO, so the refresh_token requirement applies to all of them.
+    private static validateCredentialsForPersistence(
+        data: UpsertUserWarehouseCredentials,
+    ): void {
+        if (data.credentials.type === WarehouseTypes.BIGQUERY) {
+            const result = bigquerySsoUserCredentialsSchema.safeParse(
+                data.credentials,
+            );
+            if (!result.success) {
+                throw new ParameterError(
+                    'BigQuery credentials require a valid keyfile. Please reauthenticate with Google.',
+                );
+            }
+        }
+    }
+
     async create(
         userUuid: string,
         data: UpsertUserWarehouseCredentials,
         projectUuid?: string,
     ): Promise<string> {
+        UserWarehouseCredentialsModel.validateCredentialsForPersistence(data);
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
@@ -438,6 +481,7 @@ export class UserWarehouseCredentialsModel {
         userWarehouseCredentialsUuid: string,
         data: UpsertUserWarehouseCredentials,
     ): Promise<string> {
+        UserWarehouseCredentialsModel.validateCredentialsForPersistence(data);
         let encryptedCredentials: Buffer;
         try {
             encryptedCredentials = this.encryptionUtil.encrypt(
@@ -487,5 +531,59 @@ export class UserWarehouseCredentialsModel {
             .delete()
             .where('user_uuid', userUuid)
             .andWhere('warehouse_type', warehouseType);
+    }
+
+    /** Compare-and-swap on the credential's stored refreshToken. Returns true on swap. */
+    async rotateRefreshToken(
+        userWarehouseCredentialsUuid: string,
+        expectedOldRefreshToken: string,
+        newRefreshToken: string,
+    ): Promise<boolean> {
+        return this.database.transaction(async (trx) => {
+            const row = await trx(UserWarehouseCredentialsTableName)
+                .select('name', 'warehouse_type', 'encrypted_credentials')
+                .where(
+                    'user_warehouse_credentials_uuid',
+                    userWarehouseCredentialsUuid,
+                )
+                .forUpdate()
+                .first();
+            if (!row) {
+                return false;
+            }
+
+            let credentials: CreateWarehouseCredentials;
+            try {
+                credentials = JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials;
+            } catch {
+                return false;
+            }
+
+            const stored = (credentials as Partial<{ refreshToken: string }>)
+                .refreshToken;
+            if (stored !== expectedOldRefreshToken) {
+                return false;
+            }
+
+            (credentials as { refreshToken: string }).refreshToken =
+                newRefreshToken;
+            const encryptedCredentials = this.encryptionUtil.encrypt(
+                JSON.stringify(credentials),
+            );
+            await trx(UserWarehouseCredentialsTableName)
+                .update({
+                    name: row.name,
+                    warehouse_type: row.warehouse_type,
+                    encrypted_credentials: encryptedCredentials,
+                    updated_at: new Date(),
+                })
+                .where(
+                    'user_warehouse_credentials_uuid',
+                    userWarehouseCredentialsUuid,
+                );
+            return true;
+        });
     }
 }

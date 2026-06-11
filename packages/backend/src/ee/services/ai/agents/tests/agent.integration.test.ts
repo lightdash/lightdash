@@ -47,6 +47,8 @@ describeOrSkip.concurrent('agent integration tests', () => {
             modelName: 'gpt-5.4',
             embeddingModelName: 'text-embedding-3-small',
             zeroDataRetention: false,
+            customHeaders: {},
+            supportsStreaming: true,
         },
         getModelPreset('openai', 'gpt-5.4')!,
     );
@@ -58,8 +60,6 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
         context = getTestContext();
         const services = getServices(context.app);
-
-        const enableReasoning = process.env.OPENAI_REASONING_ENABLED === 'true';
 
         // Create specialized agent with tags
         const specialized = await services.aiAgentService.createAgent(
@@ -74,10 +74,10 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 groupAccess: [],
                 userAccess: [],
                 spaceAccess: [],
+                mcpServerUuids: [],
                 imageUrl: null,
                 enableDataAccess: true,
                 enableSelfImprovement: false,
-                enableReasoning,
                 version: 2,
             },
         );
@@ -95,10 +95,10 @@ describeOrSkip.concurrent('agent integration tests', () => {
                 groupAccess: [],
                 userAccess: [],
                 spaceAccess: [],
+                mcpServerUuids: [],
                 imageUrl: null,
                 enableDataAccess: true,
                 enableSelfImprovement: false,
-                enableReasoning,
                 version: 2,
                 description: null,
             },
@@ -170,7 +170,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
                         // RunQuery efficiency evaluation
                         const runQueryCount = toolCalls.filter(
-                            (tc) => tc.tool_name === 'runQuery',
+                            (tc) => tc.tool_name === 'generateVisualization',
                         ).length;
                         const runQueryEfficiencyScore =
                             calculateRunQueryEfficiencyScore(runQueryCount);
@@ -351,7 +351,7 @@ describeOrSkip.concurrent('agent integration tests', () => {
 
                         // RunQuery efficiency evaluation
                         const runQueryCount = toolCalls.filter(
-                            (tc) => tc.tool_name === 'runQuery',
+                            (tc) => tc.tool_name === 'generateVisualization',
                         ).length;
                         const runQueryEfficiencyScore =
                             calculateRunQueryEfficiencyScore(runQueryCount);

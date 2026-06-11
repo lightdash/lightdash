@@ -1,7 +1,11 @@
 import { type Element, type Root } from 'hast';
 import { visit } from 'unist-util-visit';
 
-type ContentType = 'dashboard-link' | 'chart-link' | 'artifact-link';
+type ContentType =
+    | 'dashboard-link'
+    | 'chart-link'
+    | 'artifact-link'
+    | 'sql-runner-link';
 
 interface LinkProcessor {
     fragment: string;
@@ -55,11 +59,52 @@ const LINK_PROCESSORS: LinkProcessor[] = [
             return data;
         },
     },
+    {
+        fragment: '#sql-runner-link',
+        contentType: 'sql-runner-link',
+        cleanUrl: () => '#',
+        extractData: () => ({}),
+    },
 ];
 
 const processLink = (node: Element, href: string): void => {
     const processor = LINK_PROCESSORS.find((p) => href.includes(p.fragment));
-    if (!processor) return;
+    if (!processor) {
+        const dashboardMatch = href.match(
+            /\/projects\/[^/]+\/dashboards\/([^/]+)\/view/,
+        );
+        const chartMatch = href.match(
+            /\/projects\/[^/]+\/saved\/([^/]+)\/view/,
+        );
+        const sqlRunnerMatch = href.match(
+            /\/projects\/[^/]+\/sql-runner\/([^/#?]+)/,
+        );
+
+        if (dashboardMatch) {
+            node.properties = {
+                ...node.properties,
+                'data-content-type': 'dashboard-link',
+                'data-dashboard-uuid': dashboardMatch[1],
+                href,
+            };
+        } else if (chartMatch) {
+            node.properties = {
+                ...node.properties,
+                'data-content-type': 'chart-link',
+                'data-chart-uuid': chartMatch[1],
+                href,
+            };
+        } else if (sqlRunnerMatch) {
+            node.properties = {
+                ...node.properties,
+                'data-content-type': 'chart-link',
+                'data-chart-uuid': sqlRunnerMatch[1],
+                href,
+            };
+        }
+
+        return;
+    }
 
     node.properties = {
         ...node.properties,

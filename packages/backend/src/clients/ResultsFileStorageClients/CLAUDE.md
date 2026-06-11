@@ -58,7 +58,7 @@ const downloadUrl = await resultsClient.uploadFile(
 - File extension auto-appended via `sanitizeFileExtension` if missing
 - Pre-signed URLs expire based on `lightdashConfig.s3.expirationTime`
 - Throws `MissingConfigError` if methods called when S3 not configured
-- Without S3 configured, async queries fall back to re-querying warehouse (Snowflake only)
+- S3-compatible storage is required at boot, so `isEnabled` is always true in a running instance
 </importantToKnow>
 
 <links>

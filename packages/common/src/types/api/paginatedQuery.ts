@@ -1,7 +1,7 @@
 import { type ParametersValuesMap, type PivotConfiguration } from '../..';
 import type { QueryExecutionContext } from '../analytics';
 import type { DownloadFileType } from '../downloadFile';
-import type { DashboardFilters, Filters } from '../filter';
+import type { AndFilterGroup, DashboardFilters, Filters } from '../filter';
 import type { MetricQueryRequest, SortField } from '../metricQuery';
 import type { PivotConfig } from '../pivot';
 import type { DateGranularity } from '../timeFrames';
@@ -23,6 +23,10 @@ export type ExecuteAsyncMetricQueryRequestParams =
         query: Omit<MetricQueryRequest, 'csvLimit'>;
         dateZoom?: DateZoom;
         pivotConfiguration?: PivotConfiguration;
+        // Filters whose target field is absent from the query's explore are
+        // dropped silently — an app may run queries against multiple explores
+        // and one mismatch shouldn't break the others.
+        dashboardFilters?: DashboardFilters;
     };
 
 export type ExecuteAsyncSavedChartRequestParams =
@@ -120,8 +124,19 @@ export type DownloadAsyncQueryResultsRequestParams = {
     columnOrder?: string[];
     hiddenFields?: string[];
     pivotConfig?: PivotConfig;
+    exportPivotedData?: boolean;
     attachmentDownloadName?: string;
 };
+
+export type ExecuteAsyncFieldValueSearchRequestParams =
+    CommonExecuteQueryRequestParams & {
+        table: string;
+        fieldId: string;
+        search: string;
+        limit?: number;
+        filters?: AndFilterGroup;
+        forceRefresh?: boolean;
+    };
 
 export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncMetricQueryRequestParams
@@ -129,4 +144,27 @@ export type ExecuteAsyncQueryRequestParams =
     | ExecuteAsyncSavedChartRequestParams
     | ExecuteAsyncDashboardChartRequestParams
     | ExecuteAsyncUnderlyingDataRequestParams
-    | ExecuteAsyncDashboardSqlChartRequestParams;
+    | ExecuteAsyncDashboardSqlChartRequestParams
+    | ExecuteAsyncFieldValueSearchRequestParams;
+
+// Recovers dateZoom from a persisted request-parameters union without duck-typing at call sites.
+export const getDateZoomFromRequestParameters = (
+    params: ExecuteAsyncQueryRequestParams | undefined,
+): DateZoom | undefined =>
+    params && 'dateZoom' in params ? params.dateZoom : undefined;
+
+/**
+ * Kinds of totals derivable from an executed pivot query. Follow-up PRs
+ * will widen the union to enable the commented-out variants below.
+ */
+export type CalculateTotalKind = 'columnTotal' | 'rowTotal' | 'columnSubtotal';
+// | 'rowSubtotal'
+// | 'grandTotal';
+
+export type ExecuteAsyncCalculateTotalRequestParams = {
+    kind: CalculateTotalKind;
+    // Required for `columnSubtotal`: the dimensions this subtotal level groups
+    // by (the pivot groupBy columns are added from the source query).
+    subtotalDimensions?: string[];
+    invalidateCache?: boolean;
+};

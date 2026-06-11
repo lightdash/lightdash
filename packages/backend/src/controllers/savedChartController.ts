@@ -10,7 +10,7 @@ import {
     ApiPromoteChartResponse,
     ApiPromotionChangesResponse,
     ApiSuccessEmpty,
-    AuthorizationError,
+    assertRegisteredAccount,
     DateZoom,
     QueryExecutionContext,
     SortField,
@@ -22,6 +22,7 @@ import {
     Body,
     Delete,
     Deprecated,
+    Extension,
     Get,
     Middlewares,
     OperationId,
@@ -39,9 +40,11 @@ import {
     getContextFromHeader,
     getContextFromQueryOrHeader,
 } from '../analytics/LightdashAnalytics';
+import { toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     deprecatedResultsRoute,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from './authentication';
@@ -53,14 +56,24 @@ import { ApiRunQueryResponse } from './runQueryController';
 @Tags('Charts')
 export class SavedChartController extends BaseController {
     /**
-     * Run a query for a chart
+     * Deprecated — use the v2 Execute saved chart endpoint instead.
+     *
+     * This endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.
      * @summary Run chart query
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/chart instead
      * @param chartUuid chartUuid for the chart to run
      * @param body
      * @param body.dashboardFilters dashboard filters
      * @param body.invalidateCache invalidate cache
      * @param req express request
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (\`POST /api/v2/projects/{projectUuid}/query/chart\`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).
+</Warning>`,
+    })
     @Deprecated()
     @Middlewares([
         allowApiKeyAuthentication,
@@ -78,6 +91,7 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        assertRegisteredAccount(req.account);
         const context = getContextFromQueryOrHeader(req);
 
         await this.services
@@ -85,7 +99,7 @@ export class SavedChartController extends BaseController {
             .trackDeprecatedRouteCalled(
                 {
                     event: 'deprecated_route.called',
-                    userId: req.user!.userUuid,
+                    userId: toSessionUser(req.account).userUuid,
                     properties: {
                         route: req.path,
                         context: context ?? QueryExecutionContext.API,
@@ -100,7 +114,7 @@ export class SavedChartController extends BaseController {
         return {
             status: 'ok',
             results: await this.services.getProjectService().runViewChartQuery({
-                account: req.account!,
+                account: req.account,
                 chartUuid,
                 versionUuid: undefined,
                 invalidateCache: body.invalidateCache,
@@ -110,11 +124,25 @@ export class SavedChartController extends BaseController {
     }
 
     /**
-     * Get chart and run query with dashboard filters
+     * Deprecated — use the v2 Execute dashboard chart endpoint instead.
+     *
+     * This endpoint was deprecated on 20 March 2025 and is past its sunset date (20 June 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute dashboard chart, then Get results.
      * @summary Get chart and results
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/dashboard-chart instead
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (20 June 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute dashboard chart](https://docs.lightdash.com/api-reference/v2/execute-dashboard-chart) (\`POST /api/v2/projects/{projectUuid}/query/dashboard-chart\`) to start the query, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. See also [Cancel query](https://docs.lightdash.com/api-reference/v2/cancel-query) and [Download results](https://docs.lightdash.com/api-reference/v2/download-results).
+</Warning>`,
+    })
     @Deprecated()
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2025-03-20')),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/chart-and-results')
     @OperationId('PostDashboardTile')
@@ -164,12 +192,13 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetChartHistoryResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedChartService()
-                .getHistory(req.user!, chartUuid),
+                .getHistory(toSessionUser(req.account), chartUuid),
         };
     }
 
@@ -189,22 +218,33 @@ export class SavedChartController extends BaseController {
         @Path() versionUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiGetChartVersionResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedChartService()
-                .getVersion(req.user!, chartUuid, versionUuid),
+                .getVersion(toSessionUser(req.account), chartUuid, versionUuid),
         };
     }
 
     /**
-     * Run a query for a chart version
+     * Deprecated — use the v2 Execute saved chart endpoint instead.
+     *
+     * This endpoint was deprecated on 20 March 2025 and is past its sunset date (30 April 2025) — it may be removed at any time. Migrate to the v2 async query flow: Execute saved chart, then Get results.
      * @summary Get chart version results
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/chart instead
      * @param chartUuid chartUuid for the chart to run
      * @param versionUuid versionUuid for the chart version
      * @param req express request
      */
+    @Extension('x-mint', {
+        content: `<Warning>
+**This endpoint is deprecated and past its sunset date (30 April 2025) — it may be removed at any time.**
+
+Migrate to the v2 async query flow: [Execute saved chart](https://docs.lightdash.com/api-reference/v2/execute-saved-chart) (\`POST /api/v2/projects/{projectUuid}/query/chart\`) to run the chart's latest version, then [Get results](https://docs.lightdash.com/api-reference/v2/get-results) to fetch rows. Running a query for a specific chart version has no v2 equivalent.
+</Warning>`,
+    })
     @Deprecated()
     @Middlewares([
         allowApiKeyAuthentication,
@@ -219,13 +259,14 @@ export class SavedChartController extends BaseController {
         @Path() versionUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiRunQueryResponse> {
+        assertRegisteredAccount(req.account);
         const context = getContextFromHeader(req);
         await this.services
             .getLightdashAnalyticsService()
             .trackDeprecatedRouteCalled(
                 {
                     event: 'deprecated_route.called',
-                    userId: req.user!.userUuid,
+                    userId: toSessionUser(req.account).userUuid,
                     properties: {
                         route: req.path,
                         context: context ?? QueryExecutionContext.API,
@@ -241,7 +282,7 @@ export class SavedChartController extends BaseController {
         return {
             status: 'ok',
             results: await this.services.getProjectService().runViewChartQuery({
-                account: req.account!,
+                account: req.account,
                 chartUuid,
                 versionUuid,
                 context,
@@ -269,10 +310,11 @@ export class SavedChartController extends BaseController {
         @Path() versionUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSuccessEmpty> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getSavedChartService()
-            .rollback(req.user!, chartUuid, versionUuid);
+            .rollback(toSessionUser(req.account), chartUuid, versionUuid);
         return {
             status: 'ok',
             results: undefined,
@@ -282,10 +324,18 @@ export class SavedChartController extends BaseController {
     /**
      * Calculate metric totals from a saved chart
      * @summary Calculate total from saved chart
+     * @deprecated Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead, which computes totals from a previously-executed async query.
      * @param chartUuid chartUuid for the chart to run
      * @param req express request
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-05-29'), {
+            suffixMessage:
+                'Use POST /api/v2/projects/{projectUuid}/query/{queryUuid}/calculate-total instead, which computes totals from a previously-executed async query.',
+        }),
+    ])
     @SuccessResponse('200', 'Success')
     @Post('/calculate-total')
     @OperationId('CalculateTotalFromSavedChart')
@@ -301,7 +351,7 @@ export class SavedChartController extends BaseController {
     ): Promise<ApiCalculateTotalResponse> {
         this.setStatus(200);
         const totalResult = await this.services
-            .getProjectService()
+            .getAsyncQueryService()
             .calculateTotalFromSavedChart(
                 req.account!,
                 chartUuid,
@@ -333,12 +383,13 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiPromoteChartResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getPromoteService()
-                .promoteChart(req.user!, chartUuid),
+                .promoteChart(toSessionUser(req.account), chartUuid),
         };
     }
 
@@ -356,12 +407,13 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiPromotionChangesResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getPromoteService()
-                .getPromoteChartDiff(req.user!, chartUuid),
+                .getPromoteChartDiff(toSessionUser(req.account), chartUuid),
         };
     }
 
@@ -369,7 +421,11 @@ export class SavedChartController extends BaseController {
      * Get schedulers for a saved chart
      * @summary List saved chart schedulers
      */
-    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        getDeprecatedRouteMiddleware(new Date('2026-01-26')),
+    ])
     @SuccessResponse('200', 'Success')
     @Get('/schedulers')
     @OperationId('getSavedChartSchedulers')
@@ -378,13 +434,11 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSavedChartSchedulersResponse> {
-        if (!req.user) {
-            throw new AuthorizationError('User session not found');
-        }
+        assertRegisteredAccount(req.account);
 
         const schedulers = await this.services
             .getSavedChartService()
-            .getSchedulers(req.user, chartUuid);
+            .getSchedulers(toSessionUser(req.account), chartUuid);
 
         this.setStatus(200);
 
@@ -410,12 +464,17 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiCreateSavedChartSchedulerResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedChartService()
-                .createScheduler(req.user!, chartUuid, req.body),
+                .createScheduler(
+                    toSessionUser(req.account),
+                    chartUuid,
+                    req.body,
+                ),
         };
     }
 
@@ -433,12 +492,13 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiExportChartImageResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getUnfurlService()
-                .exportChart(chartUuid, req.user!),
+                .exportChart(chartUuid, toSessionUser(req.account)),
         };
     }
 
@@ -460,12 +520,13 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiContentVerificationResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedChartService()
-                .verifyChart(req.user!, chartUuid),
+                .verifyChart(toSessionUser(req.account), chartUuid),
         };
     }
 
@@ -487,10 +548,11 @@ export class SavedChartController extends BaseController {
         @Path() chartUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiContentVerificationDeleteResponse> {
+        assertRegisteredAccount(req.account);
         this.setStatus(200);
         await this.services
             .getSavedChartService()
-            .unverifyChart(req.user!, chartUuid);
+            .unverifyChart(toSessionUser(req.account), chartUuid);
         return {
             status: 'ok',
             results: undefined,

@@ -7,7 +7,6 @@ import {
     isSchedulerGsheetsOptions,
     isSlackTarget,
     SchedulerFormat,
-    SchedulerRunStatus,
 } from '@lightdash/common';
 import {
     Anchor,
@@ -21,12 +20,10 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
-    IconAlertCircle,
     IconArrowDown,
     IconArrowsSort,
     IconArrowUp,
     IconChartBar,
-    IconCheck,
     IconClock,
     IconCodeDots,
     IconLayoutDashboard,
@@ -36,13 +33,6 @@ import {
     IconTextCaption,
     IconUser,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
 import {
     useCallback,
     useEffect,
@@ -60,11 +50,19 @@ import { useProject } from '../../hooks/useProject';
 import GSheetsSvg from '../../svgs/google-sheets.svg?react';
 import GoogleChatSvg from '../../svgs/googlechat.svg?react';
 import SlackSvg from '../../svgs/slack.svg?react';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+    type ContentTableSortingState,
+    type ContentTableVirtualizer,
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import ReassignSchedulerOwnerModal from './ReassignSchedulerOwnerModal';
 import SchedulersViewActionMenu from './SchedulersViewActionMenu';
 import { SchedulersViewTab } from './SchedulersViewConstants';
 import {
+    getRunStatusConfig,
     getSchedulerIcon,
     getSchedulerLink,
     type SchedulerItem,
@@ -84,27 +82,6 @@ interface SchedulersTableProps {
 
 const fetchSize = 50;
 
-const getRunStatusConfig = (status: SchedulerRunStatus) => {
-    switch (status) {
-        case SchedulerRunStatus.COMPLETED:
-            return { color: 'green', icon: IconCheck, label: 'Completed' };
-        case SchedulerRunStatus.PARTIAL_FAILURE:
-            return {
-                color: 'yellow',
-                icon: IconAlertCircle,
-                label: 'Partial failure',
-            };
-        case SchedulerRunStatus.FAILED:
-            return { color: 'red', icon: IconAlertCircle, label: 'Failed' };
-        case SchedulerRunStatus.RUNNING:
-            return { color: 'blue', icon: IconRun, label: 'Running' };
-        case SchedulerRunStatus.SCHEDULED:
-            return { color: 'gray', icon: IconClock, label: 'Scheduled' };
-        default:
-            return assertUnreachable(status, 'Unknown scheduler run status');
-    }
-};
-
 const SchedulersTable: FC<SchedulersTableProps> = ({
     projectUuid,
     getSlackChannelName,
@@ -114,7 +91,9 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     const theme = useMantineTheme();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
     const [, setSearchParams] = useSearchParams();
 
     const {
@@ -166,12 +145,6 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
     const { data: project } = useProject(projectUuid);
-
-    // Temporary workaround to resolve a memoization issue with react-mantine-table.
-    const [tableData, setTableData] = useState<SchedulerItem[]>([]);
-    useEffect(() => {
-        setTableData(flatData);
-    }, [flatData]);
 
     // Reassign owner modal state
     const [reassignModalOpen, setReassignModalOpen] = useState(false);
@@ -246,7 +219,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const sorting = useMemo<MRT_SortingState>(
+    const sorting = useMemo<ContentTableSortingState>(
         () => [{ id: sortField, desc: sortDirection === 'desc' }],
         [sortField, sortDirection],
     );
@@ -254,8 +227,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
     const handleSortingChange = useCallback(
         (
             updaterOrValue:
-                | MRT_SortingState
-                | ((old: MRT_SortingState) => MRT_SortingState),
+                | ContentTableSortingState
+                | ((old: ContentTableSortingState) => ContentTableSortingState),
         ) => {
             const newSorting =
                 typeof updaterOrValue === 'function'
@@ -270,8 +243,8 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         [sorting, setSorting],
     );
 
-    const columns: MRT_ColumnDef<SchedulerItem>[] = useMemo(() => {
-        const baseColumns: MRT_ColumnDef<SchedulerItem>[] = [
+    const columns: ContentTableColumnDef<SchedulerItem>[] = useMemo(() => {
+        const baseColumns: ContentTableColumnDef<SchedulerItem>[] = [
             {
                 accessorKey: 'name',
                 header: 'Name',
@@ -819,9 +792,9 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         handleReassignOwner,
     ]);
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
-        data: tableData,
+        data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
         enablePagination: false,
@@ -846,7 +819,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
                   mantineSelectCheckboxProps: { size: 'xs' },
                   mantineSelectAllCheckboxProps: { size: 'xs' },
                   displayColumnDefOptions: {
-                      'mrt-row-select': {
+                      'content-table-row-select': {
                           size: 20,
                           minSize: 20,
                           maxSize: 20,
@@ -885,7 +858,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(tableData.length),
+            withColumnBorders: Boolean(flatData.length),
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
@@ -992,7 +965,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
             ),
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },
         state: {
             sorting,
             isLoading,
@@ -1029,7 +1002,7 @@ const SchedulersTable: FC<SchedulersTableProps> = ({
 
     return (
         <>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
             {reassignProjectUuid && (
                 <ReassignSchedulerOwnerModal
                     opened={reassignModalOpen}

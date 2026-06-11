@@ -21,8 +21,10 @@ import {
     getDateDimension,
     getDimensionMapFromTables,
     getFixedWidthBinSelectSql,
+    getIntrinsicUserAttributeRegex,
     getItemId,
     getSqlForTruncatedDate,
+    getUserAttributeRegex,
     IntrinsicUserAttributes,
     isCompiledCustomSqlDimension,
     JoinRelationship,
@@ -43,12 +45,16 @@ export const getDimensionFromId = ({
     dimensionsWithoutAccess,
     adapterType,
     startOfWeek,
+    timezone,
+    columnTimezone,
 }: {
     dimId: FieldId;
     dimensions: Record<string, CompiledDimension>;
     dimensionsWithoutAccess?: Record<string, CompiledDimension>;
     adapterType: SupportedDbtAdapter;
     startOfWeek: WeekDay | null | undefined;
+    timezone?: string;
+    columnTimezone?: string;
 }): CompiledDimension => {
     const dimension = dimensions[dimId];
 
@@ -62,8 +68,13 @@ export const getDimensionFromId = ({
                 dimensionsWithoutAccess,
                 adapterType,
                 startOfWeek,
+                timezone,
+                columnTimezone,
             });
-            if (baseField && newTimeFrame)
+            if (baseField && newTimeFrame) {
+                const effectiveTimezone = baseField.skipTimezoneConversion
+                    ? undefined
+                    : timezone;
                 return {
                     ...baseField,
                     compiledSql: getSqlForTruncatedDate(
@@ -72,9 +83,12 @@ export const getDimensionFromId = ({
                         baseField.compiledSql,
                         baseField.type,
                         startOfWeek,
+                        effectiveTimezone,
+                        columnTimezone,
                     ),
                     timeInterval: newTimeFrame,
                 };
+            }
         }
 
         // At this point, we couldn't find the dimension with the given id
@@ -233,14 +247,9 @@ export const replaceUserAttributes = (
     quoteChar: string,
     wrapChar: string,
 ): string => {
-    const userAttributeRegex =
-        /\$\{(?:lightdash|ld)\.(?:attribute|attributes|attr)\.(\w+)\}/g;
-    const intrinsicUserAttributeRegex =
-        /\$\{(?:lightdash|ld)\.(?:user)\.(\w+)\}/g;
-
     // Replace user attributes in the SQL filter
     const { replacedSql: replacedSqlFilter } = replaceLightdashValues(
-        userAttributeRegex,
+        getUserAttributeRegex(),
         sql,
         userAttributes,
         quoteChar,
@@ -249,7 +258,7 @@ export const replaceUserAttributes = (
 
     // Replace intrinsic user attributes in the SQL filter
     const { replacedSql } = replaceLightdashValues(
-        intrinsicUserAttributeRegex,
+        getIntrinsicUserAttributeRegex(),
         replacedSqlFilter,
         intrinsicUserAttributes,
         quoteChar,

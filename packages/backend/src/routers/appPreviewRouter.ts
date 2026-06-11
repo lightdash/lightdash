@@ -5,9 +5,8 @@ import { validate as isValidUuid } from 'uuid';
 import { type AppRuntimeConfig } from '../config/parseConfig';
 import Logger from '../logging/logger';
 import {
-    PREVIEW_COOKIE_NAME,
-    PREVIEW_TOKEN_MAX_AGE_SECONDS,
     verifyPreviewToken,
+    type PreviewTokenPayload,
 } from './appPreviewToken';
 
 const CONTENT_TYPE_BY_EXT: Record<string, string> = {
@@ -29,19 +28,51 @@ const CONTENT_TYPE_BY_EXT: Record<string, string> = {
     '.map': 'application/json',
 };
 
-const buildCspHeader = (config: AppRuntimeConfig): string => {
-    const { lightdashOrigin, cdnOrigin } = config;
+const buildCspHeader = (
+    config: AppRuntimeConfig,
+    frameAncestors: string[],
+): string => {
+    const { cdnOrigin, cspAllowedOrigins, previewOrigin, lightdashOrigin } =
+        config;
+
+    // The preview iframe is sandboxed without `allow-same-origin`, so its
+    // document origin is opaque. WebKit/Safari resolves the CSP `'self'`
+    // keyword against that opaque origin — which matches nothing — and blocks
+    // the app's own scripts, styles, and fetches. Chromium/Firefox resolve
+    // `'self'` against the response URL's origin, so they load fine. Listing
+    // the serving origin explicitly alongside `'self'` makes the policy work
+    // in all three. The iframe is served from `previewOrigin` in production
+    // (cross-origin previews) and same-origin (`lightdashOrigin`) in dev.
+    const selfOrigin = previewOrigin || lightdashOrigin;
+
+    // Compose a source list, dropping the null cdnOrigin / empty entries.
+    const sources = (...parts: (string | false | null)[]): string =>
+        ["'self'", selfOrigin, ...parts, cdnOrigin]
+            .filter((s): s is string => Boolean(s))
+            .join(' ');
 
     const directives: string[] = [
         `default-src 'none'`,
-        `script-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `style-src 'self' 'unsafe-inline'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `connect-src 'self' ${lightdashOrigin} https:`,
-        `img-src 'self' data:${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `font-src 'self'${cdnOrigin ? ` ${cdnOrigin}` : ''}`,
-        `frame-ancestors ${lightdashOrigin}`,
+        `script-src ${sources()}`,
+        `style-src ${sources("'unsafe-inline'", ...cspAllowedOrigins)}`,
+        // Allow same-origin fetch so html-to-image can inline @font-face
+        // sources and <img>/background URLs when capturing screenshots.
+        // The iframe is sandboxed (`allow-scripts allow-modals`) with an
+        // opaque origin, so any fetch it makes is uncredentialed and can't
+        // exfiltrate user data — the postMessage bridge remains the only
+        // path to the authenticated Lightdash API.
+        `connect-src ${sources()}`,
+        `img-src ${sources('data:')}`,
+        `font-src ${sources(...cspAllowedOrigins)}`,
+        `frame-ancestors ${frameAncestors.join(' ')}`,
         `object-src 'none'`,
-        `base-uri 'none'`,
+        // Constrain <base> to the serving origin instead of blocking it
+        // outright — html-to-image serializes the cloned DOM into an SVG
+        // <foreignObject> whose rendering can trip a base-uri check, and a
+        // `'none'` policy there aborts the whole screenshot. `'self'` alone
+        // fails under Safari's opaque sandbox origin (see above), so the
+        // explicit origin is listed here too.
+        `base-uri ${sources()}`,
     ];
 
     return directives.join('; ');
@@ -56,38 +87,28 @@ const isSafeFilename = (filename: string): boolean =>
     /^[a-zA-Z0-9._-]+$/.test(filename) && !filename.includes('..');
 
 /**
- * Extracts a named cookie value from the Cookie header.
+ * Validates that a token is in a plausible JWT shape (3 base64url
+ * segments). Tighter validation runs in `verifyPreviewToken`; this guard
+ * just keeps stray bytes from being included in S3 keys / logs.
  */
-const getCookieValue = (
-    cookieHeader: string | undefined,
-    name: string,
-): string | undefined => {
-    if (!cookieHeader) return undefined;
-    const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-    return match ? match[1] : undefined;
-};
-
-/**
- * Rewrites Vite-generated asset references in HTML to include a token
- * query parameter so they authenticate without cookies.
- *
- * This is needed when the iframe sandbox omits `allow-same-origin` —
- * the browser won't store cookies for an opaque origin, so asset
- * requests must carry the token themselves.
- *
- * Matches patterns like:
- *   src="./assets/index-BxK29f.js"
- *   href="./assets/style-DhJ93k.css"
- */
-const injectTokenIntoAssetUrls = (html: string, token: string): string =>
-    html.replace(
-        /((?:src|href)="\.\/assets\/[^"]+)"/g,
-        `$1?token=${encodeURIComponent(token)}"`,
-    );
+const isPlausibleToken = (token: string): boolean =>
+    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token);
 
 export const createAppPreviewRouter = (
     config: AppRuntimeConfig,
     lightdashSecret: string,
+    /**
+     * Frame-ancestor allowlist applied to every preview iframe. Matches the
+     * `/embed/*` policy (`'self' https://*`) plus the explicit domains in
+     * `LIGHTDASH_IFRAME_EMBEDDING_DOMAINS` — see App.ts. Both session and
+     * embed-minted tokens use the same list; the broader allowlist costs
+     * little since the iframe is sandboxed (`allow-scripts allow-modals`)
+     * with an opaque origin — any fetch it makes is uncredentialed, so
+     * authenticated backend traffic still only flows through the
+     * parent-mediated postMessage bridge.
+     */
+    frameAncestors: string[],
+    onPreviewView?: (payload: PreviewTokenPayload) => void,
 ): Router => {
     const router = express.Router({ strict: true });
 
@@ -126,10 +147,10 @@ export const createAppPreviewRouter = (
               })
             : null;
 
-    const cspHeaderValue = buildCspHeader(config);
+    const cspHeader = buildCspHeader(config, frameAncestors);
 
     const setSecurityHeaders = (res: express.Response): void => {
-        res.setHeader('Content-Security-Policy', cspHeaderValue);
+        res.setHeader('Content-Security-Policy', cspHeader);
         res.removeHeader('X-Frame-Options');
         res.setHeader('X-Content-Type-Options', 'nosniff');
         res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -186,32 +207,19 @@ export const createAppPreviewRouter = (
         }
     };
 
-    /**
-     * Buffers an S3 readable stream into a UTF-8 string.
-     */
-    const bufferS3Body = (body: NodeJS.ReadableStream): Promise<string> =>
-        new Promise((resolve, reject) => {
-            const chunks: Buffer[] = [];
-            body.on('data', (chunk: Buffer) => chunks.push(chunk));
-            body.on('end', () =>
-                resolve(Buffer.concat(chunks).toString('utf-8')),
-            );
-            body.on('error', reject);
-        });
-
     // -- Auth middleware ------------------------------------------------
 
     /**
-     * Verifies a token and translates the result into an HTTP response.
-     * Shared by both middleware variants.
+     * Verifies a JWT from the `:token` path segment.
+     *
+     * The token lives in the URL path (not a query param) so that Vite's
+     * relative asset URLs (`./assets/foo.js`) naturally inherit the
+     * token when the browser resolves them against the iframe's URL.
+     * That way runtime-rendered <img> / dynamic chunks / lazy modules all
+     * authenticate without any client-side URL rewriting.
      */
-    const handleTokenVerification = (
-        token: string | undefined,
-        req: express.Request,
-        res: express.Response,
-        next: express.NextFunction,
-    ): void => {
-        const { appUuid, version } = req.params;
+    const requireToken: express.RequestHandler = (req, res, next) => {
+        const { appUuid, version, token } = req.params;
 
         if (!isValidUuid(appUuid)) {
             res.status(400).json({
@@ -226,6 +234,14 @@ export const createAppPreviewRouter = (
             res.status(400).json({
                 status: 'error',
                 error: { message: 'Version must be a positive integer' },
+            });
+            return;
+        }
+
+        if (typeof token !== 'string' || !isPlausibleToken(token)) {
+            res.status(401).json({
+                status: 'error',
+                error: { message: 'Invalid token' },
             });
             return;
         }
@@ -245,52 +261,17 @@ export const createAppPreviewRouter = (
             return;
         }
 
+        res.locals.previewTokenPayload = result.payload;
         next();
-    };
-
-    /**
-     * Accepts a JWT from the `?token` query param, verifies it, and
-     * promotes it to a path-scoped HttpOnly cookie so subsequent asset
-     * requests are authenticated automatically by the browser.
-     */
-    const requireTokenAndSetCookie: express.RequestHandler = (
-        req,
-        res,
-        next,
-    ) => {
-        const token =
-            typeof req.query.token === 'string' ? req.query.token : undefined;
-
-        handleTokenVerification(token, req, res, () => {
-            const { appUuid, version } = req.params;
-            const cookiePath = `/api/apps/${appUuid}/versions/${version}/`;
-            res.cookie(PREVIEW_COOKIE_NAME, token!, {
-                path: cookiePath,
-                httpOnly: true,
-                secure: true,
-                sameSite: 'strict',
-                maxAge: PREVIEW_TOKEN_MAX_AGE_SECONDS * 1000,
-            });
-            next();
-        });
-    };
-
-    /** Accepts a JWT from a `?token` query param or the path-scoped cookie. */
-    const requireTokenOrCookie: express.RequestHandler = (req, res, next) => {
-        const token =
-            typeof req.query.token === 'string'
-                ? req.query.token
-                : getCookieValue(req.headers.cookie, PREVIEW_COOKIE_NAME);
-        handleTokenVerification(token, req, res, next);
     };
 
     // -- Routes ---------------------------------------------------------
 
     // Redirect to trailing slash so relative asset paths resolve correctly.
-    // e.g. "assets/foo.css" from "/api/apps/X/versions/Y" would resolve to
-    //       "/api/apps/X/versions/assets/foo.css" (wrong)
-    // but from "/api/apps/X/versions/Y/" resolves correctly.
-    router.get('/:appUuid/versions/:version', (req, res) => {
+    // Without it, "./assets/foo.css" from "/api/apps/X/versions/Y/t/Z" would
+    // resolve to "/api/apps/X/versions/Y/t/assets/foo.css" (wrong); the
+    // trailing slash makes it resolve to ".../t/Z/assets/foo.css".
+    router.get('/:appUuid/versions/:version/t/:token', (req, res) => {
         const queryString = req.originalUrl.includes('?')
             ? req.originalUrl.slice(req.originalUrl.indexOf('?'))
             : '';
@@ -298,11 +279,15 @@ export const createAppPreviewRouter = (
     });
 
     // Serve index.html for an app version.
-    // Rewrites asset URLs to include the token so they work without cookies
-    // (needed when the iframe sandbox omits allow-same-origin).
+    //
+    // The token-in-path scheme means every relative asset URL emitted by
+    // Vite (`./assets/foo.js`) inherits the token segment when the browser
+    // resolves it against this URL — no bundle rewriting or client-side
+    // patching is needed for runtime-rendered assets (theme images,
+    // dynamic imports, lazy chunks) to authenticate.
     router.get(
-        '/:appUuid/versions/:version/',
-        requireTokenAndSetCookie,
+        '/:appUuid/versions/:version/t/:token/',
+        requireToken,
         async (req, res) => {
             const { appUuid, version } = req.params;
             const s3Key = `apps/${appUuid}/versions/${version}/index.html`;
@@ -316,30 +301,58 @@ export const createAppPreviewRouter = (
                 return;
             }
 
-            const token =
-                typeof req.query.token === 'string'
-                    ? req.query.token
-                    : undefined;
-
             setSecurityHeaders(res);
             res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Cache-Control', 'no-store');
 
-            if (token) {
-                const html = await bufferS3Body(result.body);
-                res.send(injectTokenIntoAssetUrls(html, token));
-            } else {
-                result.body.pipe(res);
-            }
+            onPreviewView?.(
+                res.locals.previewTokenPayload as PreviewTokenPayload,
+            );
+
+            result.body.pipe(res);
         },
     );
 
-    // Serve static assets (JS, CSS, fonts).
-    // Accepts either a ?token query param (for sandboxed iframes without
-    // allow-same-origin) or the path-scoped cookie (for normal browsers).
+    // CORS for asset fetches from the sandboxed iframe.
+    //
+    // The iframe is loaded with `sandbox="allow-scripts allow-modals"` (no
+    // `allow-same-origin`), so its document origin is the opaque value
+    // `null` — regardless of whether the iframe URL is same-origin as the
+    // parent. Vite emits `<script type="module" crossorigin>` and
+    // `<link rel="stylesheet" crossorigin>` tags, which become CORS
+    // requests from that opaque origin and get preflighted. Without these
+    // headers the browser blocks the subsequent GET and the iframe
+    // renders as a blank page.
+    //
+    // Mounted as `router.use` so it runs before the GET handler and
+    // short-circuits OPTIONS preflights.
+    router.use(
+        '/:appUuid/versions/:version/t/:token/assets/:filename',
+        (req, res, next) => {
+            res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+            if (req.method === 'OPTIONS') {
+                // GET is the only method these routes accept, but the
+                // headless browser adds a custom `Lightdash-Headless-
+                // Browser-Context` header that propagates to subresource
+                // fetches from inside the sandboxed iframe. The preflight
+                // surfaces that in `Access-Control-Request-Headers`, so
+                // the response needs a permissive `Allow-Headers`.
+                res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+                res.setHeader('Access-Control-Allow-Headers', '*');
+                res.setHeader('Access-Control-Max-Age', '86400');
+                res.status(204).end();
+                return;
+            }
+            next();
+        },
+    );
+
+    // Serve static assets (JS, CSS, fonts, images). The token segment in
+    // the path authenticates the request.
     router.get(
-        '/:appUuid/versions/:version/assets/:filename',
-        requireTokenOrCookie,
+        '/:appUuid/versions/:version/t/:token/assets/:filename',
+        requireToken,
         async (req, res) => {
             const { filename } = req.params;
 
@@ -370,6 +383,7 @@ export const createAppPreviewRouter = (
             // Allow cross-origin loading from sandboxed iframes (opaque origin).
             // Safe because assets are static build artifacts, not user data.
             res.setHeader('Access-Control-Allow-Origin', '*');
+            res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
             res.setHeader('Content-Type', contentType);
             res.setHeader('X-Content-Type-Options', 'nosniff');
             res.setHeader(

@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AlreadyExistsError,
     ForbiddenError,
     getErrorMessage,
@@ -29,7 +30,6 @@ import {
     ScimUpsertUser,
     ScimUser,
     ScimUserRole,
-    SessionUser,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { groupBy } from 'lodash';
@@ -120,12 +120,13 @@ export class ScimService extends BaseService {
         this.openIdIdentityModel = openIdIdentityModel;
     }
 
-    private static throwForbiddenErrorOnNoPermission(user: SessionUser) {
+    private throwForbiddenErrorOnNoPermission(account: Account) {
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('Organization', {
-                    organizationUuid: user.organizationUuid,
+                    organizationUuid: account.organization.organizationUuid!,
                 }),
             )
         ) {
@@ -250,20 +251,37 @@ export class ScimService extends BaseService {
 
     // Retrieve a single SCIM user by ID
     async getUser({
+        account,
         userUuid,
         organizationUuid,
     }: {
+        account: Account;
         userUuid: string;
         organizationUuid: string;
     }): Promise<ScimUser> {
-        this.logger.debug('SCIM: Getting user', { userUuid, organizationUuid });
+        this.logger.info('SCIM: Getting user', { userUuid, organizationUuid });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        userUuid,
+                        metadata: {
+                            userUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const user =
                 await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
                     organizationUuid,
                     userUuid,
                 );
-            this.logger.debug('SCIM: Successfully retrieved user', {
+            this.logger.info('SCIM: Successfully retrieved user', {
                 userUuid,
                 organizationUuid,
                 userEmail: user.email,
@@ -279,6 +297,14 @@ export class ScimService extends BaseService {
             return this.convertLightdashUserToScimUser(user, userRoles);
         } catch (error) {
             if (error instanceof NotFoundError) {
+                this.logger.warn(
+                    'SCIM: user lookup failed — possible IdP cache drift',
+                    {
+                        userUuid,
+                        organizationUuid,
+                        operation: 'getUser',
+                    },
+                );
                 throw new ScimError({
                     detail: `User with UUID ${userUuid} not found`,
                     status: 404,
@@ -299,25 +325,36 @@ export class ScimService extends BaseService {
 
     // List all SCIM users in an organization
     async listUsers({
+        account,
         organizationUuid,
         startIndex = 1,
         itemsPerPage = 100,
         filter,
     }: {
+        account: Account;
         organizationUuid: string;
         startIndex?: number;
         itemsPerPage?: number;
         filter?: string;
     }): Promise<ScimListResponse<ScimUser>> {
-        this.logger.debug('SCIM: Listing users', {
+        this.logger.info('SCIM: Listing users', {
             organizationUuid,
             startIndex,
             itemsPerPage,
             filter,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('OrganizationMemberProfile', { organizationUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const parsedFilter = filter ? parse(filter) : null;
-            this.logger.debug('SCIM: Parsed filter', { parsedFilter });
+            this.logger.info('SCIM: Parsed filter', { parsedFilter });
 
             // these columns map from the potential scim filter to the actual user columns
             const userColumnMapping = {
@@ -371,7 +408,7 @@ export class ScimService extends BaseService {
                 }),
             );
 
-            this.logger.debug('SCIM: Successfully listed users', {
+            this.logger.info('SCIM: Successfully listed users', {
                 organizationUuid,
                 totalResults: pagination?.totalResults ?? 0,
                 returnedCount: scimUsers.length,
@@ -414,7 +451,7 @@ export class ScimService extends BaseService {
                     userUuid,
                 );
             if (deletedIdentitiesByUserUuid > 0) {
-                this.logger.debug(
+                this.logger.info(
                     `SCIM: deleted ${deletedIdentitiesByUserUuid} openid identities for user ${userUuid}`,
                 );
             }
@@ -423,7 +460,7 @@ export class ScimService extends BaseService {
         const deletedIdentitiesByEmail =
             await this.openIdIdentityModel.deleteIdentitiesByEmail(email);
         if (deletedIdentitiesByEmail > 0) {
-            this.logger.debug(
+            this.logger.info(
                 `SCIM: deleted ${deletedIdentitiesByEmail} openid identities for email ${email}`,
             );
         }
@@ -431,13 +468,15 @@ export class ScimService extends BaseService {
 
     // Create a SCIM user
     async createUser({
+        account,
         user,
         organizationUuid,
     }: {
+        account: Account;
         user: ScimUpsertUser;
         organizationUuid: string;
     }): Promise<ScimUser> {
-        this.logger.debug('SCIM: Creating user', {
+        this.logger.info('SCIM: Creating user', {
             organizationUuid,
             userName: user.userName,
             firstName: user.name?.givenName,
@@ -447,28 +486,72 @@ export class ScimService extends BaseService {
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        metadata: {
+                            userName: user.userName,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             // Validate roles if provided
             const { allScimRoles } = await this.getAllRoles(organizationUuid);
+            let dedupedRoles: ScimUserRole[] | undefined;
             if (user.roles !== undefined) {
                 const validRoleValues = allScimRoles.map((role) => role.value);
-                // Throws error if roles are not valid
-                ScimService.validateRolesArray(user.roles, validRoleValues);
+                // Throws error if roles are not valid; returns deduped roles
+                dedupedRoles = ScimService.validateRolesArray(
+                    user.roles,
+                    validRoleValues,
+                );
             }
             const email = ScimService.getScimUserEmail(user);
-            // Delete any existing openid identities for this email to prevent login conflicts
-            // This handles the case where a user's email changed via SCIM and an old
-            // openid identity record exists pointing to a deactivated account
-            await this.deleteOpenIdIdentitiesForUser({ email });
 
-            const dbUser = await this.userModel.createUser(
-                {
-                    email,
-                    firstName: user.name?.givenName || '',
-                    lastName: user.name?.familyName || '',
-                    password: user.password || '',
-                },
-                user.active,
-            );
+            // If a user already exists with this email, decide whether to adopt
+            // or reject. Orphan users (verified email but no organization
+            // membership, e.g. created by OIDC JIT when auto-join conditions
+            // failed) are adopted — mirrors UserService.createPendingUserAndInviteLink.
+            // Without this, the AlreadyExistsError thrown below would also leave
+            // openid_identity rows wiped (deleteOpenIdIdentitiesForUser is not
+            // transactional with userModel.createUser), breaking the user's SSO.
+            const existingUser = await this.userModel.findUserByEmail(email);
+            if (existingUser?.organizationUuid) {
+                throw new AlreadyExistsError(`Email ${email} already in use`);
+            }
+
+            let dbUser: LightdashUser;
+            if (existingUser) {
+                this.logger.info(
+                    'SCIM: Adopting orphan user (verified email, no org)',
+                    {
+                        organizationUuid,
+                        userUuid: existingUser.userUuid,
+                        email,
+                    },
+                );
+                dbUser = existingUser;
+            } else {
+                // Delete any existing openid identities for this email to prevent login conflicts
+                // This handles the case where a user's email changed via SCIM and an old
+                // openid identity record exists pointing to a deactivated account
+                await this.deleteOpenIdIdentitiesForUser({ email });
+
+                dbUser = await this.userModel.createUser(
+                    {
+                        email,
+                        firstName: user.name?.givenName || '',
+                        lastName: user.name?.familyName || '',
+                        password: user.password || '',
+                    },
+                    user.active,
+                );
+            }
             // Extract role from extension schema if available
             const extensionData = user[ScimSchemaType.LIGHTDASH_USER_EXTENSION];
             let role = OrganizationMemberRole.MEMBER; // Default role
@@ -501,7 +584,7 @@ export class ScimService extends BaseService {
             await this.upsertUserRoles({
                 organizationUuid,
                 userUuid: dbUser.userUuid,
-                roles: user.roles,
+                roles: dedupedRoles,
             });
 
             // verify user email on create if coming from scim
@@ -509,7 +592,7 @@ export class ScimService extends BaseService {
                 dbUser.userUuid,
                 email,
             );
-            this.logger.debug('SCIM: Successfully created user', {
+            this.logger.info('SCIM: Successfully created user', {
                 organizationUuid,
                 userUuid: dbUser.userUuid,
                 email,
@@ -561,15 +644,17 @@ export class ScimService extends BaseService {
 
     // Update an existing SCIM user
     async updateUser({
+        account,
         user,
         userUuid,
         organizationUuid,
     }: {
+        account: Account;
         user: ScimUpsertUser;
         userUuid: string;
         organizationUuid: string;
     }): Promise<ScimUser> {
-        this.logger.debug('SCIM: Updating user', {
+        this.logger.info('SCIM: Updating user', {
             userUuid,
             organizationUuid,
             userName: user.userName,
@@ -581,14 +666,33 @@ export class ScimService extends BaseService {
             extensionRole: user[ScimSchemaType.LIGHTDASH_USER_EXTENSION]?.role,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        userUuid,
+                        metadata: {
+                            userUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             // Validate roles if provided
+            let dedupedRoles: ScimUserRole[] | undefined;
             if (user.roles !== undefined) {
                 const { allScimRoles } =
                     await this.getAllRoles(organizationUuid);
                 const validRoleValues = allScimRoles.map((role) => role.value);
 
-                // Throws error if roles are not valid
-                ScimService.validateRolesArray(user.roles, validRoleValues);
+                // Throws error if roles are not valid; returns deduped roles
+                dedupedRoles = ScimService.validateRolesArray(
+                    user.roles,
+                    validRoleValues,
+                );
             }
             const emailToUpdate = ScimService.getScimUserEmail(user);
             // get existing user (and make sure user is in the organization)
@@ -638,14 +742,14 @@ export class ScimService extends BaseService {
             await this.upsertUserRoles({
                 organizationUuid,
                 userUuid,
-                roles: user.roles,
+                roles: dedupedRoles,
             });
 
             // If active status changes, either true or false
             // We delete all openid identities for the user's email and user uuid
             // to prevent login conflicts
             if (user.active && user.active !== dbUser.isActive) {
-                this.logger.debug(
+                this.logger.info(
                     `SCIM: Updating active user ${emailToUpdate} to ${user.active}`,
                 );
                 await this.deleteOpenIdIdentitiesForUser({
@@ -665,7 +769,7 @@ export class ScimService extends BaseService {
                                 role: OrganizationMemberRole.MEMBER,
                             },
                         );
-                        this.logger.debug(
+                        this.logger.info(
                             'SCIM: Updated user organisation role to MEMBER',
                             {
                                 userUuid,
@@ -686,7 +790,7 @@ export class ScimService extends BaseService {
                         await this.rolesModel.removeUserAccessFromAllProjects(
                             dbUser.userUuid,
                         );
-                    this.logger.debug(
+                    this.logger.info(
                         'SCIM: Removed user roles from all projects',
                         {
                             userUuid,
@@ -709,7 +813,7 @@ export class ScimService extends BaseService {
                             organizationUuid,
                             userUuid,
                         });
-                    this.logger.debug('SCIM: Removed user from all groups', {
+                    this.logger.info('SCIM: Removed user from all groups', {
                         userUuid,
                         organizationUuid,
                         groupsCount,
@@ -728,7 +832,7 @@ export class ScimService extends BaseService {
                 updatedUser.userUuid,
             );
 
-            this.logger.debug('SCIM: Successfully updated user', {
+            this.logger.info('SCIM: Successfully updated user', {
                 userUuid,
                 organizationUuid,
                 emailToUpdate,
@@ -767,6 +871,14 @@ export class ScimService extends BaseService {
                 });
             }
             if (error instanceof NotFoundError) {
+                this.logger.warn(
+                    'SCIM: user lookup failed — possible IdP cache drift',
+                    {
+                        userUuid,
+                        organizationUuid,
+                        operation: 'updateUser',
+                    },
+                );
                 throw new ScimError({
                     detail: `User with UUID ${userUuid} not found`,
                     status: 404,
@@ -837,15 +949,17 @@ export class ScimService extends BaseService {
     }
 
     async patchUser({
+        account,
         userUuid,
         organizationUuid,
         patchOp,
     }: {
+        account: Account;
         userUuid: string;
         organizationUuid: string;
         patchOp: ScimPatch;
     }): Promise<ScimUser> {
-        this.logger.debug('SCIM: Patching user', {
+        this.logger.info('SCIM: Patching user', {
             userUuid,
             organizationUuid,
             operationsCount: patchOp.Operations.length,
@@ -856,6 +970,21 @@ export class ScimService extends BaseService {
             })),
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        userUuid,
+                        metadata: {
+                            userUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             // get existing user (and make sure user is in the organization)
             const dbUser =
                 await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
@@ -876,13 +1005,14 @@ export class ScimService extends BaseService {
                 scimDbUser as PatchLibScimResource,
                 patchOp.Operations,
             );
-            this.logger.debug('SCIM: Applied patch operations to user', {
+            this.logger.info('SCIM: Applied patch operations to user', {
                 userUuid,
                 organizationUuid,
                 patchedFields: Object.keys(patchedDbUserObj),
             });
             // apply updates to user
             const patchedUser = await this.updateUser({
+                account,
                 user: patchedDbUserObj as ScimUpsertUser,
                 userUuid,
                 organizationUuid,
@@ -899,6 +1029,14 @@ export class ScimService extends BaseService {
                             scimType: 'invalidValue',
                         });
                     case NotFoundError:
+                        this.logger.warn(
+                            'SCIM: user lookup failed — possible IdP cache drift',
+                            {
+                                userUuid,
+                                organizationUuid,
+                                operation: 'patchUser',
+                            },
+                        );
                         throw new ScimError({
                             detail: `User with UUID ${userUuid} not found`,
                             status: 404,
@@ -929,17 +1067,34 @@ export class ScimService extends BaseService {
 
     // Delete a SCIM user by ID
     async deleteUser({
+        account,
         userUuid,
         organizationUuid,
     }: {
+        account: Account;
         userUuid: string;
         organizationUuid: string;
     }): Promise<void> {
-        this.logger.debug('SCIM: Deleting user', {
+        this.logger.info('SCIM: Deleting user', {
             userUuid,
             organizationUuid,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'delete',
+                    subject('OrganizationMemberProfile', {
+                        organizationUuid,
+                        userUuid,
+                        metadata: {
+                            userUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             // get existing user (and make sure user is in the organization)
             const dbUser =
                 await this.organizationMemberProfileModel.getOrganizationMemberByUuid(
@@ -953,7 +1108,7 @@ export class ScimService extends BaseService {
                     organizationUuid,
                 );
             if (remainingAdmins.length === 0 && admin.userUuid === userUuid) {
-                this.logger.debug(
+                this.logger.info(
                     'SCIM: Cannot delete user - last admin in organization',
                     {
                         userUuid,
@@ -968,7 +1123,7 @@ export class ScimService extends BaseService {
 
             await this.userModel.delete(dbUser.userUuid);
 
-            this.logger.debug('SCIM: Successfully deleted user', {
+            this.logger.info('SCIM: Successfully deleted user', {
                 userUuid,
                 organizationUuid,
                 email: dbUser.email,
@@ -997,6 +1152,14 @@ export class ScimService extends BaseService {
                 });
             }
             if (error instanceof NotFoundError) {
+                this.logger.warn(
+                    'SCIM: user lookup failed — possible IdP cache drift',
+                    {
+                        userUuid,
+                        organizationUuid,
+                        operation: 'deleteUser',
+                    },
+                );
                 throw new ScimError({
                     detail: `User with UUID ${userUuid} not found`,
                     status: 404,
@@ -1016,17 +1179,32 @@ export class ScimService extends BaseService {
     }
 
     async getGroup(
+        account: Account,
         organizationUuid: string,
         groupUuid: string,
     ): Promise<ScimGroup> {
-        this.logger.debug('SCIM: Getting group', {
+        this.logger.info('SCIM: Getting group', {
             groupUuid,
             organizationUuid,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const group = await this.groupsModel.getGroupWithMembers(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
-                this.logger.debug('SCIM: Group not found in organization', {
+                this.logger.info('SCIM: Group not found in organization', {
                     groupUuid,
                     organizationUuid,
                     groupOrgUuid: group.organizationUuid,
@@ -1037,7 +1215,7 @@ export class ScimService extends BaseService {
                     scimType: 'noTarget',
                 });
             }
-            this.logger.debug('SCIM: Successfully retrieved group', {
+            this.logger.info('SCIM: Successfully retrieved group', {
                 groupUuid,
                 organizationUuid,
                 groupName: group.name,
@@ -1068,25 +1246,36 @@ export class ScimService extends BaseService {
     }
 
     async listGroups({
+        account,
         organizationUuid,
         startIndex = 1,
         itemsPerPage = 100,
         filter,
     }: {
+        account: Account;
         organizationUuid: string;
         startIndex?: number;
         itemsPerPage?: number;
         filter?: string;
     }): Promise<ScimListResponse<ScimGroup>> {
-        this.logger.debug('SCIM: Listing groups', {
+        this.logger.info('SCIM: Listing groups', {
             organizationUuid,
             startIndex,
             itemsPerPage,
             filter,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'view',
+                    subject('Group', { organizationUuid }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const parsedFilter = filter ? parse(filter) : null;
-            this.logger.debug('SCIM: Parsed group filter', { parsedFilter });
+            this.logger.info('SCIM: Parsed group filter', { parsedFilter });
 
             const exactMatchFilterName =
                 parsedFilter?.op === 'eq' &&
@@ -1127,7 +1316,7 @@ export class ScimService extends BaseService {
                 }),
             );
 
-            this.logger.debug('SCIM: Successfully listed groups', {
+            this.logger.info('SCIM: Successfully listed groups', {
                 organizationUuid,
                 totalResults: pagination?.totalResults ?? 0,
                 returnedCount: scimGroups.length,
@@ -1156,16 +1345,31 @@ export class ScimService extends BaseService {
     }
 
     async createGroup(
+        account: Account,
         organizationUuid: string,
         groupToCreate: ScimUpsertGroup,
     ): Promise<ScimGroup> {
-        this.logger.debug('SCIM: Creating group', {
+        this.logger.info('SCIM: Creating group', {
             organizationUuid,
             displayName: groupToCreate.displayName,
             memberCount: groupToCreate.members?.length || 0,
             memberUuids: groupToCreate.members?.map((m) => m.value) || [],
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'create',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupName: groupToCreate.displayName,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             if (!groupToCreate.displayName) {
                 throw new ScimError({
                     detail: 'displayName is required',
@@ -1179,7 +1383,7 @@ export class ScimService extends BaseService {
             });
 
             if (matchesByName.length > 0) {
-                this.logger.debug('SCIM: Group name already exists', {
+                this.logger.info('SCIM: Group name already exists', {
                     organizationUuid,
                     displayName: groupToCreate.displayName,
                     existingGroups: matchesByName.map((g) => ({
@@ -1209,7 +1413,7 @@ export class ScimService extends BaseService {
                 },
             });
 
-            this.logger.debug('SCIM: Successfully created group', {
+            this.logger.info('SCIM: Successfully created group', {
                 organizationUuid,
                 groupUuid: group.uuid,
                 groupName: group.name,
@@ -1246,11 +1450,12 @@ export class ScimService extends BaseService {
     }
 
     async replaceGroup(
+        account: Account,
         organizationUuid: string,
         groupUuid: string,
         groupToUpdate: ScimUpsertGroup,
     ): Promise<ScimGroup> {
-        this.logger.debug('SCIM: Replacing group', {
+        this.logger.info('SCIM: Replacing group', {
             organizationUuid,
             groupUuid,
             displayName: groupToUpdate.displayName,
@@ -1258,6 +1463,20 @@ export class ScimService extends BaseService {
             memberUuids: groupToUpdate.members?.map((m) => m.value) || [],
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             if (!groupToUpdate.displayName) {
                 throw new ScimError({
                     detail: 'displayName is required',
@@ -1268,7 +1487,7 @@ export class ScimService extends BaseService {
 
             const group = await this.groupsModel.getGroupWithMembers(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
-                this.logger.debug(
+                this.logger.info(
                     'SCIM: Group not found in organization for replace',
                     {
                         groupUuid,
@@ -1293,7 +1512,7 @@ export class ScimService extends BaseService {
                 (match) => match.uuid !== groupUuid,
             );
             if (conflictingGroups.length > 0) {
-                this.logger.debug('SCIM: Group name conflict on replace', {
+                this.logger.info('SCIM: Group name conflict on replace', {
                     organizationUuid,
                     groupUuid,
                     displayName: groupToUpdate.displayName,
@@ -1324,7 +1543,7 @@ export class ScimService extends BaseService {
                 },
             });
 
-            this.logger.debug('SCIM: Successfully replaced group', {
+            this.logger.info('SCIM: Successfully replaced group', {
                 organizationUuid,
                 groupUuid,
                 oldName: group.name,
@@ -1370,11 +1589,12 @@ export class ScimService extends BaseService {
     }
 
     async updateGroup(
+        account: Account,
         organizationUuid: string,
         groupUuid: string,
         patchOp: ScimPatch,
     ): Promise<ScimGroup> {
-        this.logger.debug('SCIM: Updating group with patch', {
+        this.logger.info('SCIM: Updating group with patch', {
             organizationUuid,
             groupUuid,
             operationsCount: patchOp.Operations.length,
@@ -1385,10 +1605,24 @@ export class ScimService extends BaseService {
             })),
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'update',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const existingGroup =
                 await this.groupsModel.getGroupWithMembers(groupUuid);
             if (existingGroup.organizationUuid !== organizationUuid) {
-                this.logger.debug(
+                this.logger.info(
                     'SCIM: Group not found in organization for patch',
                     {
                         groupUuid,
@@ -1409,7 +1643,7 @@ export class ScimService extends BaseService {
                 existingScimGroup,
                 patchOp.Operations,
             ) as ScimGroup;
-            this.logger.debug('SCIM: Applied patch operations to group', {
+            this.logger.info('SCIM: Applied patch operations to group', {
                 organizationUuid,
                 groupUuid,
                 oldName: existingGroup.name,
@@ -1441,7 +1675,7 @@ export class ScimService extends BaseService {
                 },
             });
 
-            this.logger.debug('SCIM: Successfully updated group', {
+            this.logger.info('SCIM: Successfully updated group', {
                 organizationUuid,
                 groupUuid,
                 finalName: updatedGroup.name,
@@ -1501,17 +1735,32 @@ export class ScimService extends BaseService {
     }
 
     async deleteGroup(
+        account: Account,
         organizationUuid: string,
         groupUuid: string,
     ): Promise<void> {
-        this.logger.debug('SCIM: Deleting group', {
+        this.logger.info('SCIM: Deleting group', {
             organizationUuid,
             groupUuid,
         });
         try {
+            const auditedAbility = this.createAuditedAbility(account);
+            if (
+                auditedAbility.cannot(
+                    'delete',
+                    subject('Group', {
+                        organizationUuid,
+                        metadata: {
+                            groupUuid,
+                        },
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
             const group = await this.groupsModel.getGroup(groupUuid);
             if (group.organizationUuid !== organizationUuid) {
-                this.logger.debug(
+                this.logger.info(
                     'SCIM: Group not found in organization for delete',
                     {
                         groupUuid,
@@ -1527,7 +1776,7 @@ export class ScimService extends BaseService {
             }
 
             await this.groupsModel.deleteGroup(groupUuid);
-            this.logger.debug('SCIM: Successfully deleted group', {
+            this.logger.info('SCIM: Successfully deleted group', {
                 organizationUuid,
                 groupUuid,
                 groupName: group.name,
@@ -1598,10 +1847,10 @@ export class ScimService extends BaseService {
     static validateRolesArray(
         roles: ScimUserRole[],
         validRoleValues: string[],
-    ): void {
+    ): ScimUserRole[] {
         // For backwards compatibility, when array is empty, skip validation and let caller skip updates
         if (roles.length === 0) {
-            return;
+            return roles;
         }
 
         // Check for invalid role values
@@ -1619,8 +1868,18 @@ export class ScimService extends BaseService {
             );
         }
 
+        // Dedupe roles by value. Entra "Update changed user" jobs sometimes emit
+        // a PATCH `Add` for `roles` on top of a user's existing role; without
+        // this, identical duplicates would trip "found 2" / "duplicate project"
+        // errors. Conflicting org roles or conflicting per-project roles still
+        // throw below.
+        const dedupedRoles = roles.filter(
+            (role, index, arr) =>
+                arr.findIndex((r) => r.value === role.value) === index,
+        );
+
         // Parse roles and categorize them
-        const parsedRoles = roles.map((role) => ({
+        const parsedRoles = dedupedRoles.map((role) => ({
             ...role,
             parsed: ScimService.parseRoleId(role.value),
         }));
@@ -1652,6 +1911,8 @@ export class ScimService extends BaseService {
                 ].join(', ')}`,
             );
         }
+
+        return dedupedRoles;
     }
 
     private convertLightdashRoleToScimRole(
@@ -1812,7 +2073,7 @@ export class ScimService extends BaseService {
         itemsPerPage?: number;
         filter?: string;
     }): Promise<ScimListResponse<ScimRole>> {
-        this.logger.debug('SCIM: Listing roles', {
+        this.logger.info('SCIM: Listing roles', {
             organizationUuid,
             startIndex,
             itemsPerPage,
@@ -1820,7 +2081,7 @@ export class ScimService extends BaseService {
         });
         try {
             const parsedFilter = filter ? parse(filter) : null;
-            this.logger.debug('SCIM: Parsed role filter', { parsedFilter });
+            this.logger.info('SCIM: Parsed role filter', { parsedFilter });
 
             const {
                 allScimRoles,
@@ -1855,7 +2116,7 @@ export class ScimService extends BaseService {
             const offset = (page - 1) * pageSize;
             const pagedRoles = filteredRoles.slice(offset, offset + pageSize);
 
-            this.logger.debug('SCIM: Successfully listed roles', {
+            this.logger.info('SCIM: Successfully listed roles', {
                 organizationUuid,
                 totalResults: filteredRoles.length,
                 returnedCount: pagedRoles.length,
@@ -1888,7 +2149,7 @@ export class ScimService extends BaseService {
 
     async getRole(organizationUuid: string, roleId: string): Promise<ScimRole> {
         try {
-            this.logger.debug('SCIM: Getting role', {
+            this.logger.info('SCIM: Getting role', {
                 roleId,
                 organizationUuid,
             });
@@ -1901,7 +2162,7 @@ export class ScimService extends BaseService {
                     scimType: 'noTarget',
                 });
             }
-            this.logger.debug('SCIM: Successfully retrieved role', {
+            this.logger.info('SCIM: Successfully retrieved role', {
                 organizationUuid,
                 roleId,
                 roleName: role.display,

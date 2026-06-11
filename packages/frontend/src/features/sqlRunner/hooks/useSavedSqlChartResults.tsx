@@ -16,16 +16,20 @@ import { captureException } from '@sentry/react';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
-import { useOrganization } from '../../../hooks/organization/useOrganization';
+import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
 import { useQueryRetryConfig } from '../../../hooks/useQueryRetry';
 import {
     getDashboardSqlChartPivotChartData,
+    getEmbedDashboardSqlChartPivotChartData,
     getSqlChartPivotChartData,
 } from '../../queryRunner/sqlRunnerPivotQueries';
 import { SqlChartResultsRunner } from '../runners/SqlRunnerResultsRunnerFrontend';
-import { fetchSavedSqlChart } from './useSavedSqlCharts';
+import {
+    fetchEmbedDashboardSqlChartTile,
+    fetchSavedSqlChart,
+} from './useSavedSqlCharts';
 
-type SavedSqlChartArgs = {
+type SavedSqlChartBaseArgs = {
     savedSqlUuid?: string;
     slug?: string;
     projectUuid?: string;
@@ -33,21 +37,43 @@ type SavedSqlChartArgs = {
     parameters?: ParametersValuesMap;
 };
 
-type SavedSqlChartDashboardArgs = SavedSqlChartArgs & {
-    dashboardUuid: string;
+type SavedSqlChartDashboardCommonArgs = SavedSqlChartBaseArgs & {
     tileUuid: string;
     dashboardFilters: DashboardFilters;
     dashboardSorts: SortField[];
-    parameters?: ParametersValuesMap;
 };
 
+type SavedSqlChartRegisteredDashboardArgs = SavedSqlChartDashboardCommonArgs & {
+    dashboardUuid: string;
+    isEmbed?: false;
+};
+
+// Embed callers don't pass dashboardUuid — the JWT carries it server-side.
+type SavedSqlChartEmbedDashboardArgs = SavedSqlChartDashboardCommonArgs & {
+    isEmbed: true;
+};
+
+type SavedSqlChartDashboardArgs =
+    | SavedSqlChartRegisteredDashboardArgs
+    | SavedSqlChartEmbedDashboardArgs;
+
 type UseSavedSqlChartResultsArguments =
-    | SavedSqlChartArgs
+    | SavedSqlChartBaseArgs
     | SavedSqlChartDashboardArgs;
 
 const isDashboardArgs = (
     args: UseSavedSqlChartResultsArguments,
-): args is SavedSqlChartDashboardArgs => 'dashboardUuid' in args;
+): args is SavedSqlChartDashboardArgs => 'tileUuid' in args;
+
+const isEmbedDashboardArgs = (
+    args: UseSavedSqlChartResultsArguments,
+): args is SavedSqlChartEmbedDashboardArgs =>
+    isDashboardArgs(args) && args.isEmbed === true;
+
+const isRegisteredDashboardArgs = (
+    args: UseSavedSqlChartResultsArguments,
+): args is SavedSqlChartRegisteredDashboardArgs =>
+    isDashboardArgs(args) && !args.isEmbed;
 
 type UseSavedSqlChartResults = {
     queryUuid: string;
@@ -64,22 +90,44 @@ export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
     const retryConfig = useQueryRetryConfig();
-    // Needed for organization colors
-    const { data: organization } = useOrganization();
 
     const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
+    const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
+        dashboardUuid:
+            isDashboardArgs(args) && !args.isEmbed
+                ? args.dashboardUuid
+                : undefined,
+    });
 
-    // Step 1: Get the chart
+    const embedDashboard = isEmbedDashboardArgs(args);
+
+    // Step 1: Get the chart. Embed dashboards must use the embed-only
+    // endpoint, which authorizes via dashboard tile membership; the
+    // registered endpoint requires a session user and 403s for JWT users.
     const chartQuery = useQuery<SqlChart, Partial<ApiError>>(
-        ['savedSqlChart', savedSqlUuid ?? slug],
-        async () =>
-            fetchSavedSqlChart({
+        [
+            'savedSqlChart',
+            savedSqlUuid ?? slug,
+            embedDashboard ? 'embed' : 'registered',
+            embedDashboard ? args.tileUuid : undefined,
+        ],
+        async () => {
+            if (isEmbedDashboardArgs(args)) {
+                return fetchEmbedDashboardSqlChartTile({
+                    projectUuid: projectUuid!,
+                    tileUuid: args.tileUuid,
+                });
+            }
+            return fetchSavedSqlChart({
                 projectUuid: projectUuid!,
                 uuid: savedSqlUuid,
                 slug,
-            }),
+            });
+        },
         {
-            enabled: (!!savedSqlUuid || !!slug) && !!projectUuid,
+            enabled:
+                (embedDashboard ? !!args.tileUuid : !!savedSqlUuid || !!slug) &&
+                !!projectUuid,
             ...retryConfig,
         },
     );
@@ -95,24 +143,37 @@ export const useSavedSqlChartResults = (
                 // Safe to assume these are defined because of the enabled flag
                 const chart = chartQuery.data!;
 
-                let { originalColumns, ...pivotChartData } =
-                    isDashboardArgs(args) && savedSqlUuid
-                        ? await getDashboardSqlChartPivotChartData({
-                              projectUuid: projectUuid!,
-                              dashboardUuid: args.dashboardUuid,
-                              tileUuid: args.tileUuid,
-                              dashboardFilters: args.dashboardFilters,
-                              dashboardSorts: args.dashboardSorts,
-                              savedSqlUuid,
-                              context: args.context as QueryExecutionContext,
-                              parameters,
-                          })
-                        : await getSqlChartPivotChartData({
-                              projectUuid: projectUuid!,
-                              savedSqlUuid: chart.savedSqlUuid,
-                              context: context as QueryExecutionContext,
-                              parameters,
-                          });
+                let pivotResult;
+                if (isEmbedDashboardArgs(args)) {
+                    pivotResult = await getEmbedDashboardSqlChartPivotChartData(
+                        {
+                            projectUuid: projectUuid!,
+                            tileUuid: args.tileUuid,
+                            dashboardFilters: args.dashboardFilters,
+                            dashboardSorts: args.dashboardSorts,
+                            parameters,
+                        },
+                    );
+                } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
+                    pivotResult = await getDashboardSqlChartPivotChartData({
+                        projectUuid: projectUuid!,
+                        dashboardUuid: args.dashboardUuid,
+                        tileUuid: args.tileUuid,
+                        dashboardFilters: args.dashboardFilters,
+                        dashboardSorts: args.dashboardSorts,
+                        savedSqlUuid,
+                        context: args.context as QueryExecutionContext,
+                        parameters,
+                    });
+                } else {
+                    pivotResult = await getSqlChartPivotChartData({
+                        projectUuid: projectUuid!,
+                        savedSqlUuid: chart.savedSqlUuid,
+                        context: context as QueryExecutionContext,
+                        parameters,
+                    });
+                }
+                const { originalColumns, ...pivotChartData } = pivotResult;
 
                 const vizConfig = isVizTableConfig(chart.config)
                     ? chart.config.columns
@@ -139,7 +200,7 @@ export const useSavedSqlChartResults = (
                     queryUuid: pivotChartData.queryUuid,
                     chartSpec: vizDataModel.getSpec(
                         chart.config.display,
-                        organization?.chartColors,
+                        resolvedPalette?.colors,
                     ),
                     fileUrl: vizDataModel.getDataDownloadUrl()!, // TODO: this is known if the results have been fetched - can we improve the types on vizdatamodel?
                     resultsRunner,
@@ -171,7 +232,7 @@ export const useSavedSqlChartResults = (
             enabled:
                 !!chartQuery.data &&
                 !!projectUuid &&
-                (!!savedSqlUuid || !!slug),
+                (embedDashboard || !!savedSqlUuid || !!slug),
             ...retryConfig,
         },
     );
@@ -189,24 +250,39 @@ export const useSavedSqlChartResults = (
             // 1. limit is null (meaning "all results" - should ignore existing query limits)
             // 2. limit is different from current query
             if (limit === null || limit !== chartQuery.data.limit) {
-                const queryForDownload =
-                    isDashboardArgs(args) && savedSqlUuid
-                        ? await getDashboardSqlChartPivotChartData({
-                              projectUuid: projectUuid!,
-                              dashboardUuid: args.dashboardUuid,
-                              tileUuid: args.tileUuid,
-                              dashboardFilters: args.dashboardFilters,
-                              dashboardSorts: args.dashboardSorts,
-                              savedSqlUuid,
-                              context: args.context as QueryExecutionContext,
-                              limit: limit ?? MAX_SAFE_INTEGER,
-                          })
-                        : await getSqlChartPivotChartData({
-                              projectUuid: projectUuid!,
-                              savedSqlUuid: chartQuery.data.savedSqlUuid,
-                              context: context as QueryExecutionContext,
-                              limit: limit ?? MAX_SAFE_INTEGER,
-                          });
+                let queryForDownload;
+                if (isEmbedDashboardArgs(args)) {
+                    queryForDownload =
+                        await getEmbedDashboardSqlChartPivotChartData({
+                            projectUuid: projectUuid!,
+                            tileUuid: args.tileUuid,
+                            dashboardFilters: args.dashboardFilters,
+                            dashboardSorts: args.dashboardSorts,
+                            limit: limit ?? MAX_SAFE_INTEGER,
+                            parameters,
+                        });
+                } else if (isRegisteredDashboardArgs(args) && savedSqlUuid) {
+                    queryForDownload = await getDashboardSqlChartPivotChartData(
+                        {
+                            projectUuid: projectUuid!,
+                            dashboardUuid: args.dashboardUuid,
+                            tileUuid: args.tileUuid,
+                            dashboardFilters: args.dashboardFilters,
+                            dashboardSorts: args.dashboardSorts,
+                            savedSqlUuid,
+                            context: args.context as QueryExecutionContext,
+                            limit: limit ?? MAX_SAFE_INTEGER,
+                            parameters,
+                        },
+                    );
+                } else {
+                    queryForDownload = await getSqlChartPivotChartData({
+                        projectUuid: projectUuid!,
+                        savedSqlUuid: chartQuery.data.savedSqlUuid,
+                        context: context as QueryExecutionContext,
+                        limit: limit ?? MAX_SAFE_INTEGER,
+                    });
+                }
                 queryUuidToDownload = queryForDownload.queryUuid;
             }
             return queryUuidToDownload;
@@ -218,6 +294,7 @@ export const useSavedSqlChartResults = (
             context,
             projectUuid,
             savedSqlUuid,
+            parameters,
         ],
     );
 

@@ -3,6 +3,7 @@ import {
     ApiDefaultRoleResponse,
     ApiErrorPayload,
     ApiRemoveScopeFromRoleResponse,
+    ApiRoleAssigneesResponse,
     ApiUnassignRoleFromUserResponse,
     CreateRole,
     UpdateRole,
@@ -10,6 +11,8 @@ import {
 import {
     Body,
     Delete,
+    Deprecated,
+    Get,
     Middlewares,
     OperationId,
     Patch,
@@ -24,6 +27,7 @@ import {
 import express from 'express';
 import {
     allowApiKeyAuthentication,
+    getDeprecatedRouteMiddleware,
     isAuthenticated,
     unauthorisedInDemo,
 } from '../../controllers/authentication';
@@ -143,17 +147,51 @@ export class CustomRolesController extends BaseController {
     }
 
     /**
+     * List the users, groups, and service accounts currently assigned to a role.
+     * Used by the delete-confirmation modal to explain why a role cannot
+     * be deleted while still in use.
+     * @summary List role assignees
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{roleUuid}/assignees')
+    @OperationId('GetOrganizationRoleAssignees')
+    async getOrganizationRoleAssignees(
+        @Request() req: express.Request,
+        @Path() orgUuid: string,
+        @Path() roleUuid: string,
+    ): Promise<ApiRoleAssigneesResponse> {
+        const assignees = await this.getRolesService().getRoleAssignees(
+            req.account!,
+            roleUuid,
+        );
+
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: assignees,
+        };
+    }
+
+    /**
      * Add scopes to role
      * @summary Add scopes to role
+     *
+     * @deprecated Use PATCH /api/v2/orgs/{orgUuid}/roles/{roleUuid} with scopes.add instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use PATCH /api/v2/orgs/{orgUuid}/roles/{roleUuid} with scopes.add instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Post('/{roleUuid}/scopes')
     @OperationId('AddScopesToRole')
+    @Deprecated()
     async addScopesToRole(
         @Request() req: express.Request,
         @Path() orgUuid: string,
@@ -176,15 +214,22 @@ export class CustomRolesController extends BaseController {
     /**
      * Remove scope from role
      * @summary Remove scope from role
+     *
+     * @deprecated Use PATCH /api/v2/orgs/{orgUuid}/roles/{roleUuid} with scopes.remove instead
      */
     @Middlewares([
         allowApiKeyAuthentication,
         isAuthenticated,
         unauthorisedInDemo,
+        getDeprecatedRouteMiddleware(new Date('2026-06-10'), {
+            suffixMessage:
+                'Use PATCH /api/v2/orgs/{orgUuid}/roles/{roleUuid} with scopes.remove instead.',
+        }),
     ])
     @SuccessResponse('200', 'Success')
     @Delete('/{roleUuid}/scopes/{scopeName}')
     @OperationId('RemoveScopeFromRole')
+    @Deprecated()
     async removeScopeFromRole(
         @Request() req: express.Request,
         @Path() orgUuid: string,

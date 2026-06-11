@@ -1,4 +1,8 @@
-import { getItemId, type GaugeSection } from '@lightdash/common';
+import {
+    getItemId,
+    getItemLabelWithoutTableName,
+    type GaugeSection,
+} from '@lightdash/common';
 import {
     Accordion,
     Center,
@@ -7,7 +11,7 @@ import {
     SegmentedControl,
     Stack,
     Tooltip,
-} from '@mantine/core';
+} from '@mantine-8/core';
 import { memo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isGaugeVisualizationConfig } from '../../LightdashVisualization/types';
@@ -47,10 +51,26 @@ const GaugeSectionComponent: FC<Props> = memo(
         const maxField = getField(section.maxFieldId);
         const numericMetricsList = Object.values(numericMetrics ?? {});
 
+        const minLabel = minField
+            ? getItemLabelWithoutTableName(minField)
+            : section.min != null
+              ? String(section.min)
+              : undefined;
+        const maxLabel = maxField
+            ? getItemLabelWithoutTableName(maxField)
+            : section.max != null
+              ? String(section.max)
+              : undefined;
+        const description =
+            minLabel !== undefined && maxLabel !== undefined
+                ? `${minLabel} – ${maxLabel}`
+                : undefined;
+
         return (
             <Accordion.Item value={`${index}`}>
                 <AccordionControl
                     label={`Section ${index + 1}`}
+                    description={description}
                     onControlClick={onClick}
                     onRemove={() => onRemove(index)}
                     extraControlElements={
@@ -64,8 +84,8 @@ const GaugeSectionComponent: FC<Props> = memo(
                     }
                 />
                 <Accordion.Panel>
-                    <Stack spacing="md">
-                        <Group spacing="xs" align="flex-end">
+                    <Stack gap="md">
+                        <Group gap="xs" align="flex-end">
                             {minValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
                                     label="Min value"
@@ -74,9 +94,8 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     onChange={(value) =>
                                         onUpdate(index, { min: Number(value) })
                                     }
-                                    style={{ flex: 1 }}
-                                    precision={2}
-                                    removeTrailingZeros={true}
+                                    flex={1}
+                                    decimalScale={2}
                                 />
                             ) : (
                                 <FieldSelect
@@ -92,7 +111,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                         });
                                     }}
                                     hasGrouping
-                                    style={{ flex: 1 }}
+                                    flex={1}
                                 />
                             )}
                             <SegmentedControl
@@ -115,11 +134,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 data={[
                                     {
                                         label: (
-                                            <Tooltip
-                                                label="Set the minimum value"
-                                                withinPortal
-                                                variant="xs"
-                                            >
+                                            <Tooltip label="Set the minimum value">
                                                 <Center>Value</Center>
                                             </Tooltip>
                                         ),
@@ -127,11 +142,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     },
                                     {
                                         label: (
-                                            <Tooltip
-                                                label="Select a field to use as the maximum value"
-                                                withinPortal
-                                                variant="xs"
-                                            >
+                                            <Tooltip label="Select a field to use as the maximum value">
                                                 <Center>Field</Center>
                                             </Tooltip>
                                         ),
@@ -141,7 +152,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                             />
                         </Group>
 
-                        <Group spacing="xs" align="flex-end">
+                        <Group gap="xs" align="flex-end">
                             {maxValueMode === GaugeValueMode.FIXED ? (
                                 <NumberInput
                                     label="Max value"
@@ -150,9 +161,8 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     onChange={(value) =>
                                         onUpdate(index, { max: Number(value) })
                                     }
-                                    precision={2}
-                                    removeTrailingZeros={true}
-                                    style={{ flex: 1 }}
+                                    decimalScale={2}
+                                    flex={1}
                                 />
                             ) : (
                                 <FieldSelect
@@ -168,7 +178,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                         });
                                     }}
                                     hasGrouping
-                                    style={{ flex: 1 }}
+                                    flex={1}
                                 />
                             )}
                             <SegmentedControl
@@ -191,11 +201,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                 data={[
                                     {
                                         label: (
-                                            <Tooltip
-                                                label="Set the maximum value"
-                                                withinPortal
-                                                variant="xs"
-                                            >
+                                            <Tooltip label="Set the maximum value">
                                                 <Center>Value</Center>
                                             </Tooltip>
                                         ),
@@ -203,11 +209,7 @@ const GaugeSectionComponent: FC<Props> = memo(
                                     },
                                     {
                                         label: (
-                                            <Tooltip
-                                                label="Select a field to use as the maximum value"
-                                                withinPortal
-                                                variant="xs"
-                                            >
+                                            <Tooltip label="Select a field to use as the maximum value">
                                                 <Center>Field</Center>
                                             </Tooltip>
                                         ),

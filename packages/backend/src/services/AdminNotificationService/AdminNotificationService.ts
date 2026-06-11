@@ -56,8 +56,7 @@ export class AdminNotificationService extends BaseService {
         account: Account,
     ): string | undefined {
         if (account.authentication?.type === 'service-account') {
-            return (account.authentication as { description?: string })
-                .description;
+            return account.authentication.serviceAccountDescription;
         }
         return undefined;
     }

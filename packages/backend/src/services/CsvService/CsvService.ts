@@ -1,15 +1,16 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
     AnyType,
     ApiSqlQueryResults,
     DashboardFilters,
     DateGranularity,
-    DimensionType,
     DownloadFileType,
     ExportCsvDashboardPayload,
     ForbiddenError,
     formatItemValue,
     formatRows,
+    formatTemporalCellForSpreadsheet,
     friendlyName,
     getErrorMessage,
     getItemLabel,
@@ -17,13 +18,11 @@ import {
     getItemMap,
     isDashboardChartTileType,
     isDashboardSqlChartTile,
-    isField,
     ItemsMap,
     MetricQuery,
     MissingConfigError,
     ParameterError,
     PivotConfig,
-    pivotResultsAsCsv,
     SCHEDULER_TASKS,
     SchedulerCsvOptions,
     SchedulerFormat,
@@ -154,6 +153,7 @@ export class CsvService extends BaseService {
         itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ): string | null {
         if (!line.trim()) return null;
 
@@ -164,6 +164,7 @@ export class CsvService extends BaseService {
                 itemMap,
                 onlyRaw,
                 sortedFieldIds,
+                timezone,
             );
 
             return csvRow.map(CsvService.escapeCsvValue).join(',');
@@ -235,6 +236,7 @@ export class CsvService extends BaseService {
         itemMap: ItemsMap,
         onlyRaw: boolean,
         sortedFieldIds: string[],
+        timezone?: string,
     ) {
         return sortedFieldIds.map((id: string) => {
             const data = row[id];
@@ -244,19 +246,18 @@ export class CsvService extends BaseService {
                 return data;
             }
 
-            const itemIsField = isField(item);
-            if (itemIsField && item.type === DimensionType.TIMESTAMP) {
-                return moment(data).format('YYYY-MM-DD HH:mm:ss.SSS');
-            }
-            if (itemIsField && item.type === DimensionType.DATE) {
-                return moment(data).format('YYYY-MM-DD');
-            }
+            const spreadsheetTemporal = formatTemporalCellForSpreadsheet(
+                item,
+                data,
+                timezone,
+            );
+            if (spreadsheetTemporal !== undefined) return spreadsheetTemporal;
 
             // Return raw value and let csv-stringify handle the rest
             if (onlyRaw) return data;
 
             // Use standard Lightdash formatting based on the item formatting configuration
-            return formatItemValue(item, data);
+            return formatItemValue(item, data, undefined, undefined, timezone);
         });
     }
 
@@ -293,6 +294,7 @@ export class CsvService extends BaseService {
             readStream: Readable;
             writeStream: Writable;
         },
+        timezone?: string,
     ): Promise<void> {
         // Create csv-stringify stringifier with clean configuration
         const stringifier = stringify({
@@ -313,6 +315,7 @@ export class CsvService extends BaseService {
                     itemMap,
                     onlyRaw,
                     sortedFieldIds,
+                    timezone,
                 );
 
                 // Pass data to next stream in pipeline (csv-stringify)
@@ -360,6 +363,7 @@ export class CsvService extends BaseService {
             readStream,
             writeStream,
         }: { readStream: Readable; writeStream: Writable },
+        timezone?: string,
     ): Promise<{ truncated: boolean }> {
         return new Promise((resolve, reject) => {
             // Write CSV header with BOM immediately
@@ -393,6 +397,7 @@ export class CsvService extends BaseService {
                         itemMap,
                         onlyRaw,
                         sortedFieldIds,
+                        timezone,
                     );
 
                     if (csvString) {
@@ -417,6 +422,7 @@ export class CsvService extends BaseService {
                     itemMap,
                     onlyRaw,
                     sortedFieldIds,
+                    timezone,
                 );
 
                 if (csvString) {
@@ -507,15 +513,17 @@ export class CsvService extends BaseService {
         return fileId;
     }
 
-    couldBeTruncated(rows: Record<string, AnyType>[]) {
+    couldBeTruncated(
+        rows: Record<string, AnyType>[],
+        cellsLimit: number = this.lightdashConfig.query?.csvCellsLimit ??
+            100000,
+    ) {
         if (rows.length === 0) return false;
 
         const numberRows = rows.length;
         const numberColumns = Object.keys(rows[0]).length;
 
         // we use floor when limiting the rows, so the  need to make sure we got the last row valid
-        const cellsLimit = this.lightdashConfig.query?.csvCellsLimit || 100000;
-
         return numberRows * numberColumns >= cellsLimit - numberColumns;
     }
 
@@ -600,7 +608,7 @@ export class CsvService extends BaseService {
      * This method is used to schedule a CSV download for a dashboard.
      */
     async scheduleExportCsvDashboard(
-        user: SessionUser,
+        account: Account,
         dashboardUuid: string,
         dashboardFilters: DashboardFilters,
         selectedTabs: string[] | null,
@@ -608,12 +616,17 @@ export class CsvService extends BaseService {
     ) {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('ExportCsv', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
                 }),
             )
         ) {
@@ -628,7 +641,7 @@ export class CsvService extends BaseService {
             // TraceTaskBase
             organizationUuid: dashboard.organizationUuid,
             projectUuid: dashboard.projectUuid,
-            userUuid: user.userUuid,
+            userUuid: account.user.id,
             schedulerUuid: undefined,
         };
         const { jobId } = await this.schedulerClient.scheduleTask(

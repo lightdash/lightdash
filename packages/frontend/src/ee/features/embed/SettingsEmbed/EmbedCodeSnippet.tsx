@@ -268,6 +268,7 @@ const data = {
         canDateZoom: {{canDateZoom}},
         canExplore: {{canExplore}},
         canViewUnderlyingData: {{canViewUnderlyingData}},
+        canViewDataApps: {{canViewDataApps}},
     },
     user: {
         externalId: {{externalId}},
@@ -305,6 +306,7 @@ data = {
         "canDateZoom": {{canDateZoom}},
         "canExplore": {{canExplore}},
         "canViewUnderlyingData": {{canViewUnderlyingData}},
+        "canViewDataApps": {{canViewDataApps}},
     },
     "user": {
         "externalId": {{externalId}},
@@ -352,6 +354,7 @@ func main() {
             CanDateZoom bool \`json:"canDateZoom"\`
             CanExplore bool \`json:"canExplore"\`
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
+            CanViewDataApps bool \`json:"canViewDataApps"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         jwt.StandardClaims
@@ -381,6 +384,7 @@ func main() {
             CanDateZoom bool \`json:"canDateZoom"\`
             CanExplore bool \`json:"canExplore"\`
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
+            CanViewDataApps bool \`json:"canViewDataApps"\`
         }{
             Type:          "dashboard",
             ProjectUuid:   projectUuid,
@@ -405,6 +409,7 @@ func main() {
             CanDateZoom: {{canDateZoom}},
             CanExplore: {{canExplore}},
             CanViewUnderlyingData: {{canViewUnderlyingData}},
+            CanViewDataApps: {{canViewDataApps}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -579,6 +584,7 @@ const data = {
         canDateZoom: {{canDateZoom}},
         canExplore: {{canExplore}},
         canViewUnderlyingData: {{canViewUnderlyingData}},
+        canViewDataApps: {{canViewDataApps}},
     },
     user: {
         externalId: {{externalId}},
@@ -615,6 +621,7 @@ data = {
         "canDateZoom": {{canDateZoom}},
         "canExplore": {{canExplore}},
         "canViewUnderlyingData": {{canViewUnderlyingData}},
+        "canViewDataApps": {{canViewDataApps}},
     },
     "user": {
         "externalId": {{externalId}},
@@ -660,6 +667,7 @@ func main() {
             CanDateZoom bool \`json:"canDateZoom"\`
             CanExplore bool \`json:"canExplore"\`
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
+            CanViewDataApps bool \`json:"canViewDataApps"\`
         } \`json:"content"\`
         UserAttributes map[string]string \`json:"userAttributes"\`
         jwt.StandardClaims
@@ -688,6 +696,7 @@ func main() {
             CanDateZoom bool \`json:"canDateZoom"\`
             CanExplore bool \`json:"canExplore"\`
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
+            CanViewDataApps bool \`json:"canViewDataApps"\`
         }{
             Type:          "dashboard",
             ProjectUuid:   projectUuid,
@@ -712,6 +721,7 @@ func main() {
             CanDateZoom: {{canDateZoom}},
             CanExplore: {{canExplore}},
             CanViewUnderlyingData: {{canViewUnderlyingData}},
+            CanViewDataApps: {{canViewDataApps}},
         },
         User: &struct {
             ExternalId *string \`json:"externalId,omitempty"\`
@@ -855,6 +865,10 @@ const getBackendCodeSnippet = (
                 .replace(
                     '{{canExplore}}',
                     languageBoolean(language, data.content.canExplore),
+                )
+                .replace(
+                    '{{canViewDataApps}}',
+                    languageBoolean(language, data.content.canViewDataApps),
                 );
             break;
         case 'chart':

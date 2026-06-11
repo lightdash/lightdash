@@ -18,7 +18,6 @@ import {
     IconLogout,
     IconRobot,
 } from '@tabler/icons-react';
-import posthog from 'posthog-js';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
     Link,
@@ -40,12 +39,14 @@ import { useAiAgentButtonVisibility } from './ee/features/aiCopilot/hooks/useAiA
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
 import { getMantineThemeOverride } from './mantineTheme';
+import AppPreviewTest from './pages/AppPreviewTest';
 import AuthPopupResult, {
     SuccessAuthPopupResult,
 } from './pages/AuthPopupResult';
 import Login from './pages/Login';
 import MinimalDashboard from './pages/MinimalDashboard';
 import MinimalSavedExplorer from './pages/MinimalSavedExplorer';
+import MinimalSqlChart from './pages/MinimalSqlChart';
 import MobileCharts from './pages/MobileCharts';
 import MobileDashboards from './pages/MobileDashboards';
 import MobileHome from './pages/MobileHome';
@@ -89,7 +90,6 @@ export const MobileNavBar: FC = () => {
     });
     const { mutate: logout } = useLogoutMutation({
         onSuccess: () => {
-            posthog.reset();
             window.location.href = '/login';
         },
     });
@@ -205,6 +205,8 @@ const routesNotSupportedInMobile = [
     '/projects/:projectUuid/tables/:tableId',
     '/projects/:projectUuid/tables',
     '/projects/:projectUuid/user-activity',
+    '/projects/:projectUuid/apps/:appUuid',
+    '/projects/:projectUuid/apps/generate',
 ];
 
 const FALLBACK_ROUTE: RouteObject = {
@@ -260,6 +262,14 @@ const MINIMAL_ROUTES: RouteObject[] = [
                 path: '/minimal/projects/:projectUuid/dashboards/:dashboardUuid/view/tabs/:tabUuid',
                 element: <MinimalDashboard />,
             },
+            {
+                path: '/minimal/projects/:projectUuid/sql-runner/:savedSqlUuid',
+                element: (
+                    <Stack p="lg" h="90vh">
+                        <MinimalSqlChart />
+                    </Stack>
+                ),
+            },
         ],
     },
 ];
@@ -285,6 +295,7 @@ const APP_ROUTES: RouteObject[] = [
                     </ProjectRoute>
                 ),
                 children: [
+                    { index: true, element: <Navigate to="home" replace /> },
                     {
                         path: '/projects/:projectUuid/home',
                         element: (
@@ -332,6 +343,14 @@ const APP_ROUTES: RouteObject[] = [
                                 <MobileSpaces />
                             </TrackPage>
                         ),
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid/preview',
+                        element: <AppPreviewTest />,
+                    },
+                    {
+                        path: '/projects/:projectUuid/apps/:appUuid/versions/:version/preview',
+                        element: <AppPreviewTest />,
                     },
                 ],
             },

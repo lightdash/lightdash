@@ -1,0 +1,147 @@
+.root {
+    position: fixed;
+    bottom: var(--mantine-spacing-md);
+    right: var(--mantine-spacing-md);
+    z-index: var(--mantine-z-index-app);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    max-width: calc(100vw - var(--mantine-spacing-md) * 2);
+}
+
+.dock {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--mantine-spacing-xs);
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: rem(6px) rem(2px);
+    margin: rem(-6px) rem(-2px);
+}
+
+.dock::-webkit-scrollbar {
+    display: none;
+}
+
+.dockTab {
+    display: flex;
+    align-items: center;
+    gap: var(--mantine-spacing-xs);
+    padding: rem(4px) var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-xl);
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-dimmed);
+    border: 1px solid
+        light-dark(var(--mantine-color-gray-2), var(--mantine-color-ldDark-3));
+    box-shadow: var(--mantine-shadow-sm);
+    cursor: pointer;
+    max-width: rem(220px);
+    flex-shrink: 0;
+    transition:
+        background-color 120ms ease,
+        border-color 120ms ease,
+        transform 120ms ease,
+        box-shadow 120ms ease;
+}
+
+.dockTab:hover:not(.dockTabActive) {
+    background: var(--mantine-color-default-hover);
+}
+
+.dockTabActive {
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    border-color: light-dark(
+        var(--mantine-color-gray-3),
+        var(--mantine-color-ldDark-4)
+    );
+    box-shadow: var(--mantine-shadow-md);
+    transform: translateY(rem(-2px));
+}
+
+.dockTabStreaming {
+    composes: glisten from '../../../../../styles/glisten.module.css';
+}
+
+.dockTabStreaming > * {
+    position: relative;
+    z-index: 1;
+}
+
+.dockTabTitle {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    font-size: var(--mantine-font-size-sm);
+}
+
+/* Hide close button on inactive tabs unless hovering — matches browser tab UX. */
+.dockTabCloseButton {
+    opacity: 0;
+    transition: opacity 120ms ease;
+}
+
+.dockTab:hover .dockTabCloseButton,
+.dockTab:focus-within .dockTabCloseButton {
+    opacity: 1;
+}
+
+.panel {
+    --mantine-scale: 0.9;
+    --ai-chat-input-bg: var(--mantine-color-background-0);
+    position: absolute;
+    bottom: calc(100% + var(--mantine-spacing-xs));
+    right: 0;
+    width: min(rem(440px), calc(100vw - var(--mantine-spacing-md) * 2));
+    height: rem(640px);
+    max-height: min(rem(640px), calc(100vh - rem(80px)));
+    border-radius: var(--mantine-radius-lg);
+    background: var(--mantine-color-body);
+    color: var(--mantine-color-text);
+    border: 1px solid var(--mantine-color-default-border);
+    box-shadow: var(--mantine-shadow-lg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.panelHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--mantine-spacing-sm) var(--mantine-spacing-md);
+    border-bottom: 1px solid var(--mantine-color-default-border);
+    gap: var(--mantine-spacing-sm);
+    min-height: rem(48px);
+}
+
+.panelHeaderTitle {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.panelBody {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.flexFillNoMin {
+    flex: 1;
+    min-width: 0;
+}
+
+.minWidth0 {
+    min-width: 0;
+}

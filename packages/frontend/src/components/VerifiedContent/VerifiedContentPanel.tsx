@@ -19,19 +19,18 @@ import {
     IconDots,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import {
     useUnverifyChartMutation,
     useUnverifyDashboardMutation,
 } from '../../hooks/useContentVerification';
-import { useContentVerificationEnabled } from '../../hooks/useContentVerificationEnabled';
 import { useVerifiedContentList } from '../../hooks/useVerifiedContentList';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+} from '../common/ContentTable';
 import MantineIcon from '../common/MantineIcon';
 import MantineModal from '../common/MantineModal';
 import SuboptimalState from '../common/SuboptimalState/SuboptimalState';
@@ -41,7 +40,6 @@ type Props = {
 };
 
 const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
-    const isContentVerificationEnabled = useContentVerificationEnabled();
     const theme = useMantineTheme();
     const { data: verifiedContent, isLoading } =
         useVerifiedContentList(projectUuid);
@@ -78,7 +76,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
 
     const items = useMemo(() => verifiedContent ?? [], [verifiedContent]);
 
-    const columns: MRT_ColumnDef<VerifiedContentListItem>[] = useMemo(
+    const columns: ContentTableColumnDef<VerifiedContentListItem>[] = useMemo(
         () => [
             {
                 accessorKey: 'name',
@@ -207,7 +205,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         [handleUnverify, projectUuid],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: items,
         enableSorting: false,
@@ -281,18 +279,6 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
         }),
     });
 
-    if (!isContentVerificationEnabled) {
-        return (
-            <Paper p="xl">
-                <SuboptimalState
-                    icon={IconCircleX}
-                    title="Content verification is not enabled"
-                    description="This feature is not currently available."
-                />
-            </Paper>
-        );
-    }
-
     if (!isLoading && items.length === 0) {
         return (
             <Paper p="xl">
@@ -310,7 +296,7 @@ const VerifiedContentPanel: FC<Props> = ({ projectUuid }) => {
             <Group justify="space-between">
                 <Title order={4}>Verified content</Title>
             </Group>
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
 
             <MantineModal
                 opened={unverifyModalOpened}

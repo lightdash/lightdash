@@ -10,6 +10,12 @@ import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
+import {
+    buildMcpQueryRunResponseDescription,
+    buildMcpVisualizationFollowUpInstruction,
+    MCP_QUERY_COMMON_NOTES,
+} from './toolMcpQueryResultDescription';
+import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
 
 // Query configuration schema - what data to fetch
 const queryConfigSchema = z.object({
@@ -133,41 +139,29 @@ const chartConfigSchema = z
     })
     .nullable();
 
-export const TOOL_RUN_QUERY_DESCRIPTION = `Tool: runQuery
+export const TOOL_RUN_QUERY_DESCRIPTION = `Execute a metric query.
 
-Purpose:
-Execute a metric query and create a chart artifact. The results can be viewed as a table, bar, horizontal bar, line, scatter, pie, or funnel chart.
-You define the default visualization type to render but users can switch between visualization types after creation.
+This tool returns metric query data only. ${buildMcpVisualizationFollowUpInstruction(
+    'run_metric_query',
+)}
 
-Chart Type Selection Guide:
-- 'bar': Vertical bars for categorical comparisons (e.g., sales by product)
-- 'horizontal': Horizontal bars for long category names or ranking (e.g., top 10 customers)
-- 'line': Time series trends (e.g., revenue over months)
-- 'scatter': Correlation between two metrics (e.g., ad spend vs revenue)
-- 'pie': Part-to-whole proportions (e.g., market share by segment)
-- 'funnel': Sequential conversion flows (e.g., sales funnel stages)
-- 'table': Raw data display with all fields
+${buildMcpQueryRunResponseDescription({
+    contentDescription:
+        'bare CSV text. CSV headers are display labels, not stable field IDs',
+    completedResultShape: `    result: {
+      status: "done",
+      queryUuid: string,
+      rows: Array<Record<string, unknown>>,
+      fields: Record<string, unknown>,
+      exploreUrl: string | null
+    }`,
+})}
 
-Configuration Tips:
-- Specify exploreName, dimensions (for grouping/x-axis), and metrics (for y-axis values)
-- First dimension is the x-axis; additional dimensions can be used for series breakdown via groupBy
-- At least one metric is required for all chart types except table
-- chartConfig.xAxisDimension: Select the primary dimension from queryConfig.dimensions (typically dimensions[0])
-- chartConfig.yAxisMetrics: Select the metrics to display from queryConfig.metrics or tableCalculations
-- chartConfig.groupBy: Use to split data into multiple series (e.g., one line per region). Do NOT include the x-axis dimension. Only include dimensions for series breakdown. Leave null for simple single-series charts.
-- For bar/horizontal charts: use xAxisType 'category' for strings or 'time' for dates/timestamps
-- For bar/horizontal charts: stackBars (when groupBy is provided) stacks bars instead of placing them side by side
-- For line charts: use lineType 'area' to fill the area under the line
-- For scatter charts: each point represents one row of data
-- For funnel charts: set funnelDataInput to 'row' (each row = stage) or 'column' (multiple funnels)
-- Users can switch between visualization types in the UI after creation
-- xAxisLabel and yAxisLabel provide helpful context for chart axes
-- filters can contain filters on fields from joined tables as well as the base table
+Notes:
+${MCP_QUERY_COMMON_NOTES}
 `;
 
-export const toolRunQueryArgsSchema = createToolSchema({
-    description: TOOL_RUN_QUERY_DESCRIPTION,
-})
+export const toolRunQueryArgsSchema = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
         customMetrics: customMetricsSchema,
@@ -182,7 +176,9 @@ export type ToolRunQueryArgs = z.infer<typeof toolRunQueryArgsSchema>;
 
 export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
     .extend({
-        customMetrics: customMetricsSchema.default(null),
+        customMetrics: customMetricsSchema
+            .default(null)
+            .pipe(customMetricsSchemaTransformed),
         tableCalculations: tableCalcsSchema.default(null),
         chartConfig: chartConfigSchema.default(null),
     })
@@ -194,14 +190,64 @@ export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
         return {
             ...data,
             filters: filtersSchemaTransformed.parse(resolvedFilters),
-            customMetrics: customMetricsSchemaTransformed.parse(
-                data.customMetrics,
-            ),
         };
     });
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed
+>;
+
+export const TOOL_RENDER_CHART_DESCRIPTION = `Render a chart for a completed query result in MCP App-capable clients.
+
+Use this after a query tool or get_query_result returns done and the user wants a visual chart. This tool does not start, poll, or rerun the query. If the query is still running, call get_query_result first. Pass the queryUuid and chart configuration; Lightdash loads the completed metric query from query history.
+
+Current support: completed run_metric_query results. SQL Runner/run_sql results are not supported by render_chart. Other query result types are rejected until their chart rendering path is implemented.
+
+Response shape (MCP CallToolResult):
+- content: [{ type: "text", text: string }] — short render status message.
+- structuredContent: {
+    result: {
+      status: "done",
+      queryUuid: string,
+      exploreUrl: string | null,
+      echartsOption: Record<string, unknown> | null // lightweight placeholder; full chart payload is app metadata
+    }
+  }`;
+
+export const toolRenderChartArgsSchema = createToolSchema()
+    .extend({
+        queryUuid: mcpAsyncQueryUuidSchema.describe(
+            'Completed query UUID returned by a query tool or get_query_result. Currently, render_chart supports UUIDs from run_metric_query and does not support SQL Runner/run_sql UUIDs.',
+        ),
+        chartConfig: chartConfigSchema,
+        title: z
+            .string()
+            .optional()
+            .describe('Optional chart title used in the rendered chart.'),
+        description: z
+            .string()
+            .optional()
+            .describe(
+                'Optional chart description used in the saved Explore URL.',
+            ),
+    })
+    .build()
+    .describe('Render chart input for a completed query.');
+
+export const toolRenderChartArgsSchemaTransformed = toolRenderChartArgsSchema
+    .extend({
+        chartConfig: chartConfigSchema.default(null),
+    })
+    .transform((data) => ({
+        ...data,
+        title: data.title ?? 'Metric query result',
+        description: data.description ?? '',
+    }));
+
+export type ToolRenderChartArgs = z.infer<typeof toolRenderChartArgsSchema>;
+
+export type ToolRenderChartArgsTransformed = z.infer<
+    typeof toolRenderChartArgsSchemaTransformed
 >;
 
 export const toolRunQueryOutputSchema = z.object({

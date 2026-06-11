@@ -442,6 +442,7 @@ export default class DbtSchemaEditor {
              */
             singleQuote:
                 options?.quoteChar && options.quoteChar === `'` ? true : null,
+            lineWidth: 0,
         });
     }
 

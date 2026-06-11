@@ -27,6 +27,7 @@ export const ShareLinkButton: FC<ShareLinkButtonProps> = ({
                         onClick={copy}
                         size="md"
                         radius="md"
+                        aria-label={copied ? 'Link copied' : label}
                     >
                         <MantineIcon
                             icon={copied ? IconCheck : IconLink}

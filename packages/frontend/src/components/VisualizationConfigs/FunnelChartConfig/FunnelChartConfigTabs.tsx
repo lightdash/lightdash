@@ -25,6 +25,7 @@ import { memo, useMemo, type FC } from 'react';
 import FieldSelect from '../../common/FieldSelect';
 import { isFunnelVisualizationConfig } from '../../LightdashVisualization/types';
 import { useVisualizationContext } from '../../LightdashVisualization/useVisualizationContext';
+import { ColorPaletteSection } from '../common/ColorPaletteSection';
 import { Config } from '../common/Config';
 import { getVizConfigThemeOverride } from '../mantineTheme';
 import { StepConfig } from './StepConfig';
@@ -164,6 +165,7 @@ export const ConfigTabs: FC = memo(() => {
                 </Tabs.Panel>
                 <Tabs.Panel value="steps">
                     <Stack>
+                        <ColorPaletteSection />
                         <Config>
                             <Config.Section>
                                 <Config.Heading>Labels</Config.Heading>

@@ -19,7 +19,11 @@ import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import AddTileButton from '../AddTileButton';
 
 interface SavedChartsAvailableProps {
-    onAddTiles: (tiles: Dashboard['tiles'][number][]) => void;
+    onAddTiles: (
+        tiles: Dashboard['tiles'][number][],
+        // Map of new tile UUID → source tile UUID, so dashboard filter `tileTargets` are copied from the source.
+        tileUuidMapping?: Record<string, string>,
+    ) => void;
     emptyContainerType?: 'dashboard' | 'tab';
     isEditMode: boolean;
     setAddingTab: (value: React.SetStateAction<boolean>) => void;

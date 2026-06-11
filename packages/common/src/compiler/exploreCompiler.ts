@@ -25,7 +25,12 @@ import {
     type FieldCompilationError,
     type Metric,
 } from '../types/field';
+import { type ModelRequiredFilterRule } from '../types/filter';
 import { type LightdashProjectConfig } from '../types/lightdashProjectConfig';
+import {
+    isMetricsExplorerCompatibleDimension,
+    METRICS_EXPLORER_FILTER_OPERATORS,
+} from '../types/metricsExplorer';
 import { type PreAggregateDef } from '../types/preAggregate';
 import {
     dateGranularityToTimeFrameMap,
@@ -43,11 +48,14 @@ import {
     getAvailableParameterNames,
     getAvailableParametersFromTables,
     getParameterReferences,
-    getParameterReferencesFromSqlAndFormat,
     validateParameterConfiguration,
     validateParameterNames,
     validateParameterReferences,
 } from './parameters';
+import {
+    getReferencedDimensionCaseInsensitive,
+    getReferencedTable,
+} from './referenceLookup';
 
 // exclude lightdash prefix from variable pattern
 export const lightdashVariablePattern =
@@ -180,6 +188,123 @@ export const getParsedReference = (
     return { refTable, refName };
 };
 
+/**
+ * Validate metric spotlight `default_segment` / `default_filter` at compile time.
+ * Stricter than the segment_by/filter_by allowlists: a wrong default silently
+ * produces a wrong landing view in the Metrics Explorer, so we hard-fail.
+ * Only runs when the optional fields are present — existing configs are untouched.
+ */
+const validateSpotlightDefaults = (
+    metric: Metric,
+    tables: Record<string, Table>,
+): void => {
+    const { spotlight } = metric;
+    if (!spotlight) return;
+
+    // Resolve a default's reference exactly like metric.filters does, so
+    // bare ("status") and joined ("customers.first_name") refs both work.
+    const resolveDimension = (ref: string): Dimension | undefined => {
+        const { refTable, refName } = getParsedReference(ref, metric.table);
+        return getReferencedDimensionCaseInsensitive(refTable, refName, tables);
+    };
+
+    // Allowlists store bare dimension names (matched against dimension.name in
+    // the explorer), but accept the fully-qualified ref too.
+    const isInAllowlist = (allowlist: string[], ref: string): boolean => {
+        const { refName } = getParsedReference(ref, metric.table);
+        return allowlist.includes(ref) || allowlist.includes(refName);
+    };
+
+    if (spotlight.defaultSegment !== undefined) {
+        const ref = spotlight.defaultSegment;
+        if (spotlight.segmentBy && !isInAllowlist(spotlight.segmentBy, ref)) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_segment '${ref}' must be one of segment_by: [${spotlight.segmentBy.join(
+                    ', ',
+                )}]`,
+            );
+        }
+        const dimension = resolveDimension(ref);
+        const isSegmentable =
+            dimension !== undefined &&
+            isMetricsExplorerCompatibleDimension(dimension);
+        if (!isSegmentable) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_segment '${ref}' must reference an existing dimension that is segmentable (string or boolean)`,
+            );
+        }
+    }
+
+    if (spotlight.defaultFilter !== undefined) {
+        const { fieldRef } = spotlight.defaultFilter.target;
+        if (
+            spotlight.filterBy &&
+            !isInAllowlist(spotlight.filterBy, fieldRef)
+        ) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter dimension '${fieldRef}' must be one of filter_by: [${spotlight.filterBy.join(
+                    ', ',
+                )}]`,
+            );
+        }
+        if (resolveDimension(fieldRef) === undefined) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter references an unknown dimension '${fieldRef}'`,
+            );
+        }
+        if (
+            !METRICS_EXPLORER_FILTER_OPERATORS.includes(
+                spotlight.defaultFilter.operator,
+            )
+        ) {
+            throw new CompileError(
+                `Metric "${metric.name}": default_filter uses operator '${spotlight.defaultFilter.operator}' which is not supported in the Metrics Explorer (use 'is' or 'is not')`,
+            );
+        }
+    }
+};
+
+const getDimensionFromRequiredFilter = ({
+    requiredFilter,
+    baseTable,
+    tables,
+}: {
+    requiredFilter: ModelRequiredFilterRule;
+    baseTable: string;
+    tables: Record<string, Table>;
+}): Dimension | undefined => {
+    const { refTable, refName } = getParsedReference(
+        requiredFilter.target.fieldRef,
+        baseTable,
+    );
+    return getReferencedDimensionCaseInsensitive(refTable, refName, tables);
+};
+
+const getHiddenRequiredFilterRefs = ({
+    requiredFilters,
+    baseTable,
+    tables,
+}: {
+    requiredFilters: ModelRequiredFilterRule[] | undefined;
+    baseTable: string;
+    tables: Record<string, Table>;
+}): string[] => {
+    if (!requiredFilters || requiredFilters.length === 0) {
+        return [];
+    }
+
+    return requiredFilters
+        .filter((requiredFilter) => {
+            const dimension = getDimensionFromRequiredFilter({
+                requiredFilter,
+                baseTable,
+                tables,
+            });
+            return dimension?.hidden === true;
+        })
+        .map((requiredFilter) => requiredFilter.target.fieldRef);
+};
+
 export const getAllReferences = (raw: string): string[] =>
     (raw.match(lightdashVariablePattern) || []).map(
         (value) => value.slice(2, value.length - 1), // value without brackets
@@ -196,7 +321,9 @@ export type UncompiledExplore = {
     label: string;
     tags: string[];
     baseTable: string;
+    /** @deprecated Use groups instead */
     groupLabel?: string;
+    groups?: string[];
     joinedTables: ExploreJoin[];
     tables: Record<string, Table>;
     targetDatabase: SupportedDbtAdapter;
@@ -213,18 +340,6 @@ export type UncompiledExplore = {
     preAggregates?: PreAggregateDef[];
     caseSensitive?: boolean;
     projectDefaults?: LightdashProjectConfig['defaults'];
-};
-
-const getReferencedTable = (
-    refTable: string,
-    tables: Record<string, Table>,
-) => {
-    if (tables[refTable]) {
-        return tables[refTable];
-    }
-    return Object.values(tables).find(
-        (table) => table.name === refTable || table.originalName === refTable,
-    );
 };
 
 /**
@@ -261,6 +376,7 @@ export class ExploreCompiler {
         tables,
         targetDatabase,
         groupLabel,
+        groups,
         warehouse,
         ymlPath,
         sqlPath,
@@ -277,6 +393,21 @@ export class ExploreCompiler {
         if (!tables[baseTable]) {
             throw new CompileError(
                 `Failed to compile explore "${name}". Tried to find base table but cannot find table with name "${baseTable}"`,
+                {},
+            );
+        }
+
+        const hiddenRequiredFilterRefs = getHiddenRequiredFilterRefs({
+            requiredFilters: tables[baseTable].requiredFilters,
+            baseTable,
+            tables,
+        });
+
+        if (hiddenRequiredFilterRefs.length > 0) {
+            throw new CompileError(
+                `Failed to compile explore "${name}". Hidden fields can't be used in default_filters or required_filters: ${hiddenRequiredFilterRefs.join(
+                    ', ',
+                )}.`,
                 {},
             );
         }
@@ -403,7 +534,8 @@ export class ExploreCompiler {
                                 );
 
                             const isTimeIntervalBaseDimensionVisible =
-                                dimension.timeInterval &&
+                                (dimension.timeInterval ||
+                                    dimension.customTimeInterval) &&
                                 dimension.timeIntervalBaseDimensionName &&
                                 expandedFields
                                     ? expandedFields.includes(
@@ -583,6 +715,7 @@ export class ExploreCompiler {
             tables: compiledTables,
             targetDatabase,
             groupLabel,
+            ...(groups && groups.length > 0 ? { groups } : {}),
             warehouse,
             ymlPath,
             sqlPath,
@@ -665,10 +798,11 @@ export class ExploreCompiler {
                         ),
                     };
                 } catch (e) {
-                    const errorMessage =
+                    const baseMessage =
                         e instanceof Error
                             ? e.message
-                            : `Failed to compile dimension "${dimensionKey}"`;
+                            : 'unknown compile error';
+                    const errorMessage = `Dimension "${dimensionKey}" failed to compile: ${baseMessage}`;
                     return {
                         ...prev,
                         [dimensionKey]:
@@ -704,10 +838,11 @@ export class ExploreCompiler {
                         ),
                     };
                 } catch (e) {
-                    const errorMessage =
+                    const baseMessage =
                         e instanceof Error
                             ? e.message
-                            : `Failed to compile metric "${metricKey}"`;
+                            : 'unknown compile error';
+                    const errorMessage = `Metric "${metricKey}" failed to compile: ${baseMessage}`;
                     return {
                         ...prev,
                         [metricKey]: ExploreCompiler.createMetricWithError(
@@ -847,7 +982,7 @@ export class ExploreCompiler {
         const compiledSql = compiledMetric.sql;
 
         // Extract parameter references from both SQL and format string
-        const parameterReferences = getParameterReferencesFromSqlAndFormat(
+        const parameterReferences = getParameterReferences(
             compiledSql,
             typeof metric.format === 'string' ? metric.format : undefined,
         );
@@ -857,6 +992,8 @@ export class ExploreCompiler {
             parameterReferences,
             availableParameters,
         );
+
+        validateSpotlightDefaults(metric, tables);
 
         return {
             ...metric,
@@ -1033,7 +1170,7 @@ export class ExploreCompiler {
                     metric.table,
                 );
 
-                const table = tables[refTable];
+                const table = getReferencedTable(refTable, tables);
 
                 if (!table) {
                     throw new CompileError(
@@ -1041,14 +1178,11 @@ export class ExploreCompiler {
                     );
                 }
 
-                // NOTE: date dimensions from explores have their time format uppercased (e.g. order_date_DAY) - see ticket: https://github.com/lightdash/lightdash/issues/5998
-                const dimensionRefName = Object.keys(table.dimensions).find(
-                    (key) => key.toLowerCase() === refName.toLowerCase(),
+                const dimensionField = getReferencedDimensionCaseInsensitive(
+                    refTable,
+                    refName,
+                    tables,
                 );
-
-                const dimensionField = dimensionRefName
-                    ? table.dimensions[dimensionRefName]
-                    : undefined;
 
                 if (!dimensionField) {
                     throw new CompileError(
@@ -1158,7 +1292,7 @@ export class ExploreCompiler {
         const compiledSql = compiledDimension.sql;
 
         // Extract parameter references from both SQL and format string
-        const parameterReferences = getParameterReferencesFromSqlAndFormat(
+        const parameterReferences = getParameterReferences(
             compiledSql,
             typeof dimension.format === 'string' ? dimension.format : undefined,
         );
@@ -1459,6 +1593,9 @@ export const createDimensionWithGranularity = (
             timeIntervalBaseDimensionName:
                 baseTimeDimension.timeIntervalBaseDimensionName ??
                 baseTimeDimension.name,
+            timeIntervalBaseDimensionType:
+                baseTimeDimension.timeIntervalBaseDimensionType ??
+                baseTimeDimension.type,
             type: timeFrameConfigs[newTimeInterval].getDimensionType(
                 baseTimeDimension.type,
             ),

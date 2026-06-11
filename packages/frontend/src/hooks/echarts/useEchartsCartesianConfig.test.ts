@@ -1,19 +1,33 @@
 import {
     CartesianSeriesType,
+    DimensionType,
+    FieldType,
     TimeFrames,
+    transformToPercentageStacking,
+    type Dimension,
     type EChartsSeries,
     type Field,
     type ResultRow,
 } from '@lightdash/common';
+import dayjs from 'dayjs';
+import timezonePlugin from 'dayjs/plugin/timezone';
+import utcPlugin from 'dayjs/plugin/utc';
 import { describe, expect, test, vi } from 'vitest';
 import {
+    applyLegendPlacementToGrid,
     filterSeriesWithNoData,
     getAxisDefaultMaxValue,
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
     getMinAndMaxValues,
+    getStackTotalSeries,
+    mergeLegendSettings,
     padDatasetForContinuousAxis,
+    selectContinuousDateRange,
 } from './useEchartsCartesianConfig';
+
+dayjs.extend(utcPlugin);
+dayjs.extend(timezonePlugin);
 
 vi.mock('./../../providers/TrackingProvider');
 
@@ -409,6 +423,412 @@ describe('getCategoryDateAxisConfig', () => {
             expect(result.data).toHaveLength(4);
         });
     });
+
+    // Regression: iteration landing exactly on maxX produced a duplicate
+    // trailing category due to dayjs.tz .isBefore drift.
+    describe('no duplicate entries when range lands exactly on maxX', () => {
+        const expectStrictlyIncreasingAndUnique = (data: string[]) => {
+            expect(new Set(data).size).toBe(data.length);
+            const values = data.map((d) => new Date(d).valueOf());
+            for (let i = 1; i < values.length; i += 1) {
+                expect(values[i]).toBeGreaterThan(values[i - 1]);
+            }
+        };
+
+        test('WEEK iteration ending exactly on maxX produces no duplicate', () => {
+            // 6 weeks apart — iteration lands exactly on maxX
+            const rows = createRows([
+                '2020-06-29T01:00:00Z',
+                '2020-08-10T01:00:00Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.WEEK),
+                rows,
+                'category',
+            );
+            expect(result.data).toHaveLength(7);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('MONTH iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2024-01-15T00:00:00.000Z',
+                '2024-06-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.MONTH),
+                rows,
+                'category',
+            );
+            // Jan..Jun inclusive = 6 months
+            expect(result.data).toHaveLength(6);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('QUARTER iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2024-01-15T00:00:00.000Z',
+                '2024-10-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.QUARTER),
+                rows,
+                'category',
+            );
+            // Q1..Q4 = 4 quarters
+            expect(result.data).toHaveLength(4);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+
+        test('YEAR iteration ending exactly on maxX produces no duplicate', () => {
+            const rows = createRows([
+                '2020-06-15T00:00:00.000Z',
+                '2024-06-15T00:00:00.000Z',
+            ]);
+            const result = getCategoryDateAxisConfig(
+                axisId,
+                createAxisField(TimeFrames.YEAR),
+                rows,
+                'category',
+            );
+            // 2020..2024 inclusive = 5 years
+            expect(result.data).toHaveLength(5);
+            expectStrictlyIncreasingAndUnique(result.data!);
+        });
+    });
+
+    // Snap labels must equal warehouse wall-clock-midnight UTC instants for
+    // the resolved zone, even across DST boundaries.
+    describe('DST stability across resolved timezone', () => {
+        const wallClockMidnightUtc = (
+            tz: string,
+            year: number,
+            month1Based: number,
+            day = 1,
+        ): string => {
+            const m = String(month1Based).padStart(2, '0');
+            const d = String(day).padStart(2, '0');
+            return dayjs.tz(`${year}-${m}-${d} 00:00:00`, tz).utc().format();
+        };
+
+        const monthlyRowsFor = (
+            tz: string,
+            months: Array<[number, number]>,
+        ): ResultRow[] =>
+            createRows(months.map(([y, m]) => wallClockMidnightUtc(tz, y, m)));
+
+        const expectedMonthlyRange = (
+            tz: string,
+            months: Array<[number, number]>,
+        ): string[] => months.map(([y, m]) => wallClockMidnightUtc(tz, y, m));
+
+        describe('MONTH', () => {
+            // Apr 2024 → Mar 2025: iteration starts in PDT, crosses fall-back
+            // (Nov 3 2024) and spring-forward (Mar 9 2025).
+            test('LA: snap honors PST↔PDT transitions across a full year', () => {
+                const tz = 'America/Los_Angeles';
+                const months: Array<[number, number]> = [
+                    [2024, 4],
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                    [2024, 10],
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                    [2025, 3],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            // May 2024 → Apr 2025: iteration starts in BST, crosses fall-back
+            // (Oct 27 2024) and spring-forward (Mar 30 2025).
+            test('London: snap honors GMT↔BST transitions across a full year', () => {
+                const tz = 'Europe/London';
+                const months: Array<[number, number]> = [
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                    [2024, 10],
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                    [2025, 3],
+                    [2025, 4],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+        });
+
+        describe('QUARTER', () => {
+            // Q2 2024 → Q1 2025: starts in PDT, ends in PST (Jan 1 2025).
+            test('LA: snap honors DST when iterating across quarter boundaries', () => {
+                const tz = 'America/Los_Angeles';
+                const quarters: Array<[number, number]> = [
+                    [2024, 4], // Q2 2024 — PDT
+                    [2024, 7], // Q3 2024 — PDT
+                    [2024, 10], // Q4 2024 — PDT (until Nov 3)
+                    [2025, 1], // Q1 2025 — PST
+                ];
+                const rows = monthlyRowsFor(tz, quarters);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.QUARTER),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, quarters));
+            });
+
+            // Q2 2024 → Q1 2025: starts in BST, ends in GMT (Jan 1 2025).
+            test('London: snap honors DST when iterating across quarter boundaries', () => {
+                const tz = 'Europe/London';
+                const quarters: Array<[number, number]> = [
+                    [2024, 4], // Q2 — BST
+                    [2024, 7], // Q3 — BST
+                    [2024, 10], // Q4 — BST (until Oct 27)
+                    [2025, 1], // Q1 — GMT
+                ];
+                const rows = monthlyRowsFor(tz, quarters);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.QUARTER),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, quarters));
+            });
+        });
+
+        describe('WEEK', () => {
+            // Mondays spanning LA fall-back (Nov 3 2024): Oct 28 PDT → Nov 4 PST.
+            test('LA: snap honors DST when iterating week-by-week across fall-back', () => {
+                const tz = 'America/Los_Angeles';
+                const weekStarts: Array<[number, number, number]> = [
+                    [2024, 10, 28], // Mon, PDT
+                    [2024, 11, 4], // Mon, PST (DST ended Nov 3)
+                    [2024, 11, 11], // Mon, PST
+                ];
+                const rows = createRows(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.WEEK),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+            });
+
+            // Mondays spanning London spring-forward (Mar 30 2025): Mar 24 GMT → Mar 31 BST.
+            test('London: snap honors DST when iterating week-by-week across spring-forward', () => {
+                const tz = 'Europe/London';
+                const weekStarts: Array<[number, number, number]> = [
+                    [2025, 3, 24], // Mon, GMT
+                    [2025, 3, 31], // Mon, BST (DST started Mar 30)
+                    [2025, 4, 7], // Mon, BST
+                ];
+                const rows = createRows(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.WEEK),
+                    rows,
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(
+                    weekStarts.map(([y, m, d]) =>
+                        wallClockMidnightUtc(tz, y, m, d),
+                    ),
+                );
+            });
+        });
+
+        describe('current behavior preserved', () => {
+            test('LA: non-DST-crossing window stays in PDT throughout', () => {
+                const tz = 'America/Los_Angeles';
+                const months: Array<[number, number]> = [
+                    [2024, 4],
+                    [2024, 5],
+                    [2024, 6],
+                    [2024, 7],
+                    [2024, 8],
+                    [2024, 9],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            test('London: non-DST-crossing window stays in GMT throughout', () => {
+                const tz = 'Europe/London';
+                const months: Array<[number, number]> = [
+                    [2024, 11],
+                    [2024, 12],
+                    [2025, 1],
+                    [2025, 2],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.MONTH),
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+
+            // DATE-base dims must stay in UTC regardless of resolvedTimezone.
+            test('DATE-base dim ignores resolvedTimezone and snaps in UTC', () => {
+                const dateBaseField = {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    timeIntervalBaseDimensionType: DimensionType.DATE,
+                    name: 'order_date_month',
+                    table: 'orders',
+                } as unknown as Dimension;
+                const rows = createRows([
+                    '2024-01-01T00:00:00Z',
+                    '2024-02-01T00:00:00Z',
+                    '2024-03-01T00:00:00Z',
+                ]);
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    dateBaseField,
+                    rows,
+                    'category',
+                    undefined,
+                    'America/Los_Angeles',
+                );
+                expect(result.data).toEqual([
+                    '2024-01-01T00:00:00Z',
+                    '2024-02-01T00:00:00Z',
+                    '2024-03-01T00:00:00Z',
+                ]);
+            });
+
+            // Complement of the above: TIMESTAMP-base dims are bucketed
+            // instants, so they DO shift with the resolved timezone.
+            test('TIMESTAMP-base dim honors resolvedTimezone and snaps in project tz', () => {
+                const tz = 'America/Los_Angeles';
+                const months: Array<[number, number]> = [
+                    [2024, 4],
+                    [2024, 5],
+                    [2024, 6],
+                ];
+                const tsBaseField = {
+                    fieldType: FieldType.DIMENSION,
+                    type: DimensionType.DATE,
+                    timeInterval: TimeFrames.MONTH,
+                    timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    name: 'created_at_month',
+                    table: 'orders',
+                } as unknown as Dimension;
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    tsBaseField,
+                    monthlyRowsFor(tz, months),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+            });
+        });
+
+        describe('YEAR', () => {
+            // Jan 1 is always winter in these zones — guards against future
+            // refactors drifting at year boundaries.
+            test('LA: year snap stays anchored to Jan 1 PST', () => {
+                const tz = 'America/Los_Angeles';
+                const years: Array<[number, number]> = [
+                    [2023, 1],
+                    [2024, 1],
+                    [2025, 1],
+                    [2026, 1],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.YEAR),
+                    monthlyRowsFor(tz, years),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, years));
+            });
+
+            test('London: year snap stays anchored to Jan 1 GMT', () => {
+                const tz = 'Europe/London';
+                const years: Array<[number, number]> = [
+                    [2023, 1],
+                    [2024, 1],
+                    [2025, 1],
+                    [2026, 1],
+                ];
+                const result = getCategoryDateAxisConfig(
+                    axisId,
+                    createAxisField(TimeFrames.YEAR),
+                    monthlyRowsFor(tz, years),
+                    'category',
+                    undefined,
+                    tz,
+                );
+                expect(result.data).toEqual(expectedMonthlyRange(tz, years));
+            });
+        });
+    });
 });
 
 describe('filterSeriesWithNoData', () => {
@@ -438,12 +858,7 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: null },
         ];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         expect(filtered).toHaveLength(1);
         expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
     });
@@ -455,12 +870,7 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20 },
         ];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         expect(filtered).toHaveLength(1);
         expect(filtered[0].encode?.tooltip?.[0]).toBe('metric_a');
     });
@@ -472,12 +882,7 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: 0 },
         ];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         expect(filtered).toHaveLength(2);
     });
 
@@ -488,12 +893,7 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: '' },
         ];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         expect(filtered).toHaveLength(2);
     });
 
@@ -501,12 +901,7 @@ describe('filterSeriesWithNoData', () => {
         const series = [makeSeries('metric_a'), makeSeries(undefined)];
         const results = [{ metric_a: 10 }];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         expect(filtered).toHaveLength(2);
     });
 
@@ -514,25 +909,7 @@ describe('filterSeriesWithNoData', () => {
         const series = [makeSeries('metric_a'), makeSeries('metric_b')];
         const results: Record<string, unknown>[] = [];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
-        expect(filtered).toBe(series);
-    });
-
-    test('returns unfilteredSeries when isShowHideRowsEnabled is false', () => {
-        const series = [makeSeries('metric_a'), makeSeries('metric_b')];
-        const results = [{ metric_a: 10, metric_b: null }];
-
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            false,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         expect(filtered).toBe(series);
     });
 
@@ -540,12 +917,7 @@ describe('filterSeriesWithNoData', () => {
         const series = [makeSeries('metric_a'), makeSeries('metric_b')];
         const results = [{ metric_a: 10, metric_b: null }];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            undefined,
-        );
+        const filtered = filterSeriesWithNoData(series, results, undefined);
         expect(filtered).toBe(series);
     });
 
@@ -556,12 +928,7 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: 5 },
         ];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         expect(filtered).toHaveLength(2);
     });
 
@@ -576,12 +943,7 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, metric_b: '∅' },
         ];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         // '∅' is a truthy string — series is kept. This is a known limitation:
         // getResultValueArray falls back from null raw to formatted string.
         expect(filtered).toHaveLength(2);
@@ -603,12 +965,7 @@ describe('filterSeriesWithNoData', () => {
             { metric_a: 20, label_col: null, metric_b: null },
         ];
 
-        const filtered = filterSeriesWithNoData(
-            series,
-            results,
-            true,
-            rowLimit,
-        );
+        const filtered = filterSeriesWithNoData(series, results, rowLimit);
         expect(filtered).toHaveLength(2);
     });
 });
@@ -701,5 +1058,449 @@ describe('padDatasetForContinuousAxis', () => {
         expect(result[1][xField]).toBe('2023-04-01T00:00:00Z');
         expect(result[1].value).toBe(20);
         expect(result[1].extra).toBe('b');
+    });
+
+    test('matches DST-offset rows to non-DST continuous range', () => {
+        const data = [
+            { [xField]: '2024-01-01T05:00:00Z', value: 1 },
+            { [xField]: '2024-10-01T05:00:00Z', value: 10 },
+            // Nov 1 is still EDT (DST ends Nov 3), so the warehouse emits
+            // -04:00. The snap's iteration stays at the start-of-range -05:00.
+            { [xField]: '2024-11-01T04:00:00Z', value: 11 },
+            { [xField]: '2024-12-01T05:00:00Z', value: 12 },
+        ];
+        const range = [
+            '2024-01-01T05:00:00Z',
+            '2024-10-01T05:00:00Z',
+            '2024-11-01T05:00:00Z',
+            '2024-12-01T05:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toHaveLength(4);
+        expect(result[2][xField]).toBe('2024-11-01T05:00:00Z');
+        expect(result[2].value).toBe(11);
+    });
+
+    test('is a no-op when row x-field already equals category', () => {
+        const data = [
+            { [xField]: '2024-04-01T00:00:00Z', value: 4, extra: 'a' },
+            { [xField]: '2024-05-01T00:00:00Z', value: 5, extra: 'b' },
+            { [xField]: '2024-06-01T00:00:00Z', value: 6, extra: 'c' },
+        ];
+        const range = [
+            '2024-04-01T00:00:00Z',
+            '2024-05-01T00:00:00Z',
+            '2024-06-01T00:00:00Z',
+        ];
+
+        const result = padDatasetForContinuousAxis(data, range, xField);
+        expect(result).toEqual(data);
+    });
+});
+
+describe('selectContinuousDateRange', () => {
+    const range = ['2024-01-01T00:00:00Z', '2024-01-08T00:00:00Z'];
+
+    test('non-flipped reads from bottom (X axis)', () => {
+        expect(
+            selectContinuousDateRange(
+                false,
+                { data: range },
+                { data: undefined },
+            ),
+        ).toEqual(range);
+    });
+
+    test('flipped reads from left (X axis)', () => {
+        expect(
+            selectContinuousDateRange(
+                true,
+                { data: undefined },
+                { data: range },
+            ),
+        ).toEqual(range);
+    });
+
+    // Regression: date dim on Y leaked into X-axis padding via the old
+    // bottom ?? top ?? left ?? right fallback chain.
+    test('non-flipped ignores left-axis data (Y-axis leak guard)', () => {
+        expect(
+            selectContinuousDateRange(
+                false,
+                { data: undefined },
+                { data: range },
+            ),
+        ).toBeUndefined();
+    });
+
+    test('flipped ignores bottom-axis data (Y-axis leak guard)', () => {
+        expect(
+            selectContinuousDateRange(
+                true,
+                { data: range },
+                { data: undefined },
+            ),
+        ).toBeUndefined();
+    });
+});
+
+describe('padDatasetForContinuousAxis ∘ transformToPercentageStacking', () => {
+    // Padding and the 100%-stack transform must commute on non-gap rows so
+    // dataset.source consumers can read from either composition order.
+    const xField = 'date';
+    const yFields = ['a', 'b'];
+    const range = [
+        '2024-01-01T00:00:00Z',
+        '2024-02-01T00:00:00Z',
+        '2024-03-01T00:00:00Z',
+    ];
+
+    test('produces equivalent ratios on non-gap rows regardless of order', () => {
+        // Drifted offsets — same calendar dates, different hours.
+        const rows = [
+            { [xField]: '2024-01-01T01:00:00Z', a: 3, b: 7 },
+            { [xField]: '2024-02-01T01:00:00Z', a: 1, b: 1 },
+            { [xField]: '2024-03-01T01:00:00Z', a: 4, b: 6 },
+        ];
+
+        const transformedFirst = transformToPercentageStacking(
+            rows,
+            xField,
+            yFields,
+        ).transformedResults;
+        const padThenTransform = padDatasetForContinuousAxis(
+            transformedFirst,
+            range,
+            xField,
+        );
+
+        const paddedFirst = padDatasetForContinuousAxis(rows, range, xField);
+        const transformThenPad = transformToPercentageStacking(
+            paddedFirst,
+            xField,
+            yFields,
+        ).transformedResults;
+
+        // Cats must match xAxis.data in both orders.
+        for (let i = 0; i < range.length; i++) {
+            expect(padThenTransform[i][xField]).toBe(range[i]);
+            expect(transformThenPad[i][xField]).toBe(range[i]);
+        }
+
+        // Ratios for present rows must match. Gap-row values legitimately
+        // differ between orders (undefined vs explicit 0%) — covered by the
+        // gap-tolerance test in tooltipFormatter.test.ts.
+        for (let i = 0; i < range.length; i++) {
+            for (const y of yFields) {
+                expect(transformThenPad[i][y]).toBe(padThenTransform[i][y]);
+            }
+        }
+    });
+
+    test('canonicalizes cats even when transform writes ratios first', () => {
+        const rows = [
+            { [xField]: '2024-01-01T01:00:00Z', a: 3, b: 7 },
+            { [xField]: '2024-02-01T01:00:00Z', a: 1, b: 1 },
+        ];
+        const partialRange = range.slice(0, 2);
+
+        const transformedFirst = transformToPercentageStacking(
+            rows,
+            xField,
+            yFields,
+        ).transformedResults;
+        const padThenTransformCats = padDatasetForContinuousAxis(
+            transformedFirst,
+            partialRange,
+            xField,
+        ).map((r) => r[xField]);
+        const transformThenPadCats = transformToPercentageStacking(
+            padDatasetForContinuousAxis(rows, partialRange, xField),
+            xField,
+            yFields,
+        ).transformedResults.map((r) => r[xField]);
+
+        expect(padThenTransformCats).toEqual(partialRange);
+        expect(transformThenPadCats).toEqual(partialRange);
+    });
+});
+
+describe('getStackTotalSeries', () => {
+    const itemsMap = {} as any;
+    const baseArgs = {
+        rows: [] as Record<string, unknown>[],
+        itemsMap,
+        flipAxis: false,
+        selectedLegendNames: {} as any,
+        isStack100: false,
+    };
+
+    test('emits a synthetic stack-total series when every series in the stack opts in', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0].stack).toBe('my_stack');
+        expect(result[0].label?.show).toBe(true);
+    });
+
+    // The index-0 short-circuit broke total labels whenever the pivot-merge
+    // re-ordered series and dropped an unconfigured auto-generated series
+    // at the front of the stack. As long as ANY series in the stack has
+    // stackLabel.show=true, the synthetic stack-total series must still be
+    // appended.
+    test('still emits the synthetic stack-total series when only a non-first series has stackLabel.show', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                // Auto-generated series for a new pivot value — no stackLabel.
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+            {
+                // Saved series carrying the user's stack-label intent.
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                stackLabel: { show: true },
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(1);
+        expect(result[0].stack).toBe('my_stack');
+        expect(result[0].label?.show).toBe(true);
+    });
+
+    test('does not emit a synthetic series when no series in the stack opts in', () => {
+        const seriesWithStack: EChartsSeries[] = [
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+            {
+                type: CartesianSeriesType.BAR,
+                stack: 'my_stack',
+                yAxisIndex: 0,
+            },
+        ];
+        const result = getStackTotalSeries(
+            baseArgs.rows,
+            seriesWithStack,
+            baseArgs.itemsMap,
+            baseArgs.flipAxis,
+            baseArgs.selectedLegendNames,
+            baseArgs.isStack100,
+        );
+        expect(result).toHaveLength(0);
+    });
+});
+
+describe('mergeLegendSettings', () => {
+    const series = [{ name: 'A' }, { name: 'B' }] as any;
+    const selected = { A: true, B: true };
+
+    test('returns defaults when config is undefined', () => {
+        const result = mergeLegendSettings(undefined, selected, series);
+        expect(result).toMatchObject({
+            show: true,
+            type: 'scroll',
+            orient: 'horizontal',
+            top: 0,
+            selected,
+        });
+    });
+
+    test('passes through user orient/position when placement is unset', () => {
+        const result = mergeLegendSettings(
+            { orient: 'vertical', right: '10', top: '20' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            orient: 'vertical',
+            right: '10',
+            top: '20',
+            selected,
+        });
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outsideRight overrides orient/position, forces scroll, and truncates labels', () => {
+        const result = mergeLegendSettings(
+            {
+                placement: 'outsideRight',
+                type: 'plain', // should be overridden to 'scroll'
+                orient: 'horizontal', // should be overridden
+                left: '50', // should be wiped
+            },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            right: '2%',
+            top: 'middle',
+            height: '80%',
+            textStyle: { overflow: 'truncate', width: 150 },
+            tooltip: { show: true },
+            selected,
+        });
+        expect(result.left).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outsideLeft mirrors outsideRight and forces scroll', () => {
+        const result = mergeLegendSettings(
+            { placement: 'outsideLeft', type: 'plain' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            left: '2%',
+            top: 'middle',
+            height: '80%',
+            textStyle: { overflow: 'truncate', width: 150 },
+            tooltip: { show: true },
+            selected,
+        });
+        expect(result.right).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+        expect(result).not.toHaveProperty('placement');
+    });
+
+    test('outside placement margins always use defaults, ignoring stale user values', () => {
+        const result = mergeLegendSettings(
+            {
+                placement: 'outsideRight',
+                // User has stale positional values from a prior Chart Area
+                // session; outside placement should ignore them and apply
+                // the canonical defaults.
+                top: '20%',
+                bottom: '5%',
+                right: '8%',
+            },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            type: 'scroll',
+            orient: 'vertical',
+            top: 'middle',
+            height: '80%',
+            right: '2%',
+            selected,
+        });
+        expect(result.left).toBeUndefined();
+        expect(result.bottom).toBeUndefined();
+    });
+
+    test("placement 'custom' is treated as no override", () => {
+        const result = mergeLegendSettings(
+            { placement: 'custom', orient: 'vertical', right: '5' },
+            selected,
+            series,
+        );
+        expect(result).toMatchObject({
+            orient: 'vertical',
+            right: '5',
+            selected,
+        });
+        expect(result).not.toHaveProperty('placement');
+    });
+});
+
+describe('applyLegendPlacementToGrid', () => {
+    const baseGrid = {
+        containLabel: true,
+        left: '10px',
+        right: '10px',
+        top: '10px',
+        bottom: '10px',
+    };
+
+    test('returns the grid unchanged when legend is not shown', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            false,
+        );
+        expect(result).toEqual(baseGrid);
+    });
+
+    test('returns the grid unchanged when placement is custom/unset', () => {
+        expect(applyLegendPlacementToGrid(baseGrid, undefined, true)).toEqual(
+            baseGrid,
+        );
+        expect(
+            applyLegendPlacementToGrid(baseGrid, { placement: 'custom' }, true),
+        ).toEqual(baseGrid);
+    });
+
+    test('reserves 25% on the right when placement is outsideRight', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            true,
+        );
+        expect(result).toEqual({ ...baseGrid, right: '25%' });
+    });
+
+    test('reserves 25% on the left when placement is outsideLeft', () => {
+        const result = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideLeft' },
+            true,
+        );
+        expect(result).toEqual({ ...baseGrid, left: '25%' });
+    });
+
+    test('user-set grid values override the default 25% reservation', () => {
+        const outsideRight = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideRight' },
+            true,
+            { right: '40%' },
+        );
+        expect(outsideRight).toEqual({ ...baseGrid, right: '40%' });
+
+        const outsideLeft = applyLegendPlacementToGrid(
+            baseGrid,
+            { placement: 'outsideLeft' },
+            true,
+            { left: '15%' },
+        );
+        expect(outsideLeft).toEqual({ ...baseGrid, left: '15%' });
     });
 });

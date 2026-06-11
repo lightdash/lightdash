@@ -1,7 +1,5 @@
 import {
-    FeatureFlags,
     hasUnusedDimensions,
-    hasUnusedTableCalculations,
     type ChartConfig,
     type ItemsMap,
     type MetricQuery,
@@ -12,7 +10,6 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
 import { useMemo, type FC } from 'react';
 import { type InfiniteQueryResults } from '../../../hooks/useQueryResults';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../../common/MantineIcon';
 
 export type PivotMismatchWarningProps = {
@@ -36,10 +33,6 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
     isLoading,
     maxColumnLimit,
 }) => {
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
-
     const dirtyPivotDimensions = useMemo(
         () =>
             (dirtyPivotConfiguration?.groupByColumns ?? []).map(
@@ -69,8 +62,6 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         const resultsPivotDimensions = (
             resultsData?.pivotDetails?.groupByColumns || []
         ).map((c: { reference: string }) => c.reference);
-        // Only show when using SQL pivot results
-        if (!useSqlPivotResults?.enabled) return false;
         // If both sides empty/undefined, no warning
         if (
             resultsPivotDimensions.length === 0 &&
@@ -79,11 +70,7 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
             return false;
         // Show when arrays differ
         return !isEqual(dirtyPivotDimensions, resultsPivotDimensions);
-    }, [
-        resultsData?.pivotDetails?.groupByColumns,
-        useSqlPivotResults,
-        dirtyPivotDimensions,
-    ]);
+    }, [resultsData?.pivotDetails?.groupByColumns, dirtyPivotDimensions]);
 
     // Determine if query includes dimensions not used in the cartesian chart config
     const shouldShowUnusedDims = useMemo(() => {
@@ -100,22 +87,6 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         dirtyPivotDimensions,
     ]);
 
-    // Determine if query includes table calculations not used in the cartesian chart config
-    const shouldShowUnusedTableCalcs = useMemo(() => {
-        const tableCalcNames =
-            resultsData?.metricQuery?.tableCalculations?.map((tc) => tc.name) ??
-            [];
-        return hasUnusedTableCalculations({
-            chartType: chartConfig.type,
-            chartConfig: chartConfig.config,
-            queryTableCalculations: tableCalcNames,
-        });
-    }, [
-        resultsData?.metricQuery?.tableCalculations,
-        chartConfig?.type,
-        chartConfig.config,
-    ]);
-
     // Determine how many messages to show
     const messages = useMemo(() => {
         // Only show when not loading/fetching
@@ -125,11 +96,6 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         if (shouldShowUnusedDims) {
             _messages.push(
                 'Your query includes dimensions that are not used in the chart configuration (x-axis, y-axis, or group by). Remove them from the query to avoid incorrect results.',
-            );
-        }
-        if (shouldShowUnusedTableCalcs) {
-            _messages.push(
-                'Your query includes table calculations that are not used in the chart configuration (x-axis or y-axis). Remove them from the query to avoid incorrect results unless you are using them intentionally.',
             );
         }
         if (shouldShowPivotMismatch) {
@@ -148,7 +114,6 @@ const VisualizationWarning: FC<PivotMismatchWarningProps> = ({
         isQueryFetching,
         shouldShowPivotMismatch,
         shouldShowUnusedDims,
-        shouldShowUnusedTableCalcs,
         shouldShowPivotColumnLimit,
         maxColumnLimit,
     ]);

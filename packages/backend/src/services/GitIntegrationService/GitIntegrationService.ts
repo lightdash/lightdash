@@ -21,6 +21,8 @@ import {
     ParseError,
     ProjectType,
     PullRequestCreated,
+    PullRequestProvider,
+    PullRequestSource,
     QueryExecutionContext,
     SavedChart,
     SessionUser,
@@ -40,9 +42,11 @@ import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { BaseService } from '../BaseService';
+import type { GithubAppService } from '../GithubAppService/GithubAppService';
 
 type GitIntegrationServiceArguments = {
     lightdashConfig: LightdashConfig;
@@ -50,6 +54,8 @@ type GitIntegrationServiceArguments = {
     projectModel: ProjectModel;
     spaceModel: SpaceModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    githubAppService: GithubAppService;
+    pullRequestsModel: PullRequestsModel;
     analytics: LightdashAnalytics;
 };
 
@@ -81,6 +87,10 @@ export class GitIntegrationService extends BaseService {
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
 
+    private readonly githubAppService: GithubAppService;
+
+    private readonly pullRequestsModel: PullRequestsModel;
+
     private readonly analytics: LightdashAnalytics;
 
     constructor(args: GitIntegrationServiceArguments) {
@@ -90,7 +100,58 @@ export class GitIntegrationService extends BaseService {
         this.projectModel = args.projectModel;
         this.spaceModel = args.spaceModel;
         this.githubAppInstallationsModel = args.githubAppInstallationsModel;
+        this.githubAppService = args.githubAppService;
+        this.pullRequestsModel = args.pullRequestsModel;
         this.analytics = args.analytics;
+    }
+
+    /**
+     * Record a write-back pull request in the `pull_requests` table so it shows
+     * up in project settings. Best-effort: the PR already exists on the
+     * provider, so a failure to persist the record must never surface to the
+     * caller or undo the write-back.
+     */
+    private async recordPullRequest({
+        user,
+        projectUuid,
+        type,
+        owner,
+        repo,
+        prNumber,
+        prUrl,
+        source,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        type: DbtProjectType;
+        owner: string;
+        repo: string;
+        prNumber: number;
+        prUrl: string;
+        source: PullRequestSource;
+    }): Promise<void> {
+        try {
+            await this.pullRequestsModel.create({
+                organizationUuid: user.organizationUuid!,
+                projectUuid,
+                createdByUserUuid: user.userUuid,
+                provider:
+                    type === DbtProjectType.GITHUB
+                        ? PullRequestProvider.GITHUB
+                        : PullRequestProvider.GITLAB,
+                source,
+                owner,
+                repo,
+                prNumber,
+                prUrl,
+            });
+        } catch (error) {
+            this.logger.warn('Failed to record pull request', {
+                projectUuid,
+                prUrl,
+                error: getErrorMessage(error),
+            });
+        }
     }
 
     async getInstallationId(user: SessionUser) {
@@ -492,42 +553,11 @@ Affected charts:
         projectUuid: string,
         quoteChar: `"` | `'`,
     ) {
-        const { owner, repo, branch, path, hostDomain, type } =
-            await this.getProjectRepo(projectUuid);
-        let token: string = '';
-        let installationId: string | undefined;
-
-        if (type === DbtProjectType.GITHUB) {
-            // GitHub logic - try app installation first, fallback to PAT
-            try {
-                installationId = await this.getInstallationId(user);
-                token = await this.getOrUpdateToken(user.organizationUuid!);
-            } catch {
-                const project =
-                    await this.projectModel.getWithSensitiveFields(projectUuid);
-                const connection =
-                    project.dbtConnection as DbtGithubProjectConfig;
-                token = connection.personal_access_token || '';
-                if (!token) {
-                    throw new ParameterError(
-                        'Invalid personal access token for GitHub project',
-                    );
-                }
-            }
-        } else if (type === DbtProjectType.GITLAB) {
-            // GitLab logic - only personal access tokens supported
-            const project =
-                await this.projectModel.getWithSensitiveFields(projectUuid);
-            const connection = project.dbtConnection as DbtGitlabProjectConfig;
-            token = connection.personal_access_token || '';
-            if (!token) {
-                throw new ParameterError(
-                    'Invalid personal access token for GitLab project',
-                );
-            }
-        } else {
-            throw new ParameterError(`Unsupported project type: ${type}`);
-        }
+        const { branch, path } = await this.getProjectRepo(projectUuid);
+        const { owner, repo, hostDomain, type, token, installationId } =
+            await this.getGitCredentials(user, projectUuid, {
+                preferUserToken: true,
+            });
 
         const userName = `${snakeCaseName(
             user.firstName[0] || '',
@@ -586,10 +616,11 @@ Affected charts:
 
         if (fields.length === 0) throw new ParseError(`Missing ${typeName}s`);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', {
+                subject('CustomFields', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                 }),
@@ -662,6 +693,19 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                     ...eventProperties,
                     [`${type}Count`]: fields.length,
                 },
+            });
+            await this.recordPullRequest({
+                user,
+                projectUuid,
+                type: gitProps.type,
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                prNumber: pullRequest.number,
+                prUrl: pullRequest.html_url,
+                source:
+                    type === 'customMetrics'
+                        ? PullRequestSource.CUSTOM_METRIC
+                        : PullRequestSource.CUSTOM_DIMENSION,
             });
             return {
                 prTitle: pullRequest.title,
@@ -875,6 +919,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 userId: user.userUuid,
                 properties: eventProperties,
             });
+            await this.recordPullRequest({
+                user,
+                projectUuid,
+                type: gitProps.type,
+                owner: gitProps.owner,
+                repo: gitProps.repo,
+                prNumber: pullRequest.number,
+                prUrl: pullRequest.html_url,
+                source: PullRequestSource.SQL_RUNNER,
+            });
             return {
                 prTitle: pullRequest.title,
                 prUrl: pullRequest.html_url,
@@ -938,12 +992,14 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         exploreName: string,
     ): Promise<{ content: string; sha: string; filePath: string }> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
+                    metadata: { exploreName },
                 }),
             )
         ) {
@@ -1010,12 +1066,14 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         projectUuid: string,
         exploreName: string,
     ): Promise<{ filePath: string }> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
+                    metadata: { exploreName },
                 }),
             )
         ) {
@@ -1054,14 +1112,16 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         prTitle: string,
         prDescription: string,
     ): Promise<PullRequestCreated> {
+        const auditedAbility = this.createAuditedAbility(user);
         // PR creates its own feature branch, so always allow (isProtectedBranch: false)
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
+                    metadata: { filePath, originalSha },
                 }),
             )
         ) {
@@ -1149,6 +1209,17 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             },
         });
 
+        await this.recordPullRequest({
+            user,
+            projectUuid,
+            type: gitProps.type,
+            owner: gitProps.owner,
+            repo: gitProps.repo,
+            prNumber: pullRequest.number,
+            prUrl: pullRequest.html_url,
+            source: PullRequestSource.SOURCE_EDITOR,
+        });
+
         return {
             prTitle: pullRequest.title,
             prUrl: pullRequest.html_url,
@@ -1159,9 +1230,10 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
      * Get git credentials for a project (without generating a new branch name)
      * This is used for read/write operations on existing branches
      */
-    private async getGitCredentials(
+    async getGitCredentials(
         user: SessionUser,
         projectUuid: string,
+        options?: { preferUserToken?: boolean },
     ): Promise<{
         owner: string;
         repo: string;
@@ -1176,6 +1248,34 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         let installationId: string | undefined;
 
         if (type === DbtProjectType.GITHUB) {
+            if (options?.preferUserToken && user.organizationUuid) {
+                // When the user has linked their personal GitHub account, act
+                // as them so commits and PRs are attributed to the real
+                // author. A user-to-server token only reaches repos the user
+                // can access AND the app is installed on, so verify repo
+                // access first and fall back to the app bot when it's missing.
+                const userToken = await this.githubAppService.getValidUserToken(
+                    user.userUuid,
+                    user.organizationUuid,
+                );
+                if (
+                    userToken &&
+                    (await GithubClient.userTokenHasRepoAccess(
+                        userToken,
+                        owner,
+                        repo,
+                    ))
+                ) {
+                    return {
+                        owner,
+                        repo,
+                        token: userToken,
+                        installationId: undefined,
+                        hostDomain,
+                        type,
+                    };
+                }
+            }
             try {
                 installationId = await this.getInstallationId(user);
                 token = await this.getOrUpdateToken(user.organizationUuid!);
@@ -1222,8 +1322,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         user: SessionUser,
         projectUuid: string,
     ): Promise<GitBranch[]> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
@@ -1270,12 +1371,14 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branch: string,
         path?: string,
     ): Promise<GitFileOrDirectory> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'view',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
+                    metadata: { branch, path },
                 }),
             )
         ) {
@@ -1356,16 +1459,18 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         sha?: string,
         message?: string,
     ): Promise<{ sha: string; path: string }> {
+        const auditedAbility = this.createAuditedAbility(user);
         const protectedBranch = await this.getProtectedBranch(projectUuid);
         const isProtectedBranch = branch === protectedBranch;
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch,
+                    metadata: { branch, path, sha },
                 }),
             )
         ) {
@@ -1375,7 +1480,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             );
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
         const commitMessage =
             message || (sha ? `Update ${path}` : `Create ${path}`);
 
@@ -1454,16 +1561,18 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         sha: string,
         message?: string,
     ): Promise<void> {
+        const auditedAbility = this.createAuditedAbility(user);
         const protectedBranch = await this.getProtectedBranch(projectUuid);
         const isProtectedBranch = branch === protectedBranch;
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch,
+                    metadata: { branch, path, sha },
                 }),
             )
         ) {
@@ -1473,7 +1582,9 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
             );
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
         const commitMessage = message || `Delete ${path}`;
 
         const deleteFile =
@@ -1507,20 +1618,24 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         branchName: string,
         sourceBranch: string,
     ): Promise<GitBranch> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
+                    metadata: { branchName, sourceBranch },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
 
         // Get the latest commit from the source branch
         const getLastCommit =
@@ -1577,20 +1692,24 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
         title: string,
         description: string,
     ): Promise<PullRequestCreated> {
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('SourceCode', {
                     organizationUuid: user.organizationUuid!,
                     projectUuid,
                     isProtectedBranch: false,
+                    metadata: { branch },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        const creds = await this.getGitCredentials(user, projectUuid);
+        const creds = await this.getGitCredentials(user, projectUuid, {
+            preferUserToken: true,
+        });
         const protectedBranch = await this.getProtectedBranch(projectUuid);
 
         Logger.debug(
@@ -1633,6 +1752,17 @@ Triggered by user ${user.firstName} ${user.lastName} (${user.email})
                 baseBranch: protectedBranch,
                 gitProvider: creds.type,
             },
+        });
+
+        await this.recordPullRequest({
+            user,
+            projectUuid,
+            type: creds.type,
+            owner: creds.owner,
+            repo: creds.repo,
+            prNumber: pullRequest.number,
+            prUrl: pullRequest.html_url,
+            source: PullRequestSource.SOURCE_EDITOR,
         });
 
         return {

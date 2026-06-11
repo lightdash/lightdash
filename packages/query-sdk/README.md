@@ -98,6 +98,41 @@ lightdash
 
 Supported filter operators: `equals`, `notEquals`, `greaterThan`, `lessThan`, `greaterThanOrEqual`, `lessThanOrEqual`, `inThePast`, `notInThePast`, `inTheNext`, `inTheCurrent`, `notInTheCurrent`, `inBetween`, `notInBetween`, `isNull`, `notNull`, `startsWith`, `endsWith`, `include`, `doesNotInclude`.
 
+## Parameters
+
+Lightdash parameters (`${lightdash.parameters.X}` substitutions) let a query swap out
+pieces of SQL at runtime — for example a comparison-mode dropdown that switches a
+year-over-year window between `YTD` and `Last 12 Months`.
+
+Parameters must be declared in `lightdash.yml` / model YAML and referenced via
+`${lightdash.parameters.X}` in SQL. Pass values at query time with `.parameters()`:
+
+```tsx
+function YoYChart() {
+    const [mode, setMode] = useState('YTD');
+
+    const { data } = useLightdash(
+        lightdash
+            .model('orders')
+            .metrics(['revenue_current', 'revenue_previous'])
+            .parameters({ comparison_mode: mode }),
+    );
+
+    // Changing `mode` produces a new query whose cache key includes the
+    // parameter value, so results re-fetch and the Current / Previous
+    // figures update for the selected window.
+    return (
+        <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="YTD">Year to date</option>
+            <option value="L12M">Last 12 months</option>
+        </select>
+    );
+}
+```
+
+`.parameters()` is immutable and merges with prior calls (later keys win). Values can be
+strings, numbers, or arrays of either. They are sent at the top level of the API request.
+
 ## Results
 
 `useLightdash(query)` returns:

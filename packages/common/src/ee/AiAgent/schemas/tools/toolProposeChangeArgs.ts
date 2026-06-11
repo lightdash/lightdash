@@ -151,9 +151,7 @@ const changeSchema = z.discriminatedUnion('entityType', [
 // Tool Schema Export
 // ============================================================================
 
-export const toolProposeChangeArgsSchema = createToolSchema({
-    description: TOOL_PROPOSE_CHANGE_DESCRIPTION,
-})
+export const toolProposeChangeArgsSchema = createToolSchema()
     .extend({
         entityTableName: z
             .string()
@@ -193,3 +191,47 @@ export const toolProposeChangeOutputSchema = z.object({
 export type ToolProposeChangeOutput = z.infer<
     typeof toolProposeChangeOutputSchema
 >;
+
+type ToolProposeChangeResultLike = {
+    toolType: string;
+    toolName: string;
+    metadata:
+        | ToolProposeChangeOutput['metadata']
+        | Record<string, unknown>
+        | null;
+};
+
+type ToolProposeChangeResult = ToolProposeChangeResultLike & {
+    toolType: 'built-in';
+    toolName: 'proposeChange';
+    metadata: ToolProposeChangeOutput['metadata'];
+};
+
+type ToolProposeChangeSuccessResult = ToolProposeChangeResult & {
+    metadata: Extract<
+        ToolProposeChangeOutput['metadata'],
+        { status: 'success' }
+    >;
+};
+
+const isToolProposeChangeSuccessMetadata = (
+    metadata: ToolProposeChangeResultLike['metadata'],
+): metadata is Extract<
+    ToolProposeChangeOutput['metadata'],
+    { status: 'success' }
+> => toolProposeChangeOutputSchema.shape.metadata.safeParse(metadata).success;
+
+export const isToolProposeChangeResult = <
+    T extends ToolProposeChangeResultLike,
+>(
+    result: T,
+): result is T & ToolProposeChangeResult =>
+    result.toolType === 'built-in' && result.toolName === 'proposeChange';
+
+export const isToolProposeChangeSuccessResult = <
+    T extends ToolProposeChangeResultLike,
+>(
+    result: T,
+): result is T & ToolProposeChangeSuccessResult =>
+    isToolProposeChangeResult(result) &&
+    isToolProposeChangeSuccessMetadata(result.metadata);

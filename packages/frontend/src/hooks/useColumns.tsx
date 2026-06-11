@@ -5,13 +5,13 @@ import {
     getErrorMessage,
     getItemId,
     getItemMap,
+    getMetricOverridesWithPopInheritance,
     isCustomDimension,
     isDimension,
     isField,
     isMetric,
     isNumericItem,
     isResultValue,
-    itemsInMetricQuery,
     renderRichTextTemplate,
     renderTemplatedUrl,
     type AdditionalMetric,
@@ -47,7 +47,6 @@ import {
     type TableColumn,
 } from '../components/common/Table/types';
 import { formatRowValueFromWarehouse } from '../components/DataViz/formatters/formatRowValueFromWarehouse';
-import useEmbed from '../ee/providers/Embed/useEmbed';
 import {
     selectAdditionalMetrics,
     selectCustomDimensions,
@@ -60,7 +59,7 @@ import {
 } from '../features/explorer/store';
 import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
-import { useCalculateTotal } from './useCalculateTotal';
+import { useAsyncCalculateTotal } from './useAsyncCalculateTotal';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
 
@@ -395,7 +394,15 @@ export const useColumns = (): TableColumn[] => {
     const sorts = useExplorerSelector(selectSorts);
     const metricOverrides = useExplorerSelector(selectMetricOverrides);
 
-    const { activeFields, query } = useExplorerQuery();
+    const {
+        activeFields,
+        query,
+        queryResults,
+        unpivotedQueryResults,
+        unpivotedEnabled,
+        validQueryArgs,
+        projectUuid,
+    } = useExplorerQuery();
     const resultsMetricQuery = query.data?.metricQuery;
     const resultsFields = query.data?.fields;
 
@@ -404,8 +411,6 @@ export const useColumns = (): TableColumn[] => {
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
     });
-
-    const { embedToken } = useEmbed();
 
     const hasNoActiveFields = activeFields.size === 0;
 
@@ -443,6 +448,12 @@ export const useColumns = (): TableColumn[] => {
             return baseItemsMap;
         }
 
+        // Resolve PoP metric overrides from their base metric (shared util)
+        const resolvedMetricOverrides = getMetricOverridesWithPopInheritance({
+            metricOverrides,
+            additionalMetrics,
+        });
+
         // Only apply overrides to items that have them
         return Object.fromEntries(
             Object.entries(baseItemsMap).map(([key, value]) => {
@@ -451,7 +462,8 @@ export const useColumns = (): TableColumn[] => {
                     return [key, value];
                 }
 
-                if (!metricOverrides[key]) return [key, value];
+                const override = resolvedMetricOverrides[key];
+                if (!override) return [key, value];
 
                 const itemWithoutLegacyFormat = omit(value, [
                     'format',
@@ -461,12 +473,12 @@ export const useColumns = (): TableColumn[] => {
                     key,
                     {
                         ...itemWithoutLegacyFormat,
-                        ...metricOverrides[key],
+                        ...override,
                     },
                 ];
             }),
         );
-    }, [baseItemsMap, metricOverrides, resultsFields]);
+    }, [baseItemsMap, metricOverrides, resultsFields, additionalMetrics]);
 
     const { activeItemsMap, invalidActiveItems } = useMemo<{
         activeItemsMap: ItemsMap;
@@ -497,15 +509,15 @@ export const useColumns = (): TableColumn[] => {
         return result;
     }, [itemsMap, activeFields]);
 
-    const { data: totals } = useCalculateTotal({
-        metricQuery: resultsMetricQuery,
-        explore: exploreData?.baseTable,
-        fieldIds: resultsMetricQuery
-            ? itemsInMetricQuery(resultsMetricQuery)
-            : undefined,
-        itemsMap: activeItemsMap,
-        embedToken,
-        parameters,
+    const sourceQueryUuid = unpivotedEnabled
+        ? unpivotedQueryResults.queryUuid
+        : queryResults.queryUuid;
+    const hasMetricFields = !!resultsMetricQuery?.metrics.length;
+    const { data: totals } = useAsyncCalculateTotal({
+        projectUuid,
+        sourceQueryUuid,
+        enabled: !!sourceQueryUuid && hasMetricFields,
+        invalidateCache: validQueryArgs?.invalidateCache,
     });
 
     return useMemo(() => {

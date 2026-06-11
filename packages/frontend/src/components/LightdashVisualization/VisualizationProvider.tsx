@@ -36,10 +36,7 @@ import {
 } from '../../hooks/useChartColorConfig/utils';
 import usePivotDimensions from '../../hooks/usePivotDimensions';
 import { type InfiniteQueryResults } from '../../hooks/useQueryResults';
-import {
-    useClientFeatureFlag,
-    useServerFeatureFlag,
-} from '../../hooks/useServerOrClientFeatureFlag';
+import { useServerFeatureFlag } from '../../hooks/useServerOrClientFeatureFlag';
 import { type EChartsReact } from '../EChartsReactWrapper';
 import { type EchartsSeriesClickEvent } from '../SimpleChart';
 import Context from './context';
@@ -63,6 +60,7 @@ export type VisualizationProviderProps = {
     resultsData: InfiniteQueryResults & {
         metricQuery?: MetricQuery;
         fields?: ItemsMap;
+        resolvedTimezone?: string;
     };
     parameters?: ParametersValuesMap;
     isLoading: boolean;
@@ -74,7 +72,6 @@ export type VisualizationProviderProps = {
     onChartTypeChange?: (value: ChartType) => void;
     onChartConfigChange?: (value: ChartConfig) => void;
     onPivotDimensionsChange?: (value: string[] | undefined) => void;
-    pivotTableMaxColumnLimit: number;
     savedChartUuid?: string;
     dashboardFilters?: DashboardFilters;
     invalidateCache?: boolean;
@@ -98,7 +95,6 @@ const VisualizationProvider: FC<
     resultsData,
     isLoading,
     columnOrder,
-    pivotTableMaxColumnLimit,
     chartConfig,
     onChartConfigChange,
     onSeriesContextMenu,
@@ -145,18 +141,16 @@ const VisualizationProvider: FC<
         };
     }, [setEchartsRef]);
     const [lastValidResultsData, setLastValidResultsData] = useState<
-        InfiniteQueryResults & { metricQuery?: MetricQuery; fields?: ItemsMap }
+        InfiniteQueryResults & {
+            metricQuery?: MetricQuery;
+            fields?: ItemsMap;
+            resolvedTimezone?: string;
+        }
     >();
-
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
 
     const { validPivotDimensions, setPivotDimensions } = usePivotDimensions(
         initialPivotDimensions,
-        useSqlPivotResults?.enabled
-            ? (unsavedMetricQuery ?? lastValidResultsData?.metricQuery)
-            : lastValidResultsData?.metricQuery,
+        unsavedMetricQuery ?? lastValidResultsData?.metricQuery,
         onPivotDimensionsChange,
     );
 
@@ -258,9 +252,11 @@ const VisualizationProvider: FC<
         [calculateKeyColorAssignment, itemsMap],
     );
 
-    const isCalculateSeriesColorEnabled = useClientFeatureFlag(
+    const { data: calculateSeriesColorFlag } = useServerFeatureFlag(
         FeatureFlags.CalculateSeriesColor,
     );
+    const isCalculateSeriesColorEnabled =
+        calculateSeriesColorFlag?.enabled ?? false;
 
     /**
      * Gets a shared color for a given series.
@@ -364,6 +360,7 @@ const VisualizationProvider: FC<
         isDashboard,
         isEditMode,
         isTouchDevice,
+        resolvedTimezone: lastValidResultsData?.resolvedTimezone,
     };
 
     switch (chartConfig.type) {
@@ -512,7 +509,6 @@ const VisualizationProvider: FC<
                     resultsData={lastValidResultsData}
                     columnOrder={defaultColumnOrder}
                     validPivotDimensions={validPivotDimensions}
-                    pivotTableMaxColumnLimit={pivotTableMaxColumnLimit}
                     initialChartConfig={chartConfig.config}
                     onChartConfigChange={handleChartConfigChange}
                     savedChartUuid={savedChartUuid}

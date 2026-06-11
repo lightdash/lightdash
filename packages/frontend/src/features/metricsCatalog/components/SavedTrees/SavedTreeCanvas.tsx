@@ -98,14 +98,26 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
         useMetricsTreeDetails(projectUuid, treeUuid);
 
     const isEditMode = mode === SavedTreeEditMode.EDIT;
-    const { data: metricsData } = useMetricsCatalog({
+    const {
+        data: metricsData,
+        hasNextPage: hasNextMetricsPage,
+        fetchNextPage: fetchNextMetricsPage,
+        isFetchingNextPage: isFetchingNextMetricsPage,
+    } = useMetricsCatalog({
         projectUuid: isEditMode ? projectUuid : undefined,
-        pageSize: 50,
+        pageSize: 300,
         categories: categoryFilters,
         categoriesFilterMode: categoryFilterMode,
         tables: tableFilters,
         ownerUserUuids: ownerFilters,
     });
+
+    const handleLoadMoreMetrics = useCallback(() => {
+        if (hasNextMetricsPage && !isFetchingNextMetricsPage) {
+            void fetchNextMetricsPage();
+        }
+    }, [hasNextMetricsPage, isFetchingNextMetricsPage, fetchNextMetricsPage]);
+
     const allMetrics = useMemo(
         () => metricsData?.pages.flatMap((page) => page.data) ?? [],
         [metricsData],
@@ -428,6 +440,9 @@ const SavedTreeCanvas: FC<SavedTreeCanvasProps> = ({ mode, treeUuid }) => {
                         onCanvasStateChange={handleCanvasStateChange}
                         sidebarFilter={sidebarFilter}
                         allProjectYamlEdges={allProjectYamlEdges}
+                        hasMoreMetrics={hasNextMetricsPage ?? false}
+                        isLoadingMoreMetrics={isFetchingNextMetricsPage}
+                        onLoadMoreMetrics={handleLoadMoreMetrics}
                     />
                 </Box>
                 <MantineModal

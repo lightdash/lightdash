@@ -127,14 +127,28 @@ const FilterConfiguration: FC<Props> = ({
         if (!originalFilterRule) return;
 
         setDraftFilterRule((oldDraftFilterRule) => {
-            return oldDraftFilterRule
-                ? {
-                      ...oldDraftFilterRule,
-                      ...getFilterRuleRevertableObject(originalFilterRule),
-                  }
-                : undefined;
+            if (!oldDraftFilterRule) return undefined;
+
+            const revertedRule = {
+                ...oldDraftFilterRule,
+                ...getFilterRuleRevertableObject(originalFilterRule),
+            };
+
+            // Mirror handleChangeFilterRule's disable logic: without this, reverting to
+            // a saved state of { disabled: false, values: [] } leaves Apply stuck disabled.
+            const isRevertedFilterDisabled =
+                revertedRule.disabled && !hasFilterValueSet(revertedRule);
+            const shouldDisableInViewMode =
+                !isEditMode &&
+                !revertedRule.required &&
+                !hasFilterValueSet(revertedRule);
+
+            return {
+                ...revertedRule,
+                disabled: isRevertedFilterDisabled || shouldDisableInViewMode,
+            };
         });
-    }, [originalFilterRule, setDraftFilterRule]);
+    }, [originalFilterRule, setDraftFilterRule, isEditMode]);
 
     const handleChangeFilterRule = useCallback(
         (newFilterRule: DashboardFilterRule) => {
@@ -340,8 +354,27 @@ const FilterConfiguration: FC<Props> = ({
         isCreatingNew,
     );
 
+    const isLockedRequiredMissingValue =
+        !!draftFilterRule?.lockedTabUuids?.length &&
+        !!draftFilterRule?.required &&
+        !hasFilterValueSet(draftFilterRule);
+
+    const applyDisabledTooltipLabel = isLockedRequiredMissingValue
+        ? 'A locked, required filter must have a value'
+        : 'Filter field and value required';
+
     return (
-        <Stack>
+        // Make inline dropdowns flow in the panel (instead of absolute), so the
+        // panel grows with them and Apply stays visible — PROD-2395 sketch.
+        <Stack
+            sx={{
+                '.mantine-Select-dropdown, .mantine-MultiSelect-dropdown': {
+                    position: 'static',
+                    width: '100%',
+                    marginTop: 4,
+                },
+            }}
+        >
             <Tabs
                 value={selectedTabId}
                 onTabChange={(tabId: FilterTabs) => setSelectedTabId(tabId)}
@@ -377,7 +410,7 @@ const FilterConfiguration: FC<Props> = ({
                     </Tabs.List>
                 ) : null}
 
-                <Tabs.Panel value={FilterTabs.SETTINGS} miw={350} maw={520}>
+                <Tabs.Panel value={FilterTabs.SETTINGS} w={400}>
                     <Stack spacing="sm">
                         {isCreatingNew ? (
                             !!fields && fields.length > 0 ? (
@@ -524,17 +557,24 @@ const FilterConfiguration: FC<Props> = ({
                     )}
 
                 <Tooltip
-                    label="Filter field and value required"
-                    disabled={!isApplyDisabled}
+                    label={applyDisabledTooltipLabel}
+                    disabled={!isApplyDisabled && !isLockedRequiredMissingValue}
                 >
                     <Box>
                         <Button
                             size="xs"
                             variant="filled"
-                            disabled={isApplyDisabled}
-                            onClick={() => {
+                            disabled={
+                                isApplyDisabled || isLockedRequiredMissingValue
+                            }
+                            // We use onMouseDown instead of onClick: when an
+                            // inline dropdown (Select/MultiSelect) is open,
+                            // Mantine's click-outside detector fires on
+                            // mousedown and the subsequent click event never
+                            // reaches the Apply button — so a real-user click
+                            // would otherwise need two presses to apply.
+                            onMouseDown={() => {
                                 setSelectedTabId(FilterTabs.SETTINGS);
-
                                 if (!!draftFilterRule) onSave(draftFilterRule);
                             }}
                         >

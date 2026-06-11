@@ -2,7 +2,6 @@ import {
     assertUnreachable,
     DEFAULT_RESULTS_PAGE_SIZE,
     DownloadFileType,
-    FeatureFlags,
     MAX_SAFE_INTEGER,
     ParameterError,
     QueryExecutionContext,
@@ -29,7 +28,6 @@ import { lightdashApi } from '../api';
 import { pollForResults } from '../features/queryRunner/executeQuery';
 import { convertDateFilters } from '../utils/dateFilter';
 import useQueryError from './useQueryError';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 export type QueryResultsProps = {
     projectUuid: string;
@@ -100,6 +98,7 @@ export const scheduleDownloadQuery = async (
             columnOrder: options.columnOrder,
             hiddenFields: options.hiddenFields,
             pivotConfig: options.pivotConfig,
+            exportPivotedData: options.exportPivotedData,
             attachmentDownloadName: options.attachmentDownloadName,
         }),
         version: 'v2',
@@ -164,7 +163,7 @@ const executeAsyncQuery = (
                           }
                         : undefined,
                 },
-                invalidateCache: true, // Note: do not cache explore queries
+                invalidateCache: data.invalidateCache,
                 usePreAggregateCache: data.usePreAggregateCache,
                 parameters: data.parameters,
                 pivotConfiguration: data.pivotConfiguration,
@@ -216,18 +215,9 @@ export const useGetReadyQueryResults = (
         return missingRequiredParameters.length === 0;
     }, [data, missingRequiredParameters]);
 
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
-
     const result = useQuery<ApiExecuteAsyncMetricQueryResults, ApiError>({
         enabled: isEnabled,
-        queryKey: [
-            'create-query',
-            data,
-            missingRequiredParameters,
-            useSqlPivotResults,
-        ],
+        queryKey: ['create-query', data, missingRequiredParameters],
         keepPreviousData: true, // needed to keep the last metric query which could break cartesian chart config
         staleTime: Infinity,
         refetchOnWindowFocus: false,
@@ -237,8 +227,7 @@ export const useGetReadyQueryResults = (
                 data
                     ? {
                           ...data,
-                          pivotResults:
-                              data.pivotResults ?? useSqlPivotResults?.enabled,
+                          pivotResults: data.pivotResults ?? true,
                       }
                     : null,
                 signal,
@@ -417,7 +406,7 @@ export const useInfiniteQueryResults = (
                         error: {
                             name: 'Error',
                             statusCode: 500,
-                            message: results.error ?? 'Query failed',
+                            message: results.error || 'Query failed',
                             data: {},
                         },
                     };

@@ -49,16 +49,43 @@ const dockerfile = fs.readFileSync('e2b.Dockerfile', 'utf-8');
 
 async function main() {
     try {
-        const template = Template().fromDockerfile(dockerfile);
+        const template = Template({
+            fileContextPath: path.resolve('.'),
+        }).fromDockerfile(dockerfile);
 
-        console.log('Submitting sandbox template build...\n');
+        const templateName =
+            process.env.E2B_TEMPLATE_NAME || 'lightdash-data-app';
+
+        // Primary tag goes on the build target (`name:tag`). Any extras come
+        // through the `tags` option so a single build can be addressed via
+        // multiple aliases (e.g. `0.2870.0` and `latest`). Empty/absent
+        // values fall through to E2B's implicit `default` tag.
+        const primaryTag = process.env.E2B_TEMPLATE_TAG?.trim() || '';
+        const extraTags = (process.env.E2B_TEMPLATE_EXTRA_TAGS || '')
+            .split(',')
+            .map((t) => t.trim())
+            .filter(Boolean);
+
+        const buildTarget = primaryTag
+            ? `${templateName}:${primaryTag}`
+            : templateName;
+
+        console.log(
+            `Submitting sandbox template build (target: ${buildTarget}${
+                extraTags.length ? `, extra tags: ${extraTags.join(', ')}` : ''
+            })...\n`,
+        );
+
+        const skipCache = process.argv.includes('--no-cache');
 
         const info = await Template.buildInBackground(
             template,
-            'lightdash-data-app',
+            buildTarget,
             {
                 cpuCount: 2,
                 memoryMB: 2048,
+                ...(extraTags.length ? { tags: extraTags } : {}),
+                ...(skipCache ? { skipCache: true } : {}),
             },
         );
 

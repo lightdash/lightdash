@@ -1,8 +1,4 @@
-import {
-    FeatureFlags,
-    SnowflakeAuthenticationType,
-    WarehouseTypes,
-} from '@lightdash/common';
+import { SnowflakeAuthenticationType, WarehouseTypes } from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -21,7 +17,6 @@ import { IconCheck } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { useToggle } from 'react-use';
 import { useOrganizationWarehouseCredentials } from '../../../hooks/organization/useOrganizationWarehouseCredentials';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import {
     useIsSnowflakeAuthenticated,
     useSnowflakeDatasets,
@@ -29,7 +24,6 @@ import {
 } from '../../../hooks/useSnowflake';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
-import TimeZonePicker from '../../common/TimeZonePicker';
 import FormCollapseButton from '../FormCollapseButton';
 import { useFormContext } from '../formContext';
 import BooleanSwitch from '../Inputs/BooleanSwitch';
@@ -37,6 +31,7 @@ import FormSection from '../Inputs/FormSection';
 import StartOfWeekSelect from '../Inputs/StartOfWeekSelect';
 import { getWarehouseIcon } from '../ProjectConnectFlow/utils';
 import { useProjectFormContext } from '../useProjectFormContext';
+import DataTimezoneField from './DataTimezoneField';
 import { SnowflakeDefaultValues } from './defaultValues';
 import {
     EXTERNAL_BROWSER_LABEL,
@@ -92,10 +87,6 @@ const SnowflakeForm: FC<{
     const { savedProject } = useProjectFormContext();
     const { health } = useApp();
     const form = useFormContext();
-    const { data: timezoneSupportFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableTimezoneSupport,
-    );
-    const isTimezoneSupportEnabled = timezoneSupportFlag?.enabled ?? false;
     const {
         data,
         isLoading: isLoadingAuth,
@@ -613,21 +604,7 @@ const SnowflakeForm: FC<{
                                         'warehouse.accessUrl',
                                     )}
                                 />
-                                {isTimezoneSupportEnabled && (
-                                    <TimeZonePicker
-                                        size="sm"
-                                        maw="100%"
-                                        label="Data timezone"
-                                        description="The timezone your warehouse stores ambiguous timestamps in. Defaults to UTC if not set."
-                                        searchable
-                                        clearable
-                                        placeholder="Not set (uses warehouse default)"
-                                        disabled={disabled}
-                                        {...form.getInputProps(
-                                            'warehouse.dataTimezone',
-                                        )}
-                                    />
-                                )}
+                                <DataTimezoneField disabled={disabled} />
                                 <StartOfWeekSelect
                                     disabled={disabled}
                                     isRedeployRequired={false}

@@ -20,6 +20,20 @@ export const convertChartSourceTypeToDashboardTileType = (
 };
 
 /**
+ * Whether a tile should be rendered for the given tab selection.
+ *
+ * Includes orphan (legacy) tiles — tiles whose `tabUuid` is null/undefined —
+ * regardless of `selectedTabs`, mirroring the frontend behaviour that surfaces
+ * legacy tiles on the first tab. When `selectedTabs` is null, no filtering is
+ * applied. See PROD-2505.
+ */
+export const isTileInSelectedTabs = (
+    tile: { tabUuid?: string | null },
+    selectedTabs: string[] | null,
+): boolean =>
+    !selectedTabs || !tile.tabUuid || selectedTabs.includes(tile.tabUuid);
+
+/**
  * Validates that selected tabs exist in the dashboard tiles.
  * If selectedTabs is provided and not empty, ensures at least one selected tab exists in dashboard tabs.
  * @param selectedTabs - Array of selected tab UUIDs or null

@@ -3,8 +3,10 @@ import {
     ChartKind,
     ChartType,
     DashboardChartTile,
+    DashboardDataAppTile,
     DashboardSqlChartTile,
     DashboardTileTypes,
+    getDefaultResolvedColorPalette,
     OrganizationMemberRole,
     PossibleAbilities,
     ProjectMemberRole,
@@ -31,6 +33,7 @@ export const user: SessionUser = {
     organizationCreatedAt: new Date(),
     isTrackingAnonymized: false,
     isMarketingOptedIn: false,
+    timezone: null,
     isSetupComplete: true,
     userId: 0,
     role: OrganizationMemberRole.ADMIN,
@@ -67,6 +70,7 @@ export const promotedSpace: PromotedChart['space'] = {
     chartCount: 0,
     dashboardCount: 0,
     childSpaceCount: 0,
+    appCount: 0,
     slug: 'jaffle-shop',
     parentSpaceUuid: null,
     path: 'jaffle_shop',
@@ -84,6 +88,7 @@ export const upstreamSpace: UpstreamChart['space'] = {
     chartCount: 0,
     dashboardCount: 0,
     childSpaceCount: 0,
+    appCount: 0,
     slug: 'jaffle-shop',
     path: 'jaffle_shop',
     parentSpaceUuid: null,
@@ -102,6 +107,7 @@ export const upstreamFullSpace: Space = {
             firstName: 'firstName',
             lastName: 'lastName',
             email: 'email',
+            isInternal: false,
             role: SpaceMemberRole.ADMIN,
             hasDirectAccess: true,
             projectRole: ProjectMemberRole.VIEWER,
@@ -113,6 +119,7 @@ export const upstreamFullSpace: Space = {
             firstName: 'firstName',
             lastName: 'lastName',
             email: 'adminemail',
+            isInternal: false,
             role: SpaceMemberRole.ADMIN,
             hasDirectAccess: false,
             projectRole: ProjectMemberRole.ADMIN,
@@ -127,6 +134,7 @@ export const upstreamFullSpace: Space = {
             spaceRole: SpaceMemberRole.ADMIN,
         },
     ],
+    colorPaletteUuid: null,
 };
 
 export const promotedChart: PromotedChart = {
@@ -159,6 +167,8 @@ export const promotedChart: PromotedChart = {
         dashboardUuid: null,
         dashboardName: null,
         colorPalette: [],
+        colorPaletteUuid: null,
+        resolvedColorPalette: getDefaultResolvedColorPalette(),
         slug: 'apple-chart',
         verification: null,
     },
@@ -234,6 +244,7 @@ export const promotedDashboard: PromotedDashboard = {
         firstViewedAt: new Date(),
         updatedByUser,
         slug: 'dashboard',
+        colorPaletteUuid: null,
     },
     projectUuid: promotedProjectUuid,
     space: promotedSpace,
@@ -340,6 +351,32 @@ export const promotedDashboardWithSqlTile = {
     dashboard: {
         ...promotedDashboard.dashboard,
         tiles: [...promotedDashboard.dashboard.tiles, dashboardSqlChartTile],
+    },
+};
+
+export const promotedAppUuid = 'promoted-app-uuid';
+export const upstreamAppUuid = 'upstream-app-uuid';
+
+export const dashboardDataAppTile: DashboardDataAppTile = {
+    uuid: 'data-app-tile-1234',
+    type: DashboardTileTypes.DATA_APP,
+    x: 0,
+    y: 10,
+    h: 10,
+    w: 10,
+    tabUuid: undefined,
+    properties: {
+        title: 'data app tile',
+        appUuid: promotedAppUuid,
+        appDeletedAt: null,
+    },
+};
+
+export const promotedDashboardWithDataAppTile: PromotedDashboard = {
+    ...promotedDashboard,
+    dashboard: {
+        ...promotedDashboard.dashboard,
+        tiles: [dashboardDataAppTile],
     },
 };
 

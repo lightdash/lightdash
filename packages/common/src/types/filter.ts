@@ -107,6 +107,12 @@ export interface FilterRule<
     disabled?: boolean;
     /** Whether this filter is required */
     required?: boolean;
+    /**
+     * Overrides the field/explore case-sensitivity for this rule only.
+     * Used by internal features like autocomplete search that must always
+     * match case-insensitively regardless of the field's configured setting.
+     */
+    caseSensitive?: boolean;
 }
 
 /** Filter rule for metrics, targeting fields by reference */
@@ -161,6 +167,13 @@ export type DashboardFilterRule<
     tileTargets?: Record<string, DashboardTileTarget>;
     label: undefined | string;
     singleValue?: boolean;
+    /**
+     * Tab UUIDs where this filter is locked. When the active tab is in this
+     * list, viewers see the filter but cannot change it, and URL / embed
+     * filter overrides targeting the same field are ignored on that tab.
+     * Empty or omitted means the filter is not locked anywhere.
+     */
+    lockedTabUuids?: string[];
 };
 
 export type FilterDashboardToRule = DashboardFilterRule & {
@@ -171,7 +184,7 @@ export type FilterDashboardToRule = DashboardFilterRule & {
 
 export type DashboardFilterRuleOverride = Omit<
     DashboardFilterRule,
-    'tileTargets'
+    'tileTargets' | 'lockedTabUuids'
 >;
 
 export type DateFilterSettings = {
@@ -190,7 +203,9 @@ export type DateFilterRule = FilterRule<
 
 export const isDateFilterRule = (
     filter: FilterRule<FilterOperator, FieldTarget | unknown, AnyType, AnyType>,
-): filter is DateFilterRule => 'unitOfTime' in (filter.settings || {});
+): filter is DateFilterRule =>
+    'unitOfTime' in (filter.settings || {}) ||
+    'completed' in (filter.settings || {});
 
 export type FilterGroupItem = FilterGroup | FilterRule;
 
@@ -378,26 +393,44 @@ export const applyDimensionOverrides = (
     const overrideArray =
         overrides instanceof Array ? overrides : overrides.dimensions;
 
-    // Apply overrides to existing dashboard dimensions
+    const savedIds = new Set(dashboardFilters.dimensions.map((d) => d.id));
+    // Track consumed overrides so each is applied to one saved filter and the
+    // rest can be appended afterwards.
+    const appliedOverrideIds = new Set<string>();
+
     const overriddenDimensions = dashboardFilters.dimensions.map(
         (dimension) => {
-            const override = overrideArray.find(
-                (overrideDimension) => overrideDimension.id === dimension.id,
-            );
+            // Match by id, then fall back to the target field so a shared link
+            // keeps working after an edit rotates the filter's id.
+            const override =
+                overrideArray.find((o) => o.id === dimension.id) ??
+                overrideArray.find(
+                    (o) =>
+                        !savedIds.has(o.id) &&
+                        !appliedOverrideIds.has(o.id) &&
+                        o.target.fieldId === dimension.target.fieldId &&
+                        o.target.tableName === dimension.target.tableName,
+                );
+
             if (override) {
+                appliedOverrideIds.add(override.id);
                 return {
                     ...override,
+                    // The saved dashboard owns identity, tile targeting and lock
+                    // state; the override only carries value/operator. Forcing the
+                    // id re-homes a field-matched override onto the saved filter.
+                    id: dimension.id,
                     tileTargets: dimension.tileTargets,
+                    lockedTabUuids: dimension.lockedTabUuids,
                 };
             }
             return dimension;
         },
     );
 
-    // Add scheduler filters that don't exist in dashboard saved filters
-    const existingIds = new Set(dashboardFilters.dimensions.map((d) => d.id));
+    // Append overrides that matched no saved filter by id or field.
     const newDimensions = overrideArray.filter(
-        (schedulerFilter) => !existingIds.has(schedulerFilter.id),
+        (o) => !savedIds.has(o.id) && !appliedOverrideIds.has(o.id),
     );
     overriddenDimensions.push(...newDimensions);
 

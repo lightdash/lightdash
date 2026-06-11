@@ -15,7 +15,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm i -g corepack@latest
 RUN corepack enable
-RUN corepack prepare pnpm@9.15.5 --activate
+RUN corepack prepare pnpm@10.33.0 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -262,6 +262,7 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
 ############################
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ packages/common/
+COPY --from=build-formula /usr/app/packages/formula/ packages/formula/
 
 COPY packages/frontend/ packages/frontend/
 

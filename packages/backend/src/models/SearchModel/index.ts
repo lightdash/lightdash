@@ -2,8 +2,10 @@ import {
     AllChartsSearchResult,
     ChartKind,
     ContentType,
+    ContentVerificationInfo,
     DashboardSearchResult,
     DashboardTabResult,
+    DataAppSearchResult,
     Explore,
     ExploreError,
     ExploreType,
@@ -23,6 +25,10 @@ import {
     TableSelectionType,
 } from '@lightdash/common';
 import { Knex } from 'knex';
+import {
+    AppsTableName,
+    AppVersionsTableName,
+} from '../../database/entities/apps';
 import {
     DashboardsTableName,
     DashboardTabsTableName,
@@ -265,6 +271,7 @@ export class SearchModel {
             )
             .column(
                 { uuid: `${DashboardsTableName}.dashboard_uuid` },
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 { projectUuid: `${ProjectTableName}.project_uuid` },
@@ -299,6 +306,7 @@ export class SearchModel {
             .groupBy(
                 `${DashboardsTableName}.dashboard_id`,
                 `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.slug`,
                 `${DashboardsTableName}.name`,
                 `${DashboardsTableName}.description`,
                 `${ProjectTableName}.project_uuid`,
@@ -343,20 +351,28 @@ export class SearchModel {
             .whereNull('job_id')
             .whereIn('dashboard_uuid', dashboardUuids)
             .andWhereNot('dashboard_uuid', null)
-            .select('validation_id', 'dashboard_uuid')
+            .select('validation_uuid', 'validation_id', 'dashboard_uuid')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.dashboard_uuid) {
-                            acc[row.dashboard_uuid] = [
-                                ...(acc[row.dashboard_uuid] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.dashboard_uuid) {
+                        acc[row.dashboard_uuid] = [
+                            ...(acc[row.dashboard_uuid] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         const directChartsQuery = this.database(SavedChartsTableName)
@@ -430,6 +446,12 @@ export class SearchModel {
             ...(tileCharts ?? []),
         ];
 
+        const innerChartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                dashboardCharts.map((chart) => chart.uuid),
+            );
+
         const chartsByDashboard = dashboardCharts.reduce<
             Record<
                 string,
@@ -439,6 +461,7 @@ export class SearchModel {
                     description: string;
                     chartType: string;
                     viewsCount: number;
+                    verification: ContentVerificationInfo | null;
                 }>
             >
         >((acc, chart) => {
@@ -451,6 +474,7 @@ export class SearchModel {
                 description: chart.description,
                 chartType: chart.chartType,
                 viewsCount: chart.views_count,
+                verification: innerChartVerificationMap.get(chart.uuid) ?? null,
             });
             return acc;
         }, {});
@@ -481,6 +505,7 @@ export class SearchModel {
     }
 
     async getDashboardCharts(
+        projectUuid: string,
         dashboardUuid: string,
         page: number,
         pageSize: number,
@@ -495,9 +520,23 @@ export class SearchModel {
         };
     }> {
         const dashboard = await this.database(DashboardsTableName)
-            .select('dashboard_uuid', 'name')
-            .where('dashboard_uuid', dashboardUuid)
-            .whereNull('deleted_at')
+            .join(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${DashboardsTableName}.space_id`,
+            )
+            .join(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .select(
+                `${DashboardsTableName}.dashboard_uuid`,
+                `${DashboardsTableName}.name`,
+            )
+            .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .where(`${ProjectTableName}.project_uuid`, projectUuid)
+            .whereNull(`${DashboardsTableName}.deleted_at`)
             .first();
 
         if (!dashboard) {
@@ -508,15 +547,32 @@ export class SearchModel {
         // or via dashboard tiles. UNION deduplicates across both sources.
         // Column order must match between both queries (PostgreSQL UNION matches by position).
         const directCharts = this.database(SavedChartsTableName)
-            .select(
-                { uuid: 'saved_query_uuid' },
-                'name',
-                'description',
-                { chartType: 'last_version_chart_kind' },
-                { viewsCount: 'views_count' },
+            .leftJoin(
+                SpaceTableName,
+                `${SpaceTableName}.space_id`,
+                `${SavedChartsTableName}.space_id`,
             )
-            .where('dashboard_uuid', dashboardUuid)
-            .whereNull('deleted_at');
+            .leftJoin(
+                ProjectTableName,
+                `${ProjectTableName}.project_id`,
+                `${SpaceTableName}.project_id`,
+            )
+            .select(
+                { uuid: `${SavedChartsTableName}.saved_query_uuid` },
+                `${SavedChartsTableName}.name`,
+                `${SavedChartsTableName}.description`,
+                {
+                    chartType: `${SavedChartsTableName}.last_version_chart_kind`,
+                },
+                { viewsCount: `${SavedChartsTableName}.views_count` },
+            )
+            .where(`${SavedChartsTableName}.dashboard_uuid`, dashboardUuid)
+            .where((builder) => {
+                void builder
+                    .whereNull(`${SavedChartsTableName}.space_id`)
+                    .orWhere(`${ProjectTableName}.project_uuid`, projectUuid);
+            })
+            .whereNull(`${SavedChartsTableName}.deleted_at`);
 
         const tileCharts = this.database(DashboardsTableName)
             .whereNull(`${DashboardsTableName}.deleted_at`)
@@ -548,6 +604,16 @@ export class SearchModel {
                     'dashboard_tile_charts.saved_chart_id',
                 ).andOnNull(`${SavedChartsTableName}.deleted_at`);
             })
+            .leftJoin(
+                `${SpaceTableName} as chart_space`,
+                'chart_space.space_id',
+                `${SavedChartsTableName}.space_id`,
+            )
+            .leftJoin(
+                `${ProjectTableName} as chart_project`,
+                'chart_project.project_id',
+                'chart_space.project_id',
+            )
             .select(
                 { uuid: `${SavedChartsTableName}.saved_query_uuid` },
                 `${SavedChartsTableName}.name`,
@@ -558,6 +624,18 @@ export class SearchModel {
                 { viewsCount: `${SavedChartsTableName}.views_count` },
             )
             .where(`${DashboardsTableName}.dashboard_uuid`, dashboardUuid)
+            .where((builder) => {
+                void builder
+                    .where(function dashboardOwnedChart() {
+                        void this.whereNull(
+                            `${SavedChartsTableName}.space_id`,
+                        ).where(
+                            `${SavedChartsTableName}.dashboard_uuid`,
+                            dashboardUuid,
+                        );
+                    })
+                    .orWhere('chart_project.project_uuid', projectUuid);
+            })
             .whereRaw(
                 `dashboard_versions.dashboard_version_id = (
                     SELECT MAX(dashboard_version_id)
@@ -588,6 +666,12 @@ export class SearchModel {
             { page, pageSize },
         );
 
+        const chartVerificationMap =
+            await this.contentVerificationModel.getByContentUuids(
+                ContentType.CHART,
+                charts.map((chart) => chart.uuid),
+            );
+
         return {
             dashboardName: dashboard.name,
             charts: charts.map((chart) => ({
@@ -596,6 +680,7 @@ export class SearchModel {
                 description: chart.description,
                 chartType: chart.chartType,
                 viewsCount: chart.viewsCount,
+                verification: chartVerificationMap.get(chart.uuid) ?? null,
             })),
             pagination: {
                 page,
@@ -931,20 +1016,28 @@ export class SearchModel {
             .whereNull('job_id')
             .whereIn('saved_chart_uuid', chartUuids)
             .andWhereNot('saved_chart_uuid', null)
-            .select('validation_id', 'saved_chart_uuid')
+            .select('validation_uuid', 'validation_id', 'saved_chart_uuid')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.saved_chart_uuid) {
-                            acc[row.saved_chart_uuid] = [
-                                ...(acc[row.saved_chart_uuid] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.saved_chart_uuid) {
+                        acc[row.saved_chart_uuid] = [
+                            ...(acc[row.saved_chart_uuid] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         return savedCharts.map((chart) => ({
@@ -968,6 +1061,96 @@ export class SearchModel {
                   }
                 : null,
             verification: savedChartVerificationMap.get(chart.uuid) ?? null,
+        }));
+    }
+
+    private async searchApps(
+        projectUuid: string,
+        query: string,
+        filters?: SearchFilters,
+    ): Promise<DataAppSearchResult[]> {
+        if (!shouldSearchForType(SearchItemType.DATA_APP, filters?.type)) {
+            return [];
+        }
+
+        const searchRankRawSql = getFullTextSearchRankCalcSql({
+            database: this.database,
+            variables: {
+                searchVectorColumn: `${AppsTableName}.search_vector`,
+                searchQuery: query,
+            },
+        });
+
+        const searchFilterSql = getFullTextSearchFilterSql({
+            database: this.database,
+            searchVectorColumn: `${AppsTableName}.search_vector`,
+            searchQuery: query,
+        });
+
+        // Only surface apps that have at least one ready version — apps that
+        // have only ever been building or errored have no preview to land on.
+        const hasReadyVersionSql = this.database.raw(
+            `EXISTS (
+                SELECT 1 FROM ?? v
+                WHERE v.app_id = ??.app_id AND v.status = 'ready'
+            )`,
+            [AppVersionsTableName, AppsTableName],
+        );
+
+        let subquery = this.database(AppsTableName)
+            .leftJoin(
+                `${UserTableName} as created_by_user`,
+                `created_by_user.user_uuid`,
+                `${AppsTableName}.created_by_user_uuid`,
+            )
+            .column(
+                { uuid: `${AppsTableName}.app_id` },
+                `${AppsTableName}.name`,
+                `${AppsTableName}.description`,
+                { spaceUuid: `${AppsTableName}.space_uuid` },
+                { projectUuid: `${AppsTableName}.project_uuid` },
+                { search_rank: searchRankRawSql },
+                { viewsCount: `${AppsTableName}.views_count` },
+                { createdByFirstName: 'created_by_user.first_name' },
+                { createdByLastName: 'created_by_user.last_name' },
+                { createdByUserUuid: 'created_by_user.user_uuid' },
+            )
+            .where(`${AppsTableName}.project_uuid`, projectUuid)
+            .whereNull(`${AppsTableName}.deleted_at`)
+            .whereRaw(hasReadyVersionSql)
+            .whereRaw(searchFilterSql)
+            .orderBy('search_rank', 'desc');
+
+        subquery = filterByCreatedAt(AppsTableName, subquery, filters);
+        subquery = filterByCreatedByUuid(
+            subquery,
+            {
+                tableName: AppsTableName,
+                tableUserUuidColumnName: 'created_by_user_uuid',
+            },
+            filters,
+        );
+
+        const apps = await this.database(AppsTableName)
+            .select()
+            .from(subquery.as('apps_with_rank'))
+            .limit(SEARCH_LIMIT_PER_ITEM_TYPE);
+
+        return apps.map((app) => ({
+            uuid: app.uuid,
+            name: app.name,
+            description: app.description,
+            spaceUuid: app.spaceUuid,
+            projectUuid: app.projectUuid,
+            search_rank: app.search_rank,
+            viewsCount: app.viewsCount || 0,
+            createdBy: app.createdByUserUuid
+                ? {
+                      firstName: app.createdByFirstName,
+                      lastName: app.createdByLastName,
+                      userUuid: app.createdByUserUuid,
+                  }
+                : null,
         }));
     }
 
@@ -1413,20 +1596,28 @@ export class SearchModel {
             .where('project_uuid', projectUuid)
             .whereNull('job_id')
             .whereNotNull('model_name')
-            .select('validation_id', 'model_name')
+            .select('validation_uuid', 'validation_id', 'model_name')
             .then((rows) =>
-                rows.reduce<Record<string, Array<{ validationId: number }>>>(
-                    (acc, row) => {
-                        if (row.model_name) {
-                            acc[row.model_name] = [
-                                ...(acc[row.model_name] ?? []),
-                                { validationId: row.validation_id },
-                            ];
-                        }
-                        return acc;
-                    },
-                    {},
-                ),
+                rows.reduce<
+                    Record<
+                        string,
+                        Array<{
+                            validationUuid: string;
+                            validationId: number | null;
+                        }>
+                    >
+                >((acc, row) => {
+                    if (row.model_name) {
+                        acc[row.model_name] = [
+                            ...(acc[row.model_name] ?? []),
+                            {
+                                validationUuid: row.validation_uuid,
+                                validationId: row.validation_id,
+                            },
+                        ];
+                    }
+                    return acc;
+                }, {}),
             );
 
         return explores.reduce<TableErrorSearchResult[]>((acc, explore) => {
@@ -1496,6 +1687,7 @@ export class SearchModel {
             query,
             filters,
         );
+        const dataApps = await this.searchApps(projectUuid, query, filters);
 
         const explores = await this.getProjectExplores(projectUuid);
         const tableErrors = await this.searchTableErrors(
@@ -1521,6 +1713,7 @@ export class SearchModel {
             fields,
             pages,
             dashboardTabs,
+            dataApps,
         };
     }
 }

@@ -1,11 +1,18 @@
 import { type AiAgentMessageUser, type AiAgentUser } from '@lightdash/common';
-import { Anchor, Card, Stack, Text, Tooltip } from '@mantine-8/core';
+import { Anchor, Card, Group, Stack, Text, Tooltip } from '@mantine-8/core';
 import MDEditor from '@uiw/react-md-editor';
 import { format, parseISO } from 'date-fns';
 import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
 import { useTimeAgo } from '../../../../../hooks/useTimeAgo';
 import useApp from '../../../../../providers/App/useApp';
+import { PinnedContextCard } from '../PinnedContextCard/PinnedContextCard';
+import styles from './AgentChatUserBubble.module.css';
+import { ContentReferenceLink } from './ContentReferenceLink';
+import {
+    buildContentReferenceSegments,
+    getPromptContextItemHref,
+} from './contentReferenceUtils';
 
 type Props = {
     message: AiAgentMessageUser<AiAgentUser>;
@@ -18,11 +25,26 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
     const name = message.user.name;
     const app = useApp();
     const showUserName = app.user?.data?.userUuid !== message.user.uuid;
+    const { matchedKeys, segments } = buildContentReferenceSegments(
+        message.message,
+        message.context,
+    );
+    const hasInlineReferences = segments.some(
+        (segment) => segment.type === 'reference',
+    );
+    const remainingContext = message.context.filter((item) => {
+        if (!hasInlineReferences) return true;
+        const key =
+            item.type === 'chart'
+                ? `chart:${item.chartUuid}`
+                : `dashboard:${item.dashboardUuid}`;
+        return !matchedKeys.has(key);
+    });
 
     return (
         <Stack
-            gap="xs"
-            style={{ alignSelf: 'flex-end' }}
+            gap={2}
+            className={styles.bubble}
             bg={isActive ? 'ldGray.0' : 'transparent'}
         >
             <Stack gap={0} align="flex-end">
@@ -37,8 +59,8 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 >
                     <Anchor
                         component={Link}
-                        size="xs"
                         c="dimmed"
+                        fz={10}
                         to={`/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${message.threadUuid}/messages/${message.uuid}`}
                     >
                         {timeAgo}
@@ -46,26 +68,73 @@ export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
                 </Tooltip>
             </Stack>
 
+            {remainingContext.length > 0 && projectUuid && (
+                <Group
+                    gap="xs"
+                    wrap="wrap"
+                    justify="flex-end"
+                    className={styles.contextGroup}
+                >
+                    {remainingContext.map((item, idx) => (
+                        <PinnedContextCard
+                            key={`${item.type}-${
+                                item.type === 'chart'
+                                    ? item.chartUuid
+                                    : item.dashboardUuid
+                            }-${idx}`}
+                            item={item}
+                            projectUuid={projectUuid}
+                        />
+                    ))}
+                </Group>
+            )}
+
             <Card
                 pos="relative"
                 radius="md"
-                py="xs"
+                py={6}
                 px="sm"
-                withBorder={true}
-                bg="ldGray.0"
+                withBorder
                 color="white"
-                style={{
-                    overflow: 'unset',
-                }}
+                className={styles.messageCard}
             >
-                <MDEditor.Markdown
-                    source={message.message}
-                    style={{
-                        backgroundColor: 'transparent',
-                        fontWeight: 500,
-                        fontSize: `0.9375rem`,
-                    }}
-                />
+                {hasInlineReferences && projectUuid ? (
+                    <div className={`${styles.markdown} ${styles.messageText}`}>
+                        {segments.map((segment, idx) =>
+                            segment.type === 'text' ? (
+                                <MDEditor.Markdown
+                                    key={`text-${idx}`}
+                                    source={segment.text}
+                                    className={`${styles.markdown} ${styles.inlineMarkdown}`}
+                                />
+                            ) : (
+                                <ContentReferenceLink
+                                    key={`${segment.key}-${idx}`}
+                                    chartKind={
+                                        segment.item.type === 'chart'
+                                            ? (segment.item.chartKind ??
+                                              undefined)
+                                            : undefined
+                                    }
+                                    kind={segment.item.type}
+                                    rel="noreferrer"
+                                    target="_blank"
+                                    to={getPromptContextItemHref(
+                                        segment.item,
+                                        projectUuid,
+                                    )}
+                                >
+                                    {segment.label}
+                                </ContentReferenceLink>
+                            ),
+                        )}
+                    </div>
+                ) : (
+                    <MDEditor.Markdown
+                        source={message.message}
+                        className={styles.markdown}
+                    />
+                )}
             </Card>
         </Stack>
     );

@@ -46,10 +46,10 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import isEqual from 'lodash/isEqual';
-import { type MRT_TableInstance } from 'mantine-react-table';
 import { memo, useCallback, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate } from 'react-router';
 import { useDebounce } from 'react-use';
+import { type ContentTableInstance } from '../../../../components/common/ContentTable';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import useTracking from '../../../../providers/Tracking/useTracking';
 import { TotalMetricsDot } from '../../../../svgs/metricsCatalog';
@@ -70,7 +70,6 @@ import {
 import { MetricCatalogView } from '../../types';
 import CategoriesFilter from './CategoriesFilter';
 import OwnersFilter from './OwnersFilter';
-import SegmentedControlHoverCard from './SegmentedControlHoverCard';
 import TableFilter from './TableFilter';
 type MetricsTableTopToolbarProps = GroupProps & {
     search: string | undefined;
@@ -86,12 +85,9 @@ type MetricsTableTopToolbarProps = GroupProps & {
     selectedOwners: string[];
     setSelectedOwners: (owners: string[]) => void;
     totalResults: number;
-    hasMetricsSelected: boolean;
-    isValidMetricsEdgeCount: boolean;
     showCategoriesFilter?: boolean;
-    isValidMetricsTree: boolean;
     metricCatalogView: MetricCatalogView;
-    table: MRT_TableInstance<CatalogField>;
+    table: ContentTableInstance<CatalogField>;
 };
 
 const SortableColumn: FC<{
@@ -170,9 +166,6 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
         selectedOwners,
         setSelectedOwners,
         showCategoriesFilter,
-        isValidMetricsTree,
-        hasMetricsSelected,
-        isValidMetricsEdgeCount,
         metricCatalogView,
         table,
         ...props
@@ -628,43 +621,24 @@ export const MetricsTableTopToolbar: FC<MetricsTableTopToolbarProps> = memo(
                             },
                             {
                                 label: (
-                                    <SegmentedControlHoverCard
-                                        totalMetricsCount={totalResults}
-                                        hasMetricsSelected={hasMetricsSelected}
-                                        isValidMetricsEdgeCount={
-                                            isValidMetricsEdgeCount
-                                        }
+                                    <Tooltip
                                         withinPortal
+                                        variant="xs"
+                                        label="Canvas"
                                         position="bottom-end"
-                                        withArrow
                                     >
-                                        <Center
-                                            sx={{
-                                                cursor: !isValidMetricsTree
-                                                    ? 'not-allowed'
-                                                    : 'pointer',
-                                            }}
-                                        >
+                                        <Center>
                                             <MantineIcon
                                                 icon={IconSitemap}
                                                 size="md"
-                                                opacity={
-                                                    !isValidMetricsTree
-                                                        ? 0.5
-                                                        : 1
-                                                }
                                             />
                                         </Center>
-                                    </SegmentedControlHoverCard>
+                                    </Tooltip>
                                 ),
                                 value: MetricCatalogView.CANVAS,
                             },
                         ]}
                         onChange={(value) => {
-                            if (!isValidMetricsTree) {
-                                return;
-                            }
-
                             const view = value as MetricCatalogView;
 
                             switch (view) {

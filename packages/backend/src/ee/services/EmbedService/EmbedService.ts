@@ -4,6 +4,8 @@ import {
     AndFilterGroup,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
+    ApiExecuteAsyncDashboardSqlChartQueryResults,
+    ApiSqlChart,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CommercialFeatureFlags,
@@ -28,12 +30,13 @@ import {
     ForbiddenError,
     formatRawRows,
     formatRows,
+    getAvailableFilterFieldIds,
+    getColumnTimezone,
     getDashboardFiltersForTileAndTables,
     getDimensionMapFromTables,
     getDimensions,
     getFilterInteractivityValue,
     getItemId,
-    getMetrics,
     InteractivityOptions,
     IntrinsicUserAttributes,
     isChartContent,
@@ -44,8 +47,8 @@ import {
     isExploreError,
     isFilterableDimension,
     isFilterInteractivityEnabled,
+    isFilterLockedOnTab,
     isParameterInteractivityEnabled,
-    LightdashSessionUser,
     MetricQuery,
     NotFoundError,
     NotSupportedError,
@@ -56,6 +59,7 @@ import {
     SavedChartsInfoForDashboardAvailableFilters,
     SessionAccount,
     SortField,
+    stripOverridesForLockedFiltersOnTab,
     UpdateEmbed,
     UserAccessControls,
     UserAttributeValueMap,
@@ -76,9 +80,11 @@ import { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagMo
 import { OrganizationModel } from '../../../models/OrganizationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
+import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
+import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
 import {
     getAvailableParameterDefinitions,
     getDashboardParametersValuesMap,
@@ -98,10 +104,12 @@ type Dependencies = {
     embedModel: EmbedModel;
     dashboardModel: DashboardModel;
     savedChartModel: SavedChartModel;
+    savedSqlModel: SavedSqlModel;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
     projectService: ProjectService;
     asyncQueryService: AsyncQueryService;
+    permissionsService: PermissionsService;
     featureFlagModel: FeatureFlagModel;
     organizationModel: OrganizationModel;
 };
@@ -119,6 +127,8 @@ export class EmbedService extends BaseService {
 
     private readonly savedChartModel: SavedChartModel;
 
+    private readonly savedSqlModel: SavedSqlModel;
+
     private readonly projectModel: ProjectModel;
 
     private readonly userAttributesModel: UserAttributesModel;
@@ -131,13 +141,17 @@ export class EmbedService extends BaseService {
 
     private readonly asyncQueryService: AsyncQueryService;
 
+    private readonly permissionsService: PermissionsService;
+
     constructor(dependencies: Dependencies) {
         super();
         this.asyncQueryService = dependencies.asyncQueryService;
+        this.permissionsService = dependencies.permissionsService;
         this.analytics = dependencies.analytics;
         this.embedModel = dependencies.embedModel;
         this.dashboardModel = dependencies.dashboardModel;
         this.savedChartModel = dependencies.savedChartModel;
+        this.savedSqlModel = dependencies.savedSqlModel;
         this.projectModel = dependencies.projectModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
@@ -152,6 +166,7 @@ export class EmbedService extends BaseService {
         projectUuid: string,
         { expiresIn, ...jwtData }: CreateEmbedJwt,
     ): Promise<EmbedUrl> {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -160,7 +175,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -193,9 +208,11 @@ export class EmbedService extends BaseService {
     }
 
     async getConfig(
-        user: LightdashSessionUser,
+        account: SessionAccount,
         projectUuid: string,
     ): Promise<DecodedEmbed> {
+        const auditedAbility = this.createAuditedAbility(account);
+        const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -203,7 +220,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -224,10 +241,12 @@ export class EmbedService extends BaseService {
     }
 
     async createConfig(
-        user: LightdashSessionUser,
+        account: SessionAccount,
         projectUuid: string,
         data: CreateEmbedRequestBody,
     ): Promise<DecodedEmbed> {
+        const auditedAbility = this.createAuditedAbility(account);
+        const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
         await this.isFeatureEnabled({
@@ -235,7 +254,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -246,7 +265,7 @@ export class EmbedService extends BaseService {
             throw new ForbiddenError();
         }
 
-        const secret = nanoidGenerator();
+        const secret = nanoidGenerator(32);
         const encodedSecret = this.encryptionUtil.encrypt(secret);
         await this.embedModel.save(
             projectUuid,
@@ -258,7 +277,7 @@ export class EmbedService extends BaseService {
             this.lightdashConfig.embedding.allowAll.charts,
         );
 
-        return this.getConfig(user, projectUuid);
+        return this.getConfig(account, projectUuid);
     }
 
     async updateDashboards(
@@ -269,6 +288,7 @@ export class EmbedService extends BaseService {
             allowAllDashboards,
         }: Pick<UpdateEmbed, 'dashboardUuids' | 'allowAllDashboards'>,
     ) {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -277,7 +297,7 @@ export class EmbedService extends BaseService {
             organizationUuid,
         });
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -303,6 +323,7 @@ export class EmbedService extends BaseService {
             allowAllCharts,
         }: UpdateEmbed,
     ) {
+        const auditedAbility = this.createAuditedAbility(account);
         const { user } = account;
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
@@ -313,7 +334,7 @@ export class EmbedService extends BaseService {
         });
 
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
@@ -493,8 +514,10 @@ export class EmbedService extends BaseService {
                 dashboardUuid,
             );
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         await this.isFeatureEnabled({
             userUuid: user?.userUuid ?? account.user.id,
@@ -513,12 +536,33 @@ export class EmbedService extends BaseService {
             canExportPagePdf,
             canDateZoom,
         } = decodedToken.content;
-        const selectedPalette = paletteUuid
-            ? await this.organizationModel.findColorPalette(
-                  dashboard.organizationUuid,
-                  paletteUuid,
-              )
-            : null;
+        // Embed paletteUuid query param overrides everything; otherwise fall back
+        // through chart → dashboard → space → project → org via the resolver.
+        let selectedPalette: {
+            colors: string[];
+            darkColors: string[] | null;
+        } | null = null;
+        if (paletteUuid) {
+            const override = await this.organizationModel.findColorPalette(
+                dashboard.organizationUuid,
+                paletteUuid,
+            );
+            if (override) {
+                selectedPalette = {
+                    colors: override.colors,
+                    darkColors: override.darkColors,
+                };
+            }
+        } else {
+            const resolved = await this.savedChartModel.resolveColorPalette({
+                projectUuid: dashboard.projectUuid,
+                dashboardUuid: dashboard.uuid,
+            });
+            selectedPalette = {
+                colors: resolved.colors,
+                darkColors: resolved.darkColors,
+            };
+        }
 
         this.analytics.trackAccount<EmbedDashboardViewed>(account, {
             event: 'embed_dashboard.viewed',
@@ -773,11 +817,20 @@ export class EmbedService extends BaseService {
         }
     }
 
-    private async _getWarehouseClient(projectUuid: string, explore: Explore) {
+    private async _getWarehouseClient(
+        account: AnonymousAccount,
+        projectUuid: string,
+        explore: Explore,
+    ) {
+        // Resolve via ProjectService so OAuth tokens are refreshed before use
+        // (e.g. Databricks oauth_m2m must exchange client_id+secret for an
+        // access token — fetching the raw row from the model would yield an
+        // empty `token` and crash the warehouse client).
         const credentials =
-            await this.projectModel.getWarehouseCredentialsForProject(
+            await this.projectService.getWarehouseCredentialsForEmbed({
                 projectUuid,
-            );
+                account,
+            });
 
         const { warehouseClient, sshTunnel } =
             await this.projectService._getWarehouseClient(
@@ -829,13 +882,23 @@ export class EmbedService extends BaseService {
         timezone,
         dateZoomGranularity,
         combinedParameters,
+        useTimezoneAwareDateTrunc,
     }: {
         projectUuid: string;
         metricQuery: MetricQuery;
         explore: Explore;
         queryTags: Omit<
             Required<RunQueryTags>,
-            'user_uuid' | 'chart_uuid' | 'dashboard_uuid'
+            | 'user_uuid'
+            | 'chart_uuid'
+            | 'dashboard_uuid'
+            // Scheduler-attribution tags only apply to scheduler-driven jobs,
+            // never to embed/JWT queries, so they're excluded from the
+            // required-shape enforced here.
+            | 'saved_sql_uuid'
+            | 'scheduler_uuid'
+            | 'scheduler_name'
+            | 'job_id'
         > & {
             embed: 'true';
             external_id: string;
@@ -846,8 +909,10 @@ export class EmbedService extends BaseService {
         timezone: string;
         dateZoomGranularity?: DateGranularity | string;
         combinedParameters?: ParametersValuesMap;
+        useTimezoneAwareDateTrunc: boolean;
     }) {
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
+            account,
             projectUuid,
             explore,
         );
@@ -877,15 +942,23 @@ export class EmbedService extends BaseService {
                 : undefined,
             parameters: combinedParameters,
             availableParameterDefinitions,
+            useTimezoneAwareDateTrunc,
+            columnTimezone: getColumnTimezone(warehouseClient.credentials),
         });
 
         const results =
             await this.projectService.getResultsFromCacheOrWarehouse({
                 projectUuid,
                 userUuid: null,
+                user: {
+                    userUuid: account.user.id,
+                    organizationUuid: account.organization.organizationUuid,
+                    organizationName: account.organization.name,
+                },
                 context: QueryExecutionContext.EMBED,
                 warehouseClient,
                 metricQuery,
+                resolvedTimezone: timezone,
                 query: compiledQuery.query,
                 queryTags,
                 invalidateCache: false,
@@ -919,7 +992,6 @@ export class EmbedService extends BaseService {
         return chart;
     }
 
-    // eslint-disable-next-line class-methods-use-this
     private async _getAppliedDashboardFilters(
         account: AnonymousAccount,
         explore: Explore,
@@ -927,32 +999,60 @@ export class EmbedService extends BaseService {
         tileUuid: string,
         dashboardFilters?: DashboardFilters,
     ) {
-        const availableFieldIds = [
-            ...getDimensions(explore)
-                .filter((f) => isFilterableDimension(f) && !f.hidden)
-                .map(getItemId),
-            ...getMetrics(explore)
-                .filter((f) => !f.hidden)
-                .map(getItemId),
-        ];
+        const availableFieldIds = getAvailableFilterFieldIds(explore);
 
-        let appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-            tileUuid,
-            availableFieldIds,
-            dashboard.filters,
-        );
+        // Look up which tab this tile belongs to so we can evaluate lock state
+        // for the right tab. Tiles created before tabs may have null/undefined.
+        const tile = dashboard.tiles.find((t) => t.uuid === tileUuid);
+        const tileTabUuid = tile?.tabUuid ?? undefined;
+        const hasTabs = (dashboard.tabs?.length ?? 0) > 0;
+
+        let effectiveFilters: DashboardFilters = dashboard.filters;
+
         if (
             dashboardFilters &&
             isFilterInteractivityEnabled(account.access.filtering)
         ) {
-            appliedDashboardFilters = getDashboardFiltersForTileAndTables(
-                tileUuid,
-                availableFieldIds,
-                dashboardFilters,
+            const { filters: safeOverrides, droppedCount } =
+                stripOverridesForLockedFiltersOnTab(
+                    dashboard.filters,
+                    dashboardFilters,
+                    tileTabUuid,
+                    hasTabs,
+                );
+
+            if (droppedCount > 0) {
+                this.logger.debug(
+                    `Stripped ${droppedCount} embed filter override(s) targeting filters locked on tab ${tileTabUuid} (dashboard ${dashboard.uuid})`,
+                );
+            }
+
+            const lockedDimensions = dashboard.filters.dimensions.filter(
+                (rule) => isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
             );
+            const lockedMetrics = dashboard.filters.metrics.filter((rule) =>
+                isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
+            );
+            const lockedTableCalculations =
+                dashboard.filters.tableCalculations.filter((rule) =>
+                    isFilterLockedOnTab(rule, tileTabUuid, hasTabs),
+                );
+
+            effectiveFilters = {
+                dimensions: [...lockedDimensions, ...safeOverrides.dimensions],
+                metrics: [...lockedMetrics, ...safeOverrides.metrics],
+                tableCalculations: [
+                    ...lockedTableCalculations,
+                    ...safeOverrides.tableCalculations,
+                ],
+            };
         }
 
-        return appliedDashboardFilters;
+        return getDashboardFiltersForTileAndTables(
+            tileUuid,
+            availableFieldIds,
+            effectiveFilters,
+        );
     }
 
     async executeAsyncDashboardTileQuery({
@@ -966,10 +1066,12 @@ export class EmbedService extends BaseService {
         parameters,
         pivotResults,
         limit,
+        timezone,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
         tileUuid: string;
+        timezone?: string;
     } & Pick<
         ExecuteAsyncDashboardChartRequestParams,
         | 'dashboardFilters'
@@ -991,8 +1093,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1053,6 +1157,14 @@ export class EmbedService extends BaseService {
             dashboardParameters,
         );
 
+        // The session timezone only takes effect when timezone support is
+        // enabled for the org; otherwise it is dropped so the param is inert.
+        const isTimezoneSupportEnabled =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: user?.userUuid ?? account.user.id,
+                organizationUuid,
+            });
+
         // Execute using AsyncQueryService method with embed context
         return this.asyncQueryService.executeAsyncDashboardChartQuery({
             account,
@@ -1068,6 +1180,177 @@ export class EmbedService extends BaseService {
             context: QueryExecutionContext.EMBED,
             parameters: combinedParameters,
             pivotResults,
+            sessionTimezone: isTimezoneSupportEnabled
+                ? (timezone ?? null)
+                : null,
+        });
+    }
+
+    private static _getSqlChartUuidFromDashboardTiles(
+        dashboard: DashboardDAO,
+        tileUuid: string,
+    ): string {
+        const tile = dashboard.tiles.find(({ uuid }) => uuid === tileUuid);
+
+        if (!tile) {
+            throw new ParameterError(
+                `Tile ${tileUuid} not found in dashboard ${dashboard.uuid}`,
+            );
+        }
+
+        if (!isDashboardSqlChartTile(tile)) {
+            throw new ParameterError(
+                `Tile ${tileUuid} is not a SQL chart tile`,
+            );
+        }
+
+        const { savedSqlUuid } = tile.properties;
+        if (!savedSqlUuid) {
+            throw new ParameterError(
+                `Tile ${tileUuid} does not have a saved SQL chart uuid`,
+            );
+        }
+
+        return savedSqlUuid;
+    }
+
+    async getDashboardSqlChartTile({
+        account,
+        projectUuid,
+        tileUuid,
+    }: {
+        account: AnonymousAccount;
+        projectUuid: string;
+        tileUuid: string;
+    }): Promise<ApiSqlChart['results']> {
+        const { user } = await this.embedModel.get(projectUuid);
+
+        const { dashboardUuid } = account.access.content;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+
+        const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
+        await this.isFeatureEnabled({
+            userUuid: user?.userUuid ?? account.user.id,
+            organizationUuid: dashboard.organizationUuid,
+        });
+
+        await this.permissionsService.checkEmbedSqlChartPermissions(
+            account,
+            savedSqlUuid,
+        );
+
+        const savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+            projectUuid,
+        });
+
+        const resolvedColorPalette =
+            await this.savedSqlModel.resolveColorPalette({
+                projectUuid: savedChart.project.projectUuid,
+                dashboardUuid: savedChart.dashboard?.uuid,
+                spaceUuid: savedChart.space.uuid,
+            });
+
+        return {
+            ...savedChart,
+            space: {
+                ...savedChart.space,
+                userAccess: undefined,
+            },
+            resolvedColorPalette,
+        };
+    }
+
+    async executeAsyncDashboardSqlChartTileQuery({
+        account,
+        projectUuid,
+        tileUuid,
+        dashboardFilters,
+        dashboardSorts,
+        invalidateCache,
+        parameters,
+        limit,
+    }: {
+        account: AnonymousAccount;
+        projectUuid: string;
+        tileUuid: string;
+        dashboardFilters: DashboardFilters;
+        dashboardSorts: SortField[];
+        invalidateCache?: boolean;
+        parameters?: ParametersValuesMap;
+        limit?: number;
+    }): Promise<ApiExecuteAsyncDashboardSqlChartQueryResults> {
+        const { user } = await this.embedModel.get(projectUuid);
+
+        const { dashboardUuid } = account.access.content;
+
+        if (!dashboardUuid) {
+            throw new ParameterError(
+                'Dashboard ID is required for this operation',
+            );
+        }
+
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+
+        const savedSqlUuid = EmbedService._getSqlChartUuidFromDashboardTiles(
+            dashboard,
+            tileUuid,
+        );
+
+        const { organizationUuid } = dashboard;
+        await this.isFeatureEnabled({
+            userUuid: user?.userUuid ?? account.user.id,
+            organizationUuid,
+        });
+
+        await this.permissionsService.checkEmbedSqlChartPermissions(
+            account,
+            savedSqlUuid,
+        );
+
+        this.analytics.trackAccount<EmbedQueryViewed>(account, {
+            event: 'embed_query.executed',
+            properties: {
+                projectId: projectUuid,
+                dashboardId: dashboardUuid,
+                chartId: savedSqlUuid,
+            },
+        });
+
+        const acceptedUserParameters =
+            isParameterInteractivityEnabled(account.access.parameters) &&
+            parameters
+                ? parameters
+                : {};
+
+        return this.asyncQueryService.executeAsyncDashboardSqlChartQuery({
+            account,
+            projectUuid,
+            savedSqlUuid,
+            tileUuid,
+            dashboardUuid,
+            dashboardFilters,
+            dashboardSorts,
+            invalidateCache,
+            limit,
+            context: QueryExecutionContext.EMBED,
+            parameters: acceptedUserParameters,
         });
     }
 
@@ -1092,8 +1375,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1176,10 +1461,20 @@ export class EmbedService extends BaseService {
 
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
-            metricQueryWithDashboardOverrides,
+        const timezone = resolveQueryTimezone({
+            sessionTimezone: null,
+            metricQuery: metricQueryWithDashboardOverrides,
             projectTimezone,
-        );
+            userTimezone: null,
+            isUserTimezoneEnabled: false,
+        });
+        const isTimezoneSupportEnabled =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: user?.userUuid ?? account.user.id,
+                organizationUuid,
+            });
+
+        const displayTimezone = isTimezoneSupportEnabled ? timezone : undefined;
 
         const { rows, cacheMetadata, fields } = await this._runEmbedQuery({
             projectUuid,
@@ -1199,6 +1494,7 @@ export class EmbedService extends BaseService {
             timezone,
             dateZoomGranularity,
             combinedParameters,
+            useTimezoneAwareDateTrunc: isTimezoneSupportEnabled,
         });
 
         return {
@@ -1209,7 +1505,13 @@ export class EmbedService extends BaseService {
                 access: [],
             },
             explore,
-            rows: formatRows(rows, fields),
+            rows: formatRows(
+                rows,
+                fields,
+                undefined,
+                undefined,
+                displayTimezone,
+            ),
             cacheMetadata,
             metricQuery: metricQueryWithDashboardOverrides,
             fields,
@@ -1272,8 +1574,10 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
 
         const tile = dashboard.tiles
             .filter(isDashboardChartTileType)
@@ -1348,18 +1652,16 @@ export class EmbedService extends BaseService {
                 dashboardFilters,
             );
 
-        const { warehouseClient } = await this._getWarehouseClient(
-            projectUuid,
-            explore,
-        );
-
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
+        const filteredExplore = getFilteredExplore(explore, userAttributes);
 
         // For chart embeds, dashboardUuid is undefined - use empty parameters
         const dashboardParameters = dashboardUuid
             ? getDashboardParametersValuesMap(
-                  await this.dashboardModel.getByIdOrSlug(dashboardUuid),
+                  await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
+                      projectUuid,
+                  }),
               )
             : {};
 
@@ -1375,32 +1677,14 @@ export class EmbedService extends BaseService {
             dashboardParameters,
         );
 
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        const projectTimezone =
-            await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
-
         try {
-            const { totalQuery: totalMetricQuery } =
-                await ProjectService._getCalculateTotalQuery(
-                    timezone,
-                    userAttributes,
-                    intrinsicUserAttributes,
-                    explore,
-                    metricQuery,
-                    warehouseClient,
-                    availableParameterDefinitions,
-                    combinedParameters,
-                );
-
-            const { rows } = await this._runEmbedQuery({
+            const row = await this.asyncQueryService.calculateMetricQueryTotal({
+                account,
                 projectUuid,
-                metricQuery: totalMetricQuery,
-                explore,
+                organizationUuid: chart.organizationUuid,
+                metricQuery,
+                explore: filteredExplore,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     embed: 'true',
                     external_id: account.user.id,
@@ -1411,18 +1695,19 @@ export class EmbedService extends BaseService {
                     explore_name: chart.tableName,
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
-                account,
-                timezone,
-                combinedParameters,
+                parameters: combinedParameters,
+                invalidateCache,
+                userAccessControls: {
+                    userAttributes,
+                    intrinsicUserAttributes,
+                },
             });
 
-            if (rows.length === 0) {
+            if (!row) {
                 throw new NotFoundError('No results found');
             }
 
-            const row = rows[0];
-
-            return row;
+            return row as Record<string, number>;
         } catch (e) {
             if (e instanceof NotSupportedError) {
                 this.logger.warn(e.message);
@@ -1432,6 +1717,7 @@ export class EmbedService extends BaseService {
         }
     }
 
+    /** @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal'). */
     async calculateSubtotalsFromSavedChart(
         account: AnonymousAccount,
         projectUuid: string,
@@ -1461,7 +1747,9 @@ export class EmbedService extends BaseService {
         // For chart embeds, dashboardUuid is undefined - use empty parameters
         const dashboardParameters = dashboardUuid
             ? getDashboardParametersValuesMap(
-                  await this.dashboardModel.getByIdOrSlug(dashboardUuid),
+                  await this.dashboardModel.getByIdOrSlug(dashboardUuid, {
+                      projectUuid,
+                  }),
               )
             : {};
 
@@ -1489,6 +1777,7 @@ export class EmbedService extends BaseService {
             dashboardUuid,
             combinedParameters,
             dateZoom,
+            invalidateCache,
         );
     }
 
@@ -1504,6 +1793,7 @@ export class EmbedService extends BaseService {
         dashboardUuid?: string,
         combinedParameters?: ParametersValuesMap,
         dateZoom?: DateZoom,
+        invalidateCache?: boolean,
     ) {
         // Use the shared utility to prepare dimension groups
         const { dimensionGroupsToSubtotal, analyticsData } =
@@ -1526,66 +1816,40 @@ export class EmbedService extends BaseService {
             },
         });
 
-        const projectTimezone =
-            await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        if (dimensionGroupsToSubtotal.length === 0) {
+            return {};
+        }
 
-        // Run the query for each dimension group using embed query runner
-        const subtotalsPromises = dimensionGroupsToSubtotal.map<
-            Promise<[string, Record<string, unknown>[]]>
-        >(async (subtotalDimensions) => {
-            let subtotals: Record<string, unknown>[] = [];
+        const { userAttributes, intrinsicUserAttributes } =
+            this.getAccessControls(account);
 
-            try {
-                // Use utility to create properly configured subtotal query
-                const { metricQuery: subtotalMetricQuery } =
-                    SubtotalsCalculator.createSubtotalQueryConfig(
-                        metricQuery,
-                        subtotalDimensions,
-                        pivotDimensions,
-                    );
-
-                const { rows, fields } = await this._runEmbedQuery({
-                    projectUuid,
-                    metricQuery: subtotalMetricQuery,
-                    explore,
-                    queryTags: {
-                        embed: 'true',
-                        external_id: account.user.id,
-                        project_uuid: projectUuid,
-                        organization_uuid: organizationUuid || '',
-                        chart_uuid: chartUuid || '',
-                        dashboard_uuid: dashboardUuid || '',
-                        explore_name: explore.name,
-                        query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
-                    },
-                    account,
-                    timezone,
-                    combinedParameters,
-                    dateZoomGranularity: dateZoom?.granularity,
-                });
-
-                // Format raw rows (this matches the logic in ProjectService)
-                subtotals = formatRawRows(rows, fields) as Record<
-                    string,
-                    number
-                >[];
-            } catch (e) {
-                this.logger.error(
-                    `Error running subtotal query for dimensions ${subtotalDimensions.join(
-                        ',',
-                    )}`,
-                );
-            }
-
-            return [
-                SubtotalsCalculator.getSubtotalKey(subtotalDimensions),
-                subtotals,
-            ] satisfies [string, Record<string, unknown>[]];
+        return this.asyncQueryService.calculateMetricQuerySubtotals({
+            account,
+            projectUuid,
+            organizationUuid: organizationUuid || '',
+            metricQuery,
+            explore: getFilteredExplore(explore, userAttributes),
+            context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+            queryTags: {
+                embed: 'true',
+                external_id: account.user.id,
+                project_uuid: projectUuid,
+                organization_uuid: organizationUuid || '',
+                chart_uuid: chartUuid || '',
+                dashboard_uuid: dashboardUuid || '',
+                explore_name: explore.name,
+                query_context: QueryExecutionContext.CALCULATE_SUBTOTAL,
+            },
+            columnOrder,
+            pivotDimensions,
+            parameters: combinedParameters,
+            dateZoom,
+            invalidateCache,
+            userAccessControls: {
+                userAttributes,
+                intrinsicUserAttributes,
+            },
         });
-
-        const subtotalsEntries = await Promise.all(subtotalsPromises);
-        return SubtotalsCalculator.formatSubtotalEntries(subtotalsEntries);
     }
 
     /**
@@ -1611,13 +1875,9 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const { warehouseClient } = await this._getWarehouseClient(
-            projectUuid,
-            explore,
-        );
-
         const { userAttributes, intrinsicUserAttributes } =
             this.getAccessControls(account);
+        const filteredExplore = getFilteredExplore(explore, userAttributes);
 
         // Handle parameter interactivity - only accept user parameters if enabled
         const acceptedUserParameters =
@@ -1632,35 +1892,14 @@ export class EmbedService extends BaseService {
             acceptedUserParameters,
         );
 
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        const projectTimezone =
-            await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(
-            data.metricQuery,
-            projectTimezone,
-        );
-
         try {
-            const { totalQuery: totalMetricQuery } =
-                await ProjectService._getCalculateTotalQuery(
-                    timezone,
-                    userAttributes,
-                    intrinsicUserAttributes,
-                    explore,
-                    data.metricQuery,
-                    warehouseClient,
-                    availableParameterDefinitions,
-                    combinedParameters,
-                );
-
-            const { rows } = await this._runEmbedQuery({
+            const row = await this.asyncQueryService.calculateMetricQueryTotal({
+                account,
                 projectUuid,
-                metricQuery: totalMetricQuery,
-                explore,
+                organizationUuid,
+                metricQuery: data.metricQuery,
+                explore: filteredExplore,
+                context: QueryExecutionContext.CALCULATE_TOTAL,
                 queryTags: {
                     embed: 'true',
                     external_id: account.user.id,
@@ -1670,16 +1909,19 @@ export class EmbedService extends BaseService {
                     explore_name: data.explore,
                     query_context: QueryExecutionContext.CALCULATE_TOTAL,
                 },
-                account,
-                timezone,
-                combinedParameters,
+                parameters: combinedParameters,
+                invalidateCache: data.invalidateCache,
+                userAccessControls: {
+                    userAttributes,
+                    intrinsicUserAttributes,
+                },
             });
 
-            if (rows.length === 0) {
+            if (!row) {
                 throw new NotFoundError('No results found');
             }
 
-            return rows[0] as Record<string, number>;
+            return row as Record<string, number>;
         } catch (e) {
             if (e instanceof NotSupportedError) {
                 this.logger.warn(e.message);
@@ -1692,6 +1934,7 @@ export class EmbedService extends BaseService {
     /**
      * Calculate subtotals from a raw metric query in embed context.
      * This is used when exploring data directly (not from a saved chart).
+     * @deprecated Superseded by the V2 calculate-total path (kind 'columnSubtotal').
      */
     async calculateSubtotalsFromQuery(
         account: AnonymousAccount,
@@ -1737,6 +1980,7 @@ export class EmbedService extends BaseService {
             undefined, // no dashboardUuid for raw query
             combinedParameters,
             data.dateZoom,
+            data.invalidateCache,
         );
     }
 
@@ -1750,6 +1994,7 @@ export class EmbedService extends BaseService {
         forceRefresh,
         tableName: fallbackTableName,
         fieldId: fallbackFieldId,
+        timezone: sessionTimezoneParam,
     }: {
         account: AnonymousAccount;
         projectUuid: string;
@@ -1760,8 +2005,9 @@ export class EmbedService extends BaseService {
         forceRefresh: boolean;
         tableName?: string;
         fieldId?: string;
+        timezone?: string;
     }): Promise<FieldValueSearchResult> {
-        const { dashboardUuids, allowAllDashboards } =
+        const { dashboardUuids, allowAllDashboards, user } =
             await this.embedModel.get(projectUuid);
         const { dashboardUuid } = account.access.content;
 
@@ -1778,8 +2024,10 @@ export class EmbedService extends BaseService {
             },
             dashboardUuid,
         );
-        const dashboard =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboard = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
         const dashboardFilters = dashboard.filters.dimensions;
         const filter = dashboardFilters.find((f) => f.id === filterUuid);
 
@@ -1848,9 +2096,25 @@ export class EmbedService extends BaseService {
                 filters,
             });
 
+        const useTimezoneAwareDateTrunc =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: user?.userUuid ?? account.user.id,
+                organizationUuid: dashboard.organizationUuid,
+            });
+
         const projectTimezone =
             await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone(metricQuery, projectTimezone);
+        const timezone = resolveQueryTimezone({
+            // Gated like the tile path: the session timezone is dropped unless
+            // timezone support is enabled, leaving the param inert.
+            sessionTimezone: useTimezoneAwareDateTrunc
+                ? (sessionTimezoneParam ?? null)
+                : null,
+            metricQuery,
+            projectTimezone,
+            userTimezone: null,
+            isUserTimezoneEnabled: false,
+        });
 
         const { rows, cacheMetadata } = await this._runEmbedQuery({
             projectUuid: dashboard.projectUuid,
@@ -1867,6 +2131,7 @@ export class EmbedService extends BaseService {
             },
             account,
             timezone,
+            useTimezoneAwareDateTrunc,
         });
 
         return {

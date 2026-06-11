@@ -115,8 +115,12 @@ export const ContentPanel: FC = () => {
     // So we can dispatch to redux
     const dispatch = useAppDispatch();
 
-    // Get organization colors to generate chart specs with a color palette defined by the organization
+    // Resolved palette from the org → project → space → dashboard cascade.
+    // Falls back to org-level colors for brand-new (unsaved) SQL charts where
+    // no SqlChart has been loaded yet.
     const { data: organization } = useOrganization();
+    const chartColors =
+        savedSqlChart?.resolvedColorPalette.colors ?? organization?.chartColors;
     const { health } = useApp();
 
     const { showToastError } = useToaster();
@@ -180,7 +184,6 @@ export const ContentPanel: FC = () => {
                     prepareAndFetchChartData({ forceRefresh: true }),
                 );
             } else {
-                // Need to run SQL query first
                 await dispatch(
                     runSqlQuery({
                         sql: sqlToUse,
@@ -189,6 +192,7 @@ export const ContentPanel: FC = () => {
                         parameterValues,
                     }),
                 );
+
                 // If we're on viz tab, also fetch chart data after SQL completes
                 if (activeEditorTab === EditorTabs.VISUALIZATION) {
                     await dispatch(
@@ -411,6 +415,9 @@ export const ContentPanel: FC = () => {
                     downloadLimit === null
                         ? MAX_SAFE_INTEGER
                         : (downloadLimit ?? limit),
+                    // TODO: pass parameterValues (same as handleRunQuery)
+                    undefined,
+                    true,
                 );
                 return newQuery.queryUuid;
             }
@@ -721,7 +728,7 @@ export const ContentPanel: FC = () => {
                                                                                 c
                                                                             }
                                                                             spec={pivotedChartInfo?.data?.getChartSpec(
-                                                                                organization?.chartColors,
+                                                                                chartColors,
                                                                             )}
                                                                             isLoading={
                                                                                 !!pivotedChartInfo?.loading

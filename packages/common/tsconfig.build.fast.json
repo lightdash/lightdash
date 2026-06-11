@@ -1,0 +1,14 @@
+{
+    "files": [],
+    "references": [
+        {
+            "path": "./tsconfig.esm.fast.json"
+        },
+        {
+            "path": "./tsconfig.cjs.fast.json"
+        },
+        {
+            "path": "./tsconfig.types.fast.json"
+        }
+    ]
+}

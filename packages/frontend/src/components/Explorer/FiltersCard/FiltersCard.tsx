@@ -243,7 +243,7 @@ const FiltersCard: FC = memo(() => {
                         {labels.field}: {labels.operator}{' '}
                         {filterRule.operator !== FilterOperator.NULL &&
                         filterRule.operator !== FilterOperator.NOT_NULL ? (
-                            <Text span fw={700}>
+                            <Text span fw={700} fz="inherit" lh="inherit">
                                 {labels.value}
                             </Text>
                         ) : (
@@ -279,6 +279,9 @@ const FiltersCard: FC = memo(() => {
                                         display: 'flex',
                                         flexDirection: 'column',
                                         gap: '4px',
+                                        fontSize: 'var(--mantine-font-size-xs)',
+                                        lineHeight:
+                                            'var(--mantine-line-height-xs)',
                                     }}
                                 >
                                     {filterRuleLabels}
@@ -298,7 +301,7 @@ const FiltersCard: FC = memo(() => {
                         </Tooltip>
                     ) : null}
                     {totalActiveFilters > 0 && filterIsOpen && !isEditMode ? (
-                        <Text c="gray">
+                        <Text c="gray" fz="sm">
                             You must be in 'edit' or 'explore' mode to change
                             the filters
                         </Text>
@@ -319,6 +322,7 @@ const FiltersCard: FC = memo(() => {
                     }}
                     baseTable={data?.baseTable}
                     parameterValues={parameterValues}
+                    metricQueryTimezone={metricQuery.timezone ?? undefined}
                 >
                     <FiltersForm
                         isEditMode={isEditMode}

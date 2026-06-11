@@ -2,9 +2,11 @@ import {
     buildPopAdditionalMetric,
     CartesianSeriesType,
     ChartType,
+    derivePivotConfigurationFromChart,
     FilterOperator,
     getDefaultDateRangeFromInterval,
     getFieldIdForDateDimension,
+    getFieldsFromMetricQuery,
     getItemId,
     getPopPeriodLabel,
     isCompleteLayout,
@@ -20,6 +22,7 @@ import {
     type MetricExplorerDateRange,
     type MetricQuery,
     type MetricWithAssociatedTimeDimension,
+    type PivotConfiguration,
     type Series,
     type TimeDimensionConfig,
 } from '@lightdash/common';
@@ -29,6 +32,7 @@ import { type VisualizationProviderProps } from '../../../components/LightdashVi
 import { type MetricQueryDataContext } from '../../../components/MetricQueryData/context';
 import {
     getExpectedSeriesMap,
+    isPivotSeriesOrderDeterminedByQuery,
     mergeExistingAndExpectedSeries,
 } from '../../../hooks/cartesianChartConfig/utils';
 import { useExplore } from '../../../hooks/useExplore';
@@ -342,6 +346,51 @@ export function useMetricVisualization({
         compareMetric,
     ]);
 
+    /**
+     * When segmenting, request a SQL pivot so the backend emits pivotDetails.
+     * The series logic (getExpectedSeriesMap) requires pivotDetails to expand
+     * pivoted series — without it a segmented chart renders no series.
+     *
+     * Derived from the pre-execution metricQuery (not executedMetricQuery): it
+     * feeds queryArgs, so a per-response reference would loop the query.
+     */
+    const pivotConfiguration = useMemo<PivotConfiguration | undefined>(() => {
+        if (
+            !segmentDimensionId ||
+            !metricQuery ||
+            !exploreQuery.data ||
+            !metricFieldQuery.data
+        ) {
+            return undefined;
+        }
+
+        // Reuse buildLineChartConfig so the pivot's layout (xField/yField) stays
+        // the single source of truth and can't drift from the rendered chart.
+        const chartConfigForPivot = buildLineChartConfig(
+            metricQuery,
+            metricFieldQuery.data.label,
+            comparison,
+            compareMetric?.label ?? undefined,
+        );
+        const fields = getFieldsFromMetricQuery(metricQuery, exploreQuery.data);
+
+        return derivePivotConfigurationFromChart(
+            {
+                chartConfig: chartConfigForPivot,
+                pivotConfig: { columns: [segmentDimensionId] },
+            },
+            metricQuery,
+            fields,
+        );
+    }, [
+        segmentDimensionId,
+        metricQuery,
+        exploreQuery.data,
+        metricFieldQuery.data,
+        comparison,
+        compareMetric,
+    ]);
+
     const queryArgs = useMemo<QueryResultsProps | null>(() => {
         if (!projectUuid || !tableName || !metricQuery) return null;
         return {
@@ -349,8 +398,9 @@ export function useMetricVisualization({
             tableId: tableName,
             query: metricQuery,
             context: QueryExecutionContext.METRICS_EXPLORER,
+            pivotConfiguration,
         };
-    }, [projectUuid, tableName, metricQuery]);
+    }, [projectUuid, tableName, metricQuery, pivotConfiguration]);
 
     const [{ query: createQuery, queryResults }] = useQueryExecutor(
         queryArgs,
@@ -385,8 +435,14 @@ export function useMetricVisualization({
             ...queryResults,
             metricQuery: executedMetricQuery,
             fields,
+            resolvedTimezone: createQuery.data?.resolvedTimezone ?? undefined,
         };
-    }, [queryResults, executedMetricQuery, createQuery.data?.fields]);
+    }, [
+        queryResults,
+        executedMetricQuery,
+        createQuery.data?.fields,
+        createQuery.data?.resolvedTimezone,
+    ]);
 
     const columnOrder = useMemo(() => {
         if (!executedMetricQuery) return [];
@@ -420,7 +476,6 @@ export function useMetricVisualization({
             defaultShowSymbol: firstSerie?.showSymbol,
             defaultAreaStyle: firstSerie?.areaStyle,
             defaultCartesianType: CartesianSeriesType.LINE,
-            availableDimensions: executedMetricQuery?.dimensions ?? [],
             isStacked: false,
             pivotKeys: segmentDimensionId ? [segmentDimensionId] : undefined,
             resultsData: queryResults,
@@ -431,11 +486,11 @@ export function useMetricVisualization({
         });
 
         const pivotKeys = segmentDimensionId ? [segmentDimensionId] : undefined;
-        const sortedByPivot =
-            !!pivotKeys?.length &&
-            !!executedMetricQuery?.sorts?.some((sort) =>
-                pivotKeys.includes(sort.fieldId),
-            );
+        const sortedByPivot = isPivotSeriesOrderDeterminedByQuery(
+            pivotKeys,
+            chartConfig.config.layout.yField,
+            executedMetricQuery?.sorts,
+        );
 
         return mergeExistingAndExpectedSeries({
             expectedSeriesMap,
@@ -445,7 +500,6 @@ export function useMetricVisualization({
     }, [
         chartConfig,
         queryResults,
-        executedMetricQuery?.dimensions,
         executedMetricQuery?.sorts,
         segmentDimensionId,
         createQuery.data?.fields,

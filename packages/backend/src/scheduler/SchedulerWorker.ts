@@ -12,16 +12,30 @@ import {
     parseCronItems,
     run as runGraphileWorker,
     Runner,
+    type CronItem,
 } from 'graphile-worker';
 import moment from 'moment';
 import { DEFAULT_DB_MAX_CONNECTIONS } from '../knexfile';
 import Logger from '../logging/logger';
+import { type OrganizationNameResolver } from '../sentry/organizationNameResolver';
 import { SchedulerClient } from './SchedulerClient';
+import {
+    resolveSchedulerDeliveryFailureAction,
+    SchedulerDeliveryError,
+} from './SchedulerDeliveryError';
 import { tryJobOrTimeout } from './SchedulerJobTimeout';
 import SchedulerTask, { type SchedulerTaskArguments } from './SchedulerTask';
 import { traceTasks } from './SchedulerTaskTracer';
 import schedulerWorkerEventEmitter from './SchedulerWorkerEventEmitter';
+import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 import { TypedTaskList } from './types';
+
+export type SchedulerWorkerArguments = SchedulerTaskArguments & {
+    // When omitted, no pg-ping interval runs and the health probe falls back to
+    // job-activity events alone.
+    workerHealth?: SchedulerWorkerHealth;
+    resolveOrganizationName?: OrganizationNameResolver;
+};
 
 const workerLogger = new GraphileLogger(
     (scope) => (logLevel, message, meta) => {
@@ -33,6 +47,13 @@ const workerLogger = new GraphileLogger(
     },
 );
 
+// 60s vs the 3-min staleness threshold gives 3x headroom for ping latency.
+const PG_PING_INTERVAL_MS = 60_000;
+
+// Cap each ping: a wedged pg backend can leave the query hanging forever and
+// stack up overlapping client borrows from the pool.
+const PG_PING_TIMEOUT_MS = 5_000;
+
 export class SchedulerWorker extends SchedulerTask {
     runner: Runner | undefined;
 
@@ -40,9 +61,18 @@ export class SchedulerWorker extends SchedulerTask {
 
     enabledTasks: Array<SchedulerTaskName>;
 
-    constructor(schedulerTaskArgs: SchedulerTaskArguments & {}) {
-        super(schedulerTaskArgs);
+    protected readonly workerHealth: SchedulerWorkerHealth | undefined;
+
+    private pgPingInterval: NodeJS.Timeout | null = null;
+
+    private readonly resolveOrganizationName?: OrganizationNameResolver;
+
+    constructor(schedulerWorkerArgs: SchedulerWorkerArguments) {
+        super(schedulerWorkerArgs);
         this.enabledTasks = this.lightdashConfig.scheduler.tasks;
+        this.workerHealth = schedulerWorkerArgs.workerHealth;
+        this.resolveOrganizationName =
+            schedulerWorkerArgs.resolveOrganizationName;
     }
 
     async run() {
@@ -72,59 +102,142 @@ export class SchedulerWorker extends SchedulerTask {
             noHandleSignals: true,
             pollInterval: this.lightdashConfig.scheduler.pollInterval,
             maxPoolSize,
-            parsedCronItems: parseCronItems([
-                {
-                    task: 'generateDailyJobs',
-                    pattern: '0 0 * * *',
-                    options: {
-                        backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
-                    pattern:
-                        this.lightdashConfig.scheduler.queryHistory.cleanup
-                            .schedule,
-                    options: {
-                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS,
-                    pattern: '0 6 * * *', // 6am UTC daily
-                    options: {
-                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS,
-                    pattern: '*/30 * * * *', // Every 30 minutes
-                    options: {
-                        backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-                {
-                    task: SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS,
-                    pattern: '0 * * * *', // Every hour
-                    options: {
-                        backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
-                        maxAttempts: 3,
-                    },
-                },
-            ]),
-            taskList: traceTasks(this.getTaskList()),
+            parsedCronItems: parseCronItems(this.getCronItems()),
+            taskList: traceTasks(this.getTaskList(), {
+                resolveOrganizationName: this.resolveOrganizationName,
+            }),
             events: schedulerWorkerEventEmitter,
         });
 
         this.isRunning = true;
+        if (this.workerHealth) {
+            this.startPgPing(this.workerHealth);
+        }
         // Don't await this! This promise will never resolve, as the worker will keep running until the process is killed
         void this.runner.promise.finally(() => {
             this.isRunning = false;
+            this.stopPgPing();
         });
+    }
+
+    private startPgPing(health: SchedulerWorkerHealth) {
+        if (this.pgPingInterval) return;
+        void this.pingPgOnce(health);
+        this.pgPingInterval = setInterval(() => {
+            void this.pingPgOnce(health);
+        }, PG_PING_INTERVAL_MS);
+        Logger.info(
+            `[scheduler-health] pg-ping started poolId=${health.getPoolId()} intervalMs=${PG_PING_INTERVAL_MS} timeoutMs=${PG_PING_TIMEOUT_MS}`,
+        );
+    }
+
+    private stopPgPing() {
+        if (this.pgPingInterval) {
+            clearInterval(this.pgPingInterval);
+            this.pgPingInterval = null;
+            if (this.workerHealth) {
+                Logger.info(
+                    `[scheduler-health] pg-ping stopped poolId=${this.workerHealth.getPoolId()}`,
+                );
+            }
+        }
+    }
+
+    private async pingPgOnce(health: SchedulerWorkerHealth) {
+        let timeoutHandle: NodeJS.Timeout | undefined;
+        try {
+            const graphileClient = await this.schedulerClient.graphileUtils;
+            // withPgClient borrows from graphile's existing pool and releases the
+            // client back when the callback resolves — no long-lived client to leak.
+            const ping = graphileClient.withPgClient((pgClient) =>
+                pgClient.query('SELECT 1'),
+            );
+            await Promise.race([
+                ping,
+                new Promise<never>((_resolve, reject) => {
+                    timeoutHandle = setTimeout(() => {
+                        reject(
+                            new Error(
+                                `pg ping timeout after ${PG_PING_TIMEOUT_MS}ms`,
+                            ),
+                        );
+                    }, PG_PING_TIMEOUT_MS);
+                    if (typeof timeoutHandle.unref === 'function')
+                        timeoutHandle.unref();
+                }),
+            ]);
+            health.markPgReachable();
+            Logger.debug(
+                `[scheduler-health] pg-ping ok poolId=${health.getPoolId()}`,
+            );
+        } catch (e) {
+            // Sustained failure ages lastPgReachableAt past staleness — combined
+            // with no job activity, the probe trips. A single failure is harmless.
+            Logger.warn(
+                `[scheduler-health] pg-ping failed poolId=${health.getPoolId()} error=${getErrorMessage(
+                    e,
+                )}`,
+            );
+        } finally {
+            if (timeoutHandle) clearTimeout(timeoutHandle);
+        }
+    }
+
+    protected getCronItems(): CronItem[] {
+        return [
+            {
+                task: 'generateDailyJobs',
+                pattern: '0 0 * * *',
+                options: {
+                    backfillPeriod: 12 * 3600 * 1000, // 12 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_QUERY_HISTORY,
+                pattern:
+                    this.lightdashConfig.scheduler.queryHistory.cleanup
+                        .schedule,
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.GENERATE_SLACK_CHANNEL_SYNC_JOBS,
+                pattern: '0 6 * * *', // 6am UTC daily
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS,
+                pattern: '*/30 * * * *', // Every 30 minutes
+                options: {
+                    backfillPeriod: 24 * 3600 * 1000, // 24 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_DEPLOY_SESSIONS,
+                pattern: '0 * * * *', // Every hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            {
+                task: SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS,
+                pattern: '0 * * * *', // Every hour
+                options: {
+                    backfillPeriod: 2 * 3600 * 1000, // 2 hours in ms
+                    maxAttempts: 3,
+                },
+            },
+            // worker-process pg liveness is driven by a setInterval (see startPgPing);
+            // managed-agent heartbeat is self-scheduling (see SchedulerClient.scheduleManagedAgentHeartbeat).
+        ];
     }
 
     protected getTaskList(): Partial<TypedTaskList> {
@@ -134,7 +247,7 @@ export class SchedulerWorker extends SchedulerTask {
                     isSchedulerTaskName(taskKey) &&
                     this.enabledTasks.includes(taskKey),
             ),
-        );
+        ) as Partial<TypedTaskList>;
     }
 
     protected getFullTaskList(): TypedTaskList {
@@ -229,6 +342,8 @@ export class SchedulerWorker extends SchedulerTask {
                 payload,
                 helpers,
             ) => {
+                const isFinalAttempt =
+                    helpers.job.attempts >= helpers.job.max_attempts;
                 await tryJobOrTimeout(
                     SchedulerClient.processJob(
                         SCHEDULER_TASKS.HANDLE_SCHEDULED_DELIVERY,
@@ -240,6 +355,7 @@ export class SchedulerWorker extends SchedulerTask {
                                 helpers.job.id,
                                 helpers.job.run_at,
                                 payload,
+                                isFinalAttempt,
                             );
                         },
                     ),
@@ -568,36 +684,69 @@ export class SchedulerWorker extends SchedulerTask {
                 );
             },
             [SCHEDULER_TASKS.UPLOAD_GSHEETS]: async (payload, helpers) => {
-                await tryJobOrTimeout(
-                    SchedulerClient.processJob(
-                        SCHEDULER_TASKS.UPLOAD_GSHEETS,
-                        helpers.job.id,
-                        helpers.job.run_at,
-                        payload,
-                        async () => {
-                            await this.uploadGsheets(helpers.job.id, payload);
-                        },
-                    ),
-                    helpers.job,
-                    this.lightdashConfig.scheduler.jobTimeout,
-                    async (job, e) => {
-                        await this.schedulerService.logSchedulerJob({
-                            task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
-                            schedulerUuid: payload.schedulerUuid,
-                            jobId: job.id,
-                            scheduledTime: job.run_at,
-                            jobGroup: payload.jobGroup,
-                            targetType: 'gsheets',
-                            status: SchedulerJobStatus.ERROR,
-                            details: {
-                                error: getErrorMessage(e),
-                                projectUuid: payload.projectUuid,
-                                organizationUuid: payload.organizationUuid,
-                                createdByUserUuid: payload.userUuid,
+                const isFinalAttempt =
+                    helpers.job.attempts >= helpers.job.max_attempts;
+                try {
+                    await tryJobOrTimeout(
+                        SchedulerClient.processJob(
+                            SCHEDULER_TASKS.UPLOAD_GSHEETS,
+                            helpers.job.id,
+                            helpers.job.run_at,
+                            payload,
+                            async () => {
+                                await this.uploadGsheets(
+                                    helpers.job.id,
+                                    payload,
+                                );
                             },
-                        });
-                    },
-                );
+                        ),
+                        helpers.job,
+                        this.lightdashConfig.scheduler.jobTimeout,
+                        async (job, e) => {
+                            await this.schedulerService.logSchedulerJob({
+                                task: SCHEDULER_TASKS.UPLOAD_GSHEETS,
+                                schedulerUuid: payload.schedulerUuid,
+                                jobId: job.id,
+                                scheduledTime: job.run_at,
+                                jobGroup: payload.jobGroup,
+                                targetType: 'gsheets',
+                                status: SchedulerJobStatus.ERROR,
+                                details: {
+                                    error: getErrorMessage(e),
+                                    projectUuid: payload.projectUuid,
+                                    organizationUuid: payload.organizationUuid,
+                                    createdByUserUuid: payload.userUuid,
+                                },
+                            });
+                        },
+                    );
+                } catch (e) {
+                    const deliveryError =
+                        e instanceof SchedulerDeliveryError ? e : undefined;
+                    const action = resolveSchedulerDeliveryFailureAction(
+                        deliveryError,
+                        isFinalAttempt,
+                    );
+
+                    if (action.notify && deliveryError) {
+                        await this.notifyGsheetsDeliveryFailure(
+                            deliveryError,
+                            helpers.job.id,
+                        );
+                    }
+
+                    if (action.disable && deliveryError) {
+                        await this.disableGsheetsScheduler(
+                            payload.schedulerUuid,
+                            deliveryError.createdByUserUuid,
+                        );
+                        return; // Swallow so graphile does not retry
+                    }
+
+                    // Re-throw the original error (not the envelope) so graphile
+                    // and Sentry see the real type.
+                    throw deliveryError ? deliveryError.cause : e;
+                }
             },
             [SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY]: async (
                 payload,
@@ -1018,6 +1167,24 @@ export class SchedulerWorker extends SchedulerTask {
                     throw error;
                 }
             },
+            [SCHEDULER_TASKS.CLEAN_EXPIRED_PREVIEWS]: async () => {
+                Logger.info('Starting expired preview projects cleanup job');
+
+                try {
+                    const deletedCount =
+                        await this.projectService.deleteExpiredPreviewProjects();
+
+                    Logger.info(
+                        `Expired preview projects cleanup completed. Deleted: ${deletedCount}`,
+                    );
+                } catch (error) {
+                    Logger.error(
+                        'Error during expired preview projects cleanup:',
+                        error,
+                    );
+                    throw error;
+                }
+            },
             [SCHEDULER_TASKS.DOWNLOAD_ASYNC_QUERY_RESULTS]: async (
                 payload,
                 helpers,
@@ -1126,6 +1293,12 @@ export class SchedulerWorker extends SchedulerTask {
             },
             [SCHEDULER_TASKS.CHECK_FOR_STUCK_JOBS]: async () => {
                 await this.schedulerService.checkForStuckJobs();
+            },
+            [SCHEDULER_TASKS.MANAGED_AGENT_HEARTBEAT]: async () => {
+                // EE-only: implemented in CommercialSchedulerWorker
+            },
+            [SCHEDULER_TASKS.INGEST_PROJECT_CONTEXT]: async () => {
+                // EE-only: implemented in CommercialSchedulerWorker
             },
         };
     }

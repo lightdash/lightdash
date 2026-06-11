@@ -39,6 +39,52 @@ const addAccessCondition = (context: ScopeContext, role?: SpaceMemberRole) => ({
 /** Applies the UUID condition as the only condition for a scope. */
 const addDefaultUuidCondition = flow(addUuidCondition, Array.of);
 
+/**
+ * True only inside a preview the current user created. Shared by the @self
+ * preview scopes; returns false for org-level assignments (no project context).
+ */
+const isSelfPreview = (context: ScopeContext) =>
+    Boolean(
+        context.projectUuid &&
+        context.projectType === ProjectType.PREVIEW &&
+        context.userUuid &&
+        context.projectCreatedByUserUuid === context.userUuid,
+    );
+
+/**
+ * Project-wide grant inside the user's own preview. For subjects with no space
+ * access to gate on (Explore). Returns null (no rule) outside the own preview.
+ */
+const selfPreviewProjectCondition = (context: ScopeContext) =>
+    isSelfPreview(context) ? [{ projectUuid: context.projectUuid }] : null;
+
+/**
+ * Space-gated grant inside the user's own preview. Mirrors the view:* gate
+ * (public/shared OR member-of) so that manage — which implies view in CASL —
+ * can't reach copied private spaces the user isn't a member of. `allowCreate`
+ * adds the new-space case, whose ability subject is metadata-only and so
+ * carries no access field (Dashboard/SavedChart creation carries the
+ * destination space's access, so they don't need it). Null outside own preview.
+ */
+const selfPreviewSpaceCondition = (
+    context: ScopeContext,
+    allowCreate = false,
+) =>
+    isSelfPreview(context)
+        ? [
+              addUuidCondition(context, { inheritsFromOrgOrProject: true }),
+              addAccessCondition(context),
+              ...(allowCreate
+                  ? [
+                        {
+                            ...addUuidCondition(context),
+                            access: { $exists: false },
+                        },
+                    ]
+                  : []),
+          ]
+        : null;
+
 const scopes: Scope[] = [
     {
         name: 'view:Dashboard',
@@ -69,6 +115,14 @@ const scopes: Scope[] = [
         ],
     },
     {
+        name: 'manage:Dashboard@self',
+        description:
+            'Create, edit, and delete dashboards in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: selfPreviewSpaceCondition,
+    },
+    {
         name: 'view:SavedChart',
         description: 'View saved charts',
         isEnterprise: false,
@@ -95,6 +149,14 @@ const scopes: Scope[] = [
             addAccessCondition(context, SpaceMemberRole.EDITOR),
             addAccessCondition(context, SpaceMemberRole.ADMIN),
         ],
+    },
+    {
+        name: 'manage:SavedChart@self',
+        description:
+            'Create, edit, and delete saved charts in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: selfPreviewSpaceCondition,
     },
     {
         name: 'view:Space',
@@ -137,6 +199,14 @@ const scopes: Scope[] = [
         getConditions: (context) => [
             addAccessCondition(context, SpaceMemberRole.ADMIN),
         ],
+    },
+    {
+        name: 'manage:Space@self',
+        description:
+            'Create, edit, and delete spaces in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.CONTENT,
+        getConditions: (context) => selfPreviewSpaceCondition(context, true),
     },
     {
         name: 'view:DashboardComments',
@@ -473,6 +543,13 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'view:OrganizationWarehouseCredentials',
+        description: 'View organization warehouse credentials',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
         name: 'manage:OrganizationWarehouseCredentials',
         description: 'Manage organization warehouse credentials',
         isEnterprise: true,
@@ -480,11 +557,32 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
-        name: 'manage:ContentAsCode',
-        description: 'Manage content as code features',
+        name: 'view:ContentAsCode',
+        description: 'Download content as code',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
         getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:ContentAsCode',
+        description: 'Download and upload content as code',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:ContentAsCode@self',
+        description:
+            'Upload content as code to preview projects created by the user',
+        isEnterprise: true,
+        group: ScopeGroup.ORGANIZATION_MANAGEMENT,
+        getConditions: (context) => [
+            {
+                projectUuid: context.projectUuid,
+                createdByUserUuid: context.userUuid || false,
+                type: ProjectType.PREVIEW,
+            },
+        ],
     },
     {
         name: 'manage:PersonalAccessToken',
@@ -543,15 +641,38 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
     {
+        name: 'manage:Explore@self',
+        description:
+            'Explore and query data in preview projects created by the user',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: selfPreviewProjectCondition,
+    },
+    {
         name: 'manage:SqlRunner',
-        description: 'Run SQL queries directly',
+        description:
+            'Run SQL queries, execute SQL charts, and browse warehouse schema',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
     },
     {
         name: 'manage:CustomSql',
-        description: 'Create custom SQL queries',
+        description: 'Save SQL charts',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:CustomFields',
+        description: 'Create and edit custom dimensions',
+        isEnterprise: false,
+        group: ScopeGroup.DATA,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:CustomSqlTableCalculations',
+        description: 'Create and edit SQL table calculations',
         isEnterprise: false,
         group: ScopeGroup.DATA,
         getConditions: addDefaultUuidCondition,
@@ -613,29 +734,6 @@ const scopes: Scope[] = [
         getConditions: addDefaultUuidCondition,
     },
 
-    // Sharing Scopes
-    {
-        name: 'export:DashboardCsv',
-        description: 'Can export dashboards and charts to CSV',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-    {
-        name: 'export:DashboardImage',
-        description: 'Can export dashboards and charts to images',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-    {
-        name: 'export:DashboardPdf',
-        description: 'Can export dashboards and charts to PDF',
-        isEnterprise: false,
-        group: ScopeGroup.SHARING,
-        getConditions: () => [],
-    },
-
     // AI Agent
     {
         name: 'view:AiAgent',
@@ -647,6 +745,20 @@ const scopes: Scope[] = [
     {
         name: 'manage:AiAgent',
         description: 'Configure AI agent settings',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:AiAgentDocument',
+        description: 'View AI agent documents',
+        isEnterprise: true,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:AiAgentDocument',
+        description: 'Upload and manage AI agent documents',
         isEnterprise: true,
         group: ScopeGroup.AI,
         getConditions: addDefaultUuidCondition,
@@ -693,9 +805,79 @@ const scopes: Scope[] = [
 
     // Data Apps
     {
+        name: 'view:DataApp',
+        description: 'View data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            addUuidCondition(context, { inheritsFromOrgOrProject: true }),
+            addAccessCondition(context),
+        ],
+    },
+    {
         name: 'manage:DataApp',
         description: 'Create and manage data apps',
-        isEnterprise: true,
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:DataApp@space',
+        description:
+            'Create, edit, and delete data apps in spaces where you have editor or admin access',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            addAccessCondition(context, SpaceMemberRole.EDITOR),
+            addAccessCondition(context, SpaceMemberRole.ADMIN),
+        ],
+    },
+    {
+        name: 'create:DataApp',
+        description: 'Create new data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'view:DataApp@self',
+        description: 'View own personal data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                createdByUserUuid: context.userUuid || false,
+            },
+        ],
+    },
+    {
+        name: 'manage:DataApp@self',
+        description: 'Edit and delete own personal data apps',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: (context) => [
+            {
+                ...addUuidCondition(context),
+                createdByUserUuid: context.userUuid || false,
+            },
+        ],
+    },
+
+    // Organization Design Assets (shared CSS/fonts/images/instructions
+    // injected into every data app generated in the org). Org-scoped
+    // resource — view is available to all members, manage to org admins.
+    {
+        name: 'view:OrganizationDesign',
+        description: 'View organization design assets',
+        isEnterprise: false,
+        group: ScopeGroup.AI,
+        getConditions: addDefaultUuidCondition,
+    },
+    {
+        name: 'manage:OrganizationDesign',
+        description: 'Create, edit, and delete organization design assets',
+        isEnterprise: false,
         group: ScopeGroup.AI,
         getConditions: addDefaultUuidCondition,
     },

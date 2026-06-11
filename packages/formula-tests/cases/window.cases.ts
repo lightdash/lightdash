@@ -1,3 +1,4 @@
+import { ALL_WAREHOUSES } from '../config';
 import type { TestCase } from '../types';
 
 export const windowCases: TestCase[] = [
@@ -32,7 +33,7 @@ export const windowCases: TestCase[] = [
             { result: 3675.00 },
             { result: 3705.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -69,7 +70,7 @@ export const windowCases: TestCase[] = [
             { result: 70.00 },
             { result: 100.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -104,7 +105,7 @@ export const windowCases: TestCase[] = [
             { result: 70.00 },    // id19: amount=25 → pos 4
             { result: 100.00 },   // id20: amount=30 → pos 5
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -141,7 +142,7 @@ export const windowCases: TestCase[] = [
             { result: 70.00 },    // id19: D,25 → 70
             { result: 100.00 },   // id20: D,30 → 100
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -175,7 +176,7 @@ export const windowCases: TestCase[] = [
             { result: 370 },
             { result: 375 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -211,7 +212,7 @@ export const windowCases: TestCase[] = [
             { result: 19 },
             { result: 20 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -229,7 +230,7 @@ export const windowCases: TestCase[] = [
             { result: 1 }, { result: 2 }, { result: 3 }, { result: 4 }, { result: 5 },
             { result: 1 }, { result: 2 }, { result: 3 }, { result: 4 }, { result: 5 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -263,7 +264,7 @@ export const windowCases: TestCase[] = [
             { result: 4 },   // id19: 25
             { result: 5 },   // id20: 30
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -284,7 +285,7 @@ export const windowCases: TestCase[] = [
             { result: 4 }, { result: 2 }, { result: 3 }, { result: 1 }, { result: 5 },
             { result: 1 }, { result: 3 }, { result: 2 }, { result: 4 }, { result: 5 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -320,7 +321,7 @@ export const windowCases: TestCase[] = [
             { result: 15.00 },
             { result: 25.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -341,7 +342,7 @@ export const windowCases: TestCase[] = [
             { result: null }, { result: 500.00 }, { result: 400.00 }, { result: 450.00 }, { result: 350.00 },
             { result: null }, { result: 10.00 }, { result: 20.00 }, { result: 15.00 }, { result: 25.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -366,7 +367,7 @@ export const windowCases: TestCase[] = [
             { result: 450.00 }, { result: 350.00 }, { result: 400.00 }, { result: null }, { result: 500.00 },
             { result: null }, { result: 15.00 }, { result: 10.00 }, { result: 20.00 }, { result: 25.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -400,7 +401,127 @@ export const windowCases: TestCase[] = [
             { result: 3 },
             { result: 4 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['window'],
+    },
+
+    // ── defaultOrderBy fallback ───────────────────────────────────
+    // These exercise the compile-time `defaultOrderBy` option, which
+    // queryCompiler.ts passes from the containing query's sort fields.
+    // BigQuery and Snowflake reject analytic functions with no ORDER BY
+    // ("Window ORDER BY is required for analytic function lag"), so these
+    // cases regress-guard the fallback that keeps `=LAG(A)` working when
+    // the user hasn't written an explicit ORDER BY in the formula.
+
+    {
+        id: 'window/lag-default-order',
+        formula: '=LAG(A)',
+        description:
+            'LAG with no formula-level ORDER BY picks up defaultOrderBy (mirrors window/lag)',
+        columns: { A: 'amount' },
+        sourceTable: 'test_window',
+        orderBy: 'id',
+        defaultOrderBy: [{ column: 'id', direction: 'ASC' }],
+        expectedRows: [
+            { result: null },
+            { result: 100.00 },
+            { result: 200.00 },
+            { result: 150.00 },
+            { result: 300.00 },
+            { result: 250.00 },
+            { result: 50.00 },
+            { result: 75.00 },
+            { result: 60.00 },
+            { result: 90.00 },
+            { result: 80.00 },
+            { result: 500.00 },
+            { result: 400.00 },
+            { result: 450.00 },
+            { result: 350.00 },
+            { result: 550.00 },
+            { result: 10.00 },
+            { result: 20.00 },
+            { result: 15.00 },
+            { result: 25.00 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['window'],
+    },
+    {
+        id: 'window/lag-user-partition-default-order',
+        formula: '=LAG(A, PARTITION BY B)',
+        description:
+            'User PARTITION BY combines with defaultOrderBy (mirrors window/lag-partitioned)',
+        columns: { A: 'amount', B: 'category' },
+        sourceTable: 'test_window',
+        orderBy: 'id',
+        defaultOrderBy: [{ column: 'id', direction: 'ASC' }],
+        expectedRows: [
+            { result: null }, { result: 100.00 }, { result: 200.00 }, { result: 150.00 }, { result: 300.00 },
+            { result: null }, { result: 50.00 }, { result: 75.00 }, { result: 60.00 }, { result: 90.00 },
+            { result: null }, { result: 500.00 }, { result: 400.00 }, { result: 450.00 }, { result: 350.00 },
+            { result: null }, { result: 10.00 }, { result: 20.00 }, { result: 15.00 }, { result: 25.00 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['window'],
+    },
+    {
+        id: 'window/lag-user-order-wins-over-default',
+        formula: '=LAG(A, ORDER BY B)',
+        description:
+            'Explicit ORDER BY in the formula always wins over defaultOrderBy',
+        columns: { A: 'amount', B: 'id' },
+        sourceTable: 'test_window',
+        orderBy: 'id',
+        // defaultOrderBy below would sort by amount DESC if honoured; the
+        // expected rows match window/lag (ORDER BY id), proving the user's
+        // explicit clause wins.
+        defaultOrderBy: [{ column: 'amount', direction: 'DESC' }],
+        expectedRows: [
+            { result: null },
+            { result: 100.00 },
+            { result: 200.00 },
+            { result: 150.00 },
+            { result: 300.00 },
+            { result: 250.00 },
+            { result: 50.00 },
+            { result: 75.00 },
+            { result: 60.00 },
+            { result: 90.00 },
+            { result: 80.00 },
+            { result: 500.00 },
+            { result: 400.00 },
+            { result: 450.00 },
+            { result: 350.00 },
+            { result: 550.00 },
+            { result: 10.00 },
+            { result: 20.00 },
+            { result: 15.00 },
+            { result: 25.00 },
+        ],
+        warehouses: ALL_WAREHOUSES,
+        tier: 1,
+        tags: ['window'],
+    },
+    {
+        id: 'window/row-number-default-order',
+        formula: '=ROW_NUMBER()',
+        description:
+            'ROW_NUMBER with no formula-level window clause picks up defaultOrderBy (BigQuery/Snowflake reject OVER () otherwise)',
+        columns: {},
+        sourceTable: 'test_window',
+        orderBy: 'id',
+        defaultOrderBy: [{ column: 'id', direction: 'ASC' }],
+        expectedRows: [
+            { result: 1 }, { result: 2 }, { result: 3 }, { result: 4 }, { result: 5 },
+            { result: 6 }, { result: 7 }, { result: 8 }, { result: 9 }, { result: 10 },
+            { result: 11 }, { result: 12 }, { result: 13 }, { result: 14 }, { result: 15 },
+            { result: 16 }, { result: 17 }, { result: 18 }, { result: 19 }, { result: 20 },
+        ],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -436,7 +557,7 @@ export const windowCases: TestCase[] = [
             { result: 30.00 },
             { result: null },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -457,7 +578,7 @@ export const windowCases: TestCase[] = [
             { result: 400.00 }, { result: 450.00 }, { result: 350.00 }, { result: 550.00 }, { result: null },
             { result: 20.00 }, { result: 15.00 }, { result: 25.00 }, { result: 30.00 }, { result: null },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -482,7 +603,7 @@ export const windowCases: TestCase[] = [
             { result: 550.00 }, { result: 450.00 }, { result: 500.00 }, { result: 400.00 }, { result: null },
             { result: 15.00 }, { result: 25.00 }, { result: 20.00 }, { result: 30.00 }, { result: null },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -516,7 +637,7 @@ export const windowCases: TestCase[] = [
             { result: 5 },
             { result: null },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -550,7 +671,7 @@ export const windowCases: TestCase[] = [
             { result: 45 }, { result: 35 }, { result: 40 }, { result: null }, { result: 50 },
             { result: null }, { result: 1 }, { result: 2 }, { result: 3 }, { result: 4 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -575,7 +696,7 @@ export const windowCases: TestCase[] = [
             { result: 55 }, { result: 45 }, { result: 50 }, { result: 40 }, { result: null },
             { result: 2 }, { result: 3 }, { result: 4 }, { result: 5 }, { result: null },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -614,7 +735,7 @@ export const windowCases: TestCase[] = [
             { result: 16 },  // id19
             { result: 20 },  // id20
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -651,7 +772,7 @@ export const windowCases: TestCase[] = [
             { result: 2795.00 },   // id19: pos 16
             { result: 3705.00 },   // id20: pos 20
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -689,7 +810,7 @@ export const windowCases: TestCase[] = [
             { result: 4 },   // id19: rank_val=4
             { result: 5 },   // id20: rank_val=5 (tied)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -711,7 +832,7 @@ export const windowCases: TestCase[] = [
             { result: 4 }, { result: 2 }, { result: 3 }, { result: 1 }, { result: 5 },
             { result: 1 }, { result: 3 }, { result: 2 }, { result: 4 }, { result: 5 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -749,7 +870,7 @@ export const windowCases: TestCase[] = [
             { result: 4 },   // id19: rank_val=4
             { result: 5 },   // id20: rank_val=5 (tied)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -767,7 +888,7 @@ export const windowCases: TestCase[] = [
             { result: 4 }, { result: 2 }, { result: 3 }, { result: 1 }, { result: 5 },
             { result: 1 }, { result: 3 }, { result: 2 }, { result: 4 }, { result: 5 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -805,7 +926,7 @@ export const windowCases: TestCase[] = [
             { result: 60.00 },     // sum(20,15,25)
             { result: 70.00 },     // sum(15,25,30)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -846,7 +967,7 @@ export const windowCases: TestCase[] = [
             { result: 60.00 },     // sum(20,15,25)
             { result: 70.00 },     // sum(15,25,30)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -883,7 +1004,7 @@ export const windowCases: TestCase[] = [
             { result: 20.00 },     // avg(20,15,25)
             { result: 23.33 },     // avg(15,25,30)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -920,7 +1041,7 @@ export const windowCases: TestCase[] = [
             { result: 20.00 },     // id19: id17
             { result: 15.00 },     // id20: id18
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -953,7 +1074,7 @@ export const windowCases: TestCase[] = [
             { result: 15.00 },
             { result: 25.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -986,7 +1107,7 @@ export const windowCases: TestCase[] = [
             { result: null },      // id19: no row 2 forward
             { result: null },      // id20: no row 2 forward
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1007,7 +1128,7 @@ export const windowCases: TestCase[] = [
             { result: 100.00 }, { result: 100.00 }, { result: 100.00 }, { result: 100.00 }, { result: 100.00 },
             { result: 100.00 }, { result: 100.00 }, { result: 100.00 }, { result: 100.00 }, { result: 100.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1025,7 +1146,7 @@ export const windowCases: TestCase[] = [
             { result: 500.00 }, { result: 500.00 }, { result: 500.00 }, { result: 500.00 }, { result: 500.00 },
             { result: 10.00 }, { result: 10.00 }, { result: 10.00 }, { result: 10.00 }, { result: 10.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1043,7 +1164,7 @@ export const windowCases: TestCase[] = [
             { result: 30.00 }, { result: 30.00 }, { result: 30.00 }, { result: 30.00 }, { result: 30.00 },
             { result: 30.00 }, { result: 30.00 }, { result: 30.00 }, { result: 30.00 }, { result: 30.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1061,7 +1182,7 @@ export const windowCases: TestCase[] = [
             { result: 550.00 }, { result: 550.00 }, { result: 550.00 }, { result: 550.00 }, { result: 550.00 },
             { result: 30.00 }, { result: 30.00 }, { result: 30.00 }, { result: 30.00 }, { result: 30.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1100,7 +1221,7 @@ export const windowCases: TestCase[] = [
             { result: 1 },   // id19: amount=25 → pos 4 → bucket 1
             { result: 1 },   // id20: amount=30 → pos 5 → bucket 1
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1137,7 +1258,7 @@ export const windowCases: TestCase[] = [
             { result: 17 },  // id19: amount=25
             { result: 16 },  // id20: amount=30
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1175,7 +1296,7 @@ export const windowCases: TestCase[] = [
             { result: 55.00 },     // id19
             { result: 30.00 },     // id20
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1213,7 +1334,7 @@ export const windowCases: TestCase[] = [
             { result: 17 },  // id19: rank_val=4
             { result: 15 },  // id20: rank_val=5 (tied)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1247,7 +1368,7 @@ export const windowCases: TestCase[] = [
             { result: 16 },  // id19: rank_val=4
             { result: 15 },  // id20: rank_val=5 (tied)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1268,7 +1389,7 @@ export const windowCases: TestCase[] = [
             { result: 2 }, { result: 4 }, { result: 3 }, { result: 5 }, { result: 1 },
             { result: 5 }, { result: 3 }, { result: 4 }, { result: 2 }, { result: 1 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1305,7 +1426,7 @@ export const windowCases: TestCase[] = [
             { result: 1 },   // id19: amount=25 → pos 4 → bucket 1
             { result: 1 },   // id20: amount=30 → pos 5 → bucket 1
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1327,7 +1448,7 @@ export const windowCases: TestCase[] = [
             { result: 2 }, { result: 1 }, { result: 1 }, { result: 1 }, { result: 2 },
             { result: 1 }, { result: 1 }, { result: 1 }, { result: 2 }, { result: 2 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1367,7 +1488,7 @@ export const windowCases: TestCase[] = [
             { result: 20.00 },     // avg(20,15,25)
             { result: 23.33 },     // avg(15,25,30)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1403,7 +1524,7 @@ export const windowCases: TestCase[] = [
             { result: 40.00 },     // sum(15,25)
             { result: 55.00 },     // sum(25,30)
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1439,7 +1560,7 @@ export const windowCases: TestCase[] = [
             { result: 10.00 },     // id19 ← id16
             { result: 20.00 },     // id20 ← id17
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1472,7 +1593,7 @@ export const windowCases: TestCase[] = [
             { result: 30.00 },
             { result: 0 },        // id20: no next → default 0
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1493,7 +1614,7 @@ export const windowCases: TestCase[] = [
             // Category D by id: 10,20,15,25,30
             { result: null }, { result: null }, { result: 10.00 }, { result: 20.00 }, { result: 15.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1514,7 +1635,7 @@ export const windowCases: TestCase[] = [
             // Category D by id: 10,20,15,25,30
             { result: 15.00 }, { result: 25.00 }, { result: 30.00 }, { result: null }, { result: null },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1535,7 +1656,7 @@ export const windowCases: TestCase[] = [
             { result: 10.00 }, { result: 10.00 }, { result: 10.00 }, { result: 10.00 }, { result: 10.00 },
             { result: 10.00 }, { result: 10.00 }, { result: 10.00 }, { result: 10.00 }, { result: 10.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1553,7 +1674,7 @@ export const windowCases: TestCase[] = [
             { result: 350.00 }, { result: 350.00 }, { result: 350.00 }, { result: 350.00 }, { result: 350.00 },
             { result: 10.00 }, { result: 10.00 }, { result: 10.00 }, { result: 10.00 }, { result: 10.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },
@@ -1571,7 +1692,7 @@ export const windowCases: TestCase[] = [
             { result: 550.00 }, { result: 550.00 }, { result: 550.00 }, { result: 550.00 }, { result: 550.00 },
             { result: 550.00 }, { result: 550.00 }, { result: 550.00 }, { result: 550.00 }, { result: 550.00 },
         ],
-        warehouses: ['duckdb', 'postgres', 'bigquery', 'snowflake'],
+        warehouses: ALL_WAREHOUSES,
         tier: 1,
         tags: ['window'],
     },

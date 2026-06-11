@@ -1,10 +1,4 @@
-import {
-    FeatureFlag,
-    FeatureFlags,
-    isFeatureFlags,
-    LightdashUser,
-    NotFoundError,
-} from '@lightdash/common';
+import { FeatureFlag, FeatureFlags, LightdashUser } from '@lightdash/common';
 import { Knex } from 'knex';
 import { LightdashConfig } from '../../config/parseConfig';
 import {
@@ -12,7 +6,9 @@ import {
     FeatureFlagsTableName,
 } from '../../database/entities/featureFlags';
 import Logger from '../../logging/logger';
-import { isFeatureFlagEnabled } from '../../postHog';
+
+const UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export type FeatureFlagLogicArgs = {
     user?: Pick<
@@ -37,39 +33,28 @@ export class FeatureFlagModel {
         this.lightdashConfig = args.lightdashConfig;
         // Initialize the handlers for feature flag logic
         this.featureFlagHandlers = {
-            [FeatureFlags.UserGroupsEnabled]:
-                this.getUserGroupsEnabled.bind(this),
-            [FeatureFlags.UseSqlPivotResults]:
-                this.getUseSqlPivotResults.bind(this),
-            [FeatureFlags.DashboardComments]:
-                this.getDashboardComments.bind(this),
             [FeatureFlags.EditYamlInUi]: this.getEditYamlInUiEnabled.bind(this),
-            [FeatureFlags.ShowExecutionTime]:
-                this.getShowExecutionTimeEnabled.bind(this),
-            [FeatureFlags.SavedMetricsTree]:
-                this.getSavedMetricsTreeEnabled.bind(this),
-            [FeatureFlags.DefaultUserSpaces]:
-                this.getDefaultUserSpacesEnabled.bind(this),
-            [FeatureFlags.GoogleChatEnabled]:
-                this.getGoogleChatEnabled.bind(this),
-            [FeatureFlags.UserImpersonation]:
-                this.getUserImpersonationEnabled.bind(this),
-            [FeatureFlags.ChangeChartExplore]:
-                this.getChangeChartExploreEnabled.bind(this),
-            [FeatureFlags.ShowHideRows]: this.getShowHideRowsEnabled.bind(this),
-            [FeatureFlags.MetricDashboardFilters]:
-                this.getMetricDashboardFiltersEnabled.bind(this),
-            [FeatureFlags.ShowHideColumns]:
-                this.getShowHideColumnsEnabled.bind(this),
             [FeatureFlags.EnableTimezoneSupport]:
                 this.getEnableTimezoneSupportEnabled.bind(this),
+            [FeatureFlags.EnableDataApps]:
+                this.getEnableDataAppsEnabled.bind(this),
+            [FeatureFlags.ResultsCacheEnabled]: (flagArgs) =>
+                this.getWithEnvFallback(
+                    flagArgs,
+                    this.lightdashConfig.results.cacheEnabled,
+                ),
         };
     }
 
     public async get(args: FeatureFlagLogicArgs): Promise<FeatureFlag> {
-        // 1. Check env var override (self-hosted escape hatch, enable-only)
+        // 1a. Check env var enable-allowlist (self-hosted escape hatch)
         if (this.lightdashConfig.enabledFeatureFlags.has(args.featureFlagId)) {
             return { id: args.featureFlagId, enabled: true };
+        }
+
+        // 1b. Check env var disable-allowlist (self-hosted kill switch)
+        if (this.lightdashConfig.disabledFeatureFlags.has(args.featureFlagId)) {
+            return { id: args.featureFlagId, enabled: false };
         }
 
         // 2. Check per-flag config handlers
@@ -79,127 +64,14 @@ export class FeatureFlagModel {
         }
 
         // 3. Check database (user override > org override > flag default)
-        try {
-            const dbResult = await this.getFromDatabase(args);
-            if (dbResult !== null) {
-                return dbResult;
-            }
-        } catch (e) {
-            Logger.warn(
-                `Failed to check feature flag ${args.featureFlagId} from database, falling through to PostHog: ${e}`,
-            );
+        const dbResult = await this.tryGetFromDatabase(args);
+        if (dbResult !== null) {
+            return dbResult;
         }
 
-        // 4. Fallback to PostHog (temporary, will be removed after migration)
-        if (args.user && isFeatureFlags(args.featureFlagId)) {
-            return FeatureFlagModel.getPosthogFeatureFlag(
-                args.user,
-                args.featureFlagId,
-            );
-        }
-        throw new NotFoundError(`Feature flag ${args.featureFlagId} not found`);
-    }
-
-    static async getPosthogFeatureFlag(
-        user: Pick<
-            LightdashUser,
-            'userUuid' | 'organizationUuid' | 'organizationName'
-        >,
-        featureFlagId: FeatureFlags,
-    ): Promise<FeatureFlag> {
-        const enabled = await isFeatureFlagEnabled(featureFlagId, {
-            userUuid: user.userUuid,
-            organizationUuid: user.organizationUuid,
-        });
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getUserGroupsEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.groups.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.UserGroupsEnabled,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          // because we are checking this in the health check, we don't want to throw an error
-                          // nor do we want to wait too long
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getUseSqlPivotResults({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.query.useSqlPivotResults ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.UseSqlPivotResults,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                      true,
-                  )
-                : true);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getDashboardComments({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        if (!this.lightdashConfig.dashboardComments.enabled) {
-            return {
-                id: featureFlagId,
-                enabled: false,
-            };
-        }
-
-        const enabled = user
-            ? await isFeatureFlagEnabled(
-                  FeatureFlags.DashboardComments,
-                  {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  },
-                  {
-                      throwOnTimeout: false,
-                      timeoutMilliseconds: 500,
-                  },
-                  true,
-              )
-            : true;
-
-        return {
-            id: featureFlagId,
-            enabled,
-        };
+        // Unknown flags default to disabled.
+        // See: GLITCH-331
+        return { id: args.featureFlagId, enabled: false };
     }
 
     private async getEditYamlInUiEnabled({
@@ -211,213 +83,48 @@ export class FeatureFlagModel {
         };
     }
 
-    private async getShowExecutionTimeEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.query.showExecutionTime ?? false,
-        };
+    private async getEnableTimezoneSupportEnabled(
+        args: FeatureFlagLogicArgs,
+    ): Promise<FeatureFlag> {
+        if (this.lightdashConfig.query.enableTimezoneSupport) {
+            return { id: args.featureFlagId, enabled: true };
+        }
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
-    private async getSavedMetricsTreeEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.savedMetricsTree.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(FeatureFlags.SavedMetricsTree, {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  })
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
+    private async getEnableDataAppsEnabled(
+        args: FeatureFlagLogicArgs,
+    ): Promise<FeatureFlag> {
+        if (this.lightdashConfig.appRuntime.enabled) {
+            return { id: args.featureFlagId, enabled: true };
+        }
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: false };
     }
 
-    private async getDefaultUserSpacesEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.defaultUserSpaces.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.DefaultUserSpaces,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                          organizationName: user.organizationName,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
+    // DB value (user override → org override → flag default) wins. Falls
+    // back to the env-derived value when the flag has no DB row and no
+    // override applies.
+    private async getWithEnvFallback(
+        args: FeatureFlagLogicArgs,
+        envFallback: boolean,
+    ): Promise<FeatureFlag> {
+        const dbResult = await this.tryGetFromDatabase(args);
+        return dbResult ?? { id: args.featureFlagId, enabled: envFallback };
     }
 
-    private async getGoogleChatEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.googleChat.enabled ||
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.GoogleChatEnabled,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getUserImpersonationEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.userImpersonation.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(FeatureFlags.UserImpersonation, {
-                      userUuid: user.userUuid,
-                      organizationUuid: user.organizationUuid,
-                  })
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getChangeChartExploreEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.changeChartExplore.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.ChangeChartExplore,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getShowHideRowsEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.showHideRows.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.ShowHideRows,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getMetricDashboardFiltersEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.metricDashboardFilters.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.MetricDashboardFilters,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    private async getShowHideColumnsEnabled({
-        user,
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        const enabled =
-            this.lightdashConfig.showHideColumns.enabled ??
-            (user
-                ? await isFeatureFlagEnabled(
-                      FeatureFlags.ShowHideColumns,
-                      {
-                          userUuid: user.userUuid,
-                          organizationUuid: user.organizationUuid,
-                      },
-                      {
-                          throwOnTimeout: false,
-                          timeoutMilliseconds: 500,
-                      },
-                  )
-                : false);
-        return {
-            id: featureFlagId,
-            enabled,
-        };
-    }
-
-    // Config-only (no PostHog) to avoid needing a user context — this flag
-    // is checked in the query execution path where only userUuid is available,
-    // and loading the full user would add an extra DB query on every query.
-    // It also needs to work for embed users who don't have a user record.
-    private async getEnableTimezoneSupportEnabled({
-        featureFlagId,
-    }: FeatureFlagLogicArgs) {
-        return {
-            id: featureFlagId,
-            enabled: this.lightdashConfig.query.enableTimezoneSupport ?? false,
-        };
+    protected async tryGetFromDatabase(
+        args: FeatureFlagLogicArgs,
+    ): Promise<FeatureFlag | null> {
+        try {
+            return await this.getFromDatabase(args);
+        } catch (e) {
+            Logger.warn(
+                `Failed to check feature flag ${args.featureFlagId} from database, falling through: ${e}`,
+            );
+            return null;
+        }
     }
 
     private async getFromDatabase(
@@ -432,7 +139,11 @@ export class FeatureFlagModel {
         }
 
         // Priority: user override > org override > flag default
-        if (args.user?.userUuid) {
+        // Skip the user-override lookup unless the userUuid is a real UUID.
+        // Anonymous (embed/JWT) accounts use a non-UUID externalId for
+        // `user.userUuid`; passing it to a `uuid` column raises a Postgres
+        // type error and would prevent the org-override lookup below.
+        if (args.user?.userUuid && UUID_REGEX.test(args.user.userUuid)) {
             const userOverride = await this.database(
                 FeatureFlagOverridesTableName,
             )
@@ -461,6 +172,10 @@ export class FeatureFlagModel {
                     enabled: orgOverride.enabled,
                 };
             }
+        }
+
+        if (flag.default_enabled === null) {
+            return null;
         }
 
         return { id: args.featureFlagId, enabled: flag.default_enabled };

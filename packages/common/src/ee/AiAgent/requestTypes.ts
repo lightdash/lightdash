@@ -1,4 +1,19 @@
+import { type DateZoom } from '../../types/api/paginatedQuery';
+import { type DashboardFilters } from '../../types/filter';
+import { type ParametersValuesMap } from '../../types/parameters';
+import { type ChartKind } from '../../types/savedCharts';
 import { type TraceTaskBase } from '../../types/scheduler';
+
+/**
+ * Runtime state captured at pin time for a chart context. When a user pins a
+ * chart from a dashboard view, these are the dashboard-level overrides that
+ * were applied to the chart on screen at that moment.
+ */
+export type AiChartRuntimeOverrides = {
+    dashboardFilters?: DashboardFilters;
+    dashboardParameters?: ParametersValuesMap;
+    dateZoom?: DateZoom;
+};
 
 export type AiThread = {
     aiThreadUuid: string;
@@ -7,6 +22,10 @@ export type AiThread = {
     createdAt: Date;
     createdFrom: string;
     agentUuid: string | null;
+};
+
+export type AiPromptTokenUsage = {
+    totalTokens: number;
 };
 
 export type CreateSlackThread = {
@@ -70,10 +89,46 @@ export type CreateSlackPrompt = {
     promptSlackTs: string;
 };
 
+export type AiPromptContextItemInput =
+    | {
+          type: 'chart';
+          chartUuid: string;
+          chartSlug?: string | null;
+          runtimeOverrides?: AiChartRuntimeOverrides;
+      }
+    | {
+          type: 'dashboard';
+          dashboardUuid: string;
+          dashboardSlug?: string | null;
+      };
+
+export type AiPromptContextInput = AiPromptContextItemInput[];
+
+export type AiPromptContextItem =
+    | {
+          type: 'chart';
+          chartUuid: string;
+          chartSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
+          runtimeOverrides: AiChartRuntimeOverrides | null;
+          chartKind: ChartKind | null;
+      }
+    | {
+          type: 'dashboard';
+          dashboardUuid: string;
+          dashboardSlug: string | null;
+          pinnedVersionUuid: string | null;
+          displayName: string | null;
+      };
+
+export type AiPromptContext = AiPromptContextItem[];
+
 export type CreateWebAppPrompt = {
     threadUuid: string;
     createdByUserUuid: string;
     prompt: string;
+    context?: AiPromptContextInput;
     modelConfig?: {
         modelName: string;
         modelProvider: string;
@@ -86,6 +141,7 @@ export type UpdateSlackResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
+    tokenUsage?: AiPromptTokenUsage | null;
 };
 
 export type UpdateWebAppResponse = {
@@ -93,6 +149,7 @@ export type UpdateWebAppResponse = {
     response?: string;
     errorMessage?: string;
     humanScore?: number | null;
+    tokenUsage?: AiPromptTokenUsage | null;
 };
 
 export type UpdateSlackResponseTs = {
@@ -109,6 +166,33 @@ export type AiAgentEvalRunJobPayload = TraceTaskBase & {
     evalRunUuid: string;
     agentUuid: string;
     threadUuid: string;
+};
+
+export type AiAgentReviewClassifierEventType =
+    | 'response_saved'
+    | 'feedback_changed';
+
+export type AiAgentReviewClassifierJobPayload = TraceTaskBase & {
+    eventType: AiAgentReviewClassifierEventType;
+    organizationUuid: string;
+    projectUuid: string;
+    agentUuid: string;
+    threadUuid: string;
+    promptUuid: string;
+};
+
+export type AiAgentReviewWritebackJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    organizationUuid: string;
+    projectUuid: string;
+    remediationUuid?: string;
+};
+
+export type AiAgentReviewRemediationPreviewJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    remediationUuid: string;
+    prUrl: string;
+    startedAt: number;
 };
 
 export type EmbedArtifactVersionJobPayload = TraceTaskBase & {

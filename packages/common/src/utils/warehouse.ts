@@ -4,6 +4,10 @@ import type { WarehouseSqlBuilder } from '../types/warehouse';
 import { VizAggregationOptions } from '../visualizations/types';
 import assertUnreachable from './assertUnreachable';
 
+// `NULL = NULL` is NULL in standard SQL, which silently drops rows in JOINs.
+export const defaultNullSafeEqualSql = (left: string, right: string): string =>
+    `(${left} = ${right} OR (${left} IS NULL AND ${right} IS NULL))`;
+
 /**
  * @deprecated use WarehouseSqlBuilder.getFieldQuoteChar instead
  * @param warehouseType
@@ -44,6 +48,7 @@ export const getAggregatedField = (
     switch (adapterType) {
         case SupportedDbtAdapter.BIGQUERY:
         case SupportedDbtAdapter.DATABRICKS:
+        case SupportedDbtAdapter.SPARK:
         case SupportedDbtAdapter.SNOWFLAKE:
         case SupportedDbtAdapter.REDSHIFT:
         case SupportedDbtAdapter.TRINO:

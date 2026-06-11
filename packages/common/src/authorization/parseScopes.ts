@@ -23,27 +23,30 @@ export const normalizeScopeName = (scope: string): ScopeName => {
     return `${action}:${subject}${modifier ? `@${modifier}` : ''}` as ScopeName;
 };
 
+export type ParseScopesResult = {
+    valid: Set<ScopeName>;
+    invalid: string[];
+};
+
 export const parseScopes = ({
     scopes,
     isEnterprise,
 }: {
     scopes: string[];
     isEnterprise: boolean;
-}): Set<ScopeName> => {
+}): ParseScopesResult => {
     const scopeMap = getAllScopeMap({ isEnterprise });
-    const filtered = scopes.map(normalizeScopeName).filter((scope) => {
-        const foundScope = scopeMap[scope as ScopeName];
+    const valid = new Set<ScopeName>();
+    const invalid: string[] = [];
 
-        if (!foundScope) {
-            // eslint-disable-next-line no-console
-            console.warn(
-                `Invalid scope: ${scope}. Please check the scope name and try again.`,
-            );
-            return false;
+    scopes.forEach((rawScope) => {
+        const normalized = normalizeScopeName(rawScope);
+        if (scopeMap[normalized]) {
+            valid.add(normalized);
+        } else {
+            invalid.push(normalized);
         }
-
-        return true;
     });
 
-    return new Set(filtered);
+    return { valid, invalid };
 };

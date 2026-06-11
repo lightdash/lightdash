@@ -19,7 +19,13 @@ import {
     IconMessageCircleShare,
 } from '@tabler/icons-react';
 import { useEffect, type FC } from 'react';
-import { Link, useLocation, useNavigate, useParams } from 'react-router';
+import {
+    Link,
+    useBlocker,
+    useLocation,
+    useNavigate,
+    useParams,
+} from 'react-router';
 import { z } from 'zod';
 import { LightdashUserAvatar } from '../../../components/Avatar';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -41,6 +47,7 @@ import {
     useProjectCreateAiAgentMutation,
     useProjectUpdateAiAgentMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
+import { useAgentAiMcpServers } from '../../features/aiCopilot/hooks/useProjectAiMcpServers';
 import { EvalsSetup } from './EvalsSetup';
 
 const formSchema = z.object({
@@ -58,9 +65,10 @@ const formSchema = z.object({
     groupAccess: z.array(z.string()),
     userAccess: z.array(z.string()),
     spaceAccess: z.array(z.string()),
+    mcpServerUuids: z.array(z.string()),
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
-    enableReasoning: z.boolean(),
+    enableContentTools: z.boolean(),
     version: z.number(),
 });
 
@@ -96,6 +104,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         projectUuid,
         actualAgentUuid,
     );
+    const { data: agentMcpServers, isFetched: isAgentMcpServersFetched } =
+        useAgentAiMcpServers(projectUuid, actualAgentUuid);
 
     const form = useForm<z.infer<typeof formSchema>>({
         initialValues: {
@@ -108,16 +118,17 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             groupAccess: [],
             userAccess: [],
             spaceAccess: [],
-            enableDataAccess: false,
+            mcpServerUuids: [],
+            enableDataAccess: true,
             enableSelfImprovement: false,
-            enableReasoning: false,
+            enableContentTools: true,
             version: 2, // INFO: Default to v2 for now
         },
         validate: zodResolver(formSchema),
     });
 
     useEffect(() => {
-        if (isCreateMode || !agent) {
+        if (isCreateMode || !agent || !isAgentMcpServersFetched) {
             return;
         }
 
@@ -132,16 +143,19 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 groupAccess: agent.groupAccess ?? [],
                 userAccess: agent.userAccess ?? [],
                 spaceAccess: agent.spaceAccess ?? [],
+                mcpServerUuids: agentMcpServers?.map((mcp) => mcp.uuid) ?? [],
                 enableDataAccess: agent.enableDataAccess ?? false,
                 enableSelfImprovement: agent.enableSelfImprovement ?? false,
-                enableReasoning: agent.enableReasoning ?? false,
+                enableContentTools:
+                    (agent.enableDataAccess ?? false) &&
+                    (agent.enableContentTools ?? false),
                 version: agent.version ?? 2, // INFO: Default to v2 for now
             };
             form.setValues(values);
             form.resetDirty(values);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [agent, isCreateMode]);
+    }, [agent, agentMcpServers, isAgentMcpServersFetched, isCreateMode]);
 
     // Derive activeTab from current pathname
     const activeTab = location.pathname.includes('/evals')
@@ -150,12 +164,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
           ? 'verified-artifacts'
           : 'setup';
 
-    const { mutateAsync: createAgent } = useProjectCreateAiAgentMutation(
-        projectUuid!,
-    );
-    const { mutateAsync: updateAgent } = useProjectUpdateAiAgentMutation(
-        projectUuid!,
-    );
+    const { mutateAsync: createAgent, isLoading: isCreatingAgent } =
+        useProjectCreateAiAgentMutation(projectUuid!);
+    const { mutateAsync: updateAgent, isLoading: isUpdatingAgent } =
+        useProjectUpdateAiAgentMutation(projectUuid!);
     const handleSubmit = form.onSubmit(async (values) => {
         if (!projectUuid || !user?.data) {
             return;
@@ -174,7 +186,24 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 projectUuid,
                 ...values,
             });
+            form.resetDirty(values);
         }
+    });
+
+    const hasUnsavedChanges =
+        form.isDirty() && !isCreatingAgent && !isUpdatingAgent;
+
+    useBlocker(({ currentLocation, nextLocation }) => {
+        if (
+            !hasUnsavedChanges ||
+            currentLocation.pathname === nextLocation.pathname
+        ) {
+            return false;
+        }
+
+        return !window.confirm(
+            'You have unsaved changes to this agent. Are you sure you want to leave without saving?',
+        );
     });
 
     useEffect(() => {
@@ -259,7 +288,12 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             {form.isDirty() && (
                                 <Button
                                     size="xs"
-                                    disabled={!form.isDirty()}
+                                    disabled={
+                                        !form.isDirty() ||
+                                        isCreatingAgent ||
+                                        isUpdatingAgent
+                                    }
+                                    loading={isCreatingAgent || isUpdatingAgent}
                                     onClick={() => handleSubmit()}
                                 >
                                     Save changes
@@ -351,7 +385,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                     />
                                 }
                                 component={Link}
-                                to={`/ai-agents/admin?projects=${projectUuid}&agents=${actualAgentUuid}`}
+                                to={`/generalSettings/ai/threads?projects=${projectUuid}&agents=${actualAgentUuid}`}
                             >
                                 Conversations
                             </Button>
@@ -371,9 +405,13 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         <Box pt="sm" pr="sm">
                             <AiAgentFormSetup
                                 mode={isCreateMode ? 'create' : 'edit'}
-                                agentUuid={actualAgentUuid!}
+                                agentUuid={actualAgentUuid}
                                 form={form}
                                 projectUuid={projectUuid!}
+                                isSavingAgent={isUpdatingAgent}
+                                persistedMcpServerUuids={agentMcpServers?.map(
+                                    (mcpServer) => mcpServer.uuid,
+                                )}
                             />
                         </Box>
                     )}

@@ -3,6 +3,7 @@ import knex from 'knex';
 import { lightdashConfig } from './config/lightdashConfig';
 import knexConfig from './knexfile';
 import Logger from './logging/logger';
+import { FeatureFlagModel } from './models/FeatureFlagModel/FeatureFlagModel';
 import { UserModel } from './models/UserModel';
 
 (async function init() {
@@ -22,13 +23,18 @@ import { UserModel } from './models/UserModel';
             process.env.NODE_ENV === 'development'
                 ? 'development'
                 : 'production';
+        const database = knex(
+            environment === 'production'
+                ? knexConfig.production
+                : knexConfig.development,
+        );
         const userModel = new UserModel({
             lightdashConfig,
-            database: knex(
-                environment === 'production'
-                    ? knexConfig.production
-                    : knexConfig.development,
-            ),
+            database,
+            featureFlagModel: new FeatureFlagModel({
+                database,
+                lightdashConfig,
+            }),
         });
 
         Logger.info(`Get user by email: ${email}`);

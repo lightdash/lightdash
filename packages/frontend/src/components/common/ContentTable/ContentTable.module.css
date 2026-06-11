@@ -1,0 +1,395 @@
+.paper {
+    border: 1px solid var(--mantine-color-ldGray-2);
+    border-radius: var(--mantine-radius-sm);
+    box-shadow: var(--mantine-shadow-subtle);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.topToolbar,
+.bottomToolbar {
+    flex: 0 0 auto;
+}
+
+.progress {
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--mantine-color-ldGray-2),
+        transparent
+    );
+    height: 1px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress::before {
+    animation: inHouseTableProgress 1.35s cubic-bezier(0.23, 1, 0.32, 1)
+        infinite;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--mantine-color-blue-4),
+        transparent
+    );
+    content: '';
+    height: 100%;
+    left: -32%;
+    opacity: 0.8;
+    position: absolute;
+    top: 0;
+    width: 32%;
+}
+
+.container {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+}
+
+.table {
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.columnResizing .headerLabel,
+.columnResizing .sortIcon {
+    pointer-events: none;
+}
+
+.head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+.foot {
+    bottom: 0;
+    position: sticky;
+    z-index: 1;
+}
+
+.headRow {
+    box-shadow: none;
+}
+
+.headCell,
+.footerCell {
+    background: var(--mantine-color-ldGray-0);
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    border-left: 0;
+    border-top: 0;
+    color: var(--mantine-color-ldGray-7);
+    font-size: var(--mantine-font-size-xs);
+    font-weight: 600;
+    padding: 6px var(--mantine-spacing-md);
+    position: relative;
+    text-align: left;
+    user-select: none;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+
+.bodyCell {
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+    border-left: 0;
+    border-top: 0;
+    color: var(--mantine-color-ldGray-7);
+    font-size: var(--mantine-font-size-sm);
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+    padding: 6px var(--mantine-spacing-md);
+    transition: background-color 150ms ease;
+    vertical-align: middle;
+}
+
+.bodyCell > * {
+    max-width: 100%;
+}
+
+.rowSelectCell {
+    overflow: visible;
+}
+
+.rowSelectCell > * {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.rowSelectCell .headCellContent {
+    justify-content: center;
+}
+
+.rowSelectCell :global(.mantine-Checkbox-root),
+.rowSelectCell :global(.mantine-Checkbox-body) {
+    justify-content: center;
+}
+
+.rowSelectCell :global(.mantine-Checkbox-inner) {
+    margin-left: auto;
+    margin-right: auto;
+}
+
+.rowSelectContent {
+    align-items: center;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
+
+.skeletonCell {
+    background: var(--mantine-color-body);
+}
+
+.skeletonStack {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+    width: 100%;
+}
+
+.skeletonLine {
+    opacity: 0.62;
+}
+
+.skeletonLineSecondary {
+    opacity: 0.38;
+}
+
+.columnBorders .headCell,
+.columnBorders .footerCell,
+.columnBorders .bodyCell {
+    border-right: 1px solid var(--mantine-color-ldGray-2);
+}
+
+.columnBorders .headCell:last-of-type,
+.columnBorders .footerCell:last-of-type,
+.columnBorders .bodyCell:last-of-type {
+    border-right: 0;
+}
+
+.bodyRow {
+    background: var(--mantine-color-body);
+}
+
+.clickableRow {
+    cursor: pointer;
+}
+
+.bodyRow .bodyCell > div > :global(.explore-button-container) {
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 150ms ease,
+        visibility 0ms linear 150ms;
+    visibility: hidden;
+}
+
+.bodyRow:hover .bodyCell > div > :global(.explore-button-container),
+.bodyRow:focus-within .bodyCell > div > :global(.explore-button-container) {
+    opacity: 1;
+    pointer-events: auto;
+    transition: opacity 150ms ease;
+    visibility: visible;
+}
+
+.highlightOnHover .bodyRow:hover .bodyCell {
+    background: var(--mantine-color-ldGray-0);
+}
+
+.bodyRow:last-of-type .bodyCell,
+.lastBodyRow .bodyCell {
+    border-bottom: 0;
+}
+
+.rowSelected .bodyCell {
+    background: var(--mantine-color-blue-0);
+}
+
+.headCellContent {
+    align-items: center;
+    display: flex;
+    gap: var(--mantine-spacing-xs);
+    justify-content: inherit;
+    min-width: 0;
+}
+
+.headerLabel {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.sortButton {
+    align-items: center;
+    color: inherit;
+    display: inline-flex;
+    font: inherit;
+    gap: var(--mantine-spacing-xs);
+    max-width: 100%;
+    min-width: 0;
+    width: 100%;
+}
+
+.sortIcon {
+    align-items: center;
+    display: inline-flex;
+    flex: 0 0 auto;
+}
+
+.resizeHandle {
+    cursor: col-resize;
+    height: 100%;
+    position: absolute;
+    right: -3px;
+    top: 0;
+    touch-action: none;
+    width: 6px;
+    z-index: 3;
+}
+
+.resizeHandle::after {
+    background: transparent;
+    content: '';
+    height: 100%;
+    left: 2px;
+    position: absolute;
+    top: 0;
+    width: 2px;
+}
+
+.resizeHandle:hover::after,
+.resizeHandleResizing::after {
+    background: var(--mantine-color-blue-4);
+}
+
+.fillerCell {
+    border: 0;
+    padding: 0;
+}
+
+.emptyCell {
+    border: 0;
+    padding: 0;
+}
+
+.emptyState {
+    align-items: center;
+    color: var(--mantine-color-ldGray-6);
+    display: flex;
+    flex-direction: column;
+    font-size: var(--mantine-font-size-sm);
+    gap: var(--mantine-spacing-sm);
+    justify-content: center;
+    min-height: 160px;
+    padding: var(--mantine-spacing-xl) var(--mantine-spacing-md);
+    text-align: center;
+}
+
+.emptyStateIcon {
+    opacity: 0.42;
+    transition: opacity 180ms ease;
+}
+
+.emptyState:hover .emptyStateIcon {
+    opacity: 0.62;
+}
+
+.searchInput {
+    background: var(--mantine-color-background-0);
+    border: 1px solid var(--mantine-color-ldGray-3);
+    box-shadow: var(--mantine-shadow-subtle);
+    color: var(--mantine-color-ldGray-5);
+    font-size: var(--mantine-font-size-sm);
+    font-weight: 400;
+    height: 32px;
+    text-overflow: ellipsis;
+    transition:
+        width 250ms cubic-bezier(0.23, 1, 0.32, 1),
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+    width: var(--content-table-search-width, 200px);
+}
+
+.searchInput:hover {
+    border-color: var(--mantine-color-ldGray-4);
+}
+
+.searchInput:focus {
+    border-color: var(--mantine-color-indigo-4);
+    box-shadow: 0 0 0 2px
+        color-mix(in oklch, var(--mantine-color-indigo-4) 20%, transparent);
+    width: var(--content-table-search-expanded-width, 280px);
+}
+
+.searchInputWithValue {
+    color: var(--mantine-color-foreground);
+    transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease;
+    width: var(--content-table-search-expanded-width, 280px);
+}
+
+@mixin dark {
+    .paper {
+        border-color: var(--mantine-color-ldDark-4);
+    }
+
+    .headCell,
+    .footerCell {
+        background: var(--mantine-color-background);
+        border-bottom-color: var(--mantine-color-ldDark-4);
+        color: var(--mantine-color-ldDark-7);
+    }
+
+    .bodyCell {
+        border-bottom-color: var(--mantine-color-ldDark-4);
+        color: var(--mantine-color-ldDark-7);
+    }
+
+    .columnBorders .headCell,
+    .columnBorders .footerCell,
+    .columnBorders .bodyCell {
+        border-right-color: var(--mantine-color-ldDark-4);
+    }
+
+    .highlightOnHover .bodyRow:hover .bodyCell {
+        background: var(--mantine-color-ldDark-3);
+    }
+
+    .rowSelected .bodyCell {
+        background: var(--mantine-color-blue-9);
+    }
+
+    .progress {
+        background: linear-gradient(
+            90deg,
+            transparent,
+            var(--mantine-color-ldDark-4),
+            transparent
+        );
+    }
+
+    .searchInput {
+        border-color: var(--mantine-color-ldGray-4);
+    }
+
+    .searchInput:hover {
+        border-color: var(--mantine-color-ldGray-5);
+    }
+}
+
+@keyframes inHouseTableProgress {
+    0% {
+        left: -40%;
+    }
+    100% {
+        left: 100%;
+    }
+}

@@ -1,6 +1,5 @@
 import {
     derivePivotConfigurationFromChart,
-    FeatureFlags,
     getFieldsFromMetricQuery,
     assertUnreachable,
 } from '@lightdash/common';
@@ -29,7 +28,6 @@ import { useExplorerQueryManager } from './useExplorerQueryManager';
 import { usePreAggregateCacheEnabled } from './usePreAggregateCacheEnabled';
 import { usePreAggregateCheck } from './usePreAggregateCheck';
 import { useProjectUuid } from './useProjectUuid';
-import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
 
 /**
  * Effects layer for Explorer query orchestration
@@ -62,10 +60,6 @@ export const useExplorerQueryEffects = ({
     const isResultsOpen = useExplorerSelector(selectIsResultsExpanded);
     const fromDashboard = useExplorerSelector(selectFromDashboard);
     const isExploreFromHere = useExplorerSelector(selectIsExploreFromHere);
-
-    const { data: useSqlPivotResults } = useServerFeatureFlag(
-        FeatureFlags.UseSqlPivotResults,
-    );
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
 
@@ -179,7 +173,7 @@ export const useExplorerQueryEffects = ({
 
     // Check if we need unpivoted data for results table
     const needsUnpivotedData = useMemo(() => {
-        if (!useSqlPivotResults?.enabled || !explore) return false;
+        if (!explore) return false;
 
         const items = getFieldsFromMetricQuery(
             unsavedChartVersion.metricQuery,
@@ -192,7 +186,7 @@ export const useExplorerQueryEffects = ({
         );
 
         return !!pivotConfiguration;
-    }, [useSqlPivotResults?.enabled, explore, unsavedChartVersion]);
+    }, [explore, unsavedChartVersion]);
 
     // Effect 1: Auto-fetch logic
     // Handles both initial fetch and reactive auto-fetch
@@ -219,8 +213,10 @@ export const useExplorerQueryEffects = ({
 
     useEffect(() => {
         if (pendingFetch) {
-            runQuery();
-            dispatch(explorerActions.clearPendingFetch());
+            const dispatched = runQuery();
+            if (dispatched) {
+                dispatch(explorerActions.clearPendingFetch());
+            }
         }
     }, [pendingFetch, runQuery, dispatch]);
 

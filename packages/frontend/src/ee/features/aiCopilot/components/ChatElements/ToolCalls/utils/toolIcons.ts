@@ -1,37 +1,73 @@
-import type { ToolName } from '@lightdash/common';
+import {
+    isToolName,
+    type AiAgentToolName,
+    type ToolName,
+} from '@lightdash/common';
 import {
     IconChartDots3,
     IconChartHistogram,
     IconChartLine,
     IconDatabase,
+    IconFileCode,
+    IconFileText,
+    IconFolders,
     IconLayoutDashboard,
+    IconBook2,
+    IconBooks,
     IconPencil,
+    IconPlayerPlay,
+    IconPlugConnected,
     IconSchool,
     IconSearch,
     IconSelector,
     IconTable,
+    IconTerminal2,
+    IconVocabulary,
     type TablerIconsProps,
 } from '@tabler/icons-react';
 import type { JSX } from 'react';
 
-export const getToolIcon = (toolName: ToolName) => {
+export const getToolIcon = (toolName: AiAgentToolName) => {
     const iconMap: Record<ToolName, (props: TablerIconsProps) => JSX.Element> =
         {
             findExplores: IconDatabase,
             findFields: IconSearch,
+            searchSemanticLayer: IconBooks,
+            discoverFields: IconSearch,
             searchFieldValues: IconSelector,
             generateBarVizConfig: IconChartHistogram,
             generateTimeSeriesVizConfig: IconChartLine,
             generateTableVizConfig: IconTable,
             generateDashboard: IconLayoutDashboard,
+            generateHashes: IconSelector,
+            generateUuids: IconSelector,
             findContent: IconSearch,
+            listContent: IconSearch,
             findDashboards: IconLayoutDashboard,
             findCharts: IconChartDots3,
             getDashboardCharts: IconLayoutDashboard,
+            readContent: IconFileCode,
+            editContent: IconPencil,
+            createContent: IconPencil,
             improveContext: IconSchool,
+            listProjects: IconFolders,
+            getProjectInfo: IconPlugConnected,
+            loadSkill: IconBook2,
+            loadProjectContext: IconVocabulary,
             proposeChange: IconPencil,
+            editDbtProject: IconPencil,
+            repoShell: IconTerminal2,
+            generateVisualization: IconTable,
+            setupPreviewDeploy: IconPlugConnected,
             runQuery: IconTable,
+            runContentQuery: IconPlayerPlay,
+            runSavedChart: IconChartHistogram,
+            runSql: IconTerminal2,
+            listWarehouseTables: IconDatabase,
+            describeWarehouseTable: IconDatabase,
+            listKnowledgeDocuments: IconBooks,
+            getKnowledgeDocumentContent: IconFileText,
         };
 
-    return iconMap[toolName];
+    return isToolName(toolName) ? iconMap[toolName] : IconPlugConnected;
 };

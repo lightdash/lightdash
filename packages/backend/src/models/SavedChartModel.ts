@@ -17,7 +17,6 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     DimensionOverrides,
-    ECHARTS_DEFAULT_COLORS,
     Filters,
     getChartKind,
     getChartType,
@@ -36,13 +35,15 @@ import {
     NotFoundError,
     Organization,
     Project,
+    ResolvedProjectColorPalette,
     SavedChartDAO,
     SessionUser,
     SortField,
     Space,
     TableCalculation,
     TimeFrames,
-    TimeZone,
+    TimezoneSetting,
+    toTimezoneSetting,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -56,7 +57,7 @@ import {
     DashboardTileChartTableName,
     DashboardVersionsTableName,
 } from '../database/entities/dashboards';
-import { OrganizationColorPaletteTableName } from '../database/entities/organizationColorPalettes';
+import { resolveColorPalette } from '../database/entities/organizationColorPalettes';
 import { OrganizationTableName } from '../database/entities/organizations';
 import {
     PinnedChartTableName,
@@ -84,7 +85,7 @@ import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
 import { wrapSentryTransaction } from '../utils';
-import { generateUniqueSlug } from '../utils/SlugUtils';
+import { acquireProjectSlugLock, generateUniqueSlug } from '../utils/SlugUtils';
 import { ContentVerificationModel } from './ContentVerificationModel';
 import { SpaceModel } from './SpaceModel';
 
@@ -111,7 +112,8 @@ type DbSavedChartDetails = {
     last_name: string;
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
-    timezone: TimeZone | null;
+    timezone: TimezoneSetting;
+    color_palette_uuid: string | null;
 };
 
 const createSavedChartVersionFields = async (
@@ -237,7 +239,7 @@ const createSavedChartVersion = async (
                 chart_config: chartConfig.config,
                 parameters: parameters ? JSON.stringify(parameters) : null,
                 updated_by_user_uuid: updatedByUser?.userUuid || null,
-                timezone: timezone || null,
+                timezone: toTimezoneSetting(timezone),
             })
             .returning('*');
         await createSavedChartVersionFields(
@@ -270,11 +272,14 @@ const createSavedChartVersion = async (
                 saved_queries_version_id: version.saved_queries_version_id,
                 nulls_first: sort.nullsFirst ?? null,
                 order: index,
+                pivot_values: sort.pivotValues?.length
+                    ? JSON.stringify(sort.pivotValues)
+                    : null,
             })),
         );
         await createSavedChartVersionTableCalculations(
             trx,
-            tableCalculations.map((tableCalculation) => ({
+            (tableCalculations || []).map((tableCalculation) => ({
                 name: tableCalculation.name,
                 display_name: tableCalculation.displayName,
                 calculation_raw_sql: isSqlTableCalculation(tableCalculation)
@@ -407,6 +412,45 @@ export const createSavedChart = async (
     },
 ): Promise<string> =>
     db.transaction(async (trx) => {
+        if (forceSlug) {
+            // Forced slugs (content-as-code / promotion) skip unique-slug
+            // generation, and there is no DB unique constraint on the slug.
+            // Serialize concurrent creates of the same (project, slug) and
+            // dedupe against a row a racing upsert already created, so we never
+            // insert a duplicate slug (PROD-7883). Resolves the chart's project
+            // through either its space or its parent dashboard's space.
+            await acquireProjectSlugLock(trx, projectUuid, slug);
+            const [existing] = await trx(SavedChartsTableName)
+                .leftJoin(
+                    DashboardsTableName,
+                    `${DashboardsTableName}.dashboard_uuid`,
+                    `${SavedChartsTableName}.dashboard_uuid`,
+                )
+                .innerJoin(SpaceTableName, function spaceJoin() {
+                    this.on(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${DashboardsTableName}.space_id`,
+                    ).orOn(
+                        `${SpaceTableName}.space_id`,
+                        '=',
+                        `${SavedChartsTableName}.space_id`,
+                    );
+                })
+                .innerJoin(
+                    ProjectTableName,
+                    `${SpaceTableName}.project_id`,
+                    `${ProjectTableName}.project_id`,
+                )
+                .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                .where(`${SavedChartsTableName}.slug`, slug)
+                .whereNull(`${SavedChartsTableName}.deleted_at`)
+                .select(`${SavedChartsTableName}.saved_query_uuid`);
+            if (existing) {
+                return existing.saved_query_uuid;
+            }
+        }
+
         let chart: InsertChart;
         const baseChart = {
             name,
@@ -488,6 +532,19 @@ export class SavedChartModel {
         this.contentVerificationModel = args.contentVerificationModel;
     }
 
+    async resolveColorPalette(args: {
+        projectUuid: string;
+        chartUuid?: string;
+        dashboardUuid?: string;
+        spaceUuid?: string;
+    }): Promise<ResolvedProjectColorPalette> {
+        return resolveColorPalette({
+            ...args,
+            database: this.database,
+            lightdashConfig: this.lightdashConfig,
+        });
+    }
+
     static convertVersionSummary(row: VersionSummaryRow): ChartVersionSummary {
         return {
             chartUuid: row.saved_query_uuid,
@@ -555,22 +612,12 @@ export class SavedChartModel {
                 filters: additionalMetric.filters,
             }),
             ...(additionalMetric.format_options && {
-                formatOptions: additionalMetric.format_options,
+                formatOptions:
+                    typeof additionalMetric.format_options === 'string'
+                        ? JSON.parse(additionalMetric.format_options)
+                        : additionalMetric.format_options,
             }),
         };
-    }
-
-    private getLastVersionUuidQuery(chartUuid: string) {
-        return this.database(SavedChartVersionsTableName)
-            .leftJoin(
-                SavedChartsTableName,
-                `${SavedChartVersionsTableName}.saved_query_id`,
-                `${SavedChartsTableName}.saved_query_id`,
-            )
-            .select('saved_queries_version_uuid')
-            .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
-            .limit(1)
-            .orderBy(`${SavedChartVersionsTableName}.created_at`, 'desc');
     }
 
     private getVersionSummaryQuery() {
@@ -643,37 +690,9 @@ export class SavedChartModel {
     async getLatestVersionSummaries(
         chartUuid: string,
     ): Promise<ChartVersionSummary[]> {
-        const getLastVersionUuidSubQuery =
-            this.getLastVersionUuidQuery(chartUuid);
-        const { daysLimit } = this.lightdashConfig.chart.versionHistory;
         const chartVersions = await this.getVersionSummaryQuery()
             .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
-            .andWhere(function whereRecentVersionsOrCurrentVersion() {
-                // get all versions from the last X days + the current version ( in case is older than X days )
-                void this.whereRaw(
-                    `${SavedChartVersionsTableName}.created_at >= DATE(current_timestamp - interval '?? days')`,
-                    [daysLimit],
-                ).orWhere(
-                    `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
-                    getLastVersionUuidSubQuery,
-                );
-            })
             .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc');
-
-        if (chartVersions.length === 1) {
-            const oldVersions = await this.getVersionSummaryQuery()
-                .where(`${SavedChartsTableName}.saved_query_uuid`, chartUuid)
-                .andWhereNot(
-                    `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
-                    chartVersions[0].saved_queries_version_uuid,
-                )
-                .orderBy(`${SavedChartVersionsTableName}.created_at`, 'asc')
-                .limit(1);
-
-            return [...chartVersions, ...oldVersions].map(
-                SavedChartModel.convertVersionSummary,
-            );
-        }
 
         return chartVersions.map(SavedChartModel.convertVersionSummary);
     }
@@ -754,6 +773,7 @@ export class SavedChartModel {
                     )
                 )?.spaceId,
                 dashboard_uuid: data.spaceUuid ? null : undefined, // remove dashboard_uuid when moving chart to space
+                color_palette_uuid: data.colorPaletteUuid,
             })
             .where('saved_query_uuid', savedChartUuid)
             .whereNull('deleted_at');
@@ -761,28 +781,59 @@ export class SavedChartModel {
     }
 
     async updateMultiple(
+        projectUuid: string,
         data: UpdateMultipleSavedChart[],
     ): Promise<SavedChartDAO[]> {
         await this.database.transaction(async (trx) => {
-            const promises = data.map(async (savedChart) =>
-                trx(SavedChartsTableName)
+            const promises = data.map(async (savedChart) => {
+                const space = await trx(SpaceTableName)
+                    .select(`${SpaceTableName}.space_id`)
+                    .innerJoin(
+                        ProjectTableName,
+                        `${ProjectTableName}.project_id`,
+                        `${SpaceTableName}.project_id`,
+                    )
+                    .where(`${SpaceTableName}.space_uuid`, savedChart.spaceUuid)
+                    .where(`${ProjectTableName}.project_uuid`, projectUuid)
+                    .first();
+
+                if (!space) {
+                    throw new NotFoundError('Space not found');
+                }
+
+                const updateCount = await trx(SavedChartsTableName)
                     .update({
                         name: savedChart.name,
                         description: savedChart.description,
-                        space_id: (
-                            await SpaceModel.getSpaceIdAndName(
-                                trx,
-                                savedChart.spaceUuid,
-                            )
-                        )?.spaceId,
+                        space_id: space.space_id,
                     })
                     .where('saved_query_uuid', savedChart.uuid)
-                    .whereNull('deleted_at'),
-            );
+                    .whereIn(
+                        'space_id',
+                        trx(SpaceTableName)
+                            .select(`${SpaceTableName}.space_id`)
+                            .innerJoin(
+                                ProjectTableName,
+                                `${ProjectTableName}.project_id`,
+                                `${SpaceTableName}.project_id`,
+                            )
+                            .where(
+                                `${ProjectTableName}.project_uuid`,
+                                projectUuid,
+                            ),
+                    )
+                    .whereNull('deleted_at');
+
+                if (updateCount !== 1) {
+                    throw new NotFoundError('Saved query not found');
+                }
+            });
             await Promise.all(promises);
         });
         return Promise.all(
-            data.map(async (savedChart) => this.get(savedChart.uuid)),
+            data.map(async (savedChart) =>
+                this.get(savedChart.uuid, undefined, { projectUuid }),
+            ),
         );
     }
 
@@ -895,6 +946,74 @@ export class SavedChartModel {
         }));
     }
 
+    /**
+     * Finds candidate chart ids via two single-column index probes instead of
+     * a `uuid = ? OR slug = ?` filter, which can degrade to a seq scan under
+     * stale statistics. Returns all matches; the outer ORDER BY picks the winner.
+     */
+    private buildChartLookupCte(
+        queryBuilder: Knex.QueryBuilder,
+        savedChartUuidOrSlug: string,
+        options?: { deleted?: boolean | 'any'; projectUuid?: string },
+    ): void {
+        const buildProbe = () => {
+            const lookupQuery = this.database(SavedChartsTableName).select(
+                `${SavedChartsTableName}.saved_query_id`,
+            );
+
+            if (options?.deleted === 'any') {
+                // No filter — match regardless of deleted status
+            } else if (options?.deleted) {
+                void lookupQuery.whereNotNull(
+                    `${SavedChartsTableName}.deleted_at`,
+                );
+            } else {
+                void lookupQuery.whereNull(
+                    `${SavedChartsTableName}.deleted_at`,
+                );
+            }
+
+            // Scope both probes to the project when one is provided, matching
+            // the outer query's project filter. Slugs are only unique within
+            // a project.
+            if (options?.projectUuid) {
+                void lookupQuery
+                    .leftJoin(
+                        DashboardsTableName,
+                        `${DashboardsTableName}.dashboard_uuid`,
+                        `${SavedChartsTableName}.dashboard_uuid`,
+                    )
+                    .joinRaw(
+                        `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                    )
+                    .innerJoin(
+                        ProjectTableName,
+                        `${SpaceTableName}.project_id`,
+                        `${ProjectTableName}.project_id`,
+                    )
+                    .where(
+                        `${ProjectTableName}.project_uuid`,
+                        options.projectUuid,
+                    );
+            }
+
+            return lookupQuery;
+        };
+
+        const lookupByUuid = buildProbe().where(
+            `${SavedChartsTableName}.saved_query_uuid`,
+            savedChartUuidOrSlug,
+        );
+
+        // Fallback for uuid-shaped slugs
+        const lookupBySlug = buildProbe().where(
+            `${SavedChartsTableName}.slug`,
+            savedChartUuidOrSlug,
+        );
+
+        void queryBuilder.unionAll([lookupByUuid, lookupBySlug], true);
+    }
+
     async get(
         savedChartUuidOrSlug: string,
         versionUuid?: string,
@@ -907,7 +1026,6 @@ export class SavedChartModel {
             },
             async () => {
                 const isUuid = isValidUuid(savedChartUuidOrSlug);
-                const filterField = isUuid ? 'saved_query_uuid' : 'slug';
 
                 const chartQuery = this.database
                     .from<DbSavedChartDetails>(SavedChartsTableName)
@@ -916,17 +1034,9 @@ export class SavedChartModel {
                         `${DashboardsTableName}.dashboard_uuid`,
                         `${SavedChartsTableName}.dashboard_uuid`,
                     )
-                    .innerJoin(SpaceTableName, function spaceJoin() {
-                        this.on(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${DashboardsTableName}.space_id`,
-                        ).orOn(
-                            `${SpaceTableName}.space_id`,
-                            '=',
-                            `${SavedChartsTableName}.space_id`,
-                        );
-                    })
+                    .joinRaw(
+                        `INNER JOIN ${SpaceTableName} ON ${SpaceTableName}.space_id = COALESCE(${SavedChartsTableName}.space_id, ${DashboardsTableName}.space_id)`,
+                    )
                     .innerJoin(
                         ProjectTableName,
                         `${SpaceTableName}.project_id`,
@@ -937,15 +1047,22 @@ export class SavedChartModel {
                         `${OrganizationTableName}.organization_id`,
                         `${ProjectTableName}.organization_id`,
                     )
-                    .leftJoin(
-                        OrganizationColorPaletteTableName,
-                        `${OrganizationTableName}.color_palette_uuid`,
-                        `${OrganizationColorPaletteTableName}.color_palette_uuid`,
-                    )
-                    .innerJoin(
-                        'saved_queries_versions',
-                        `${SavedChartsTableName}.saved_query_id`,
-                        'saved_queries_versions.saved_query_id',
+                    // Lateral fetches only the target version per chart
+                    .joinRaw(
+                        versionUuid
+                            ? `CROSS JOIN LATERAL (
+                                SELECT * FROM ${SavedChartVersionsTableName}
+                                WHERE ${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id
+                                AND ${SavedChartVersionsTableName}.saved_queries_version_uuid = ?
+                                LIMIT 1
+                            ) AS ${SavedChartVersionsTableName}`
+                            : `CROSS JOIN LATERAL (
+                                SELECT * FROM ${SavedChartVersionsTableName}
+                                WHERE ${SavedChartVersionsTableName}.saved_query_id = ${SavedChartsTableName}.saved_query_id
+                                ORDER BY ${SavedChartVersionsTableName}.created_at DESC, ${SavedChartVersionsTableName}.saved_queries_version_id DESC
+                                LIMIT 1
+                            ) AS ${SavedChartVersionsTableName}`,
+                        versionUuid ? [versionUuid] : [],
                     )
                     .leftJoin(
                         UserTableName,
@@ -973,7 +1090,6 @@ export class SavedChartModel {
                             space_uuid: string;
                             spaceName: string;
                             dashboardName: string | null;
-                            color_palette: string[] | null;
                             slug: string;
                             deleted_at: Date | null;
                             deleted_by_user_uuid: string | null;
@@ -1002,7 +1118,6 @@ export class SavedChartModel {
                         'saved_queries_versions.timezone',
                         'saved_queries_versions.parameters',
                         `${OrganizationTableName}.organization_uuid`,
-                        `${OrganizationColorPaletteTableName}.colors as color_palette`,
                         `${UserTableName}.user_uuid`,
                         `${UserTableName}.first_name`,
                         `${UserTableName}.last_name`,
@@ -1011,6 +1126,7 @@ export class SavedChartModel {
                         `${PinnedListTableName}.pinned_list_uuid`,
                         `${SavedChartsTableName}.deleted_at`,
                         `${SavedChartsTableName}.deleted_by_user_uuid`,
+                        `${SavedChartsTableName}.color_palette_uuid`,
                         'deleted_by_user.first_name as deleted_by_user_first_name',
                         'deleted_by_user.last_name as deleted_by_user_last_name',
                     ])
@@ -1031,17 +1147,20 @@ export class SavedChartModel {
                 }
 
                 if (isUuid) {
-                    void chartQuery.where((builder) => {
-                        void builder
-                            .where(
-                                `${SavedChartsTableName}.saved_query_uuid`,
+                    // ANY(ARRAY(...)) folds the candidate ids into a constant so
+                    // the lookup stays an index probe; IN (subquery) plans as a
+                    // full-table semi-join instead.
+                    void chartQuery
+                        .with('chart_lookup', (queryBuilder) =>
+                            this.buildChartLookupCte(
+                                queryBuilder,
                                 savedChartUuidOrSlug,
-                            )
-                            .orWhere(
-                                `${SavedChartsTableName}.slug`,
-                                savedChartUuidOrSlug,
-                            );
-                    });
+                                options,
+                            ),
+                        )
+                        .whereRaw(
+                            `${SavedChartsTableName}.saved_query_id = ANY(ARRAY(SELECT saved_query_id FROM chart_lookup))`,
+                        );
                 } else {
                     void chartQuery.where(
                         `${SavedChartsTableName}.slug`,
@@ -1053,13 +1172,6 @@ export class SavedChartModel {
                     void chartQuery.where(
                         `${ProjectTableName}.project_uuid`,
                         options.projectUuid,
-                    );
-                }
-
-                if (versionUuid) {
-                    void chartQuery.where(
-                        `${SavedChartVersionsTableName}.saved_queries_version_uuid`,
-                        versionUuid,
                     );
                 }
 
@@ -1079,7 +1191,12 @@ export class SavedChartModel {
                     .orderBy('order', 'asc');
 
                 const sortsQuery = this.database('saved_queries_version_sorts')
-                    .select(['field_name', 'descending', 'nulls_first'])
+                    .select([
+                        'field_name',
+                        'descending',
+                        'nulls_first',
+                        'pivot_values',
+                    ])
                     .where('saved_queries_version_id', savedQueriesVersionId)
                     .orderBy('order', 'asc');
                 const tableCalculationsQuery = this.database(
@@ -1140,6 +1257,7 @@ export class SavedChartModel {
                     additionalMetricsRows,
                     customBinDimensionsRows,
                     customSqlDimensionsRows,
+                    resolvedPalette,
                 ] = await Promise.all([
                     fieldsQuery,
                     sortsQuery,
@@ -1147,6 +1265,11 @@ export class SavedChartModel {
                     additionalMetricsQuery,
                     customBinDimensionsQuery,
                     customSqlDimensionsQuery,
+                    this.resolveColorPalette({
+                        projectUuid: savedQuery.project_uuid,
+                        chartUuid: savedQuery.saved_query_uuid,
+                        dashboardUuid: savedQuery.dashboard_uuid ?? undefined,
+                    }),
                 ]);
 
                 // Filters out "null" fields
@@ -1191,21 +1314,6 @@ export class SavedChartModel {
                     config: savedQuery.chart_config,
                 } as ChartConfig;
 
-                const getColorPalette = () => {
-                    if (
-                        this.lightdashConfig.appearance.overrideColorPalette &&
-                        this.lightdashConfig.appearance.overrideColorPalette
-                            .length > 0
-                    ) {
-                        return this.lightdashConfig.appearance
-                            .overrideColorPalette;
-                    }
-                    if (savedQuery.color_palette) {
-                        return savedQuery.color_palette;
-                    }
-                    return ECHARTS_DEFAULT_COLORS;
-                };
-
                 const verification =
                     (await this.contentVerificationModel?.getByContent(
                         ContentType.CHART,
@@ -1233,6 +1341,9 @@ export class SavedChartModel {
                             fieldId: sort.field_name,
                             descending: sort.descending,
                             nullsFirst: sort.nulls_first ?? undefined,
+                            ...(sort.pivot_values && {
+                                pivotValues: sort.pivot_values,
+                            }),
                         })),
                         limit: savedQuery.row_limit,
                         metricOverrides:
@@ -1332,7 +1443,9 @@ export class SavedChartModel {
                     pinnedListOrder: null,
                     dashboardUuid: savedQuery.dashboard_uuid,
                     dashboardName: savedQuery.dashboardName,
-                    colorPalette: getColorPalette(),
+                    colorPalette: resolvedPalette.colors,
+                    colorPaletteUuid: savedQuery.color_palette_uuid ?? null,
+                    resolvedColorPalette: resolvedPalette,
                     slug: savedQuery.slug,
                     verification,
                     // Soft delete fields (only populated when deleted: true)

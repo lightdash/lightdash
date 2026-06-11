@@ -1,3 +1,4 @@
+import { type AppVersionStatus } from '../ee/apps/types';
 import { type ContentVerificationInfo } from './contentVerification';
 import type { KnexPaginatedData } from './knex-paginate';
 import { type ChartKind } from './savedCharts';
@@ -7,6 +8,7 @@ export enum ContentType {
     CHART = 'chart',
     DASHBOARD = 'dashboard',
     SPACE = 'space',
+    DATA_APP = 'data_app',
 }
 
 export interface Content {
@@ -76,12 +78,25 @@ export interface DashboardContent extends Content {
     contentType: ContentType.DASHBOARD;
 }
 
+// Data App types
+
+export interface DataAppContent extends Content {
+    contentType: ContentType.DATA_APP;
+    latestVersionNumber: number | null;
+    latestVersionStatus: AppVersionStatus | null;
+    pinnedList: {
+        uuid: string;
+        order: number;
+    } | null;
+}
+
 export interface SpaceContentBase extends Content {
     contentType: ContentType.SPACE;
     inheritParentPermissions: boolean;
     dashboardCount: number;
     chartCount: number;
     childSpaceCount: number;
+    appCount: number;
     pinnedList: {
         uuid: string;
         order: number;
@@ -100,10 +115,15 @@ export interface SpaceContent extends SpaceContentBase {
 export type SummaryContentBase =
     | ChartContent
     | DashboardContent
-    | SpaceContentBase;
+    | SpaceContentBase
+    | DataAppContent;
 
 // What the API returns (spaces enriched with access data)
-export type SummaryContent = ChartContent | DashboardContent | SpaceContent; // Note: more types will be added.
+export type SummaryContent =
+    | ChartContent
+    | DashboardContent
+    | SpaceContent
+    | DataAppContent;
 
 // API types
 
@@ -139,6 +159,10 @@ type ItemPayload =
     | {
           uuid: string;
           contentType: ContentType.SPACE;
+      }
+    | {
+          uuid: string;
+          contentType: ContentType.DATA_APP;
       };
 
 export type ContentAction = ContentActionMove | ContentActionDelete;

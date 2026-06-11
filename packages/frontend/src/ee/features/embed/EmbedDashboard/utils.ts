@@ -5,9 +5,35 @@ import {
     type DashboardFilterableField,
     type DashboardFilterRule,
     type FilterOperator,
+    type SavedChartsInfoForDashboardAvailableFilters,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
 import { type SdkFilter } from './types';
+
+/**
+ * Whether SDK filter conversion should be deferred until the data needed to
+ * build cross-explore tileTargets is available.
+ *
+ * The available-filters query is `enabled: savedChartUuidsAndTileUuids.length > 0`,
+ * which means React Query reports `isInitialLoading: false` for the whole
+ * window between provider mount and dashboard tile metadata arriving — even
+ * though no fetch has happened yet. Gating SDK filter conversion on that
+ * loading flag therefore lets the converter fire too early on a cold load,
+ * with `filterableFieldsByTileUuid` undefined, producing `tileTargets: {}`
+ * and silently dropping the filter from any tile on a different explore.
+ */
+export const shouldDeferSdkFilters = (
+    savedChartUuidsAndTileUuids:
+        | SavedChartsInfoForDashboardAvailableFilters
+        | undefined,
+    filterableFieldsByTileUuid:
+        | Record<string, DashboardFilterableField[] | undefined>
+        | undefined,
+): boolean => {
+    if (savedChartUuidsAndTileUuids === undefined) return true;
+    if (savedChartUuidsAndTileUuids.length === 0) return false;
+    return filterableFieldsByTileUuid === undefined;
+};
 
 /**
  * Build tileTargets for an SDK filter by matching fields across all tiles.

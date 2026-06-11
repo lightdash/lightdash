@@ -9,16 +9,21 @@ import {
     type MetricFilterRule,
     type OrFilterGroup,
 } from '../types/filter';
+import { type MetricQuery } from '../types/metricQuery';
 import { TimeFrames } from '../types/timeFrames';
 import {
     addDashboardFiltersToMetricQuery,
     addFilterRule,
+    applyDashboardFiltersForTile,
+    createFilterRuleFromField,
     createFilterRuleFromModelRequiredFilterRule,
     getDashboardFilterRulesForTileAndReferences,
     isFilterRuleInQuery,
+    isMalformedEmptyDashboardFilter,
     overrideChartFilter,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
+    stripOverridesForLockedFiltersOnTab,
     trackWhichTimeBasedMetricFiltersToOverride,
 } from './filters';
 import {
@@ -218,6 +223,99 @@ describe('addFilterRule', () => {
             field: customSqlDimension,
         });
         expect(result).toEqual(expectedFiltersWithCustomSqlDimension);
+    });
+});
+
+describe('createFilterRuleFromField — time-interval DATE dims', () => {
+    const monthDim = (baseType: DimensionType.TIMESTAMP | DimensionType.DATE) =>
+        ({
+            ...dimension('created_at_month', 'orders'),
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.MONTH,
+            timeIntervalBaseDimensionName: 'created_at',
+            timeIntervalBaseDimensionType: baseType,
+        }) as const;
+
+    // Paris Nov 2024 = 2024-10-31T23:00:00Z (UTC instant emitted by the
+    // DATE_TRUNC round-trip for a TIMESTAMP-base interval).
+    const parisNovInstant = '2024-10-31T23:00:00Z';
+    // NY Nov 2024 = 2024-11-01T05:00:00Z.
+    const nyNovInstant = '2024-11-01T05:00:00Z';
+    // DATE-base interval emits a calendar value anchored at UTC midnight.
+    const dateBaseNov = '2024-11-01T00:00:00Z';
+
+    test('TIMESTAMP-base: positive offset filter value matches displayed month', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            parisNovInstant,
+            'Europe/Paris',
+        );
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('TIMESTAMP-base: negative offset filter value matches displayed month', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            nyNovInstant,
+            'America/New_York',
+        );
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('TIMESTAMP-base: no timezone falls back to UTC extraction (pre-fix behavior)', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.TIMESTAMP),
+            parisNovInstant,
+        );
+        // Without project TZ, the UTC instant's calendar month is October.
+        expect(rule.values).toEqual(['2024-10']);
+    });
+
+    test('DATE-base: negative offset must NOT shift the calendar date back', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.DATE),
+            dateBaseNov,
+            'America/New_York',
+        );
+        // Shifting "Nov 1 UTC" into NY would land on Oct 31 — must not happen.
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('DATE-base: positive offset also stays on the calendar date', () => {
+        const rule = createFilterRuleFromField(
+            monthDim(DimensionType.DATE),
+            dateBaseNov,
+            'Asia/Tokyo',
+        );
+        expect(rule.values).toEqual(['2024-11']);
+    });
+
+    test('plain DATE column (no timeInterval): negative offset must NOT shift', () => {
+        const plainDateDim = {
+            ...dimension('order_date', 'orders'),
+            type: DimensionType.DATE,
+        } as const;
+        const rule = createFilterRuleFromField(
+            plainDateDim,
+            '2024-11-01',
+            'America/New_York',
+        );
+        // Plain DATE columns are calendar values — shifting into NY would
+        // land on Oct 31 and silently corrupt the filter.
+        expect(rule.values).toEqual(['2024-11-01']);
+    });
+
+    test('plain DATE column (no timeInterval): positive offset must NOT shift', () => {
+        const plainDateDim = {
+            ...dimension('order_date', 'orders'),
+            type: DimensionType.DATE,
+        } as const;
+        const rule = createFilterRuleFromField(
+            plainDateDim,
+            '2024-11-01',
+            'Asia/Tokyo',
+        );
+        expect(rule.values).toEqual(['2024-11-01']);
     });
 });
 
@@ -1027,5 +1125,490 @@ describe('getDashboardFilterRulesForTileAndReferences', () => {
 
         // Verify filter-3 is not included (isSqlColumn is true but fieldId doesn't match)
         expect(result).toHaveLength(0);
+    });
+});
+
+describe('applyDashboardFiltersForTile', () => {
+    const baseMetricQuery: MetricQuery = {
+        exploreName: 'test',
+        dimensions: [],
+        metrics: [],
+        filters: {},
+        sorts: [],
+        limit: 500,
+        tableCalculations: [],
+    };
+
+    const statusRule: DashboardFilterRule = {
+        id: 'f-status',
+        target: { fieldId: 'orders_status', tableName: 'orders' },
+        operator: FilterOperator.EQUALS,
+        values: [true],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    const offExploreRule: DashboardFilterRule = {
+        id: 'f-off',
+        target: { fieldId: 'other_browser', tableName: 'other' },
+        operator: FilterOperator.EQUALS,
+        values: ['chrome'],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    test('drops rules whose fieldId is not in the explore', () => {
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [offExploreRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toEqual([]);
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup | undefined)
+                ?.and ?? [],
+        ).toEqual([]);
+    });
+
+    test('drops rules whose tileTargets disable them for this tile', () => {
+        const disabledRule: DashboardFilterRule = {
+            ...statusRule,
+            tileTargets: { 't-1': false },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any;
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [disabledRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toEqual([]);
+        expect(
+            (metricQuery.filters.dimensions as AndFilterGroup | undefined)
+                ?.and ?? [],
+        ).toEqual([]);
+    });
+
+    test('merges applicable rules into the metric query', () => {
+        const { metricQuery, appliedDashboardFilters } =
+            applyDashboardFiltersForTile({
+                tileUuid: 't-1',
+                metricQuery: baseMetricQuery,
+                dashboardFilters: {
+                    dimensions: [statusRule, offExploreRule],
+                    metrics: [],
+                    tableCalculations: [],
+                },
+                explore: mockExplore,
+            });
+
+        expect(appliedDashboardFilters.dimensions).toHaveLength(1);
+        expect(appliedDashboardFilters.dimensions[0].id).toBe('f-status');
+        const merged = (metricQuery.filters.dimensions as AndFilterGroup).and;
+        expect(merged).toHaveLength(1);
+        expect(merged[0]).toMatchObject({
+            target: { fieldId: 'orders_status' },
+            values: [true],
+        });
+    });
+});
+
+describe('stripOverridesForLockedFiltersOnTab', () => {
+    const TAB_A = 'tab-a';
+    const TAB_B = 'tab-b';
+    const makeRule = (
+        id: string,
+        fieldId: string,
+        tableName: string,
+        opts: { lockedTabUuids?: string[]; values?: unknown[] } = {},
+    ): DashboardFilterRule => ({
+        id,
+        operator: FilterOperator.EQUALS,
+        target: { fieldId, tableName },
+        values: opts.values ?? ['x'],
+        label: undefined,
+        ...(opts.lockedTabUuids ? { lockedTabUuids: opts.lockedTabUuids } : {}),
+    });
+
+    test('drops override on a tab where the rule is locked', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [TAB_A],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [
+                makeRule('o-1', 'orders_status', 'orders', {
+                    values: ['returned'],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_A,
+            true,
+        );
+        expect(result.filters.dimensions).toEqual([]);
+        expect(result.droppedCount).toBe(1);
+    });
+
+    test('keeps override on a tab where the rule is NOT locked', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [TAB_A],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_B,
+            true,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('keeps override on a different field even if a sibling field is locked', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [TAB_A],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_amount', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_A,
+            true,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('does not cross filter groups (dim lock leaves metric overrides alone)', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [TAB_A],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [],
+            metrics: [makeRule('o-1', 'orders_status', 'orders')],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_A,
+            true,
+        );
+        expect(result.filters.metrics).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('matches on both fieldId and tableName', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'status', 'orders', {
+                    lockedTabUuids: [TAB_A],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'status', 'customers')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_A,
+            true,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('tabbed dashboard with undefined tabUuid strips nothing (transient pre-selection state)', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [TAB_A],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            undefined,
+            true,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('rule locked on multiple tabs is enforced on each', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [TAB_A, TAB_B],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const a = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_A,
+            true,
+        );
+        const b = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_B,
+            true,
+        );
+        expect(a.droppedCount).toBe(1);
+        expect(b.droppedCount).toBe(1);
+    });
+
+    test('empty lockedTabUuids never strips', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            TAB_A,
+            true,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('tab-less dashboard: any non-empty lockedTabUuids strips overrides', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: ['dashboard-uuid-as-sentinel'],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [
+                makeRule('o-1', 'orders_status', 'orders', {
+                    values: ['returned'],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            undefined,
+            false,
+        );
+        expect(result.filters.dimensions).toEqual([]);
+        expect(result.droppedCount).toBe(1);
+    });
+
+    test('tab-less dashboard: empty lockedTabUuids still does not strip', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: [],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_status', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            undefined,
+            false,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+
+    test('tab-less dashboard: non-target field is not affected by lock', () => {
+        const saved = {
+            dimensions: [
+                makeRule('s-1', 'orders_status', 'orders', {
+                    lockedTabUuids: ['dashboard-uuid-as-sentinel'],
+                }),
+            ],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const overrides = {
+            dimensions: [makeRule('o-1', 'orders_amount', 'orders')],
+            metrics: [],
+            tableCalculations: [],
+        };
+        const result = stripOverridesForLockedFiltersOnTab(
+            saved,
+            overrides,
+            undefined,
+            false,
+        );
+        expect(result.filters.dimensions).toHaveLength(1);
+        expect(result.droppedCount).toBe(0);
+    });
+});
+
+describe('isMalformedEmptyDashboardFilter', () => {
+    test('flags disabled:false + empty values + value-requiring operator', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: [],
+            }),
+        ).toBe(true);
+    });
+
+    test('flags missing values (treated as empty)', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+            }),
+        ).toBe(true);
+    });
+
+    test('flags omitted disabled (defaults to active)', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                values: [],
+            }),
+        ).toBe(true);
+    });
+
+    test('treats null values (YAML `values: ~`) as empty', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: null,
+            }),
+        ).toBe(true);
+    });
+
+    test('does NOT flag disabled filters', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: true,
+                values: [],
+            }),
+        ).toBe(false);
+    });
+
+    test('does NOT flag operators that legitimately take no values', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.NULL,
+                disabled: false,
+                values: [],
+            }),
+        ).toBe(false);
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.NOT_NULL,
+                disabled: false,
+            }),
+        ).toBe(false);
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.IN_PERIOD_TO_DATE,
+                disabled: false,
+            }),
+        ).toBe(false);
+    });
+
+    test('does NOT flag filters with values', () => {
+        expect(
+            isMalformedEmptyDashboardFilter({
+                operator: FilterOperator.EQUALS,
+                disabled: false,
+                values: ['some-value'],
+            }),
+        ).toBe(false);
     });
 });

@@ -61,7 +61,7 @@ const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, tileUuid }) => {
                         }}
                     >
                         Sort{' '}
-                        <Text span fw={500}>
+                        <Text span fz="inherit" lh="inherit" fw={500}>
                             {getSortLabel(item, sortDirection)}
                         </Text>
                     </Menu.Item>

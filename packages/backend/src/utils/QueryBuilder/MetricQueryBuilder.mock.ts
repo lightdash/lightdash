@@ -8,6 +8,7 @@ import {
     CompiledTable,
     CreateWarehouseCredentials,
     CustomDimensionType,
+    defaultNullSafeEqualSql,
     DimensionType,
     Explore,
     FieldType,
@@ -37,15 +38,6 @@ export const warehouseClientMock: WarehouseClient = {
                 },
             },
         },
-    }),
-    getAsyncQueryResults: async () => ({
-        queryId: null,
-        queryMetadata: null,
-        totalRows: 0,
-        durationMs: 0,
-        fields: {},
-        pageCount: 0,
-        rows: [],
     }),
     streamQuery(query, streamCallback) {
         void streamCallback({
@@ -88,6 +80,8 @@ export const warehouseClientMock: WarehouseClient = {
     },
     getFieldQuoteChar: () => '"',
     getFloatingType: () => 'FLOAT',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getAdapterType: () => SupportedDbtAdapter.POSTGRES,
     concatString: (...args) => `(${args.join(' || ')})`,
     getAllTables(
@@ -144,6 +138,8 @@ export const bigqueryClientMock: WarehouseClient = {
     } as CreateWarehouseCredentials,
     getFieldQuoteChar: () => '`',
     getFloatingType: () => 'FLOAT64',
+    getNullSafeEqualSql: defaultNullSafeEqualSql,
+    getNullSafeEqualJoinSql: defaultNullSafeEqualSql,
     getCatalog: async () => ({
         default: {
             public: {
@@ -152,15 +148,6 @@ export const bigqueryClientMock: WarehouseClient = {
                 },
             },
         },
-    }),
-    getAsyncQueryResults: async () => ({
-        queryId: null,
-        queryMetadata: null,
-        totalRows: 0,
-        durationMs: 0,
-        fields: {},
-        pageCount: 0,
-        rows: [],
     }),
     streamQuery(query, streamCallback) {
         void streamCallback({
@@ -2387,6 +2374,18 @@ export const EXPLORE_WITH_SUM_DISTINCT: Explore = {
                     tablesReferences: ['orders'],
                     hidden: false,
                 },
+                line_item_id: {
+                    type: DimensionType.STRING,
+                    name: 'line_item_id',
+                    label: 'Line Item ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.line_item_id',
+                    compiledSql: '"orders".line_item_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
             },
             metrics: {
                 total_revenue: {
@@ -2400,6 +2399,24 @@ export const EXPLORE_WITH_SUM_DISTINCT: Explore = {
                     compiledSql: 'SUM("orders".amount)',
                     compiledValueSql: '"orders".amount',
                     compiledDistinctKeys: ['"orders".line_item_id'],
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                // Multi-key distinct: dedupes by (order_id, payment_method)
+                total_payment_by_method_per_order: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'total_payment_by_method_per_order',
+                    label: 'Total payment by method per order',
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM("orders".amount)',
+                    compiledValueSql: '"orders".amount',
+                    compiledDistinctKeys: [
+                        '"orders".order_id',
+                        '"orders".payment_method',
+                    ],
                     tablesReferences: ['orders'],
                     hidden: false,
                 },
@@ -2421,6 +2438,64 @@ export const METRIC_QUERY_SUM_DISTINCT_WITH_DIMS: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
     compiledCustomDimensions: [],
 };
+
+// Selected dimension matches the metric's distinct_key — exercises the INNER JOIN path
+// where the dedup CTE keeps one row per distinct-key value.
+export const METRIC_QUERY_SUM_DISTINCT_WITH_JOINABLE_DIM: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_line_item_id'],
+        metrics: ['orders_total_revenue'],
+        filters: {},
+        sorts: [{ fieldId: 'orders_total_revenue', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+// Multi-key distinct where both distinct_keys are selected as dimensions — reproduces
+// the case reported on feature/spk-450 where every output row was incorrectly the same.
+export const METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_FULLY_JOINABLE: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_order_id', 'orders_payment_method'],
+        metrics: ['orders_total_payment_by_method_per_order'],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'orders_total_payment_by_method_per_order',
+                descending: true,
+            },
+        ],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+// Multi-key distinct where only one of two distinct_keys is selected — outer CTE must
+// aggregate across the unselected key, INNER JOIN on the selected one.
+export const METRIC_QUERY_SUM_DISTINCT_MULTI_KEY_PARTIAL_JOIN: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_order_id'],
+        metrics: ['orders_total_payment_by_method_per_order'],
+        filters: {},
+        sorts: [
+            {
+                fieldId: 'orders_total_payment_by_method_per_order',
+                descending: true,
+            },
+        ],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
 
 export const METRIC_QUERY_SUM_DISTINCT_NO_DIMS: CompiledMetricQuery = {
     exploreName: 'orders',
@@ -2518,6 +2593,171 @@ export const METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS: CompiledMetricQuery = {
     metrics: ['orders_avg_shipping_cost'],
     filters: {},
     sorts: [{ fieldId: 'orders_avg_shipping_cost', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// PROD-7893: type:number wrappers over sum_distinct metrics, plus a transitive rate.
+export const EXPLORE_WITH_SUM_DISTINCT_WRAPPER: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'transfers',
+    label: 'transfers',
+    baseTable: 'transfers',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        transfers: {
+            name: 'transfers',
+            label: 'transfers',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."transfers"',
+            primaryKey: ['client_id'],
+            dimensions: {
+                client_id: {
+                    type: DimensionType.STRING,
+                    name: 'client_id',
+                    label: 'Client ID',
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.client_id',
+                    compiledSql: '"transfers".client_id',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                date: {
+                    type: DimensionType.DATE,
+                    name: 'date',
+                    label: 'Date',
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.date',
+                    compiledSql: '"transfers".date',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_corridor_transfers: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_corridor_transfers',
+                    label: 'Total corridor transfers',
+                    sql: '${TABLE}.total_daily_corridor_transfers',
+                    compiledSql:
+                        'SUM("transfers".total_daily_corridor_transfers)',
+                    compiledValueSql:
+                        '"transfers".total_daily_corridor_transfers',
+                    compiledDistinctKeys: [
+                        '"transfers".client_id',
+                        '"transfers".date',
+                    ],
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_residual_transfers: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_residual_transfers',
+                    label: 'Total residual transfers',
+                    sql: '${TABLE}.total_daily_residual_transfers',
+                    compiledSql:
+                        'SUM("transfers".total_daily_residual_transfers)',
+                    compiledValueSql:
+                        '"transfers".total_daily_residual_transfers',
+                    compiledDistinctKeys: ['"transfers".client_id'],
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_inbound_contacts: {
+                    type: MetricType.COUNT_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_inbound_contacts',
+                    label: 'Total inbound contacts',
+                    sql: '${TABLE}.contact_id',
+                    compiledSql: 'COUNT(DISTINCT "transfers".contact_id)',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                total_transfers: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'total_transfers',
+                    label: 'Total transfers',
+                    sql: '${total_corridor_transfers} + ${total_residual_transfers}',
+                    compiledSql:
+                        '(SUM("transfers".total_daily_corridor_transfers)) + (SUM("transfers".total_daily_residual_transfers))',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+                transfer_inbound_contact_rate: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'transfers',
+                    tableLabel: 'transfers',
+                    name: 'transfer_inbound_contact_rate',
+                    label: 'Transfer inbound contact rate',
+                    sql: '${total_inbound_contacts} / nullif(${total_transfers}, 0)',
+                    compiledSql:
+                        '(COUNT(DISTINCT "transfers".contact_id)) / nullif(((SUM("transfers".total_daily_corridor_transfers)) + (SUM("transfers".total_daily_residual_transfers))), 0)',
+                    tablesReferences: ['transfers'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_DIRECT: CompiledMetricQuery = {
+    exploreName: 'transfers',
+    dimensions: ['transfers_date'],
+    metrics: ['transfers_total_transfers'],
+    filters: {},
+    sorts: [{ fieldId: 'transfers_date', descending: false }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_TRANSITIVE: CompiledMetricQuery =
+    {
+        exploreName: 'transfers',
+        dimensions: ['transfers_date'],
+        metrics: ['transfers_transfer_inbound_contact_rate'],
+        filters: {},
+        sorts: [{ fieldId: 'transfers_date', descending: false }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_SUM_DISTINCT_WRAPPER_MIXED: CompiledMetricQuery = {
+    exploreName: 'transfers',
+    dimensions: ['transfers_date'],
+    metrics: [
+        'transfers_total_transfers',
+        'transfers_transfer_inbound_contact_rate',
+    ],
+    filters: {},
+    sorts: [{ fieldId: 'transfers_date', descending: false }],
     limit: 10,
     tableCalculations: [],
     compiledTableCalculations: [],
@@ -3012,6 +3252,639 @@ export const METRIC_QUERY_NESTED_AGG_MIXED_RAW_NO_DIMS: CompiledMetricQuery = {
     filters: {},
     sorts: [{ fieldId: 'my_table_mixed_raw_agg_repro', descending: true }],
     limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// PROD-7503: base table has a hidden helper metric named `met_active_customers`
+// (type:number — raw column ref). A joined table has an aggregate metric with
+// the SAME name (type:average). The base table also has:
+//   - an outer mixed metric `met_active_customers_agg` whose SQL uses the short
+//     form `${met_active_customers}` to reference the base table's raw helper.
+//   - an outer pure-agg metric `met_active_customers_goal` whose SQL uses the
+//     qualified form `${joined_tbl.met_active_customers}` to reference the
+//     joined table's aggregate.
+// Selecting both triggers the nested_agg_mixed CTE with an aggregate inner dep
+// from the joined table whose name collides with the base helper's name.
+export const EXPLORE_NESTED_AGG_NAME_COLLISION: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'base_tbl',
+    label: 'base_tbl',
+    baseTable: 'base_tbl',
+    tags: [],
+    tables: {
+        base_tbl: {
+            name: 'base_tbl',
+            label: 'base_tbl',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."base_tbl"',
+            primaryKey: ['id'],
+            lineageGraph: {},
+            dimensions: {
+                category: {
+                    type: DimensionType.STRING,
+                    name: 'category',
+                    label: 'category',
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.category',
+                    compiledSql: '"base_tbl".category',
+                    tablesReferences: ['base_tbl'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                // Hidden helper: raw column ref. Same NAME as the joined
+                // table's aggregate metric — this is the collision.
+                met_active_customers: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    name: 'met_active_customers',
+                    label: 'met_active_customers',
+                    sql: '${TABLE}.active_customers',
+                    compiledSql: '"base_tbl".active_customers',
+                    tablesReferences: ['base_tbl'],
+                    hidden: true,
+                },
+                // Hidden helper: raw column ref (ordering column for MAX_BY).
+                met_updated_on: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    name: 'met_updated_on',
+                    label: 'met_updated_on',
+                    sql: '${TABLE}.updated_on',
+                    compiledSql: '"base_tbl".updated_on',
+                    tablesReferences: ['base_tbl'],
+                    hidden: true,
+                },
+                // Outer mixed metric: both inner deps are raw column helpers on
+                // base_tbl. The ${met_active_customers} short-form ref must
+                // resolve to base_tbl's helper, NOT the joined table's
+                // aggregate of the same name.
+                met_active_customers_agg: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    name: 'met_active_customers_agg',
+                    label: 'met_active_customers_agg',
+                    sql: 'MAX_BY(${met_active_customers}, ${met_updated_on})',
+                    compiledSql:
+                        'MAX_BY("base_tbl".active_customers, "base_tbl".updated_on)',
+                    tablesReferences: ['base_tbl'],
+                    hidden: false,
+                },
+                // Outer pure-agg metric: qualified ref to the joined table's
+                // aggregate. Forces joined_tbl.met_active_customers into
+                // aggregateInnerDeps for the nested_agg CTE.
+                met_active_customers_goal: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'base_tbl',
+                    tableLabel: 'base_tbl',
+                    name: 'met_active_customers_goal',
+                    label: 'met_active_customers_goal',
+                    sql: '${joined_tbl.met_active_customers}',
+                    compiledSql: 'AVG("joined_tbl".active_customers)',
+                    tablesReferences: ['base_tbl', 'joined_tbl'],
+                    hidden: false,
+                },
+            },
+        },
+        joined_tbl: {
+            name: 'joined_tbl',
+            label: 'joined_tbl',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."joined_tbl"',
+            primaryKey: ['base_id'],
+            lineageGraph: {},
+            dimensions: {
+                joined_dim: {
+                    type: DimensionType.STRING,
+                    name: 'joined_dim',
+                    label: 'joined_dim',
+                    table: 'joined_tbl',
+                    tableLabel: 'joined_tbl',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.joined_dim',
+                    compiledSql: '"joined_tbl".joined_dim',
+                    tablesReferences: ['joined_tbl'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                // Aggregate metric with the SAME name as base_tbl's helper.
+                met_active_customers: {
+                    type: MetricType.AVERAGE,
+                    fieldType: FieldType.METRIC,
+                    table: 'joined_tbl',
+                    tableLabel: 'joined_tbl',
+                    name: 'met_active_customers',
+                    label: 'met_active_customers',
+                    sql: '${TABLE}.active_customers',
+                    compiledSql: 'AVG("joined_tbl".active_customers)',
+                    tablesReferences: ['joined_tbl'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+    joinedTables: [
+        {
+            table: 'joined_tbl',
+            sqlOn: '${base_tbl.id} = ${joined_tbl.base_id}',
+            compiledSqlOn: '("base_tbl".id) = ("joined_tbl".base_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_ONE,
+            tablesReferences: ['base_tbl', 'joined_tbl'],
+        },
+    ],
+};
+
+export const METRIC_QUERY_NESTED_AGG_NAME_COLLISION: CompiledMetricQuery = {
+    exploreName: 'base_tbl',
+    dimensions: ['base_tbl_category'],
+    metrics: [
+        'base_tbl_met_active_customers_agg',
+        'base_tbl_met_active_customers_goal',
+    ],
+    filters: {},
+    sorts: [{ fieldId: 'base_tbl_met_active_customers_agg', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// --- cross-model type:number referencing sum_distinct fixtures ---
+
+export const EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'customers',
+    label: 'customers',
+    baseTable: 'customers',
+    tags: [],
+    tables: {
+        customers: {
+            name: 'customers',
+            label: 'customers',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'customers',
+            primaryKey: ['customer_id'],
+            lineageGraph: {},
+            dimensions: {
+                customer_id: {
+                    type: DimensionType.STRING,
+                    name: 'customer_id',
+                    label: 'Customer ID',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.customer_id',
+                    compiledSql: '"customers".customer_id',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                adjusted_revenue: {
+                    type: MetricType.NUMBER,
+                    name: 'adjusted_revenue',
+                    label: 'Adjusted Revenue',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${orders.total_revenue} * 1.1',
+                    // BUG: compileMetricReference inlines the sum_distinct
+                    // fallback SQL instead of preserving distinct metadata
+                    compiledSql: '(SUM("orders".amount)) * 1.1',
+                    tablesReferences: ['customers', 'orders'],
+                    hidden: false,
+                },
+            },
+        },
+        orders: {
+            name: 'orders',
+            label: 'orders',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'orders',
+            primaryKey: ['order_id'],
+            lineageGraph: {},
+            dimensions: {
+                order_id: {
+                    type: DimensionType.STRING,
+                    name: 'order_id',
+                    label: 'Order ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.order_id',
+                    compiledSql: '"orders".order_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                line_item_id: {
+                    type: DimensionType.STRING,
+                    name: 'line_item_id',
+                    label: 'Line Item ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.line_item_id',
+                    compiledSql: '"orders".line_item_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_revenue: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'total_revenue',
+                    label: 'Total Revenue',
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM("orders".amount)',
+                    compiledValueSql: '"orders".amount',
+                    compiledDistinctKeys: ['"orders".line_item_id'],
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+    joinedTables: [
+        {
+            table: 'orders',
+            sqlOn: '${customers.customer_id} = ${orders.customer_id}',
+            compiledSqlOn: '("customers".customer_id) = ("orders".customer_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_MANY,
+            tablesReferences: ['customers', 'orders'],
+        },
+    ],
+};
+
+export const METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT: CompiledMetricQuery = {
+    exploreName: 'customers',
+    dimensions: ['customers_customer_id'],
+    metrics: ['customers_adjusted_revenue'],
+    filters: {},
+    sorts: [{ fieldId: 'customers_adjusted_revenue', descending: true }],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+// Same-model: type:number referencing sum_distinct + regular aggregate
+// Tests that references like ${order_count} resolve to dd_base."orders_order_count"
+// instead of being recompiled as raw SQL (which breaks in the outer SELECT context).
+export const EXPLORE_WITH_SAME_MODEL_NUMBER_AND_SUM_DISTINCT: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'orders',
+    label: 'orders',
+    baseTable: 'orders',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        orders: {
+            name: 'orders',
+            label: 'orders',
+            database: 'db',
+            schema: 'schema',
+            sqlTable: '"db"."schema"."orders"',
+            primaryKey: ['order_id'],
+            lineageGraph: {},
+            dimensions: {
+                order_id: {
+                    type: DimensionType.STRING,
+                    name: 'order_id',
+                    label: 'Order ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.order_id',
+                    compiledSql: '"orders".order_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                line_item_id: {
+                    type: DimensionType.STRING,
+                    name: 'line_item_id',
+                    label: 'Line Item ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.line_item_id',
+                    compiledSql: '"orders".line_item_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                status: {
+                    type: DimensionType.STRING,
+                    name: 'status',
+                    label: 'Status',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.status',
+                    compiledSql: '"orders".status',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_revenue: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'total_revenue',
+                    label: 'Total Revenue',
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM("orders".amount)',
+                    compiledValueSql: '"orders".amount',
+                    compiledDistinctKeys: ['"orders".line_item_id'],
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                order_count: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'order_count',
+                    label: 'Order Count',
+                    sql: '${TABLE}.order_id',
+                    compiledSql: 'COUNT("orders".order_id)',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                avg_deduped_revenue: {
+                    type: MetricType.NUMBER,
+                    fieldType: FieldType.METRIC,
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    name: 'avg_deduped_revenue',
+                    label: 'Avg Deduped Revenue',
+                    sql: '${total_revenue} / NULLIF(${order_count}, 0)',
+                    compiledSql:
+                        '(SUM("orders".amount)) / NULLIF(COUNT("orders".order_id), 0)',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+};
+
+export const METRIC_QUERY_SAME_MODEL_NUMBER_WITH_SUM_DISTINCT: CompiledMetricQuery =
+    {
+        exploreName: 'orders',
+        dimensions: ['orders_status'],
+        metrics: ['orders_avg_deduped_revenue'],
+        filters: {},
+        sorts: [{ fieldId: 'orders_avg_deduped_revenue', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+export const METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS: CompiledMetricQuery =
+    {
+        exploreName: 'customers',
+        dimensions: [],
+        metrics: ['customers_adjusted_revenue'],
+        filters: {},
+        sorts: [{ fieldId: 'customers_adjusted_revenue', descending: true }],
+        limit: 10,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+// Repro for SPK-333: a type:number metric referencing a sum_distinct metric
+// is selected alongside a simple sum metric on a joined (one-to-many) table
+// that triggers fanout protection. The non-aggregate metric's ${sum_distinct}
+// reference must resolve to the dd CTE alias; inlining the fallback SUM breaks
+// because the raw table is not in scope of the dd_base outer SELECT.
+export const EXPLORE_WITH_FANOUT_AND_DD_REFERENCE: Explore = {
+    targetDatabase: SupportedDbtAdapter.POSTGRES,
+    name: 'customers',
+    label: 'customers',
+    baseTable: 'customers',
+    tags: [],
+    tables: {
+        customers: {
+            name: 'customers',
+            label: 'customers',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'customers',
+            primaryKey: ['customer_id'],
+            lineageGraph: {},
+            dimensions: {
+                customer_id: {
+                    type: DimensionType.STRING,
+                    name: 'customer_id',
+                    label: 'Customer ID',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.customer_id',
+                    compiledSql: '"customers".customer_id',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                unique_customer_count: {
+                    type: MetricType.COUNT_DISTINCT,
+                    name: 'unique_customer_count',
+                    label: 'Unique Customer Count',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.customer_id',
+                    compiledSql: 'COUNT(DISTINCT "customers".customer_id)',
+                    tablesReferences: ['customers'],
+                    hidden: false,
+                },
+                total_order_amount_deduped: {
+                    type: MetricType.SUM_DISTINCT,
+                    name: 'total_order_amount_deduped',
+                    label: 'Total Order Amount (Deduped)',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${orders.amount}',
+                    distinctKeys: ['orders.order_id'],
+                    compiledSql: 'SUM("orders".amount)',
+                    compiledValueSql: '("orders".amount)',
+                    compiledDistinctKeys: ['("orders".order_id)'],
+                    tablesReferences: ['customers', 'orders'],
+                    hidden: false,
+                },
+                average_customer_lifetime_value: {
+                    type: MetricType.NUMBER,
+                    name: 'average_customer_lifetime_value',
+                    label: 'Average Customer Lifetime Value',
+                    table: 'customers',
+                    tableLabel: 'customers',
+                    fieldType: FieldType.METRIC,
+                    sql: '${total_order_amount_deduped} / NULLIF(${unique_customer_count}, 0)',
+                    // compileMetricSql inlines the fallback SUM for the
+                    // sum_distinct ref; the query builder must rewrite this
+                    // to point at the dd CTE instead of emitting it raw.
+                    compiledSql:
+                        '(SUM("orders".amount)) / NULLIF(COUNT(DISTINCT "customers".customer_id), 0)',
+                    tablesReferences: ['customers', 'orders'],
+                    hidden: false,
+                },
+            },
+        },
+        orders: {
+            name: 'orders',
+            label: 'orders',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'orders',
+            primaryKey: ['order_id'],
+            lineageGraph: {},
+            dimensions: {
+                order_id: {
+                    type: DimensionType.STRING,
+                    name: 'order_id',
+                    label: 'Order ID',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.order_id',
+                    compiledSql: '"orders".order_id',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+                amount: {
+                    type: DimensionType.NUMBER,
+                    name: 'amount',
+                    label: 'Amount',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.amount',
+                    compiledSql: '"orders".amount',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_order_amount: {
+                    type: MetricType.SUM,
+                    name: 'total_order_amount',
+                    label: 'Total Order Amount',
+                    table: 'orders',
+                    tableLabel: 'orders',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM("orders".amount)',
+                    tablesReferences: ['orders'],
+                    hidden: false,
+                },
+            },
+        },
+        payments: {
+            name: 'payments',
+            label: 'payments',
+            database: 'mydb',
+            schema: 'public',
+            sqlTable: 'payments',
+            primaryKey: ['payment_id'],
+            lineageGraph: {},
+            dimensions: {
+                payment_id: {
+                    type: DimensionType.STRING,
+                    name: 'payment_id',
+                    label: 'Payment ID',
+                    table: 'payments',
+                    tableLabel: 'payments',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.payment_id',
+                    compiledSql: '"payments".payment_id',
+                    tablesReferences: ['payments'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                payment_count: {
+                    type: MetricType.COUNT,
+                    name: 'payment_count',
+                    label: 'Payment Count',
+                    table: 'payments',
+                    tableLabel: 'payments',
+                    fieldType: FieldType.METRIC,
+                    sql: '${TABLE}.payment_id',
+                    compiledSql: 'COUNT("payments".payment_id)',
+                    tablesReferences: ['payments'],
+                    hidden: false,
+                },
+            },
+        },
+    },
+    joinedTables: [
+        {
+            table: 'orders',
+            sqlOn: '${customers.customer_id} = ${orders.customer_id}',
+            compiledSqlOn: '("customers".customer_id) = ("orders".customer_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_MANY,
+            tablesReferences: ['customers', 'orders'],
+        },
+        {
+            table: 'payments',
+            sqlOn: '${orders.order_id} = ${payments.order_id}',
+            compiledSqlOn: '("orders".order_id) = ("payments".order_id)',
+            type: 'left',
+            relationship: JoinRelationship.ONE_TO_MANY,
+            tablesReferences: ['orders', 'payments'],
+        },
+    ],
+};
+
+export const METRIC_QUERY_FANOUT_AND_DD_REFERENCE: CompiledMetricQuery = {
+    exploreName: 'customers',
+    dimensions: [],
+    metrics: [
+        'customers_average_customer_lifetime_value',
+        'customers_total_order_amount_deduped',
+        'orders_total_order_amount',
+        'payments_payment_count',
+    ],
+    filters: {},
+    sorts: [
+        {
+            fieldId: 'customers_average_customer_lifetime_value',
+            descending: true,
+        },
+    ],
+    limit: 500,
     tableCalculations: [],
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],

@@ -1,6 +1,7 @@
 import { type DimensionType } from './field';
 import type { ParameterValue } from './parameters';
 import type { WarehouseTypes } from './projects';
+import type { GroupType } from './table';
 
 type SpotlightCategory = {
     label: string;
@@ -65,6 +66,12 @@ export type LightdashProjectConfig = {
     warehouse?: WarehouseConfig; // Required for Lightdash-only projects (no dbt)
     defaults?: ProjectDefaults; // Project-wide defaults for various settings
     custom_granularities?: Record<string, CustomGranularity>;
+    /**
+     * Labels & descriptions for the group keys referenced by models'
+     * `meta.groups` array. Used to render nested table groups in the
+     * Explore sidebar. Missing keys fall back to using the key as the label.
+     */
+    table_groups?: Record<string, GroupType>;
 };
 
 export const DEFAULT_SPOTLIGHT_CONFIG: SpotlightConfig = {

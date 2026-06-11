@@ -1,6 +1,11 @@
 import { SupportedDbtAdapter, type DbtModelNode } from '../types/dbt';
 import { InlineErrorType, type Explore } from '../types/explore';
-import { DimensionType, FieldType, MetricType } from '../types/field';
+import {
+    DimensionType,
+    FieldType,
+    MetricType,
+    NumberSeparator,
+} from '../types/field';
 import { DEFAULT_SPOTLIGHT_CONFIG } from '../types/lightdashProjectConfig';
 import { TimeFrames } from '../types/timeFrames';
 import { warehouseClientMock } from './exploreCompiler.mock';
@@ -286,6 +291,46 @@ describe('additional dimensions in dbt 1.10+ (config.meta structure)', () => {
         );
         expect(result.dimensions.order_date_pt_month.label).toContain(
             'Order Date (PT)',
+        );
+    });
+
+    it('should parse the number separator from dbt meta onto dimensions and metrics', () => {
+        const modelWithSeparators: DbtModelNode & {
+            relation_name: string;
+        } = {
+            ...model,
+            columns: {
+                revenue: {
+                    name: 'revenue',
+                    data_type: DimensionType.NUMBER,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.NUMBER,
+                            separator: NumberSeparator.PERIOD_COMMA,
+                        },
+                        metrics: {
+                            total_revenue: {
+                                type: MetricType.SUM,
+                                separator: NumberSeparator.SPACE_PERIOD,
+                            },
+                        },
+                    },
+                },
+            },
+        };
+
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            modelWithSeparators,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+
+        expect(result.dimensions.revenue.separator).toBe(
+            NumberSeparator.PERIOD_COMMA,
+        );
+        expect(result.metrics.total_revenue.separator).toBe(
+            NumberSeparator.SPACE_PERIOD,
         );
     });
 });
@@ -968,6 +1013,62 @@ describe('convert tables from dbt models', () => {
     });
 });
 
+describe('dbt source paths', () => {
+    it('omits dbtPackageName, ymlPath, and sqlPath when the model has no source paths', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            MODEL_WITH_NO_METRICS,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dbtPackageName).toBeUndefined();
+        expect(result.ymlPath).toBeUndefined();
+        expect(result.sqlPath).toBeUndefined();
+    });
+
+    it('populates dbtPackageName, ymlPath, and sqlPath from manifest fields', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...MODEL_WITH_NO_METRICS,
+                package_name: 'jaffle_shop',
+                patch_path: 'jaffle_shop://models/orders.yml',
+                path: 'orders.sql',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dbtPackageName).toBe('jaffle_shop');
+        expect(result.ymlPath).toBe('models/orders.yml');
+        expect(result.sqlPath).toBe('orders.sql');
+    });
+
+    it('populates each source field independently when others are missing', () => {
+        const ymlOnly = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            {
+                ...MODEL_WITH_NO_METRICS,
+                patch_path: 'pkg://schema.yml',
+            },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(ymlOnly.ymlPath).toBe('schema.yml');
+        expect(ymlOnly.dbtPackageName).toBeUndefined();
+        expect(ymlOnly.sqlPath).toBeUndefined();
+
+        const sqlOnly = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            { ...MODEL_WITH_NO_METRICS, path: 'foo.sql' },
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(sqlOnly.sqlPath).toBe('foo.sql');
+        expect(sqlOnly.ymlPath).toBeUndefined();
+        expect(sqlOnly.dbtPackageName).toBeUndefined();
+    });
+});
+
 describe('spotlight config', () => {
     it('should convert dbt model with metrics when no categories are defined', () => {
         expect(
@@ -1213,6 +1314,46 @@ describe('explore-scoped additional dimensions', () => {
         ).toBe('custom_date');
     });
 
+    it('should apply sql_filter from explore config', async () => {
+        const modelWithExploreSqlFilter: DbtModelNode = {
+            ...MODEL_WITH_EXPLORE_SCOPED_DIMENSIONS,
+            meta: {
+                explores: {
+                    completed_orders: {
+                        label: 'Completed Orders Only',
+                        sql_filter: "${TABLE}.status = 'completed'",
+                    },
+                },
+            },
+        };
+
+        const explores = await convertExplores(
+            [modelWithExploreSqlFilter],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        const completedExplore = explores.find(
+            (e) => 'name' in e && e.name === 'completed_orders',
+        ) as Explore;
+
+        expect(completedExplore).toBeDefined();
+        expect(completedExplore.tables.test_model.sqlWhere).toBe(
+            '"test_model".status = \'completed\'',
+        );
+
+        // Base explore should NOT have the sql_filter
+        const baseExplore = explores.find(
+            (e) => 'name' in e && e.name === 'test_model',
+        ) as Explore;
+        expect(baseExplore.tables.test_model.sqlWhere).toBeUndefined();
+    });
+
     it('should apply default show underlying values to metrics', () => {
         const table = convertTable(
             SupportedDbtAdapter.POSTGRES,
@@ -1235,6 +1376,108 @@ describe('explore-scoped additional dimensions', () => {
         expect(table.metrics.average_revenue.showUnderlyingValues).toEqual([
             'custom_field',
         ]);
+    });
+});
+
+describe('required/default filters on hidden dimensions', () => {
+    const createOrdersModel = (
+        defaultFilters: Array<Record<string, unknown>>,
+    ): DbtModelNode => ({
+        ...model,
+        name: 'orders',
+        alias: 'orders',
+        relation_name: 'orders',
+        columns: {
+            status: {
+                name: 'status',
+                data_type: DimensionType.STRING,
+                meta: {
+                    dimension: {
+                        type: DimensionType.STRING,
+                    },
+                },
+            },
+            credit_card_amount: {
+                name: 'credit_card_amount',
+                data_type: DimensionType.NUMBER,
+                meta: {
+                    dimension: {
+                        type: DimensionType.NUMBER,
+                        hidden: true,
+                    },
+                    additional_dimensions: {
+                        has_credit_card_payment: {
+                            type: DimensionType.BOOLEAN,
+                            label: 'Has credit card payment',
+                            sql: '${TABLE}.credit_card_amount > 0',
+                        },
+                    },
+                },
+            },
+        },
+        meta: {
+            default_filters:
+                defaultFilters as DbtModelNode['meta']['default_filters'],
+        },
+    });
+
+    it('should fail only the explore with hidden-dimension default filters and keep base explore valid', async () => {
+        const modelWithExploreScopedFilters: DbtModelNode = {
+            ...createOrdersModel([]),
+            meta: {
+                explores: {
+                    orders_news_portal: {
+                        label: 'Orders News Portal',
+                        default_filters: [
+                            {
+                                credit_card_amount: '>= 0',
+                                required: true,
+                            },
+                            {
+                                has_credit_card_payment: 'true',
+                                required: true,
+                            },
+                        ] as DbtModelNode['meta']['default_filters'],
+                    },
+                },
+            },
+        };
+
+        const explores = await convertExplores(
+            [modelWithExploreScopedFilters],
+            false,
+            SupportedDbtAdapter.POSTGRES,
+            [],
+            warehouseClientMock,
+            {
+                spotlight: DEFAULT_SPOTLIGHT_CONFIG,
+            },
+        );
+
+        const baseExplore = explores.find((e) => e.name === 'orders');
+        const exploreWithHiddenFilterError = explores.find(
+            (e) => e.name === 'orders_news_portal',
+        );
+
+        expect(baseExplore).toBeDefined();
+        expect(baseExplore && 'errors' in baseExplore).toBe(false);
+        expect(exploreWithHiddenFilterError).toBeDefined();
+        expect(
+            exploreWithHiddenFilterError &&
+                'errors' in exploreWithHiddenFilterError,
+        ).toBe(true);
+
+        if (
+            exploreWithHiddenFilterError &&
+            'errors' in exploreWithHiddenFilterError
+        ) {
+            expect(exploreWithHiddenFilterError.errors[0].message).toContain(
+                'credit_card_amount',
+            );
+            expect(exploreWithHiddenFilterError.errors[0].type).toBe(
+                InlineErrorType.METADATA_PARSE_ERROR,
+            );
+        }
     });
 });
 
@@ -1573,5 +1816,126 @@ describe('duplicate metric/dimension names', () => {
         expect(duplicateWarnings).toHaveLength(2);
         expect(duplicateWarnings[0].message).toContain('user_id');
         expect(duplicateWarnings[1].message).toContain('user_id2');
+    });
+});
+
+describe('convert_timezone dimension override', () => {
+    const buildModel = (
+        convertTimezoneValue: boolean | undefined,
+    ): DbtModelNode & { relation_name: string } => ({
+        ...model,
+        columns: {
+            created_at: {
+                name: 'created_at',
+                description: 'when the row was created',
+                data_type: DimensionType.TIMESTAMP,
+                meta: {
+                    dimension: {
+                        type: DimensionType.TIMESTAMP,
+                        ...(convertTimezoneValue !== undefined
+                            ? { convert_timezone: convertTimezoneValue }
+                            : {}),
+                        time_intervals: [TimeFrames.DAY, TimeFrames.MONTH_NUM],
+                    },
+                },
+            },
+        },
+    });
+
+    it('writes skipTimezoneConversion: true onto the compiled dimension and its time-interval children', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            buildModel(false),
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dimensions.created_at.skipTimezoneConversion).toBe(true);
+        expect(result.dimensions.created_at_day.skipTimezoneConversion).toBe(
+            true,
+        );
+        expect(
+            result.dimensions.created_at_month_num.skipTimezoneConversion,
+        ).toBe(true);
+    });
+
+    it('propagates skipTimezoneConversion onto custom-granularity children', () => {
+        const modelWithCustom: DbtModelNode & { relation_name: string } = {
+            ...model,
+            columns: {
+                created_at: {
+                    name: 'created_at',
+                    description: 'when the row was created',
+                    data_type: DimensionType.TIMESTAMP,
+                    meta: {
+                        dimension: {
+                            type: DimensionType.TIMESTAMP,
+                            convert_timezone: false,
+                            time_intervals: ['my_quarter'],
+                        },
+                    },
+                },
+            },
+        };
+        const result = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            modelWithCustom,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            undefined,
+            {
+                my_quarter: {
+                    label: 'My Quarter',
+                    sql: "DATE_TRUNC(${COLUMN}, 'QUARTER')",
+                },
+            },
+        );
+        expect(
+            result.dimensions.created_at_my_quarter.skipTimezoneConversion,
+        ).toBe(true);
+    });
+
+    it('still propagates skipTimezoneConversion when disableTimestampConversion is also set', () => {
+        // The two flags are independent — both should compose.
+        const result = convertTable(
+            SupportedDbtAdapter.SNOWFLAKE,
+            buildModel(false),
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+            undefined,
+            true,
+        );
+        expect(result.dimensions.created_at.skipTimezoneConversion).toBe(true);
+        expect(result.dimensions.created_at_day.skipTimezoneConversion).toBe(
+            true,
+        );
+        expect(
+            result.dimensions.created_at_month_num.skipTimezoneConversion,
+        ).toBe(true);
+        expect(result.dimensions.created_at.sql).not.toContain(
+            'CONVERT_TIMEZONE',
+        );
+    });
+
+    it('omits skipTimezoneConversion when convert_timezone is unset or true (default behavior)', () => {
+        const undef = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            buildModel(undefined),
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(
+            undef.dimensions.created_at.skipTimezoneConversion,
+        ).toBeUndefined();
+
+        const truthy = convertTable(
+            SupportedDbtAdapter.BIGQUERY,
+            buildModel(true),
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(
+            truthy.dimensions.created_at.skipTimezoneConversion,
+        ).toBeUndefined();
     });
 });

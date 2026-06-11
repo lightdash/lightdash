@@ -5,7 +5,8 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 ## Arguments
 
 - **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
-- **`start`**: Auto-detect state and run what's needed (fresh setup, migrations, or just start PM2). Uses shared base snapshot to bootstrap new instances fast.
+- **`start`**: Bring this instance up. Runs the deterministic `scripts/dev-fast-start.sh` first (idempotent, non-interactive — no agentic step-by-step); only falls back to agentic setup + **self-repair** if the script fails. Uses the shared base snapshot to bootstrap new instances fast.
+- **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): Same as `start`, but provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`) and runs the EE migration/seed pass. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
 - **`stop-all`**: Stop ALL instances — all PM2 processes, all per-instance PostgreSQL containers, shared services, and release all port slots. Use when shutting down for the day.
 - **`reset`**: Restore database from this instance's volume snapshot (fast, ~3 seconds). Fails if no snapshot exists.
@@ -90,8 +91,30 @@ test -f .env.development.local && echo "OK: Env file exists" || echo "NEED: Crea
 # Check 3: CLAUDE.local.md has local dev instructions
 grep -q "## Starting Development Services" CLAUDE.local.md 2>/dev/null && echo "OK: CLAUDE.local.md has local dev instructions" || echo "NEED: Add local dev instructions to CLAUDE.local.md"
 
-# Check 4: Dependencies installed
-test -d node_modules && test -d packages/common/dist && echo "OK: Dependencies installed" || echo "NEED: Run pnpm install and build"
+# Check 3b (EE): license present but EE migrations not yet applied → /health will 500
+# Only relevant when LIGHTDASH_LICENSE_KEY is in the env file. ai_agent_document is a recent EE
+# migration table, absent from the core-only shared base — so it detects a missing EE migration pass.
+if grep -q "^LIGHTDASH_LICENSE_KEY=" .env.development.local 2>/dev/null; then
+  EE_APPLIED=$(docker exec "${LD_CONTAINER_PREFIX}-db-dev-1" psql -U postgres -tAc "SELECT CASE WHEN EXISTS(SELECT 1 FROM information_schema.tables WHERE table_name='ai_agent_document') THEN 'yes' ELSE 'no' END" 2>/dev/null)
+  [ "$EE_APPLIED" = "yes" ] && echo "OK: EE license present and EE migrations applied" || echo "NEED: EE license present but EE migrations NOT applied — run Step EE-2 (or /health will 500)"
+else
+  echo "OK: No EE license (core-only instance)"
+fi
+
+# Check 4: Dependencies installed and generated build artifacts present
+#  - common/dist:                        compiled @lightdash/common
+#  - formula/dist/grammar/parser.js:     Peggy-generated parser (gitignored, requires `pnpm build:grammar`)
+#  - warehouses/.../ca-bundle-aws-redshift.crt: runtime asset copied by warehouses `copy-files` script
+# All three must exist or the scheduler will crash-loop with `Cannot find module '../grammar/parser'`
+# and ENOENT on the Redshift CA bundle.
+if test -d node_modules \
+  && test -f packages/common/dist/cjs/index.js \
+  && test -f packages/formula/dist/grammar/parser.js \
+  && test -f packages/warehouses/dist/warehouseClients/ca-bundle-aws-redshift.crt; then
+  echo "OK: Dependencies installed"
+else
+  echo "NEED: Run sfw pnpm install and build"
+fi
 
 # Check 5: Python/dbt environment ready
 test -f venv/bin/dbt && test -f venv/bin/dbt1.7 && echo "OK: Python/dbt ready" || echo "NEED: Set up Python venv"
@@ -176,9 +199,121 @@ esac
 
 ---
 
+## Enterprise Edition (EE) Mode
+
+Trigger when the user asks to start with **"ee"**, **"ee enabled"**, **"enterprise"**, or passes `start ee` / `start --ee`. Also auto-detect: if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`, treat the instance as EE for all migrate/seed/snapshot steps.
+
+### Why EE changes the flow
+
+The license key is read once at module load in `packages/backend/src/knexfile.ts`:
+
+```ts
+const hasEnterpriseLicense = !!lightdashConfig.license.licenseKey; // from process.env.LIGHTDASH_LICENSE_KEY
+```
+
+When truthy, knex **appends two extra directories**: `./ee/database/migrations` (70+ EE migrations) and `./ee/database/seeds/development`. The license also gates every EE *service provider* — without it, EE services throw `Unable to initialize service 'X' - no factory or provider`. (EE controllers are always registered, so a no-license call returns 422, not 404.)
+
+Consequences you MUST handle:
+
+1. **Migrations/seeds must run with the license in scope.** The standard migrate/seed commands load only `.env.development`, which does NOT contain the license — it lives in `.env.development.local`. Always also pass `-e .env.development.local` (first, so it wins) or `hasEnterpriseLicense` is false and the EE migration directory is silently skipped.
+2. **The shared base snapshot predates the license** — it's built core-only and shared with non-EE instances. After bootstrapping an EE instance from it, the DB has only core migrations. You MUST run an EE migration pass, or `/health` returns 500 (`Database has not been migrated yet`) because knex now resolves core + EE and sees the EE migrations as pending.
+3. **Snapshot AFTER the EE migration pass** so `/docker-dev reset` restores EE-migrated state. The standard Auto-Snapshot step already runs after migrations — just ensure the EE pass happens first.
+4. **Do NOT push EE state into the shared base.** Other instances may be non-EE and would see the EE tables / applied-out-of-list migrations. Leave `rebuild`'s shared-base refresh core-only.
+
+Two feature-gating layers are independent: the **license** (`LIGHTDASH_LICENSE_KEY`) controls whether EE wiring + EE schema exist at all; individual **feature flags** (`LIGHTDASH_ENABLE_FEATURE_FLAGS`) gate features inside an EE service. EE setup here only handles the license — flip feature flags separately if a specific feature needs them.
+
+### Step EE-1: Fetch the license key from 1Password
+
+The key lives in the 1Password item **"Development Lightdash EE license key"**, in the `password` field (a JWT starting `eyJ...`). The item's notes confirm the env var is `LIGHTDASH_LICENSE_KEY`. Use ONLY this development item — never customer-named license items (confidentiality policy).
+
+Append it to `.env.development.local` without echoing the secret:
+
+```bash
+printf 'LIGHTDASH_LICENSE_KEY=%s\n' \
+  "$(op item get "Development Lightdash EE license key" --fields label=password --reveal 2>/dev/null)" \
+  >> .env.development.local
+# verify without revealing the key:
+grep -q "^LIGHTDASH_LICENSE_KEY=eyJ" .env.development.local && echo "OK: license written" || echo "FAIL: license missing"
+```
+
+If `op` errors with a sign-in/auth failure, ask the user to run `! op signin` in the session, then retry.
+
+### Step EE-2: EE migration + seed pass
+
+Run **after** the env file has the license, and after bootstrap (or full migrate). The only difference from the standard commands is the extra `-e .env.development.local`:
+
+```bash
+# Apply core + EE migrations (license in scope → EE migration dir included)
+PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate
+
+# Confirm no pending migrations (this is what HealthService checks)
+PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+  pnpm -F backend exec knex migrate:status --knexfile src/knexfile.ts | tail -3   # expect "No Pending Migration files Found."
+```
+
+For seeds, the choice depends on the path:
+- **Bootstrapped instance** (core already seeded): run ONLY the EE seed so you don't re-seed core data:
+  ```bash
+  PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
+    pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts
+  ```
+- **Full setup** (first instance, empty schema): run the normal `pnpm -F backend seed` but with `-e .env.development.local -e .env.development` so core + EE seeds run together cleanly.
+
+### Step EE-3: Verify EE is wired
+
+```bash
+curl -s -o /dev/null -w "health HTTP %{http_code}\n" "http://localhost:$PORT/api/v1/health"   # expect 200, not 500
+pm2 logs "${LD_INSTANCE_ID}-api" --lines 200 --nostream 2>/dev/null \
+  | grep -iE "Enterprise license.*valid|no factory or provider"
+```
+
+Expect `Enterprise license for <site> is valid.` and no `no factory or provider` lines.
+
+### EE flow summary
+
+`start ee` runs the normal `start` flow with these insertions: after **Create Environment File** → **Step EE-1**; after **Bootstrap** (or **Run Migrations**) → **Step EE-2**; then the existing **Auto-Snapshot** and **Start PM2**; finally **Step EE-3** to verify.
+
+---
+
 ## `start`: Auto-detect and Setup
 
+**ALWAYS try the deterministic fast path first.** Only fall back to the agentic steps when the script fails — this is what keeps worktree iteration fast.
+
+### Fast path (do this first, every time)
+
+`scripts/dev-fast-start.sh` encodes the entire happy path of this section as one idempotent, non-interactive run. Run it directly instead of executing the steps below one at a time:
+
+```bash
+./scripts/dev-fast-start.sh          # core
+./scripts/dev-fast-start.sh --ee     # EE mode (or if .env.development.local already has a license)
+```
+
+Interpreting the result:
+
+- **Exit 0, ends with `READY: ...`** → done. Report the printed frontend/API/Spotlight URLs and start the **Monitor watchers** (see "Monitor Logs with Monitor Tool"). **Do not run any of the agentic steps below** — the environment is up.
+- **Non-zero exit with a `FAIL: <step> -- <reason>` line** → enter **self-repair** (next section). Do NOT blindly re-run the script; diagnose first.
+
+The script prints `STEP:`/`OK:`/`SKIP:` markers so you can see exactly how far it got. Steady-state runs (everything cached) finish in well under a minute; a fresh worktree pays for `pnpm install` + builds once.
+
+### Self-repair protocol (when the script fails)
+
+The `FAIL: <step> -- <reason>` line names the failing phase and usually the exact log command to inspect. Repair the **root cause**, then **patch the script so the same failure cannot recur** — that is how the fast path stays reliable as the codebase drifts.
+
+1. **Identify the failing step** from the `FAIL:` line (e.g. `health`, `migrate`, `deps`, `pm2`, `bootstrap`, `ee-migrate`).
+2. **Run the matching agentic step(s) below** to understand and fix the underlying problem (read logs, apply migrations, rebuild a package, free a port, etc.). The detailed steps in this file remain the source of truth for each phase.
+3. **Patch `scripts/dev-fast-start.sh`** so the fix is baked in for next time — e.g. add a reconciling command, widen a readiness wait, handle a new required build artifact. Keep the script's contract intact: `STEP:`/`OK:`/`SKIP:`/`FAIL:` markers, idempotent, exit 0 only after `/api/v1/health` returns 200.
+4. **Re-run `./scripts/dev-fast-start.sh`** to confirm it now reaches `READY:`.
+5. Mention the script change in your summary so it can be committed — repairs are version-controlled and shared across worktrees, not re-derived per machine.
+
+> Example: a stale shared base snapshot caused `FAIL: health -- ... Database has not been migrated yet`. The repair was an idempotent "Apply pending migrations" step after bootstrap; the script now reconciles drift automatically.
+
+If the script is **missing** (e.g. an older checkout) or you suspect its logic is stale relative to this document, regenerate it from these agentic steps and the script contract above, then commit it.
+
+### Agentic steps (fallback + first-instance reference)
+
 Run State Detection first. For each `NEED:`, run the corresponding setup step below. If all checks show `OK:`, just start PM2.
+
+**If EE mode** (see **Enterprise Edition (EE) Mode** above): after the env file is created, run **Step EE-1** (license), and after bootstrap/migrate run **Step EE-2** (EE migration + seed pass), then verify with **Step EE-3**.
 
 ### Start Docker Services
 
@@ -225,6 +360,8 @@ fi
 
 **After bootstrapping, skip directly to "Auto-Snapshot" and "Start PM2".**
 
+> **EE mode:** the shared base is core-only, so a bootstrapped EE instance still needs an EE migration pass. After bootstrap, run **Step EE-2** (EE migration + seed pass) BEFORE the Auto-Snapshot, or `/health` will 500 on pending EE migrations.
+
 ### Create Environment File
 
 ```bash
@@ -262,6 +399,8 @@ EOF
 echo "DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo" >> .env.development.local
 ```
 
+> **EE mode:** now run **Step EE-1** to append `LIGHTDASH_LICENSE_KEY` from 1Password to this file, before any migrate/seed runs.
+
 ### Add Local Dev Instructions to CLAUDE.local.md
 
 Append to `CLAUDE.local.md` (creates file if it doesn't exist):
@@ -289,6 +428,18 @@ pm2 restart ${LD_INSTANCE_ID}-api       # Restart only the API server
 pm2 restart ${LD_INSTANCE_ID}-scheduler # Restart only the scheduler
 pm2 restart ${LD_INSTANCE_ID}-frontend  # Restart only the frontend
 \`\`\`
+
+### Picking up new env vars
+
+\`pm2 restart --update-env\` only inherits env from the **current shell**, not from \`.env.development.local\`. The dotenv loader inside Node only runs at *spawn* time, so PM2's cached env wins on restart. After editing the env file:
+
+\`\`\`bash
+pm2 delete ${LD_INSTANCE_ID}-api && pnpm pm2:start   # reliable path
+# or, set the var in the shell first:
+# export FLAG=value && pm2 restart ${LD_INSTANCE_ID}-api --update-env
+\`\`\`
+
+Symptom if you forget: you change a flag, restart, and nothing changes. \`pm2 jlist\` will still show the old value.
 
 ## Debugging
 
@@ -379,12 +530,15 @@ fi
 
 ### Install Dependencies
 
+Ensure [Socket Firewall Free](https://github.com/SocketDev/sfw-free) is available on the machine, then run the install through `sfw` so known-malicious packages are blocked at download time:
+
 ```bash
-pnpm install
-pnpm -F common build && pnpm -F warehouses build
+command -v sfw >/dev/null 2>&1 || npm i -g sfw
+sfw pnpm install
+pnpm -F common build && pnpm -F warehouses build && pnpm -F @lightdash/formula build
 ```
 
-If `pnpm install` fails with canvas errors: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
+If `sfw pnpm install` fails with canvas errors: https://github.com/Automattic/node-canvas?tab=readme-ov-file#installation
 
 ### Set Up Python/dbt
 
@@ -401,6 +555,8 @@ ln -sf dbt venv/bin/dbt1.7
 PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend migrate
 ```
 
+> **EE mode:** add `-e .env.development.local` (first) so the license is in scope and the EE migration directory is included: `pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate`. See **Step EE-2**.
+
 ### Seed Database (skip if bootstrapped)
 
 ```bash
@@ -408,6 +564,8 @@ export PATH="$(pwd)/venv/bin:$PATH"
 export DBT_DEMO_DIR=$(pwd)/examples/full-jaffle-shop-demo
 PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development -- pnpm -F backend seed
 ```
+
+> **EE mode (full setup):** also pass `-e .env.development.local` so core + EE seeds run together on the empty schema.
 
 ### Build dbt Models (skip if bootstrapped)
 
@@ -457,7 +615,7 @@ fi
 If PM2 shows `MISMATCH`, delete this instance's processes first:
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
 ```
 
 Then start:
@@ -465,6 +623,44 @@ Then start:
 ```bash
 pnpm pm2:start
 ```
+
+### Monitor Logs with Monitor Tool
+
+After PM2 is running, start **two persistent Monitor watchers** to stream backend and frontend errors in real-time. These run for the lifetime of the session — you'll be notified whenever an error or warning appears without needing to poll logs.
+
+**Backend monitor** (API + scheduler errors/warnings):
+
+Use the **Monitor tool** with:
+- description: `Backend errors (API + scheduler)`
+- persistent: `true`
+- command:
+```bash
+pm2 logs "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" --raw 2>/dev/null | grep --line-buffered -E '(\[31m| error: |ERR!|unhandled|ECONNREFUSED|EADDRINUSE|crash|fatal|Cannot find module|TypeError:|ReferenceError:|SyntaxError:|DatabaseError)' | grep --line-buffered -v -E '(last [0-9]+ lines|TAILING|^$)'
+```
+
+**Filter design notes:**
+- `\[31m` matches ANSI red (error-level log lines in raw pm2 output)
+- ` error: ` (with spaces) matches the log-level field without catching `"0 errors"` in info messages
+- `DatabaseError` catches migration/connection issues specifically
+- The `-v` pipeline excludes pm2 metadata lines (TAILING headers, blank lines)
+
+**Frontend monitor** (Vite build errors and warnings):
+
+Use the **Monitor tool** with:
+- description: `Frontend errors (Vite)`
+- persistent: `true`
+- command:
+```bash
+pm2 logs "${LD_INSTANCE_ID}-frontend" --raw 2>/dev/null | grep --line-buffered -E '(ERROR|ELIFECYCLE|✘|Build failed|Could not resolve|Failed to)' | grep --line-buffered -v -E '(last [0-9]+ lines|TAILING|^$)'
+```
+
+**Launch both monitors in parallel** (two Monitor tool calls in a single message). They filter for actionable signals only — not raw log streams — so you won't be overwhelmed.
+
+If a monitor fires, investigate the error. Common responses:
+- **EADDRINUSE**: Port conflict — run `./scripts/dev-ports.sh gc` then restart the process
+- **Cannot find module**: Missing build — run `pnpm -F common build`
+- **ECONNREFUSED on 5432**: PostgreSQL container down — restart with `docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml up -d`
+- **TypeErrors/build failures**: Code issue — read the full log with `pm2 logs ${LD_INSTANCE_ID}-api --lines 50 --nostream`
 
 **Instance-specific PM2 commands:**
 
@@ -489,7 +685,7 @@ pnpm pm2:start
 Stop this instance's services. Shared services and other instances are not affected.
 
 ```bash
-pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
+pm2 delete "${LD_INSTANCE_ID}-api" "${LD_INSTANCE_ID}-scheduler" "${LD_INSTANCE_ID}-frontend" "${LD_INSTANCE_ID}-common-watch" "${LD_INSTANCE_ID}-formula-watch" "${LD_INSTANCE_ID}-warehouses-watch" "${LD_INSTANCE_ID}-sdk-test" "${LD_INSTANCE_ID}-spotlight" 2>/dev/null || true
 
 docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml down
 
@@ -507,7 +703,7 @@ Stop ALL instances, shared services, and release all port slots.
 for f in ~/.lightdash/dev-instances/*.json; do
   [ -f "$f" ] || continue
   INST_ID=$(python3 -c "import json; print(json.load(open('$f'))['instanceId'])")
-  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
+  pm2 delete "${INST_ID}-api" "${INST_ID}-scheduler" "${INST_ID}-frontend" "${INST_ID}-common-watch" "${INST_ID}-formula-watch" "${INST_ID}-warehouses-watch" "${INST_ID}-sdk-test" "${INST_ID}-spotlight" 2>/dev/null || true
 done
 
 for f in ~/.lightdash/dev-instances/*.json; do
@@ -575,7 +771,9 @@ PGHOST=localhost PGPORT=$LD_PG_PORT PGUSER=postgres PGPASSWORD=password PGDATABA
   "$(pwd)/venv/bin/dbt" run --project-dir examples/full-jaffle-shop-demo/dbt --profiles-dir examples/full-jaffle-shop-demo/profiles
 ```
 
-After completion, take an instance snapshot (see "Auto-Snapshot" in `start`). Also update the shared base snapshot so future instances get the latest:
+> **EE mode:** add `-e .env.development.local` to BOTH the migrate and seed commands above so the EE migrations/seeds are included. Do NOT refresh the shared base from an EE rebuild (next step) — keep the shared base core-only for non-EE instances. See **Enterprise Edition (EE) Mode**.
+
+After completion, take an instance snapshot (see "Auto-Snapshot" in `start`). Also update the shared base snapshot so future instances get the latest (**core-only instances only** — skip this for EE rebuilds):
 
 ```bash
 docker compose -p "$LD_COMPOSE_PROJECT" -f docker/docker-compose.dev.instance.yml stop db-dev

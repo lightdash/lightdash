@@ -5,6 +5,8 @@ import {
     AiArtifact,
     FollowUpTools,
     followUpToolsText,
+    isToolEditDbtProjectResult,
+    isToolProposeChangeResult,
     parseVizConfig,
     SlackPrompt,
     type Explore,
@@ -76,6 +78,22 @@ export const getTextBlocks = (
             text: chunk,
         },
     }));
+
+/**
+ * Converts standard markdown into Slack `markdown` blocks. Unlike `mrkdwn`
+ * inside a section block, the markdown block natively renders GitHub-flavoured
+ * markdown including tables, task lists, code blocks with language hints, etc.
+ *
+ * Pass the agent's raw markdown response here — no slackifyMarkdown needed.
+ */
+export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
+    chunkSlackText(text).map(
+        (chunk) =>
+            ({
+                type: 'markdown',
+                text: chunk,
+            }) as unknown as Block,
+    );
 
 /**
  * Returns compact Slack blocks showing a "thinking" animation with a GIF.
@@ -212,61 +230,62 @@ export function getFollowUpToolBlocks(
     ];
 }
 
+// Tool names whose successful results count as "an answer the user can score".
+// Discovery tools (findExplores, findFields, listWarehouseTables,
+// describeWarehouseTable) are deliberately excluded — they don't deliver a
+// final answer, only context for the agent.
+const ANSWER_PRODUCING_TOOLS = new Set([
+    'generateVisualization',
+    'runQuery',
+    'runContentQuery',
+    'runSql',
+    'runSavedChart',
+    'generateDashboard',
+    'editDbtProject',
+]);
+
+// One compact footer: small "How did I do?" header + a single row with
+// thumbs and the chat permalink. Only rendered when at least one
+// answer-producing tool succeeded for this prompt.
 export function getFeedbackBlocks(
     slackPrompt: SlackPrompt,
-    artifacts?: AiArtifact[],
+    toolResults: AiAgentToolResult[],
+    agentUuid: string,
+    siteUrl: string,
 ): (Block | KnownBlock)[] {
-    // TODO: Assuming each thread has just one artifact for now
-    // Show feedback blocks if we have artifacts with visualizations
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Check if any artifacts have chart or dashboard configs
-    const hasVisualization = artifacts.some(
-        (artifact) => artifact.chartConfig || artifact.dashboardConfig,
+    const hasAnswer = toolResults.some(
+        (r) =>
+            ANSWER_PRODUCING_TOOLS.has(r.toolName) &&
+            (r.metadata as { status?: string } | null)?.status === 'success',
     );
+    if (!hasAnswer) return [];
 
-    if (!hasVisualization) {
-        return [];
-    }
-
+    const threadUrl = `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`;
     return [
-        {
-            type: 'divider',
-        },
-        {
-            type: 'context',
-            elements: [
-                {
-                    type: 'plain_text',
-                    text: `🤖 How did I do?`,
-                },
-            ],
-        },
         {
             block_id: 'prompt_human_score',
             type: 'actions',
             elements: [
                 {
                     type: 'button',
-                    text: {
-                        type: 'plain_text',
-                        text: '👍',
-                        emoji: true,
-                    },
+                    text: { type: 'plain_text', text: '👍', emoji: true },
                     value: slackPrompt.promptUuid,
                     action_id: 'prompt_human_score.upvote',
                 },
                 {
                     type: 'button',
-                    text: {
-                        type: 'plain_text',
-                        text: '👎',
-                        emoji: true,
-                    },
+                    text: { type: 'plain_text', text: '👎', emoji: true },
                     value: slackPrompt.promptUuid,
                     action_id: 'prompt_human_score.downvote',
+                },
+                {
+                    type: 'button',
+                    text: {
+                        type: 'plain_text',
+                        text: 'View chat in Lightdash',
+                    },
+                    url: threadUrl,
+                    action_id: 'view_chat_in_lightdash',
                 },
             ],
         },
@@ -381,34 +400,17 @@ export function getDeepLinkBlocks(
     siteUrl: string,
     artifacts?: AiArtifact[],
 ): (Block | KnownBlock)[] {
-    // TODO: Assuming each thread has just one artifact for now
-    // Show debug link when there are artifacts to inspect
-    if (!artifacts || artifacts.length === 0) {
-        return [];
-    }
-
-    // Check if any artifacts have dashboard configs
+    // Prominent "View Dashboard" link only — the regular "View chat in
+    // Lightdash" link now lives inside the unified feedback row.
+    if (!artifacts || artifacts.length === 0) return [];
     const hasDashboard = artifacts.some((artifact) => artifact.dashboardConfig);
-
-    // Add prominent dashboard link if dashboard artifact exists
-    if (hasDashboard) {
-        return [
-            {
-                type: 'section',
-                text: {
-                    type: 'mrkdwn',
-                    text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
-                },
-            },
-        ];
-    }
-
+    if (!hasDashboard) return [];
     return [
         {
             type: 'section',
             text: {
                 type: 'mrkdwn',
-                text: `<${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View chat in Lightdash ⚡️>`,
+                text: `📊 <${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}|View Dashboard in Lightdash ⚡️>`,
             },
         },
     ];
@@ -423,9 +425,7 @@ export function getProposeChangeBlocks(
         return [];
     }
 
-    const proposeChangeResults = toolResults.filter(
-        (result) => result.toolName === 'proposeChange',
-    );
+    const proposeChangeResults = toolResults.filter(isToolProposeChangeResult);
 
     if (proposeChangeResults.length === 0) {
         return [];
@@ -466,6 +466,44 @@ export function getProposeChangeBlocks(
                     },
                 },
             ],
+        },
+    ];
+}
+
+export function getEditDbtProjectBlocks(
+    toolResults?: AiAgentToolResult[],
+): (Block | KnownBlock)[] {
+    if (!toolResults || toolResults.length === 0) {
+        return [];
+    }
+
+    const prUrls = toolResults
+        .filter(isToolEditDbtProjectResult)
+        .map((result) =>
+            result.metadata.status === 'success' ? result.metadata.prUrl : null,
+        )
+        .filter((prUrl): prUrl is string => Boolean(prUrl));
+
+    if (prUrls.length === 0) {
+        return [];
+    }
+
+    return [
+        {
+            type: 'divider',
+        },
+        {
+            type: 'actions',
+            elements: prUrls.map((prUrl, index) => ({
+                type: 'button',
+                url: prUrl,
+                style: 'primary',
+                action_id: `actions.view_pull_request_button_click.${index}`,
+                text: {
+                    type: 'plain_text',
+                    text: 'View pull request',
+                },
+            })),
         },
     ];
 }
@@ -591,6 +629,91 @@ export function getAgentSelectionBlocks(
                             channelId,
                             shouldSkipForwardingQuery,
                         }),
+                    })),
+                },
+            ],
+        },
+    ];
+}
+
+// At or below this many projects we render quick-tap buttons; above it we fall
+// back to a dropdown to avoid a wall of buttons.
+const PROJECT_SELECTION_BUTTON_THRESHOLD = 3;
+
+export function getProjectSelectionBlocks(
+    projects: { projectUuid: string; name: string }[],
+    channelId: string,
+): (Block | KnownBlock)[] {
+    const truncateText = (text: string, maxLength: number): string => {
+        if (text.length <= maxLength) return text;
+        return `${text.substring(0, maxLength - 3)}...`;
+    };
+
+    const promptBlock: Block | KnownBlock = {
+        type: 'section',
+        text: {
+            type: 'mrkdwn',
+            text: ':open_file_folder: *Which project would you like to use?*\n\nThis organization has multiple projects, so pick the one I should work in.',
+        },
+    };
+
+    // The project name is round-tripped through the action value so the
+    // handler can name the project in its confirmation message without an
+    // extra DB lookup. Truncated to match the visible label, and well within
+    // Slack's ~2000-char limit for `value`.
+    const buildSelectionValue = (project: {
+        projectUuid: string;
+        name: string;
+    }): string =>
+        JSON.stringify({
+            projectUuid: project.projectUuid,
+            channelId,
+            projectName: truncateText(project.name, 75),
+        });
+
+    // Few projects: one button each for a single tap.
+    if (projects.length <= PROJECT_SELECTION_BUTTON_THRESHOLD) {
+        return [
+            promptBlock,
+            {
+                type: 'actions',
+                block_id: 'project_selection',
+                elements: projects.map((project, index) => ({
+                    type: 'button',
+                    // Unique per button; handler matches the select_project prefix.
+                    action_id: `select_project:${index}`,
+                    // Slack caps button text at 75 characters.
+                    text: {
+                        type: 'plain_text',
+                        text: truncateText(project.name, 75),
+                    },
+                    value: buildSelectionValue(project),
+                })),
+            },
+        ];
+    }
+
+    // Many projects: a dropdown keeps the message compact.
+    return [
+        promptBlock,
+        {
+            type: 'actions',
+            block_id: 'project_selection',
+            elements: [
+                {
+                    type: 'static_select',
+                    action_id: 'select_project',
+                    placeholder: {
+                        type: 'plain_text',
+                        text: 'Choose a project...',
+                    },
+                    // Slack caps option text at 75 characters.
+                    options: projects.map((project) => ({
+                        text: {
+                            type: 'plain_text',
+                            text: truncateText(project.name, 75),
+                        },
+                        value: buildSelectionValue(project),
                     })),
                 },
             ],

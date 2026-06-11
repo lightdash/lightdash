@@ -31,6 +31,7 @@ export type TilePreAggregateStatus = {
     hit: boolean;
     preAggregateName: string | null;
     reason: PreAggregateMatchMiss | null;
+    reasonFieldLabel: string | null;
     hasPreAggregateMetadata: boolean;
     tabUuid: string | null | undefined;
 };
@@ -60,6 +61,7 @@ export type DashboardContextType = {
     isFetchingDashboardFilters: boolean;
     resetDashboardFilters: () => void;
     setDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
+    setOriginalDashboardFilters: Dispatch<SetStateAction<DashboardFilters>>;
     setDashboardTemporaryFilters: Dispatch<SetStateAction<DashboardFilters>>;
     addDimensionDashboardFilter: (
         filter: DashboardFilterRule,
@@ -131,6 +133,10 @@ export type DashboardContextType = {
     toggleParameterPin: (parameterKey: string) => void;
     havePinnedParametersChanged: boolean;
     setHavePinnedParametersChanged: Dispatch<SetStateAction<boolean>>;
+    parameterOrder: string[];
+    setParameterOrder: (order: string[]) => void;
+    hasParameterOrderChanged: boolean;
+    setHasParameterOrderChanged: Dispatch<SetStateAction<boolean>>;
     dateZoomGranularities: (DateGranularity | string)[];
     setDateZoomGranularities: (
         granularities: (DateGranularity | string)[],

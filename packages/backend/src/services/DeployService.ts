@@ -1,5 +1,7 @@
 import { subject } from '@casl/ability';
 import {
+    Account,
+    calculateExploreWarningReport,
     DeploySessionStatus,
     Explore,
     ExploreError,
@@ -7,6 +9,8 @@ import {
     NotFoundError,
     ProjectType,
     SessionUser,
+    type ApiDeployExploresResults,
+    type ProjectDefaults,
 } from '@lightdash/common';
 import { DeploySessionModel } from '../models/DeploySessionModel';
 import { ProjectModel } from '../models/ProjectModel/ProjectModel';
@@ -18,14 +22,16 @@ export type DeployExploreEnhancer = (
 ) => (Explore | ExploreError)[];
 
 type ProjectServiceInterface = {
-    saveExploresToCacheAndIndexCatalog: (
-        userUuid: string,
-        projectUuid: string,
-        explores: (Explore | ExploreError)[],
-        compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project',
-        jobUuid?: string | null,
-        requestMethod?: string | null,
-    ) => Promise<string>;
+    saveExploresToCacheAndIndexCatalog: (args: {
+        userUuid: string;
+        projectUuid: string;
+        explores: (Explore | ExploreError)[];
+        compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project';
+        jobUuid?: string | null;
+        requestMethod?: string | null;
+        projectConfigDefaults?: ProjectDefaults;
+        cliVersion?: string | null;
+    }) => Promise<string>;
 };
 
 type DeployServiceArguments = {
@@ -57,7 +63,7 @@ export class DeployService extends BaseService {
     }
 
     async startDeploySession(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
     ): Promise<{ deploySessionUuid: string }> {
         // Check deploy permission
@@ -66,14 +72,19 @@ export class DeployService extends BaseService {
 
         // manage:DeployProject for non-preview projects (restrictable via custom roles)
         // manage:DeployProject@self for preview projects created by the user
+        const auditedAbility = this.createAuditedAbility(account);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'manage',
                 subject('DeployProject', {
                     projectUuid,
                     organizationUuid: project.organizationUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
+                    metadata: {
+                        projectUuid,
+                        projectName: project.name,
+                    },
                 }),
             )
         ) {
@@ -85,7 +96,7 @@ export class DeployService extends BaseService {
         // Create a new deploy session
         const sessionUuid = await this.deploySessionModel.createSession(
             projectUuid,
-            user.userUuid,
+            account.user.id,
         );
 
         this.logger.info(
@@ -168,7 +179,8 @@ export class DeployService extends BaseService {
         user: SessionUser,
         projectUuid: string,
         sessionUuid: string,
-    ): Promise<{ exploreCount: number; status: DeploySessionStatus }> {
+        cliVersion?: string | null,
+    ): Promise<ApiDeployExploresResults & { status: DeploySessionStatus }> {
         const session = await this.deploySessionModel.getSession(sessionUuid);
 
         // Validate ownership
@@ -209,14 +221,15 @@ export class DeployService extends BaseService {
 
             // Use the existing saveExploresToCache method from ProjectService
             // This ensures we maintain the same validation and caching logic
-            await this.projectService.saveExploresToCacheAndIndexCatalog(
-                user.userUuid,
+            await this.projectService.saveExploresToCacheAndIndexCatalog({
+                userUuid: user.userUuid,
                 projectUuid,
                 explores,
-                'cli_deploy',
-                null,
-                'cli',
-            );
+                compilationSource: 'cli_deploy',
+                jobUuid: null,
+                requestMethod: 'cli',
+                cliVersion,
+            });
 
             // Schedule validation (same as in original finalizeDeploy)
             const project =
@@ -239,6 +252,7 @@ export class DeployService extends BaseService {
 
             return {
                 exploreCount: explores.length,
+                warnings: calculateExploreWarningReport({ explores }),
                 status: DeploySessionStatus.COMPLETED,
             };
         } catch (error) {

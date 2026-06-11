@@ -641,4 +641,75 @@ describe('MetricQueryBuilder snapshot: period-over-period queries', () => {
             }),
         ).toMatchSnapshot();
     });
+
+    // Covers PoP plus a separate fanout-protected metric in the same query.
+    // The generated PoP metric must only be emitted from shifted PoP CTEs.
+    test('matches snapshot for period-over-period query combined with fanout metric CTEs', () => {
+        expect(
+            buildQuery({
+                explore: POP_TEST_COUNTRY_FANOUT_EXPLORE,
+                compiledMetricQuery: {
+                    ...POP_TEST_COUNTRY_FANOUT_METRIC_QUERY,
+                    dimensions: ['country_orders_order_date_year'],
+                    metrics: [
+                        'country_orders_total_order_amount',
+                        POP_TEST_COUNTRY_FANOUT_POP_METRIC_ID,
+                        'order_currencies_total_converted_amount',
+                    ],
+                },
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // Covers PoP selected without the base metric while another metric requires fanout CTEs.
+    // The generated PoP metric still needs its base metric to be materialized in shifted PoP CTEs.
+    test('matches snapshot for period-over-period fanout query without selecting the base metric', () => {
+        expect(
+            buildQuery({
+                explore: POP_TEST_COUNTRY_FANOUT_EXPLORE,
+                compiledMetricQuery: {
+                    ...POP_TEST_COUNTRY_FANOUT_METRIC_QUERY,
+                    dimensions: ['country_orders_order_date_year'],
+                    metrics: [
+                        POP_TEST_COUNTRY_FANOUT_POP_METRIC_ID,
+                        'order_currencies_total_converted_amount',
+                    ],
+                },
+            }),
+        ).toMatchSnapshot();
+    });
+
+    // Covers PoP used only in a metric filter while fanout CTEs are required.
+    // The filtered PoP metric must still be materialized before post-agg filtering.
+    test('matches snapshot for filter-only period-over-period metric with fanout CTEs', () => {
+        expect(
+            buildQuery({
+                explore: POP_TEST_COUNTRY_FANOUT_EXPLORE,
+                compiledMetricQuery: {
+                    ...POP_TEST_COUNTRY_FANOUT_METRIC_QUERY,
+                    dimensions: ['country_orders_order_date_year'],
+                    metrics: [
+                        'country_orders_total_order_amount',
+                        'order_currencies_total_converted_amount',
+                    ],
+                    filters: {
+                        metrics: {
+                            id: 'root',
+                            and: [
+                                {
+                                    id: 'previous-year-total',
+                                    target: {
+                                        fieldId:
+                                            POP_TEST_COUNTRY_FANOUT_POP_METRIC_ID,
+                                    },
+                                    operator: FilterOperator.GREATER_THAN,
+                                    values: [100],
+                                },
+                            ],
+                        },
+                    },
+                },
+            }),
+        ).toMatchSnapshot();
+    });
 });

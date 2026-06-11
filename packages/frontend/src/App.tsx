@@ -7,6 +7,8 @@ import {
     CommercialMobileRoutes,
     CommercialWebAppRoutes,
 } from './ee/CommercialRoutes';
+import { AiAgentsGlobalProvider } from './ee/features/aiCopilot/components/Launcher/AiAgentsGlobalProvider';
+import { parseEmbedThemeParams } from './ee/providers/Embed/parseEmbedThemeParams';
 import ErrorBoundary from './features/errorBoundary/ErrorBoundary';
 import { SourceCodeEditorProvider } from './features/sourceCodeEditor';
 import ChartColorMappingContextProvider from './hooks/useChartColorConfig/ChartColorMappingContextProvider';
@@ -32,6 +34,14 @@ const isMobile = window.innerWidth < 768;
 
 const isMinimalPage = window.location.pathname.startsWith('/minimal');
 
+// On embed routes, force the color scheme from the ?theme= URL param without
+// persisting it to localStorage. This keeps the embed in its configured theme
+// while never overriding the viewer's own (shared, cross-tab) theme preference.
+// `undefined` everywhere else, so non-embed routes are unaffected.
+const embedForcedColorScheme = window.location.pathname.startsWith('/embed')
+    ? parseEmbedThemeParams().theme
+    : undefined;
+
 // Sentry wrapper for createBrowserRouter
 const sentryCreateBrowserRouter =
     wrapCreateBrowserRouterV7(createBrowserRouter);
@@ -53,7 +63,9 @@ const router = sentryCreateBrowserRouter([
                                         <SchedulerJobsProvider>
                                             <ChartColorMappingContextProvider>
                                                 <SourceCodeEditorProvider>
-                                                    <Outlet />
+                                                    <AiAgentsGlobalProvider>
+                                                        <Outlet />
+                                                    </AiAgentsGlobalProvider>
                                                 </SourceCodeEditorProvider>
                                             </ChartColorMappingContextProvider>
                                         </SchedulerJobsProvider>
@@ -75,8 +87,13 @@ const App = () => (
         <DocumentTitle />
 
         <ReactQueryProvider>
-            <MantineProvider withGlobalStyles withNormalizeCSS withCSSVariables>
-                <Mantine8Provider>
+            <MantineProvider
+                withGlobalStyles
+                withNormalizeCSS
+                withCSSVariables
+                forceColorScheme={embedForcedColorScheme}
+            >
+                <Mantine8Provider forceColorScheme={embedForcedColorScheme}>
                     <ModalsProvider>
                         <RouterProvider router={router} />
                     </ModalsProvider>

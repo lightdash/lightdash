@@ -9,7 +9,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN npm i -g corepack@latest
 RUN corepack enable
-RUN corepack prepare pnpm@9.15.5 --activate
+RUN corepack prepare pnpm@10.33.0 --activate
 RUN pnpm config set store-dir /pnpm/store
 
 WORKDIR /usr/app
@@ -183,6 +183,7 @@ COPY packages/common/package.json ./packages/common/
 COPY packages/formula/package.json ./packages/formula/
 COPY packages/warehouses/package.json ./packages/warehouses/
 COPY packages/backend/package.json ./packages/backend/
+COPY packages/backend/src/ee/services/McpService/mcp-chart-app/package.json ./packages/backend/src/ee/services/McpService/mcp-chart-app/
 COPY packages/frontend/package.json ./packages/frontend/
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
@@ -236,11 +237,8 @@ COPY packages/backend/tsconfig.json ./packages/backend/
 COPY packages/backend/tsconfig.sentry.json ./packages/backend/
 COPY packages/backend/src/ ./packages/backend/src/
 
-# Build MCP chart app (standalone Vite project, not in pnpm workspace)
-RUN cd packages/backend/src/ee/services/McpService/mcp-chart-app \
-    && npm install --ignore-scripts \
-    && npm run build \
-    && rm -rf node_modules
+# Build MCP chart app (pnpm workspace member — deps already installed in prod-builder)
+RUN pnpm -F @lightdash/mcp-chart-app build
 
 ARG SENTRY_AUTH_TOKEN=""
 ARG SENTRY_ORG=""
@@ -260,9 +258,10 @@ RUN --mount=type=secret,id=TURBO_TOKEN \
     turbo build --filter=backend; \
     fi
 
-# Build frontend package  
+# Build frontend package
 FROM prod-builder AS build-frontend
 COPY --from=build-common /usr/app/packages/common/ ./packages/common/
+COPY --from=build-formula /usr/app/packages/formula/ ./packages/formula/
 COPY packages/frontend ./packages/frontend
 
 ARG SENTRY_AUTH_TOKEN=""

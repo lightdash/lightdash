@@ -4,6 +4,7 @@ import {
     Explore,
     ExploreError,
     LightdashProjectConfig,
+    ProjectContextEntry,
 } from '@lightdash/common';
 import { WarehouseCatalog } from '@lightdash/warehouses';
 
@@ -36,6 +37,8 @@ export interface ProjectAdapter {
     getLightdashProjectConfig(
         trackingParams: TrackingParams | undefined,
     ): Promise<LightdashProjectConfig>;
+
+    getProjectContext(): Promise<ProjectContextEntry[]>;
 }
 
 export interface DbtClient {

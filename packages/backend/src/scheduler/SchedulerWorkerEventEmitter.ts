@@ -6,6 +6,7 @@ import { Job, Worker } from 'graphile-worker/dist/interfaces';
 import ExecutionContext from 'node-execution-context';
 import Logger from '../logging/logger';
 import { ExecutionContextInfo } from '../logging/winston';
+import { SchedulerWorkerHealth } from './SchedulerWorkerHealth';
 
 class EventEmitterWithExecutionContent
     extends EventEmitter
@@ -119,5 +120,18 @@ schedulerWorkerEventEmitter.on('job:complete', ({ worker, job }) => {
         `Worker ${worker.workerId} concluded job ${job.id} (${job.task_identifier})`,
     );
 });
+
+// Worker-aware liveness signals: graphile-worker 0.13 emits
+// pool:listen:success when LISTEN is established and pool:listen:error
+// when the LISTEN client dies. Job start/complete feed the activity clock.
+export function wireWorkerHealthEvents(
+    emitter: WorkerEvents,
+    health: SchedulerWorkerHealth,
+): void {
+    emitter.on('pool:listen:success', () => health.markListenUp());
+    emitter.on('pool:listen:error', () => health.markListenLost());
+    emitter.on('job:start', () => health.markJobStarted());
+    emitter.on('job:complete', () => health.markJobCompleted());
+}
 
 export default schedulerWorkerEventEmitter;

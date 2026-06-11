@@ -608,7 +608,7 @@ describe('getDateZoomCapabilities', () => {
         });
     });
 
-    it('does not include custom granularities from unrelated base dimensions', () => {
+    it('exposes every custom granularity defined in the explore, regardless of which dim the chart currently queries', () => {
         const orderDate = makeDimension({
             name: 'order_date',
             table: 'orders',
@@ -628,11 +628,17 @@ describe('getDateZoomCapabilities', () => {
             label: 'Shipped Fiscal Quarter',
         });
         const explore = makeExplore([orderDate, shippedDate, shippedFiscal]);
-        // Only querying order_date — should NOT pick up shipped_date's custom granularities
+        // Even though the chart only queries order_date, fiscal_quarter is
+        // still surfaced. Dashboard-level date-zoom availability must not
+        // depend on which dim a tile's metricQuery happens to reference,
+        // otherwise configured customs get stripped whenever explore
+        // discovery races with chart-query loading (PROD-7514).
         const metricQuery = makeMetricQuery(['orders_order_date']);
 
         const result = getDateZoomCapabilities(explore, metricQuery);
 
-        expect(result.availableCustomGranularities).toEqual({});
+        expect(result.availableCustomGranularities).toEqual({
+            fiscal_quarter: 'Shipped Fiscal Quarter',
+        });
     });
 });

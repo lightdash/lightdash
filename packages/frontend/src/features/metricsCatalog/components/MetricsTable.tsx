@@ -1,6 +1,5 @@
 import {
     assertUnreachable,
-    FeatureFlags,
     SpotlightTableColumns,
     type CatalogCategoryFilterMode,
     type CatalogItem,
@@ -8,14 +7,12 @@ import {
 import {
     Anchor,
     Box,
-    Button,
     Center,
     Divider,
     Group,
     Paper,
     Text,
     useMantineTheme,
-    type PaperProps,
 } from '@mantine/core';
 import {
     IconArrowDown,
@@ -23,13 +20,6 @@ import {
     IconArrowUp,
 } from '@tabler/icons-react';
 import { useIsMutating } from '@tanstack/react-query';
-import { ReactFlowProvider } from '@xyflow/react';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_SortingState,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
 import {
     useCallback,
     useDeferredValue,
@@ -40,10 +30,14 @@ import {
     type FC,
     type UIEvent,
 } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableSortingState,
+    type ContentTableVirtualizer,
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import SuboptimalState from '../../../components/common/SuboptimalState/SuboptimalState';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
 import { useAppDispatch, useAppSelector } from '../../sqlRunner/store/hooks';
@@ -51,7 +45,6 @@ import {
     MIN_METRICS_CATALOG_SEARCH_LENGTH,
     useMetricsCatalog,
 } from '../hooks/useMetricsCatalog';
-import { useAllMetricsTreeEdges } from '../hooks/useMetricsTree';
 import { useSpotlightTableConfig } from '../hooks/useSpotlightTable';
 import {
     setCategoryFilterMode,
@@ -64,7 +57,6 @@ import {
     toggleMetricExploreModal,
 } from '../store/metricsCatalogSlice';
 import { MetricCatalogView } from '../types';
-import Canvas from './Canvas';
 import { MetricExploreModal } from './MetricExploreModal';
 import { MetricsCatalogColumns } from './MetricsCatalogColumns';
 import { MetricsTableTopToolbar } from './MetricsTableTopToolbar';
@@ -78,12 +70,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const { track } = useTracking();
     const dispatch = useAppDispatch();
     const theme = useMantineTheme();
-    const location = useLocation();
-    const navigate = useNavigate();
-    const { data: savedMetricsTreeFlag } = useServerFeatureFlag(
-        FeatureFlags.SavedMetricsTree,
-    );
-    const isSavedMetricsTreeEnabled = savedMetricsTreeFlag?.enabled ?? false;
 
     const userUuid = useAppSelector(
         (state) => state.metricsCatalog.user?.userUuid,
@@ -106,7 +92,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const ownerFilters = useAppSelector(
         (state) => state.metricsCatalog.ownerFilters,
     );
-    const { canManageTags, canManageMetricsTree } = useAppSelector(
+    const { canManageTags } = useAppSelector(
         (state) => state.metricsCatalog.abilities,
     );
     const isMetricExploreModalOpen = useAppSelector(
@@ -120,11 +106,13 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const prevView = useRef(metricCatalogView);
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     // We need internal state to handle non serializable state for the updater function
     const [internalSorting, setInternalSorting] =
-        useState<MRT_SortingState>(stateTableSorting);
+        useState<ContentTableSortingState>(stateTableSorting);
 
     const onCloseMetricExploreModal = () => {
         dispatch(toggleMetricExploreModal(undefined));
@@ -246,7 +234,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     };
 
     // Reusable paper props to avoid duplicate when rendering tree view
-    const mantinePaperProps: PaperProps = useMemo(
+    const mantinePaperProps = useMemo(
         () => ({
             shadow: undefined,
             sx: {
@@ -254,7 +242,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 borderRadius: theme.spacing.sm, // ! radius doesn't have rem(12) -> 0.75rem
                 boxShadow: theme.shadows.subtle,
                 display: 'flex',
-                flexDirection: 'column',
+                flexDirection: 'column' as const,
             },
         }),
         [theme],
@@ -264,11 +252,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         () => data?.pages.flatMap((page) => page.data) ?? [],
         [data],
     );
-
-    // Get set of loaded metric UUIDs for efficient lookup
-    const loadedMetricUuids = useMemo(() => {
-        return new Set(flatData.map((metric) => metric.catalogSearchUuid));
-    }, [flatData]);
 
     const totalResults = useMemo(() => {
         if (!data) return 0;
@@ -280,37 +263,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const showLoadingOverlay = useMemo(
         () => isFetching && isPreviousData && !isMutating,
         [isFetching, isPreviousData, isMutating],
-    );
-
-    const hasMetricsLoaded = loadedMetricUuids.size > 0;
-
-    const isCanvasMode = metricCatalogView === MetricCatalogView.CANVAS;
-
-    // Fetch ALL edges for the project only when in canvas mode
-    const { data: allEdgesData } = useAllMetricsTreeEdges(projectUuid, {
-        enabled: !!projectUuid && isCanvasMode,
-    });
-
-    // Filter edges client-side to only include edges where both source AND target are in loaded metrics
-    const filteredEdges = useMemo(() => {
-        if (!allEdgesData?.edges) return [];
-        return allEdgesData.edges.filter(
-            (edge) =>
-                loadedMetricUuids.has(edge.source.catalogSearchUuid) &&
-                loadedMetricUuids.has(edge.target.catalogSearchUuid),
-        );
-    }, [allEdgesData?.edges, loadedMetricUuids]);
-
-    // Viewers cannot access metrics tree if there are no edges
-    // In list mode, we don't know yet if edges exist, so we allow access (will show message in canvas if no edges)
-    const isValidMetricsEdgeCount = useMemo(
-        () => canManageMetricsTree || !isCanvasMode || filteredEdges.length > 0,
-        [canManageMetricsTree, isCanvasMode, filteredEdges],
-    );
-
-    const isValidMetricsTree = useMemo(
-        () => hasMetricsLoaded && isValidMetricsEdgeCount,
-        [hasMetricsLoaded, isValidMetricsEdgeCount],
     );
 
     const dataHasCategories = useMemo(() => {
@@ -361,7 +313,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         [columnConfig.columnVisibility, canManageTags, dataHasCategories],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns: MetricsCatalogColumns,
         data: flatData,
         enableColumnResizing: true,
@@ -484,26 +436,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 },
             },
         },
-        mantineTableBodyRowProps: {
-            sx: {
-                'td:first-of-type > div > .explore-button-container': {
-                    visibility: 'hidden',
-                    opacity: 0,
-                },
-                '&:hover': {
-                    td: {
-                        backgroundColor: theme.colors.ldGray[0],
-                        transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                    },
-
-                    'td:first-of-type > div > .explore-button-container': {
-                        visibility: 'visible',
-                        opacity: 1,
-                        transition: `visibility 0ms, opacity ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                    },
-                },
-            },
-        },
         mantineTableBodyCellProps: (props) => {
             const isLastVisibleColumn =
                 props.table
@@ -557,9 +489,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                     position="apart"
                     p={`${theme.spacing.lg} ${theme.spacing.xl}`}
                     showCategoriesFilter={canManageTags || dataHasCategories}
-                    isValidMetricsTree={isValidMetricsTree}
-                    hasMetricsSelected={hasMetricsLoaded}
-                    isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                     metricCatalogView={metricCatalogView}
                     table={table}
                 />
@@ -648,9 +577,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
             showGlobalFilter: true, // Show search input by default
         },
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 40 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 40 },
         displayColumnDefOptions: {
-            'mrt-row-actions': {
+            'content-table-row-actions': {
                 header: '',
             },
         },
@@ -684,7 +613,7 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
         case MetricCatalogView.LIST:
             return (
                 <>
-                    <MantineReactTable table={table} />
+                    <ContentTable table={table} />
                     {isMetricExploreModalOpen && (
                         <MetricExploreModal
                             opened={isMetricExploreModalOpen}
@@ -695,43 +624,6 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                 </>
             );
         case MetricCatalogView.CANVAS:
-            if (isSavedMetricsTreeEnabled) {
-                return (
-                    <Paper {...mantinePaperProps}>
-                        <Box>
-                            <MetricsTableTopToolbar
-                                search={search}
-                                setSearch={(s) => dispatch(setSearch(s))}
-                                totalResults={totalResults}
-                                selectedCategories={categoryFilters}
-                                setSelectedCategories={handleSetCategoryFilters}
-                                categoryFilterMode={categoryFilterMode}
-                                setCategoryFilterMode={
-                                    handleSetCategoryFilterMode
-                                }
-                                selectedTables={tableFilters}
-                                setSelectedTables={handleSetTableFilters}
-                                selectedOwners={ownerFilters}
-                                setSelectedOwners={handleSetOwnerFilters}
-                                position="apart"
-                                p={`${theme.spacing.lg} ${theme.spacing.xl}`}
-                                showCategoriesFilter={
-                                    canManageTags || dataHasCategories
-                                }
-                                isValidMetricsTree
-                                hasMetricsSelected={hasMetricsLoaded}
-                                isValidMetricsEdgeCount
-                                metricCatalogView={metricCatalogView}
-                                table={table}
-                            />
-                            <Divider color="ldGray.2" />
-                        </Box>
-                        <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
-                            <SavedTreesContainer />
-                        </Box>
-                    </Paper>
-                );
-            }
             return (
                 <Paper {...mantinePaperProps}>
                     <Box>
@@ -752,48 +644,13 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             showCategoriesFilter={
                                 canManageTags || dataHasCategories
                             }
-                            isValidMetricsTree={isValidMetricsTree}
-                            hasMetricsSelected={hasMetricsLoaded}
-                            isValidMetricsEdgeCount={isValidMetricsEdgeCount}
                             metricCatalogView={metricCatalogView}
                             table={table}
                         />
                         <Divider color="ldGray.2" />
                     </Box>
                     <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
-                        <ReactFlowProvider>
-                            {isValidMetricsTree ? (
-                                <Canvas
-                                    metrics={flatData}
-                                    edges={filteredEdges}
-                                    viewOnly={!canManageMetricsTree}
-                                />
-                            ) : (
-                                <SuboptimalState
-                                    title="Canvas mode not available"
-                                    description={
-                                        hasMetricsLoaded
-                                            ? 'There are no connections between the selected metrics'
-                                            : 'No metrics available to display'
-                                    }
-                                    action={
-                                        <Button
-                                            onClick={() => {
-                                                void navigate({
-                                                    pathname:
-                                                        location.pathname.replace(
-                                                            /\/canvas/,
-                                                            '',
-                                                        ),
-                                                });
-                                            }}
-                                        >
-                                            Back to list view
-                                        </Button>
-                                    }
-                                />
-                            )}
-                        </ReactFlowProvider>
+                        <SavedTreesContainer />
                     </Box>
                 </Paper>
             );

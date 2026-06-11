@@ -1,81 +1,63 @@
 import {
-    getItemId,
     type CustomDimension,
     type Field,
-    type SortField,
     type TableCalculation,
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine-8/core';
 import { IconCheck } from '@tabler/icons-react';
-import { useCallback, type FC } from 'react';
-import {
-    explorerActions,
-    useExplorerDispatch,
-} from '../../../features/explorer/store';
+import { type FC } from 'react';
 import {
     getSortDirectionOrder,
     getSortLabel,
-    SortDirection,
+    type SortDirection,
 } from '../../../utils/sortUtils';
 import MantineIcon from '../../common/MantineIcon';
 
 type Props = {
     item: Field | TableCalculation | CustomDimension;
-    sort: SortField | undefined;
+    selectedDirection: SortDirection | undefined;
+    onSelect: (direction: SortDirection) => void;
+    /** When provided and a direction is active, renders a "Remove sort" item. */
+    onRemove?: () => void;
 };
 
-const ColumnHeaderSortMenuOptions: FC<Props> = ({ item, sort }) => {
-    const itemFieldId = getItemId(item);
-    const hasSort = !!sort;
-    const selectedSortDirection = sort
-        ? sort.descending
-            ? SortDirection.DESC
-            : SortDirection.ASC
-        : undefined;
-
-    const dispatch = useExplorerDispatch();
-
-    const handleSortClick = useCallback(
-        (sortDirection: SortDirection) => {
-            if (hasSort && selectedSortDirection === sortDirection) {
-                // Remove sort - clicking on current direction removes it
-                dispatch(explorerActions.setSortFields([]));
-            } else {
-                // Replace ALL sorts with this single sort
-                const newSort: SortField = {
-                    fieldId: itemFieldId,
-                    descending: sortDirection === SortDirection.DESC,
-                };
-                dispatch(explorerActions.setSortFields([newSort]));
-            }
-        },
-        [dispatch, hasSort, itemFieldId, selectedSortDirection],
-    );
-
+const ColumnHeaderSortMenuOptions: FC<Props> = ({
+    item,
+    selectedDirection,
+    onSelect,
+    onRemove,
+}) => {
     return (
         <>
             <Menu.Label>Sorting</Menu.Label>
-            {item &&
-                getSortDirectionOrder(item).map((sortDirection) => (
+            {getSortDirectionOrder(item).map((direction) => {
+                const isActive = selectedDirection === direction;
+                return (
                     <Menu.Item
-                        key={sortDirection}
+                        key={direction}
                         leftSection={
-                            hasSort &&
-                            selectedSortDirection === sortDirection ? (
+                            isActive ? (
                                 <MantineIcon icon={IconCheck} />
                             ) : undefined
                         }
-                        disabled={
-                            hasSort && selectedSortDirection === sortDirection
-                        }
-                        onClick={() => handleSortClick(sortDirection)}
+                        disabled={isActive}
+                        onClick={() => onSelect(direction)}
                     >
                         Sort{' '}
-                        <Text span fz="sm" fw="bold">
-                            {getSortLabel(item, sortDirection)}
+                        <Text span fz="inherit" lh="inherit" fw="bold">
+                            {getSortLabel(item, direction)}
                         </Text>
                     </Menu.Item>
-                ))}
+                );
+            })}
+            {onRemove && selectedDirection !== undefined && (
+                <>
+                    <Menu.Divider />
+                    <Menu.Item color="red" onClick={onRemove}>
+                        Remove sort
+                    </Menu.Item>
+                </>
+            )}
         </>
     );
 };

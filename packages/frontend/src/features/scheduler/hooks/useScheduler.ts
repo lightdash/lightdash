@@ -1,5 +1,6 @@
 import {
     SchedulerJobStatus,
+    ThresholdStatus,
     type AnyType,
     type ApiError,
     type ApiJobStatusResponse,
@@ -284,6 +285,101 @@ export const useSchedulerRuns = ({
     });
 };
 
+const getResourceSchedulerRuns = async (
+    resourceType: 'dashboard' | 'chart',
+    resourceUuid: string,
+    schedulerUuid: string,
+    paginateArgs: KnexPaginateArgs,
+    searchQuery?: string,
+    sortBy?: 'scheduledTime' | 'createdAt',
+    sortDirection?: 'asc' | 'desc',
+    filters?: {
+        statuses?: SchedulerRunStatus[];
+        destinations?: DestinationType[];
+    },
+) => {
+    const params = new URLSearchParams({
+        page: paginateArgs.page.toString(),
+        pageSize: paginateArgs.pageSize.toString(),
+    });
+    if (searchQuery) params.set('searchQuery', searchQuery);
+    if (sortBy) params.set('sortBy', sortBy);
+    if (sortDirection) params.set('sortDirection', sortDirection);
+    if (filters?.statuses && filters.statuses.length > 0) {
+        params.set('statuses', filters.statuses.join(','));
+    }
+    if (filters?.destinations && filters.destinations.length > 0) {
+        params.set('destinations', filters.destinations.join(','));
+    }
+    const base =
+        resourceType === 'dashboard'
+            ? `/dashboards/${resourceUuid}`
+            : `/saved/${resourceUuid}`;
+    return lightdashApi({
+        url: `${base}/schedulers/${schedulerUuid}/runs?${params.toString()}`,
+        method: 'GET',
+        body: undefined,
+        version: 'v2',
+    }) as unknown as Promise<RunsResponse>;
+};
+
+export const useResourceSchedulerRuns = ({
+    resourceType,
+    resourceUuid,
+    schedulerUuid,
+    pageSize = 25,
+    searchQuery,
+    sortBy,
+    sortDirection,
+    filters,
+    enabled = true,
+}: {
+    resourceType: 'dashboard' | 'chart';
+    resourceUuid: string;
+    schedulerUuid: string;
+    pageSize?: number;
+    searchQuery?: string;
+    sortBy?: 'scheduledTime' | 'createdAt';
+    sortDirection?: 'asc' | 'desc';
+    filters?: {
+        statuses?: SchedulerRunStatus[];
+        destinations?: DestinationType[];
+    };
+    enabled?: boolean;
+}) =>
+    useInfiniteQuery<RunsResponse, ApiError>({
+        queryKey: [
+            'resource_scheduler_runs',
+            resourceType,
+            resourceUuid,
+            schedulerUuid,
+            pageSize,
+            searchQuery,
+            sortBy,
+            sortDirection,
+            filters,
+        ],
+        queryFn: ({ pageParam = 1 }) =>
+            getResourceSchedulerRuns(
+                resourceType,
+                resourceUuid,
+                schedulerUuid,
+                { page: pageParam as number, pageSize },
+                searchQuery,
+                sortBy,
+                sortDirection,
+                filters,
+            ),
+        getNextPageParam: (lastPage) => {
+            const currentPage = lastPage.pagination?.page ?? 1;
+            const totalPages = lastPage.pagination?.totalPageCount ?? 0;
+            return currentPage < totalPages ? currentPage + 1 : undefined;
+        },
+        keepPreviousData: true,
+        refetchOnWindowFocus: false,
+        enabled: enabled && !!resourceUuid && !!schedulerUuid,
+    });
+
 export const useFetchRunLogs = () => {
     return useMutation<SchedulerRunLog[], ApiError, string>({
         mutationFn: async (runId: string) => {
@@ -401,6 +497,9 @@ const getJobStatus = async (
 };
 
 export const pollJobStatus = async (jobId: string) => {
+    if (!jobId) {
+        throw new Error('Cannot poll job status: jobId is required');
+    }
     return new Promise<Record<string, AnyType> | null>((resolve, reject) =>
         getJobStatus(
             jobId,
@@ -449,9 +548,18 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
                     });
                 }
                 if (data?.status === SchedulerJobStatus.COMPLETED) {
-                    showToastSuccess({
-                        title: 'Scheduled delivery sent successfully',
-                    });
+                    if (
+                        data.details?.thresholdStatus ===
+                        ThresholdStatus.NOT_MET
+                    ) {
+                        showToastInfo({
+                            title: 'Threshold not met. No notification was sent.',
+                        });
+                    } else {
+                        showToastSuccess({
+                            title: 'Scheduled delivery sent successfully',
+                        });
+                    }
 
                     return setTimeout(
                         () =>
@@ -499,7 +607,7 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
 };
 
 export const useSendNowScheduler = () => {
-    const { showToastInfo, showToastApiError } = useToaster();
+    const { showToastInfo, showToastError, showToastApiError } = useToaster();
 
     const sendNowMutation = useMutation<
         ApiTestSchedulerResponse['results'],
@@ -518,15 +626,13 @@ export const useSendNowScheduler = () => {
         {
             mutationKey: ['sendNowScheduler'],
             onSuccess: (res) => {
-                pollJobStatus(res.jobId || '')
-                    .then((data) => {
-                        if (data?.status === SchedulerJobStatus.ERROR) {
-                            throw new Error(data?.details?.error);
-                        }
-                    })
-                    .catch((e) => {
-                        throw e;
+                if (!res.jobId) {
+                    notifications.hide('toast-info-job-status');
+                    showToastError({
+                        title: 'Failed to send scheduled delivery',
+                        subtitle: 'No job ID returned from server',
                     });
+                }
             },
             onError: (apiError: ApiError) => {
                 showToastApiError({
@@ -545,6 +651,8 @@ export const useSendNowScheduler = () => {
     const isLoading = useMemo(
         () =>
             sendNowMutation.isLoading ||
+            scheduledDeliveryJobStatus?.status ===
+                SchedulerJobStatus.SCHEDULED ||
             scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED,
         [scheduledDeliveryJobStatus?.status, sendNowMutation.isLoading],
     );
@@ -556,7 +664,7 @@ export const useSendNowScheduler = () => {
 };
 
 export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
-    const { showToastInfo, showToastApiError } = useToaster();
+    const { showToastInfo, showToastError, showToastApiError } = useToaster();
 
     const sendNowMutation = useMutation<
         ApiTestSchedulerResponse['results'],
@@ -575,15 +683,13 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
         {
             mutationKey: ['sendNowSchedulerByUuid', schedulerUuid],
             onSuccess: (res) => {
-                pollJobStatus(res.jobId || '')
-                    .then((data) => {
-                        if (data?.status === SchedulerJobStatus.ERROR) {
-                            throw new Error(data?.details?.error);
-                        }
-                    })
-                    .catch((e) => {
-                        throw e;
+                if (!res.jobId) {
+                    notifications.hide('toast-info-job-status');
+                    showToastError({
+                        title: 'Failed to send scheduled delivery',
+                        subtitle: 'No job ID returned from server',
                     });
+                }
             },
             onError: (apiError: ApiError) => {
                 showToastApiError({
@@ -602,6 +708,8 @@ export const useSendNowSchedulerByUuid = (schedulerUuid: string) => {
     const isLoading = useMemo(
         () =>
             sendNowMutation.isLoading ||
+            scheduledDeliveryJobStatus?.status ===
+                SchedulerJobStatus.SCHEDULED ||
             scheduledDeliveryJobStatus?.status === SchedulerJobStatus.STARTED,
         [scheduledDeliveryJobStatus?.status, sendNowMutation.isLoading],
     );

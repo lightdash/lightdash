@@ -1,19 +1,22 @@
-import { ContentType } from '@lightdash/common';
+import { ContentType, FeatureFlags } from '@lightdash/common';
 import { Box, Divider, SegmentedControl, Text, Tooltip } from '@mantine-8/core';
 import {
+    IconAppWindow,
     IconChartBar,
     IconFolder,
     IconLayoutDashboard,
 } from '@tabler/icons-react';
 import type { FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import classes from './ContentTypeFilter.module.css';
 
 type DeletedContentTypeFilter =
     | 'all'
     | ContentType.CHART
     | ContentType.DASHBOARD
-    | ContentType.SPACE;
+    | ContentType.SPACE
+    | ContentType.DATA_APP;
 
 type ContentTypeFilterProps = {
     selectedContentType: DeletedContentTypeFilter;
@@ -24,6 +27,9 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
     selectedContentType,
     setSelectedContentType,
 }) => {
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
+
     const iconProps = {
         style: { display: 'block' },
         size: 18,
@@ -71,6 +77,26 @@ export const ContentTypeFilter: FC<ContentTypeFilterProps> = ({
                 </Tooltip>
             ),
         },
+        ...(dataAppsEnabled
+            ? [
+                  {
+                      value: ContentType.DATA_APP,
+                      label: (
+                          <Tooltip
+                              label="Show only deleted data apps"
+                              withinPortal
+                          >
+                              <Box>
+                                  <MantineIcon
+                                      icon={IconAppWindow}
+                                      {...iconProps}
+                                  />
+                              </Box>
+                          </Tooltip>
+                      ),
+                  },
+              ]
+            : []),
         {
             value: ContentType.SPACE,
             label: (

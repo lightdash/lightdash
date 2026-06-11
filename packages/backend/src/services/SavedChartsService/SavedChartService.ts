@@ -18,7 +18,6 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     ExploreType,
-    FeatureFlags,
     ForbiddenError,
     generateSlug,
     getSchedulerResourceTypeAndId,
@@ -27,8 +26,11 @@ import {
     isConditionalFormattingConfigWithColorRange,
     isConditionalFormattingConfigWithSingleColor,
     isCustomSqlDimension,
+    isFormulaTableCalculation,
     isJwtUser,
     isSchedulerGsheetsOptions,
+    isSqlTableCalculation,
+    isTemplateTableCalculation,
     isUserWithOrg,
     isValidFrequency,
     isValidTimezone,
@@ -41,6 +43,8 @@ import {
     SavedChartDAO,
     SchedulerAndTargets,
     SchedulerFormat,
+    SchedulerRun,
+    SchedulerRunStatus,
     SessionUser,
     TogglePinnedItemInfo,
     UnexpectedGoogleSheetsError,
@@ -72,6 +76,7 @@ import type { CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { getChartFieldUsageChanges } from '../../models/CatalogModel/utils';
 import { ContentVerificationModel } from '../../models/ContentVerificationModel';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
+import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
@@ -79,7 +84,6 @@ import { SchedulerModel } from '../../models/SchedulerModel';
 import { SpaceModel } from '../../models/SpaceModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
-import { FeatureFlagService } from '../FeatureFlag/FeatureFlagService';
 import { PermissionsService } from '../PermissionsService/PermissionsService';
 import type { SchedulerService } from '../SchedulerService/SchedulerService';
 import type {
@@ -108,7 +112,7 @@ type SavedChartServiceArguments = {
     userService: UserService;
     spacePermissionService: SpacePermissionService;
     contentVerificationModel: ContentVerificationModel;
-    featureFlagService: FeatureFlagService;
+    organizationModel: OrganizationModel;
 };
 
 export class SavedChartService
@@ -151,7 +155,7 @@ export class SavedChartService
 
     private readonly contentVerificationModel: ContentVerificationModel;
 
-    private readonly featureFlagService: FeatureFlagService;
+    private readonly organizationModel: OrganizationModel;
 
     constructor(args: SavedChartServiceArguments) {
         super();
@@ -173,19 +177,7 @@ export class SavedChartService
         this.userService = args.userService;
         this.spacePermissionService = args.spacePermissionService;
         this.contentVerificationModel = args.contentVerificationModel;
-        this.featureFlagService = args.featureFlagService;
-    }
-
-    private async assertContentVerificationEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<void> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.ContentVerification,
-        });
-        if (!flag.enabled) {
-            throw new ForbiddenError('Content verification is not enabled');
-        }
+        this.organizationModel = args.organizationModel;
     }
 
     private async checkUpdateAccess(
@@ -208,8 +200,10 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: savedChart.uuid,
-                    name: savedChart.name,
+                    metadata: {
+                        savedChartUuid: savedChart.uuid,
+                        savedChartName: savedChart.name,
+                    },
                 }),
             )
         ) {
@@ -233,8 +227,10 @@ export class SavedChartService
                 subject('ScheduledDeliveries', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedChart.uuid,
-                    name: savedChart.name,
+                    metadata: {
+                        savedChartUuid: savedChart.uuid,
+                        savedChartName: savedChart.name,
+                    },
                 }),
             )
         ) {
@@ -434,6 +430,94 @@ export class SavedChartService
         return eventProperties;
     }
 
+    static getFormulaTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              formulaCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const formulaCount = tableCalculations.filter(
+            isFormulaTableCalculation,
+        ).length;
+        if (formulaCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            formulaCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
+    static getSqlTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              sqlCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const sqlCount = tableCalculations.filter(isSqlTableCalculation).length;
+        if (sqlCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            sqlCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
+    static getTemplateTableCalculationEventProperties(
+        savedChart: SavedChartDAO,
+        action: 'created' | 'updated',
+    ):
+        | {
+              organizationId: string;
+              projectId: string;
+              savedChartUuid: string;
+              action: 'created' | 'updated';
+              templateCount: number;
+              totalTableCalculationCount: number;
+          }
+        | undefined {
+        const { tableCalculations } = savedChart.metricQuery;
+        const templateCount = tableCalculations.filter(
+            isTemplateTableCalculation,
+        ).length;
+        if (templateCount === 0) {
+            return undefined;
+        }
+        return {
+            organizationId: savedChart.organizationUuid,
+            projectId: savedChart.projectUuid,
+            savedChartUuid: savedChart.uuid,
+            action,
+            templateCount,
+            totalTableCalculationCount: tableCalculations.length,
+        };
+    }
+
     private async updateChartFieldUsage(
         projectUuid: string,
         chartExplore: Explore | ExploreError,
@@ -466,6 +550,8 @@ export class SavedChartService
             metricQuery: {
                 metrics: oldChartMetrics,
                 dimensions: oldChartDimensions,
+                customDimensions: oldCustomDimensions,
+                tableCalculations: oldTableCalculations,
             },
         } = await this.savedChartModel.get(savedChartUuid);
 
@@ -484,26 +570,70 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: savedChartUuid,
+                    metadata: { savedChartUuid },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
+        const oldSqlDimensionsById = new Map(
+            (oldCustomDimensions ?? [])
+                .filter(isCustomSqlDimension)
+                .map((dim) => [dim.id, dim]),
+        );
+        const hasModifiedSqlCustomDimension = (
+            data.metricQuery.customDimensions ?? []
+        )
+            .filter(isCustomSqlDimension)
+            .some((dim) => {
+                const saved = oldSqlDimensionsById.get(dim.id);
+                return !saved || saved.sql !== dim.sql;
+            });
+
         if (
-            data.metricQuery.customDimensions?.some(isCustomSqlDimension) &&
+            hasModifiedSqlCustomDimension &&
             auditedAbility.cannot(
                 'manage',
-                subject('CustomSql', {
+                subject('CustomFields', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedChartUuid,
+                    metadata: { savedChartUuid },
                 }),
             )
         ) {
             throw new ForbiddenError(
-                'User cannot save queries with custom SQL dimensions',
+                'User cannot save queries with modified custom SQL dimensions',
+            );
+        }
+
+        const oldSqlTcsByName = new Map(
+            (oldTableCalculations ?? [])
+                .filter(isSqlTableCalculation)
+                .map((tc) => [tc.name, tc]),
+        );
+        const hasModifiedSqlTableCalculation = (
+            data.metricQuery.tableCalculations ?? []
+        )
+            .filter(isSqlTableCalculation)
+            .some((tc) => {
+                const saved = oldSqlTcsByName.get(tc.name);
+                return !saved || saved.sql !== tc.sql;
+            });
+
+        if (
+            hasModifiedSqlTableCalculation &&
+            auditedAbility.cannot(
+                'manage',
+                subject('CustomSqlTableCalculations', {
+                    organizationUuid,
+                    projectUuid,
+                    metadata: { savedChartUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'User cannot save queries with new or modified SQL table calculations',
             );
         }
 
@@ -524,6 +654,45 @@ export class SavedChartService
             userId: user.userUuid,
             properties: SavedChartService.getCreateEventProperties(savedChart),
         });
+
+        const formulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (formulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: formulaProperties,
+            });
+        }
+
+        const sqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (sqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: sqlProperties,
+            });
+        }
+
+        const templateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                savedChart,
+                'updated',
+            );
+        if (templateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: templateProperties,
+            });
+        }
 
         SavedChartService.getConditionalFormattingEventProperties(
             savedChart,
@@ -594,14 +763,25 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: savedChartUuid,
-                    name,
+                    metadata: { savedChartUuid, savedChartName: name },
                 }),
             )
         ) {
             throw new ForbiddenError(
                 "You don't have access to the space this chart belongs to",
             );
+        }
+
+        if (data.colorPaletteUuid) {
+            const palette = await this.organizationModel.findColorPalette(
+                organizationUuid,
+                data.colorPaletteUuid,
+            );
+            if (!palette) {
+                throw new ParameterError(
+                    'Color palette does not belong to this organization',
+                );
+            }
         }
 
         const savedChart = await this.savedChartModel.update(
@@ -666,7 +846,7 @@ export class SavedChartService
                 subject('PinnedItems', {
                     organizationUuid,
                     projectUuid,
-                    uuid: savedChartUuid,
+                    metadata: { savedChartUuid },
                 }),
             )
         ) {
@@ -732,7 +912,7 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
-                    uuid: chart.uuid,
+                    metadata: { savedChartUuid: chart.uuid },
                 }),
             );
         });
@@ -742,7 +922,10 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        const savedChartsDaos = await this.savedChartModel.updateMultiple(data);
+        const savedChartsDaos = await this.savedChartModel.updateMultiple(
+            projectUuid,
+            data,
+        );
         const savedCharts = await Promise.all(
             savedChartsDaos.map(async (savedChart) => {
                 const { inheritsFromOrgOrProject, access } =
@@ -787,7 +970,7 @@ export class SavedChartService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'SavedChart',
-                uuid: resolvedUuid,
+                metadata: { savedChartUuid: resolvedUuid },
                 organizationUuid,
                 projectUuid,
             });
@@ -806,7 +989,7 @@ export class SavedChartService
                         projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        uuid: resolvedUuid,
+                        metadata: { savedChartUuid: resolvedUuid },
                     }),
                 )
             ) {
@@ -866,7 +1049,7 @@ export class SavedChartService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'delete', {
                 type: 'SavedChart',
-                uuid: savedChartUuid,
+                metadata: { savedChartUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
@@ -885,8 +1068,10 @@ export class SavedChartService
                         projectUuid: chart.projectUuid,
                         inheritsFromOrgOrProject,
                         access,
-                        uuid: savedChartUuid,
-                        name: chart.name,
+                        metadata: {
+                            savedChartUuid,
+                            savedChartName: chart.name,
+                        },
                     }),
                 )
             ) {
@@ -929,6 +1114,10 @@ export class SavedChartService
                     ...savedChart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: savedChart.uuid,
+                        savedChartName: savedChart.name,
+                    },
                 }),
             )
         ) {
@@ -980,6 +1169,10 @@ export class SavedChartService
                     ...savedChart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: savedChart.uuid,
+                        savedChartName: savedChart.name,
+                    },
                 }),
             )
         ) {
@@ -1038,7 +1231,6 @@ export class SavedChartService
         user: SessionUser,
         chartUuid: string,
     ): Promise<ContentVerificationInfo> {
-        await this.assertContentVerificationEnabled(user);
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
@@ -1050,7 +1242,7 @@ export class SavedChartService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1077,6 +1269,7 @@ export class SavedChartService
             event: 'content_verification.created',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.CHART,
                 contentId: chartUuid,
@@ -1087,7 +1280,6 @@ export class SavedChartService
     }
 
     async unverifyChart(user: SessionUser, chartUuid: string): Promise<void> {
-        await this.assertContentVerificationEnabled(user);
         const savedChart = await this.savedChartModel.getSummary(chartUuid);
         const { organizationUuid, projectUuid } = savedChart;
 
@@ -1099,7 +1291,7 @@ export class SavedChartService
                 subject('ContentVerification', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1117,6 +1309,7 @@ export class SavedChartService
             event: 'content_verification.deleted',
             userId: user.userUuid,
             properties: {
+                organizationId: organizationUuid,
                 projectId: projectUuid,
                 contentType: ContentType.CHART,
                 contentId: chartUuid,
@@ -1177,6 +1370,10 @@ export class SavedChartService
                     projectUuid,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        resolvedSpaceUuid,
+                        dashboardUuid: savedChart.dashboardUuid,
+                    },
                 }),
             )
         ) {
@@ -1225,6 +1422,45 @@ export class SavedChartService
                         : undefined,
             },
         });
+
+        const createFormulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createFormulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createFormulaProperties,
+            });
+        }
+
+        const createSqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createSqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createSqlProperties,
+            });
+        }
+
+        const createTemplateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (createTemplateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: createTemplateProperties,
+            });
+        }
 
         SavedChartService.getConditionalFormattingEventProperties(
             newSavedChart,
@@ -1281,6 +1517,10 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {
@@ -1350,6 +1590,45 @@ export class SavedChartService
             },
         });
 
+        const duplicateFormulaProperties =
+            SavedChartService.getFormulaTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateFormulaProperties) {
+            this.analytics.track({
+                event: 'formula_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateFormulaProperties,
+            });
+        }
+
+        const duplicateSqlProperties =
+            SavedChartService.getSqlTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateSqlProperties) {
+            this.analytics.track({
+                event: 'sql_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateSqlProperties,
+            });
+        }
+
+        const duplicateTemplateProperties =
+            SavedChartService.getTemplateTableCalculationEventProperties(
+                newSavedChart,
+                'created',
+            );
+        if (duplicateTemplateProperties) {
+            this.analytics.track({
+                event: 'template_table_calculation.saved',
+                userId: user.userUuid,
+                properties: duplicateTemplateProperties,
+            });
+        }
+
         try {
             await this.updateChartFieldUsage(projectUuid, cachedExplore, {
                 oldChartFields: {
@@ -1383,12 +1662,21 @@ export class SavedChartService
         filters?: {
             formats?: string[];
         },
+        includeLatestRun?: boolean,
     ): Promise<KnexPaginatedData<SchedulerAndTargets[]>> {
         const chart = await this.checkCreateScheduledDeliveryAccess(
             user,
             chartUuid,
         );
-        return this.schedulerModel.getSchedulers({
+        const auditedAbility = this.createAuditedAbility(user);
+        const canManageAll = auditedAbility.can(
+            'manage',
+            subject('ScheduledDeliveries', {
+                organizationUuid: chart.organizationUuid,
+                projectUuid: chart.projectUuid,
+            }),
+        );
+        const schedulers = await this.schedulerModel.getSchedulers({
             projectUuid: chart.projectUuid,
             organizationUuid: chart.organizationUuid,
             paginateArgs,
@@ -1397,6 +1685,62 @@ export class SavedChartService
                 resourceType: 'chart',
                 resourceUuids: [chartUuid],
                 formats: filters?.formats,
+                ...(canManageAll
+                    ? {}
+                    : { createdByUserUuids: [user.userUuid] }),
+            },
+        });
+
+        if (!includeLatestRun) {
+            return schedulers;
+        }
+
+        return this.schedulerModel.attachLatestRunToSchedulers(schedulers);
+    }
+
+    async getSchedulerRuns(
+        user: SessionUser,
+        chartUuid: string,
+        schedulerUuid: string,
+        paginateArgs?: KnexPaginateArgs,
+        searchQuery?: string,
+        sort?: { column: string; direction: 'asc' | 'desc' },
+        filters?: {
+            statuses?: SchedulerRunStatus[];
+            destinations?: string[];
+        },
+    ): Promise<KnexPaginatedData<SchedulerRun[]>> {
+        const scheduler = await this.schedulerModel.getScheduler(schedulerUuid);
+        const chart = await this.savedChartModel.getSummary(chartUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        // Authorize before revealing whether the scheduler belongs to this
+        // chart, so unauthorized callers can't distinguish 404 (wrong chart)
+        // from 403 (right chart, no access).
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('ScheduledDeliveries', {
+                    organizationUuid: chart.organizationUuid,
+                    projectUuid: chart.projectUuid,
+                    userUuid: scheduler.createdBy,
+                    metadata: { chartUuid, schedulerUuid },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (scheduler.savedChartUuid !== chartUuid) {
+            throw new NotFoundError('Scheduler not found');
+        }
+        return this.schedulerModel.getProjectSchedulerRuns({
+            projectUuid: chart.projectUuid,
+            paginateArgs,
+            searchQuery,
+            sort,
+            filters: {
+                schedulerUuids: [schedulerUuid],
+                statuses: filters?.statuses,
+                destinations: filters?.destinations,
             },
         });
     }
@@ -1457,6 +1801,22 @@ export class SavedChartService
 
         const { projectUuid, organizationUuid } =
             await this.checkCreateScheduledDeliveryAccess(user, chartUuid);
+
+        if (newScheduler.format === SchedulerFormat.GSHEETS) {
+            const auditedAbility = this.createAuditedAbility(user);
+            if (
+                auditedAbility.cannot(
+                    'manage',
+                    subject('GoogleSheets', {
+                        organizationUuid,
+                        projectUuid,
+                    }),
+                )
+            ) {
+                throw new ForbiddenError();
+            }
+        }
+
         const scheduler = await this.schedulerModel.createScheduler({
             ...newScheduler,
             createdBy: user.userUuid,
@@ -1529,6 +1889,10 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {
@@ -1571,6 +1935,10 @@ export class SavedChartService
                     ...chart,
                     inheritsFromOrgOrProject,
                     access,
+                    metadata: {
+                        savedChartUuid: chart.uuid,
+                        savedChartName: chart.name,
+                    },
                 }),
             )
         ) {
@@ -1690,6 +2058,9 @@ export class SavedChartService
             if (!savedChart) {
                 throw new NotFoundError('Chart not found');
             }
+            if (savedChart.projectUuid !== actor.projectUuid) {
+                throw new NotFoundError('Chart not found');
+            }
 
             if (savedChart.dashboardUuid) {
                 const dashboard = await this.dashboardModel.getByIdOrSlug(
@@ -1722,6 +2093,10 @@ export class SavedChartService
                 projectUuid: actor.projectUuid,
                 inheritsFromOrgOrProject,
                 access: spaceAccess,
+                metadata: {
+                    savedChartUuid: resource.savedChartUuid,
+                    spaceUuid,
+                },
             }),
         );
 
@@ -1748,6 +2123,10 @@ export class SavedChartService
                     projectUuid: actor.projectUuid,
                     inheritsFromOrgOrProject: newSpaceInheritsFromOrgOrProject,
                     access: newSpaceAccess,
+                    metadata: {
+                        savedChartUuid: resource.savedChartUuid,
+                        spaceUuid: resource.spaceUuid,
+                    },
                 }),
             );
 
@@ -1836,7 +2215,7 @@ export class SavedChartService
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
-                    uuid: projectUuid,
+                    metadata: { projectUuid },
                 }),
             )
         ) {
@@ -1849,7 +2228,7 @@ export class SavedChartService
             subject('DeletedContent', {
                 organizationUuid,
                 projectUuid,
-                uuid: projectUuid,
+                metadata: { projectUuid },
             }),
         );
 
@@ -1876,14 +2255,14 @@ export class SavedChartService
         const deletedChart = await this.savedChartModel.get(
             chartUuid,
             undefined,
-            { deleted: true },
+            { deleted: true, projectUuid: options?.projectUuid },
         );
         const { organizationUuid, projectUuid } = deletedChart;
 
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: chartUuid,
+                metadata: { savedChartUuid: chartUuid },
                 organizationUuid,
                 projectUuid,
             });
@@ -1895,7 +2274,7 @@ export class SavedChartService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { projectUuid },
                     }),
                 )
             ) {
@@ -1907,7 +2286,7 @@ export class SavedChartService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: chartUuid,
+                    metadata: { savedChartUuid: chartUuid },
                 }),
             );
 
@@ -1955,14 +2334,14 @@ export class SavedChartService
         if (options?.bypassPermissions) {
             this.logBypassEvent(user, 'manage', {
                 type: 'DeletedContent',
-                uuid: chartUuid,
+                metadata: { savedChartUuid: chartUuid },
                 organizationUuid: user.organizationUuid ?? 'unknown',
             });
         } else {
             const deletedChart = await this.savedChartModel.get(
                 chartUuid,
                 undefined,
-                { deleted: true },
+                { deleted: true, projectUuid: options?.projectUuid },
             );
             const { organizationUuid, projectUuid } = deletedChart;
 
@@ -1973,7 +2352,7 @@ export class SavedChartService
                     subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        uuid: projectUuid,
+                        metadata: { projectUuid },
                     }),
                 )
             ) {
@@ -1985,7 +2364,7 @@ export class SavedChartService
                 subject('DeletedContent', {
                     organizationUuid,
                     projectUuid,
-                    uuid: chartUuid,
+                    metadata: { savedChartUuid: chartUuid },
                 }),
             );
 

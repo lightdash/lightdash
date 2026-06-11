@@ -1,10 +1,14 @@
-import { type ToolName } from '@lightdash/common';
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { type AiMcpServerConnectionStatus } from '@lightdash/common';
+import {
+    createSlice,
+    prepareAutoBatched,
+    type PayloadAction,
+} from '@reduxjs/toolkit';
+import { type AiAgentToolCall } from '../types';
 
-type ToolCall = {
+type ToolCall = AiAgentToolCall & {
     toolCallId: string;
-    toolName: ToolName;
-    toolArgs: unknown;
+    toolResult: AiAgentToolCall['toolResult'] | null;
 };
 
 type Reasoning = {
@@ -12,13 +16,73 @@ type Reasoning = {
     parts: string[];
 };
 
+export type McpUnavailableNotice = {
+    serverUuid: string;
+    serverName: string;
+    message: string;
+    status: AiMcpServerConnectionStatus;
+};
+
+export type StepProgressMessage = {
+    message: string;
+    // The tool the event belongs to, or null when the emitting tool didn't
+    // attribute it. Used to scope the inline progress row to the active tool.
+    toolName: string | null;
+};
+
+export type StreamPart =
+    | { type: 'text'; text: string }
+    | (ToolCall & { type: 'toolCall' });
+
+const dedupeStreamParts = (parts: StreamPart[]): StreamPart[] => {
+    const dedupedParts: StreamPart[] = [];
+    const toolCallIndexById = new Map<string, number>();
+
+    for (const part of parts) {
+        if (part.type !== 'toolCall') {
+            dedupedParts.push(part);
+            continue;
+        }
+
+        const existingIndex = toolCallIndexById.get(part.toolCallId);
+        if (existingIndex === undefined) {
+            toolCallIndexById.set(part.toolCallId, dedupedParts.length);
+            dedupedParts.push(part);
+        } else {
+            dedupedParts[existingIndex] = {
+                ...dedupedParts[existingIndex],
+                ...part,
+            } as StreamPart;
+        }
+    }
+
+    return dedupedParts;
+};
+
 export interface AiAgentThreadStreamingState {
     threadUuid: string;
     messageUuid: string;
     content: string;
+    parts: StreamPart[];
     isStreaming: boolean;
     toolCalls: ToolCall[];
     reasoning: Reasoning[];
+    decidedToolCallIds: string[];
+    mcpUnavailableNotices: McpUnavailableNotice[];
+    /**
+     * Ordered history of step-progress events emitted by the agent's
+     * tools (e.g. "Starting sandbox…", "Cloning project…", "Editing
+     * models…"). Each `data-step-progress` SSE chunk is appended here
+     * (with adjacent-duplicate dedup). `toolName` is the tool the event
+     * belongs to (null for tools that don't attribute their progress);
+     * the bubble uses it to scope the inline progress row to the active
+     * tool, so a concurrently running tool (e.g. a `findFields` query
+     * fired alongside a writeback) can't surface its message under the
+     * writeback header. Keeping the full history — across tools — in
+     * state means we can revisit the presentation (timeline, summary on
+     * hover, etc.) without changing the wire protocol.
+     */
+    stepProgressMessages: StepProgressMessage[];
     error?: string;
     improveContextNotification?: {
         toolCallId: string;
@@ -34,9 +98,13 @@ const initialThread: Omit<
     'threadUuid' | 'messageUuid'
 > = {
     content: '',
+    parts: [],
     isStreaming: true,
     toolCalls: [],
     reasoning: [],
+    decidedToolCallIds: [],
+    mcpUnavailableNotices: [],
+    stepProgressMessages: [],
 };
 
 export const aiAgentThreadStreamSlice = createSlice({
@@ -55,23 +123,70 @@ export const aiAgentThreadStreamSlice = createSlice({
                 ...initialThread,
             };
         },
-        setMessage: (
-            state,
-            action: PayloadAction<{
+        setMessage: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    content: string;
+                }>,
+            ) => {
+                const { threadUuid, content } = action.payload;
+
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    streamingThread.content = content;
+                } else {
+                    console.warn('Streaming thread or message not found:', {
+                        threadUuid,
+                    });
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 content: string;
-            }>,
-        ) => {
-            const { threadUuid, content } = action.payload;
-
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                streamingThread.content = content;
-            } else {
-                console.warn('Streaming thread or message not found:', {
-                    threadUuid,
-                });
-            }
+            }>(),
+        },
+        setParts: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    parts: StreamPart[];
+                }>,
+            ) => {
+                const { threadUuid, parts } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    streamingThread.parts = dedupeStreamParts(parts);
+                }
+            },
+            prepare: prepareAutoBatched<{
+                threadUuid: string;
+                parts: StreamPart[];
+            }>(),
+        },
+        markToolCallDecided: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    toolCallId: string;
+                }>,
+            ) => {
+                const { threadUuid, toolCallId } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (
+                    streamingThread &&
+                    !streamingThread.decidedToolCallIds.includes(toolCallId)
+                ) {
+                    streamingThread.decidedToolCallIds.push(toolCallId);
+                }
+            },
+            prepare: prepareAutoBatched<{
+                threadUuid: string;
+                toolCallId: string;
+            }>(),
         },
         stopStreaming: (
             state,
@@ -84,31 +199,28 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.isStreaming = false;
             }
         },
-        addToolCall: (
-            state,
-            action: PayloadAction<ToolCall & { threadUuid: string }>,
-        ) => {
-            const { threadUuid, toolCallId, toolName, toolArgs } =
-                action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                const existingIndex = streamingThread.toolCalls.findIndex(
-                    (tc: ToolCall) => tc.toolCallId === toolCallId,
-                );
-                if (existingIndex !== -1) {
-                    streamingThread.toolCalls[existingIndex] = {
-                        ...streamingThread.toolCalls[existingIndex],
-                        toolName,
-                        toolArgs,
-                    };
-                } else {
-                    streamingThread.toolCalls.push({
-                        toolCallId,
-                        toolName,
-                        toolArgs,
-                    });
+        addToolCall: {
+            reducer: (
+                state,
+                action: PayloadAction<ToolCall & { threadUuid: string }>,
+            ) => {
+                const { threadUuid, ...toolCall } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    const existingIndex = streamingThread.toolCalls.findIndex(
+                        (tc: ToolCall) => tc.toolCallId === toolCall.toolCallId,
+                    );
+                    if (existingIndex !== -1) {
+                        streamingThread.toolCalls[existingIndex] = {
+                            ...streamingThread.toolCalls[existingIndex],
+                            ...toolCall,
+                        } as ToolCall;
+                    } else {
+                        streamingThread.toolCalls.push(toolCall);
+                    }
                 }
-            }
+            },
+            prepare: prepareAutoBatched<ToolCall & { threadUuid: string }>(),
         },
         setError: (
             state,
@@ -123,23 +235,30 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.error = error;
             }
         },
-        setImproveContextNotification: (
-            state,
-            action: PayloadAction<{
+        setImproveContextNotification: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    toolCallId: string;
+                    suggestedInstruction: string;
+                }>,
+            ) => {
+                const { threadUuid, toolCallId, suggestedInstruction } =
+                    action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    streamingThread.improveContextNotification = {
+                        toolCallId,
+                        suggestedInstruction,
+                    };
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 toolCallId: string;
                 suggestedInstruction: string;
-            }>,
-        ) => {
-            const { threadUuid, toolCallId, suggestedInstruction } =
-                action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                streamingThread.improveContextNotification = {
-                    toolCallId,
-                    suggestedInstruction,
-                };
-            }
+            }>(),
         },
         clearImproveContextNotification: (
             state,
@@ -151,43 +270,115 @@ export const aiAgentThreadStreamSlice = createSlice({
                 streamingThread.improveContextNotification = undefined;
             }
         },
-        addReasoning: (
-            state,
-            action: PayloadAction<{
+        addReasoning: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    reasoningId: string;
+                    text: string;
+                }>,
+            ) => {
+                const { threadUuid, reasoningId, text } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (streamingThread) {
+                    const existingIndex = streamingThread.reasoning.findIndex(
+                        (r: Reasoning) => r.reasoningId === reasoningId,
+                    );
+                    if (existingIndex !== -1) {
+                        const existing =
+                            streamingThread.reasoning[existingIndex];
+
+                        // Find which part this text is continuing
+                        const matchingPartIndex = existing.parts.findIndex(
+                            (part) => text.startsWith(part),
+                        );
+
+                        if (matchingPartIndex !== -1) {
+                            // Update the matching part with longer text
+                            existing.parts[matchingPartIndex] = text;
+                        } else {
+                            // No match found - new part
+                            existing.parts.push(text);
+                        }
+                    } else {
+                        // New reasoning
+                        streamingThread.reasoning.push({
+                            reasoningId,
+                            parts: [text],
+                        });
+                    }
+                }
+            },
+            prepare: prepareAutoBatched<{
                 threadUuid: string;
                 reasoningId: string;
                 text: string;
-            }>,
-        ) => {
-            const { threadUuid, reasoningId, text } = action.payload;
-            const streamingThread = state[threadUuid];
-            if (streamingThread) {
-                const existingIndex = streamingThread.reasoning.findIndex(
-                    (r: Reasoning) => r.reasoningId === reasoningId,
-                );
-                if (existingIndex !== -1) {
-                    const existing = streamingThread.reasoning[existingIndex];
-
-                    // Find which part this text is continuing
-                    const matchingPartIndex = existing.parts.findIndex((part) =>
-                        text.startsWith(part),
-                    );
-
-                    if (matchingPartIndex !== -1) {
-                        // Update the matching part with longer text
-                        existing.parts[matchingPartIndex] = text;
-                    } else {
-                        // No match found - new part
-                        existing.parts.push(text);
-                    }
-                } else {
-                    // New reasoning
-                    streamingThread.reasoning.push({
-                        reasoningId,
-                        parts: [text],
-                    });
+            }>(),
+        },
+        appendStepProgress: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    message: string;
+                    toolName: string | null;
+                }>,
+            ) => {
+                const { threadUuid, message, toolName } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (!streamingThread) return;
+                // Drop adjacent-duplicate step events — `runQuery` fires
+                // the same "Running your query…" string per-call and we
+                // don't want a stuttering list. Non-adjacent repeats are
+                // fine (different cycle, different context) so we only
+                // check the most recent entry. A repeat from a different
+                // tool is kept (different toolName → not a true duplicate).
+                const last =
+                    streamingThread.stepProgressMessages[
+                        streamingThread.stepProgressMessages.length - 1
+                    ];
+                if (
+                    last &&
+                    last.message === message &&
+                    last.toolName === toolName
+                )
+                    return;
+                streamingThread.stepProgressMessages.push({
+                    message,
+                    toolName,
+                });
+            },
+            prepare: prepareAutoBatched<{
+                threadUuid: string;
+                message: string;
+                toolName: string | null;
+            }>(),
+        },
+        addMcpUnavailableNotice: {
+            reducer: (
+                state,
+                action: PayloadAction<{
+                    threadUuid: string;
+                    notice: McpUnavailableNotice;
+                }>,
+            ) => {
+                const { threadUuid, notice } = action.payload;
+                const streamingThread = state[threadUuid];
+                if (
+                    streamingThread &&
+                    !streamingThread.mcpUnavailableNotices.some(
+                        (existingNotice) =>
+                            existingNotice.serverUuid === notice.serverUuid,
+                    )
+                ) {
+                    streamingThread.mcpUnavailableNotices.push(notice);
                 }
-            }
+            },
+            prepare: prepareAutoBatched<{
+                threadUuid: string;
+                notice: McpUnavailableNotice;
+            }>(),
         },
     },
 });
@@ -195,10 +386,14 @@ export const aiAgentThreadStreamSlice = createSlice({
 export const {
     startStreaming,
     setMessage,
+    setParts,
+    markToolCallDecided,
     stopStreaming,
     setError,
     addToolCall,
     addReasoning,
+    addMcpUnavailableNotice,
     setImproveContextNotification,
     clearImproveContextNotification,
+    appendStepProgress,
 } = aiAgentThreadStreamSlice.actions;

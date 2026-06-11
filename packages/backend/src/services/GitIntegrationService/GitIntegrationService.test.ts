@@ -4,8 +4,10 @@ import { updateFile } from '../../clients/github/Github';
 import { lightdashConfigMock } from '../../config/lightdashConfig.mock';
 import { GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
+import { PullRequestsModel } from '../../models/PullRequestsModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
 import { SpaceModel } from '../../models/SpaceModel';
+import { GithubAppService } from '../GithubAppService/GithubAppService';
 import { GitIntegrationService } from './GitIntegrationService';
 import {
     CUSTOM_DIMENSION,
@@ -36,6 +38,12 @@ describe('GitIntegrationService', () => {
         spaceModel: SPACE_MODEL as unknown as SpaceModel,
         githubAppInstallationsModel:
             GITHUB_APP_MODEL as unknown as GithubAppInstallationsModel,
+        githubAppService: {
+            getValidUserToken: jest.fn().mockResolvedValue(undefined),
+        } as unknown as GithubAppService,
+        pullRequestsModel: {
+            create: jest.fn(),
+        } as unknown as PullRequestsModel,
     });
 
     afterEach(() => {

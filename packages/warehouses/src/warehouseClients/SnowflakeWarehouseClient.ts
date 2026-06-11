@@ -16,8 +16,6 @@ import {
     WarehouseTypes,
     type WarehouseExecuteAsyncQuery,
     type WarehouseExecuteAsyncQueryArgs,
-    type WarehouseGetAsyncQueryResults,
-    type WarehouseGetAsyncQueryResultsArgs,
 } from '@lightdash/common';
 import * as crypto from 'crypto';
 import {
@@ -476,37 +474,63 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             tags?: Record<string, string>;
         },
     ) {
-        const sqlStatements: string[] = [];
-
         if (this.connectionOptions.warehouse) {
             // eslint-disable-next-line no-console
             console.debug(
                 `Running snowflake query on warehouse: ${this.connectionOptions.warehouse}`,
             );
-            sqlStatements.push(
-                `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
-            );
+            try {
+                await this.executeStatements(
+                    connection,
+                    `USE WAREHOUSE ${this.connectionOptions.warehouse};`,
+                );
+            } catch (e) {
+                // Best-effort: fetch session identity to attach diagnostic
+                // context (user/role/session_id) to the error. Useful when a
+                // user's session role lacks USAGE on the warehouse — surfaces
+                // the role that needs the grant. Falls back to the raw error
+                // if the identity lookup itself fails.
+                let identityContext = '';
+                try {
+                    const identity = await this.executeStatements(
+                        connection,
+                        `SELECT CURRENT_USER() AS "user", CURRENT_ROLE() AS "role", CURRENT_SESSION() AS "session_id"`,
+                    );
+                    const row = (identity.rows?.[0] ?? {}) as Record<
+                        string,
+                        unknown
+                    >;
+                    identityContext = ` (user=${JSON.stringify(
+                        row.user,
+                    )}, role=${JSON.stringify(
+                        row.role,
+                    )}, session_id=${JSON.stringify(row.session_id)})`;
+                } catch {
+                    // ignore — identity lookup is best-effort only
+                }
+                throw new WarehouseConnectionError(
+                    `Failed to select Snowflake warehouse "${
+                        this.connectionOptions.warehouse
+                    }"${identityContext}: ${getErrorMessage(e)}`,
+                );
+            }
         }
+
+        const sessionParams: string[] = [];
 
         const startOfWeek = this.getStartOfWeek();
         if (isWeekDay(startOfWeek)) {
             const snowflakeStartOfWeekIndex = startOfWeek + 1; // 1 (Monday) to 7 (Sunday):
-            sqlStatements.push(
-                `ALTER SESSION SET WEEK_START = ${snowflakeStartOfWeekIndex};`,
-            );
+            sessionParams.push(`WEEK_START = ${snowflakeStartOfWeekIndex}`);
         }
 
         if (options?.tags) {
-            sqlStatements.push(
-                `ALTER SESSION SET QUERY_TAG = '${JSON.stringify(
-                    options?.tags,
-                )}';`,
-            );
+            sessionParams.push(`QUERY_TAG = '${JSON.stringify(options.tags)}'`);
         }
 
         const timezoneQuery = options?.timezone || 'UTC';
         console.debug(`Setting Snowflake session timezone to ${timezoneQuery}`);
-        sqlStatements.push(`ALTER SESSION SET TIMEZONE = '${timezoneQuery}';`);
+        sessionParams.push(`TIMEZONE = '${timezoneQuery}'`);
 
         /**
          * Force QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE to avoid casing inconsistencies
@@ -515,23 +539,18 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         console.debug(
             'Setting Snowflake session QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE',
         );
-        sqlStatements.push(
-            `ALTER SESSION SET QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE;`,
-        );
+        sessionParams.push(`QUOTED_IDENTIFIERS_IGNORE_CASE = FALSE`);
 
         // Default timeout to 300 seconds if not specified
         const timeoutSeconds = this.credentials.timeoutSeconds ?? 300;
         console.debug(
             `Setting Snowflake session STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`,
         );
-        sqlStatements.push(
-            `ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds};`,
-        );
+        sessionParams.push(`STATEMENT_TIMEOUT_IN_SECONDS = ${timeoutSeconds}`);
 
         await this.executeStatements(
             connection,
-            sqlStatements.join('\n'),
-            sqlStatements.length,
+            `ALTER SESSION SET ${sessionParams.join(', ')};`,
         );
     }
 
@@ -551,55 +570,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                   {},
               )
             : {};
-    }
-
-    private async getAsyncStatementResults<
-        TFormattedRow extends Record<string, unknown>,
-    >(
-        connection: Connection,
-        queryId: string,
-        start: number,
-        end: number,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<{
-        rows: TFormattedRow[];
-        fields: Record<string, { type: DimensionType }>;
-        numRows: number;
-    }> {
-        const statement = await connection.getResultsFromQueryId({
-            sqlText: '', // ! This shouldn't be needed but is required by the snowflake sdk, https://github.com/snowflakedb/snowflake-connector-nodejs/issues/978
-            queryId,
-        });
-
-        const rows: TFormattedRow[] = [];
-
-        await new Promise<void>((resolve, reject) => {
-            statement
-                .streamRows({
-                    start,
-                    end,
-                })
-                .on('error', (err) => {
-                    reject(err);
-                })
-                .on('data', (row) => {
-                    const parsedRow = parseRow(row);
-                    const formattedRow = rowFormatter
-                        ? rowFormatter(parsedRow)
-                        : (parsedRow as TFormattedRow);
-
-                    rows.push(formattedRow);
-                })
-                .on('end', () => {
-                    resolve();
-                });
-        });
-
-        return {
-            rows,
-            fields: this.getFieldsFromStatement(statement),
-            numRows: statement.getNumRows(),
-        };
     }
 
     private async destroyConnection(
@@ -622,46 +592,6 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
                 resolve(conn);
             });
         });
-    }
-
-    async getAsyncQueryResults<TFormattedRow extends Record<string, unknown>>(
-        { sql, page, pageSize, queryId }: WarehouseGetAsyncQueryResultsArgs,
-        rowFormatter?: (row: Record<string, unknown>) => TFormattedRow,
-    ): Promise<WarehouseGetAsyncQueryResults<TFormattedRow>> {
-        if (queryId === null) {
-            throw new WarehouseQueryError('Query ID is required');
-        }
-
-        const connection = await this.getConnection();
-
-        try {
-            const start = (page - 1) * pageSize;
-            const end = start + pageSize - 1;
-
-            const results = await this.getAsyncStatementResults(
-                connection,
-                queryId,
-                start,
-                end,
-                rowFormatter,
-            );
-
-            return {
-                fields: results.fields,
-                rows: results.rows,
-                queryId,
-                pageCount: Math.ceil(results.numRows / pageSize),
-                totalRows: results.numRows,
-            };
-        } catch (e) {
-            const error = e as SnowflakeError;
-            throw this.parseError(error, sql);
-        } finally {
-            await this.destroyConnection(
-                connection,
-                this.connectionOptions.authenticator,
-            );
-        }
     }
 
     async executeAsyncQuery(
@@ -1171,7 +1101,10 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
         // Check for unauthorized access errors and use custom message if configured
         if (originalMessage.includes('does not exist or not authorized')) {
             const customErrorMessage =
-                process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE;
+                process.env.SNOWFLAKE_UNAUTHORIZED_ERROR_MESSAGE?.replace(
+                    /\\n/g,
+                    '\n',
+                );
             if (customErrorMessage) {
                 const formattedMessage = this.formatCustomErrorMessage(
                     originalMessage,
@@ -1188,12 +1121,24 @@ export class SnowflakeWarehouseClient extends WarehouseBaseClient<CreateSnowflak
             )
         ) {
             const customErrorMessage =
-                process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE;
+                process.env.SNOWFLAKE_WAREHOUSE_ERROR_MESSAGE?.replace(
+                    /\\n/g,
+                    '\n',
+                );
             if (customErrorMessage) {
                 const formattedMessage =
                     this.formatWarehouseErrorMessage(customErrorMessage);
                 return new WarehouseQueryError(formattedMessage);
             }
+            // Append the warehouse configured on the connection so admins can
+            // tell apart "warehouse was set but Snowflake rejected the
+            // selection" from "no warehouse was configured at all" — the
+            // latter usually means the credentials are missing the field.
+            const configured = this.connectionOptions.warehouse;
+            const detail = configured
+                ? ` (configured warehouse: "${configured}")`
+                : ' (no warehouse was configured on the connection — credentials may be missing this field)';
+            return new WarehouseQueryError(`${originalMessage}${detail}`);
         }
 
         // pull error type from data object

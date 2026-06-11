@@ -5,6 +5,8 @@ import {
     CaslSubjectNames,
     type Account,
     type AnonymousAccount,
+    type ImpersonationContext,
+    type ServiceAcctAccount,
     type SessionUser,
 } from '@lightdash/common';
 import {
@@ -32,14 +34,17 @@ export type AuditableUser = Pick<
     | 'lastName'
     | 'organizationUuid'
     | 'role'
+    | 'impersonation'
+    | 'serviceAccount'
 >;
 
-type AuditableCaslSubject = ForcedSubject<CaslSubjectNames> & {
+type AuditableCaslSubjectObject = ForcedSubject<CaslSubjectNames> & {
     organizationUuid: string;
-    uuid?: string;
-    name?: string;
     projectUuid?: string;
+    metadata?: Record<string, unknown>;
 };
+
+type AuditableCaslSubject = AuditableCaslSubjectObject | CaslSubjectNames;
 
 type AuditHelperArgs = {
     actor: AuditActor;
@@ -67,16 +72,16 @@ export const createActorFromAccount = (account: Account): AuditActor => {
     }
 
     if (account.isServiceAccount()) {
+        const svcAccount = account as ServiceAcctAccount;
+        const { serviceAccountUuid, serviceAccountDescription } =
+            svcAccount.authentication;
         return {
-            type: 'service-account' as const,
-            uuid: account.user.id,
-            email: account.user.email || '',
+            type: 'service-account',
+            uuid: serviceAccountUuid,
+            description: serviceAccountDescription || undefined,
             organizationUuid:
-                account.organization.organizationUuid || 'unknown',
-            organizationRole:
-                'role' in account.user
-                    ? (account.user as { role?: string }).role || 'unknown'
-                    : 'unknown',
+                svcAccount.organization.organizationUuid || 'unknown',
+            organizationRole: svcAccount.user.role || 'unknown',
         };
     }
 
@@ -94,7 +99,21 @@ export const createActorFromAccount = (account: Account): AuditActor => {
         email?: string;
         role?: string;
         id: string;
+        impersonation?: ImpersonationContext;
     };
+
+    // Impersonation is only attached to session users; PAT/OAuth/service-account
+    // sessions cannot be impersonated.
+    const impersonatedBy =
+        actorType === 'session' && user.impersonation
+            ? {
+                  uuid: user.impersonation.adminId,
+                  email: user.impersonation.adminEmail,
+                  firstName: user.impersonation.adminFirstName,
+                  lastName: user.impersonation.adminLastName,
+                  role: user.impersonation.adminRole,
+              }
+            : undefined;
 
     return {
         type: actorType,
@@ -106,6 +125,7 @@ export const createActorFromAccount = (account: Account): AuditActor => {
         organizationRole: user.role || 'unknown',
         // TODO: Add group memberships
         groupMemberships: [],
+        ...(impersonatedBy && { impersonatedBy }),
     };
 };
 
@@ -113,27 +133,61 @@ export const createActorFromAccount = (account: Account): AuditActor => {
  * Creates an audit actor from a SessionUser (legacy support)
  * @deprecated Prefer createActorFromAccount with Account type
  */
-export const createActorFromUser = (user: AuditableUser): AuditActor => ({
-    type: 'session' as const,
-    uuid: user.userUuid,
-    email: user.email || '',
-    firstName: user.firstName || '',
-    lastName: user.lastName || '',
-    organizationUuid: user.organizationUuid || '',
-    organizationRole: user.role || 'unknown',
-    // TODO: Add group memberships
-    groupMemberships: [],
-});
+export const createActorFromUser = (user: AuditableUser): AuditActor => {
+    // Service-account requests stamp `req.user.serviceAccount`, so the legacy
+    // SessionUser path can still produce a service-account audit actor.
+    if (user.serviceAccount) {
+        return {
+            type: 'service-account',
+            uuid: user.serviceAccount.uuid,
+            description: user.serviceAccount.description || undefined,
+            organizationUuid: user.organizationUuid || 'unknown',
+            organizationRole: user.role || 'unknown',
+        };
+    }
+
+    // Impersonation is only attached to session users; PAT/OAuth/service-account
+    // sessions cannot be impersonated.
+    const impersonatedBy = user.impersonation
+        ? {
+              uuid: user.impersonation.adminId,
+              email: user.impersonation.adminEmail,
+              firstName: user.impersonation.adminFirstName,
+              lastName: user.impersonation.adminLastName,
+              role: user.impersonation.adminRole,
+          }
+        : undefined;
+
+    return {
+        type: 'session' as const,
+        uuid: user.userUuid,
+        email: user.email || '',
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
+        organizationUuid: user.organizationUuid || '',
+        organizationRole: user.role || 'unknown',
+        // TODO: Add group memberships
+        groupMemberships: [],
+        ...(impersonatedBy && { impersonatedBy }),
+    };
+};
 
 const createResourceFromSubject = (
-    subject: AuditableCaslSubject,
-): AuditResource => ({
-    type: subject.__caslSubjectType__ || 'unknown',
-    uuid: subject.uuid,
-    name: subject.name,
-    organizationUuid: subject.organizationUuid || 'unknown',
-    projectUuid: subject.projectUuid,
-});
+    subjectArg: AuditableCaslSubject,
+): AuditResource => {
+    if (typeof subjectArg === 'string') {
+        return {
+            type: subjectArg,
+            organizationUuid: 'unknown',
+        };
+    }
+    return {
+        type: subjectArg.__caslSubjectType__ || 'unknown',
+        metadata: subjectArg.metadata,
+        organizationUuid: subjectArg.organizationUuid || 'unknown',
+        projectUuid: subjectArg.projectUuid,
+    };
+};
 
 const createContextFromArgs = (args: AuditHelperArgs): AuditContext => ({
     ip: args.ip,
@@ -227,7 +281,10 @@ export class CaslAuditWrapper<T extends Ability> {
             Logger.warn('Failed to log audit event', {
                 error: err instanceof Error ? err.message : String(err),
                 action: args.action,
-                subjectType: args.subject?.__caslSubjectType__,
+                subjectType:
+                    typeof args.subject === 'string'
+                        ? args.subject
+                        : args.subject?.__caslSubjectType__,
             });
         }
     }

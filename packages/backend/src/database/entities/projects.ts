@@ -1,6 +1,7 @@
 import {
     AnyType,
     DbtProjectType,
+    GroupType,
     ProjectDefaults,
     ProjectType,
     TableSelectionType,
@@ -28,9 +29,18 @@ export type DbProject = {
     dbt_version: string;
     scheduler_timezone: string;
     query_timezone: string | null;
+    use_project_timezone_in_filters: boolean;
+    scheduler_failure_notify_recipients: boolean;
+    scheduler_failure_include_contact: boolean;
+    scheduler_failure_contact_override: string | null;
     created_by_user_uuid: string | null;
     has_default_user_spaces: boolean;
     project_defaults: ProjectDefaults | null;
+    color_palette_uuid: string | null;
+    table_groups: Record<string, GroupType> | null;
+    expires_at: Date | null;
+    default_preview_expiration_hours: number;
+    max_preview_expiration_hours: number;
 };
 
 type CreateDbProject = Pick<
@@ -47,6 +57,7 @@ type CreateDbProject = Pick<
 > & {
     scheduler_timezone?: string; // On create it will default to 'UTC' as per migration
     query_timezone?: string | null;
+    use_project_timezone_in_filters?: boolean; // On create it will default to false as per migration
 };
 type UpdateDbProject = Partial<
     Pick<
@@ -61,8 +72,16 @@ type UpdateDbProject = Partial<
         | 'copied_from_project_uuid'
         | 'scheduler_timezone'
         | 'query_timezone'
+        | 'use_project_timezone_in_filters'
+        | 'scheduler_failure_notify_recipients'
+        | 'scheduler_failure_include_contact'
+        | 'scheduler_failure_contact_override'
         | 'has_default_user_spaces'
         | 'project_defaults'
+        | 'color_palette_uuid'
+        | 'table_groups'
+        | 'default_preview_expiration_hours'
+        | 'max_preview_expiration_hours'
     >
 >;
 

@@ -13,11 +13,29 @@
  */
 
 import type {
+    AdditionalMetric,
+    CustomDimension,
     Filter,
     InternalFilterDefinition,
+    ParametersValuesMap,
     QueryDefinition,
     Sort,
+    TableCalculation,
 } from './types';
+
+type BuilderState = {
+    explore: string;
+    dimensions: string[];
+    metrics: string[];
+    filters: InternalFilterDefinition[];
+    sorts: { fieldId: string; descending: boolean }[];
+    tableCalculations: TableCalculation[];
+    additionalMetrics: AdditionalMetric[];
+    customDimensions: CustomDimension[];
+    limit: number;
+    parameters: ParametersValuesMap;
+    label: string | undefined;
+};
 
 /**
  * Create a query builder for a model.
@@ -33,51 +51,51 @@ export function query(modelName: string): QueryBuilder {
 }
 
 export class QueryBuilder {
-    private readonly _explore: string;
-    private readonly _dimensions: string[];
-    private readonly _metrics: string[];
-    private readonly _filters: InternalFilterDefinition[];
-    private readonly _sorts: { fieldId: string; descending: boolean }[];
-    private readonly _limit: number;
+    private readonly _state: BuilderState;
 
-    constructor(
-        explore: string,
-        dimensions: string[] = [],
-        metrics: string[] = [],
-        filters: InternalFilterDefinition[] = [],
-        sorts: { fieldId: string; descending: boolean }[] = [],
-        limit: number = 500,
-    ) {
-        this._explore = explore;
-        this._dimensions = dimensions;
-        this._metrics = metrics;
-        this._filters = filters;
-        this._sorts = sorts;
-        this._limit = limit;
+    constructor(explore: string);
+    constructor(state: BuilderState);
+    constructor(exploreOrState: string | BuilderState) {
+        if (typeof exploreOrState === 'string') {
+            this._state = {
+                explore: exploreOrState,
+                dimensions: [],
+                metrics: [],
+                filters: [],
+                sorts: [],
+                tableCalculations: [],
+                additionalMetrics: [],
+                customDimensions: [],
+                limit: 500,
+                parameters: {},
+                label: undefined,
+            };
+        } else {
+            this._state = exploreOrState;
+        }
+    }
+
+    private _clone(overrides: Partial<BuilderState>): QueryBuilder {
+        return new QueryBuilder({ ...this._state, ...overrides });
+    }
+
+    /** Human-readable label for dev tools / query inspector */
+    label(name: string): QueryBuilder {
+        return this._clone({ label: name });
     }
 
     /** Set dimension fields (GROUP BY columns) */
     dimensions(fields: string[]): QueryBuilder {
-        return new QueryBuilder(
-            this._explore,
-            [...this._dimensions, ...fields],
-            this._metrics,
-            this._filters,
-            this._sorts,
-            this._limit,
-        );
+        return this._clone({
+            dimensions: [...this._state.dimensions, ...fields],
+        });
     }
 
     /** Set metric fields (aggregations) */
     metrics(fields: string[]): QueryBuilder {
-        return new QueryBuilder(
-            this._explore,
-            this._dimensions,
-            [...this._metrics, ...fields],
-            this._filters,
-            this._sorts,
-            this._limit,
-        );
+        return this._clone({
+            metrics: [...this._state.metrics, ...fields],
+        });
     }
 
     /** Add filters */
@@ -96,18 +114,20 @@ export class QueryBuilder {
                 fieldId: f.field,
                 operator: f.operator,
                 values,
-                settings: f.unit ? { unitOfTime: f.unit } : null,
+                settings: f.unit
+                    ? {
+                          unitOfTime: f.unit,
+                          ...(f.completed !== undefined && {
+                              completed: f.completed,
+                          }),
+                      }
+                    : null,
             };
         });
 
-        return new QueryBuilder(
-            this._explore,
-            this._dimensions,
-            this._metrics,
-            [...this._filters, ...converted],
-            this._sorts,
-            this._limit,
-        );
+        return this._clone({
+            filters: [...this._state.filters, ...converted],
+        });
     }
 
     /** Add sorts */
@@ -117,37 +137,71 @@ export class QueryBuilder {
             descending: s.direction === 'desc',
         }));
 
-        return new QueryBuilder(
-            this._explore,
-            this._dimensions,
-            this._metrics,
-            this._filters,
-            [...this._sorts, ...converted],
-            this._limit,
-        );
+        return this._clone({
+            sorts: [...this._state.sorts, ...converted],
+        });
+    }
+
+    /** Add table calculations (computed columns evaluated after the query) */
+    tableCalculations(calcs: TableCalculation[]): QueryBuilder {
+        return this._clone({
+            tableCalculations: [...this._state.tableCalculations, ...calcs],
+        });
+    }
+
+    /**
+     * Add additional metrics (ad-hoc aggregations defined at query time).
+     * Use this for metrics on joined tables or custom aggregations not in the YAML.
+     */
+    additionalMetrics(metrics: AdditionalMetric[]): QueryBuilder {
+        return this._clone({
+            additionalMetrics: [...this._state.additionalMetrics, ...metrics],
+        });
+    }
+
+    /**
+     * Add custom dimensions (ad-hoc dimensions defined at query time).
+     */
+    customDimensions(dims: CustomDimension[]): QueryBuilder {
+        return this._clone({
+            customDimensions: [...this._state.customDimensions, ...dims],
+        });
+    }
+
+    /**
+     * Set Lightdash parameter values (`${lightdash.parameters.X}` substitutions).
+     * Merges with any values from prior `.parameters()` calls — later keys win.
+     *
+     * Parameters must be declared in `lightdash.yml` / model YAML and referenced
+     * via `${lightdash.parameters.X}` in SQL.
+     */
+    parameters(map: ParametersValuesMap): QueryBuilder {
+        return this._clone({
+            parameters: { ...this._state.parameters, ...map },
+        });
     }
 
     /** Set the maximum number of rows to return (default: 500) */
     limit(n: number): QueryBuilder {
-        return new QueryBuilder(
-            this._explore,
-            this._dimensions,
-            this._metrics,
-            this._filters,
-            this._sorts,
-            n,
-        );
+        return this._clone({ limit: n });
     }
 
     /** Convert to a plain QueryDefinition object */
     build(): QueryDefinition {
         return {
-            exploreName: this._explore,
-            dimensions: this._dimensions,
-            metrics: this._metrics,
-            filters: this._filters,
-            sorts: this._sorts,
-            limit: this._limit,
+            exploreName: this._state.explore,
+            dimensions: this._state.dimensions,
+            metrics: this._state.metrics,
+            filters: this._state.filters,
+            sorts: this._state.sorts,
+            tableCalculations: this._state.tableCalculations,
+            additionalMetrics: this._state.additionalMetrics,
+            customDimensions: this._state.customDimensions,
+            limit: this._state.limit,
+            ...(Object.keys(this._state.parameters).length > 0
+                ? { parameters: this._state.parameters }
+                : {}),
+            ...(this._state.label ? { label: this._state.label } : {}),
         };
     }
 }

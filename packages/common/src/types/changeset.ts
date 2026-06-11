@@ -102,9 +102,25 @@ export type Changeset = z.infer<typeof ChangesetSchema>;
 export type ChangesetWithChanges = z.infer<typeof ChangesetWithChangesSchema>;
 export type Change = z.infer<typeof ChangeSchema>;
 
+// Content that would break if a change is reverted (i.e. references the field
+// the change provides). Only `create` changes can have dependencies.
+export type ChangeDependency = {
+    type: 'chart' | 'dashboard';
+    id: string;
+    name: string;
+};
+
+export type ChangeWithDependencies = Change & {
+    dependencies: ChangeDependency[];
+};
+
+export type ChangesetWithChangesAndDependencies = Changeset & {
+    changes: ChangeWithDependencies[];
+};
+
 export type ApiChangesetsResponse = {
     status: 'ok';
-    results: ChangesetWithChanges;
+    results: ChangesetWithChangesAndDependencies;
 };
 
 export type ApiGetChangeResponse = {

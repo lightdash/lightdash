@@ -1,8 +1,23 @@
 import { DimensionType } from '@lightdash/common';
 import {
+    ClickhouseSqlBuilder,
     ClickhouseTypes,
     convertDataTypeToDimensionType,
 } from './ClickhouseWarehouseClient';
+
+describe('ClickhouseSqlBuilder', () => {
+    const builder = new ClickhouseSqlBuilder();
+
+    it('builds arrays with [...] syntax, not ARRAY[...] which ClickHouse rejects', () => {
+        expect(builder.buildArray(['1', '2', '3'])).toBe('[1, 2, 3]');
+    });
+
+    it('uses the native <=> operator for null-safe join keys', () => {
+        expect(builder.getNullSafeEqualJoinSql('a."x"', 'b."x"')).toBe(
+            'a."x" <=> b."x"',
+        );
+    });
+});
 
 describe('convertDataTypeToDimensionType', () => {
     // Plain types (no wrappers)

@@ -2,6 +2,7 @@
 /// <reference path="../../../@types/express-session.d.ts" />
 import {
     ArgumentsOf,
+    GenericOidcSsoConfig,
     LightdashError,
     OpenIdIdentityIssuerType,
     OpenIdUser,
@@ -107,7 +108,16 @@ export const genericOidcHandler =
             if (openIdUser) {
                 const user = await req.services
                     .getUserService()
-                    .loginWithOpenId(openIdUser, req.user, inviteCode);
+                    .loginWithOpenId(
+                        openIdUser,
+                        req.user,
+                        inviteCode,
+                        undefined,
+                        {
+                            ip: req.ip,
+                            userAgent: req.get('user-agent'),
+                        },
+                    );
                 return done(null, user);
             }
             return done(null, false, {
@@ -177,6 +187,42 @@ export const createGenericOidcPassportStrategy = async () => {
         /**
          * This is compatible, but types differ from what's otherwise expected.
          */
+        genericOidcHandler(
+            OpenIdIdentityIssuerType.GENERIC_OIDC,
+            issuer.metadata.issuer,
+        ) as unknown as StrategyVerifyCallback<unknown>,
+    );
+};
+
+/**
+ * Builds a generic OIDC passport strategy from a plain config object using the
+ * client-secret flow. Used by the per-org DB-stored config path. (The env-based
+ * `createGenericOidcPassportStrategy` additionally supports the private_key_jwt
+ * / x509 cert flow, which per-org config does not expose.)
+ */
+export const createGenericOidcStrategyForConfig = async (
+    config: GenericOidcSsoConfig,
+) => {
+    const issuer = await Issuer.discover(config.metadataDocumentEndpoint);
+
+    const client = new issuer.Client({
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        token_endpoint_auth_method: 'client_secret_basic',
+    });
+
+    return new OpenIdClientStrategy(
+        {
+            client,
+            passReqToCallback: true,
+            params: {
+                redirect_uri: new URL(
+                    `/api/v1${lightdashConfig.auth.oidc.callbackPath}`,
+                    lightdashConfig.siteUrl,
+                ).href,
+                scope: config.scopes || 'openid profile email',
+            },
+        },
         genericOidcHandler(
             OpenIdIdentityIssuerType.GENERIC_OIDC,
             issuer.metadata.issuer,

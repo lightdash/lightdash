@@ -76,26 +76,6 @@ export function translatePivotRef(
 }
 
 /**
- * Resolves the format key for pivot refs.
- * For SQL pivot: key is already correct (SQL column name).
- * For legacy pivot: extracts base field from ref (e.g., "metric.dim.val" -> "metric").
- */
-function resolveFormatKey(
-    formatKey: string,
-    itemsMap: ItemsMap,
-    pivotValuesColumnsMap?: Record<string, PivotValuesColumn>,
-): string {
-    if (pivotValuesColumnsMap?.[formatKey] || itemsMap[formatKey]) {
-        return formatKey;
-    }
-    const parts = formatKey.split('.');
-    if (parts.length >= 3 && itemsMap[parts[0]]) {
-        return parts[0];
-    }
-    return formatKey;
-}
-
-/**
  * Extracts raw value from a row cell (handles both ResultRow and flat formats).
  */
 function extractCellValue(cell: unknown): unknown {
@@ -108,15 +88,12 @@ function extractCellValue(cell: unknown): unknown {
 /**
  * Find the pivot column name for a simple metric reference by looking through series' pivotReference.
  * This allows users to write `${metric_name}` instead of the full `${metric_name.pivot_dim.pivot_value}` format.
- *
- * Supports two pivot modes:
- * 1. SQL pivot (pivotValuesColumnsMap exists): Look up column in pivotValuesColumnsMap
- * 2. Legacy pivot (pivotValuesColumnsMap undefined): Use hashFieldReference(pivotReference) directly
+ * Looks the matched reference up in pivotValuesColumnsMap to resolve the SQL pivot column name.
  *
  * @param ref - The simple metric field reference (e.g., "orders_amount_running_total")
  * @param params - The tooltip params array containing series information
  * @param series - The ECharts series array with pivotReference metadata
- * @param pivotValuesColumnsMap - Map of pivot column names to their metadata (optional, for SQL pivot)
+ * @param pivotValuesColumnsMap - Map of pivot column names to their metadata
  * @returns The pivot column name if found, undefined otherwise
  */
 export const findPivotColumnFromSeriesRef = (
@@ -162,29 +139,18 @@ export const findPivotColumnFromSeriesRef = (
         );
     });
 
-    if (!matchingRef) return undefined;
+    if (!matchingRef || !pivotValuesColumnsMap) return undefined;
 
-    // SQL pivot mode: look up in pivotValuesColumnsMap
-    if (pivotValuesColumnsMap) {
-        const pivotColumn = Object.entries(pivotValuesColumnsMap).find(
-            ([, col]) =>
-                col.referenceField === ref &&
-                col.pivotValues.length ===
-                    (matchingRef.pivotValues?.length ?? 0) &&
-                col.pivotValues.every(
-                    (pv, i) => pv.value === matchingRef.pivotValues?.[i]?.value,
-                ),
-        );
+    const pivotColumn = Object.entries(pivotValuesColumnsMap).find(
+        ([, col]) =>
+            col.referenceField === ref &&
+            col.pivotValues.length === (matchingRef.pivotValues?.length ?? 0) &&
+            col.pivotValues.every(
+                (pv, i) => pv.value === matchingRef.pivotValues?.[i]?.value,
+            ),
+    );
 
-        if (pivotColumn) {
-            return pivotColumn[0];
-        }
-    } else {
-        // Legacy pivot mode: use hashFieldReference directly
-        return hashFieldReference(matchingRef);
-    }
-
-    return undefined;
+    return pivotColumn?.[0];
 };
 
 /**
@@ -345,8 +311,86 @@ const getHeader = (
     params: (TooltipFormatterParams | TooltipParam)[],
     itemsMap?: ItemsMap,
     xFieldId?: string,
+    timezone?: string,
+    displayTimezone?: string,
 ): string => {
     const firstParam = params[0];
+
+    // Format the raw UTC value through the project timezone. axisValue is
+    // undefined on some stack100 tooltip fires, so fall back to value[0] and
+    // then to the dataset row.
+    const rawAxisValue = firstParam?.axisValue;
+    if (timezone && itemsMap && xFieldId) {
+        const formatViaTz = (v: unknown) =>
+            getFormattedValue(
+                v,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                timezone,
+            );
+        if (rawAxisValue != null) return formatViaTz(rawAxisValue);
+        if (Array.isArray(firstParam?.value) && firstParam.value[0] != null) {
+            return formatViaTz(firstParam.value[0]);
+        }
+        const datasetValue =
+            firstParam?.value &&
+            typeof firstParam.value === 'object' &&
+            !Array.isArray(firstParam.value)
+                ? (firstParam.value as Record<string, unknown>)[xFieldId]
+                : undefined;
+        if (datasetValue != null) return formatViaTz(datasetValue);
+    }
+
+    // When the x-axis values were shifted to project-timezone wall-clock,
+    // axisValue and value[0] are already wall-clock (only need the offset
+    // suffix), while the dataset row still holds the original UTC value
+    // (needs the full conversion).
+    if (displayTimezone && itemsMap && xFieldId) {
+        if (rawAxisValue != null) {
+            return getFormattedValue(
+                rawAxisValue,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
+        if (Array.isArray(firstParam?.value) && firstParam.value[0] != null) {
+            return getFormattedValue(
+                firstParam.value[0],
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
+        const datasetValue =
+            firstParam?.value &&
+            typeof firstParam.value === 'object' &&
+            !Array.isArray(firstParam.value)
+                ? (firstParam.value as Record<string, unknown>)[xFieldId]
+                : undefined;
+        if (datasetValue != null) {
+            return getFormattedValue(
+                datasetValue,
+                xFieldId,
+                itemsMap,
+                true,
+                undefined,
+                undefined,
+                displayTimezone,
+            );
+        }
+    }
 
     // First try the standard axisValueLabel or name
     const standardHeader = firstParam?.axisValueLabel ?? firstParam?.name;
@@ -359,7 +403,6 @@ const getHeader = (
 
     // Fallback: try to format using the raw axis value
     // This handles cases where ECharts couldn't format the value properly
-    const rawAxisValue = firstParam?.axisValue;
     if (rawAxisValue !== undefined && rawAxisValue !== null) {
         if (itemsMap && xFieldId) {
             return getFormattedValue(rawAxisValue, xFieldId, itemsMap, true);
@@ -374,7 +417,15 @@ const getHeader = (
         if (xValue !== undefined && xValue !== null) {
             // Use getFormattedValue for consistent formatting with axis labels
             if (itemsMap && xFieldId) {
-                return getFormattedValue(xValue, xFieldId, itemsMap, true);
+                return getFormattedValue(
+                    xValue,
+                    xFieldId,
+                    itemsMap,
+                    true,
+                    undefined,
+                    undefined,
+                    timezone,
+                );
             }
             return String(xValue);
         }
@@ -496,27 +547,42 @@ export function createStack100TooltipFormatter(
     xAxisField: string,
     itemsMap?: ItemsMap,
     xAxisDateFormat?: string,
+    timezone?: string,
+    displayTimezone?: string,
 ) {
     return (params: TooltipParams) => {
         if (!Array.isArray(params)) return '';
 
         let header: string;
+        const firstParam = params[0];
+
         if (xAxisDateFormat) {
             // Format from the raw data value to avoid timezone double-parsing.
-            const firstParam = params[0];
-            const rawValue =
-                (firstParam?.value as Record<string, unknown> | undefined)?.[
-                    xAxisField
-                ] ?? firstParam?.axisValue;
+            const rawDatasetValue = (
+                firstParam?.value as Record<string, unknown> | undefined
+            )?.[xAxisField];
+            const rawValue = rawDatasetValue ?? firstParam?.axisValue;
             header =
                 rawValue != null
                     ? formatDateWithPattern(
                           rawValue as string | number,
                           xAxisDateFormat,
                       )
-                    : getHeader(params, itemsMap, xAxisField);
+                    : getHeader(
+                          params,
+                          itemsMap,
+                          xAxisField,
+                          timezone,
+                          displayTimezone,
+                      );
         } else {
-            header = getHeader(params, itemsMap, xAxisField);
+            header = getHeader(
+                params,
+                itemsMap,
+                xAxisField,
+                timezone,
+                displayTimezone,
+            );
         }
 
         const rowsHtml = params
@@ -538,6 +604,12 @@ export function createStack100TooltipFormatter(
                 if (!valueObject || typeof valueObject !== 'object') return '';
 
                 const percentage = valueObject[dimensionName];
+
+                // Skip series rows that have no data at this x — happens on
+                // gap rows inserted by padDatasetForContinuousAxis. Without
+                // this guard the formatter would render a "0.0% (0)" line
+                // per series at every gap date.
+                if (percentage === undefined) return '';
 
                 // Get the raw x-axis value from the data for originalValues lookup
                 const rawXValue = String(valueObject[xAxisField] ?? '');
@@ -565,6 +637,10 @@ export function createStack100TooltipFormatter(
             })
             .filter(Boolean)
             .join('');
+
+        // No data at this x (e.g., gap row from continuous-axis padding):
+        // suppress the tooltip entirely rather than showing an empty header.
+        if (!rowsHtml) return '';
 
         const divider = getTooltipDivider();
 
@@ -596,12 +672,16 @@ export function transformToPercentageStacking<
     const originalValues = new Map<string, Map<string, number>>();
     const totals = new Map<string, number>();
 
-    // Calculate totals for each x-axis value
+    // Calculate totals for each x-axis value. Skip fields absent from the
+    // row so gap rows (inserted by padDatasetForContinuousAxis) don't
+    // contribute zeros to originalValues — that would surface as
+    // "0.0% (0)" tooltip lines at gap dates.
     rows.forEach((row) => {
         const xValue = String(row[xAxisField]);
         let total = 0;
 
         yFieldRefs.forEach((yField) => {
+            if (row[yField] === undefined) return;
             const value = toNumber(row[yField]) || 0;
             total += value;
 
@@ -615,13 +695,15 @@ export function transformToPercentageStacking<
         totals.set(xValue, total);
     });
 
-    // Transform data to percentages
+    // Transform data to percentages. Preserve absence for gap-row yFields
+    // so ECharts (and the tooltip) treat them as missing instead of 0%.
     const transformedResults = rows.map((row) => {
         const xValue = String(row[xAxisField]);
         const total = totals.get(xValue) || 1; // Avoid division by zero
         const newRow = { ...row };
 
         yFieldRefs.forEach((yField) => {
+            if (row[yField] === undefined) return;
             const value = toNumber(row[yField]) || 0;
             (newRow as Record<string, unknown>)[yField] = (value / total) * 100;
         });
@@ -843,6 +925,8 @@ export const buildCartesianTooltipFormatter =
         pivotValuesColumnsMap,
         parameters,
         rows,
+        timezone,
+        displayTimezone,
     }: {
         itemsMap?: ItemsMap;
         stackValue: string | boolean | undefined;
@@ -857,6 +941,8 @@ export const buildCartesianTooltipFormatter =
         pivotValuesColumnsMap?: Record<string, PivotValuesColumn>;
         parameters?: ParametersValuesMap;
         rows?: (ResultRow | Record<string, unknown>)[];
+        timezone?: string;
+        displayTimezone?: string;
     }): TooltipComponentFormatterCallback<
         TooltipFormatterParams | TooltipFormatterParams[]
     > =>
@@ -882,10 +968,19 @@ export const buildCartesianTooltipFormatter =
                 },
                 xFieldId,
                 itemsMap,
+                undefined,
+                timezone,
+                displayTimezone,
             )(params as TooltipParam[]);
         }
 
-        const header = getHeader(params, itemsMap, xFieldId);
+        const header = getHeader(
+            params,
+            itemsMap,
+            xFieldId,
+            timezone,
+            displayTimezone,
+        );
 
         const sortedParams = sortTooltipParams(
             params,
@@ -1212,15 +1307,13 @@ export const buildCartesianTooltipFormatter =
                     if (val !== undefined) {
                         const formatted = getFormattedValue(
                             val,
-                            resolveFormatKey(
-                                formatKey,
-                                itemsMap,
-                                pivotValuesColumnsMap,
-                            ),
+                            formatKey,
                             itemsMap,
                             undefined,
                             pivotValuesColumnsMap,
                             parameters,
+                            timezone,
+                            displayTimezone,
                         );
                         tooltipHtml = tooltipHtml.replace(field, formatted);
                     } else {
@@ -1240,7 +1333,6 @@ export const buildCartesianTooltipFormatter =
                     );
                     let formatKey = ref;
                     // Fallback: try translated pivot ref for SQL pivot support
-                    // TODO :: remove fallback logic when USE_SQL_PIVOT_RESULTS flag is removed
                     if (val === undefined) {
                         const translatedKey = translatePivotRef(
                             ref,
@@ -1275,20 +1367,19 @@ export const buildCartesianTooltipFormatter =
                                     pivotColumnFromSeries as keyof typeof firstValue
                                 ],
                             );
+                            formatKey = pivotColumnFromSeries;
                         }
                     }
 
                     const formatted = getFormattedValue(
                         val,
-                        resolveFormatKey(
-                            formatKey,
-                            itemsMap,
-                            pivotValuesColumnsMap,
-                        ),
+                        formatKey,
                         itemsMap,
                         undefined,
                         pivotValuesColumnsMap,
                         parameters,
+                        timezone,
+                        displayTimezone,
                     );
                     tooltipHtml = tooltipHtml.replace(field, formatted);
                 });
@@ -1296,6 +1387,11 @@ export const buildCartesianTooltipFormatter =
                 tooltipHtml = '';
             }
         }
+
+        // No data at this x and no custom template (e.g., gap row from
+        // continuous-axis padding): suppress the tooltip entirely rather
+        // than showing an empty header.
+        if (!rowsHtml && !tooltipHtml) return '';
 
         const divider = getTooltipDivider();
         const dimensionId = params[0]?.dimensionNames?.[0];
@@ -1317,25 +1413,30 @@ export const buildCartesianTooltipFormatter =
                 ? field.format !== undefined
                 : false;
             if (hasFormat || isTimeBasedDimension(field)) {
-                // Use raw value from data object for the specific dimensionId
-                // Don't use axisValue directly as it may be from a different axis
-                // (e.g., in flipped charts, axisValue might be "Phillip" but dimensionId is the date field)
+                // Only re-format when we have a raw value; otherwise trust
+                // `header` — re-parsing the already-formatted string breaks
+                // tuple-mode time axes (returns "NaT").
                 const firstParam = params[0];
-                const rawHeaderValue =
-                    (firstParam?.data as Record<string, unknown> | undefined)?.[
-                        dimensionId
-                    ] ??
-                    firstParam?.axisValue ??
-                    header;
+                const data = firstParam?.data;
+                const valueByDim =
+                    data && typeof data === 'object' && !Array.isArray(data)
+                        ? (data as Record<string, unknown>)[dimensionId]
+                        : undefined;
+                const rawHeaderValue = valueByDim ?? firstParam?.axisValue;
 
-                const headerText = getFormattedValue(
-                    rawHeaderValue,
-                    dimensionId,
-                    itemsMap,
-                    undefined,
-                    pivotValuesColumnsMap,
-                    parameters,
-                );
+                const headerText =
+                    rawHeaderValue !== undefined
+                        ? getFormattedValue(
+                              rawHeaderValue,
+                              dimensionId,
+                              itemsMap,
+                              undefined,
+                              pivotValuesColumnsMap,
+                              parameters,
+                              timezone,
+                              displayTimezone,
+                          )
+                        : header;
                 return `${formatTooltipHeader(
                     headerText,
                 )}${divider}${tooltipHtml}${rowsHtml}`;

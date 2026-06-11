@@ -69,7 +69,19 @@ export class PinningService extends BaseService {
         pinnedListUuid: string,
     ): Promise<PinnedItems> {
         const project = await this.projectModel.getSummary(projectUuid);
-        if (user.ability.cannot('view', subject('Project', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', {
+                    ...project,
+                    metadata: {
+                        projectUuid: project.projectUuid,
+                        projectName: project.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
 
@@ -117,14 +129,22 @@ export class PinningService extends BaseService {
                 };
             });
 
-        const { charts: allowedCharts, dashboards: allowedDashboards } =
-            await this.resourceViewItemModel.getAllowedChartsAndDashboards(
-                projectUuid,
-                pinnedListUuid,
-                allowedSpaceUuids,
-            );
+        const {
+            charts: allowedCharts,
+            dashboards: allowedDashboards,
+            apps: allowedApps,
+        } = await this.resourceViewItemModel.getAllowedChartsAndDashboards(
+            projectUuid,
+            pinnedListUuid,
+            allowedSpaceUuids,
+        );
 
-        return [...allowedPinnedSpaces, ...allowedCharts, ...allowedDashboards];
+        return [
+            ...allowedPinnedSpaces,
+            ...allowedCharts,
+            ...allowedDashboards,
+            ...allowedApps,
+        ];
     }
 
     async updatePinnedItemsOrder(
@@ -134,7 +154,19 @@ export class PinningService extends BaseService {
         itemsOrder: Array<UpdatePinnedItemOrder>,
     ): Promise<PinnedItems> {
         const project = await this.projectModel.get(projectUuid);
-        if (user.ability.cannot('manage', subject('PinnedItems', project))) {
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('PinnedItems', {
+                    ...project,
+                    metadata: {
+                        projectUuid: project.projectUuid,
+                        projectName: project.name,
+                    },
+                }),
+            )
+        ) {
             throw new ForbiddenError();
         }
         if (project.pinnedListUuid !== pinnedListUuid) {

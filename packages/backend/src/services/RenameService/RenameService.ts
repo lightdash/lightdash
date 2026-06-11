@@ -34,6 +34,7 @@ import { SavedChartModel } from '../../models/SavedChartModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
 import { BaseService } from '../BaseService';
+import { SpacePermissionService } from '../SpaceService/SpacePermissionService';
 import {
     getNameChanges,
     renameAlert,
@@ -50,6 +51,7 @@ type RenameServiceArguments = {
     dashboardModel: DashboardModel;
     schedulerClient: SchedulerClient;
     schedulerModel: SchedulerModel;
+    spacePermissionService: SpacePermissionService;
 };
 
 export class RenameService extends BaseService {
@@ -67,6 +69,8 @@ export class RenameService extends BaseService {
 
     private readonly schedulerModel: SchedulerModel;
 
+    private readonly spacePermissionService: SpacePermissionService;
+
     constructor(args: RenameServiceArguments) {
         super();
         this.lightdashConfig = args.lightdashConfig;
@@ -76,6 +80,7 @@ export class RenameService extends BaseService {
         this.dashboardModel = args.dashboardModel;
         this.schedulerClient = args.schedulerClient;
         this.schedulerModel = args.schedulerModel;
+        this.spacePermissionService = args.spacePermissionService;
     }
 
     async getFieldsForChart({
@@ -89,12 +94,18 @@ export class RenameService extends BaseService {
     }) {
         const chart = await this.savedChartModel.get(chartUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: chart.organizationUuid,
                     projectUuid: chart.projectUuid,
+                    metadata: {
+                        chartUuid,
+                        chartName: chart.name,
+                        tableName: chart.tableName,
+                    },
                 }),
             )
         ) {
@@ -163,21 +174,59 @@ export class RenameService extends BaseService {
             );
         }
 
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const chart = await this.savedChartModel.get(chartUuid);
+        if (chart.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Chart ${chartUuid} not found`);
+        }
+        const {
+            organizationUuid,
+            projectUuid: chartProjectUuid,
+            spaceUuid,
+            name: chartName,
+        } = chart;
+        const { inheritsFromOrgOrProject, access } =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                spaceUuid,
+            );
+
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
-                subject('Project', {
+                subject('SavedChart', {
                     organizationUuid,
-                    projectUuid,
+                    projectUuid: chartProjectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        savedChartUuid: chartUuid,
+                        savedChartName: chartName,
+                    },
                 }),
             )
         ) {
             throw new ForbiddenError();
         }
 
-        const chart = await this.savedChartModel.get(chartUuid);
+        // The fixAll path schedules a project-wide rename via
+        // scheduleRenameResources, which itself requires update:Project. Check
+        // it here too so we fail before mutating the single chart — otherwise
+        // the inner check would 403 mid-flight and leave the chart updated
+        // while the API response reports failure.
+        if (
+            fixAll &&
+            auditedAbility.cannot(
+                'update',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid: chartProjectUuid,
+                    metadata: { chartUuid, chartName, from, to, type },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
 
         const nameChanges = getNameChanges({
             from,
@@ -312,12 +361,18 @@ export class RenameService extends BaseService {
         const dashboard =
             await this.dashboardModel.getByIdOrSlug(dashboardUuid);
 
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid: dashboard.organizationUuid,
                     projectUuid: dashboard.projectUuid,
+                    metadata: {
+                        dashboardUuid,
+                        dashboardName: dashboard.name,
+                        tableName,
+                    },
                 }),
             )
         ) {
@@ -414,12 +469,14 @@ export class RenameService extends BaseService {
 
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: { dashboardUuid, from, to, type, fixAll },
                 }),
             )
         ) {
@@ -560,12 +617,19 @@ export class RenameService extends BaseService {
     }) {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        from: renameBody.from,
+                        to: renameBody.to,
+                        type: renameBody.type,
+                        model: renameBody.model,
+                    },
                 }),
             )
         ) {
@@ -600,12 +664,19 @@ export class RenameService extends BaseService {
     }): Promise<ApiRenameResponse['results']> {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
         if (
-            user.ability.cannot(
+            auditedAbility.cannot(
                 'update',
                 subject('Project', {
                     organizationUuid,
                     projectUuid,
+                    metadata: {
+                        from: renameBody.from,
+                        to: renameBody.to,
+                        type: renameBody.type,
+                        model: renameBody.model,
+                    },
                 }),
             )
         ) {

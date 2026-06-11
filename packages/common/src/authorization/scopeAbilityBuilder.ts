@@ -1,4 +1,5 @@
 import { type AbilityBuilder } from '@casl/ability';
+import { type ProjectType } from '../types/projects';
 import { type ScopeContext } from '../types/scopes';
 import { parseScope, parseScopes } from './parseScopes';
 import { getAllScopeMap } from './scopes';
@@ -44,6 +45,11 @@ const applyScopeAbilities = (
         const [action, subject] = parseScope(scopeName);
         const conditionsList = scope.getConditions(context);
 
+        // null = scope does not apply in this context (e.g. @self
+        // outside a self-created preview project). Skip entirely — an empty
+        // array still means an unconditional grant.
+        if (conditionsList === null) return;
+
         // Apply each condition set if there are any
         if (conditionsList.length === 0) {
             builder.can(action, subject);
@@ -61,10 +67,14 @@ type OptionalIdContext =
     | {
           organizationUuid: string;
           projectUuid?: never;
+          projectType?: never;
+          projectCreatedByUserUuid?: never;
       }
     | {
           projectUuid: string;
           organizationUuid?: never;
+          projectType?: ProjectType;
+          projectCreatedByUserUuid?: string | null;
       };
 
 type BuilderOptions = {
@@ -81,24 +91,28 @@ type BuilderOptions = {
 } & OptionalIdContext;
 
 /**
- * Apply CASL abilities from scopes to a builder
- * @param context - Context containing organization, project, user, and space access information
- * @param builder - CASL ability builder to add permissions to
+ * Apply CASL abilities from scopes to a builder. Returns the list of scope
+ * names that were rejected because they are not in the runtime vocabulary so
+ * the caller can log or report them with whatever logger it has on hand
+ * (`parseScopes` itself is side-effect free — `common` can't depend on the
+ * backend Winston logger).
  */
 export const buildAbilityFromScopes = (
     context: BuilderOptions,
     builder: AbilityBuilder<MemberAbility>,
-): void => {
+): string[] => {
     const isEnterprise = context.isEnterprise ?? false;
-    const scopes = parseScopes({
+    const { valid, invalid } = parseScopes({
         scopes: context.scopes,
         isEnterprise,
     });
     const parsedContext = {
         ...context,
-        scopes,
+        scopes: valid,
         isEnterprise,
     };
 
     applyScopeAbilities(parsedContext, builder);
+
+    return invalid;
 };

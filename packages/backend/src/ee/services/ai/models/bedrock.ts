@@ -34,11 +34,13 @@ export const getBedrockProvider = (
         ? createAmazonBedrock({
               apiKey: config.apiKey,
               region: config.region,
+              headers: config.customHeaders,
           })
         : createAmazonBedrock({
               region: config.region,
               accessKeyId: config.accessKeyId,
               secretAccessKey: config.secretAccessKey,
+              headers: config.customHeaders,
               ...(config.sessionToken
                   ? { sessionToken: config.sessionToken }
                   : {}),
@@ -66,10 +68,7 @@ export const getBedrockModel = (
         model,
         callOptions: {
             ...preset.callOptions,
-            // temperature is not supported when reasoning is enabled
-            ...(reasoningEnabled
-                ? { temperature: undefined }
-                : { temperature: 0.2 }),
+            ...(reasoningEnabled && { temperature: undefined }),
         },
         providerOptions: {
             [PROVIDER]: {

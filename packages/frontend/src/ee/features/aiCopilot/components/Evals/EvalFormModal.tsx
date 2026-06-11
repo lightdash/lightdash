@@ -184,7 +184,7 @@ export const EvalFormModal: FC<Props> = ({
             onClose={handleClose}
             icon={IconSettings}
             title={modalTitle}
-            size="full"
+            size="lg"
             cancelDisabled={isLoading || isDeleting}
             leftActions={
                 mode === 'edit' && onDelete ? (

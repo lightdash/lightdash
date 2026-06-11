@@ -20,6 +20,7 @@ const getDashboardSchedulers = async (
     uuid: string,
     paginateArgs: KnexPaginateArgs,
     searchQuery?: string,
+    includeLatestRun?: boolean,
 ) => {
     const params = new URLSearchParams({
         page: paginateArgs.page.toString(),
@@ -28,6 +29,10 @@ const getDashboardSchedulers = async (
 
     if (searchQuery) {
         params.set('searchQuery', searchQuery);
+    }
+
+    if (includeLatestRun) {
+        params.set('includeLatestRun', 'true');
     }
 
     return lightdashApi<DashboardSchedulersResponse>({
@@ -42,12 +47,14 @@ export type UseDashboardSchedulersParams = {
     dashboardUuid: string;
     searchQuery?: string;
     pageSize?: number;
+    includeLatestRun?: boolean;
 };
 
 export const useDashboardSchedulers = ({
     dashboardUuid,
     searchQuery,
     pageSize = 25,
+    includeLatestRun,
 }: UseDashboardSchedulersParams) =>
     useInfiniteQuery<DashboardSchedulersResponse, ApiError>({
         queryKey: [
@@ -55,12 +62,14 @@ export const useDashboardSchedulers = ({
             dashboardUuid,
             searchQuery,
             pageSize,
+            includeLatestRun,
         ],
         queryFn: ({ pageParam = 1 }) =>
             getDashboardSchedulers(
                 dashboardUuid,
                 { page: pageParam as number, pageSize },
                 searchQuery,
+                includeLatestRun,
             ),
         getNextPageParam: (lastPage) => {
             const currentPage = lastPage.pagination?.page ?? 1;

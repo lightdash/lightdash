@@ -83,10 +83,12 @@ const DrillDownMenuItem: FC<DrillDownMenuItemProps> = ({
                 leftSection={<MantineIcon icon={IconArrowBarToDown} />}
                 onClick={handleDrillInto}
             >
-                Drill into{' '}
-                <Text span fz="sm" fw="bold">
-                    {value}
-                </Text>
+                <>
+                    Drill into{' '}
+                    <Text span fz="inherit" lh="inherit" fw="bold">
+                        {value}
+                    </Text>
+                </>
             </Menu.Item>
         );
     }

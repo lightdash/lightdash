@@ -316,9 +316,9 @@ Array of row objects ready for the table:
 [`packages/common/src/pivot/pivotQueryResults.ts`](packages/common/src/pivot/pivotQueryResults.ts)
 
 ```
-Original rows (6 rows, 4 columns)
+SQL-pivoted rows + pivotDetails
          ↓
-    pivotQueryResults()
+    convertSqlPivotedRowsToPivotData()
          ↓
 PivotData (2 rows, 30+ columns)
 ```
@@ -410,19 +410,23 @@ const rowFieldsForCell = row
 
 ---
 
-## The `pivotQueryResults` Algorithm
+## The `convertSqlPivotedRowsToPivotData` Algorithm
 
 **Location:** `packages/common/src/pivot/pivotQueryResults.ts`
+
+Pivoting now happens in the warehouse (SQL). This function takes rows that are
+already pivoted at the SQL level plus the `pivotDetails` metadata describing the
+pivot shape, and reshapes them into the `PivotData` structure the table renders.
 
 ### Input
 
 ```typescript
 {
-  pivotConfig: PivotConfig;
-  metricQuery: { dimensions, metrics, tableCalculations, ... };
-  rows: ResultRow[];
-  groupedSubtotals?: Record<string, Record<string, number>[]>;
-  options: { maxColumns: number };
+  rows: ResultRow[]; // already SQL-pivoted: one row per index combination
+  pivotDetails: ReadyQueryResultsPage['pivotDetails']; // indexColumn, valuesColumns, groupByColumns
+  pivotConfig: Pick<PivotConfig, 'rowTotals' | 'columnTotals' | 'metricsAsRows' | ...>;
+  groupedSubtotals: Record<string, Record<string, number>[]> | undefined;
+  columnLimit?: number;
   getField: (fieldId: string) => ItemsMap[string];
   getFieldLabel: (fieldId: string) => string;
 }
@@ -430,95 +434,27 @@ const rowFieldsForCell = row
 
 ### Algorithm Steps
 
-#### Step 1: Separate Dimensions
+1. **Read the pivot shape from `pivotDetails`** — `indexColumn` gives the row
+   index dimensions, `groupByColumns` the pivoted column-header dimensions, and
+   `valuesColumns` each emitted SQL column (its `pivotColumnName`, the base
+   `referenceField`, and the `pivotValues` that produced it).
+2. **Apply visibility + column limit** — hidden dims/metrics are filtered out and
+   `columnLimit` (when set) keeps only the first N pivot column groups.
+3. **Build `headerValues` / `indexValues`** from the pivot values and index
+   columns, fanning each input row out per metric when `metricsAsRows` is set.
+4. **Read `dataValues` directly** from each row by `pivotColumnName` (no
+   client-side grouping pass is needed — the warehouse already grouped).
+5. **Calculate totals** — row totals sum across columns, column totals sum down
+   rows, honouring `summableMetricFieldIds`.
 
-```typescript
-// Header dimensions = pivoted (become columns)
-const headerDimensions = pivotConfig.pivotDimensions.filter((d) =>
-    dimensions.includes(d),
-);
-
-// Index dimensions = non-pivoted (stay as rows)
-const indexDimensions = dimensions.filter(
-    (d) => !pivotConfig.pivotDimensions.includes(d),
-);
-```
-
-#### Step 2: Build Nested Indices
-
-Uses recursive `RecursiveRecord<number>` to map dimension value combinations → array position.
-
-```typescript
-// Example: rowIndices for metricsAsRows=true
-{
-  "dim1_value_A": {
-    "metric_1": 0,  // row position
-    "metric_2": 1
-  },
-  "dim1_value_B": {
-    "metric_1": 2,
-    "metric_2": 3
-  }
-}
-```
-
-Key helper functions:
-
-- `setIndexByKey(obj, keys, value)`: Creates nested path, returns `true` if new
-- `getIndexByKey(obj, keys)`: Retrieves position from nested path
-
-#### Step 3: First Pass - Collect Unique Rows/Columns
-
-```typescript
-for (let nRow = 0; nRow < N_ROWS; nRow++) {
-    for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
-        // Build index key: [dim1_value, dim2_value, ...metric_id?]
-        const indexRowValues = indexDimensions
-            .map((d) => row[d].value)
-            .concat(pivotConfig.metricsAsRows ? [metric.fieldId] : []);
-
-        // Build header key: [pivot_dim1_value, ...metric_id?]
-        const headerRowValues = headerDimensions
-            .map((d) => row[d].value)
-            .concat(pivotConfig.metricsAsRows ? [] : [metric.fieldId]);
-
-        // Track unique combinations
-        if (setIndexByKey(rowIndices, indexKeys, rowCount)) {
-            rowCount++;
-            indexValues.push(indexRowValues);
-        }
-        if (setIndexByKey(columnIndices, headerKeys, columnCount)) {
-            columnCount++;
-            headerValuesT.push(headerRowValues);
-        }
-    }
-}
-```
-
-#### Step 4: Second Pass - Populate Data Values
-
-```typescript
-const dataValues = create2DArray(N_DATA_ROWS, N_DATA_COLUMNS);
-
-for (let nRow = 0; nRow < N_ROWS; nRow++) {
-    for (let nMetric = 0; nMetric < metrics.length; nMetric++) {
-        const rowIndex = getIndexByKey(rowIndices, rowKeys);
-        const columnIndex = getIndexByKey(columnIndices, columnKeys);
-        dataValues[rowIndex][columnIndex] = row[metric.fieldId].value;
-    }
-}
-```
-
-#### Step 5: Calculate Totals
-
-Row totals: Sum across columns for each row
-Column totals: Sum down rows for each column
+`setIndexByKey(obj, keys, value)` (nested-path writer) and
+`getAllIndicesForFieldId` are still used here for total bookkeeping.
 
 ---
 
 ## How `retrofitData` is Created
 
-**Function:** `combinedRetrofit()` in `pivotQueryResults.ts:224-377`
+**Function:** `combinedRetrofit()` in `pivotQueryResults.ts`
 
 Converts structured `PivotData` back to flat `ResultRow[]` for TanStack Table.
 
@@ -585,7 +521,7 @@ Example:
 
 1. **Frontend hook:** `useCalculateSubtotals()` (`packages/frontend/src/hooks/useCalculateSubtotals.ts`)
 2. **API call:** `POST /projects/{uuid}/calculate-subtotals`
-3. **Passed to:** `pivotQueryResults({ groupedSubtotals })`
+3. **Passed to:** `convertSqlPivotedRowsToPivotData({ groupedSubtotals })`
 4. **Stored in:** `PivotData.groupedSubtotals`
 
 ### Lookup in PivotTable

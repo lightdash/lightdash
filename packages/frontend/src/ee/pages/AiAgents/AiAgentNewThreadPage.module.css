@@ -1,0 +1,25 @@
+.agentAvatarWrap {
+    position: relative;
+    display: inline-flex;
+}
+
+.defaultAgentBadge {
+    position: absolute;
+    right: rem(-3px);
+    bottom: rem(-3px);
+    width: rem(24px);
+    height: rem(24px);
+    min-width: rem(24px);
+    min-height: rem(24px);
+    border-radius: 999px;
+    border: none;
+    box-shadow: none;
+
+    @mixin light {
+        background-color: var(--mantine-color-ldGray-0);
+    }
+
+    @mixin dark {
+        background-color: var(--mantine-color-dark-7);
+    }
+}

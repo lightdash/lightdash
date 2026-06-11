@@ -4,9 +4,11 @@ import {
     isCustomDimension,
     isDimension,
     isField,
+    normalizePivotMatchRaw,
     type ItemsMap,
     type ParametersValuesMap,
     type ResultRow,
+    type ResultValue,
 } from '@lightdash/common';
 import { Text } from '@mantine/core';
 import { captureException } from '@sentry/react';
@@ -60,6 +62,35 @@ export function getGroupingValuesAndSubtotalKey(
     const subtotalGroupKey = getSubtotalKey(groupingDimensions);
 
     return { groupingValues, subtotalGroupKey };
+}
+
+// Pass `{}` for pivotedHeaderValues in the non-pivoted path.
+export function findMatchingSubtotal(
+    records: Record<string, number>[] | undefined,
+    groupingValues: Record<string, { value: ResultValue } | undefined>,
+    pivotedHeaderValues: Record<string, ResultValue>,
+): Record<string, number> | undefined {
+    return records?.find((sub) => {
+        try {
+            return (
+                Object.keys(groupingValues).every(
+                    (key) =>
+                        normalizePivotMatchRaw(
+                            groupingValues[key]?.value.raw,
+                        ) === normalizePivotMatchRaw(sub[key]),
+                ) &&
+                Object.keys(pivotedHeaderValues).every(
+                    (key) =>
+                        normalizePivotMatchRaw(
+                            pivotedHeaderValues[key]?.raw,
+                        ) === normalizePivotMatchRaw(sub[key]),
+                )
+            );
+        } catch (e) {
+            captureException(e);
+            return false;
+        }
+    });
 }
 
 export function getSubtotalValueFromGroup(
@@ -232,23 +263,11 @@ const getDataAndColumns = ({
                                 groupingValuesAndSubtotalKey;
 
                             // Find the subtotal for the row, this is used to find the subtotal in the groupedSubtotals object
-                            const subtotal = groupedSubtotals?.[
-                                subtotalGroupKey
-                            ]?.find((sub) => {
-                                try {
-                                    return Object.keys(groupingValues).every(
-                                        (key) => {
-                                            return (
-                                                groupingValues[key]?.value
-                                                    .raw === sub[key]
-                                            );
-                                        },
-                                    );
-                                } catch (e) {
-                                    console.error(e);
-                                    return false;
-                                }
-                            });
+                            const subtotal = findMatchingSubtotal(
+                                groupedSubtotals?.[subtotalGroupKey],
+                                groupingValues,
+                                {},
+                            );
 
                             const subtotalValue = getSubtotalValueFromGroup(
                                 subtotal,

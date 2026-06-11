@@ -1,3 +1,18 @@
+import { McpAuthorizationRequiredError } from '../AiAgentMcpRuntimeClient';
+
+export const STEP_CAP_REACHED_MESSAGE =
+    'The agent reached its maximum number of steps before finishing. Please try asking for fewer things at once, or split your question into smaller parts.';
+
+export class AiAgentStepCapReachedError extends Error {
+    readonly stepsCount: number;
+
+    constructor(stepsCount: number) {
+        super(STEP_CAP_REACHED_MESSAGE);
+        this.name = 'AiAgentStepCapReachedError';
+        this.stepsCount = stepsCount;
+    }
+}
+
 /**
  * Converts technical error messages into user-friendly messages for AI agent errors.
  *
@@ -9,7 +24,33 @@ export const getUserFacingErrorMessage = (
     error: unknown,
     defaultMessage: string = 'Something went wrong while processing your request. Please try again.',
 ): string => {
+    if (error instanceof AiAgentStepCapReachedError) {
+        return STEP_CAP_REACHED_MESSAGE;
+    }
+
+    if (error instanceof McpAuthorizationRequiredError) {
+        return error.message;
+    }
+
     const errorMessage = error instanceof Error ? error.message : String(error);
+
+    if (errorMessage.includes('MCP HTTP Transport Error')) {
+        if (
+            errorMessage.includes('HTTP 401') ||
+            errorMessage.includes('Unauthorized')
+        ) {
+            return 'The MCP server rejected the saved credentials. Check the MCP server authentication settings, then try again.';
+        }
+
+        if (
+            errorMessage.includes('HTTP 403') ||
+            errorMessage.includes('Forbidden')
+        ) {
+            return 'The MCP server refused access. Check that the connected account has permission to use this MCP server.';
+        }
+
+        return 'We could not connect to the MCP server. Check that it is available and try again.';
+    }
 
     // Context/token limit errors
     if (

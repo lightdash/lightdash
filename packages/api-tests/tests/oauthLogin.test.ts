@@ -187,7 +187,6 @@ describe('OAuth API Integration Tests', () => {
             expect(body.grant_types_supported).toContain('authorization_code');
             expect(body.grant_types_supported).toContain('refresh_token');
             expect(body.code_challenge_methods_supported).toContain('S256');
-            expect(body.code_challenge_methods_supported).toContain('plain');
 
             // OAuth2 endpoints should not have the {status, results} wrapper
             expect(body).not.toHaveProperty('status');

@@ -658,7 +658,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        'CASE WHEN LEAD("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (1) THEN LEAD(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END';
+                        'CASE WHEN LEAD("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (1) THEN LEAD(revenue, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -668,7 +668,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        'CASE WHEN LAG("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END';
+                        'CASE WHEN LAG("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -687,7 +687,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        'revenue - CASE WHEN LAG("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END';
+                        'revenue - CASE WHEN LAG("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END';
                     expect(compiled).toBe(expectedSql);
                 });
             });
@@ -1135,7 +1135,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        '"column_index" * CASE WHEN LAG("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END + MAX(CASE WHEN "column_index" = 0 THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index")';
+                        '"column_index" * CASE WHEN LAG("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END + MAX(CASE WHEN "column_index" = 0 THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index")';
                     expect(compiled).toBe(expectedSql);
                 });
 
@@ -1146,7 +1146,7 @@ describe('tableCalculationFunctions', () => {
                     const compiled = compiler.compileFunctions(sql, functions);
 
                     const expectedSql =
-                        'CASE WHEN "column_index" = 0 THEN MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", status = "active" AS condition FROM DUAL) WHERE condition = TRUE) THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index") ELSE CASE WHEN LAG("row_index", 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") = "row_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "column_index" ORDER BY "row_index") ELSE NULL END END';
+                        'CASE WHEN "column_index" = 0 THEN MAX(CASE WHEN "column_index" = (SELECT MIN("column_index") FROM (SELECT "column_index", status = "active" AS condition FROM DUAL) WHERE condition = TRUE) THEN revenue ELSE NULL END) OVER (PARTITION BY "row_index") ELSE CASE WHEN LAG("column_index", 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") = "column_index" + (-1) THEN LAG(revenue, 1) OVER (PARTITION BY "row_index" ORDER BY "column_index") ELSE NULL END END';
                     expect(compiled).toBe(expectedSql);
                 });
             });

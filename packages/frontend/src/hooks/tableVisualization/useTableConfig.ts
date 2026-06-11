@@ -11,8 +11,6 @@ import {
     type ColumnProperties,
     type ConditionalFormattingConfig,
     type ConditionalFormattingMinMaxMap,
-    type DashboardFilters,
-    type DateZoom,
     type ItemsMap,
     type MetricQuery,
     type ParametersValuesMap,
@@ -22,11 +20,17 @@ import {
     type TableChart,
 } from '@lightdash/common';
 import { createWorkerFactory, useWorker } from '@shopify/react-web-worker';
+import isEqual from 'lodash/isEqual';
 import uniq from 'lodash/uniq';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import useEmbed from '../../ee/providers/Embed/useEmbed';
-import { useCalculateSubtotals } from '../useCalculateSubtotals';
-import { useCalculateTotal } from '../useCalculateTotal';
+import {
+    useAsyncCalculateRowTotal,
+    useAsyncCalculateSubtotals,
+    useAsyncCalculateTotal,
+} from '../useAsyncCalculateTotal';
+import { useIsHidePivotDimsEnabled } from '../useIsHidePivotDimsEnabled';
+import { useIsPivotRowGroupingEnabled } from '../useIsPivotRowGroupingEnabled';
+import { useProjectUuid } from '../useProjectUuid';
 import { type InfiniteQueryResults } from '../useQueryResults';
 import getDataAndColumns from './getDataAndColumns';
 
@@ -40,20 +44,15 @@ const useTableConfig = (
         | (InfiniteQueryResults & {
               metricQuery?: MetricQuery;
               fields?: ItemsMap;
+              resolvedTimezone?: string;
           })
         | undefined,
     itemsMap: ItemsMap | undefined,
     columnOrder: string[],
     pivotDimensions: string[] | undefined,
-    pivotTableMaxColumnLimit: number,
-    savedChartUuid?: string,
-    dashboardFilters?: DashboardFilters,
     invalidateCache?: boolean,
     parameters?: ParametersValuesMap,
-    dateZoom?: DateZoom,
 ) => {
-    const { embedToken } = useEmbed();
-
     const [showColumnCalculation, setShowColumnCalculation] = useState<boolean>(
         !!tableChartConfig?.showColumnCalculation,
     );
@@ -74,6 +73,17 @@ const useTableConfig = (
     );
     const [showSubtotals, setShowSubtotals] = useState<boolean>(
         tableChartConfig?.showSubtotals ?? false,
+    );
+    const [showSubtotalsExpanded, setShowSubtotalsExpanded] = useState<boolean>(
+        tableChartConfig?.showSubtotalsExpanded ?? false,
+    );
+    // Raw, persisted value of the user toggle. We never clobber this with
+    // the flag — if the user saved `showRowGrouping: true` while the
+    // PivotRowGrouping flag was on and the flag later flips off, we want to
+    // preserve their intent for when the flag flips back. Renders use
+    // `effectiveShowRowGrouping` below which gates on the live flag value.
+    const [showRowGrouping, setShowRowGrouping] = useState<boolean>(
+        tableChartConfig?.showRowGrouping ?? false,
     );
     const [hideRowNumbers, setHideRowNumbers] = useState<boolean>(
         tableChartConfig?.hideRowNumbers === undefined
@@ -154,23 +164,31 @@ const useTableConfig = (
         [getFieldLabelOverride, getFieldLabelDefault],
     );
 
-    // This is controlled by the state in this component.
-    // User configures the names and visibilty of these in the config panel
+    // PROD-2108 flag gate. When off, preserve the legacy short-circuit that
+    // forced dimensions to always render while pivoting — it guarded against
+    // an older pivot reducer bug where filtering an index dim corrupted
+    // metric values. The PR 2 indexDimensionsForGrouping/ForDisplay split
+    // fixes that root cause, but we only honor the persisted dim visibility
+    // when the flag is on, so existing charts that have an unintentional
+    // `columnProperties[dim].visible: false` (set by clicks during the era of
+    // the buggy guard) keep rendering the dim. Flag-on opts into the new
+    // behavior.
+    const isHidePivotDimsEnabled = useIsHidePivotDimsEnabled();
+    const isPivotRowGroupingEnabled = useIsPivotRowGroupingEnabled();
+
     const isColumnVisible = useCallback(
         (fieldId: string) => {
-            // we should always show dimensions when pivoting
-            // hiding a dimension randomly removes values from all metrics
             if (
+                !isHidePivotDimsEnabled &&
                 pivotDimensions &&
                 pivotDimensions.length > 0 &&
                 isDimension(getField(fieldId))
             ) {
                 return true;
             }
-
             return columnProperties[fieldId]?.visible ?? true;
         },
-        [pivotDimensions, getField, columnProperties],
+        [columnProperties, isHidePivotDimsEnabled, pivotDimensions, getField],
     );
     const isColumnFrozen = useCallback(
         (fieldId: string) => columnProperties[fieldId]?.frozen === true,
@@ -188,6 +206,27 @@ const useTableConfig = (
         resultsData.rows.length &&
         pivotDimensions &&
         pivotDimensions.length > 0;
+
+    // True when the configured pivot dimensions differ from the ones the current
+    // results were computed with (warehouse pivots key on groupByColumns). Mirrors
+    // the mismatch check in VisualizationWarning so a re-run is needed.
+    const isPivotResultStale = useMemo(() => {
+        const resultsPivotDimensions =
+            resultsData?.pivotDetails?.groupByColumns?.map(
+                (col) => col.reference,
+            ) ?? [];
+        // Compare only VISIBLE configured dims — a hidden sort-only pivot dim is
+        // routed to sortOnlyDimensions and never appears in results.groupByColumns,
+        // so including it here would keep the re-run prompt permanently stale.
+        const visiblePivotDimensions = (pivotDimensions ?? []).filter(
+            isColumnVisible,
+        );
+        return !isEqual(visiblePivotDimensions, resultsPivotDimensions);
+    }, [
+        pivotDimensions,
+        resultsData?.pivotDetails?.groupByColumns,
+        isColumnVisible,
+    ]);
 
     const dimensions = useMemo(() => {
         if (!itemsMap) return [];
@@ -212,54 +251,48 @@ const useTableConfig = (
             setShowSubtotals(false);
     }, [dimensions.length, numUnpivotedDimensions]);
 
-    const { data: totalCalculations } = useCalculateTotal(
-        savedChartUuid
-            ? {
-                  savedChartUuid,
-                  fieldIds: selectedItemIds,
-                  dashboardFilters,
-                  invalidateCache,
-                  itemsMap,
-                  showColumnCalculation:
-                      tableChartConfig?.showColumnCalculation,
-                  embedToken,
-                  parameters,
-              }
-            : {
-                  metricQuery: resultsData?.metricQuery,
-                  explore: resultsData?.metricQuery?.exploreName,
-                  fieldIds: selectedItemIds,
-                  itemsMap,
-                  showColumnCalculation:
-                      tableChartConfig?.showColumnCalculation,
-                  embedToken,
-                  parameters,
-              },
-    );
+    const projectUuid = useProjectUuid();
+    const canFetchAsyncTotals =
+        !!resultsData?.queryUuid && !!tableChartConfig?.showColumnCalculation;
+    const { data: asyncTotals } = useAsyncCalculateTotal({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        enabled: canFetchAsyncTotals,
+        invalidateCache,
+    });
 
-    const { data: groupedSubtotals } = useCalculateSubtotals(
-        embedToken && savedChartUuid
-            ? {
-                  savedChartUuid,
-                  dashboardFilters,
-                  invalidateCache,
-                  showSubtotals,
-                  columnOrder,
-                  pivotDimensions,
-                  embedToken,
-                  dateZoom,
-              }
-            : {
-                  metricQuery: resultsData?.metricQuery,
-                  explore: resultsData?.metricQuery?.exploreName,
-                  showSubtotals,
-                  columnOrder,
-                  pivotDimensions,
-                  embedToken,
-                  parameters,
-                  dateZoom,
-              },
-    );
+    // Index dimension field ids the warehouse row-total query groups by — the
+    // worker keys each rendered row's total by these. Row totals are exclusively
+    // warehouse-computed (no client-side fallback) for SQL pivots, in both the
+    // metrics-as-columns and metrics-as-rows layouts.
+    const rowTotalIndexFieldIds = useMemo<string[]>(() => {
+        const indexColumn = resultsData?.pivotDetails?.indexColumn;
+        if (!indexColumn) return [];
+        return Array.isArray(indexColumn)
+            ? indexColumn.map((col) => col.reference)
+            : [indexColumn.reference];
+    }, [resultsData?.pivotDetails?.indexColumn]);
+    const canFetchAsyncRowTotals =
+        !!resultsData?.queryUuid &&
+        !!tableChartConfig?.showRowCalculation &&
+        !!resultsData?.pivotDetails;
+    const { data: asyncRowTotals } = useAsyncCalculateRowTotal({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        indexFieldIds: rowTotalIndexFieldIds,
+        enabled: canFetchAsyncRowTotals,
+        invalidateCache,
+    });
+
+    const { data: groupedSubtotals } = useAsyncCalculateSubtotals({
+        projectUuid,
+        sourceQueryUuid: resultsData?.queryUuid,
+        dimensions: resultsData?.metricQuery?.dimensions,
+        columnOrder,
+        pivotDimensions,
+        enabled: showSubtotals && canUseSubtotals,
+        invalidateCache,
+    });
 
     const columns = useMemo(() => {
         if (!selectedItemIds || !itemsMap) {
@@ -279,7 +312,7 @@ const useTableConfig = (
             isColumnFrozen,
             getColumnWidth,
             columnOrder,
-            totals: totalCalculations,
+            totals: asyncTotals,
             groupedSubtotals,
             parameters,
         });
@@ -293,7 +326,7 @@ const useTableConfig = (
         isColumnFrozen,
         getColumnWidth,
         getFieldLabelOverride,
-        totalCalculations,
+        asyncTotals,
         groupedSubtotals,
         parameters,
     ]);
@@ -352,67 +385,68 @@ const useTableConfig = (
             );
         });
 
+        // Only populate the dim-side hidden list when the flag is on. Without
+        // it, isColumnVisible still applies the legacy short-circuit for dims
+        // and we keep the pre-PROD-2108 contract (no dim filtering downstream).
+        const hiddenDimensionFieldIds = isHidePivotDimsEnabled
+            ? selectedItemIds?.filter((fieldId) => {
+                  const field = getField(fieldId);
+                  if (!field || isColumnVisible(fieldId)) return false;
+                  // Custom SQL dimensions are not `Field`s but still behave
+                  // as dims in the pivot (driving sort order via
+                  // sortOnlyDimensions).
+                  return (
+                      (isField(field) && isDimension(field)) ||
+                      isCustomDimension(field)
+                  );
+              })
+            : undefined;
+
         const pivotConfig: PivotConfig = {
             pivotDimensions,
             metricsAsRows,
             columnOrder,
             hiddenMetricFieldIds,
+            hiddenDimensionFieldIds,
             columnTotals: tableChartConfig?.showColumnCalculation,
             rowTotals: tableChartConfig?.showRowCalculation,
         };
 
-        if (resultsData.pivotDetails) {
-            worker
-                .convertSqlPivotedRowsToPivotData({
-                    rows: resultsData.rows,
-                    pivotDetails: resultsData.pivotDetails,
-                    pivotConfig,
-                    getField,
-                    getFieldLabel,
-                    groupedSubtotals,
-                })
-                .then((data) => {
-                    setPivotTableData({
-                        loading: false,
-                        data: data,
-                        error: undefined,
-                    });
-                })
-                .catch((e) => {
-                    setPivotTableData({
-                        loading: false,
-                        data: undefined,
-                        error: e.message,
-                    });
-                });
-        } else {
-            worker
-                .pivotQueryResults({
-                    pivotConfig,
-                    metricQuery: resultsData.metricQuery,
-                    rows: resultsData.rows,
-                    groupedSubtotals,
-                    options: {
-                        maxColumns: pivotTableMaxColumnLimit,
-                    },
-                    getField,
-                    getFieldLabel,
-                })
-                .then((data) => {
-                    setPivotTableData({
-                        loading: false,
-                        data: data,
-                        error: undefined,
-                    });
-                })
-                .catch((e) => {
-                    setPivotTableData({
-                        loading: false,
-                        data: undefined,
-                        error: e.message,
-                    });
-                });
+        if (!resultsData.pivotDetails) {
+            setPivotTableData({
+                loading: false,
+                data: undefined,
+                error: undefined,
+            });
+            return;
         }
+
+        worker
+            .convertSqlPivotedRowsToPivotData({
+                rows: resultsData.rows,
+                pivotDetails: resultsData.pivotDetails,
+                pivotConfig,
+                getField,
+                getFieldLabel,
+                groupedSubtotals,
+                warehouseRowTotals: asyncRowTotals,
+                warehouseColumnTotals: asyncTotals,
+                parameters,
+            })
+            .then((data) => {
+                setPivotTableData({
+                    loading: false,
+                    data: data,
+                    error: undefined,
+                });
+            })
+            .catch((e) => {
+                setPivotTableData({
+                    loading: false,
+                    data: undefined,
+                    error: e.message,
+                });
+            });
     }, [
         resultsData,
         pivotDimensions,
@@ -420,13 +454,16 @@ const useTableConfig = (
         metricsAsRows,
         selectedItemIds,
         isColumnVisible,
+        isHidePivotDimsEnabled,
         getField,
         getFieldLabel,
         tableChartConfig?.showColumnCalculation,
         tableChartConfig?.showRowCalculation,
         worker,
-        pivotTableMaxColumnLimit,
         groupedSubtotals,
+        asyncRowTotals,
+        asyncTotals,
+        parameters,
     ]);
 
     // Remove columnProperties from map if the column has been removed from results
@@ -456,18 +493,17 @@ const useTableConfig = (
 
     const updateColumnProperty = useCallback(
         (field: string, properties: Partial<ColumnProperties>) => {
-            const newProperties =
-                field in columnProperties
-                    ? { ...columnProperties[field], ...properties }
-                    : {
-                          ...properties,
-                      };
-            setColumnProperties({
-                ...columnProperties,
-                [field]: newProperties,
-            });
+            // functional setter so consecutive calls compose correctly
+
+            setColumnProperties((prev) => ({
+                ...prev,
+                [field]:
+                    field in prev
+                        ? { ...prev[field], ...properties }
+                        : { ...properties },
+            }));
         },
-        [columnProperties],
+        [],
     );
 
     const handleSetConditionalFormattings = useCallback(
@@ -621,6 +657,8 @@ const useTableConfig = (
             showTableNames,
             showResultsTotal,
             showSubtotals,
+            showSubtotalsExpanded,
+            showRowGrouping,
             columns: columnProperties,
             hideRowNumbers,
             conditionalFormattings,
@@ -634,6 +672,8 @@ const useTableConfig = (
             showTableNames,
             showResultsTotal,
             showSubtotals,
+            showSubtotalsExpanded,
+            showRowGrouping,
             columnProperties,
             conditionalFormattings,
             metricsAsRows,
@@ -658,6 +698,13 @@ const useTableConfig = (
             setShowResultsTotal,
             showSubtotals,
             setShowSubtotals,
+            showSubtotalsExpanded,
+            setShowSubtotalsExpanded,
+            // Effective render value: flag gate ensures flag-off viewers
+            // of a flag-on-saved chart see legacy rendering. Raw value
+            // lives in `validConfig.showRowGrouping` for persistence.
+            showRowGrouping: isPivotRowGroupingEnabled && showRowGrouping,
+            setShowRowGrouping,
 
             columnProperties: exposedColumnProperties,
             setColumnProperties,
@@ -676,6 +723,7 @@ const useTableConfig = (
             metricsAsRows,
             setMetricsAsRows,
             isPivotTableEnabled,
+            isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
             rowLimit,
@@ -697,6 +745,11 @@ const useTableConfig = (
             setShowResultsTotal,
             showSubtotals,
             setShowSubtotals,
+            showSubtotalsExpanded,
+            setShowSubtotalsExpanded,
+            showRowGrouping,
+            setShowRowGrouping,
+            isPivotRowGroupingEnabled,
 
             exposedColumnProperties,
             setColumnProperties,
@@ -715,6 +768,7 @@ const useTableConfig = (
             metricsAsRows,
             setMetricsAsRows,
             isPivotTableEnabled,
+            isPivotResultStale,
             canUseSubtotals,
             groupedSubtotals,
             rowLimit,

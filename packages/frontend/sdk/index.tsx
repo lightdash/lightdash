@@ -31,6 +31,7 @@ const LIGHTDASH_SDK_VERSION_LOCAL_STORAGE_KEY = '__lightdash_sdk_version';
 type BaseProps = {
     instanceUrl: string;
     token: Promise<string> | string;
+    theme?: 'light' | 'dark';
     styles?: {
         backgroundColor?: string;
         fontFamily?: string;
@@ -83,8 +84,9 @@ const persistInstanceUrl = (instanceUrl: string) => {
 const SdkProviders: FC<
     PropsWithChildren<{
         styles?: { backgroundColor?: string; fontFamily?: string };
+        theme?: 'light' | 'dark';
     }>
-> = ({ children, styles }) => {
+> = ({ children, styles, theme }) => {
     const themeOverride = {
         fontFamily: styles?.fontFamily,
         other: {
@@ -101,8 +103,12 @@ const SdkProviders: FC<
                 withCSSVariables
                 themeOverride={themeOverride}
                 notificationsLimit={0}
+                forceColorScheme={theme}
             >
-                <Mantine8Provider themeOverride={themeOverride}>
+                <Mantine8Provider
+                    themeOverride={themeOverride}
+                    forceColorScheme={theme}
+                >
                     <ModalsProvider>
                         <AppProvider>
                             <FullscreenProvider enabled={false}>
@@ -134,6 +140,7 @@ const Dashboard: FC<DashboardProps> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
+    theme,
     filters,
     contentOverrides,
     onExplore,
@@ -179,7 +186,7 @@ const Dashboard: FC<DashboardProps> = ({
     }
 
     return (
-        <SdkProviders styles={styles}>
+        <SdkProviders styles={styles} theme={theme}>
             <EmbedProvider
                 embedToken={token}
                 projectUuid={projectUuid}
@@ -194,7 +201,11 @@ const Dashboard: FC<DashboardProps> = ({
                         height: '100%',
                         position: 'relative',
                         overflow: 'auto',
-                        backgroundColor: styles?.backgroundColor,
+                        backgroundColor:
+                            styles?.backgroundColor ??
+                            (theme
+                                ? 'var(--mantine-color-body)'
+                                : undefined),
                     }}
                 />
             </EmbedProvider>
@@ -206,6 +217,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
+    theme,
     filters,
     contentOverrides,
     onExplore,
@@ -252,7 +264,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
     }
 
     return (
-        <SdkProviders styles={styles}>
+        <SdkProviders styles={styles} theme={theme}>
             <EmbedProvider
                 embedToken={token}
                 projectUuid={projectUuid}
@@ -268,7 +280,11 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                         height: '100%',
                         position: 'relative',
                         overflow: 'auto',
-                        backgroundColor: styles?.backgroundColor,
+                        backgroundColor:
+                            styles?.backgroundColor ??
+                            (theme
+                                ? 'var(--mantine-color-body)'
+                                : undefined),
                     }}
                 />
             </EmbedProvider>
@@ -280,6 +296,7 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
+    theme,
     contentOverrides,
     id,
 }) => {
@@ -323,7 +340,7 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
     }
 
     return (
-        <SdkProviders styles={styles}>
+        <SdkProviders styles={styles} theme={theme}>
             <EmbedProvider
                 embedToken={token}
                 projectUuid={projectUuid}
@@ -336,7 +353,11 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
                         height: '100%',
                         position: 'relative',
                         overflow: 'auto',
-                        backgroundColor: styles?.backgroundColor,
+                        backgroundColor:
+                            styles?.backgroundColor ??
+                            (theme
+                                ? 'var(--mantine-color-body)'
+                                : undefined),
                     }}
                 />
             </EmbedProvider>

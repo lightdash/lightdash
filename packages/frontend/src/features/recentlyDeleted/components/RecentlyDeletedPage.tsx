@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     ChartSourceType,
     ContentType,
+    FeatureFlags,
     type DeletedContentWithDescendants,
 } from '@lightdash/common';
 import {
@@ -17,6 +18,7 @@ import {
 } from '@mantine-8/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
+    IconAppWindow,
     IconCalendar,
     IconClock,
     IconFolder,
@@ -28,12 +30,6 @@ import {
     IconX,
 } from '@tabler/icons-react';
 import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-    type MRT_Virtualizer,
-} from 'mantine-react-table';
-import {
     useCallback,
     useEffect,
     useMemo,
@@ -43,8 +39,15 @@ import {
     type UIEvent,
 } from 'react';
 import Callout from '../../../components/common/Callout';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+    type ContentTableVirtualizer,
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { ChartIcon, IconBox } from '../../../components/common/ResourceIcon';
+import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../providers/App/useApp';
 import {
     useInfiniteDeletedContent,
@@ -58,6 +61,7 @@ import DeletedContentActionMenu from './DeletedContentActionMenu';
 
 function getDeletedContentDescription(
     item: DeletedContentWithDescendants,
+    dataAppsEnabled: boolean,
 ): string | null {
     const parts: string[] = [];
     if (item.contentType === ContentType.SPACE) {
@@ -72,6 +76,10 @@ function getDeletedContentDescription(
         if (item.chartCount > 0)
             parts.push(
                 `${item.chartCount} chart${item.chartCount !== 1 ? 's' : ''}`,
+            );
+        if (dataAppsEnabled && item.appCount > 0)
+            parts.push(
+                `${item.appCount} data app${item.appCount !== 1 ? 's' : ''}`,
             );
         if (item.schedulerCount > 0)
             parts.push(
@@ -123,13 +131,21 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const theme = useMantineTheme();
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
-        useRef<MRT_Virtualizer<HTMLDivElement, HTMLTableRowElement>>(null);
+        useRef<ContentTableVirtualizer<HTMLDivElement, HTMLTableRowElement>>(
+            null,
+        );
 
     const { health, user } = useApp();
     const retentionDays = health.data?.softDelete.retentionDays;
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
 
     const [selectedContentType, setSelectedContentType] = useState<
-        'all' | ContentType.CHART | ContentType.DASHBOARD | ContentType.SPACE
+        | 'all'
+        | ContentType.CHART
+        | ContentType.DASHBOARD
+        | ContentType.SPACE
+        | ContentType.DATA_APP
     >('all');
 
     const {
@@ -176,14 +192,6 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
     const totalDBRowCount = data?.pages?.[0]?.pagination?.totalResults ?? 0;
     const totalFetched = flatData.length;
 
-    // Workaround for memoization issue with mantine-react-table
-    const [tableData, setTableData] = useState<DeletedContentWithDescendants[]>(
-        [],
-    );
-    useEffect(() => {
-        setTableData(flatData);
-    }, [flatData]);
-
     const { mutate: restoreContent, isLoading: isRestoring } =
         useRestoreDeletedContent(projectUuid);
     const { mutate: permanentlyDelete, isLoading: isDeleting } =
@@ -221,7 +229,9 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         fetchMoreOnBottomReached(tableContainerRef.current);
     }, [fetchMoreOnBottomReached]);
 
-    const columns = useMemo<MRT_ColumnDef<DeletedContentWithDescendants>[]>(
+    const columns = useMemo<
+        ContentTableColumnDef<DeletedContentWithDescendants>[]
+    >(
         () => [
             {
                 accessorKey: 'name',
@@ -258,6 +268,13 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                         color="violet.6"
                                     />
                                 );
+                            case ContentType.DATA_APP:
+                                return (
+                                    <IconBox
+                                        icon={IconAppWindow}
+                                        color="orange.6"
+                                    />
+                                );
                             default:
                                 return assertUnreachable(
                                     row.original,
@@ -267,6 +284,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                     })();
                     const description = getDeletedContentDescription(
                         row.original,
+                        dataAppsEnabled,
                     );
                     return (
                         <Group gap="sm" wrap="nowrap">
@@ -319,7 +337,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                       Unknown
                                   </Text>
                               ),
-                      } as MRT_ColumnDef<DeletedContentWithDescendants>,
+                      } as ContentTableColumnDef<DeletedContentWithDescendants>,
                   ]
                 : []),
             {
@@ -398,6 +416,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                             contentType: item.contentType,
                                         });
                                         break;
+                                    case ContentType.DATA_APP:
+                                        restoreContent({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
                                     default:
                                         assertUnreachable(
                                             item,
@@ -427,6 +451,12 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                                             contentType: item.contentType,
                                         });
                                         break;
+                                    case ContentType.DATA_APP:
+                                        permanentlyDelete({
+                                            uuid: item.uuid,
+                                            contentType: item.contentType,
+                                        });
+                                        break;
                                     default:
                                         assertUnreachable(
                                             item,
@@ -447,12 +477,13 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             permanentlyDelete,
             isRestoring,
             isDeleting,
+            dataAppsEnabled,
         ],
     );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
-        data: tableData,
+        data: flatData,
         enableColumnResizing: true,
         enableRowNumbers: false,
         enablePagination: false,
@@ -497,7 +528,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
         },
         mantineTableProps: {
             highlightOnHover: true,
-            withColumnBorders: Boolean(tableData.length),
+            withColumnBorders: Boolean(flatData.length),
         },
         mantineTableHeadCellProps: (props) => {
             const isLastColumn =
@@ -613,7 +644,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
             </Group>
         ),
         rowVirtualizerInstanceRef,
-        rowVirtualizerProps: { overscan: 10 },
+        rowVirtualizerProps: { estimateSize: () => 72, overscan: 10 },
         state: {
             isLoading,
             showAlertBanner: isError,
@@ -659,7 +690,7 @@ const RecentlyDeletedPage: FC<Props> = ({ projectUuid }) => {
                 </Group>
             </Card>
 
-            <MantineReactTable table={table} />
+            <ContentTable table={table} />
         </>
     );
 };

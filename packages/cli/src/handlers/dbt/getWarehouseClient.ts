@@ -4,6 +4,7 @@ import {
     CreateSnowflakeCredentials,
     CreateWarehouseCredentials,
     DatabricksAuthenticationType,
+    DuckdbConnectionType,
     getErrorMessage,
     isSupportedDbtAdapterType,
     isWeekDay,
@@ -139,6 +140,7 @@ function getMockCredentials(
         case SupportedDbtAdapter.DUCKDB:
             return {
                 type: WarehouseTypes.DUCKDB,
+                connectionType: DuckdbConnectionType.MOTHERDUCK,
                 database: ':memory:',
                 schema: 'main',
                 token: '',
@@ -165,6 +167,16 @@ function getMockCredentials(
                 role: '',
             };
         case SupportedDbtAdapter.DATABRICKS:
+            return {
+                type: WarehouseTypes.DATABRICKS,
+                catalog: '',
+                database: '',
+                serverHostName: '',
+                httpPath: '',
+                personalAccessToken: '',
+            };
+        case SupportedDbtAdapter.SPARK:
+            // Spark uses same SQL dialect as Databricks
             return {
                 type: WarehouseTypes.DATABRICKS,
                 catalog: '',

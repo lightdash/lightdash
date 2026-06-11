@@ -1,0 +1,36 @@
+.editor {
+    border: 1px solid var(--mantine-color-default-border);
+    border-radius: var(--mantine-radius-md);
+    background-color: var(--mantine-color-body);
+    padding: 7px 12px;
+    cursor: text;
+    transition: border-color 150ms ease;
+}
+
+.editor:focus-within {
+    border-color: var(--mantine-primary-color-filled);
+}
+
+.editor :global(.ProseMirror) {
+    min-height: 120px;
+    font-size: var(--mantine-font-size-sm);
+    line-height: var(--mantine-line-height);
+    outline: none;
+}
+
+.editor :global(.ProseMirror p) {
+    margin: 0;
+}
+
+.editor :global(.ProseMirror p.is-editor-empty:first-child::before) {
+    content: attr(data-placeholder);
+    color: var(--mantine-color-placeholder);
+    pointer-events: none;
+    height: 0;
+    float: left;
+}
+
+.mention {
+    color: light-dark(var(--mantine-color-blue-7), var(--mantine-color-blue-4));
+    font-weight: 500;
+}

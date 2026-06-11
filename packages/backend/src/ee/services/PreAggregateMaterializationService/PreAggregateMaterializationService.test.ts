@@ -1,13 +1,14 @@
 import {
+    Account,
     QueryExecutionContext,
     QueryHistoryStatus,
-    type Account,
 } from '@lightdash/common';
-import { type S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
+import { analyticsMock } from '../../../analytics/LightdashAnalytics.mock';
+import type { S3ResultsFileStorageClient } from '../../../clients/ResultsFileStorageClients/S3ResultsFileStorageClient';
 import { lightdashConfigMock } from '../../../config/lightdashConfig.mock';
-import { type QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
-import { type AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
-import { type PreAggregateModel } from '../../models/PreAggregateModel';
+import type { QueryHistoryModel } from '../../../models/QueryHistoryModel/QueryHistoryModel';
+import type { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
+import type { PreAggregateModel } from '../../models/PreAggregateModel';
 import { PreAggregateMaterializationService } from './PreAggregateMaterializationService';
 
 describe('PreAggregateMaterializationService', () => {
@@ -45,12 +46,14 @@ describe('PreAggregateMaterializationService', () => {
         preAggregateModel: preAggregateModel as unknown as PreAggregateModel,
         queryHistoryModel: queryHistoryModel as unknown as QueryHistoryModel,
         asyncQueryService: asyncQueryService as unknown as AsyncQueryService,
+        analytics: analyticsMock,
         preAggregateResultsStorageClient:
             preAggregateResultsStorageClient as unknown as S3ResultsFileStorageClient,
     });
 
     beforeEach(() => {
         jest.clearAllMocks();
+        jest.spyOn(analyticsMock, 'trackAccount').mockImplementation();
         preAggregateModel.insertInProgress.mockResolvedValue({
             materializationUuid: 'mat-1',
         });

@@ -19,6 +19,7 @@ import {
     InlineErrorType,
     isSupportedDbtAdapter,
     loadLightdashProjectConfig,
+    loadProjectContextFile,
     ManifestValidator,
     MissingCatalogEntryError,
     normaliseModelDatabase,
@@ -27,6 +28,7 @@ import {
     SupportedDbtAdapter,
     SupportedDbtVersions,
     type LightdashProjectConfig,
+    type ProjectContextEntry,
 } from '@lightdash/common';
 import { WarehouseClient } from '@lightdash/warehouses';
 import * as Sentry from '@sentry/node';
@@ -148,6 +150,31 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
         }
     }
 
+    public async getProjectContext(): Promise<ProjectContextEntry[]> {
+        if (!this.dbtProjectDir) {
+            return [];
+        }
+
+        const configPath = path.join(
+            this.dbtProjectDir,
+            'lightdash.project_context.yml',
+        );
+
+        try {
+            const fileContents = await fs.readFile(configPath, 'utf8');
+            return loadProjectContextFile(fileContents);
+        } catch (e) {
+            Logger.debug(
+                `No lightdash.project_context.yml found in ${configPath}`,
+            );
+
+            if (e instanceof Error && 'code' in e && e.code === 'ENOENT') {
+                return [];
+            }
+            throw e;
+        }
+    }
+
     public async compileAllExplores(
         trackingParams?: TrackingParams,
         loadSources: boolean = false,
@@ -188,7 +215,8 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 Logger.info(`Compiled models ${compiledModels.length}`);
                 const filtered = compiledModels.filter(
                     (node: AnyType) =>
-                        node.resource_type === 'model' && node.meta,
+                        ['model', 'seed'].includes(node.resource_type) &&
+                        node.meta,
                 ) as DbtRawModelNode[];
                 const elapsed = Date.now() - startTime;
                 Logger.info(
@@ -365,10 +393,19 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                     };
                 }
                 if (error) {
+                    // Seeds that fail validation are silently skipped —
+                    // they're only used as join targets, not standalone explores.
+                    if (model.resource_type === 'seed') {
+                        return [validModels, invalidModels];
+                    }
+                    const metaGroups: string[] | undefined = model.meta.groups;
                     const exploreError: ExploreError = {
                         name: model.name,
                         label: model.meta.label || friendlyName(model.name),
                         groupLabel: model.meta.group_label,
+                        ...(metaGroups && metaGroups.length > 0
+                            ? { groups: metaGroups }
+                            : {}),
                         errors: [
                             error.type === InlineErrorType.METADATA_PARSE_ERROR
                                 ? {

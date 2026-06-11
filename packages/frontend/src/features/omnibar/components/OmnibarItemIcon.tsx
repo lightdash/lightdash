@@ -58,7 +58,7 @@ export const OmnibarItemIconWithIndicator: FC<
                             }
                             to={{
                                 pathname: `/generalSettings/projectManagement/${projectUuid}/validator`,
-                                search: `?validationId=${item.item.validationErrors[0].validationId}`,
+                                search: `?validationUuid=${item.item.validationErrors[0].validationUuid}`,
                             }}
                             c="blue.4"
                             fz="xs"

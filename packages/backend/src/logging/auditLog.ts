@@ -33,8 +33,16 @@ export const UserAuditActorSchema = BaseUserActorSchema.extend({
     type: z.enum(['session', 'pat', 'oauth']),
 });
 
-export const ServiceAccountAuditActorSchema = BaseUserActorSchema.extend({
+// `uuid` is the service-account UUID — the actual actor. Service accounts
+// now have a dedicated `users` row, so writes attribute the SA directly via
+// `created_by_user_uuid` / `updated_by_user_uuid`; no separate "attributed
+// user" plumbing is required.
+export const ServiceAccountAuditActorSchema = z.object({
     type: z.literal('service-account'),
+    uuid: z.string(),
+    description: z.string().optional(),
+    organizationUuid: z.string(),
+    organizationRole: z.string(),
 });
 
 export const AnonymousAuditActorSchema = z.object({
@@ -59,8 +67,7 @@ export type CallStackEntry = {
 
 export const AuditResourceSchema = z.object({
     type: z.string(),
-    uuid: z.string().optional(),
-    name: z.string().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
     organizationUuid: z.string(),
     projectUuid: z.string().optional(),
 });
@@ -119,3 +126,16 @@ export const createAuditLogEvent = (
         ruleConditions,
         callStack,
     });
+
+/**
+ * Builds an audit actor for an authentication attempt where the user
+ * could not be resolved (e.g. wrong password, expired/invalid token).
+ * Includes the email when known so failed attempts are still attributable.
+ */
+export const createUnknownAuthActor = (email?: string): AuditActor => ({
+    type: 'session',
+    uuid: 'unknown',
+    email: email ?? '',
+    organizationUuid: 'unknown',
+    organizationRole: 'unknown',
+});

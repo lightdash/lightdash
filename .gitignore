@@ -27,6 +27,7 @@ packages/e2e/lightdash
 /packages/backend/src/database/logs
 /packages/cli/logs
 /packages/warehouses/logs
+*.log
 
 # development
 lightdash_dev.yml
@@ -111,6 +112,9 @@ data/
 .local/*
 
 CLAUDE.local.md
+AGENTS.override.md
+.playwright-mcp 
+
 http-client.private.env.json
 
 # turbo
@@ -126,3 +130,12 @@ http-client.private.env.json
 scripts/har-replay-server.ts
 *.har
 agent-harness/cloud/credentials.env
+
+# AI
+.agents
+.codex
+.claude/*.lock
+AGENTS.md
+
+# octarine
+.octarine/properties.json

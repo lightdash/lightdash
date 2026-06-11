@@ -195,6 +195,7 @@ export class CommentModel {
         dashboardUuid: string,
         userUuid: string,
         canUserRemoveAnyComment: boolean,
+        resolved: boolean,
     ): Promise<Record<string, Comment[]>> {
         const dashboard = await this.database(DashboardsTableName)
             .leftJoin(
@@ -235,7 +236,7 @@ export class CommentModel {
                 `${DashboardTileCommentsTableName}.dashboard_tile_uuid`,
                 tileUuids,
             )
-            .andWhere(`${DashboardTileCommentsTableName}.resolved`, false)
+            .andWhere(`${DashboardTileCommentsTableName}.resolved`, resolved)
             .orderBy(`${DashboardTileCommentsTableName}.created_at`, 'asc');
 
         return CommentModel.parseComments(
@@ -262,7 +263,15 @@ export class CommentModel {
     async resolveComment(commentId: string): Promise<void> {
         await this.database(DashboardTileCommentsTableName)
             .update({ resolved: true })
-            .where('comment_id', commentId);
+            .where('comment_id', commentId)
+            .orWhere('reply_to', commentId);
+    }
+
+    async unresolveComment(commentId: string): Promise<void> {
+        await this.database(DashboardTileCommentsTableName)
+            .update({ resolved: false })
+            .where('comment_id', commentId)
+            .orWhere('reply_to', commentId);
     }
 
     async getComment(commentId: string) {

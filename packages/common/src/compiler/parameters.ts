@@ -10,73 +10,57 @@ import { CompileError } from '../types/errors';
 import type { CompiledTable, Table } from '../types/explore';
 import type { LightdashProjectParameter } from '../types/lightdashProjectConfig';
 
-// Regex for SQL parameter replacement - requires full ${} syntax
+// Regex for SQL parameter substitution - requires the full ${...} syntax.
+// Used by `replaceLightdashValues` to find substitution sites.
 export const parameterRegex =
     /\$\{(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)\}/g;
 
-// Regex for extracting parameter references - works with format strings, ternary expressions,
-// and Liquid template blocks like {% if ld.parameters.grain == "day" %}
+// Broader regex that also matches bare `ld.parameters.X` references — used to catch
+// references inside Liquid template tags (e.g. `{% if ld.parameters.grain == "day" %}`),
+// format strings, and ternary expressions. The lookbehind requires a non-word,
+// non-dot boundary before `ld`/`lightdash` so identifiers like `myld.parameters.x`
+// don't false-match.
 const parameterReferencePattern =
-    /(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)/g;
+    /(?<![\w.])(?:lightdash|ld)\.parameters\.(\w+(?:\.\w+)?)/g;
 
 export enum LightdashParameters {
     PREFIX = 'lightdash.parameters',
     PREFIX_SHORT = 'ld.parameters',
 }
 
-/**
- * Extracts parameter references from SQL strings or format strings
- * @param sql - The SQL or format string to extract parameter references from
- * @returns An array of unique parameter names referenced in the string
- */
-export const getParameterReferences = (
-    sql: string,
-    regex = parameterRegex,
-): string[] => {
-    const matches = sql.match(regex);
-
-    if (!matches) {
-        return [];
-    }
-
-    // Extract parameter names using the regex capture group and remove duplicates
-    const parameterNames = matches.map((match) => match.replace(regex, '$1'));
-
-    // Return unique parameter names
-    return [...new Set(parameterNames)];
+const matchAll = (input: string, regex: RegExp): string[] => {
+    const matches = input.match(regex);
+    if (!matches) return [];
+    return matches.map((match) => match.replace(regex, '$1'));
 };
 
 /**
- * Extracts and combines parameter references from both SQL and format strings
- * @param compiledSql - The compiled SQL to extract parameters from
- * @param format - Optional format string to extract parameters from
- * @returns An array of unique parameter names from both sources
+ * Single source of truth for extracting parameter references from a templated SQL or
+ * format string. Detects both `${ld.parameters.X}` substitution sites and bare
+ * `ld.parameters.X` references inside Liquid template blocks (only when `{%` is present,
+ * to avoid false positives in plain SQL).
+ *
+ * @param sources - One or more strings to scan (e.g. compiled SQL, sql_from, format string).
+ * @returns A deduplicated array of parameter names.
  */
-export const getParameterReferencesFromSqlAndFormat = (
-    compiledSql: string,
-    format?: string,
+export const getParameterReferences = (
+    ...sources: (string | undefined)[]
 ): string[] => {
-    const sqlParameterReferences = getParameterReferences(compiledSql);
-
-    // Also extract parameter references from Liquid template blocks
-    // e.g., {% if ld.parameters.grain == "day" %}
-    const liquidParameterReferences = compiledSql.includes('{%')
-        ? getParameterReferences(compiledSql, parameterReferencePattern)
-        : [];
-
-    const formatParameterReferences =
-        format && typeof format === 'string'
-            ? getParameterReferences(format, parameterReferencePattern)
-            : [];
-
-    // Combine and deduplicate parameter references from all sources
-    return Array.from(
-        new Set([
-            ...sqlParameterReferences,
-            ...liquidParameterReferences,
-            ...formatParameterReferences,
-        ]),
-    );
+    const references = new Set<string>();
+    sources.forEach((source) => {
+        if (!source || typeof source !== 'string') return;
+        // Always match ${...} substitution sites.
+        matchAll(source, parameterRegex).forEach((name) =>
+            references.add(name),
+        );
+        // If the source contains Liquid tags, also match bare references inside them.
+        if (source.includes('{%')) {
+            matchAll(source, parameterReferencePattern).forEach((name) =>
+                references.add(name),
+            );
+        }
+    });
+    return [...references];
 };
 
 export const validateParameterReferences = (
@@ -89,10 +73,30 @@ export const validateParameterReferences = (
     );
 
     if (missingParameters.length > 0) {
+        // When a short-form reference (e.g. `attribution_source`) doesn't match
+        // but a model-prefixed parameter does (e.g. `model.attribution_source`),
+        // surface the correct full reference so the user knows what to write.
+        const hints = missingParameters.reduce<string[]>((acc, missing) => {
+            if (missing.includes('.')) return acc;
+            const matches = availableParameters.filter((p) =>
+                p.endsWith(`.${missing}`),
+            );
+            if (matches.length === 0) return acc;
+            const suggestions = matches
+                .map((m) => `\${lightdash.parameters.${m}}`)
+                .join(' or ');
+            acc.push(
+                `"${missing}" is a model-level parameter — use the model name prefix: ${suggestions}`,
+            );
+            return acc;
+        }, []);
+
+        const hintMsg = hints.length > 0 ? ` Hint: ${hints.join('; ')}` : '';
+
         throw new CompileError(
             `Failed to compile explore "${tableName}". Missing parameters: ${missingParameters.join(
                 ', ',
-            )}`,
+            )}.${hintMsg}`,
             {},
         );
     }

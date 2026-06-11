@@ -38,6 +38,10 @@ export type TableBase = {
     anyAttributes?: Record<string, string | string[]>;
     groupDetails?: Record<string, GroupType>;
     defaultTimeDimension?: DefaultTimeDimension;
+    defaultShowUnderlyingValues?: string[];
     aiHint?: string | string[];
     warnings?: InlineError[];
+    dbtPackageName?: string;
+    ymlPath?: string;
+    sqlPath?: string;
 };

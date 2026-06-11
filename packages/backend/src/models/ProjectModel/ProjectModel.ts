@@ -3,7 +3,6 @@ import {
     AnyType,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
-    ChangesetUtils,
     CompiledTable,
     CreateProject,
     CreateProjectOptionalCredentials,
@@ -13,12 +12,15 @@ import {
     CreateWarehouseCredentials,
     DbtProjectConfig,
     DEFAULT_USER_SPACES_PARENT_NAME,
+    DuckdbConnectionType,
     Explore,
     ExploreError,
     ExploreType,
     getLtreePathFromSlug,
+    GroupType,
     IdContentMapping,
     isExploreError,
+    normalizeWarehouseCredentials,
     NotFoundError,
     OrganizationProject,
     ParameterError,
@@ -32,14 +34,19 @@ import {
     ProjectType,
     sensitiveCredentialsFieldNames,
     sensitiveDbtCredentialsFieldNames,
+    ServiceAccountProjectAccessInput,
+    ServiceAccountProjectGrant,
     SnowflakeAuthenticationType,
     SpaceMemberRole,
     SpaceSummary,
+    stripDucklakeNestedSensitive,
     SupportedDbtVersions,
     TablesConfiguration,
     UnexpectedServerError,
     UpdateMetadata,
     UpdateProject,
+    UpdateQueryTimezoneSettings,
+    UpdateSchedulerSettings,
     UpdateVirtualViewPayload,
     WarehouseClient,
     WarehouseCredentials,
@@ -83,6 +90,7 @@ import {
     ProjectTableName,
     type DbCachedExplore,
 } from '../../database/entities/projects';
+import { RolesTableName } from '../../database/entities/roles';
 import {
     DbSavedChart,
     InsertChart,
@@ -110,19 +118,17 @@ import {
     AiAgentUserAccessTableName,
     type DbAiAgent,
 } from '../../ee/database/entities/aiAgent';
+import { ServiceAccountsTableName } from '../../ee/database/entities/serviceAccounts';
 import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
-import { ChangesetModel } from '../ChangesetModel';
-import { ExploreCache } from './ExploreCache';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
-    changesetModel: ChangesetModel;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -158,6 +164,7 @@ type RawSummaryRow = {
     label: Explore['label'];
     tags: Explore['tags'];
     groupLabel: Explore['groupLabel'] | null;
+    groups: Explore['groups'] | null;
     type: Explore['type'] | null;
     preAggregateSource: Explore['preAggregateSource'] | null;
     errors: ExploreError['errors'] | null; // Fatal errors from ExploreError
@@ -178,18 +185,12 @@ export class ProjectModel {
 
     protected lightdashConfig: LightdashConfig;
 
-    protected changesetModel: ChangesetModel;
-
     private encryptionUtil: EncryptionUtil;
-
-    private readonly exploreCache: ExploreCache;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
-        this.changesetModel = args.changesetModel;
         this.encryptionUtil = args.encryptionUtil;
-        this.exploreCache = new ExploreCache();
     }
 
     static mergeMissingDbtConfigSecrets(
@@ -232,6 +233,51 @@ export class ProjectModel {
                     AthenaAuthenticationType.IAM_ROLE)
         ) {
             return incompleteConfig;
+        }
+        // DuckLake nests secrets inside catalog/dataPath — see stripDucklakeNestedSensitive.
+        if (
+            incompleteConfig.type === WarehouseTypes.DUCKDB &&
+            completeConfig.type === WarehouseTypes.DUCKDB &&
+            incompleteConfig.connectionType === DuckdbConnectionType.DUCKLAKE &&
+            completeConfig.connectionType === DuckdbConnectionType.DUCKLAKE
+        ) {
+            const mergeNested = (
+                incomplete: Record<string, AnyType>,
+                complete: Record<string, AnyType>,
+                fields: readonly string[],
+            ): Record<string, AnyType> => {
+                if (incomplete.type !== complete.type) return incomplete;
+                const result = { ...incomplete };
+                fields.forEach((f) => {
+                    const cur = result[f];
+                    if ((cur === undefined || cur === '') && complete[f]) {
+                        result[f] = complete[f];
+                    }
+                });
+                return result;
+            };
+            const mergedCatalog = mergeNested(
+                incompleteConfig.catalog as Record<string, AnyType>,
+                completeConfig.catalog as Record<string, AnyType>,
+                ['user', 'password'],
+            );
+            const mergedDataPath = mergeNested(
+                incompleteConfig.dataPath as Record<string, AnyType>,
+                completeConfig.dataPath as Record<string, AnyType>,
+                [
+                    'accessKeyId',
+                    'secretAccessKey',
+                    'hmacKeyId',
+                    'hmacSecret',
+                    'connectionString',
+                    'accountKey',
+                ],
+            );
+            return {
+                ...incompleteConfig,
+                catalog: mergedCatalog,
+                dataPath: mergedDataPath,
+            } as T;
         }
         return {
             ...incompleteConfig,
@@ -352,6 +398,11 @@ export class ProjectModel {
                 'projects.project_id',
                 `${WarehouseCredentialTableName}.project_id`,
             )
+            .leftJoin(
+                'users',
+                'projects.created_by_user_uuid',
+                'users.user_uuid',
+            )
             .select(
                 'projects.project_uuid',
                 'projects.name',
@@ -359,7 +410,11 @@ export class ProjectModel {
                 'projects.created_at',
                 `projects.copied_from_project_uuid`,
                 `projects.created_by_user_uuid`,
+                'projects.expires_at',
                 `${WarehouseCredentialTableName}.warehouse_type`,
+                this.database.raw(
+                    "TRIM(CONCAT(users.first_name, ' ', users.last_name)) as created_by_user_name",
+                ),
                 this.database.raw(
                     '(agg_project_group_access_counts.member_count + agg_project_membership_counts.member_count) as member_count',
                 ),
@@ -393,19 +448,23 @@ export class ProjectModel {
                 project_type,
                 created_at,
                 created_by_user_uuid,
+                created_by_user_name,
                 copied_from_project_uuid,
                 warehouse_type,
+                expires_at,
             }) => ({
                 name,
                 projectUuid: project_uuid,
                 type: project_type,
                 createdByUserUuid: created_by_user_uuid,
+                createdByUserName: created_by_user_name ?? null,
                 createdAt: created_at,
                 upstreamProjectUuid: copied_from_project_uuid,
                 warehouseType:
                     warehouse_type !== null
                         ? (warehouse_type as WarehouseTypes)
                         : undefined,
+                expiresAt: expires_at ?? null,
             }),
         );
     }
@@ -474,11 +533,13 @@ export class ProjectModel {
         userUuid: string,
         organizationUuid: string,
         data: CreateProject,
+        expiresAt?: Date | null,
     ): Promise<string> {
         return this.createWithOptionalCredentials(
             userUuid,
             organizationUuid,
             data,
+            expiresAt,
         );
     }
 
@@ -486,6 +547,7 @@ export class ProjectModel {
         userUuid: string,
         organizationUuid: string,
         data: CreateProjectOptionalCredentials,
+        expiresAt?: Date | null,
     ): Promise<string> {
         const orgs = await this.database('organizations')
             .where('organization_uuid', organizationUuid)
@@ -526,11 +588,17 @@ export class ProjectModel {
                               scheduler_timezone:
                                   copiedProjects[0].scheduler_timezone,
                               query_timezone: copiedProjects[0].query_timezone,
+                              use_project_timezone_in_filters:
+                                  copiedProjects[0]
+                                      .use_project_timezone_in_filters,
                           }
                         : {}),
                     created_by_user_uuid: userUuid,
                     organization_warehouse_credentials_uuid:
                         data.organizationWarehouseCredentialsUuid ?? null,
+                    ...(expiresAt !== undefined
+                        ? { expires_at: expiresAt }
+                        : {}),
                 })
                 .returning('*');
 
@@ -579,6 +647,81 @@ export class ProjectModel {
             .where('project_uuid', projectUuid);
     }
 
+    async updateColorPalette(
+        projectUuid: string,
+        colorPaletteUuid: string | null,
+    ): Promise<void> {
+        await this.database('projects')
+            .update({
+                color_palette_uuid: colorPaletteUuid,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
+    async getTableGroups(
+        projectUuid: string,
+    ): Promise<Record<string, GroupType>> {
+        const [row] = await this.database(ProjectTableName)
+            .select('table_groups')
+            .where('project_uuid', projectUuid);
+        return row?.table_groups ?? {};
+    }
+
+    async setTableGroups(
+        projectUuid: string,
+        tableGroups: Record<string, GroupType> | undefined,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .update({
+                table_groups:
+                    tableGroups && Object.keys(tableGroups).length > 0
+                        ? tableGroups
+                        : null,
+            })
+            .where('project_uuid', projectUuid);
+    }
+
+    async getPreviewExpirationSettings(projectUuid: string): Promise<{
+        defaultPreviewExpirationHours: number;
+        maxPreviewExpirationHours: number;
+    }> {
+        const row = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .select(
+                'default_preview_expiration_hours',
+                'max_preview_expiration_hours',
+            )
+            .first();
+
+        if (!row) {
+            throw new NotFoundError(
+                `Cannot find project with id: ${projectUuid}`,
+            );
+        }
+
+        return {
+            defaultPreviewExpirationHours: row.default_preview_expiration_hours,
+            maxPreviewExpirationHours: row.max_preview_expiration_hours,
+        };
+    }
+
+    async updatePreviewExpirationSettings(
+        projectUuid: string,
+        settings: {
+            defaultPreviewExpirationHours: number;
+            maxPreviewExpirationHours: number;
+        },
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({
+                default_preview_expiration_hours:
+                    settings.defaultPreviewExpirationHours,
+                max_preview_expiration_hours:
+                    settings.maxPreviewExpirationHours,
+            });
+    }
+
     async update(projectUuid: string, data: UpdateProject): Promise<void> {
         // Invalidate warehouse credentials cache
         warehouseCredentialsCache?.del(projectUuid);
@@ -616,6 +759,26 @@ export class ProjectModel {
                 data.warehouseConnection,
             );
         });
+    }
+
+    async getExpiredPreviewProjects(): Promise<
+        { projectUuid: string; organizationUuid: string }[]
+    > {
+        const results = await this.database('projects')
+            .join(
+                'organizations',
+                'projects.organization_id',
+                'organizations.organization_id',
+            )
+            .where('projects.project_type', ProjectType.PREVIEW)
+            .whereNotNull('projects.expires_at')
+            .where('projects.expires_at', '<=', this.database.fn.now())
+            .select('projects.project_uuid', 'organizations.organization_uuid');
+
+        return results.map((r) => ({
+            projectUuid: r.project_uuid,
+            organizationUuid: r.organization_uuid,
+        }));
     }
 
     async delete(projectUuid: string): Promise<void> {
@@ -672,10 +835,16 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   query_timezone: string | null;
+                  use_project_timezone_in_filters: boolean;
+                  scheduler_failure_notify_recipients: boolean;
+                  scheduler_failure_include_contact: boolean;
+                  scheduler_failure_contact_override: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
+                  color_palette_uuid: string | null;
+                  expires_at: Date | null;
               }
             | {
                   name: string;
@@ -689,10 +858,16 @@ export class ProjectModel {
                   copied_from_project_uuid?: string;
                   scheduler_timezone: string;
                   query_timezone: string | null;
+                  use_project_timezone_in_filters: boolean;
+                  scheduler_failure_notify_recipients: boolean;
+                  scheduler_failure_include_contact: boolean;
+                  scheduler_failure_contact_override: string | null;
                   created_by_user_uuid: string | null;
                   organization_warehouse_credentials_uuid: string | null;
                   has_default_user_spaces: boolean;
                   project_defaults: ProjectDefaults | null;
+                  color_palette_uuid: string | null;
+                  expires_at: Date | null;
               }
         )[];
         return wrapSentryTransaction(
@@ -748,6 +923,18 @@ export class ProjectModel {
                             .ref('query_timezone')
                             .withSchema(ProjectTableName),
                         this.database
+                            .ref('use_project_timezone_in_filters')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_failure_notify_recipients')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_failure_include_contact')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('scheduler_failure_contact_override')
+                            .withSchema(ProjectTableName),
+                        this.database
                             .ref('created_by_user_uuid')
                             .withSchema(ProjectTableName),
                         this.database
@@ -758,6 +945,12 @@ export class ProjectModel {
                             .withSchema(ProjectTableName),
                         this.database
                             .ref('project_defaults')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('color_palette_uuid')
+                            .withSchema(ProjectTableName),
+                        this.database
+                            .ref('expires_at')
                             .withSchema(ProjectTableName),
                     ])
                     .select<QueryResult>()
@@ -795,12 +988,22 @@ export class ProjectModel {
                     upstreamProjectUuid: project.copied_from_project_uuid,
                     schedulerTimezone: project.scheduler_timezone,
                     queryTimezone: project.query_timezone,
+                    useProjectTimezoneInFilters:
+                        project.use_project_timezone_in_filters,
+                    schedulerFailureNotifyRecipients:
+                        project.scheduler_failure_notify_recipients,
+                    schedulerFailureIncludeContact:
+                        project.scheduler_failure_include_contact,
+                    schedulerFailureContactOverride:
+                        project.scheduler_failure_contact_override,
                     createdByUserUuid: project.created_by_user_uuid,
                     organizationWarehouseCredentialsUuid:
                         project.organization_warehouse_credentials_uuid ??
                         undefined,
                     hasDefaultUserSpaces: project.has_default_user_spaces,
                     projectDefaults: project.project_defaults ?? undefined,
+                    colorPaletteUuid: project.color_palette_uuid ?? null,
+                    expiresAt: project.expires_at ?? null,
                 };
 
                 // If project uses organization warehouse credentials, load them
@@ -822,11 +1025,13 @@ export class ProjectModel {
                 }
                 let sensitiveCredentials: CreateWarehouseCredentials;
                 try {
-                    sensitiveCredentials = JSON.parse(
-                        this.encryptionUtil.decrypt(
-                            project.encrypted_credentials,
-                        ),
-                    ) as CreateWarehouseCredentials;
+                    sensitiveCredentials = normalizeWarehouseCredentials(
+                        JSON.parse(
+                            this.encryptionUtil.decrypt(
+                                project.encrypted_credentials,
+                            ),
+                        ) as CreateWarehouseCredentials,
+                    );
                 } catch (e) {
                     throw new UnexpectedServerError(
                         'Failed to load warehouse credentials',
@@ -946,11 +1151,13 @@ export class ProjectModel {
         }
 
         try {
-            return JSON.parse(
-                this.encryptionUtil.decrypt(
-                    orgCredentials.warehouse_connection,
-                ),
-            ) as CreateWarehouseCredentials;
+            return normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(
+                        orgCredentials.warehouse_connection,
+                    ),
+                ) as CreateWarehouseCredentials,
+            );
         } catch (e) {
             throw new UnexpectedServerError(
                 'Failed to load organization warehouse credentials',
@@ -980,10 +1187,21 @@ export class ProjectModel {
               ) as WarehouseCredentials)
             : undefined;
 
+        const scrubbedCredentials =
+            nonSensitiveCredentials &&
+            sensitiveCredentials &&
+            sensitiveCredentials.type === WarehouseTypes.DUCKDB &&
+            sensitiveCredentials.connectionType ===
+                DuckdbConnectionType.DUCKLAKE
+                ? (stripDucklakeNestedSensitive(
+                      sensitiveCredentials,
+                  ) as WarehouseCredentials)
+                : nonSensitiveCredentials;
+
         const nonSensitiveCredentialsWithDefaults =
             ProjectModel.getConnectionWithDefaults(
                 sensitiveCredentials,
-                nonSensitiveCredentials,
+                scrubbedCredentials,
             );
 
         return {
@@ -998,10 +1216,19 @@ export class ProjectModel {
             upstreamProjectUuid: project.upstreamProjectUuid || undefined,
             schedulerTimezone: project.schedulerTimezone,
             queryTimezone: project.queryTimezone,
+            useProjectTimezoneInFilters: project.useProjectTimezoneInFilters,
+            schedulerFailureNotifyRecipients:
+                project.schedulerFailureNotifyRecipients,
+            schedulerFailureIncludeContact:
+                project.schedulerFailureIncludeContact,
+            schedulerFailureContactOverride:
+                project.schedulerFailureContactOverride,
             createdByUserUuid: project.createdByUserUuid ?? null,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,
+            colorPaletteUuid: project.colorPaletteUuid ?? null,
+            expiresAt: project.expiresAt,
         };
     }
 
@@ -1076,7 +1303,6 @@ export class ProjectModel {
         projectUuid: string,
         key: 'name' | 'uuid',
         exploreNamesWithDuplicates?: string[],
-        { applyChangeset = true }: { applyChangeset?: boolean } = {},
     ): Promise<{ [exploreNameOrUuid: string]: Explore | ExploreError }> {
         // dedupe values
         const exploreNames = exploreNamesWithDuplicates
@@ -1089,24 +1315,6 @@ export class ProjectModel {
                 exploreNames,
             },
             async (span) => {
-                const changeset =
-                    await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                        projectUuid,
-                    );
-
-                // Try to get from cache first
-                const cachedExplores = this.exploreCache?.getExplores(
-                    projectUuid,
-                    exploreNames,
-                    applyChangeset ? changeset?.updatedAt : undefined,
-                );
-                // NOTE: Explores are cached with the name key, so we don't need to return the cached explores if the key is uuid
-                if (cachedExplores && key === 'name') {
-                    span.setAttribute('cacheHit', true);
-                    // Return cached explores
-                    return cachedExplores;
-                }
-                // If not in cache, get from database
                 const query = this.database(CachedExploreTableName)
                     .select('explore', 'cached_explore_uuid')
                     .where('project_uuid', projectUuid);
@@ -1116,7 +1324,7 @@ export class ProjectModel {
                 const explores = await query;
                 span.setAttribute('foundExplores', !!explores.length);
 
-                let finalExplores = wrapSentryTransactionSync(
+                const finalExplores = wrapSentryTransactionSync(
                     'ProjectModel.findExploresFromCache.convertExplores',
                     { exploresCount: explores.length },
                     () =>
@@ -1136,23 +1344,16 @@ export class ProjectModel {
                         ),
                 );
 
-                if (changeset && applyChangeset) {
-                    finalExplores = ChangesetUtils.applyChangeset(
-                        changeset,
-                        finalExplores,
-                    );
-                }
-
-                this.exploreCache?.setExplores(
-                    projectUuid,
-                    exploreNames,
-                    applyChangeset ? changeset?.updatedAt : undefined,
-                    finalExplores,
-                );
-
                 return finalExplores;
             },
         );
+    }
+
+    async getCachedExploreNames(projectUuid: string): Promise<string[]> {
+        const rows = await this.database(CachedExploreTableName)
+            .select<{ name: string }[]>('name')
+            .where('project_uuid', projectUuid);
+        return rows.map((row) => row.name);
     }
 
     async findVirtualViewsFromCache(
@@ -1214,6 +1415,7 @@ export class ProjectModel {
                     explore->'label' as label,
                     explore->'tags' as tags,
                     explore->'groupLabel' as "groupLabel",
+                    explore->'groups' as "groups",
                     explore->'type' as type,
                     explore->'preAggregateSource' as "preAggregateSource",
                     explore->'errors' as errors,
@@ -1234,6 +1436,7 @@ export class ProjectModel {
             label: row.label,
             tags: row.tags,
             groupLabel: row.groupLabel ?? undefined,
+            groups: row.groups ?? undefined,
             databaseName: row.baseTableDatabase,
             schemaName: row.baseTableSchema,
             description: row.baseTableDescription ?? undefined,
@@ -1547,6 +1750,9 @@ export class ProjectModel {
                 )
                 .select('users.user_id')
                 .where('email', email)
+                // Defence: SAs have no email row so this is empty for them,
+                // but the explicit guard documents intent.
+                .andWhere('users.is_internal', false)
                 .andWhere(
                     `${OrganizationMembershipsTableName}.organization_id`,
                     project.organization_id,
@@ -1565,8 +1771,7 @@ export class ProjectModel {
         } catch (error: AnyType) {
             if (
                 error instanceof DatabaseError &&
-                error.constraint ===
-                    'project_memberships_project_id_user_id_unique'
+                error.constraint === 'project_memberships_pkey'
             ) {
                 throw new AlreadyExistsError(
                     `This user email ${email} already has access to this project`,
@@ -1792,18 +1997,348 @@ export class ProjectModel {
         );
     }
 
+    /**
+     * Insert a (service account, project) grant.
+     *
+     * Accepts either a system role (`role`) or a custom role (`roleUuid`) —
+     * exactly one. The discriminated union is enforced by the caller
+     * (`ServiceAccountService.create` validates role-uuid ownership in bulk
+     * before reaching the DB), so this layer only enforces the structural
+     * invariants that are cheap to check here:
+     *  - cross-org grants are rejected (returns ParameterError, surfaces as 400)
+     *  - duplicate grants raise AlreadyExistsError (409 at the API)
+     */
+    async createServiceAccountProjectAccess(
+        projectUuid: string,
+        serviceAccountUuid: string,
+        grant: { role?: ProjectMemberRole; roleUuid?: string },
+    ): Promise<void> {
+        // Structural XOR check. Callers must pass exactly one of role /
+        // roleUuid — service layer already enforces this for API requests,
+        // but a programming-bug call into the model should fail fast.
+        const hasRole = grant.role !== undefined;
+        const hasRoleUuid = grant.roleUuid !== undefined;
+        if (hasRole === hasRoleUuid) {
+            throw new ParameterError(
+                'Grant must specify exactly one of role or roleUuid',
+            );
+        }
+        // `projects.organization_id` is the int link; `service_accounts`
+        // uses `organization_uuid`. Resolve both to a uuid via a join through
+        // `organizations` so the cross-org comparison is uuid-vs-uuid.
+        const [project] = await this.database(ProjectTableName)
+            .leftJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .select<
+                {
+                    project_id: number;
+                    organization_uuid: string;
+                }[]
+            >(
+                `${ProjectTableName}.project_id`,
+                `${OrganizationTableName}.organization_uuid`,
+            )
+            .where(`${ProjectTableName}.project_uuid`, projectUuid);
+        if (!project) {
+            throw new NotFoundError(
+                `Project with uuid ${projectUuid} not found`,
+            );
+        }
+
+        const [sa] = await this.database(ServiceAccountsTableName)
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ServiceAccountsTableName}.service_account_user_uuid`,
+            )
+            .select<
+                Array<{
+                    user_id: number;
+                    organization_uuid: string;
+                }>
+            >(
+                `${UserTableName}.user_id`,
+                `${ServiceAccountsTableName}.organization_uuid`,
+            )
+            .where(
+                `${ServiceAccountsTableName}.service_account_uuid`,
+                serviceAccountUuid,
+            );
+        if (!sa) {
+            throw new NotFoundError(
+                `Service account with uuid ${serviceAccountUuid} not found`,
+            );
+        }
+        if (sa.organization_uuid !== project.organization_uuid) {
+            throw new ParameterError(
+                'Service account and project must be in the same organization',
+            );
+        }
+
+        try {
+            // The legacy `role` column is NOT NULL. When `role_uuid` is set,
+            // CASL resolution at request time prefers the custom role, so
+            // the `role` value is a structural placeholder only. Matches the
+            // convention used by `project_group_access` for custom roles
+            // (Viewer as the safe-by-default fallback).
+            await this.database(ProjectMembershipsTableName).insert({
+                project_id: project.project_id,
+                user_id: sa.user_id,
+                role: hasRoleUuid
+                    ? ProjectMemberRole.VIEWER
+                    : (grant.role as ProjectMemberRole),
+                role_uuid: grant.roleUuid ?? null,
+            });
+        } catch (error: AnyType) {
+            if (
+                error instanceof DatabaseError &&
+                error.constraint === 'project_memberships_pkey'
+            ) {
+                throw new AlreadyExistsError(
+                    `Service account ${serviceAccountUuid} already has access to project ${projectUuid}`,
+                );
+            }
+            throw error;
+        }
+    }
+
+    /**
+     * Replace a service account's entire set of project grants in one
+     * transaction. Used by the in-place SA edit path: delete every existing
+     * `project_memberships` row for the SA's dedicated user, then insert the
+     * new set. Wholesale replace (rather than a diff) keeps add / remove /
+     * role-change a single atomic operation.
+     *
+     * Each grant must carry exactly one of `role` (system) or `roleUuid`
+     * (custom); the service layer validates this and that custom roles belong
+     * to the org before calling. Projects are re-validated here to be in the
+     * SA's organization.
+     */
+    async setServiceAccountProjectAccess(
+        serviceAccountUuid: string,
+        grants: ServiceAccountProjectAccessInput[],
+    ): Promise<void> {
+        const [sa] = await this.database(ServiceAccountsTableName)
+            .leftJoin(
+                UserTableName,
+                `${UserTableName}.user_uuid`,
+                `${ServiceAccountsTableName}.service_account_user_uuid`,
+            )
+            .select<Array<{ user_id: number; organization_uuid: string }>>(
+                `${UserTableName}.user_id`,
+                `${ServiceAccountsTableName}.organization_uuid`,
+            )
+            .where(
+                `${ServiceAccountsTableName}.service_account_uuid`,
+                serviceAccountUuid,
+            );
+        if (!sa) {
+            throw new NotFoundError(
+                `Service account with uuid ${serviceAccountUuid} not found`,
+            );
+        }
+
+        // Resolve every project to its int id, validating same-org membership
+        // up front so the replace can't partially apply a cross-org grant.
+        const projectUuids = grants.map((g) => g.projectUuid);
+        if (new Set(projectUuids).size !== projectUuids.length) {
+            throw new ParameterError(
+                'A service account can have at most one grant per project',
+            );
+        }
+        const projects = await this.database(ProjectTableName)
+            .leftJoin(
+                OrganizationTableName,
+                `${ProjectTableName}.organization_id`,
+                `${OrganizationTableName}.organization_id`,
+            )
+            .select<
+                { project_uuid: string; project_id: number; org_uuid: string }[]
+            >(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.project_id`,
+                `${OrganizationTableName}.organization_uuid as org_uuid`,
+            )
+            .whereIn(`${ProjectTableName}.project_uuid`, projectUuids);
+        const projectByUuid = new Map(projects.map((p) => [p.project_uuid, p]));
+        for (const projectUuid of projectUuids) {
+            const project = projectByUuid.get(projectUuid);
+            if (!project) {
+                throw new NotFoundError(
+                    `Project with uuid ${projectUuid} not found`,
+                );
+            }
+            if (project.org_uuid !== sa.organization_uuid) {
+                throw new ParameterError(
+                    'Service account and project must be in the same organization',
+                );
+            }
+        }
+
+        await this.database.transaction(async (trx) => {
+            await trx(ProjectMembershipsTableName)
+                .where('user_id', sa.user_id)
+                .delete();
+            if (grants.length > 0) {
+                await trx(ProjectMembershipsTableName).insert(
+                    grants.map((grant) => {
+                        // Legacy `role` column is NOT NULL; when `role_uuid` is
+                        // set, runtime CASL prefers the custom role and `role`
+                        // is a Viewer placeholder (matches create's convention).
+                        const project = projectByUuid.get(grant.projectUuid)!;
+                        return {
+                            project_id: project.project_id,
+                            user_id: sa.user_id,
+                            role: grant.roleUuid
+                                ? ProjectMemberRole.VIEWER
+                                : (grant.role as ProjectMemberRole),
+                            role_uuid: grant.roleUuid ?? null,
+                        };
+                    }),
+                );
+            }
+        });
+    }
+
+    /**
+     * Validate that every `roleUuid` in the input exists and belongs to the
+     * given organization. Returns the set of `roleUuid`s in the input that
+     * are missing or owned by a different org — callers should reject if
+     * the returned set is non-empty.
+     *
+     * Used during service-account create to bulk-validate
+     * `projectAccess[*].roleUuid` before opening a write transaction. One
+     * query for the whole batch avoids per-grant N+1s and a partial-success
+     * window.
+     */
+    async findInvalidCustomRoleUuids(
+        roleUuids: string[],
+        organizationUuid: string,
+    ): Promise<string[]> {
+        if (roleUuids.length === 0) return [];
+        const rows = await this.database(RolesTableName)
+            .select<{ role_uuid: string }[]>('role_uuid')
+            .whereIn('role_uuid', roleUuids)
+            .andWhere('organization_uuid', organizationUuid);
+        const valid = new Set(rows.map((r) => r.role_uuid));
+        return roleUuids.filter((u) => !valid.has(u));
+    }
+
+    /**
+     * Per-service-account list of project grants.
+     *
+     * Used by the org SA list's hover preview: one query returns every
+     * `(project, role)` the SA can use. Powers the inline role-edit and
+     * revoke actions in the UI without any client-side fan-out.
+     */
+    async getServiceAccountProjectGrants(
+        serviceAccountUuid: string,
+    ): Promise<ServiceAccountProjectGrant[]> {
+        type Row = {
+            project_uuid: string;
+            project_name: string;
+            role: ProjectMemberRole;
+            role_uuid: string | null;
+            role_name: string | null;
+        };
+        const rows = await this.database(ProjectMembershipsTableName)
+            .innerJoin(
+                UserTableName,
+                `${ProjectMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .innerJoin(
+                ServiceAccountsTableName,
+                `${ServiceAccountsTableName}.service_account_user_uuid`,
+                `${UserTableName}.user_uuid`,
+            )
+            .innerJoin(
+                ProjectTableName,
+                `${ProjectMembershipsTableName}.project_id`,
+                `${ProjectTableName}.project_id`,
+            )
+            // LEFT join: most grants are system roles (no row in `roles`).
+            // Custom-role grants have role_uuid set and we project the
+            // role's display name so the UI doesn't need a follow-up lookup.
+            .leftJoin(
+                RolesTableName,
+                `${ProjectMembershipsTableName}.role_uuid`,
+                `${RolesTableName}.role_uuid`,
+            )
+            .select<Row[]>(
+                `${ProjectTableName}.project_uuid`,
+                `${ProjectTableName}.name as project_name`,
+                `${ProjectMembershipsTableName}.role`,
+                `${ProjectMembershipsTableName}.role_uuid`,
+                `${RolesTableName}.name as role_name`,
+            )
+            .where(
+                `${ServiceAccountsTableName}.service_account_uuid`,
+                serviceAccountUuid,
+            );
+
+        return rows.map((r) => {
+            if (r.role_uuid && r.role_name) {
+                return {
+                    projectUuid: r.project_uuid,
+                    projectName: r.project_name,
+                    roleUuid: r.role_uuid,
+                    roleName: r.role_name,
+                };
+            }
+            return {
+                projectUuid: r.project_uuid,
+                projectName: r.project_name,
+                role: r.role,
+            };
+        });
+    }
+
+    /**
+     * Counts of `project_memberships` rows per SA, batched for the org SA
+     * list. Returns a map keyed by `users.user_uuid` (the SA's dedicated
+     * user row) so the caller can zip counts into the SA list response
+     * without an N+1 fan-out. SAs with zero grants are absent from the
+     * map; callers default missing keys to 0.
+     */
+    async getProjectAccessCountsByServiceAccountUserUuids(
+        userUuids: string[],
+    ): Promise<Map<string, number>> {
+        if (userUuids.length === 0) return new Map();
+        const rows = await this.database(ProjectMembershipsTableName)
+            .innerJoin(
+                UserTableName,
+                `${ProjectMembershipsTableName}.user_id`,
+                `${UserTableName}.user_id`,
+            )
+            .select<{ user_uuid: string; count: string }[]>(
+                `${UserTableName}.user_uuid`,
+                this.database.raw('count(*) as count'),
+            )
+            .whereIn(`${UserTableName}.user_uuid`, userUuids)
+            .groupBy(`${UserTableName}.user_uuid`);
+        return new Map(rows.map((r) => [r.user_uuid, Number(r.count)]));
+    }
+
     async getProjectGroupAccesses(projectUuid: string) {
         const projectGroupAccesses = await this.database(
             ProjectGroupAccessTableName,
         )
-            .select<ProjectGroupAccess[]>({
+            .select<(ProjectGroupAccess & { role_uuid: string | null })[]>({
                 projectUuid: 'project_uuid',
                 groupUuid: 'group_uuid',
                 role: 'role',
+                role_uuid: 'role_uuid',
             })
             .where('project_uuid', projectUuid);
 
-        return projectGroupAccesses;
+        return projectGroupAccesses.map(({ role_uuid, ...access }) => ({
+            ...access,
+            role: role_uuid ?? access.role,
+        }));
     }
 
     async getWarehouseCredentialsForProject(
@@ -1860,10 +2395,11 @@ export class ProjectModel {
         }
 
         try {
-            const credentials = JSON.parse(
-                this.encryptionUtil.decrypt(row.encrypted_credentials),
-            ) as CreateWarehouseCredentials;
-            // Store in cache
+            const credentials = normalizeWarehouseCredentials(
+                JSON.parse(
+                    this.encryptionUtil.decrypt(row.encrypted_credentials),
+                ) as CreateWarehouseCredentials,
+            );
             warehouseCredentialsCache?.set(projectUuid, credentials);
             return credentials;
         } catch (e) {
@@ -1873,11 +2409,74 @@ export class ProjectModel {
         }
     }
 
+    /** Compare-and-swap on the credential's stored refreshToken. Invalidates the warehouse credentials cache on swap. */
+    async rotateRefreshToken(
+        projectUuid: string,
+        expectedOldRefreshToken: string,
+        newRefreshToken: string,
+    ): Promise<boolean> {
+        const swapped = await this.database.transaction(async (trx) => {
+            const row = await trx('warehouse_credentials')
+                .innerJoin(
+                    'projects',
+                    'warehouse_credentials.project_id',
+                    'projects.project_id',
+                )
+                .where('projects.project_uuid', projectUuid)
+                .select<
+                    { project_id: number; encrypted_credentials: Buffer }[]
+                >([
+                    'warehouse_credentials.project_id',
+                    'warehouse_credentials.encrypted_credentials',
+                ])
+                .forUpdate()
+                .first();
+            if (!row) {
+                return false;
+            }
+
+            let credentials: CreateWarehouseCredentials;
+            try {
+                credentials = normalizeWarehouseCredentials(
+                    JSON.parse(
+                        this.encryptionUtil.decrypt(row.encrypted_credentials),
+                    ) as CreateWarehouseCredentials,
+                );
+            } catch {
+                return false;
+            }
+
+            const stored = (credentials as Partial<{ refreshToken: string }>)
+                .refreshToken;
+            if (stored !== expectedOldRefreshToken) {
+                return false;
+            }
+
+            (credentials as { refreshToken: string }).refreshToken =
+                newRefreshToken;
+            const encryptedCredentials = this.encryptionUtil.encrypt(
+                JSON.stringify(credentials),
+            );
+            await trx('warehouse_credentials')
+                .update({ encrypted_credentials: encryptedCredentials })
+                .where('project_id', row.project_id);
+            return true;
+        });
+
+        if (swapped) {
+            warehouseCredentialsCache?.del(projectUuid);
+        }
+
+        return swapped;
+    }
+
     async duplicateContent(
         projectUuid: string,
         previewProjectUuid: string,
         spaces: Pick<SpaceSummary, 'uuid'>[],
-    ) {
+    ): Promise<{
+        spaceMapping: { sourceSpaceUuid: string; previewSpaceUuid: string }[];
+    }> {
         Logger.info(
             `Copying content from ${projectUuid} to ${previewProjectUuid}`,
         );
@@ -2441,15 +3040,20 @@ export class ProjectModel {
             await copyChartVersionContent(
                 'saved_queries_version_custom_dimensions',
                 ['saved_queries_version_custom_dimension_id'],
-                { custom_range: (value: AnyType) => JSON.stringify(value) },
+                {
+                    custom_range: (value: AnyType) => JSON.stringify(value),
+                    custom_groups: (value: AnyType) => JSON.stringify(value),
+                },
             );
             await copyChartVersionContent(
                 SavedChartCustomSqlDimensionsTableName,
                 [],
             );
-            await copyChartVersionContent('saved_queries_version_sorts', [
-                'saved_queries_version_sort_id',
-            ]);
+            await copyChartVersionContent(
+                'saved_queries_version_sorts',
+                ['saved_queries_version_sort_id'],
+                { pivot_values: (value: AnyType) => JSON.stringify(value) },
+            );
             await copyChartVersionContent('saved_queries_version_fields', [
                 'saved_queries_version_field_id',
             ]);
@@ -2535,23 +3139,25 @@ export class ProjectModel {
 
             const newDashboardVersions =
                 dashboardVersions.length > 0
-                    ? await trx('dashboard_versions')
-                          .insert(
-                              dashboardVersions.map((d) => {
-                                  const createDashboardVersion = {
-                                      ...d,
-                                      dashboard_version_id: undefined,
-                                      dashboard_version_uuid: undefined,
-                                      dashboard_id: dashboardMapping.find(
-                                          (m) => m.id === d.dashboard_id,
-                                      )?.newId!,
-                                  };
-                                  delete createDashboardVersion.dashboard_version_id;
-                                  delete createDashboardVersion.dashboard_version_uuid;
-                                  return createDashboardVersion;
-                              }),
-                          )
-                          .returning('*')
+                    ? await chunkedInsertReturning<
+                          (typeof dashboardVersions)[number]
+                      >(
+                          trx,
+                          'dashboard_versions',
+                          dashboardVersions.map((d) => {
+                              const createDashboardVersion = {
+                                  ...d,
+                                  dashboard_version_id: undefined,
+                                  dashboard_version_uuid: undefined,
+                                  dashboard_id: dashboardMapping.find(
+                                      (m) => m.id === d.dashboard_id,
+                                  )?.newId!,
+                              };
+                              delete createDashboardVersion.dashboard_version_id;
+                              delete createDashboardVersion.dashboard_version_uuid;
+                              return createDashboardVersion;
+                          }),
+                      )
                     : [];
 
             const dashboardVersionsMapping = dashboardVersions.map((c, i) => ({
@@ -2569,8 +3175,10 @@ export class ProjectModel {
             );
             let newDashboardTabs: DbDashboardTabs[] = [];
             if (dashboardTabs.length > 0) {
-                newDashboardTabs = await trx(DashboardTabsTableName)
-                    .insert(
+                newDashboardTabs =
+                    await chunkedInsertReturning<DbDashboardTabs>(
+                        trx,
+                        DashboardTabsTableName,
                         dashboardTabs.map((d) => ({
                             ...d,
                             uuid: uuidv4(), // we need to generate the uuid here: https://github.com/lightdash/lightdash/issues/10408
@@ -2581,8 +3189,7 @@ export class ProjectModel {
                                 (m) => m.id === d.dashboard_version_id,
                             )?.newId!,
                         })),
-                    )
-                    .returning('*');
+                    );
             }
             const dashboardTabsMapping = newDashboardTabs.map((c, i) => ({
                 uuid: dashboardTabs[i].uuid,
@@ -2600,7 +3207,9 @@ export class ProjectModel {
             );
 
             if (dashboardViews.length > 0) {
-                await trx(DashboardViewsTableName).insert(
+                await chunkedInsertReturning<(typeof dashboardViews)[number]>(
+                    trx,
+                    DashboardViewsTableName,
                     dashboardViews.map((d) => ({
                         ...d,
                         dashboard_view_uuid: undefined,
@@ -2676,25 +3285,26 @@ export class ProjectModel {
 
             const newDashboardTiles =
                 dashboardTiles.length > 0
-                    ? await trx('dashboard_tiles')
-                          .insert(
-                              dashboardTiles.map((d) => ({
-                                  ...d,
-                                  // we keep the same dashboard_tile_uuid
-                                  dashboard_version_id:
-                                      dashboardVersionsMapping.find(
-                                          (m) =>
-                                              m.id === d.dashboard_version_id,
-                                      )?.newId!,
-                                  tab_uuid: dashboardTabsMapping.find(
-                                      (m) =>
-                                          m.uuid === d.tab_uuid &&
-                                          m.dashboardVersionId ===
-                                              d.dashboard_version_id,
-                                  )?.newUuid,
-                              })),
-                          )
-                          .returning('*')
+                    ? await chunkedInsertReturning<
+                          (typeof dashboardTiles)[number]
+                      >(
+                          trx,
+                          'dashboard_tiles',
+                          dashboardTiles.map((d) => ({
+                              ...d,
+                              // we keep the same dashboard_tile_uuid
+                              dashboard_version_id:
+                                  dashboardVersionsMapping.find(
+                                      (m) => m.id === d.dashboard_version_id,
+                                  )?.newId!,
+                              tab_uuid: dashboardTabsMapping.find(
+                                  (m) =>
+                                      m.uuid === d.tab_uuid &&
+                                      m.dashboardVersionId ===
+                                          d.dashboard_version_id,
+                              )?.newUuid,
+                          })),
+                      )
                     : [];
 
             const dashboardTilesMapping = dashboardTiles.map((c, i) => ({
@@ -2709,7 +3319,11 @@ export class ProjectModel {
 
                 if (content.length === 0) return undefined;
 
-                const newContent = await trx(table).insert(
+                const newContent = await chunkedInsertReturning<
+                    (typeof content)[number]
+                >(
+                    trx,
+                    table,
                     content.map((d) => ({
                         ...d,
 
@@ -2743,6 +3357,10 @@ export class ProjectModel {
             await copyDashboardTileContent('dashboard_tile_markdowns');
             await copyDashboardTileContent('dashboard_tile_sql_charts');
             await copyDashboardTileContent('dashboard_tile_headings');
+            // Data app tiles are copied with `app_uuid` left pointing at the
+            // source project's app — the preview project gets no `apps` row of
+            // its own. See `docs/data-apps.md` Limitations.
+            await copyDashboardTileContent('dashboard_tile_data_apps');
 
             // Get AI Agents from the source project
             // Note: AI agents are an Enterprise Edition feature. The table may not exist
@@ -2933,7 +3551,41 @@ export class ProjectModel {
                 preview_project_uuid: previewProjectUuid,
                 content_mapping: contentMapping,
             });
+
+            // Return the source→preview space mapping so callers (preview data
+            // app duplication) can place copied entities into the mirrored
+            // preview spaces.
+            return {
+                spaceMapping: spaceMapping.map((s) => ({
+                    sourceSpaceUuid: s.uuid,
+                    previewSpaceUuid: s.newUuid,
+                })),
+            };
         });
+    }
+
+    async getPreviewAiAgentUuid({
+        projectUuid,
+        previewProjectUuid,
+        aiAgentUuid,
+    }: {
+        projectUuid: string;
+        previewProjectUuid: string;
+        aiAgentUuid: string;
+    }): Promise<string | null> {
+        const row = await this.database('preview_content')
+            .select<{ content_mapping: PreviewContentMapping }[]>(
+                'content_mapping',
+            )
+            .where('project_uuid', projectUuid)
+            .where('preview_project_uuid', previewProjectUuid)
+            .orderBy('created_at', 'desc')
+            .first();
+
+        const match = row?.content_mapping.aiAgents.find(
+            (mapping) => String(mapping.id) === aiAgentUuid,
+        );
+        return typeof match?.newId === 'string' ? match.newId : null;
     }
 
     // Easier to mock in ProjectService
@@ -3081,14 +3733,41 @@ export class ProjectModel {
             });
     }
 
-    async updateDefaultSchedulerTimezone(
+    async updateSchedulerSettings(
         projectUuid: string,
-        timezone: string,
+        settings: UpdateSchedulerSettings,
     ) {
+        const update: Partial<
+            Pick<
+                DbProject,
+                | 'scheduler_timezone'
+                | 'scheduler_failure_notify_recipients'
+                | 'scheduler_failure_include_contact'
+                | 'scheduler_failure_contact_override'
+            >
+        > = {};
+        if (settings.schedulerTimezone !== undefined) {
+            update.scheduler_timezone = settings.schedulerTimezone;
+        }
+        if (settings.schedulerFailureNotifyRecipients !== undefined) {
+            update.scheduler_failure_notify_recipients =
+                settings.schedulerFailureNotifyRecipients;
+        }
+        if (settings.schedulerFailureIncludeContact !== undefined) {
+            update.scheduler_failure_include_contact =
+                settings.schedulerFailureIncludeContact;
+        }
+        if (settings.schedulerFailureContactOverride !== undefined) {
+            update.scheduler_failure_contact_override =
+                settings.schedulerFailureContactOverride;
+        }
+
+        if (Object.keys(update).length === 0) {
+            return undefined;
+        }
+
         const [updatedProject] = await this.database(ProjectTableName)
-            .update({
-                scheduler_timezone: timezone,
-            })
+            .update(update)
             .where('project_uuid', projectUuid)
             .returning('*');
 
@@ -3111,21 +3790,54 @@ export class ProjectModel {
 
     async updateQueryTimezone(
         projectUuid: string,
-        timezone: string | null,
+        settings: UpdateQueryTimezoneSettings,
     ): Promise<DbProject> {
-        const [updatedProject] = await this.database(ProjectTableName)
-            .update({
-                query_timezone: timezone,
-            })
-            .where('project_uuid', projectUuid)
-            .returning('*');
+        const { queryTimezone, useProjectTimezoneInFilters } = settings;
 
-        if (!updatedProject) {
-            throw new NotFoundError(
-                `Cannot find project with id: ${projectUuid}`,
-            );
-        }
+        return this.database.transaction(async (trx) => {
+            const [current] = await trx(ProjectTableName)
+                .select('query_timezone', 'use_project_timezone_in_filters')
+                .where('project_uuid', projectUuid)
+                .forUpdate();
 
-        return updatedProject;
+            if (!current) {
+                throw new NotFoundError(
+                    `Cannot find project with id: ${projectUuid}`,
+                );
+            }
+
+            const resultingTimezone =
+                queryTimezone !== undefined
+                    ? queryTimezone
+                    : current.query_timezone;
+            const resultingUseProjectTimezoneInFilters =
+                useProjectTimezoneInFilters !== undefined
+                    ? useProjectTimezoneInFilters
+                    : current.use_project_timezone_in_filters;
+
+            if (
+                resultingUseProjectTimezoneInFilters &&
+                resultingTimezone === null
+            ) {
+                throw new ParameterError(
+                    'Cannot enable useProjectTimezoneInFilters without a project query timezone',
+                );
+            }
+
+            const [updatedProject] = await trx(ProjectTableName)
+                .update({
+                    ...(queryTimezone !== undefined && {
+                        query_timezone: queryTimezone,
+                    }),
+                    ...(useProjectTimezoneInFilters !== undefined && {
+                        use_project_timezone_in_filters:
+                            useProjectTimezoneInFilters,
+                    }),
+                })
+                .where('project_uuid', projectUuid)
+                .returning('*');
+
+            return updatedProject;
+        });
     }
 }

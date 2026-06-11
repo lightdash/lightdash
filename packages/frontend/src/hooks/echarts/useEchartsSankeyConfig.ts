@@ -9,13 +9,10 @@ import {
 } from '@lightdash/common';
 import { useMantineTheme } from '@mantine/core';
 import { type EChartsOption, type SankeySeriesOption } from 'echarts';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { isSankeyVisualizationConfig } from '../../components/LightdashVisualization/types';
 import { useVisualizationContext } from '../../components/LightdashVisualization/useVisualizationContext';
 import { sanitizeEchartsFontFamily } from '../../utils/sanitizeEchartsFontFamily';
-
-/** Strip " - Step N" suffix from node names for display */
-const stripStepSuffix = (name: string) => name.replace(/ - Step \d+$/, '');
 
 const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
     const {
@@ -24,6 +21,7 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
         parameters,
         isTouchDevice,
         minimal,
+        resolvedTimezone,
     } = useVisualizationContext();
 
     const theme = useMantineTheme();
@@ -32,6 +30,22 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
         if (!isSankeyVisualizationConfig(visualizationConfig)) return;
         return visualizationConfig.chartConfig;
     }, [visualizationConfig]);
+
+    // Node names are opaque ids; map them to their display labels.
+    const labelByName = useMemo(
+        () =>
+            new Map(
+                (chartConfig?.data.nodes ?? []).map((node) => [
+                    node.name,
+                    node.label,
+                ]),
+            ),
+        [chartConfig],
+    );
+    const displayName = useCallback(
+        (name: string) => labelByName.get(name) ?? name,
+        [labelByName],
+    );
 
     const sankeySeriesOption: SankeySeriesOption | undefined = useMemo(() => {
         if (!chartConfig) return;
@@ -88,12 +102,11 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
                 show: true,
                 color: theme.colors.foreground?.[0],
                 position: isVertical ? 'bottom' : 'right',
-                // Display clean names without step suffix
                 formatter: (params: { name?: string }) =>
-                    stripStepSuffix(params.name ?? ''),
+                    displayName(params.name ?? ''),
             },
         };
-    }, [chartConfig, theme.colors.foreground, colorPalette]);
+    }, [chartConfig, theme.colors.foreground, colorPalette, displayName]);
 
     const eChartsOptions: EChartsOption | undefined = useMemo(() => {
         if (!chartConfig || !sankeySeriesOption) return;
@@ -126,9 +139,10 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
                             params.value,
                             false,
                             parameters,
+                            resolvedTimezone,
                         );
-                        const source = stripStepSuffix(params.data.source);
-                        const target = stripStepSuffix(params.data.target);
+                        const source = displayName(params.data.source);
+                        const target = displayName(params.data.target);
                         const colorIndicator = formatColorIndicator(
                             typeof params.color === 'string'
                                 ? params.color
@@ -146,7 +160,7 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
                     );
                     return formatTooltipRow(
                         colorIndicator,
-                        stripStepSuffix(params.name),
+                        displayName(params.name),
                         '',
                     );
                 },
@@ -163,6 +177,8 @@ const useEchartsSankeyConfig = (isInDashboard?: boolean) => {
         isTouchDevice,
         visualizationConfig,
         parameters,
+        resolvedTimezone,
+        displayName,
     ]);
 
     if (!eChartsOptions) return;

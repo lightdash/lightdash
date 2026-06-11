@@ -1,36 +1,47 @@
 import {
     assertUnreachable,
     type Change,
-    type ChangesetWithChanges,
+    type ChangeDependency,
+    type ChangeWithDependencies,
 } from '@lightdash/common';
 import {
     Alert,
+    Anchor,
     Badge,
     Box,
     Button,
+    Divider,
     Group,
+    HoverCard,
     Loader,
+    ScrollArea,
     Stack,
     Text,
     Title,
     Tooltip,
+    UnstyledButton,
     useMantineTheme,
 } from '@mantine-8/core';
 import { modals } from '@mantine/modals';
 import {
     IconAlertCircle,
+    IconAlertTriangle,
     IconArrowBackUp,
+    IconChartBar,
     IconClock,
+    IconDownload,
+    IconLayoutDashboard,
     IconTable,
 } from '@tabler/icons-react';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
-import {
-    MantineReactTable,
-    useMantineReactTable,
-    type MRT_ColumnDef,
-} from 'mantine-react-table';
 import { useMemo, type FC } from 'react';
+import Callout from '../../../components/common/Callout';
+import {
+    ContentTable,
+    useContentTable,
+    type ContentTableColumnDef,
+} from '../../../components/common/ContentTable';
 import MantineIcon from '../../../components/common/MantineIcon';
 import useToaster from '../../../hooks/toaster/useToaster';
 import { useIsTruncated } from '../../../hooks/useIsTruncated';
@@ -40,6 +51,7 @@ import {
     useRevertAllChanges,
     useRevertChange,
 } from '../hooks';
+import { downloadChangesetJson } from '../utils/downloadChangeset';
 
 dayjs.extend(relativeTime);
 
@@ -101,6 +113,125 @@ const getUserDisplayName = (
     return user.firstName && user.lastName
         ? `${user.firstName} ${user.lastName}`
         : user.email;
+};
+
+const getDependencyMeta = (
+    dependency: ChangeDependency,
+    projectUuid: string,
+) => {
+    switch (dependency.type) {
+        case 'chart':
+            return {
+                icon: IconChartBar,
+                color: 'blue',
+                to: `/projects/${projectUuid}/saved/${dependency.id}`,
+            };
+        case 'dashboard':
+            return {
+                icon: IconLayoutDashboard,
+                color: 'grape',
+                to: `/projects/${projectUuid}/dashboards/${dependency.id}`,
+            };
+        default:
+            return assertUnreachable(
+                dependency.type,
+                `Unknown dependency type`,
+            );
+    }
+};
+
+const DependenciesCell: FC<{
+    dependencies: ChangeDependency[];
+    projectUuid: string;
+}> = ({ dependencies, projectUuid }) => {
+    if (dependencies.length === 0) {
+        return null;
+    }
+
+    return (
+        <HoverCard
+            withinPortal
+            position="bottom-start"
+            offset={4}
+            withArrow
+            shadow="md"
+            radius="md"
+            openDelay={100}
+            closeDelay={150}
+        >
+            <HoverCard.Target>
+                <UnstyledButton>
+                    <Group gap={6} wrap="nowrap">
+                        <MantineIcon icon={IconAlertTriangle} color="red.6" />
+                        <Text fz="xs" fw={500} c="red.6">
+                            {dependencies.length}{' '}
+                            {dependencies.length === 1
+                                ? 'dependency'
+                                : 'dependencies'}
+                        </Text>
+                    </Group>
+                </UnstyledButton>
+            </HoverCard.Target>
+            <HoverCard.Dropdown p={0}>
+                <Group justify="space-between" gap="lg" px="sm" py="xs">
+                    <Text fz={10} fw={600} c="dimmed" tt="uppercase">
+                        Breaks if reverted
+                    </Text>
+                    <Badge color="red" variant="light" size="xs" radius="sm">
+                        {dependencies.length}
+                    </Badge>
+                </Group>
+                <Divider color="ldGray.2" />
+                <ScrollArea.Autosize mah={260} type="auto">
+                    <Stack gap={1} p={4} miw={248}>
+                        {dependencies.map((dependency) => {
+                            const { icon, color, to } = getDependencyMeta(
+                                dependency,
+                                projectUuid,
+                            );
+                            return (
+                                <Group
+                                    key={`${dependency.type}-${dependency.id}`}
+                                    gap="md"
+                                    wrap="nowrap"
+                                    justify="space-between"
+                                    px="xs"
+                                    py={4}
+                                >
+                                    <Group gap={8} wrap="nowrap" miw={0}>
+                                        <MantineIcon
+                                            icon={icon}
+                                            size={14}
+                                            color={`${color}.6`}
+                                        />
+                                        <Anchor
+                                            href={to}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            fz="xs"
+                                            fw={500}
+                                            lineClamp={1}
+                                        >
+                                            {dependency.name}
+                                        </Anchor>
+                                    </Group>
+                                    <Badge
+                                        color={color}
+                                        variant="light"
+                                        size="xs"
+                                        radius="sm"
+                                        tt="capitalize"
+                                    >
+                                        {dependency.type}
+                                    </Badge>
+                                </Group>
+                            );
+                        })}
+                    </Stack>
+                </ScrollArea.Autosize>
+            </HoverCard.Dropdown>
+        </HoverCard>
+    );
 };
 
 export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
@@ -192,143 +323,147 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         });
     };
 
-    const columns: MRT_ColumnDef<ChangesetWithChanges['changes'][0]>[] =
-        useMemo(
-            () => [
-                {
-                    accessorKey: 'entityName',
-                    header: '',
-                    enableSorting: false,
-                    size: 150,
-                    Cell: ({ row }) => {
-                        const change = row.original;
-                        return (
-                            <Tooltip
-                                withinPortal
-                                label={
-                                    <Group gap="xs">
-                                        <MantineIcon
-                                            icon={IconTable}
-                                            size={16}
-                                        />
-                                        <Text size="sm">
-                                            {change.entityTableName}
-                                        </Text>
-                                    </Group>
-                                }
+    const columns: ContentTableColumnDef<ChangeWithDependencies>[] = useMemo(
+        () => [
+            {
+                accessorKey: 'entityName',
+                header: '',
+                enableSorting: false,
+                size: 150,
+                Cell: ({ row }) => {
+                    const change = row.original;
+                    return (
+                        <Tooltip
+                            withinPortal
+                            label={
+                                <Group gap="xs">
+                                    <MantineIcon icon={IconTable} size={16} />
+                                    <Text size="sm">
+                                        {change.entityTableName}
+                                    </Text>
+                                </Group>
+                            }
+                        >
+                            <Text
+                                fw={500}
+                                fz="sm"
+                                truncate
+                                style={{ cursor: 'help' }}
                             >
-                                <Text
-                                    fw={500}
-                                    fz="sm"
-                                    truncate
-                                    style={{ cursor: 'help' }}
-                                >
-                                    {change.entityName}
-                                </Text>
-                            </Tooltip>
-                        );
-                    },
+                                {change.entityName}
+                            </Text>
+                        </Tooltip>
+                    );
                 },
-                {
-                    accessorKey: 'change',
-                    header: 'Change',
-                    enableSorting: false,
-                    size: 200,
+            },
+            {
+                accessorKey: 'change',
+                header: 'Change',
+                enableSorting: false,
+                size: 200,
 
-                    Cell: ({ row }) => {
-                        const isTruncated = useIsTruncated<HTMLDivElement>();
-                        const change = row.original;
-                        const changeValue = extractChangeValue(change);
+                Cell: ({ row }) => {
+                    const isTruncated = useIsTruncated<HTMLDivElement>();
+                    const change = row.original;
+                    const changeValue = extractChangeValue(change);
 
-                        return (
-                            <Group gap="xs" align="center">
-                                <Badge
-                                    {...getChangeTypeBadgeProps(change.type)}
-                                    radius="sm"
-                                    size="sm"
-                                    fw={400}
-                                    tt="capitalize"
-                                >
-                                    {change.type}
-                                </Badge>
-                                {typeof changeValue === 'string' ? (
-                                    <Text fz="xs">{changeValue}</Text>
-                                ) : (
-                                    <>
-                                        <Tooltip
-                                            withinPortal
-                                            label={changeValue.map((patch) => (
-                                                <Text key={patch.path} fz="xs">
+                    return (
+                        <Group gap="xs" align="center">
+                            <Badge
+                                {...getChangeTypeBadgeProps(change.type)}
+                                radius="sm"
+                                size="sm"
+                                fw={400}
+                                tt="capitalize"
+                            >
+                                {change.type}
+                            </Badge>
+                            {typeof changeValue === 'string' ? (
+                                <Text fz="xs">{changeValue}</Text>
+                            ) : (
+                                <>
+                                    <Tooltip
+                                        withinPortal
+                                        label={changeValue.map((patch) => (
+                                            <Text key={patch.path} fz="xs">
+                                                {patch.value}
+                                            </Text>
+                                        ))}
+                                        disabled={!isTruncated.isTruncated}
+                                    >
+                                        <Box>
+                                            {changeValue.map((patch) => (
+                                                <Text
+                                                    key={patch.path}
+                                                    fz="xs"
+                                                    maw={280}
+                                                    truncate
+                                                    ref={isTruncated.ref}
+                                                >
+                                                    <Text fw={500} fz="xs" span>
+                                                        {patch.path}:{' '}
+                                                    </Text>
                                                     {patch.value}
                                                 </Text>
                                             ))}
-                                            disabled={!isTruncated.isTruncated}
-                                        >
-                                            <Box>
-                                                {changeValue.map((patch) => (
-                                                    <Text
-                                                        key={patch.path}
-                                                        fz="xs"
-                                                        maw={280}
-                                                        truncate
-                                                        ref={isTruncated.ref}
-                                                    >
-                                                        <Text
-                                                            fw={500}
-                                                            fz="xs"
-                                                            span
-                                                        >
-                                                            {patch.path}:{' '}
-                                                        </Text>
-                                                        {patch.value}
-                                                    </Text>
-                                                ))}
-                                            </Box>
-                                        </Tooltip>
-                                    </>
-                                )}
-                            </Group>
-                        );
-                    },
+                                        </Box>
+                                    </Tooltip>
+                                </>
+                            )}
+                        </Group>
+                    );
                 },
-                {
-                    accessorKey: 'createdByUserUuid',
-                    header: 'Created By',
-                    enableSorting: false,
-                    size: 200,
-                    Cell: ({ row }) => {
-                        const change = row.original;
-                        const userName = getUserDisplayName(
-                            change.createdByUserUuid,
-                            organizationUsers,
-                        );
+            },
+            {
+                accessorKey: 'createdByUserUuid',
+                header: 'Created By',
+                enableSorting: false,
+                size: 200,
+                Cell: ({ row }) => {
+                    const change = row.original;
+                    const userName = getUserDisplayName(
+                        change.createdByUserUuid,
+                        organizationUsers,
+                    );
 
-                        return (
-                            <Group gap="xs" align="center">
-                                <Tooltip
-                                    withinPortal
-                                    label={formatDateTime(change.createdAt)}
-                                >
-                                    <Box style={{ cursor: 'help' }}>
-                                        <MantineIcon
-                                            icon={IconClock}
-                                            size={16}
-                                            color="ldGray.6"
-                                        />
-                                    </Box>
-                                </Tooltip>
-                                <Text fz="sm" truncate>
-                                    {userName}
-                                </Text>
-                            </Group>
-                        );
-                    },
+                    return (
+                        <Group gap="xs" align="center">
+                            <Tooltip
+                                withinPortal
+                                label={formatDateTime(change.createdAt)}
+                            >
+                                <Box style={{ cursor: 'help' }}>
+                                    <MantineIcon
+                                        icon={IconClock}
+                                        size={16}
+                                        color="ldGray.6"
+                                    />
+                                </Box>
+                            </Tooltip>
+                            <Text fz="sm" truncate>
+                                {userName}
+                            </Text>
+                        </Group>
+                    );
                 },
-            ],
-            [organizationUsers],
-        );
+            },
+            {
+                id: 'dependencies',
+                header: 'Dependencies',
+                enableSorting: false,
+                size: 160,
+                Cell: ({ row }) => (
+                    <DependenciesCell
+                        dependencies={row.original.dependencies}
+                        projectUuid={projectUuid}
+                    />
+                ),
+            },
+        ],
+        [organizationUsers, projectUuid],
+    );
 
-    const table = useMantineReactTable({
+    const table = useContentTable({
         columns,
         data: allChanges,
         enableStickyHeader: true,
@@ -347,7 +482,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         enableTopToolbar: false,
         mantinePaperProps: {
             shadow: undefined,
-            sx: {
+            style: {
                 border: `1px solid ${theme.colors.ldGray[2]}`,
                 borderRadius: theme.spacing.sm,
                 boxShadow: theme.shadows.subtle,
@@ -356,7 +491,7 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
             },
         },
         mantineTableContainerProps: {
-            sx: {
+            style: {
                 maxHeight: 500,
                 minHeight: '300px',
                 display: 'flex',
@@ -368,27 +503,14 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
             withColumnBorders: Boolean(allChanges.length),
         },
         mantineTableHeadRowProps: {
-            sx: {
+            style: {
                 boxShadow: 'none',
-                'th > div > div:last-child': {
-                    top: -10,
-                    right: -5,
-                },
-                'th > div > div:last-child > .mantine-Divider-root': {
-                    border: 'none',
-                },
             },
         },
         mantineTableHeadCellProps: (props) => {
-            const isAnyColumnResizing = props.table
-                .getAllColumns()
-                .some((c) => c.getIsResizing());
-
             const isLastColumn =
                 props.table.getAllColumns().indexOf(props.column) ===
                 props.table.getAllColumns().length - 1;
-
-            const canResize = props.column.getCanResize();
 
             return {
                 bg: 'ldGray.0',
@@ -407,30 +529,14 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
                           }`,
                     borderTop: 'none',
                     borderLeft: 'none',
-                },
-                sx: {
                     justifyContent: 'center',
-                    '&:hover': canResize
-                        ? {
-                              borderRight: !isAnyColumnResizing
-                                  ? `2px solid ${theme.colors.blue[3]} !important`
-                                  : undefined,
-                              transition: `border-right ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                          }
-                        : {},
                 },
             };
         },
         mantineTableBodyRowProps: () => {
             return {
-                sx: {
+                style: {
                     cursor: 'pointer',
-                    '&:hover': {
-                        td: {
-                            backgroundColor: theme.colors.ldGray[0],
-                            transition: `background-color ${theme.other.transitionDuration}ms ${theme.other.transitionTimingFunction}`,
-                        },
-                    },
                 },
             };
         },
@@ -485,74 +591,117 @@ export const ProjectChangesets: FC<Props> = ({ projectUuid }) => {
         },
     });
 
-    // Handle loading state
-    if (isLoading) {
-        return (
-            <Box p="xl" style={{ textAlign: 'center' }}>
-                <Loader size="lg" />
-                <Text mt="md" c="ldGray.6">
-                    Loading changesets...
-                </Text>
-            </Box>
-        );
-    }
-
-    // Handle error state
-    if (error) {
-        return (
-            <Alert
-                icon={<MantineIcon icon={IconAlertCircle} />}
-                title="Error loading changesets"
-                color="red"
-                variant="light"
+    const deprecationNotice = (
+        <Callout variant="warning" title="Changesets are deprecated">
+            Self-improvement changesets are no longer created by AI agents. Use{' '}
+            <Anchor
+                href="https://docs.lightdash.com/guides/ai-agents/ai-writeback"
+                target="_blank"
             >
-                {'Failed to load changesets. Please try again.'}
-            </Alert>
-        );
-    }
+                AI writeback
+            </Anchor>{' '}
+            instead to propose changes to your semantic layer as pull requests.
+            Existing changesets below remain available to review and revert.
+        </Callout>
+    );
 
-    // Handle empty state
-    if (!changesets || changesets.changes.length === 0) {
-        return (
-            <Box p="xl" style={{ textAlign: 'center' }}>
-                <Text c="ldGray.6">No active changesets found.</Text>
-            </Box>
-        );
-    }
+    const renderContent = () => {
+        // Handle loading state
+        if (isLoading) {
+            return (
+                <Box p="xl" style={{ textAlign: 'center' }}>
+                    <Loader size="lg" />
+                    <Text mt="md" c="ldGray.6">
+                        Loading changesets...
+                    </Text>
+                </Box>
+            );
+        }
 
-    // Handle no changes in changesets
-    if (allChanges.length === 0) {
+        // Handle error state
+        if (error) {
+            return (
+                <Alert
+                    icon={<MantineIcon icon={IconAlertCircle} />}
+                    title="Error loading changesets"
+                    color="red"
+                    variant="light"
+                >
+                    {'Failed to load changesets. Please try again.'}
+                </Alert>
+            );
+        }
+
+        // Handle empty state
+        if (!changesets || changesets.changes.length === 0) {
+            return (
+                <Box p="xl" style={{ textAlign: 'center' }}>
+                    <Text c="ldGray.6">No active changesets found.</Text>
+                </Box>
+            );
+        }
+
+        // Handle no changes in changesets
+        if (allChanges.length === 0) {
+            return (
+                <Box p="xl" style={{ textAlign: 'center' }}>
+                    <Text c="ldGray.6">
+                        No changes found in active changesets.
+                    </Text>
+                </Box>
+            );
+        }
+
         return (
-            <Box p="xl" style={{ textAlign: 'center' }}>
-                <Text c="ldGray.6">No changes found in active changesets.</Text>
-            </Box>
+            <Stack gap="sm">
+                <Group justify="space-between" align="flex-start">
+                    <Stack gap="xs">
+                        <Title order={5}>Changesets</Title>
+                        <Text c="ldGray.6" fz="sm">
+                            Track changes to your project over time. Changesets
+                            are updates to your Lightdash Semantic Layer.
+                        </Text>
+                    </Stack>
+                    {allChanges.length > 0 && (
+                        <Group gap="xs">
+                            <Button
+                                variant="default"
+                                radius="md"
+                                size="compact-sm"
+                                onClick={() =>
+                                    changesets &&
+                                    downloadChangesetJson(changesets)
+                                }
+                                leftSection={
+                                    <MantineIcon icon={IconDownload} />
+                                }
+                            >
+                                Download
+                            </Button>
+                            <Button
+                                variant="default"
+                                radius="md"
+                                size="compact-sm"
+                                onClick={handleRevertAllChanges}
+                                loading={revertAllChangesMutation.isLoading}
+                                leftSection={
+                                    <MantineIcon icon={IconArrowBackUp} />
+                                }
+                            >
+                                Revert All
+                            </Button>
+                        </Group>
+                    )}
+                </Group>
+                <ContentTable table={table} />
+            </Stack>
         );
-    }
+    };
 
     return (
-        <Stack gap="sm">
-            <Group justify="space-between" align="flex-start">
-                <Stack gap="xs">
-                    <Title order={5}>Changesets</Title>
-                    <Text c="ldGray.6" fz="sm">
-                        Track changes to your project over time. Changesets are
-                        updates to your Lightdash Semantic Layer.
-                    </Text>
-                </Stack>
-                {allChanges.length > 0 && (
-                    <Button
-                        variant="default"
-                        radius="md"
-                        size="compact-sm"
-                        onClick={handleRevertAllChanges}
-                        loading={revertAllChangesMutation.isLoading}
-                        leftSection={<MantineIcon icon={IconArrowBackUp} />}
-                    >
-                        Revert All
-                    </Button>
-                )}
-            </Group>
-            <MantineReactTable table={table} />
+        <Stack gap="md">
+            {deprecationNotice}
+            {renderContent()}
         </Stack>
     );
 };

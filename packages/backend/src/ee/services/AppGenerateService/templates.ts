@@ -1,0 +1,50 @@
+import { assertUnreachable, type DataAppTemplate } from '@lightdash/common';
+
+const DASHBOARD_INSTRUCTIONS = `[Starter template: Dashboard]
+Build a single-page dashboard layout:
+- Use a CSS grid layout with 2–4 columns of cards (assume a desktop viewport).
+- Place the most important KPI tiles (single big-number cards) at the top of the page.
+- Below the KPI row, render charts in a grid; group related metrics together.
+- Include a clear page title and a short subtitle/description at the top.
+- Keep card titles concise. Avoid long paragraphs of body copy.
+- Default to a dense, scannable layout.`;
+
+const SLIDESHOW_INSTRUCTIONS = `[Starter template: Slide Show]
+Build a slideshow-style data app:
+- Render one slide at a time, occupying the full viewport.
+- Each slide focuses on a single chart or insight, with a headline and a short caption.
+- Provide previous/next navigation (buttons and keyboard arrow keys) and a slide counter.
+- Open with a title slide and close with a summary slide.
+- Use large typography suitable for presenting on a screen.`;
+
+const PDF_REPORT_INSTRUCTIONS = `[Starter template: PDF Report]
+Build a print-optimized report:
+- Layout for A4/Letter portrait pages with comfortable internal padding.
+- Set \`@page { margin: 0; size: A4 }\` so the design fills the sheet edge-to-edge — apply your own padding inside each page (e.g. \`p-12\`) instead of relying on the browser's default page margin (which is ugly and shrinks the canvas).
+- Use a clean, document-style typography hierarchy (title, section headings, body).
+- Render charts at fixed widths so they reflow across pages cleanly.
+- The app itself stays fully interactive (hover tooltips, the "Filter by <value>" action menu, etc.) — keep all of it. But the *exported* PDF is static: readers of the printed page can't hover, so any value only available via tooltip is lost. So **in addition to** the normal interactivity, draw the numbers on the chart: \`<LabelList>\` on bars, and labeled or end-of-line point labels on lines. Keep them legible — compact-format the numbers (e.g. \`1.2K\`, \`$1.3M\`) and avoid overlap on dense series.
+- Include a title page header (title, subtitle, generated-on date) and section dividers.
+- Apply CSS \`@media print\` rules and \`page-break-inside: avoid\` on cards and figures.
+- Note: browsers may inject their own header/footer on printed pages (URL, page number, date), controlled by the user's print dialog — not removable via CSS. Keep critical content away from the very top and bottom edges so it doesn't sit underneath.
+- Prefer narrative copy with charts as supporting evidence, not a dense dashboard grid.`;
+
+export const getTemplateInstructions = (
+    template: DataAppTemplate,
+): string | null => {
+    switch (template) {
+        case 'dashboard':
+            return DASHBOARD_INSTRUCTIONS;
+        case 'slideshow':
+            return SLIDESHOW_INSTRUCTIONS;
+        case 'pdf':
+            return PDF_REPORT_INSTRUCTIONS;
+        case 'custom':
+            return null;
+        default:
+            return assertUnreachable(
+                template,
+                `Unknown data app template: ${template}`,
+            );
+    }
+};

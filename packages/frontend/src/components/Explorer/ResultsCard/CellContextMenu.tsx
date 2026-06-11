@@ -35,7 +35,7 @@ const CellContextMenu: FC<
     }
 > = ({ cell, isEditMode, itemsMap, onExpand }) => {
     const { addFilter } = useFilters();
-    const { openUnderlyingDataModal, metricQuery } =
+    const { openUnderlyingDataModal, metricQuery, resolvedTimezone } =
         useMetricQueryDataContext();
     const { track } = useTracking();
     const { showToastSuccess } = useToaster();
@@ -98,8 +98,8 @@ const CellContextMenu: FC<
                 ? null // Set as null if value is invalid date or undefined
                 : value.raw;
 
-        addFilter(item, filterValue);
-    }, [track, addFilter, item, value]);
+        addFilter(item, filterValue, resolvedTimezone);
+    }, [track, addFilter, item, value, resolvedTimezone]);
 
     let parseResult: null | object = null;
     if (
@@ -176,12 +176,12 @@ const CellContextMenu: FC<
                         leftSection={<MantineIcon icon={IconFilter} />}
                         onClick={handleFilterByValue}
                     >
-                        <Text fz="sm">
+                        <>
                             Filter by{' '}
-                            <Text span fz="sm" fw="bold">
+                            <Text span fz="inherit" lh="inherit" fw="bold">
                                 {value.formatted}
                             </Text>
-                        </Text>
+                        </>
                     </Menu.Item>
                 )}
 
