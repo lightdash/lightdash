@@ -37,6 +37,9 @@ export const useEmailStatus = (enabled: boolean) =>
         // manual invalidation (useVerifyEmail onSuccess)
         refetchOnMount: false,
         refetchOnReconnect: false,
+        // Don't retry: completes the dampening above so transient failures
+        // surface immediately instead of stalling the verify-email page.
+        retry: false,
     });
 
 export const useOneTimePassword = () => {

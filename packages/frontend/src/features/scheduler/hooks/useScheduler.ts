@@ -538,6 +538,9 @@ const useSendNowJobStatus = (jobId: string | undefined) => {
 
                 return 2000;
             },
+            // refetchInterval handles retries, and onError surfaces the failure to the user.
+            // Enabling retry for transient errors would unnecessarily delay UI update.
+            retry: false,
             onSuccess: (data) => {
                 if (data) {
                     showToastInfo({

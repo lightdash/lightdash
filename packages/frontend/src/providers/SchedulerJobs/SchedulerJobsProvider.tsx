@@ -98,6 +98,10 @@ const SchedulerJobsProvider: FC<React.PropsWithChildren> = ({ children }) => {
             queryKey: ['schedulerJobStatus', job.jobId],
             queryFn: () => getSchedulerJobStatus(job.jobId),
             refetchInterval: 2000,
+            // refetch handles retries. Enabling retry for transient errors would cause each
+            // watcher to back off independently on a shared 5xx, unnecessarily
+            // displaying jittery toast progress.
+            retry: false,
             enabled: !TERMINAL_STATUSES.has(job.status),
         })),
     });

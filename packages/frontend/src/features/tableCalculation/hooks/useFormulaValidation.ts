@@ -67,6 +67,7 @@ export const useFormulaValidation = (
                 metricQuery,
             ),
         enabled: !!projectUuid && !!tableName && !!formulaWithPrefix,
+        // Do not retry potentially stale formula validation while the user is typing.
         retry: false,
     });
 

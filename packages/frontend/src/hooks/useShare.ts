@@ -18,7 +18,6 @@ export const useGetShare = (shareNanoid?: string) =>
         queryKey: ['share', shareNanoid],
         queryFn: () => getShare(shareNanoid!),
         enabled: shareNanoid !== undefined,
-        retry: false,
     });
 
 const createShareUrl = async (data: CreateShareUrl) =>

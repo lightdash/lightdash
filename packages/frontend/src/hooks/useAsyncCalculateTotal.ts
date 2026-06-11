@@ -130,7 +130,6 @@ export const useAsyncCalculateTotal = ({
             });
         },
         enabled: enabled && !!projectUuid && !!sourceQueryUuid,
-        retry: false,
     });
 
 // Row totals re-run the source query collapsed across the pivot columns, so the
@@ -209,7 +208,6 @@ export const useAsyncCalculateRowTotal = ({
             !!projectUuid &&
             !!sourceQueryUuid &&
             indexFieldIds.length > 0,
-        retry: false,
     });
 
 // Map keyed by `getSubtotalKey(dims)`; each entry is one flat row per
@@ -359,6 +357,5 @@ export const useAsyncCalculateSubtotals = ({
             !!projectUuid &&
             !!sourceQueryUuid &&
             dimensionGroups.length > 0,
-        retry: false,
     });
 };

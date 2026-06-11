@@ -29,5 +29,7 @@ export const useManagedAgentActions = (
         queryFn: () => getActions(projectUuid!, opts.runUuid),
         enabled: !!projectUuid && isEnabled,
         refetchInterval: isEnabled ? (opts.fastPoll ? 3000 : 30000) : false,
+        // refetch handles retries. Enabling retry for transient errors would unnecessarily delay UI update.
+        retry: false,
     });
 };

@@ -17,7 +17,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import getChartDataModel from '../../../components/DataViz/transformers/getChartDataModel';
 import { useProjectColorPalette } from '../../../hooks/appearance/useProjectColorPalette';
-import { useQueryRetryConfig } from '../../../hooks/useQueryRetry';
 import {
     getDashboardSqlChartPivotChartData,
     getEmbedDashboardSqlChartPivotChartData,
@@ -89,8 +88,6 @@ type UseSavedSqlChartResults = {
 export const useSavedSqlChartResults = (
     args: UseSavedSqlChartResultsArguments,
 ) => {
-    const retryConfig = useQueryRetryConfig();
-
     const { savedSqlUuid, slug, projectUuid, context, parameters } = args;
     const { data: resolvedPalette } = useProjectColorPalette(projectUuid, {
         dashboardUuid:
@@ -128,7 +125,6 @@ export const useSavedSqlChartResults = (
             enabled:
                 (embedDashboard ? !!args.tileUuid : !!savedSqlUuid || !!slug) &&
                 !!projectUuid,
-            ...retryConfig,
         },
     );
 
@@ -233,7 +229,6 @@ export const useSavedSqlChartResults = (
                 !!chartQuery.data &&
                 !!projectUuid &&
                 (embedDashboard || !!savedSqlUuid || !!slug),
-            ...retryConfig,
         },
     );
 

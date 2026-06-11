@@ -1,27 +1,24 @@
-import { type ApiAppImageUrlResponse } from '@lightdash/common';
+import { type ApiAppImageUrlResponse, type ApiError } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
+import { lightdashApi } from '../../../api';
 
-const fetchImageUrl = async (
+const fetchImageUrl = (
     projectUuid: string,
     appUuid: string,
     imageId: string,
-): Promise<ApiAppImageUrlResponse['results']> => {
-    const response = await fetch(
-        `/api/v1/ee/projects/${projectUuid}/apps/${appUuid}/images/${imageId}`,
-    );
-    if (!response.ok) {
-        throw new Error(`Failed to fetch image URL: ${response.status}`);
-    }
-    const json = await response.json();
-    return json.results;
-};
+): Promise<ApiAppImageUrlResponse['results']> =>
+    lightdashApi<ApiAppImageUrlResponse['results']>({
+        method: 'GET',
+        url: `/ee/projects/${projectUuid}/apps/${appUuid}/images/${imageId}`,
+        body: undefined,
+    });
 
 export const useAppImageUrl = (
     projectUuid: string | undefined,
     appUuid: string | undefined,
     imageId: string | undefined,
 ) =>
-    useQuery({
+    useQuery<ApiAppImageUrlResponse['results'], ApiError>({
         queryKey: ['app-image-url', projectUuid, appUuid, imageId],
         queryFn: () => fetchImageUrl(projectUuid!, appUuid!, imageId!),
         enabled: !!projectUuid && !!appUuid && !!imageId,

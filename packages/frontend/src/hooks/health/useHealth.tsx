@@ -25,6 +25,10 @@ const useHealth = (
         onError: (result) => {
             setErrorResponse(result);
         },
+        // Don't retry /health: it's the gating signal for defaultQueryRetry
+        // (retrying delays the gate for every other query) and it's already
+        // refetched on mount / route change.
+        retry: false,
         ...useQueryOptions,
     });
 

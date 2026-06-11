@@ -17,7 +17,6 @@ export const useOnboardingStatus = () =>
     useQuery<OnboardingStatus, ApiError>({
         queryKey: ['onboarding-status'],
         queryFn: getOnboardingStatus,
-        retry: false,
         refetchOnMount: true,
     });
 
@@ -32,7 +31,6 @@ export const useProjectSavedChartStatus = (projectUuid: string | undefined) =>
     useQuery<ProjectSavedChartStatus, ApiError>({
         queryKey: [projectUuid, 'project-saved-chart-status'],
         queryFn: () => getProjectSavedChartStatus(projectUuid!),
-        retry: false,
         refetchOnMount: true,
         enabled: !!projectUuid,
     });

@@ -34,7 +34,6 @@ export const useExplores = (
         queryFn: () =>
             getExplores(projectUuid!, filtered, includePreAggregates),
         onError: (result) => setErrorResponse(result),
-        retry: false,
         enabled: !!projectUuid,
         ...useQueryFetchOptions,
     });

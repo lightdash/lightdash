@@ -37,7 +37,6 @@ const useUser = (isAuthenticated: boolean) => {
         queryKey: ['user'],
         queryFn: getUserState,
         enabled: isAuthenticated && account?.isRegisteredUser(),
-        retry: false,
     });
 };
 

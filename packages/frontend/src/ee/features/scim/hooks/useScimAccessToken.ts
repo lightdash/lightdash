@@ -43,7 +43,6 @@ export const useScimTokenList = (
     return useQuery<ServiceAccount[], ApiError>({
         queryKey: ['scim_access_tokens'],
         queryFn: () => getScimToken(),
-        retry: false,
         onError: (result) => setErrorResponse(result),
         ...useQueryOptions,
     });

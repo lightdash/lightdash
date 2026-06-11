@@ -16,7 +16,6 @@ export const useGitIntegration = () => {
     return useQuery<GitIntegrationConfiguration, ApiError>({
         queryKey: ['git-integration'],
         queryFn: () => getGitIntegration(),
-        retry: false,
         enabled: ability?.can('manage', 'Explore'),
     });
 };

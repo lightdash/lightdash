@@ -31,7 +31,6 @@ export const useProjectUserWarehouseCredentialsPreference = (
         queryFn: () =>
             getProjectUserWarehouseCredentialsPreference(projectUuid!),
         enabled: !!projectUuid,
-        retry: false,
     });
 };
 
