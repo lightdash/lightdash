@@ -52,6 +52,7 @@ import {
     selectCustomDimensions,
     selectMetricOverrides,
     selectParameters,
+    selectTimezone,
     selectSorts,
     selectTableCalculations,
     selectTableName,
@@ -85,6 +86,36 @@ export const formatCellContent = (
 
     // Use backend-formatted value by default
     return data.value.formatted ?? '-';
+};
+
+// Results-grid cell value. DATE/TIMESTAMP dimensions use the backend
+// pre-formatted value (already in the resolved project tz) to avoid re-parsing
+// UTC strings on the frontend. Everything else (metrics, table calculations,
+// numbers) is formatted on the frontend to support metric overrides / parameter
+// formats — and is passed the resolved `timezone` so temporal metrics render in
+// the project timezone, not the browser's.
+export const formatResultsTableCell = (
+    data: { value: ResultValue } | undefined,
+    item:
+        | Field
+        | AdditionalMetric
+        | TableCalculation
+        | CustomDimension
+        | undefined,
+    parameters: ParametersValuesMap | undefined,
+    timezone: string | undefined,
+): string => {
+    if (!data) return '-';
+
+    if (
+        isField(item) &&
+        (item.type === DimensionType.DATE ||
+            item.type === DimensionType.TIMESTAMP)
+    ) {
+        return data.value.formatted;
+    }
+
+    return formatItemValue(item, data.value.raw, false, parameters, timezone);
 };
 
 const isBarDisplay = (
@@ -407,6 +438,7 @@ export const useColumns = (): TableColumn[] => {
     const resultsFields = query.data?.fields;
 
     const parameters = useExplorerSelector(selectParameters);
+    const timezone = useExplorerSelector(selectTimezone);
 
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
@@ -568,31 +600,13 @@ export const useColumns = (): TableColumn[] => {
                     ),
                     cell: (
                         info: CellContext<ResultRow, { value: ResultValue }>,
-                    ) => {
-                        const cellValue = info.getValue();
-                        if (!cellValue) return '-';
-                        // Use item from meta to ensure we get the latest version with overrides
-                        const currentItem = info.column.columnDef.meta?.item;
-
-                        // For DATE and TIMESTAMP types, use the pre-formatted value from backend
-                        // to avoid timezone issues when re-parsing UTC date strings on the frontend
-                        if (
-                            isField(currentItem) &&
-                            (currentItem.type === DimensionType.DATE ||
-                                currentItem.type === DimensionType.TIMESTAMP)
-                        ) {
-                            return cellValue.value.formatted;
-                        }
-
-                        // For everything else (metrics, numbers, etc.), format on frontend
-                        // to support metric overrides and other client-side formatting
-                        return formatItemValue(
-                            currentItem,
-                            cellValue.value.raw,
-                            false,
+                    ) =>
+                        formatResultsTableCell(
+                            info.getValue(),
+                            info.column.columnDef.meta?.item,
                             parameters,
-                        );
-                    },
+                            timezone,
+                        ),
                     footer: () =>
                         totals?.[fieldId]
                             ? formatItemValue(
@@ -600,6 +614,7 @@ export const useColumns = (): TableColumn[] => {
                                   totals[fieldId],
                                   false,
                                   parameters,
+                                  timezone,
                               )
                             : null,
                     meta: {
@@ -669,5 +684,6 @@ export const useColumns = (): TableColumn[] => {
         totals,
         exploreData,
         parameters,
+        timezone,
     ]);
 };

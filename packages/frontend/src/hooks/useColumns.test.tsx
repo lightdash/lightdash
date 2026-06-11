@@ -1,6 +1,8 @@
 import {
+    DimensionType,
     FieldType,
     MetricType,
+    TableCalculationType,
     type ResultRow,
     type ResultValue,
 } from '@lightdash/common';
@@ -8,7 +10,11 @@ import { MantineProvider } from '@mantine-8/core';
 import { type CellContext } from '@tanstack/react-table';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
-import { formatCellContent, getFormattedValueCell } from './useColumns';
+import {
+    formatCellContent,
+    formatResultsTableCell,
+    getFormattedValueCell,
+} from './useColumns';
 
 /* eslint-disable testing-library/no-container */
 /* eslint-disable testing-library/no-node-access */
@@ -341,6 +347,92 @@ describe('getFormattedValueCell - Bar Chart Display', () => {
         // Should have the default color (#5470c6)
         const style = barElement?.getAttribute('style') || '';
         expect(style).toContain('background');
+    });
+});
+
+describe('formatResultsTableCell - temporal metric timezone (GLITCH-491)', () => {
+    const maxTsMetric = {
+        name: 'max_event_ts',
+        table: 'timezone_test',
+        fieldType: FieldType.METRIC,
+        type: MetricType.MAX,
+        label: 'Max event ts',
+        sql: 'event_timestamp',
+        tableLabel: 'Timezone test',
+        hidden: false,
+    };
+
+    test('formats a MAX(timestamp) metric cell in the resolved project timezone', () => {
+        const data = {
+            value: {
+                raw: '2025-01-15T17:00:00.000Z',
+                formatted: '2025-01-16, 02:00:00:000 (+09:00)',
+            },
+        };
+        const result = formatResultsTableCell(
+            data,
+            maxTsMetric,
+            undefined,
+            'Asia/Tokyo',
+        );
+        expect(result).toBe('2025-01-16, 02:00:00:000 (+09:00)');
+    });
+
+    test('does not coerce a non-temporal metric — timezone is ignored', () => {
+        const countMetric = {
+            ...maxTsMetric,
+            name: 'count',
+            type: MetricType.COUNT,
+        };
+        const data = { value: { raw: 5000, formatted: '5,000' } };
+        expect(
+            formatResultsTableCell(
+                data,
+                countMetric,
+                undefined,
+                'Pacific/Pago_Pago',
+            ),
+        ).toBe('5,000');
+    });
+
+    test('DATE/TIMESTAMP dimensions use the backend-formatted value unchanged', () => {
+        const tsDimension = {
+            name: 'event_timestamp',
+            table: 'timezone_test',
+            fieldType: FieldType.DIMENSION,
+            type: DimensionType.TIMESTAMP,
+            label: 'Event timestamp',
+            sql: 'event_timestamp',
+            tableLabel: 'Timezone test',
+            hidden: false,
+        };
+        const data = {
+            value: {
+                raw: '2025-01-15T17:00:00.000Z',
+                formatted: 'BACKEND_VALUE',
+            },
+        };
+        expect(
+            formatResultsTableCell(data, tsDimension, undefined, 'Asia/Tokyo'),
+        ).toBe('BACKEND_VALUE');
+    });
+
+    test('temporal table calculations also render in the resolved timezone', () => {
+        const tsTableCalc = {
+            name: 'ts_calc',
+            displayName: 'Ts calc',
+            sql: '${TABLE}.event_timestamp',
+            type: TableCalculationType.TIMESTAMP,
+        };
+        const data = {
+            value: {
+                raw: '2025-01-15T17:00:00.000Z',
+                formatted: '2025-01-16, 02:00:00:000 (+09:00)',
+            },
+        };
+        expect(
+            formatResultsTableCell(data, tsTableCalc, undefined, 'Asia/Tokyo'),
+        ).toBe('2025-01-16, 02:00:00:000 (+09:00)');
     });
 });
 
