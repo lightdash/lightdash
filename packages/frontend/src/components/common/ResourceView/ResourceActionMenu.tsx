@@ -122,13 +122,27 @@ const ResourceViewActionMenu: FC<ResourceViewActionMenuProps> = ({
         isLoading: promoteChartDiffLoading,
     } = usePromoteChartDiffMutation();
 
-    const userCanPromoteChart = user.data?.ability?.can(
-        'promote',
-        subject('SavedChart', {
-            organizationUuid,
-            projectUuid,
-        }),
-    );
+    // Mirror the backend promote check: promoting also requires promote
+    // rights on the upstream (destination) project, so hide the action when
+    // an upstream exists but the user has no promote access there.
+    const promoteSubjectName =
+        item.type === ResourceViewItemType.CHART ? 'SavedChart' : 'Dashboard';
+    const userCanPromoteChart =
+        user.data?.ability?.can(
+            'promote',
+            subject(promoteSubjectName, {
+                organizationUuid,
+                projectUuid,
+            }),
+        ) &&
+        (project?.upstreamProjectUuid === undefined ||
+            user.data?.ability?.can(
+                'promote',
+                subject(promoteSubjectName, {
+                    organizationUuid,
+                    projectUuid: project.upstreamProjectUuid,
+                }),
+            ));
 
     const isSqlChart =
         item.type === ResourceViewItemType.CHART &&

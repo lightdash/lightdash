@@ -47,6 +47,7 @@ export {
     defineUserAbility,
     getUserAbilityBuilder,
     JWT_HEADER_NAME,
+    type ProjectAbilityProfile,
 } from './authorization/index';
 export * from './authorization/jwtAbility';
 export { projectMemberAbilities } from './authorization/projectMemberAbility';

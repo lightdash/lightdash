@@ -21,9 +21,11 @@ import {
     OrganizationMemberRole,
     ParameterError,
     PersonalAccessToken,
+    ProjectAbilityProfile,
     projectMemberAbilities,
     ProjectMemberProfile,
     ProjectMemberRole,
+    ProjectType,
     Role,
     RoleWithScopes,
     ServiceAccountScope,
@@ -525,16 +527,13 @@ export class UserModel {
 
     async getUserProjectRoles(
         userUuid: string,
-    ): Promise<
-        Pick<
-            ProjectMemberProfile,
-            'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
-        >[]
-    > {
+    ): Promise<ProjectAbilityProfile[]> {
         type Row = {
             project_uuid: string;
             role: ProjectMemberRole | null;
             role_uuid: string | null;
+            project_type: ProjectType;
+            created_by_user_uuid: string | null;
         };
         const projectMemberships = await this.database('project_memberships')
             .leftJoin(
@@ -547,6 +546,8 @@ export class UserModel {
                 `${ProjectTableName}.project_uuid`,
                 'project_memberships.role',
                 'project_memberships.role_uuid',
+                `${ProjectTableName}.project_type`,
+                `${ProjectTableName}.created_by_user_uuid`,
             ])
             .where('users.user_uuid', userUuid);
 
@@ -555,6 +556,8 @@ export class UserModel {
             role: membership.role || ProjectMemberRole.VIEWER,
             userUuid,
             roleUuid: membership.role_uuid || undefined,
+            projectType: membership.project_type,
+            projectCreatedByUserUuid: membership.created_by_user_uuid,
         }));
     }
 
@@ -562,12 +565,7 @@ export class UserModel {
         userId: number,
         organizationId: number,
         userUuid: string,
-    ): Promise<
-        Pick<
-            ProjectMemberProfile,
-            'projectUuid' | 'role' | 'userUuid' | 'roleUuid'
-        >[]
-    > {
+    ): Promise<ProjectAbilityProfile[]> {
         // Remember: primary key for an organization is organization_id,user_id - not user_id alone
         const query = this.database('group_memberships')
             .innerJoin(
@@ -586,6 +584,8 @@ export class UserModel {
                 'projects.project_uuid',
                 'project_group_access.role',
                 'project_group_access.role_uuid',
+                'projects.project_type',
+                'projects.created_by_user_uuid',
             );
         const projectMemberships = await query;
         return projectMemberships.map((membership) => ({
@@ -593,6 +593,8 @@ export class UserModel {
             role: membership.role,
             userUuid,
             roleUuid: membership.role_uuid || undefined,
+            projectType: membership.project_type,
+            projectCreatedByUserUuid: membership.created_by_user_uuid,
         }));
     }
 
@@ -793,6 +795,8 @@ export class UserModel {
             project_uuid: string;
             role: ProjectMemberRole;
             role_uuid: string | null;
+            project_type: ProjectType;
+            created_by_user_uuid: string | null;
         };
         const rows = await this.database(ProjectMembershipsTableName)
             .leftJoin(
@@ -804,6 +808,8 @@ export class UserModel {
                 `${ProjectTableName}.project_uuid`,
                 `${ProjectMembershipsTableName}.role`,
                 `${ProjectMembershipsTableName}.role_uuid`,
+                `${ProjectTableName}.project_type`,
+                `${ProjectTableName}.created_by_user_uuid`,
             )
             .where(`${ProjectMembershipsTableName}.user_id`, userId);
 
@@ -830,6 +836,8 @@ export class UserModel {
                 const invalid = buildAbilityFromScopes(
                     {
                         projectUuid: row.project_uuid,
+                        projectType: row.project_type,
+                        projectCreatedByUserUuid: row.created_by_user_uuid,
                         userUuid,
                         scopes,
                         isEnterprise,
