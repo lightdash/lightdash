@@ -1,3 +1,18 @@
+# [0.3145.0](https://github.com/lightdash/lightdash/compare/0.3144.0...0.3145.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* **ai:** unblock server-side agent runs — pass autoApproveSql to runSql, guard empty cloneThread update ([#24189](https://github.com/lightdash/lightdash/issues/24189)) ([b0a31b3](https://github.com/lightdash/lightdash/commit/b0a31b3f2ac2346acf0b8469aac9beac549e9f11))
+* **backend:** add ?skipMigrationCheck opt-out to /api/v1/health (PROD-8271) ([#24205](https://github.com/lightdash/lightdash/issues/24205)) ([345e166](https://github.com/lightdash/lightdash/commit/345e1665499f85fd85c6199a9c4b4766b8f80096))
+
+
+### Features
+
+* **ai-writeback:** merge/close PR actions + diff viewer on the chat card ([#24206](https://github.com/lightdash/lightdash/issues/24206)) ([b55cc0a](https://github.com/lightdash/lightdash/commit/b55cc0a8b403ca48aa40832e4a1fa0a46db69301))
+* **ai:** durable verification footer — resolve review item by preview thread, mark as done in-thread ([#24193](https://github.com/lightdash/lightdash/issues/24193)) ([e038cd5](https://github.com/lightdash/lightdash/commit/e038cd5dfe4c745f0b064b6b7bf8014ce51748bf)), closes [#24190](https://github.com/lightdash/lightdash/issues/24190)
+* **ai:** verification flow for review remediations — seeded preview runs and pinned thread context ([#24190](https://github.com/lightdash/lightdash/issues/24190)) ([a182a91](https://github.com/lightdash/lightdash/commit/a182a911ad604184db49fc49e3ecbfbb284832fa)), closes [#24188](https://github.com/lightdash/lightdash/issues/24188) [#24189](https://github.com/lightdash/lightdash/issues/24189)
+
 # [0.3144.0](https://github.com/lightdash/lightdash/compare/0.3143.1...0.3144.0) (2026-06-11)
 
 
