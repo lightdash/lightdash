@@ -113,7 +113,6 @@ const getTargetLabel = (targetRefs: AiAgentTargetRef[]): string | null => {
 
 const isTriageReviewItem = (reviewItem: AiAgentReviewItemSummary): boolean =>
     reviewItem.primaryRootCause === 'ambiguous' ||
-    reviewItem.ownerType === 'unknown' ||
     reviewItem.latestFinding?.fixTargets.includes('feedback_needed') === true;
 
 export const getIssueTitle = (reviewItem: AiAgentReviewItemSummary): string => {
