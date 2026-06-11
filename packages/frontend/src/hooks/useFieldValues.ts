@@ -19,6 +19,7 @@ import { useDebounce } from 'react-use';
 import { lightdashApi } from '../api';
 import useEmbed from '../ee/providers/Embed/useEmbed';
 import { useServerFeatureFlag } from './useServerOrClientFeatureFlag';
+import { useSessionTimezone } from './useSessionTimezone';
 
 export const MAX_AUTOCOMPLETE_RESULTS = 50;
 
@@ -218,7 +219,8 @@ export const useFieldValues = (
     useQueryOptions?: UseQueryOptions<FieldValueSearchResult, ApiError>,
     parameterValues?: ParametersValuesMap,
 ) => {
-    const { embedToken, timezone: embedTimezone } = useEmbed();
+    const { embedToken } = useEmbed();
+    const sessionTimezone = useSessionTimezone();
     const { data: resultsCacheFlag } = useServerFeatureFlag(
         FeatureFlags.ResultsCacheEnabled,
     );
@@ -278,7 +280,7 @@ export const useFieldValues = (
         debouncedSearch,
         parameterValues,
         useAsyncPath ? 'v2' : 'v1',
-        embedTimezone,
+        sessionTimezone,
     ];
 
     const query = useQuery<FieldValueSearchResult, ApiError>(
@@ -294,7 +296,7 @@ export const useFieldValues = (
                     filters,
                     tableName,
                     fieldId,
-                    timezone: embedTimezone,
+                    timezone: sessionTimezone,
                 });
             }
             if (useAsyncPath) {
