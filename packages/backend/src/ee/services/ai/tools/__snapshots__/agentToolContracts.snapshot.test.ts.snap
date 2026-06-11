@@ -3556,6 +3556,24 @@ Parameters:
             {
               "additionalProperties": false,
               "properties": {
+                "additions": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
+                "commitSha": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "deletions": {
+                  "type": [
+                    "number",
+                    "null",
+                  ],
+                },
                 "prAction": {
                   "anyOf": [
                     {
@@ -3571,6 +3589,12 @@ Parameters:
                   ],
                 },
                 "prUrl": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "previewUrl": {
                   "type": [
                     "string",
                     "null",
