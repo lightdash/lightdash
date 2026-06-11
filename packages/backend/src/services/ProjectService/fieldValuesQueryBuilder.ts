@@ -47,6 +47,7 @@ export async function getFieldValuesMetricQuery({
     projectUuid,
     table,
     initialFieldId,
+    initialLabelFieldId,
     search,
     limit,
     maxLimit,
@@ -56,6 +57,7 @@ export async function getFieldValuesMetricQuery({
     projectUuid: string;
     table: string;
     initialFieldId: string;
+    initialLabelFieldId?: string;
     search: string;
     limit: unknown;
     maxLimit: number;
@@ -66,6 +68,8 @@ export async function getFieldValuesMetricQuery({
     explore: Explore;
     field: Dimension;
     fieldId: string;
+    labelField: Dimension | undefined;
+    labelFieldId: string | undefined;
 }> {
     const parsedLimit = parseFieldValuesLimit(limit, maxLimit);
 
@@ -108,11 +112,34 @@ export async function getFieldValuesMetricQuery({
         );
     }
 
+    let labelFieldId = initialLabelFieldId
+        ? initialLabelFieldId.replace(table, explore.baseTable)
+        : undefined;
+    const labelField = labelFieldId
+        ? findFieldByIdInExplore(explore, labelFieldId)
+        : undefined;
+    if (initialLabelFieldId && !labelField) {
+        throw new NotFoundError(
+            `Can't find label dimension '${labelFieldId}' in explore '${explore.name}'`,
+        );
+    }
+    if (labelField && !isDimension(labelField)) {
+        throw new ParameterError(
+            `Label field must be a dimension, but ${labelFieldId} is a ${labelField.type}`,
+        );
+    }
+    if (labelField) {
+        labelFieldId = getItemId(labelField);
+    }
+
+    // Search/sort by label when present so the UI can match user input against
+    // the displayed text rather than the underlying value.
+    const searchFieldId = labelFieldId ?? fieldId;
     const autocompleteDimensionFilters: FilterGroupItem[] = [
         {
             id: uuidv4(),
             target: {
-                fieldId,
+                fieldId: searchFieldId,
             },
             operator: FilterOperator.INCLUDE,
             values: [search],
@@ -147,7 +174,9 @@ export async function getFieldValuesMetricQuery({
 
     const metricQuery: MetricQuery = {
         exploreName: explore.name,
-        dimensions: [getItemId(field)],
+        dimensions: labelFieldId
+            ? [getItemId(field), labelFieldId]
+            : [getItemId(field)],
         metrics: [],
         filters: {
             dimensions: {
@@ -158,12 +187,19 @@ export async function getFieldValuesMetricQuery({
         tableCalculations: [],
         sorts: [
             {
-                fieldId: getItemId(field),
+                fieldId: searchFieldId,
                 descending: false,
             },
         ],
         limit: parsedLimit,
     };
 
-    return { metricQuery, explore, field, fieldId };
+    return {
+        metricQuery,
+        explore,
+        field,
+        fieldId,
+        labelField: labelField ?? undefined,
+        labelFieldId,
+    };
 }
