@@ -48,7 +48,12 @@ export class HealthService extends BaseService {
         return this.lightdashConfig.license.licenseKey !== undefined;
     }
 
-    async getHealthState(user: SessionUser | undefined): Promise<HealthState> {
+    async getHealthState(
+        user: SessionUser | undefined,
+        options: { skipMigrationCheck: boolean } = {
+            skipMigrationCheck: false,
+        },
+    ): Promise<HealthState> {
         const isAuthenticated: boolean = !!user?.userUuid;
 
         // Resolve the query/CSV limits for the requesting org (override ?? the
@@ -68,21 +73,24 @@ export class HealthService extends BaseService {
                   csvCellsLimit: this.lightdashConfig.query.csvCellsLimit,
               };
 
-        const migrationStartTime = performance.now();
-        const { status: migrationStatus, currentVersion } =
-            await this.migrationModel.getMigrationStatus();
-        const migrationExecutionTime = performance.now() - migrationStartTime;
+        let migrationExecutionTime = 0;
+        if (!options.skipMigrationCheck) {
+            const migrationStartTime = performance.now();
+            const { status: migrationStatus, currentVersion } =
+                await this.migrationModel.getMigrationStatus();
+            migrationExecutionTime = performance.now() - migrationStartTime;
 
-        if (migrationStatus < 0) {
-            throw new UnexpectedDatabaseError(
-                'Database has not been migrated yet',
-                { currentVersion },
-            );
-        } else if (migrationStatus > 0) {
-            console.warn(
-                `There are more DB migrations than defined in the code (you are running old code against a newer DB). Current version: ${currentVersion}`,
-            );
-        } // else migrationStatus === 0 (all migrations are up to date)
+            if (migrationStatus < 0) {
+                throw new UnexpectedDatabaseError(
+                    'Database has not been migrated yet',
+                    { currentVersion },
+                );
+            } else if (migrationStatus > 0) {
+                console.warn(
+                    `There are more DB migrations than defined in the code (you are running old code against a newer DB). Current version: ${currentVersion}`,
+                );
+            } // else migrationStatus === 0 (all migrations are up to date)
+        }
 
         const hasOrgsStartTime = performance.now();
         const requiresOrgRegistration =

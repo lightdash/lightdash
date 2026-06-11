@@ -390,9 +390,10 @@ apiV1Router.get('/livez', async (req, res, next) => {
 });
 
 apiV1Router.get('/health', async (req, res, next) => {
+    const skipMigrationCheck = req.query.skipMigrationCheck === 'true';
     req.services
         .getHealthService()
-        .getHealthState(req.user)
+        .getHealthState(req.user, { skipMigrationCheck })
         .then((state) =>
             res.json({
                 status: 'ok',
