@@ -60,6 +60,9 @@ import {
     DescribeWarehouseTableFn,
     EditContentFn,
     FindContentFn,
+    FindContentResult,
+    FindContentSpaceBreadcrumb,
+    FindContentSpaceMetadata,
     FindExploresFn,
     FindFieldFn,
     GetDashboardChartsFn,
@@ -90,6 +93,7 @@ import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewD
 
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
+type ProjectSpace = Awaited<ReturnType<ProjectService['getSpaces']>>[number];
 
 export type AiAgentToolsSource = 'ai_agent' | 'mcp';
 
@@ -645,6 +649,79 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
+    private static getSpaceMetadata(
+        space: ProjectSpace,
+        spacesByPath: Map<string, ProjectSpace>,
+    ): FindContentSpaceMetadata {
+        const pathParts = space.path.split('.');
+        const breadcrumbs = pathParts.reduce<FindContentSpaceBreadcrumb[]>(
+            (acc, _pathPart, index) => {
+                const path = pathParts.slice(0, index + 1).join('.');
+                const breadcrumbSpace = spacesByPath.get(path);
+                if (!breadcrumbSpace) {
+                    return acc;
+                }
+
+                acc.push({
+                    uuid: breadcrumbSpace.uuid,
+                    name: breadcrumbSpace.name,
+                    slug: getContentAsCodePathFromLtreePath(
+                        breadcrumbSpace.path,
+                    ),
+                });
+                return acc;
+            },
+            [],
+        );
+
+        return {
+            uuid: space.uuid,
+            name: space.name,
+            slug: getContentAsCodePathFromLtreePath(space.path),
+            breadcrumbs,
+        };
+    }
+
+    private async getFindContentSpaceScope(
+        context: AiAgentToolsRuntimeContext,
+        spaceSlug: string | null,
+    ): Promise<{
+        spaces: ProjectSpace[];
+        scopedSpaceUuids: Set<string> | null;
+    }> {
+        const spaces = (
+            await this.projectService.getSpaces(
+                context.user,
+                context.projectUuid,
+            )
+        ).filter((space) =>
+            AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                space.uuid,
+            ),
+        );
+
+        if (spaceSlug === null) {
+            return { spaces, scopedSpaceUuids: null };
+        }
+
+        const ltreePath = getLtreePathFromContentAsCodePath(spaceSlug);
+        const scopedSpaces = spaces.filter(
+            (space) =>
+                space.path === ltreePath ||
+                space.path.startsWith(`${ltreePath}.`),
+        );
+
+        if (scopedSpaces.length === 0) {
+            throw new NotFoundError(`Space "${spaceSlug}" was not found`);
+        }
+
+        return {
+            spaces,
+            scopedSpaceUuids: new Set(scopedSpaces.map((space) => space.uuid)),
+        };
+    }
+
     private findContent(
         context: AiAgentToolsRuntimeContext,
         args: Parameters<FindContentFn>[0],
@@ -653,49 +730,107 @@ export class AiAgentToolsService extends BaseService {
             `${AiAgentToolsService.transactionPrefix(context)}.findContent`,
             args,
             async () => {
-                if (context.source === 'ai_agent') {
-                    const { content } = await this.searchService.findContent(
-                        context.user,
-                        context.projectUuid,
-                        args.searchQuery.label,
+                const { spaces, scopedSpaceUuids } =
+                    await this.getFindContentSpaceScope(
+                        context,
+                        args.spaceSlug ?? null,
                     );
-                    return {
-                        content: content.filter(({ spaceUuid }) =>
-                            AiAgentToolsService.hasAgentSpaceAccess(
+                const spacesByUuid = new Map<string, ProjectSpace>(
+                    spaces.map((space) => [space.uuid, space]),
+                );
+                const spacesByPath = new Map<string, ProjectSpace>(
+                    spaces.map((space) => [space.path, space]),
+                );
+                const searchQuery = args.searchQuery.label.toLowerCase();
+                const { content } = await this.searchService.findContent(
+                    context.user,
+                    context.projectUuid,
+                    args.searchQuery.label,
+                );
+
+                const contentResults = content.flatMap(
+                    (item): FindContentResult[] => {
+                        if (
+                            !AiAgentToolsService.hasAgentSpaceAccess(
                                 context.spaceAccess,
-                                spaceUuid,
+                                item.spaceUuid,
+                            ) ||
+                            (scopedSpaceUuids !== null &&
+                                !scopedSpaceUuids.has(item.spaceUuid))
+                        ) {
+                            return [];
+                        }
+
+                        const space = spacesByUuid.get(item.spaceUuid);
+                        if (!space) {
+                            return [];
+                        }
+
+                        const spaceMetadata =
+                            AiAgentToolsService.getSpaceMetadata(
+                                space,
+                                spacesByPath,
+                            );
+                        if ('charts' in item) {
+                            return [
+                                {
+                                    ...item,
+                                    contentType: 'dashboard',
+                                    space: spaceMetadata,
+                                },
+                            ];
+                        }
+
+                        return [
+                            {
+                                ...item,
+                                contentType: 'chart',
+                                space: spaceMetadata,
+                            },
+                        ];
+                    },
+                );
+
+                const spaceResults = spaces
+                    .filter(
+                        (space) =>
+                            scopedSpaceUuids === null ||
+                            scopedSpaceUuids.has(space.uuid),
+                    )
+                    .filter((space) => {
+                        const slug = getContentAsCodePathFromLtreePath(
+                            space.path,
+                        ).toLowerCase();
+                        return (
+                            space.name.toLowerCase().includes(searchQuery) ||
+                            slug.includes(searchQuery)
+                        );
+                    })
+                    .map(
+                        (space): FindContentResult => ({
+                            contentType: 'space',
+                            uuid: space.uuid,
+                            name: space.name,
+                            slug: getContentAsCodePathFromLtreePath(space.path),
+                            search_rank:
+                                space.name.toLowerCase() === searchQuery
+                                    ? 1
+                                    : 0,
+                            chartCount: space.chartCount,
+                            dashboardCount: space.dashboardCount,
+                            childSpaceCount: space.childSpaceCount,
+                            appCount: space.appCount,
+                            directAccess:
+                                space.userAccess?.hasDirectAccess === true,
+                            space: AiAgentToolsService.getSpaceMetadata(
+                                space,
+                                spacesByPath,
                             ),
-                        ),
-                    };
-                }
-
-                const dashboardSearchResults =
-                    await this.searchModel.searchDashboards(
-                        context.projectUuid,
-                        args.searchQuery.label,
-                        undefined,
-                        'OR',
+                            verification: null,
+                        }),
                     );
-                const chartSearchResults =
-                    await this.searchModel.searchAllCharts(
-                        context.projectUuid,
-                        args.searchQuery.label,
-                        'OR',
-                    );
-                const filteredResults =
-                    await this.spaceService.filterBySpaceAccess(context.user, [
-                        ...dashboardSearchResults,
-                        ...chartSearchResults,
-                    ]);
 
-                return {
-                    content: filteredResults.filter(({ spaceUuid }) =>
-                        AiAgentToolsService.hasAgentSpaceAccess(
-                            context.spaceAccess,
-                            spaceUuid,
-                        ),
-                    ),
-                };
+                return { content: [...spaceResults, ...contentResults] };
             },
         );
     }

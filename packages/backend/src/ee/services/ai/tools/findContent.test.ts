@@ -5,6 +5,10 @@ import {
     type ToolFindContentOutput,
     type ToolGetDashboardChartsOutput,
 } from '@lightdash/common';
+import type {
+    FindContentDashboardResult,
+    FindContentResult,
+} from '../types/aiAgentDependencies';
 import { DASHBOARD_CHARTS_PREVIEW_COUNT } from '../utils/truncation';
 import { getFindContent } from './findContent';
 import { getGetDashboardCharts } from './getDashboardCharts';
@@ -36,8 +40,8 @@ const makeMockChart = (
 
 const makeMockDashboard = (
     chartCount: number,
-    overrides: Partial<DashboardSearchResult> = {},
-): DashboardSearchResult => ({
+    overrides: Partial<FindContentDashboardResult> = {},
+): FindContentDashboardResult => ({
     uuid: 'dash-uuid-1',
     name: 'Test Dashboard',
     slug: 'test-dashboard',
@@ -57,6 +61,19 @@ const makeMockDashboard = (
     validationErrors: [],
     charts: Array.from({ length: chartCount }, (_, i) => makeMockChart(i)),
     verification: null,
+    contentType: 'dashboard',
+    space: {
+        uuid: 'space-uuid-1',
+        name: 'Marketing',
+        slug: 'marketing',
+        breadcrumbs: [
+            {
+                uuid: 'space-uuid-1',
+                name: 'Marketing',
+                slug: 'marketing',
+            },
+        ],
+    },
     ...overrides,
 });
 
@@ -81,9 +98,35 @@ const executeGetDashboardCharts = (
         toolCallId: 'test',
     }) as Promise<ToolGetDashboardChartsOutput>;
 
+const makeMockSpace = (): FindContentResult => ({
+    contentType: 'space',
+    uuid: 'space-uuid-1',
+    name: 'Marketing',
+    slug: 'marketing',
+    search_rank: 1,
+    chartCount: 2,
+    dashboardCount: 1,
+    childSpaceCount: 1,
+    appCount: 0,
+    directAccess: true,
+    verification: null,
+    space: {
+        uuid: 'space-uuid-1',
+        name: 'Marketing',
+        slug: 'marketing',
+        breadcrumbs: [
+            {
+                uuid: 'space-uuid-1',
+                name: 'Marketing',
+                slug: 'marketing',
+            },
+        ],
+    },
+});
+
 describe('getFindContent', () => {
     const createTool = (
-        content: DashboardSearchResult[],
+        content: FindContentResult[],
         trackCoverage: jest.Mock = jest.fn(),
     ) => {
         const mockFindContent = jest.fn().mockResolvedValue({ content });
@@ -93,17 +136,35 @@ describe('getFindContent', () => {
                 siteUrl: '',
                 trackCoverage,
             }),
+            mockFindContent,
             trackCoverage,
         };
     };
-    const toolOf = (content: DashboardSearchResult[]) =>
-        createTool(content).tool;
+    const toolOf = (content: FindContentResult[]) => createTool(content).tool;
+
+    it('renders spaces and forwards the space filter', async () => {
+        const { tool, mockFindContent } = createTool([makeMockSpace()]);
+        const output = await executeFindContent(tool, {
+            searchQueries: [{ label: 'marketing' }],
+            spaceSlug: 'company/marketing',
+        });
+
+        expect(output.metadata.status).toBe('success');
+        expect(output.result).toContain('<spaceResult');
+        expect(output.result).toContain('slug="marketing"');
+        expect(output.result).toContain('breadcrumb="Marketing"');
+        expect(mockFindContent).toHaveBeenCalledWith({
+            searchQuery: { label: 'marketing' },
+            spaceSlug: 'company/marketing',
+        });
+    });
 
     it('renders all charts when dashboard has fewer than the preview limit', async () => {
         const underLimit = DASHBOARD_CHARTS_PREVIEW_COUNT - 1;
         const tool = toolOf([makeMockDashboard(underLimit)]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
 
         expect(output.metadata.status).toBe('success');
@@ -119,6 +180,7 @@ describe('getFindContent', () => {
         ]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
 
         expect(output.result).toContain(
@@ -133,6 +195,7 @@ describe('getFindContent', () => {
         const tool = toolOf([makeMockDashboard(100)]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
 
         expect(output.result).toContain('<charts count="100">');
@@ -145,6 +208,7 @@ describe('getFindContent', () => {
         const tool = toolOf([makeMockDashboard(1)]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
 
         expect(output.result).toContain('<charts count="1">');
@@ -157,6 +221,7 @@ describe('getFindContent', () => {
         const tool = toolOf([makeMockDashboard(200)]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
 
         expect(output.result.length).toBeLessThan(10_000);
@@ -181,6 +246,7 @@ describe('getFindContent', () => {
         const tool = toolOf([unverified, verified]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
 
         const verifiedIdx = output.result.indexOf('dash-verified');
@@ -197,6 +263,7 @@ describe('getFindContent', () => {
         const tool = toolOf([verified]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
 
         expect(output.result).toMatch(/<verified[^>]*by="Alex Doe"/);
@@ -207,6 +274,7 @@ describe('getFindContent', () => {
         const tool = toolOf([makeMockDashboard(0)]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
         expect(output.result).not.toContain('<verified');
     });
@@ -222,6 +290,7 @@ describe('getFindContent', () => {
         const tool = toolOf([dashboard]);
         const output = await executeFindContent(tool, {
             searchQueries: [{ label: 'test query' }],
+            spaceSlug: null,
         });
 
         expect(output.result).toMatch(/<verified[^>]*by="Inner Verifier"/);
@@ -237,6 +306,7 @@ describe('getFindContent', () => {
         const { tool } = createTool([verified, unverified], trackCoverage);
         await executeFindContent(tool, {
             searchQueries: [{ label: 'revenue dashboards' }],
+            spaceSlug: null,
         });
 
         expect(trackCoverage).toHaveBeenCalledTimes(1);
@@ -253,6 +323,7 @@ describe('getFindContent', () => {
         const { tool } = createTool([makeMockDashboard(0)], trackCoverage);
         await executeFindContent(tool, {
             searchQueries: [{ label: 'q' }],
+            spaceSlug: null,
         });
 
         expect(trackCoverage).toHaveBeenCalledWith({

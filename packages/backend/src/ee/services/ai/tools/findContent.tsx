@@ -3,13 +3,19 @@ import {
     ContentVerificationInfo,
     DashboardSearchResult,
     findContentToolDefinition,
-    isDashboardSearchResult,
     isSavedChartSearchResult,
     isSqlChartSearchResult,
 } from '@lightdash/common';
 import { tool } from 'ai';
 import moment from 'moment';
-import type { FindContentFn } from '../types/aiAgentDependencies';
+import type {
+    FindContentChartResult,
+    FindContentDashboardResult,
+    FindContentFn,
+    FindContentResult,
+    FindContentSpaceMetadata,
+    FindContentSpaceResult,
+} from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
 import {
@@ -40,7 +46,35 @@ type Dependencies = {
 
 const toolDefinition = findContentToolDefinition.for('agent');
 
-const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
+const renderSpaceMetadata = (space: FindContentSpaceMetadata) => (
+    <space
+        uuid={space.uuid}
+        name={space.name}
+        slug={space.slug}
+        breadcrumb={space.breadcrumbs.map((item) => item.name).join(' / ')}
+    />
+);
+
+const renderSpace = (space: FindContentSpaceResult) => (
+    <spaceResult
+        spaceUuid={space.uuid}
+        slug={space.slug}
+        searchRank={space.search_rank}
+        chartCount={space.chartCount}
+        dashboardCount={space.dashboardCount}
+        childSpaceCount={space.childSpaceCount}
+        appCount={space.appCount}
+        directAccess={space.directAccess}
+    >
+        <name>{space.name}</name>
+        {renderSpaceMetadata(space.space)}
+    </spaceResult>
+);
+
+const renderChart = (
+    chart: AllChartsSearchResult & Pick<FindContentChartResult, 'space'>,
+    siteUrl: string,
+) => {
     const isSavedChart = isSavedChartSearchResult(chart);
     const isSqlChart = isSqlChartSearchResult(chart);
 
@@ -63,6 +97,7 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
             href={chartUrl}
         >
             <name>{chart.name}</name>
+            {renderSpaceMetadata(chart.space)}
             {chart.description && (
                 <description>
                     {truncate(chart.description, CONTENT_DESCRIPTION_MAX_CHARS)}
@@ -93,7 +128,11 @@ const renderChart = (chart: AllChartsSearchResult, siteUrl: string) => {
     );
 };
 
-const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
+const renderDashboard = (
+    dashboard: DashboardSearchResult &
+        Pick<FindContentDashboardResult, 'space'>,
+    siteUrl: string,
+) => (
     <dashboard
         dashboardUuid={dashboard.uuid}
         slug={dashboard.slug}
@@ -103,6 +142,7 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
     >
         <name>{dashboard.name}</name>
         <searchrank>{dashboard.search_rank}</searchrank>
+        {renderSpaceMetadata(dashboard.space)}
 
         {dashboard.description && (
             <description>
@@ -161,6 +201,14 @@ const renderDashboard = (dashboard: DashboardSearchResult, siteUrl: string) => (
     </dashboard>
 );
 
+const isDashboardResult = (
+    content: FindContentResult,
+): content is FindContentDashboardResult => content.contentType === 'dashboard';
+
+const isSpaceResult = (
+    content: FindContentResult,
+): content is FindContentSpaceResult => content.contentType === 'space';
+
 const renderContent = (
     args: Awaited<ReturnType<FindContentFn>> & { searchQuery: string },
     siteUrl: string,
@@ -171,11 +219,14 @@ const renderContent = (
     );
     return (
         <searchresult searchQuery={args.searchQuery}>
-            {sortedContent.map((content) =>
-                isDashboardSearchResult(content)
+            {sortedContent.map((content) => {
+                if (isSpaceResult(content)) {
+                    return renderSpace(content);
+                }
+                return isDashboardResult(content)
                     ? renderDashboard(content, siteUrl)
-                    : renderChart(content, siteUrl),
-            )}
+                    : renderChart(content, siteUrl);
+            })}
         </searchresult>
     );
 };
@@ -194,6 +245,7 @@ export const getFindContent = ({
                         searchQuery: searchQuery.label,
                         ...(await findContent({
                             searchQuery,
+                            spaceSlug: args.spaceSlug ?? null,
                         })),
                     })),
                 );
