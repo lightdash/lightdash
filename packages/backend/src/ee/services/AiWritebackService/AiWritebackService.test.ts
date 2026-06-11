@@ -37,7 +37,9 @@ jest.mock('e2b', () => ({
 jest.mock('../../../clients/github/Github', () => ({
     createBranch: jest.fn().mockResolvedValue(undefined),
     createPullRequest: jest.fn(),
-    createSignedCommitOnBranch: jest.fn().mockResolvedValue(undefined),
+    createSignedCommitOnBranch: jest
+        .fn()
+        .mockResolvedValue({ oid: 'sha-7', url: 'https://github.com/c/o' }),
     getAppBotIdentity: jest.fn(),
     getAuthenticatedUser: jest.fn(),
     getBranchHeadSha: jest.fn(),
@@ -50,6 +52,10 @@ const ORG = 'org-1';
 const PR_3 = 'https://github.com/acme/analytics/pull/3';
 const PR_7 = 'https://github.com/acme/analytics/pull/7';
 const PR_9 = 'https://github.com/acme/analytics/pull/9';
+
+// The commit a provider lands this turn (SHA + line stat). open/update return
+// it so the card can pin CI and show the diff stat; no-change turns return nulls.
+const LANDED = { commitSha: 'sha-7', additions: 5, deletions: 2 };
 
 const buildService = (overrides: Record<string, AnyType> = {}) =>
     new AiWritebackService({
@@ -75,8 +81,8 @@ const fakeProvider = (overrides: AnyType = {}): AnyType => ({
     resolveConnection: jest.fn(),
     resolveInstallation: jest.fn(),
     getCloneTarget: jest.fn(),
-    openPullRequest: jest.fn().mockResolvedValue(PR_7),
-    updatePullRequest: jest.fn().mockResolvedValue(undefined),
+    openPullRequest: jest.fn().mockResolvedValue({ prUrl: PR_7, ...LANDED }),
+    updatePullRequest: jest.fn().mockResolvedValue({ ...LANDED }),
     adoptPullRequest: jest.fn(),
     ...overrides,
 });
@@ -161,6 +167,9 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: null,
             prCreated: false,
             pauseOnExit: false,
+            commitSha: null,
+            additions: null,
+            deletions: null,
         });
         expect(open).not.toHaveBeenCalled();
         expect(update).not.toHaveBeenCalled();
@@ -176,6 +185,9 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: PR_3,
             prCreated: false,
             pauseOnExit: true,
+            commitSha: null,
+            additions: null,
+            deletions: null,
         });
     });
 
@@ -189,6 +201,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: PR_3,
             prCreated: false,
             pauseOnExit: true,
+            ...LANDED,
         });
         expect(update).toHaveBeenCalledTimes(1);
         expect(record).not.toHaveBeenCalled();
@@ -205,6 +218,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: PR_9,
             prCreated: false,
             pauseOnExit: true,
+            ...LANDED,
         });
         expect(update).toHaveBeenCalledTimes(1);
         expect(record).toHaveBeenCalledTimes(1);
@@ -230,6 +244,7 @@ describe('AiWritebackService.applyAgentChanges', () => {
             prUrl: PR_7,
             prCreated: true,
             pauseOnExit: true,
+            ...LANDED,
         });
         expect(open).toHaveBeenCalledTimes(1);
         expect(update).not.toHaveBeenCalled();
