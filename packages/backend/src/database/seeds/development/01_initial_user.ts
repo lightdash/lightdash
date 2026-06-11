@@ -33,7 +33,6 @@ import { Knex } from 'knex';
 import path from 'path';
 import { lightdashConfig } from '../../../config/lightdashConfig';
 import { CatalogModel } from '../../../models/CatalogModel/CatalogModel';
-import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { ProjectParametersModel } from '../../../models/ProjectParametersModel';
 import { TagsModel } from '../../../models/TagsModel';
@@ -272,12 +271,10 @@ export async function seed(knex: Knex): Promise<void> {
             projectUuid,
         });
 
-        const changesetModel = new ChangesetModel({ database: knex });
         const projectModel = new ProjectModel({
             database: knex,
             lightdashConfig,
             encryptionUtil: enc,
-            changesetModel,
         });
 
         await projectModel.saveExploresToCache(

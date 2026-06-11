@@ -4352,7 +4352,6 @@ export class AiAgentService extends BaseService {
             agent.projectUuid,
             'name',
             originalChangeset.changes.map((c) => c.entityTableName),
-            { applyChangeset: false },
         );
 
         await this.changesetModel.revertChange(changeUuid, agent.projectUuid);

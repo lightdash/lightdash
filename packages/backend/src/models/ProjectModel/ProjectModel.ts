@@ -3,7 +3,6 @@ import {
     AnyType,
     AthenaAuthenticationType,
     BigqueryAuthenticationType,
-    ChangesetUtils,
     CompiledTable,
     CreateProject,
     CreateProjectOptionalCredentials,
@@ -124,14 +123,12 @@ import Logger from '../../logging/logger';
 import { wrapSentryTransaction, wrapSentryTransactionSync } from '../../utils';
 import { EncryptionUtil } from '../../utils/EncryptionUtil/EncryptionUtil';
 import { generateUniqueSpaceSlug } from '../../utils/SlugUtils';
-import { ChangesetModel } from '../ChangesetModel';
 import Transaction = Knex.Transaction;
 
 export type ProjectModelArguments = {
     database: Knex;
     lightdashConfig: LightdashConfig;
     encryptionUtil: EncryptionUtil;
-    changesetModel: ChangesetModel;
 };
 
 const CACHED_EXPLORES_PG_LOCK_NAMESPACE = 1;
@@ -188,14 +185,11 @@ export class ProjectModel {
 
     protected lightdashConfig: LightdashConfig;
 
-    protected changesetModel: ChangesetModel;
-
     private encryptionUtil: EncryptionUtil;
 
     constructor(args: ProjectModelArguments) {
         this.database = args.database;
         this.lightdashConfig = args.lightdashConfig;
-        this.changesetModel = args.changesetModel;
         this.encryptionUtil = args.encryptionUtil;
     }
 
@@ -1309,7 +1303,6 @@ export class ProjectModel {
         projectUuid: string,
         key: 'name' | 'uuid',
         exploreNamesWithDuplicates?: string[],
-        { applyChangeset = true }: { applyChangeset?: boolean } = {},
     ): Promise<{ [exploreNameOrUuid: string]: Explore | ExploreError }> {
         // dedupe values
         const exploreNames = exploreNamesWithDuplicates
@@ -1322,11 +1315,6 @@ export class ProjectModel {
                 exploreNames,
             },
             async (span) => {
-                const changeset =
-                    await this.changesetModel.findActiveChangesetWithChangesByProjectUuid(
-                        projectUuid,
-                    );
-
                 const query = this.database(CachedExploreTableName)
                     .select('explore', 'cached_explore_uuid')
                     .where('project_uuid', projectUuid);
@@ -1336,7 +1324,7 @@ export class ProjectModel {
                 const explores = await query;
                 span.setAttribute('foundExplores', !!explores.length);
 
-                let finalExplores = wrapSentryTransactionSync(
+                const finalExplores = wrapSentryTransactionSync(
                     'ProjectModel.findExploresFromCache.convertExplores',
                     { exploresCount: explores.length },
                     () =>
@@ -1355,13 +1343,6 @@ export class ProjectModel {
                             {},
                         ),
                 );
-
-                if (changeset && applyChangeset) {
-                    finalExplores = ChangesetUtils.applyChangeset(
-                        changeset,
-                        finalExplores,
-                    );
-                }
 
                 return finalExplores;
             },

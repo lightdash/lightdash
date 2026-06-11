@@ -765,7 +765,6 @@ export class CatalogModel {
         context,
         fullTextSearchOperator = 'AND',
         filteredExplores,
-        changeset,
         hasTimeDimension,
         tags,
     }: {
@@ -780,7 +779,6 @@ export class CatalogModel {
         context: CatalogSearchContext;
         fullTextSearchOperator?: 'OR' | 'AND';
         filteredExplores?: Explore[];
-        changeset?: ChangesetWithChanges;
         hasTimeDimension?: boolean;
         tags?: string[];
     }): Promise<KnexPaginatedData<CatalogItem[]>> {
@@ -1276,14 +1274,6 @@ export class CatalogModel {
                             );
                         }
 
-                        if (changeset) {
-                            const exploreWithChanges =
-                                ChangesetUtils.applyChangeset(changeset, {
-                                    // we need to clone the explore to avoid mutating the original explore object
-                                    [explore.name]: structuredClone(explore),
-                                })[explore.name] as Explore; // at this point we know the explore is valid
-                            explore = exploreWithChanges;
-                        }
                         return parseCatalog({
                             ...item,
                             explore,
