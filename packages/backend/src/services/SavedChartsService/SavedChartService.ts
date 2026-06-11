@@ -1540,36 +1540,39 @@ export class SavedChartService
             spaceUuid: writeActions.spaceUuid,
         };
 
+        let writeActionActor = actor;
         if (writeActions.userUuid !== undefined) {
             if (!actor.isActive) {
                 throw new ForbiddenError(
                     'Embed token actor is not active for this organization',
                 );
             }
+        } else {
+            const serviceAccount =
+                await this.userService.findServiceAccountByUserUuid(
+                    actorUserUuid,
+                );
+            if (
+                serviceAccount === undefined ||
+                serviceAccount.organizationUuid !==
+                    account.embed.organization.organizationUuid
+            ) {
+                throw new ForbiddenError(
+                    'Embed token service account is not valid for this organization',
+                );
+            }
 
-            return this.create(actor, projectUuid, savedChartWithJwtSpace);
-        }
-
-        const serviceAccount =
-            await this.userService.findServiceAccountByUserUuid(actorUserUuid);
-        if (
-            serviceAccount === undefined ||
-            serviceAccount.organizationUuid !==
-                account.embed.organization.organizationUuid
-        ) {
-            throw new ForbiddenError(
-                'Embed token service account is not valid for this organization',
-            );
-        }
-
-        return this.create(
-            {
+            writeActionActor = {
                 ...actor,
                 serviceAccount: {
                     uuid: serviceAccount.uuid,
                     description: serviceAccount.description,
                 },
-            },
+            };
+        }
+
+        return this.create(
+            writeActionActor,
             projectUuid,
             savedChartWithJwtSpace,
         );
