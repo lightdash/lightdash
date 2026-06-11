@@ -40,16 +40,49 @@ const addAccessCondition = (context: ScopeContext, role?: SpaceMemberRole) => ({
 const addDefaultUuidCondition = flow(addUuidCondition, Array.of);
 
 /**
- * Project-wide grant, but only when the role assignment's project is a
- * preview created by the current user. Returns null (no rule) otherwise —
- * including for org-level assignments, where there is no project context.
+ * True only inside a preview the current user created. Shared by the @self
+ * preview scopes; returns false for org-level assignments (no project context).
  */
-const addSelfPreviewCondition = (context: ScopeContext) =>
-    context.projectUuid &&
-    context.projectType === ProjectType.PREVIEW &&
-    context.userUuid &&
-    context.projectCreatedByUserUuid === context.userUuid
-        ? [{ projectUuid: context.projectUuid }]
+const isSelfPreview = (context: ScopeContext) =>
+    Boolean(
+        context.projectUuid &&
+        context.projectType === ProjectType.PREVIEW &&
+        context.userUuid &&
+        context.projectCreatedByUserUuid === context.userUuid,
+    );
+
+/**
+ * Project-wide grant inside the user's own preview. For subjects with no space
+ * access to gate on (Explore). Returns null (no rule) outside the own preview.
+ */
+const selfPreviewProjectCondition = (context: ScopeContext) =>
+    isSelfPreview(context) ? [{ projectUuid: context.projectUuid }] : null;
+
+/**
+ * Space-gated grant inside the user's own preview. Mirrors the view:* gate
+ * (public/shared OR member-of) so that manage — which implies view in CASL —
+ * can't reach copied private spaces the user isn't a member of. `allowCreate`
+ * adds the new-space case, whose ability subject is metadata-only and so
+ * carries no access field (Dashboard/SavedChart creation carries the
+ * destination space's access, so they don't need it). Null outside own preview.
+ */
+const selfPreviewSpaceCondition = (
+    context: ScopeContext,
+    allowCreate = false,
+) =>
+    isSelfPreview(context)
+        ? [
+              addUuidCondition(context, { inheritsFromOrgOrProject: true }),
+              addAccessCondition(context),
+              ...(allowCreate
+                  ? [
+                        {
+                            ...addUuidCondition(context),
+                            access: { $exists: false },
+                        },
+                    ]
+                  : []),
+          ]
         : null;
 
 const scopes: Scope[] = [
@@ -87,7 +120,7 @@ const scopes: Scope[] = [
             'Create, edit, and delete dashboards in preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
-        getConditions: addSelfPreviewCondition,
+        getConditions: selfPreviewSpaceCondition,
     },
     {
         name: 'view:SavedChart',
@@ -123,7 +156,7 @@ const scopes: Scope[] = [
             'Create, edit, and delete saved charts in preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
-        getConditions: addSelfPreviewCondition,
+        getConditions: selfPreviewSpaceCondition,
     },
     {
         name: 'view:Space',
@@ -173,7 +206,7 @@ const scopes: Scope[] = [
             'Create, edit, and delete spaces in preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.CONTENT,
-        getConditions: addSelfPreviewCondition,
+        getConditions: (context) => selfPreviewSpaceCondition(context, true),
     },
     {
         name: 'view:DashboardComments',
@@ -613,7 +646,7 @@ const scopes: Scope[] = [
             'Explore and query data in preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.DATA,
-        getConditions: addSelfPreviewCondition,
+        getConditions: selfPreviewProjectCondition,
     },
     {
         name: 'manage:SqlRunner',

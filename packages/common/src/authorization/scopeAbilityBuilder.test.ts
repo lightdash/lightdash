@@ -2362,23 +2362,50 @@ describe('scopeAbilityBuilder', () => {
             return builder.build();
         };
 
-        it('manage:Dashboard@self grants manage on any dashboard in own preview project', () => {
+        it('manage:Dashboard@self grants manage in own preview, bounded to viewable spaces', () => {
             const ability = buildWith(selfPreviewContext, [
                 'manage:Dashboard@self',
             ]);
 
-            // Bypasses space access entirely — even private spaces with no access entries
+            // Public/shared space → editable
             expect(
                 ability.can(
                     'manage',
                     subject('Dashboard', {
                         organizationUuid: 'org-123',
                         projectUuid: 'project-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: true,
                         access: [],
                     }),
                 ),
             ).toBe(true);
+
+            // Private space the user is a member of → editable
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                        inheritsFromOrgOrProject: false,
+                        access: [{ userUuid: 'user1' }],
+                    }),
+                ),
+            ).toBe(true);
+
+            // Private space the user is NOT a member of → invisible + uneditable
+            // (manage implies view, so this is the leak being closed)
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                        inheritsFromOrgOrProject: false,
+                        access: [],
+                    }),
+                ),
+            ).toBe(false);
 
             // Other projects unaffected
             expect(
@@ -2387,29 +2414,56 @@ describe('scopeAbilityBuilder', () => {
                     subject('Dashboard', {
                         organizationUuid: 'org-123',
                         projectUuid: 'other-project',
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                         access: [],
                     }),
                 ),
             ).toBe(false);
         });
 
-        it('manage:SavedChart@self grants manage on charts in own preview project', () => {
+        it('manage:SavedChart@self grants manage in own preview, bounded to viewable spaces', () => {
             const ability = buildWith(selfPreviewContext, [
                 'manage:SavedChart@self',
             ]);
 
+            // Public/shared space → editable
             expect(
                 ability.can(
                     'manage',
                     subject('SavedChart', {
                         organizationUuid: 'org-123',
                         projectUuid: 'project-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: true,
                         access: [],
                     }),
                 ),
             ).toBe(true);
+
+            // Private space the user is a member of → editable
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                        inheritsFromOrgOrProject: false,
+                        access: [{ userUuid: 'user1' }],
+                    }),
+                ),
+            ).toBe(true);
+
+            // Private space the user is NOT a member of → invisible + uneditable
+            expect(
+                ability.can(
+                    'manage',
+                    subject('SavedChart', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                        inheritsFromOrgOrProject: false,
+                        access: [],
+                    }),
+                ),
+            ).toBe(false);
 
             expect(
                 ability.can(
@@ -2417,29 +2471,82 @@ describe('scopeAbilityBuilder', () => {
                     subject('SavedChart', {
                         organizationUuid: 'org-123',
                         projectUuid: 'other-project',
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                         access: [],
                     }),
                 ),
             ).toBe(false);
         });
 
-        it('manage:Space@self grants manage on spaces in own preview project', () => {
+        it('manage:Space@self grants manage in own preview, bounded to viewable spaces but allowing creation', () => {
             const ability = buildWith(selfPreviewContext, [
                 'manage:Space@self',
             ]);
 
+            // Public/shared space → editable
             expect(
                 ability.can(
                     'manage',
                     subject('Space', {
                         organizationUuid: 'org-123',
                         projectUuid: 'project-123',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: true,
                         access: [],
                     }),
                 ),
             ).toBe(true);
+
+            // Private space the user is a member of → editable
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                        inheritsFromOrgOrProject: false,
+                        access: [{ userUuid: 'user1' }],
+                    }),
+                ),
+            ).toBe(true);
+
+            // Private space the user is NOT a member of → uneditable, and can't
+            // self-add access to escalate into copied private content
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Space', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                        inheritsFromOrgOrProject: false,
+                        access: [],
+                    }),
+                ),
+            ).toBe(false);
+
+            // Creating a brand-new space: metadata-only subject (no access field)
+            // → still allowed inside the own preview
+            expect(
+                ability.can(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'project-123',
+                        metadata: { spaceName: 'New space' },
+                    }),
+                ),
+            ).toBe(true);
+
+            // ...but not in another project
+            expect(
+                ability.can(
+                    'create',
+                    subject('Space', {
+                        organizationUuid: 'org-123',
+                        projectUuid: 'other-project',
+                        metadata: { spaceName: 'New space' },
+                    }),
+                ),
+            ).toBe(false);
         });
 
         it('manage:Explore@self grants explore/query access in own preview project', () => {

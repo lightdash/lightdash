@@ -236,24 +236,39 @@ describe('getUserAbilityBuilder — org-level role resolution', () => {
             });
             const ability = builder.build();
 
+            // Public/shared space in the own preview → editable
             expect(
                 ability.can(
                     'manage',
                     subject('Dashboard', {
                         organizationUuid: ORG_UUID,
                         projectUuid: 'preview-project',
-                        isPrivate: true,
+                        inheritsFromOrgOrProject: true,
                         access: [],
                     }),
                 ),
             ).toBe(true);
+            // Private space the user isn't a member of (copied verbatim from
+            // prod) → invisible + uneditable, even in the own preview
+            expect(
+                ability.can(
+                    'manage',
+                    subject('Dashboard', {
+                        organizationUuid: ORG_UUID,
+                        projectUuid: 'preview-project',
+                        inheritsFromOrgOrProject: false,
+                        access: [],
+                    }),
+                ),
+            ).toBe(false);
+            // Nothing in production
             expect(
                 ability.can(
                     'manage',
                     subject('Dashboard', {
                         organizationUuid: ORG_UUID,
                         projectUuid: 'prod-project',
-                        isPrivate: false,
+                        inheritsFromOrgOrProject: true,
                         access: [],
                     }),
                 ),
