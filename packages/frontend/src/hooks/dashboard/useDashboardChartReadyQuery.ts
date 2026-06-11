@@ -11,6 +11,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { lightdashApi } from '../../api';
+import useEmbed from '../../ee/providers/Embed/useEmbed';
 import useDashboardContext from '../../providers/Dashboard/useDashboardContext';
 import useDashboardTileStatusContext from '../../providers/Dashboard/useDashboardTileStatusContext';
 import { convertDateDashboardFilters } from '../../utils/dateFilter';
@@ -36,6 +37,7 @@ const postEmbedDashboardTileQuery = async (
     projectUuid: string,
     data: {
         tileUuid: string;
+        timezone?: string;
     } & Pick<
         ExecuteAsyncDashboardChartRequestParams,
         | 'dashboardFilters'
@@ -101,6 +103,8 @@ export const useDashboardChartReadyQuery = (
             ?.join(',') || '';
 
     const projectUuid = useDashboardContext((c) => c.projectUuid);
+    // Session timezone from the embed URL (?timezone=); null for non-embed views
+    const embedTimezone = useEmbed().timezone;
     const chartQuery = useSavedQuery({
         uuidOrSlug: chartUuid ?? undefined,
         projectUuid,
@@ -178,6 +182,7 @@ export const useDashboardChartReadyQuery = (
             isZoomLikelyApplied ? granularity : null,
             invalidateCache,
             chartParameterValues,
+            embedTimezone,
         ],
         [
             chartQuery.data?.projectUuid,
@@ -193,6 +198,7 @@ export const useDashboardChartReadyQuery = (
             granularity,
             invalidateCache,
             chartParameterValues,
+            embedTimezone,
         ],
     );
 
@@ -225,6 +231,7 @@ export const useDashboardChartReadyQuery = (
                           invalidateCache,
                           parameters: parameterValues,
                           pivotResults: true,
+                          timezone: embedTimezone ?? undefined,
                       },
                   )
                 : await executeAsyncDashboardChartQuery(
