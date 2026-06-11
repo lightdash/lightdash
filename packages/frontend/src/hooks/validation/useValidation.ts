@@ -62,6 +62,19 @@ export const usePinnedValidation = (
         enabled: validationUuid !== null,
     });
 
+/**
+ * Read-only validation results for a specific project, scoped by projectUuid in
+ * the query key (unlike useValidation, which serves the settings validator for
+ * the active project). Used to surface a preview project's validation errors.
+ */
+export const useProjectValidation = (projectUuid: string | null) =>
+    useQuery<ValidationResponse[], ApiError>({
+        queryKey: ['validation', 'project', projectUuid],
+        queryFn: () => getValidation(projectUuid!, false),
+        enabled: projectUuid !== null,
+        retry: (_, error) => error.error.statusCode !== 403,
+    });
+
 export const useValidation = (
     projectUuid: string,
     user: UseQueryResult<UserWithAbility, ApiError>,
