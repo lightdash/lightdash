@@ -42,7 +42,8 @@ import {
     Space,
     TableCalculation,
     TimeFrames,
-    TimeZone,
+    TimezoneSetting,
+    toTimezoneSetting,
     UpdatedByUser,
     UpdateMultipleSavedChart,
     UpdateSavedChart,
@@ -111,7 +112,7 @@ type DbSavedChartDetails = {
     last_name: string;
     pinned_list_uuid: string;
     dashboard_uuid: string | null;
-    timezone: TimeZone | null;
+    timezone: TimezoneSetting;
     color_palette_uuid: string | null;
 };
 
@@ -238,7 +239,7 @@ const createSavedChartVersion = async (
                 chart_config: chartConfig.config,
                 parameters: parameters ? JSON.stringify(parameters) : null,
                 updated_by_user_uuid: updatedByUser?.userUuid || null,
-                timezone: timezone || null,
+                timezone: toTimezoneSetting(timezone),
             })
             .returning('*');
         await createSavedChartVersionFields(

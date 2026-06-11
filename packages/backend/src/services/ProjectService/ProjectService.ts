@@ -4634,11 +4634,13 @@ export class ProjectService extends BaseService {
         warehouseClient,
         query,
         metricQuery,
+        resolvedTimezone,
         queryTags,
         invalidateCache,
     }: {
         projectUuid: string;
         userUuid: string | null;
+        resolvedTimezone: string;
         user: Pick<
             LightdashUser,
             'userUuid' | 'organizationUuid' | 'organizationName'
@@ -4657,8 +4659,15 @@ export class ProjectService extends BaseService {
             'ProjectService.getResultsFromCacheOrWarehouse',
             {},
             async (span) => {
-                const hashParts = [projectUuid, userUuid, query];
-                if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+                // Key on the resolved timezone (not the raw setting) so the
+                // cache reflects project/user fallbacks and invalidates when the
+                // project timezone changes.
+                const hashParts = [
+                    projectUuid,
+                    userUuid,
+                    query,
+                    resolvedTimezone,
+                ];
                 const queryHash = buildCacheHash(hashParts);
 
                 span.setAttribute('queryHash', queryHash);
@@ -5011,6 +5020,7 @@ export class ProjectService extends BaseService {
                             context,
                             warehouseClient,
                             metricQuery: metricQueryWithLimit,
+                            resolvedTimezone: timezone,
                             query,
                             queryTags,
                             invalidateCache,
@@ -5532,8 +5542,13 @@ export class ProjectService extends BaseService {
 
         const userUuid = getCacheUserUuid(warehouseCredentials, user.userUuid);
 
-        const hashParts = [projectUuid, userUuid, 'cache_autocomplete', query];
-        if (metricQuery.timezone) hashParts.push(metricQuery.timezone);
+        const hashParts = [
+            projectUuid,
+            userUuid,
+            'cache_autocomplete',
+            query,
+            timezone,
+        ];
         const queryHash = buildCacheHash(hashParts);
 
         if (!forceRefresh && isUserCacheEnabled) {

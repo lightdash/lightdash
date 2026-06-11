@@ -8,12 +8,11 @@ import {
 } from '../helpers/timezone-test';
 
 /**
- * User-level timezone (PROD-7528) tests.
+ * User-level timezone tests, updated for the GLITCH-459 model.
  *
- * Verifies the resolution chain `chart > user > project`:
- *  - When a chart doesn't pin a timezone, the viewer's profile timezone
- *    (`users.timezone`) is used for grouping/filtering.
- *  - When a chart pins a timezone, it overrides the viewer's profile.
+ * Resolution now defaults to the **project** timezone; the viewer's profile
+ * timezone (`users.timezone`) is only used when the query explicitly sets
+ * `timezone: 'user_timezone'`. An IANA zone is an override that wins over both.
  *
  * Uses the same `timezone_test` fixture as `queryTimezone.test.ts`. Asia/Tokyo
  * (+9) shifts events into Jan 15/16/17 — distinct from the UTC layout
@@ -21,7 +20,7 @@ import {
  *
  * Requires LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true and the EnableUserTimezones
  * flag enabled (LIGHTDASH_ENABLE_FEATURE_FLAGS=enable-user-timezones) in the
- * environment — user-level resolution is gated on the latter.
+ * environment — `user_timezone` resolution is gated on the latter.
  */
 
 const DIMENSION_KEY = 'timezone_test_event_timestamp_day';
@@ -41,15 +40,35 @@ describe('User-level timezone', () => {
         await updateUserTimezone(admin, null);
     });
 
-    it('applies the viewer profile timezone when the chart has no pinned timezone', async () => {
+    it('defaults to the project timezone, ignoring the viewer profile, when no timezone is set', async () => {
         await updateUserTimezone(admin, 'Asia/Tokyo');
 
-        // No `timezone` on the metric query → chain falls through to the
-        // user's profile (Asia/Tokyo). Expected Tokyo grouping per the
-        // `timezone_test` fixture: Jan 15=5, Jan 16=4, Jan 17=1.
+        // No `timezone` on the metric query → resolves to the project default
+        // (UTC), NOT the viewer's Tokyo profile. Expected UTC grouping per the
+        // `timezone_test` fixture: Jan 15=6, Jan 16=4.
         const rows = await runTimezoneTestQuery(admin, {
             dimensions: DIMENSIONS,
             metrics: METRICS,
+        });
+
+        expect(rows).toHaveLength(2);
+        expect(getRowCount(rows, '2024-01-15', DIMENSION_KEY, METRIC_KEY)).toBe(
+            6,
+        );
+        expect(getRowCount(rows, '2024-01-16', DIMENSION_KEY, METRIC_KEY)).toBe(
+            4,
+        );
+    });
+
+    it('uses the viewer profile timezone when the query sets user_timezone', async () => {
+        await updateUserTimezone(admin, 'Asia/Tokyo');
+
+        // `timezone: 'user_timezone'` → the viewer's profile (Asia/Tokyo).
+        // Expected Tokyo grouping: Jan 15=5, Jan 16=4, Jan 17=1.
+        const rows = await runTimezoneTestQuery(admin, {
+            dimensions: DIMENSIONS,
+            metrics: METRICS,
+            timezone: 'user_timezone',
         });
 
         expect(rows).toHaveLength(3);
@@ -64,11 +83,12 @@ describe('User-level timezone', () => {
         );
     });
 
-    it('chart-pinned timezone overrides the viewer profile timezone', async () => {
+    it('an override zone wins over the viewer profile timezone', async () => {
         await updateUserTimezone(admin, 'Asia/Tokyo');
 
-        // Chart pins America/New_York → should win over the viewer's Tokyo
-        // preference. Expected NY grouping: Jan 14=1, Jan 15=6, Jan 16=3.
+        // An explicit America/New_York override → should win over both the
+        // viewer's Tokyo preference and the project default. Expected NY
+        // grouping: Jan 14=1, Jan 15=6, Jan 16=3.
         const rows = await runTimezoneTestQuery(admin, {
             dimensions: DIMENSIONS,
             metrics: METRICS,
