@@ -318,6 +318,11 @@ export class EmbedController extends BaseController {
             actorUserUuid,
             req.account.embed.organization.organizationUuid,
         );
+        if (!actor.isActive) {
+            throw new ForbiddenError(
+                'Embed token actor is not active for this organization',
+            );
+        }
 
         const results = await this.services
             .getSavedChartService()
