@@ -1217,6 +1217,35 @@ export class AiAgentReviewClassifierModel {
         return row ? mapReviewRemediation(row) : null;
     }
 
+    async findReviewRemediationByPreviewThread(args: {
+        organizationUuid: string;
+        previewThreadUuid: string;
+    }): Promise<AiAgentReviewRemediation | null> {
+        const row = (await this.database<AiAgentReviewRemediationTable>(
+            `${AiAgentReviewRemediationTableName} as remediation`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'remediation.pull_request_uuid',
+            )
+            .where('remediation.organization_uuid', args.organizationUuid)
+            .where('remediation.preview_thread_uuid', args.previewThreadUuid)
+            .orderBy('remediation.updated_at', 'desc')
+            .select<ReviewRemediationRow>(
+                'remediation.*',
+                {
+                    linked_pr_url: 'pull_request.pr_url',
+                },
+                this.database.raw(
+                    '(extract(epoch from (now() - remediation.updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )
+            .first()) as ReviewRemediationRow | undefined;
+
+        return row ? mapReviewRemediation(row) : null;
+    }
+
     async createReviewRemediation(
         args: CreateReviewRemediationArgs,
     ): Promise<AiAgentReviewRemediation> {

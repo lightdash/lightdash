@@ -1,21 +1,9 @@
-import {
-    Alert,
-    Button,
-    Center,
-    Group,
-    Loader,
-    Stack,
-    Text,
-} from '@mantine-8/core';
-import {
-    IconCircleCheck,
-    IconGitPullRequest,
-    IconRefresh,
-} from '@tabler/icons-react';
+import { subject } from '@casl/ability';
+import { Box, Center, Flex, Loader } from '@mantine-8/core';
 import { useCallback, useMemo } from 'react';
-import { useOutletContext, useParams, useSearchParams } from 'react-router';
-import MantineIcon from '../../../components/common/MantineIcon';
+import { useOutletContext, useParams } from 'react-router';
 import useApp from '../../../providers/App/useApp';
+import { ReviewVerificationPanel } from '../../features/aiCopilot/components/Admin/ReviewVerificationPanel';
 import { AgentChatDisplay } from '../../features/aiCopilot/components/ChatElements/AgentChatDisplay';
 import { AgentChatInput } from '../../features/aiCopilot/components/ChatElements/AgentChatInput';
 import {
@@ -23,7 +11,7 @@ import {
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
 import {
-    useAiAgentAdminReviewItem,
+    useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
 } from '../../features/aiCopilot/hooks/useAiAgentAdmin';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
@@ -51,8 +39,6 @@ import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
-    const [searchParams] = useSearchParams();
-    const reviewFingerprint = searchParams.get('reviewItem');
     const { user } = useApp();
 
     const {
@@ -135,11 +121,16 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         threadUuid!,
         refetch,
     );
-    const { data: reviewItem } = useAiAgentAdminReviewItem(
-        reviewFingerprint ?? '',
-        {
-            enabled: !!reviewFingerprint,
-        },
+    const isOrgAdmin =
+        user.data?.ability.can(
+            'manage',
+            subject('Organization', {
+                organizationUuid: user.data?.organizationUuid,
+            }),
+        ) ?? false;
+    const { data: reviewItem } = useAiAgentReviewItemByPreviewThread(
+        threadUuid,
+        { enabled: isOrgAdmin },
     );
     const updateReviewItemStatus = useUpdateAiAgentReviewItemStatus();
 
@@ -245,15 +236,8 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
             toolHints,
         });
     };
-    const isBusy = isCreatingMessage || isStreaming || isPending;
-    const reviewRemediation = reviewItem?.remediation ?? null;
-    const reviewRemediationForThread =
-        reviewRemediation?.previewThreadUuid === threadUuid
-            ? reviewRemediation
-            : null;
-    const retryPrompt = reviewRemediationForThread?.retryPrompt ?? null;
-    const linkedPrUrl = reviewRemediationForThread?.linkedPrUrl ?? null;
-    const isReviewFixed = reviewItem?.status === 'resolved';
+    const isBusy = Boolean(isCreatingMessage || isStreaming || isPending);
+    const retryPrompt = reviewItem?.remediation?.retryPrompt ?? null;
     const handleRetryOriginalQuestion = () => {
         if (!retryPrompt) return;
         handleSubmit({
@@ -262,7 +246,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         });
     };
     const handleMarkFixed = () => {
-        if (!reviewItem || isReviewFixed) return;
+        if (!reviewItem || reviewItem.status === 'resolved') return;
         updateReviewItemStatus.mutate({
             fingerprint: reviewItem.fingerprint,
             body: {
@@ -281,115 +265,61 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     }
 
     return (
-        <AgentChatDisplay
-            thread={thread}
-            agentName={agentQuery.data?.name ?? 'AI'}
-            enableAutoScroll={true}
-            promptUuid={promptUuid}
-            debug={debug}
-            projectUuid={projectUuid}
-            agentUuid={agentUuid}
-            showAddToEvalsButton={canManage}
-            onDashboardLinkClick={handleDashboardLinkClick}
-        >
-            <Stack gap="xs">
-                {reviewItem && retryPrompt && (
-                    <Alert color="gray" variant="light" px="md" py="sm">
-                        <Group justify="space-between" align="center" gap="sm">
-                            <Stack gap={2}>
-                                <Text fz="sm" fw={600}>
-                                    {reviewItem.title}
-                                </Text>
-                                <Text fz="xs" c="dimmed">
-                                    Retry the original question in this preview,
-                                    then mark the review fixed when the answer
-                                    behaves as expected.
-                                </Text>
-                            </Stack>
-                            <Group gap="xs" wrap="nowrap">
-                                {linkedPrUrl && (
-                                    <Button
-                                        component="a"
-                                        href={linkedPrUrl}
-                                        target="_blank"
-                                        size="xs"
-                                        variant="subtle"
-                                        color="gray"
-                                        leftSection={
-                                            <MantineIcon
-                                                icon={IconGitPullRequest}
-                                                size="sm"
-                                            />
-                                        }
-                                    >
-                                        View PR
-                                    </Button>
-                                )}
-                                <Button
-                                    size="xs"
-                                    variant="default"
-                                    disabled={inputDisabled || isBusy}
-                                    onClick={handleRetryOriginalQuestion}
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconRefresh}
-                                            size="sm"
-                                        />
-                                    }
-                                >
-                                    Retry question
-                                </Button>
-                                <Button
-                                    size="xs"
-                                    color="green"
-                                    variant={isReviewFixed ? 'light' : 'filled'}
-                                    disabled={isReviewFixed}
-                                    loading={updateReviewItemStatus.isLoading}
-                                    onClick={handleMarkFixed}
-                                    leftSection={
-                                        <MantineIcon
-                                            icon={IconCircleCheck}
-                                            size="sm"
-                                        />
-                                    }
-                                >
-                                    {isReviewFixed ? 'Fixed' : 'Mark fixed'}
-                                </Button>
-                            </Group>
-                        </Group>
-                    </Alert>
-                )}
-                <AgentChatInput
-                    disabled={inputDisabled}
-                    disabledReason={inputDisabledReason}
-                    loading={isBusy}
-                    onSubmit={handleSubmit}
-                    placeholder={`Ask ${agent.name} anything about your data...`}
-                    messageCount={thread.messages?.length || 0}
+        <Flex h="100%" gap={0} wrap="nowrap" align="stretch">
+            <Box flex={1} miw={0} h="100%">
+                <AgentChatDisplay
+                    thread={thread}
+                    agentName={agentQuery.data?.name ?? 'AI'}
+                    enableAutoScroll={true}
+                    promptUuid={promptUuid}
+                    debug={debug}
                     projectUuid={projectUuid}
                     agentUuid={agentUuid}
-                    threadUuid={threadUuid}
-                    contentMentionPriorityItems={contentMentionItems}
-                    latestAssistantMessageUuid={
-                        [...(thread.messages ?? [])]
-                            .reverse()
-                            .find((m) => m.role === 'assistant')?.uuid
-                    }
-                    sqlMode={sqlModeAvailable ? sqlMode : undefined}
-                    onSqlModeChange={
-                        sqlModeAvailable && threadUuid
-                            ? (enabled) =>
-                                  dispatch(
-                                      setThreadSqlMode({
-                                          threadUuid,
-                                          enabled,
-                                      }),
-                                  )
-                            : undefined
-                    }
+                    showAddToEvalsButton={canManage}
+                    onDashboardLinkClick={handleDashboardLinkClick}
+                >
+                    <AgentChatInput
+                        disabled={inputDisabled}
+                        disabledReason={inputDisabledReason}
+                        loading={isBusy}
+                        onSubmit={handleSubmit}
+                        placeholder={`Ask ${agent.name} anything about your data...`}
+                        messageCount={thread.messages?.length || 0}
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                        threadUuid={threadUuid}
+                        contentMentionPriorityItems={contentMentionItems}
+                        latestAssistantMessageUuid={
+                            [...(thread.messages ?? [])]
+                                .reverse()
+                                .find((m) => m.role === 'assistant')?.uuid
+                        }
+                        sqlMode={sqlModeAvailable ? sqlMode : undefined}
+                        onSqlModeChange={
+                            sqlModeAvailable && threadUuid
+                                ? (enabled) =>
+                                      dispatch(
+                                          setThreadSqlMode({
+                                              threadUuid,
+                                              enabled,
+                                          }),
+                                      )
+                                : undefined
+                        }
+                    />
+                </AgentChatDisplay>
+            </Box>
+            {reviewItem && (
+                <ReviewVerificationPanel
+                    reviewItem={reviewItem}
+                    canRetry={!!retryPrompt && !inputDisabled}
+                    isBusy={isBusy}
+                    isResolving={updateReviewItemStatus.isLoading}
+                    onRetry={handleRetryOriginalQuestion}
+                    onMarkDone={handleMarkFixed}
                 />
-            </Stack>
-        </AgentChatDisplay>
+            )}
+        </Flex>
     );
 };
 

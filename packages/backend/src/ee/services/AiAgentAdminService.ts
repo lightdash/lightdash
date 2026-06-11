@@ -3,6 +3,7 @@ import {
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
     AiAgentAdminSort,
+    AiAgentReviewItemPrDiff,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
     AiAgentReviewRemediationPreviewJobPayload,
@@ -38,6 +39,7 @@ import {
     getInstallationToken,
     getPullRequest,
     getPullRequestComments,
+    getPullRequestDiffFiles,
 } from '../../clients/github/Github';
 import { type LightdashConfig } from '../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../database/errors';
@@ -1507,6 +1509,77 @@ export class AiAgentAdminService extends BaseService {
         message: string;
     }): Promise<void> {
         await this.aiAgentReviewClassifierModel.failReviewItemWriteback(args);
+    }
+
+    async getReviewItemPrDiff(
+        user: SessionUser,
+        fingerprint: string,
+    ): Promise<AiAgentReviewItemPrDiff> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!reviewItem?.linkedPrUrl) {
+            throw new NotFoundError(
+                'No pull request is linked to this review item',
+            );
+        }
+        const parsed = parsePullRequestUrl(reviewItem.linkedPrUrl);
+        if (!parsed) {
+            throw new NotFoundError(
+                'The linked pull request is not a GitHub pull request',
+            );
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.getInstallationId(
+                organizationUuid,
+            );
+        const diff = await getPullRequestDiffFiles({
+            owner: parsed.owner,
+            repo: parsed.repo,
+            pullNumber: parsed.pullNumber,
+            installationId,
+        });
+
+        return {
+            prUrl: reviewItem.linkedPrUrl,
+            ...diff,
+        };
+    }
+
+    // Resolves the review item a preview work thread belongs to, so the
+    // thread page can show the verification context without relying on
+    // query params surviving navigation.
+    async getReviewItemByPreviewThread(
+        user: SessionUser,
+        previewThreadUuid: string,
+    ): Promise<AiAgentReviewItemSummary> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const remediation =
+            await this.aiAgentReviewClassifierModel.findReviewRemediationByPreviewThread(
+                {
+                    organizationUuid,
+                    previewThreadUuid,
+                },
+            );
+        if (!remediation) {
+            throw new NotFoundError('No review item is linked to this thread');
+        }
+
+        return this.getReviewItem(user, remediation.fingerprint);
     }
 
     async getReviewItem(
