@@ -86,4 +86,15 @@ export interface GitProvider {
     updatePullRequest(args: UpdatePullRequestArgs): Promise<LandedCommit>;
     /** Validate a pasted PR/MR link before editing it on top of its branch. */
     adoptPullRequest(args: AdoptPullRequestArgs): Promise<AdoptedPullRequest>;
+    /**
+     * Whether a thread's stored PR/MR can still be edited. A resume turn reuses
+     * the PR recorded on the thread, which may have been merged or closed (here
+     * or on the host) since — editing it would push onto a dead branch and
+     * orphan the change, so the caller bails first.
+     */
+    getPullRequestEditState(args: {
+        prUrl: string;
+        connection: GitConnection;
+        installation: GitInstallation;
+    }): Promise<{ editable: boolean; reason: 'merged' | 'closed' | null }>;
 }

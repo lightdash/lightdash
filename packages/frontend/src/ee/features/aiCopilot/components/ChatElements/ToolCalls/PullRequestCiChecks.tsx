@@ -24,6 +24,7 @@ import {
     IconCircleX,
     IconClock,
     IconGitMerge,
+    IconGitPullRequestClosed,
     IconPlayerSkipForward,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
@@ -186,15 +187,22 @@ export const PullRequestCiChecks: FC<{
         return null;
     }
 
-    // Once merged the policy verdict is no longer meaningful — show a terminal
-    // "Merged" roll-up instead of the (now stale) merge-readiness state.
-    const { color, icon, title } = ciChecks.merged
-        ? {
-              color: 'green' as DefaultMantineColor,
-              icon: IconGitMerge,
-              title: 'Merged',
-          }
-        : READINESS[ciChecks.mergeState];
+    // Once a PR is merged or closed the policy verdict is no longer meaningful —
+    // show the terminal state instead of the (now stale) merge-readiness verdict.
+    const terminal: {
+        color: DefaultMantineColor;
+        icon: TablerIcon;
+        title: string;
+    } | null = ciChecks.merged
+        ? { color: 'green', icon: IconGitMerge, title: 'Merged' }
+        : ciChecks.state === 'closed'
+          ? {
+                color: 'ldGray.6',
+                icon: IconGitPullRequestClosed,
+                title: 'Closed',
+            }
+          : null;
+    const { color, icon, title } = terminal ?? READINESS[ciChecks.mergeState];
 
     return (
         <Stack gap={4}>

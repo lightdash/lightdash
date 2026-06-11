@@ -1,4 +1,8 @@
-import { ForbiddenError, PullRequestProvider } from '@lightdash/common';
+import {
+    ForbiddenError,
+    ParameterError,
+    PullRequestProvider,
+} from '@lightdash/common';
 
 /**
  * Thrown when a writeback cannot proceed because the project has no usable Git
@@ -20,5 +24,23 @@ export class WritebackGitNotConnectedError extends ForbiddenError {
     ) {
         super(message);
         this.provider = provider;
+    }
+}
+
+/**
+ * Thrown when a resume turn's thread is bound to a pull/merge request that has
+ * since been merged or closed (here or on the host). Editing it again would
+ * push onto a dead branch and silently orphan the change, so the run bails. The
+ * `editDbtProject` tool catches this (via `instanceof`) and tells the user to
+ * start a new thread rather than rendering a generic failure or retrying.
+ */
+export class WritebackThreadPrClosedError extends ParameterError {
+    readonly reason: 'merged' | 'closed';
+
+    constructor(reason: 'merged' | 'closed') {
+        super(
+            `This thread's pull request has already been ${reason}, so it can't be updated. Tell the user that to make further changes they should start a new thread.`,
+        );
+        this.reason = reason;
     }
 }

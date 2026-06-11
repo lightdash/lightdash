@@ -3,7 +3,10 @@ import {
     PullRequestProvider,
 } from '@lightdash/common';
 import { tool } from 'ai';
-import { WritebackGitNotConnectedError } from '../../AiWritebackService/errors';
+import {
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from '../../AiWritebackService/errors';
 import type { EditDbtProjectFn } from '../types/aiAgentDependencies';
 import { toModelOutput } from '../utils/toModelOutput';
 import { toolErrorHandler } from '../utils/toolErrorHandler';
@@ -16,6 +19,7 @@ type WritebackErrorCode =
     | 'github_not_installed'
     | 'gitlab_not_installed'
     | 'unsupported_source_control'
+    | 'pull_request_not_open'
     | 'unknown';
 
 // Map a thrown writeback error to the metadata code the chat card renders.
@@ -31,6 +35,9 @@ const classifyWritebackError = (error: unknown): WritebackErrorCode => {
             return 'gitlab_not_installed';
         }
         return 'unsupported_source_control';
+    }
+    if (error instanceof WritebackThreadPrClosedError) {
+        return 'pull_request_not_open';
     }
     return 'unknown';
 };
@@ -102,6 +109,18 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                     },
                 };
             } catch (error) {
+                // A merged/closed thread PR is a terminal, expected state — not
+                // a failure to retry. Surface its guidance verbatim (no "try
+                // again" suffix, no Sentry noise) so the agent relays it.
+                if (error instanceof WritebackThreadPrClosedError) {
+                    return {
+                        result: error.message,
+                        metadata: {
+                            status: 'error' as const,
+                            errorCode: 'pull_request_not_open' as const,
+                        },
+                    };
+                }
                 return {
                     result: toolErrorHandler(
                         error,
