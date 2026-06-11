@@ -286,6 +286,7 @@ describe('AiAgentReviewClassifierService', () => {
         createRun: jest.fn(),
         updateRun: jest.fn(),
         createTurnSignal: jest.fn(),
+        getThreadWritebackPullRequests: jest.fn().mockResolvedValue(new Map()),
     } as unknown as jest.Mocked<AiAgentReviewClassifierModel>;
     const aiAgentModel = {
         getAgent: jest.fn(),
@@ -322,6 +323,7 @@ describe('AiAgentReviewClassifierService', () => {
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
         model.createTurnSignal.mockResolvedValue(SIGNAL_UUID);
+        model.getThreadWritebackPullRequests.mockResolvedValue(new Map());
         aiAgentModel.getAgent.mockResolvedValue({
             uuid: AGENT_UUID,
             organizationUuid: ORGANIZATION_UUID,

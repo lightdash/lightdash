@@ -221,6 +221,7 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                     hasGitAppInstallation: true,
                 },
                 hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: false,
             }),
         ).toEqual({
             eligible: true,
@@ -241,6 +242,7 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                     hasGitAppInstallation: true,
                 },
                 hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: false,
             }),
         ).toEqual({
             eligible: true,
@@ -284,6 +286,7 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                     hasGitAppInstallation: true,
                 },
                 hasSemanticWritebackConfig: false,
+                sourceThreadHasWritebackPr: false,
             }),
         ).toEqual({
             eligible: false,
@@ -304,6 +307,7 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                     hasGitAppInstallation: true,
                 },
                 hasSemanticWritebackConfig: false,
+                sourceThreadHasWritebackPr: false,
             }),
         ).toEqual({
             eligible: false,
@@ -348,12 +352,34 @@ describe('getAiAgentReviewItemWritebackEligibility', () => {
                     hasGitAppInstallation: true,
                 },
                 hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: false,
             }),
         ).toEqual({
             eligible: false,
             provider: null,
             strategy: null,
             reason: 'writeback_in_progress',
+        });
+    });
+
+    it('blocks writeback when the source thread already opened a PR', () => {
+        expect(
+            getAiAgentReviewItemWritebackEligibility({
+                item: makeReviewItem(),
+                reviewsEnabled: true,
+                projectContextEnabled: false,
+                projectAccess: {
+                    provider: PullRequestProvider.GITHUB,
+                    hasGitAppInstallation: true,
+                },
+                hasSemanticWritebackConfig: true,
+                sourceThreadHasWritebackPr: true,
+            }),
+        ).toEqual({
+            eligible: false,
+            provider: null,
+            strategy: null,
+            reason: 'source_thread_writeback_exists',
         });
     });
 });

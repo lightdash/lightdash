@@ -38,6 +38,7 @@ import {
     AiSlackPromptTableName,
     AiSlackThreadTableName,
     AiThreadTableName,
+    AiWritebackThreadTableName,
 } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
@@ -1184,6 +1185,53 @@ export class AiAgentReviewClassifierModel {
             }
         });
         return remediations;
+    }
+
+    /**
+     * Writeback PRs the agent itself opened in a given set of threads (via the
+     * editDbtProject / runAiWriteback tools). Used to warn the judge and to block
+     * remediation from opening a second PR on a thread that already has one.
+     */
+    async getThreadWritebackPullRequests(
+        threadUuids: string[],
+    ): Promise<Map<string, { prUrl: string | null; createdAt: Date }[]>> {
+        if (threadUuids.length === 0) {
+            return new Map();
+        }
+
+        const rows = await this.database(
+            `${AiWritebackThreadTableName} as writeback`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'writeback.pull_request_uuid',
+            )
+            .whereIn('writeback.ai_thread_uuid', threadUuids)
+            .whereNotNull('writeback.pull_request_uuid')
+            .select<
+                {
+                    ai_thread_uuid: string;
+                    pr_url: string | null;
+                    created_at: Date;
+                }[]
+            >(
+                'writeback.ai_thread_uuid',
+                { pr_url: 'pull_request.pr_url' },
+                { created_at: 'writeback.created_at' },
+            )
+            .orderBy('writeback.created_at', 'desc');
+
+        const byThread = new Map<
+            string,
+            { prUrl: string | null; createdAt: Date }[]
+        >();
+        rows.forEach((row) => {
+            const existing = byThread.get(row.ai_thread_uuid) ?? [];
+            existing.push({ prUrl: row.pr_url, createdAt: row.created_at });
+            byThread.set(row.ai_thread_uuid, existing);
+        });
+        return byThread;
     }
 
     async getReviewRemediation(args: {

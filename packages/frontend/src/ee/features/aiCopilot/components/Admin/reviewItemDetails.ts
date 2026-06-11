@@ -41,6 +41,8 @@ export const writebackBlockedReasonLabels: Record<
     git_app_not_installed: 'Git app is not installed',
     missing_writeback_config: 'Writeback runtime is not configured',
     pull_request_open: 'A pull request is already open',
+    source_thread_writeback_exists:
+        'The agent already opened a pull request in the source thread',
     terminal_state: 'Finding is already closed',
     writeback_in_progress: 'Writeback is already in progress',
 };
