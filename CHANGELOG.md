@@ -1,3 +1,12 @@
+# [0.3135.0](https://github.com/lightdash/lightdash/compare/0.3134.0...0.3135.0) (2026-06-11)
+
+
+### Features
+
+* **ai:** extend find content spaces ([#24104](https://github.com/lightdash/lightdash/issues/24104)) ([ebad0dd](https://github.com/lightdash/lightdash/commit/ebad0dd8673b6051dd757bb1c29a9cf932c70c3d)), closes [#24099](https://github.com/lightdash/lightdash/issues/24099)
+* **mcp:** add content-as-code tools ([#24099](https://github.com/lightdash/lightdash/issues/24099)) ([8da5bcf](https://github.com/lightdash/lightdash/commit/8da5bcf825643c69655c9168795d596844f247af)), closes [#23907](https://github.com/lightdash/lightdash/issues/23907) [#23307](https://github.com/lightdash/lightdash/issues/23307)
+* **mcp:** add list content tool ([#23907](https://github.com/lightdash/lightdash/issues/23907)) ([8c08c05](https://github.com/lightdash/lightdash/commit/8c08c05b8afb4f688938d8a853de2e639338f96c))
+
 # [0.3134.0](https://github.com/lightdash/lightdash/compare/0.3133.0...0.3134.0) (2026-06-10)
 
 
