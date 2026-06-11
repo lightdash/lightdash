@@ -14,6 +14,7 @@ import {
     useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
+import { useColumnTotalsEnabledByDefault } from '../../../hooks/useAsyncCalculateTotal';
 import { useColumns } from '../../../hooks/useColumns';
 import { useExplore } from '../../../hooks/useExplore';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
@@ -91,7 +92,12 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
         unpivotedQueryResults,
         unpivotedEnabled,
         missingRequiredParameters,
+        projectUuid,
     } = useExplorerQuery();
+
+    // Hide the totals footer entirely when the `column_totals` project
+    // default disables totals for the results table
+    const totalsEnabledByDefault = useColumnTotalsEnabledByDefault(projectUuid);
 
     const dimensions = query.data?.metricQuery?.dimensions ?? [];
     const metrics = query.data?.metricQuery?.metrics ?? [];
@@ -372,9 +378,9 @@ export const ExplorerResults = memo(({ viewMode }: ExplorerResultsProps) => {
     );
     const footer = useMemo(
         () => ({
-            show: true,
+            show: totalsEnabledByDefault,
         }),
-        [],
+        [totalsEnabledByDefault],
     );
 
     if (!activeTableName) return <NoTableSelected />;

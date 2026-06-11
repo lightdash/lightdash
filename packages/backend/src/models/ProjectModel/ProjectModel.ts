@@ -1233,6 +1233,7 @@ export class ProjectModel {
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,
             hasDefaultUserSpaces: project.hasDefaultUserSpaces,
+            projectDefaults: project.projectDefaults,
             colorPaletteUuid: project.colorPaletteUuid ?? null,
             expiresAt: project.expiresAt,
         };
