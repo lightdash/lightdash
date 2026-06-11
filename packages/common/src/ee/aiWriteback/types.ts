@@ -49,6 +49,16 @@ export type AiWritebackRunResult = {
     exitCode: number;
     prUrl: string | null;
     prAction: PullRequestWritebackAction | null;
+    /**
+     * Head commit SHA this turn pushed onto the PR's branch; null when no commit
+     * was made (no file changes, or the agent crashed before pushing). Pins the
+     * PR card's CI checks to this turn's commit so a later turn's commit can't
+     * retroactively change what an earlier card shows.
+     */
+    commitSha: string | null;
+    /** Lines this turn's commit added/removed; null when no commit was made. */
+    additions: number | null;
+    deletions: number | null;
     projectName: string;
     repository: string;
     /** Ordered actions the sandbox took, for the chat UI's step rows. */

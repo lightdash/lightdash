@@ -131,6 +131,11 @@ export type AppliedChanges = {
     prUrl: string | null;
     prCreated: boolean;
     pauseOnExit: boolean;
+    /** Head commit SHA this turn pushed; null when no commit was made. */
+    commitSha: string | null;
+    /** Lines this turn's commit added/removed; null when no commit was made. */
+    additions: number | null;
+    deletions: number | null;
 };
 
 export type AiWritebackSource =

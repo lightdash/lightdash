@@ -3,12 +3,10 @@ import {
     Box,
     Button,
     Group,
-    Loader,
     Paper,
     Stack,
     Text,
     ThemeIcon,
-    Tooltip,
 } from '@mantine-8/core';
 import {
     IconAlertTriangle,
@@ -17,26 +15,18 @@ import {
     IconExternalLink,
     IconEye,
     IconGitPullRequest,
-    IconInfoCircle,
     IconSettings,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import { useProjectCiStatus } from '../../../hooks/useProjectCiStatus';
-import {
-    isPreviewWaitTimedOut,
-    usePullRequestPreview,
-} from '../../../hooks/usePullRequestPreview';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
 
 type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
     projectUuid: string;
-    /** When the write-back PR was opened — anchors the ~10 min preview wait. */
-    prCreatedAt: string;
     /**
      * True when this card belongs to a `setupPreviewDeploy` PR (one that adds
      * the preview-deploy workflow) rather than a data-change `editDbtProject`
@@ -46,9 +36,10 @@ type Props = {
     isPreviewDeploySetup: boolean;
 };
 
-// Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle #29"
-// so the user can verify where the PR landed at a glance. Best-effort — any
-// non-GitHub host or malformed path falls back to the raw hostname.
+// Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle"
+// so the user can verify which repo the PR landed in at a glance. The PR number
+// itself lives on the link button. Best-effort — any non-GitHub host or
+// malformed path falls back to the raw hostname.
 const summarisePrUrl = (prUrl: string): string | null => {
     try {
         const url = new URL(prUrl);
@@ -58,8 +49,8 @@ const summarisePrUrl = (prUrl: string): string | null => {
             segments.length >= 4 &&
             segments[2] === 'pull'
         ) {
-            const [owner, repo, , number] = segments;
-            return `${owner}/${repo} #${number}`;
+            const [owner, repo] = segments;
+            return `${owner}/${repo}`;
         }
         return url.hostname;
     } catch {
@@ -115,30 +106,8 @@ const InstallAppButton: FC<{
 export const AiEditDbtProjectToolCall: FC<Props> = ({
     metadata,
     projectUuid,
-    prCreatedAt,
     isPreviewDeploySetup,
 }) => {
-    const prUrl = metadata.status === 'success' ? metadata.prUrl : null;
-
-    // Does this project's repo deploy Lightdash previews? `false` means it was
-    // scanned and has no preview workflow; `undefined`/null means unknown.
-    const { data: ciStatus } = useProjectCiStatus(projectUuid);
-    const previewDeployConfigured = ciStatus?.hasPreviewDeployWorkflow;
-
-    // Only wait for a preview URL when one is actually expected — poll unless we
-    // positively know the repo has no preview workflow (avoids polling forever
-    // on repos that never produce a preview). The poll also stops ~10 min after
-    // the PR was opened. A preview-deploy *setup* PR never previews itself, so
-    // never poll for one.
-    const { data: preview } = usePullRequestPreview(
-        projectUuid,
-        isPreviewDeploySetup || previewDeployConfigured === false
-            ? null
-            : prUrl,
-        prCreatedAt,
-    );
-    const previewTimedOut = isPreviewWaitTimedOut(prCreatedAt);
-
     if (metadata.status === 'error') {
         // When the project just needs its git app installed, the agent's reply
         // already explains it — surface only the one-click install action.
@@ -248,6 +217,22 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     }
 
     const summary = summarisePrUrl(metadata.prUrl);
+    // The commit this card is pinned to — shown so the user can see each turn's
+    // card tracks its own commit (and its CI), not just the PR's live head.
+    const shortCommitSha = metadata.commitSha
+        ? metadata.commitSha.slice(0, 7)
+        : null;
+    // This turn's line delta, shown colour-coded next to the commit.
+    const additions = metadata.additions ?? null;
+    const deletions = metadata.deletions ?? null;
+    const hasDiffStat = additions !== null || deletions !== null;
+    // Short PR/MR reference for the link button (e.g. "#123").
+    const prNumberMatch = metadata.prUrl.match(
+        /\/(?:pull|merge_requests)\/(\d+)/,
+    );
+    const prLinkLabel = prNumberMatch
+        ? `#${prNumberMatch[1]}`
+        : 'View pull request';
     const title = 'Edited semantic layer';
 
     return (
@@ -260,30 +245,72 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                     wrap="nowrap"
                 >
                     <Group gap="xs" align="center" wrap="nowrap">
-                        <ThemeIcon
-                            variant="light"
-                            color="green"
-                            radius="md"
-                            size="md"
-                        >
-                            <MantineIcon icon={IconGitPullRequest} size={16} />
-                        </ThemeIcon>
+                        <MantineIcon
+                            icon={IconGitPullRequest}
+                            size={18}
+                            color="ldGray.7"
+                        />
                         <Stack gap={0}>
                             <Text size="sm" fw={500}>
                                 {title}
                             </Text>
                             {summary && (
-                                <Text size="xs" c="ldGray.6">
-                                    {summary}
-                                </Text>
+                                <Group gap={6} wrap="nowrap">
+                                    <Text size="xs" c="ldGray.6">
+                                        {summary}
+                                    </Text>
+                                    {shortCommitSha && (
+                                        <>
+                                            <Text size="xs" c="ldGray.4">
+                                                ·
+                                            </Text>
+                                            <Text
+                                                size="xs"
+                                                c="ldGray.6"
+                                                ff="monospace"
+                                                title={
+                                                    metadata.commitSha ??
+                                                    undefined
+                                                }
+                                            >
+                                                {shortCommitSha}
+                                            </Text>
+                                        </>
+                                    )}
+                                    {hasDiffStat && (
+                                        <Group gap={4} wrap="nowrap">
+                                            {additions !== null && (
+                                                <Text
+                                                    size="xs"
+                                                    c="green"
+                                                    ff="monospace"
+                                                >
+                                                    +{additions}
+                                                </Text>
+                                            )}
+                                            {deletions !== null && (
+                                                <Text
+                                                    size="xs"
+                                                    c="red"
+                                                    ff="monospace"
+                                                >
+                                                    −{deletions}
+                                                </Text>
+                                            )}
+                                        </Group>
+                                    )}
+                                </Group>
                             )}
                         </Stack>
                     </Group>
                     <Box className={styles.actions}>
-                        {isPreviewDeploySetup ? null : preview?.previewUrl ? (
+                        {/* Preview URL is generated server-side during the run
+                            and carried in the tool metadata — no PR-comment
+                            lookup. A setup PR never previews itself. */}
+                        {!isPreviewDeploySetup && metadata.previewUrl && (
                             <Button
                                 component="a"
-                                href={preview.previewUrl}
+                                href={metadata.previewUrl}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 variant="default"
@@ -294,45 +321,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             >
                                 View preview
                             </Button>
-                        ) : previewDeployConfigured && !previewTimedOut ? (
-                            // A preview deploy is configured but its URL hasn't been
-                            // posted yet — surface that it's on the way rather than
-                            // showing nothing.
-                            <Button
-                                variant="default"
-                                size="compact-sm"
-                                disabled
-                                leftSection={<Loader size={14} />}
-                            >
-                                Preparing preview…
-                            </Button>
-                        ) : previewDeployConfigured && previewTimedOut ? (
-                            // Configured but no preview URL after ~10 min — the
-                            // deploy likely failed or was skipped. Tell the user
-                            // rather than spinning forever.
-                            <Tooltip
-                                withinPortal
-                                multiline
-                                w={220}
-                                label="The preview deploy didn't post a URL within 10 minutes. It may have failed or been skipped — check the pull request."
-                            >
-                                <Group gap={4} wrap="nowrap" c="ldGray.6">
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        size={14}
-                                    />
-                                    <Text size="xs" c="ldGray.6">
-                                        Preview didn't appear
-                                    </Text>
-                                </Group>
-                            </Tooltip>
-                        ) : null}
+                        )}
                         <Button
                             component="a"
                             href={metadata.prUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            variant="filled"
+                            variant="default"
                             size="compact-sm"
                             rightSection={
                                 <MantineIcon
@@ -341,13 +336,14 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                 />
                             }
                         >
-                            View pull request
+                            {prLinkLabel}
                         </Button>
                     </Box>
                 </Group>
                 <PullRequestCiChecks
                     projectUuid={projectUuid}
                     prUrl={metadata.prUrl}
+                    commitSha={metadata.commitSha ?? null}
                 />
             </Stack>
         </Paper>

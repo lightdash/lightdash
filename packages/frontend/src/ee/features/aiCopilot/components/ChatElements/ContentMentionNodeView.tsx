@@ -1,24 +1,37 @@
 import { ContentType, type ChartKind } from '@lightdash/common';
-import { IconLayoutDashboard } from '@tabler/icons-react';
+import { IconFile, IconLayoutDashboard } from '@tabler/icons-react';
 import { NodeViewWrapper, type NodeViewProps } from '@tiptap/react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import TruncatedText from '../../../../../components/common/TruncatedText';
 import styles from './AgentChatInput.module.css';
 
-const getContentMentionContentType = (value: unknown) =>
-    value === ContentType.DASHBOARD ? ContentType.DASHBOARD : ContentType.CHART;
+// File mentions reuse this node so they get the same pill chrome; they're
+// distinguished by a `file` contentType and carry the path in `label`.
+const FILE_CONTENT_TYPE = 'file';
+
+const getContentMentionContentType = (value: unknown) => {
+    if (value === FILE_CONTENT_TYPE) return FILE_CONTENT_TYPE;
+    return value === ContentType.DASHBOARD
+        ? ContentType.DASHBOARD
+        : ContentType.CHART;
+};
 
 export const ContentMentionNodeView = ({ node }: NodeViewProps) => {
     const contentType = getContentMentionContentType(node.attrs.contentType);
-    const Icon =
-        contentType === ContentType.DASHBOARD
-            ? IconLayoutDashboard
-            : getChartIcon(
-                  (node.attrs.chartKind as ChartKind | null) ?? undefined,
-              );
-    const iconColor =
-        contentType === ContentType.DASHBOARD ? 'green.7' : 'blue.7';
+    const isFile = contentType === FILE_CONTENT_TYPE;
+    const Icon = isFile
+        ? IconFile
+        : contentType === ContentType.DASHBOARD
+          ? IconLayoutDashboard
+          : getChartIcon(
+                (node.attrs.chartKind as ChartKind | null) ?? undefined,
+            );
+    const iconColor = isFile
+        ? 'ldGray.6'
+        : contentType === ContentType.DASHBOARD
+          ? 'green.7'
+          : 'blue.7';
     const label = typeof node.attrs.label === 'string' ? node.attrs.label : '';
 
     return (

@@ -53,10 +53,16 @@ import {
 import type {
     AdoptPullRequestArgs,
     GitProvider,
+    LandedCommit,
     OpenPullRequestArgs,
     UpdatePullRequestArgs,
 } from './GitProvider';
-import { collectFileChanges, commitLocal, stageChanges } from './sandboxGit';
+import {
+    collectDiffStat,
+    collectFileChanges,
+    commitLocal,
+    stageChanges,
+} from './sandboxGit';
 
 const asGithubConnection = (connection: GitConnection): GithubConnection => {
     if (connection.provider !== PullRequestProvider.GITHUB) {
@@ -228,7 +234,9 @@ export class GithubProvider implements GitProvider {
         };
     }
 
-    async openPullRequest(args: OpenPullRequestArgs): Promise<string> {
+    async openPullRequest(
+        args: OpenPullRequestArgs,
+    ): Promise<{ prUrl: string } & LandedCommit> {
         const { sandbox, title, description, user, setStage } = args;
         const connection = asGithubConnection(args.connection);
         const installation = asGithubInstallation(args.installation);
@@ -258,7 +266,7 @@ export class GithubProvider implements GitProvider {
         });
         await sandbox.git.createBranch(CWD, branch);
 
-        await this.commitChangesToBranch({
+        const landed = await this.commitChangesToBranch({
             sandbox,
             connection,
             installation,
@@ -280,10 +288,12 @@ export class GithubProvider implements GitProvider {
             base: baseBranch,
             ...auth,
         });
-        return pr.html_url;
+        return { prUrl: pr.html_url, ...landed };
     }
 
-    async updatePullRequest(args: UpdatePullRequestArgs): Promise<void> {
+    async updatePullRequest(
+        args: UpdatePullRequestArgs,
+    ): Promise<LandedCommit> {
         const { sandbox, prUrl, title, description, user, setStage } = args;
         const connection = asGithubConnection(args.connection);
         const installation = asGithubInstallation(args.installation);
@@ -305,7 +315,7 @@ export class GithubProvider implements GitProvider {
             ...auth,
         });
 
-        await this.commitChangesToBranch({
+        const landed = await this.commitChangesToBranch({
             sandbox,
             connection,
             installation,
@@ -326,6 +336,7 @@ export class GithubProvider implements GitProvider {
             body: description,
             ...auth,
         });
+        return landed;
     }
 
     async adoptPullRequest(
@@ -387,6 +398,10 @@ export class GithubProvider implements GitProvider {
      * HEAD so a subsequent resume turn's staged diff contains only that turn's
      * edits. The triggering user is credited as a `Co-authored-by:` trailer
      * (alongside the app-bot trailer) since the PR is opened by the app.
+     *
+     * Returns the new commit's SHA (the GraphQL mutation's `oid`) and this
+     * turn's staged line stat, so the card can pin CI to exactly this commit and
+     * show its diff stat.
      */
     private async commitChangesToBranch({
         sandbox,
@@ -408,10 +423,13 @@ export class GithubProvider implements GitProvider {
         description: string;
         user: SessionUser;
         setStage: SetStage;
-    }): Promise<void> {
+    }): Promise<LandedCommit> {
         setStage('commit');
         await stageChanges(sandbox, connection.projectSubPath, this.logger);
         const fileChanges = await collectFileChanges(sandbox);
+        // Read the line stat while the change is still staged — the local commit
+        // below clears the index.
+        const diffStat = await collectDiffStat(sandbox);
         await commitLocal(sandbox, title, installation.commitAuthor);
 
         setStage('push');
@@ -430,7 +448,7 @@ export class GithubProvider implements GitProvider {
                 ? `${description}\n\n${coAuthorTrailer}`
                 : coAuthorTrailer;
         }
-        await createSignedCommitOnBranch({
+        const commit = await createSignedCommitOnBranch({
             owner: connection.owner,
             repo: connection.repo,
             branch,
@@ -440,5 +458,6 @@ export class GithubProvider implements GitProvider {
             fileChanges,
             ...githubAuth(installation),
         });
+        return { commitSha: commit.oid, ...diffStat };
     }
 }

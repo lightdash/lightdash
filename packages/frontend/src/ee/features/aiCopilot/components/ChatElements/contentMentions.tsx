@@ -4,11 +4,16 @@ import {
     type AiPromptContextInput,
     type AiPromptContextItem,
     type ApiContentResponse,
+    type ApiProjectFilesResponse,
     type ChartKind,
     type SummaryContent,
 } from '@lightdash/common';
 import { Group, Text } from '@mantine-8/core';
-import { IconCircleCheck, IconLayoutDashboard } from '@tabler/icons-react';
+import {
+    IconCircleCheck,
+    IconFile,
+    IconLayoutDashboard,
+} from '@tabler/icons-react';
 import Mention, { type MentionOptions } from '@tiptap/extension-mention';
 import { type DOMOutputSpec } from '@tiptap/pm/model';
 import { PluginKey } from '@tiptap/pm/state';
@@ -66,11 +71,82 @@ export type ContentMentionSuggestionItem = SuggestionItem & {
     verified?: boolean;
 };
 
-const groupLabels: Record<ContentMentionGroup, string> = {
+const FILE_MENTION_GROUP = 'file';
+// `contentType` value marking a content-mention node as a file (vs chart /
+// dashboard). The node carries the path in `label`; no context payload.
+const FILE_MENTION_CONTENT_TYPE = 'file';
+const MAX_FILE_SUGGESTIONS = 8;
+
+// A dbt source file the user can `@`-mention. Unlike content mentions it carries
+// no context payload — picking it inserts the path as plain text so the agent
+// reads the file itself via its repoShell tool (the "path reference" approach).
+export type FileMentionSuggestionItem = SuggestionItem & {
+    kind: 'file';
+    path: string;
+    group: typeof FILE_MENTION_GROUP;
+};
+
+export type AnyMentionSuggestionItem =
+    | ContentMentionSuggestionItem
+    | FileMentionSuggestionItem;
+
+const isFileMentionItem = (
+    item: AnyMentionSuggestionItem,
+): item is FileMentionSuggestionItem => 'kind' in item && item.kind === 'file';
+
+// Keyed by group string (content groups + the file group) so the suggestion
+// list can label every section it renders.
+const groupLabels: Record<string, string> = {
     thread: 'Already mentioned',
     current: 'Current page',
     dashboardTile: 'Dashboard tiles',
     search: 'Search results',
+    [FILE_MENTION_GROUP]: 'Files',
+};
+
+// The project's file list is the same for every keystroke in a thread, so fetch
+// it once per project and filter client-side. Errors (non-GitHub project, no
+// source-code access) resolve to an empty list — the Files group just doesn't
+// appear.
+const projectFilesCache = new Map<string, Promise<string[]>>();
+
+const fetchProjectFiles = (projectUuid: string): Promise<string[]> => {
+    const cached = projectFilesCache.get(projectUuid);
+    if (cached) return cached;
+    const request = lightdashApi<ApiProjectFilesResponse['results']>({
+        version: 'v1',
+        url: `/ee/projects/${projectUuid}/ai-writeback/project-files`,
+        method: 'GET',
+        body: undefined,
+    })
+        .then((results) => results.files)
+        .catch((error: unknown) => {
+            // An empty list (no Files group) is the intended fallback for
+            // non-GitHub projects or missing source-code access — but log so a
+            // genuine failure is still traceable rather than silently swallowed.
+            console.error('Failed to load project files for @-mentions', error);
+            return [] as string[];
+        });
+    projectFilesCache.set(projectUuid, request);
+    return request;
+};
+
+const getProjectFileSuggestions = async (
+    projectUuid: string | undefined,
+    query: string,
+): Promise<FileMentionSuggestionItem[]> => {
+    if (!projectUuid) return [];
+    const files = await fetchProjectFiles(projectUuid);
+    const matched = query.trim()
+        ? files.filter((path) => fuzzyContentMentionLabelMatch(path, query))
+        : files;
+    return matched.slice(0, MAX_FILE_SUGGESTIONS).map((path) => ({
+        id: `file:${path}`,
+        label: path,
+        kind: 'file',
+        path,
+        group: FILE_MENTION_GROUP,
+    }));
 };
 
 export const isContentMentionSuggestionActive = (editor: Editor | null) => {
@@ -81,12 +157,14 @@ export const isContentMentionSuggestionActive = (editor: Editor | null) => {
     return state?.active === true;
 };
 
-const getContentMentionContentType = (value: unknown) =>
-    value === ContentType.DASHBOARD ? ContentType.DASHBOARD : ContentType.CHART;
+const getContentMentionContentType = (value: unknown) => {
+    if (value === FILE_MENTION_CONTENT_TYPE) return FILE_MENTION_CONTENT_TYPE;
+    return value === ContentType.DASHBOARD
+        ? ContentType.DASHBOARD
+        : ContentType.CHART;
+};
 
-const getContentMentionIconSpec = (
-    contentType: ContentType.CHART | ContentType.DASHBOARD,
-): DOMOutputSpec => [
+const getContentMentionIconSpec = (contentType: string): DOMOutputSpec => [
     'span',
     {
         class: styles.contentMentionIcon,
@@ -297,11 +375,46 @@ export const getContentMentionEmptyMessage = (query: string) => {
     return `Type ${remainingChars} more characters to search content`;
 };
 
-const renderContentMentionItem = (
-    item: ContentMentionSuggestionItem,
+const renderFileMentionItem = (
+    item: FileMentionSuggestionItem,
     isSelected: boolean,
     onClick: () => void,
 ) => {
+    // Show the basename prominently and the parent directory as the detail, so
+    // files with the same name in different models are still distinguishable.
+    const lastSlash = item.path.lastIndexOf('/');
+    const name = lastSlash >= 0 ? item.path.slice(lastSlash + 1) : item.path;
+    const dir = lastSlash >= 0 ? item.path.slice(0, lastSlash) : '';
+
+    return (
+        <PolymorphicGroupButton
+            onClick={onClick}
+            className={`${suggestionStyles.suggestionItem} ${styles.contentMentionSuggestionItem}`}
+            data-selected={isSelected}
+        >
+            <Group wrap="nowrap" gap="xs" w="100%">
+                <MantineIcon icon={IconFile} size="sm" color="ldGray.6" />
+                <div className={styles.contentMentionSuggestionText}>
+                    <TruncatedText maxWidth="100%" fz="xs" fw={500} inline>
+                        {name}
+                    </TruncatedText>
+                    <Text size="xs" c="dimmed" truncate>
+                        {dir || groupLabels[FILE_MENTION_GROUP]}
+                    </Text>
+                </div>
+            </Group>
+        </PolymorphicGroupButton>
+    );
+};
+
+const renderContentMentionItem = (
+    item: AnyMentionSuggestionItem,
+    isSelected: boolean,
+    onClick: () => void,
+) => {
+    if (isFileMentionItem(item)) {
+        return renderFileMentionItem(item, isSelected, onClick);
+    }
     const Icon =
         item.contentType === ContentType.DASHBOARD
             ? IconLayoutDashboard
@@ -360,31 +473,51 @@ const generateContentMentionSuggestion = ({
     char: '@',
     allowSpaces: true,
     pluginKey: contentMentionPluginKey,
-    items: ({ query }) =>
-        buildContentMentionSuggestionItems({
-            projectUuid: getProjectUuid(),
-            query,
-            priorityItems: getPriorityItems(),
-        }),
+    items: async ({ query }) => {
+        const projectUuid = getProjectUuid();
+        const [contentItems, fileItems] = await Promise.all([
+            buildContentMentionSuggestionItems({
+                projectUuid,
+                query,
+                priorityItems: getPriorityItems(),
+            }),
+            getProjectFileSuggestions(projectUuid, query),
+        ]);
+        return [...contentItems, ...fileItems];
+    },
     command: ({ editor, range, props }) => {
-        const item = props as ContentMentionSuggestionItem;
+        const item = props as AnyMentionSuggestionItem;
+        // File mentions reuse the content-mention atom so they render as the
+        // same pill, distinguished by a `file` contentType with the path stored
+        // in `label`. The node's `renderText` returns the label, so the path
+        // still lands in the prompt text verbatim — the agent reads the file via
+        // repoShell (no context payload, unlike chart/dashboard mentions).
+        const attrs = isFileMentionItem(item)
+            ? {
+                  contentType: FILE_MENTION_CONTENT_TYPE,
+                  uuid: null,
+                  slug: null,
+                  label: item.path,
+                  chartKind: null,
+                  dashboardUuid: null,
+                  dashboardSlug: null,
+                  dashboardName: null,
+              }
+            : {
+                  contentType: item.contentType,
+                  uuid: item.uuid,
+                  slug: item.slug,
+                  label: item.label,
+                  chartKind: item.chartKind ?? null,
+                  dashboardUuid: item.dashboardUuid ?? null,
+                  dashboardSlug: item.dashboardSlug ?? null,
+                  dashboardName: item.dashboardName ?? null,
+              };
         editor
             .chain()
             .focus()
             .insertContentAt(range, [
-                {
-                    type: CONTENT_MENTION_NAME,
-                    attrs: {
-                        contentType: item.contentType,
-                        uuid: item.uuid,
-                        slug: item.slug,
-                        label: item.label,
-                        chartKind: item.chartKind ?? null,
-                        dashboardUuid: item.dashboardUuid ?? null,
-                        dashboardSlug: item.dashboardSlug ?? null,
-                        dashboardName: item.dashboardName ?? null,
-                    },
-                },
+                { type: CONTENT_MENTION_NAME, attrs },
                 { type: 'text', text: ' ' },
             ])
             .run();
@@ -399,7 +532,7 @@ const generateContentMentionSuggestion = ({
                     props: {
                         ...props,
                         renderItem: renderContentMentionItem,
-                        getGroupKey: (item: ContentMentionSuggestionItem) =>
+                        getGroupKey: (item: AnyMentionSuggestionItem) =>
                             item.group,
                         groupLabels,
                         emptyMessage: getContentMentionEmptyMessage(

@@ -1,25 +1,44 @@
-.table {
-    border: 1px solid var(--mantine-color-default-border);
+/* The whole verdict line is a toggle — full width so the click target is the
+   entire row, but it stays visually quiet (no border, no background). */
+.summary {
+    flex: 1;
+    min-width: 0;
     border-radius: var(--mantine-radius-sm);
-    overflow: hidden;
+    padding: 2px 4px;
+    transition: background-color 100ms ease;
+}
+
+.summary:hover {
+    background-color: var(--mantine-color-default-hover);
+}
+
+.chevron,
+.chevronOpen {
+    transition: transform 150ms ease;
+}
+
+.chevronOpen {
+    transform: rotate(90deg);
+}
+
+.table {
+    margin-top: 4px;
+    padding-left: var(--mantine-spacing-lg);
 }
 
 .row {
     width: 100%;
-    padding: var(--mantine-spacing-xs) var(--mantine-spacing-sm);
+    padding: 4px var(--mantine-spacing-xs);
+    border-radius: var(--mantine-radius-sm);
     text-decoration: none;
     transition: background-color 100ms ease;
-}
-
-.row:not(:last-of-type) {
-    border-bottom: 1px solid var(--mantine-color-default-border);
 }
 
 .row:hover {
     background-color: var(--mantine-color-default-hover);
 }
 
-/* Name grows to push the state label + external-link affordance to the right. */
+/* Name grows to push the status icon to the right. */
 .name {
     flex: 1;
     min-width: 0;

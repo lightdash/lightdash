@@ -97,10 +97,18 @@ export class CiService extends BaseService {
         user,
         projectUuid,
         prUrl,
+        commitSha,
     }: {
         user: SessionUser;
         projectUuid: string;
         prUrl: string;
+        /**
+         * Pin the checks to a specific commit. When set, CI is resolved for this
+         * exact SHA rather than the PR's live head branch — so an earlier turn's
+         * card keeps showing its own commit's checks after a later turn pushes a
+         * new commit. Omitted (older persisted cards) falls back to the head.
+         */
+        commitSha?: string;
     }): Promise<CiChecks | null> {
         const project = await this.projectModel.get(projectUuid);
         if (
@@ -156,8 +164,9 @@ export class CiService extends BaseService {
             const token =
                 await this.githubClient.getInstallationToken(installationId);
 
-            // CI runs are keyed by ref; the PR's head branch is the ref whose
-            // checks we want. (A closed/merged PR still resolves its head ref.)
+            // The PR is still fetched for its policy-derived merge verdict
+            // (mergeable_state), which is inherently a property of the PR's
+            // current head — not of a historical commit.
             const pullRequest = await this.githubClient.getPullRequest({
                 owner: parsed.owner,
                 repo: parsed.repo,
@@ -165,10 +174,14 @@ export class CiService extends BaseService {
                 token,
             });
 
+            // CI runs are keyed by ref. Pin to the caller's commit SHA when
+            // given (so an earlier card stays tied to its own commit); otherwise
+            // fall back to the PR's head branch (older cards, no-commit turns).
+            // A closed/merged PR still resolves its head ref.
             const checks = await provider.getChecksForRef({
                 owner: parsed.owner,
                 repo: parsed.repo,
-                ref: pullRequest.headRef,
+                ref: commitSha ?? pullRequest.headRef,
                 auth: { token },
             });
 

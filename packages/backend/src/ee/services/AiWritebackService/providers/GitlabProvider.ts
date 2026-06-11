@@ -45,10 +45,11 @@ import {
 import type {
     AdoptPullRequestArgs,
     GitProvider,
+    LandedCommit,
     OpenPullRequestArgs,
     UpdatePullRequestArgs,
 } from './GitProvider';
-import { commitLocal, stageChanges } from './sandboxGit';
+import { collectDiffStat, commitLocal, stageChanges } from './sandboxGit';
 
 const asGitlabConnection = (connection: GitConnection): GitlabConnection => {
     if (connection.provider !== PullRequestProvider.GITLAB) {
@@ -211,7 +212,9 @@ export class GitlabProvider implements GitProvider {
         };
     }
 
-    async openPullRequest(args: OpenPullRequestArgs): Promise<string> {
+    async openPullRequest(
+        args: OpenPullRequestArgs,
+    ): Promise<{ prUrl: string } & LandedCommit> {
         const { sandbox, title, description, user, setStage } = args;
         const connection = asGitlabConnection(args.connection);
         const installation = asGitlabInstallation(args.installation);
@@ -223,7 +226,7 @@ export class GitlabProvider implements GitProvider {
         const branch = `lightdash-ai-writeback/${randomUUID()}`;
         await sandbox.git.createBranch(CWD, branch);
 
-        await this.landChanges({
+        const landed = await this.landChanges({
             sandbox,
             connection,
             installation,
@@ -244,10 +247,12 @@ export class GitlabProvider implements GitProvider {
             token: installation.token,
             hostDomain: connection.hostDomain,
         });
-        return mr.html_url;
+        return { prUrl: mr.html_url, ...landed };
     }
 
-    async updatePullRequest(args: UpdatePullRequestArgs): Promise<void> {
+    async updatePullRequest(
+        args: UpdatePullRequestArgs,
+    ): Promise<LandedCommit> {
         const { sandbox, prUrl, title, description, user, setStage } = args;
         const connection = asGitlabConnection(args.connection);
         const installation = asGitlabInstallation(args.installation);
@@ -261,7 +266,7 @@ export class GitlabProvider implements GitProvider {
             );
         }
 
-        await this.landChanges({
+        const landed = await this.landChanges({
             sandbox,
             connection,
             installation,
@@ -281,6 +286,7 @@ export class GitlabProvider implements GitProvider {
             token: installation.token,
             hostDomain: connection.hostDomain,
         });
+        return landed;
     }
 
     async adoptPullRequest(
@@ -345,6 +351,10 @@ export class GitlabProvider implements GitProvider {
      * the triggering Lightdash user as a co-author), and push the branch over
      * HTTPS (`oauth2:<token>`). GitLab commits are unsigned — there is no
      * app-signing equivalent — which is accepted.
+     *
+     * Returns the pushed commit's SHA (read from the sandbox HEAD) and this
+     * turn's staged line stat, so the card can pin the MR's CI checks to exactly
+     * this commit and show its diff stat.
      */
     private async landChanges({
         sandbox,
@@ -362,9 +372,11 @@ export class GitlabProvider implements GitProvider {
         title: string;
         user: SessionUser;
         setStage: SetStage;
-    }): Promise<void> {
+    }): Promise<LandedCommit> {
         setStage('commit');
         await stageChanges(sandbox, connection.projectSubPath, this.logger);
+        // Read the line stat while still staged — the local commit clears it.
+        const diffStat = await collectDiffStat(sandbox);
         const userTrailer = buildUserCoAuthorTrailer(user);
         const message = userTrailer ? `${title}\n\n${userTrailer}` : title;
         await commitLocal(sandbox, message, installation.commitAuthor);
@@ -377,5 +389,10 @@ export class GitlabProvider implements GitProvider {
             password: installation.token,
             setUpstream: true,
         });
+
+        const { stdout } = await sandbox.commands.run(
+            `git -C ${CWD} rev-parse HEAD`,
+        );
+        return { commitSha: stdout.trim(), ...diffStat };
     }
 }

@@ -10,15 +10,22 @@ import { lightdashApi } from '../../../../api';
 const getPullRequestCiChecks = (
     projectUuid: string,
     prUrl: string,
-): Promise<CiChecks | null> =>
-    lightdashApi<CiChecks | null>({
+    commitSha: string | null,
+): Promise<CiChecks | null> => {
+    const params = new URLSearchParams({ prUrl });
+    // Pin the checks to this card's own commit so a later turn's commit doesn't
+    // retroactively change them; omitted for cards persisted before commitSha
+    // existed (the backend then falls back to the PR's live head).
+    if (commitSha) {
+        params.set('commitSha', commitSha);
+    }
+    return lightdashApi<CiChecks | null>({
         version: 'v1',
-        url: `/ee/projects/${projectUuid}/ai-writeback/ci-checks?prUrl=${encodeURIComponent(
-            prUrl,
-        )}`,
+        url: `/ee/projects/${projectUuid}/ai-writeback/ci-checks?${params.toString()}`,
         method: 'GET',
         body: undefined,
     });
+};
 
 // While any check is still running — or GitHub is still computing
 // mergeability — we re-poll; once both have settled the status is stable.
@@ -32,10 +39,11 @@ const CI_POLL_INTERVAL_MS = 15_000;
 export const usePullRequestCiChecks = (
     projectUuid: string | undefined,
     prUrl: string | null | undefined,
+    commitSha: string | null,
 ) =>
     useQuery<CiChecks | null, ApiError>({
-        queryKey: ['pullRequestCiChecks', projectUuid, prUrl],
-        queryFn: () => getPullRequestCiChecks(projectUuid!, prUrl!),
+        queryKey: ['pullRequestCiChecks', projectUuid, prUrl, commitSha],
+        queryFn: () => getPullRequestCiChecks(projectUuid!, prUrl!, commitSha),
         enabled: !!projectUuid && !!prUrl,
         refetchInterval: (data) =>
             data &&

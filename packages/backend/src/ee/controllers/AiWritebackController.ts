@@ -6,6 +6,7 @@ import {
     type ApiCiChecksResponse,
     type ApiErrorPayload,
     type ApiProjectCiStatusResponse,
+    type ApiProjectFilesResponse,
 } from '@lightdash/common';
 import {
     Body,
@@ -128,6 +129,7 @@ export class AiWritebackController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
         @Query() prUrl: string,
+        @Query() commitSha?: string,
     ): Promise<ApiCiChecksResponse> {
         assertRegisteredAccount(req.account);
         this.setStatus(200);
@@ -137,7 +139,34 @@ export class AiWritebackController extends BaseController {
                 user: toSessionUser(req.account),
                 projectUuid,
                 prUrl,
+                commitSha,
             });
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * List the project's source files (relative to its dbt sub-folder) for the
+     * chat input's `@`-mention file picker. Requires view:SourceCode and a
+     * GitHub-connected dbt project; the client fetches once and filters locally.
+     * @summary List project files
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/project-files')
+    @OperationId('listProjectFiles')
+    async listProjectFiles(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiProjectFilesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAiWritebackService().listProjectFiles({
+            user: toSessionUser(req.account),
+            projectUuid,
+        });
         return {
             status: 'ok',
             results,
