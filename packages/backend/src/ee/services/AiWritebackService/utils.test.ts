@@ -1,7 +1,10 @@
 import {
     DbtProjectType,
+    DbtVersionOptionLatest,
+    getLatestSupportDbtVersion,
     ParameterError,
     PullRequestProvider,
+    SupportedDbtVersions,
     type DbtGithubProjectConfig,
     type DbtGitlabProjectConfig,
     type DbtProjectConfig,
@@ -20,6 +23,7 @@ import {
     buildNoreplyEmail,
     buildUserCoAuthorTrailer,
     classifyToolStep,
+    dbtSandboxVenvBin,
     extractPrMetadata,
     formatWritebackStep,
     interpretAgentEvent,
@@ -31,6 +35,7 @@ import {
     parsePullRequestUrl,
     progressTextForStage,
     resolvePrMetadataValue,
+    resolveSandboxDbtVersion,
     resolveSandboxTemplateRef,
     splitStreamBuffer,
     summarizeToolInput,
@@ -606,5 +611,58 @@ describe('resolveSandboxTemplateRef', () => {
 
     it('omits the tag separator when the tag is empty', () => {
         expect(resolveSandboxTemplateRef({ name: 'tpl', tag: '' })).toBe('tpl');
+    });
+});
+
+describe('dbtSandboxVenvBin', () => {
+    it.each([
+        [SupportedDbtVersions.V1_4, '/usr/local/dbt1.4/bin'],
+        [SupportedDbtVersions.V1_5, '/usr/local/dbt1.5/bin'],
+        [SupportedDbtVersions.V1_6, '/usr/local/dbt1.6/bin'],
+        [SupportedDbtVersions.V1_7, '/usr/local/dbt1.7/bin'],
+        [SupportedDbtVersions.V1_8, '/usr/local/dbt1.8/bin'],
+        [SupportedDbtVersions.V1_9, '/usr/local/dbt1.9/bin'],
+        [SupportedDbtVersions.V1_10, '/usr/local/dbt1.10/bin'],
+        [SupportedDbtVersions.V1_11, '/usr/local/dbt1.11/bin'],
+    ])('maps %s to its venv bin dir', (version, expected) => {
+        expect(dbtSandboxVenvBin(version)).toBe(expected);
+    });
+
+    it('covers every supported dbt version', () => {
+        // Guards against a new SupportedDbtVersions member being added without a
+        // corresponding case above.
+        const covered = [
+            SupportedDbtVersions.V1_4,
+            SupportedDbtVersions.V1_5,
+            SupportedDbtVersions.V1_6,
+            SupportedDbtVersions.V1_7,
+            SupportedDbtVersions.V1_8,
+            SupportedDbtVersions.V1_9,
+            SupportedDbtVersions.V1_10,
+            SupportedDbtVersions.V1_11,
+        ];
+        expect(new Set(covered)).toEqual(
+            new Set(Object.values(SupportedDbtVersions)),
+        );
+    });
+});
+
+describe('resolveSandboxDbtVersion', () => {
+    it.each([
+        // Below the supported range → clamped up to the oldest installed (1.8).
+        [SupportedDbtVersions.V1_4, SupportedDbtVersions.V1_8],
+        [SupportedDbtVersions.V1_7, SupportedDbtVersions.V1_8],
+        // In range → returned unchanged.
+        [SupportedDbtVersions.V1_8, SupportedDbtVersions.V1_8],
+        [SupportedDbtVersions.V1_9, SupportedDbtVersions.V1_9],
+        [SupportedDbtVersions.V1_11, SupportedDbtVersions.V1_11],
+    ])('clamps %s to %s', (input, expected) => {
+        expect(resolveSandboxDbtVersion(input)).toBe(expected);
+    });
+
+    it('resolves `latest` to the newest supported version', () => {
+        expect(resolveSandboxDbtVersion(DbtVersionOptionLatest.LATEST)).toBe(
+            getLatestSupportDbtVersion(),
+        );
     });
 });

@@ -3,12 +3,16 @@ import {
     DbtProjectType,
     ParameterError,
     PullRequestProvider,
+    resolveDbtVersion,
+    SupportedDbtVersions,
     type AiWritebackStep,
     type DbtProjectConfig,
+    type DbtVersionOption,
 } from '@lightdash/common';
 import type { AiWritebackFailureStage } from '../../../analytics/LightdashAnalytics';
 import {
     COMPILE_WRAPPER_PATH,
+    DBT_VENV_BIN_PREFIX,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
     PR_TITLE_CLOSE,
@@ -510,3 +514,39 @@ export const resolveSandboxTemplateRef = ({
     name: string;
     tag: string;
 }): string => (tag ? `${name}:${tag}` : name);
+
+/**
+ * Oldest dbt version installed in the sandbox image (see
+ * sandboxes/ai-writeback/e2b.Dockerfile). We support 1.8+ only: 1.4–1.7 are
+ * end-of-life and don't support the image's Python. Projects pinned below this
+ * are clamped to it by `resolveSandboxDbtVersion`.
+ */
+export const SANDBOX_MIN_DBT_VERSION = SupportedDbtVersions.V1_8;
+
+/**
+ * Resolve a project's `DbtVersionOption` to a concrete version that is actually
+ * installed in the sandbox: `latest` resolves to the newest supported version,
+ * and anything older than `SANDBOX_MIN_DBT_VERSION` clamps up to it (rather than
+ * pointing PATH at a venv the image doesn't contain). `SupportedDbtVersions` is
+ * declared in ascending order, so an enum-index comparison gives the clamp.
+ */
+export const resolveSandboxDbtVersion = (
+    option: DbtVersionOption,
+): SupportedDbtVersions => {
+    const resolved = resolveDbtVersion(option);
+    const order = Object.values(SupportedDbtVersions);
+    return order.indexOf(resolved) < order.indexOf(SANDBOX_MIN_DBT_VERSION)
+        ? SANDBOX_MIN_DBT_VERSION
+        : resolved;
+};
+
+/**
+ * Absolute path to the `bin` directory of the sandbox venv for a given dbt
+ * version. `SupportedDbtVersions` values are `v<major>.<minor>` (e.g. `v1.10`)
+ * and the image installs each version at `${DBT_VENV_BIN_PREFIX}<major>.<minor>`
+ * (e.g. `/usr/local/dbt1.10`), so we drop the leading `v`. The compile wrapper
+ * prepends this to PATH so the bare `dbt` resolves to the project's version.
+ * Callers must pass a sandbox-installed version (see `resolveSandboxDbtVersion`).
+ */
+export const dbtSandboxVenvBin = (version: SupportedDbtVersions): string =>
+    `${DBT_VENV_BIN_PREFIX}${version.slice(1)}/bin`;
