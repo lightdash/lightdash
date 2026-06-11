@@ -1,3 +1,15 @@
+# [0.3139.0](https://github.com/lightdash/lightdash/compare/0.3138.2...0.3139.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* upgrade react-router 7.14.2→7.15.0 (security) ([#23849](https://github.com/lightdash/lightdash/issues/23849)) ([7462e6c](https://github.com/lightdash/lightdash/commit/7462e6c6b927c72224c8816031a5ba8b29e220fc))
+
+
+### Features
+
+* **embed:** thread session timezone into query resolution ([#24182](https://github.com/lightdash/lightdash/issues/24182)) ([645314d](https://github.com/lightdash/lightdash/commit/645314d623f660aec4b9312cddff22e311053418))
+
 ## [0.3138.2](https://github.com/lightdash/lightdash/compare/0.3138.1...0.3138.2) (2026-06-11)
 
 
