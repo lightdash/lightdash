@@ -1157,6 +1157,14 @@ export class EmbedService extends BaseService {
             dashboardParameters,
         );
 
+        // The session timezone only takes effect when timezone support is
+        // enabled for the org; otherwise it is dropped so the param is inert.
+        const isTimezoneSupportEnabled =
+            await this.projectService.isTimezoneSupportEnabled({
+                userUuid: user?.userUuid ?? account.user.id,
+                organizationUuid,
+            });
+
         // Execute using AsyncQueryService method with embed context
         return this.asyncQueryService.executeAsyncDashboardChartQuery({
             account,
@@ -1172,7 +1180,9 @@ export class EmbedService extends BaseService {
             context: QueryExecutionContext.EMBED,
             parameters: combinedParameters,
             pivotResults,
-            sessionTimezone: timezone ?? null,
+            sessionTimezone: isTimezoneSupportEnabled
+                ? (timezone ?? null)
+                : null,
         });
     }
 
@@ -2086,20 +2096,25 @@ export class EmbedService extends BaseService {
                 filters,
             });
 
-        const projectTimezone =
-            await this.projectService.getQueryTimezoneForProject(projectUuid);
-        const timezone = resolveQueryTimezone({
-            sessionTimezone: sessionTimezoneParam ?? null,
-            metricQuery,
-            projectTimezone,
-            userTimezone: null,
-            isUserTimezoneEnabled: false,
-        });
         const useTimezoneAwareDateTrunc =
             await this.projectService.isTimezoneSupportEnabled({
                 userUuid: user?.userUuid ?? account.user.id,
                 organizationUuid: dashboard.organizationUuid,
             });
+
+        const projectTimezone =
+            await this.projectService.getQueryTimezoneForProject(projectUuid);
+        const timezone = resolveQueryTimezone({
+            // Gated like the tile path: the session timezone is dropped unless
+            // timezone support is enabled, leaving the param inert.
+            sessionTimezone: useTimezoneAwareDateTrunc
+                ? (sessionTimezoneParam ?? null)
+                : null,
+            metricQuery,
+            projectTimezone,
+            userTimezone: null,
+            isUserTimezoneEnabled: false,
+        });
 
         const { rows, cacheMetadata } = await this._runEmbedQuery({
             projectUuid: dashboard.projectUuid,
