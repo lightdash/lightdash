@@ -120,7 +120,13 @@ const fetchProjectFiles = (projectUuid: string): Promise<string[]> => {
         body: undefined,
     })
         .then((results) => results.files)
-        .catch(() => [] as string[]);
+        .catch((error: unknown) => {
+            // An empty list (no Files group) is the intended fallback for
+            // non-GitHub projects or missing source-code access — but log so a
+            // genuine failure is still traceable rather than silently swallowed.
+            console.error('Failed to load project files for @-mentions', error);
+            return [] as string[];
+        });
     projectFilesCache.set(projectUuid, request);
     return request;
 };
