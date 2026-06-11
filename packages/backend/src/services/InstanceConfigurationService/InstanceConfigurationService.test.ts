@@ -75,6 +75,7 @@ const createMockService = (overrides: AnyType = {}) => {
     const projectModel = {
         getDefaultProjectUuids: jest.fn(),
         getDefaultProjectUuidsByName: jest.fn(),
+        getSummary: jest.fn(),
         getWithSensitiveFields: jest.fn(),
         update: jest.fn(),
         ...overrides.projectModel,
@@ -108,6 +109,12 @@ const createMockService = (overrides: AnyType = {}) => {
         ...overrides.groupsModel,
     };
 
+    const rolesModel = {
+        getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+        getGroupProjectAccess: jest.fn().mockResolvedValue([]),
+        ...overrides.rolesModel,
+    };
+
     const lightdashConfig = {
         ...lightdashConfigMock,
         updateSetup: overrides.updateSetup || undefined,
@@ -131,6 +138,7 @@ const createMockService = (overrides: AnyType = {}) => {
         encryptionUtil: { encrypt: jest.fn() } as AnyType,
         userAttributesModel: userAttributesModel as AnyType,
         groupsModel: groupsModel as AnyType,
+        rolesModel: rolesModel as AnyType,
     });
 };
 
@@ -1035,6 +1043,349 @@ describe('InstanceConfigurationService.updateInstanceConfiguration', () => {
             await service.updateInstanceConfiguration();
 
             expect(find).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('group project access update scenarios', () => {
+        const orgWithSingleUuid = {
+            getOrgUuids: jest.fn().mockResolvedValue([mockOrgUuid]),
+        };
+
+        const baseEntry = {
+            groupName: 'Core Data Developer',
+            projectName: 'Production',
+            role: 'developer',
+        };
+
+        test('adds access for a new group resolved by name with a system role', async () => {
+            const addProjectAccess = jest.fn();
+            const updateProjectAccess = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [baseEntry],
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue(['proj-1']),
+                    getSummary: jest.fn(),
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [{ uuid: 'grp-1', name: 'Core Data Developer' }],
+                    }),
+                    addProjectAccess,
+                    updateProjectAccess,
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(addProjectAccess).toHaveBeenCalledWith({
+                groupUuid: 'grp-1',
+                projectUuid: 'proj-1',
+                role: 'developer',
+            });
+            expect(updateProjectAccess).not.toHaveBeenCalled();
+        });
+
+        test('resolves the project by projectUuid when provided', async () => {
+            const addProjectAccess = jest.fn();
+            const getSummary = jest.fn().mockResolvedValue({});
+            const getDefaultProjectUuidsByName = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [
+                        {
+                            groupName: 'Core Data Developer',
+                            projectUuid: 'proj-uuid-9',
+                            role: 'editor',
+                        },
+                    ],
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: { getSummary, getDefaultProjectUuidsByName },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [{ uuid: 'grp-1', name: 'Core Data Developer' }],
+                    }),
+                    addProjectAccess,
+                    updateProjectAccess: jest.fn(),
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(getSummary).toHaveBeenCalledWith('proj-uuid-9');
+            expect(getDefaultProjectUuidsByName).not.toHaveBeenCalled();
+            expect(addProjectAccess).toHaveBeenCalledWith({
+                groupUuid: 'grp-1',
+                projectUuid: 'proj-uuid-9',
+                role: 'editor',
+            });
+        });
+
+        test('resolves a custom role by name to its uuid', async () => {
+            const addProjectAccess = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [
+                        {
+                            groupName: 'Data Analyst',
+                            projectName: 'Production',
+                            role: 'PII Analyst',
+                        },
+                    ],
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue(['proj-1']),
+                    getSummary: jest.fn(),
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [{ uuid: 'grp-2', name: 'Data Analyst' }],
+                    }),
+                    addProjectAccess,
+                    updateProjectAccess: jest.fn(),
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest
+                        .fn()
+                        .mockResolvedValue([
+                            { roleUuid: 'role-uuid-7', name: 'PII Analyst' },
+                        ]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(addProjectAccess).toHaveBeenCalledWith({
+                groupUuid: 'grp-2',
+                projectUuid: 'proj-1',
+                role: 'role-uuid-7',
+            });
+        });
+
+        test('updates an existing access when the role differs', async () => {
+            const addProjectAccess = jest.fn();
+            const updateProjectAccess = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [baseEntry], // role: 'developer'
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue(['proj-1']),
+                    getSummary: jest.fn(),
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [{ uuid: 'grp-1', name: 'Core Data Developer' }],
+                    }),
+                    addProjectAccess,
+                    updateProjectAccess,
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([
+                        {
+                            groupUuid: 'grp-1',
+                            projectUuid: 'proj-1',
+                            roleUuid: 'viewer',
+                        },
+                    ]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(updateProjectAccess).toHaveBeenCalledWith(
+                { groupUuid: 'grp-1', projectUuid: 'proj-1' },
+                { role: 'developer', role_uuid: null },
+            );
+            expect(addProjectAccess).not.toHaveBeenCalled();
+        });
+
+        test('is a no-op when the existing role already matches', async () => {
+            const addProjectAccess = jest.fn();
+            const updateProjectAccess = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [baseEntry], // role: 'developer'
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue(['proj-1']),
+                    getSummary: jest.fn(),
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [{ uuid: 'grp-1', name: 'Core Data Developer' }],
+                    }),
+                    addProjectAccess,
+                    updateProjectAccess,
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([
+                        {
+                            groupUuid: 'grp-1',
+                            projectUuid: 'proj-1',
+                            roleUuid: 'developer',
+                        },
+                    ]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(addProjectAccess).not.toHaveBeenCalled();
+            expect(updateProjectAccess).not.toHaveBeenCalled();
+        });
+
+        test('skips (no throw) when the group is not found', async () => {
+            const addProjectAccess = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [baseEntry],
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue(['proj-1']),
+                    getSummary: jest.fn(),
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({ data: [] }),
+                    addProjectAccess,
+                    updateProjectAccess: jest.fn(),
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(addProjectAccess).not.toHaveBeenCalled();
+        });
+
+        test('skips (no throw) when the project name is not found', async () => {
+            const addProjectAccess = jest.fn();
+            const find = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [baseEntry],
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue([]),
+                    getSummary: jest.fn(),
+                },
+                groupsModel: {
+                    find,
+                    addProjectAccess,
+                    updateProjectAccess: jest.fn(),
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(addProjectAccess).not.toHaveBeenCalled();
+        });
+
+        test('skips (no throw) when a custom role name is not found', async () => {
+            const addProjectAccess = jest.fn();
+            service = createMockService({
+                updateSetup: {
+                    organizationUuid: mockOrgUuid,
+                    projects: [],
+                    groupProjectAccess: [
+                        {
+                            groupName: 'Data Analyst',
+                            projectName: 'Production',
+                            role: 'Nonexistent Role',
+                        },
+                    ],
+                },
+                organizationModel: orgWithSingleUuid,
+                projectModel: {
+                    getDefaultProjectUuidsByName: jest
+                        .fn()
+                        .mockResolvedValue(['proj-1']),
+                    getSummary: jest.fn(),
+                },
+                groupsModel: {
+                    find: jest.fn().mockResolvedValue({
+                        data: [{ uuid: 'grp-2', name: 'Data Analyst' }],
+                    }),
+                    addProjectAccess,
+                    updateProjectAccess: jest.fn(),
+                },
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn().mockResolvedValue([]),
+                    getGroupProjectAccess: jest.fn().mockResolvedValue([]),
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(addProjectAccess).not.toHaveBeenCalled();
+        });
+
+        test('does nothing when no groupProjectAccess is configured', async () => {
+            const getGroupProjectAccess = jest.fn();
+            service = createMockService({
+                updateSetup: { organizationUuid: mockOrgUuid, projects: [] },
+                organizationModel: orgWithSingleUuid,
+                rolesModel: {
+                    getRolesByOrganizationUuid: jest.fn(),
+                    getGroupProjectAccess,
+                },
+            });
+
+            await service.updateInstanceConfiguration();
+
+            expect(getGroupProjectAccess).not.toHaveBeenCalled();
         });
     });
 });

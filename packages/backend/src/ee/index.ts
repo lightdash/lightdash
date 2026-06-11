@@ -526,6 +526,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     encryptionUtil: utils.getEncryptionUtil(),
                     userAttributesModel: models.getUserAttributesModel(),
                     groupsModel: models.getGroupsModel(),
+                    rolesModel: models.getRolesModel(),
                 }),
             asyncQueryService: ({
                 models,
