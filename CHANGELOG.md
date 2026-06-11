@@ -1,3 +1,16 @@
+# [0.3144.0](https://github.com/lightdash/lightdash/compare/0.3143.1...0.3144.0) (2026-06-11)
+
+
+### Bug Fixes
+
+* **perf:** fire-and-forget analytics chart view event tracking ([#21548](https://github.com/lightdash/lightdash/issues/21548)) ([9a313f1](https://github.com/lightdash/lightdash/commit/9a313f12ff2e25f20dfbd0350de20b79c9d849d6))
+
+
+### Features
+
+* create new charts on embed ([#24172](https://github.com/lightdash/lightdash/issues/24172)) ([8529ea7](https://github.com/lightdash/lightdash/commit/8529ea7bc69ca8e33d2a16fd30c6b6978ca30618))
+* **embed:** support per-session timezone via ?timezone= URL param ([#24183](https://github.com/lightdash/lightdash/issues/24183)) ([63dcc7d](https://github.com/lightdash/lightdash/commit/63dcc7d3bd2862a13a378613fb5bd724eafdf94b))
+
 ## [0.3143.1](https://github.com/lightdash/lightdash/compare/0.3143.0...0.3143.1) (2026-06-11)
 
 
