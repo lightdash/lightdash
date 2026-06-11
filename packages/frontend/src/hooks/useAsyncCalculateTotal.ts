@@ -13,7 +13,9 @@ import {
 } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../api';
+import useEmbed from '../ee/providers/Embed/useEmbed';
 import { pollForResults } from '../features/queryRunner/executeQuery';
+import { useProject } from './useProject';
 
 // Reads every page of a ready query from the paginated results endpoint.
 const fetchAllResultRows = async (
@@ -95,6 +97,31 @@ const fetchTotals = async (
     // Polling endpoint defaults to page=1, so the READY response already
     // contains the single totals row — no separate stream fetch needed.
     return buildWarehouseColumnTotals(query.rows);
+};
+
+/**
+ * Whether column totals should be calculated when nothing has explicitly
+ * enabled them, e.g. the explorer results table. Controlled by the
+ * `column_totals` project default; charts that explicitly enable
+ * "Show column totals" should not use this.
+ *
+ * Returns false while the project is still loading so the totals query never
+ * fires before the default is known. The project endpoint requires app
+ * authentication, so embed mode skips it and keeps the default behavior.
+ */
+export const useColumnTotalsEnabledByDefault = (
+    projectUuid: string | undefined,
+): boolean => {
+    const { embedToken } = useEmbed();
+    const projectQuery = useProject(projectUuid, {
+        enabled: !embedToken && !!projectUuid,
+        // Errors fall back to the default behavior (totals enabled), so they
+        // shouldn't surface to the user
+        onError: () => {},
+    });
+    if (embedToken) return true;
+    if (projectQuery.isInitialLoading) return false;
+    return projectQuery.data?.projectDefaults?.column_totals !== false;
 };
 
 export const useAsyncCalculateTotal = ({

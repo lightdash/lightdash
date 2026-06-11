@@ -59,7 +59,10 @@ import {
 } from '../features/explorer/store';
 import { getFieldColors } from '../utils/fieldColors';
 import { TableCellBar } from './TableCellBar';
-import { useAsyncCalculateTotal } from './useAsyncCalculateTotal';
+import {
+    useAsyncCalculateTotal,
+    useColumnTotalsEnabledByDefault,
+} from './useAsyncCalculateTotal';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
 
@@ -513,10 +516,13 @@ export const useColumns = (): TableColumn[] => {
         ? unpivotedQueryResults.queryUuid
         : queryResults.queryUuid;
     const hasMetricFields = !!resultsMetricQuery?.metrics.length;
+    // The results table has no explicit "Show column totals" setting, so the
+    // `column_totals` project default decides whether the totals query runs
+    const totalsEnabledByDefault = useColumnTotalsEnabledByDefault(projectUuid);
     const { data: totals } = useAsyncCalculateTotal({
         projectUuid,
         sourceQueryUuid,
-        enabled: !!sourceQueryUuid && hasMetricFields,
+        enabled: !!sourceQueryUuid && hasMetricFields && totalsEnabledByDefault,
         invalidateCache: validQueryArgs?.invalidateCache,
     });
 

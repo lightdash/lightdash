@@ -26649,7 +26649,10 @@ const models: TsoaRoute.Models = {
         dataType: 'refAlias',
         type: {
             dataType: 'nestedObjectLiteral',
-            nestedProperties: { case_sensitive: { dataType: 'boolean' } },
+            nestedProperties: {
+                column_totals: { dataType: 'boolean' },
+                case_sensitive: { dataType: 'boolean' },
+            },
             validators: {},
         },
     },
