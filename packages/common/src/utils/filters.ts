@@ -152,6 +152,8 @@ export const getFilterTypeFromItemType = (
         case MetricType.BOOLEAN:
         case TableCalculationType.BOOLEAN:
             return FilterType.BOOLEAN;
+        case DimensionType.ARRAY:
+            return FilterType.ARRAY;
         default: {
             return assertUnreachable(
                 type,

@@ -194,6 +194,42 @@ export const renderStringFilterSql = (
     }
 };
 
+// Phase 1: only Databricks exposes ARRAY-typed columns; other warehouses map
+// array columns to STRING and never reach this function.
+export const renderArrayFilterSql = (
+    dimensionSql: string,
+    filter: FilterRule<FilterOperator, unknown>,
+    adapterType: SupportedDbtAdapter,
+    stringQuoteChar: string,
+): string => {
+    if (adapterType !== SupportedDbtAdapter.DATABRICKS) {
+        return raiseInvalidFilterError('array', filter);
+    }
+    const values = (filter.values ?? []).filter((v) => v !== '');
+    const quoted = values.map(
+        (v) => `${stringQuoteChar}${v}${stringQuoteChar}`,
+    );
+    const containsExpr =
+        quoted.length === 1
+            ? `array_contains(${dimensionSql}, ${quoted[0]})`
+            : `arrays_overlap(${dimensionSql}, array(${quoted.join(', ')}))`;
+
+    switch (filter.operator) {
+        case FilterOperator.INCLUDE:
+            return quoted.length > 0 ? `(${containsExpr})` : 'true';
+        case FilterOperator.NOT_INCLUDE:
+            return quoted.length > 0
+                ? `(NOT ${containsExpr} OR (${dimensionSql}) IS NULL)`
+                : 'true';
+        case FilterOperator.NULL:
+            return `(${dimensionSql}) IS NULL`;
+        case FilterOperator.NOT_NULL:
+            return `(${dimensionSql}) IS NOT NULL`;
+        default:
+            return raiseInvalidFilterError('array', filter);
+    }
+};
+
 // Validate that all values are valid numbers
 const validateAndSanitizeNumber = (value: unknown): number => {
     const num = Number(value);
@@ -880,6 +916,14 @@ export const renderFilterRuleSql = (
         case DimensionType.BOOLEAN:
         case MetricType.BOOLEAN: {
             return renderBooleanFilterSql(fieldSql, escapedFilterRule);
+        }
+        case DimensionType.ARRAY: {
+            return renderArrayFilterSql(
+                fieldSql,
+                escapedFilterRule,
+                adapterType,
+                stringQuoteChar,
+            );
         }
         default: {
             return assertUnreachable(

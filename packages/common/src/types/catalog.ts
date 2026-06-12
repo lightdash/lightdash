@@ -353,6 +353,7 @@ export const getBasicType = (field: CompiledDimension | CompiledMetric) => {
     const { type } = field;
     switch (type) {
         case DimensionType.STRING:
+        case DimensionType.ARRAY:
         case MetricType.STRING:
             return 'string' as const;
         case DimensionType.NUMBER:

@@ -667,6 +667,7 @@ export enum DimensionType {
     TIMESTAMP = 'timestamp',
     DATE = 'date',
     BOOLEAN = 'boolean',
+    ARRAY = 'array',
 }
 
 export interface Dimension extends Field {
@@ -755,7 +756,8 @@ export interface FilterableDimension extends Dimension {
         | DimensionType.NUMBER
         | DimensionType.DATE
         | DimensionType.TIMESTAMP
-        | DimensionType.BOOLEAN;
+        | DimensionType.BOOLEAN
+        | DimensionType.ARRAY;
 }
 
 export type FieldRef = string;
