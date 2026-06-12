@@ -435,7 +435,7 @@ The preview iframe uses `sandbox="allow-scripts allow-modals allow-downloads all
 - The iframe cannot access the parent page's cookies or storage
 - The iframe cannot make credentialed requests to the Lightdash API directly
 - All API communication goes through a `postMessage` bridge
-- The iframe can trigger user-initiated downloads for backend-generated CSV/XLSX exports
+- The iframe can trigger user-initiated downloads for backend-generated CSV/XLSX exports and client-generated PDF files
 
 `allow-modals` is enabled so that PDF Report templates (and any generated app that wants a Print button) can call
 `window.print()`. It also enables `alert`/`confirm`/`prompt`, which are an accepted trade-off: the iframe is still
@@ -443,8 +443,13 @@ isolated from the parent origin, the browser attributes dialog origins to the if
 already build an equivalent in-iframe HTML form.
 
 `allow-downloads` is enabled so generated apps can save CSV/XLSX exports produced by the Lightdash backend download
-pipeline. It does not grant parent-origin access; the app still schedules and polls export jobs through the
-parent-mediated SDK bridge.
+pipeline, and so PDF Report apps can save client-generated PDF files. It does not grant parent-origin access; the app
+still schedules and polls backend export jobs through the parent-mediated SDK bridge.
+
+PDF Report templates generate downloads in the iframe with pre-installed client-side libraries: `html-to-image`
+rasterizes the rendered report pages and `jspdf` writes the PDF file. This keeps PDF export independent of direct API
+access, but the output is image-based rather than selectable/searchable text. `window.print()` remains available as an
+optional Print action.
 
 ### PostMessage Bridge (`useAppSdkBridge`)
 

@@ -28,6 +28,7 @@
         "d3-sankey": "0.12.3",
         "date-fns": "3.6.0",
         "html-to-image": "1.11.13",
+        "jspdf": "4.2.1",
         "lodash-es": "4.18.1",
         "lucide-react": "0.469.0",
         "react": "19.2.5",
