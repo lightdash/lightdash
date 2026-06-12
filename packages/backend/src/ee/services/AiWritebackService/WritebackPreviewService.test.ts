@@ -15,6 +15,16 @@ const ORG = 'org-1';
 const PROJECT = 'project-1';
 const PR_URL = 'https://github.com/acme/analytics/pull/42';
 
+const openPullRequest = () => ({
+    state: 'open' as const,
+    merged: false,
+    headRef: 'feature/writeback',
+    headRepoFullName: 'acme/analytics',
+    mergeable: true,
+    mergeableState: 'clean',
+    draft: false,
+});
+
 const userWithSourceCodeAccess = (canViewSourceCode: boolean): SessionUser => {
     const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
     if (canViewSourceCode) {
@@ -49,11 +59,7 @@ const githubProject = (): AnyType => ({
 const makeGithubClient = (): jest.Mocked<WritebackPreviewGithubClient> =>
     ({
         getInstallationToken: jest.fn().mockResolvedValue('installation-token'),
-        getPullRequest: jest.fn().mockResolvedValue({
-            state: 'open',
-            headRef: 'feature/writeback',
-            headRepoFullName: 'acme/analytics',
-        }),
+        getPullRequest: jest.fn().mockResolvedValue(openPullRequest()),
         createPullRequestComment: jest.fn().mockResolvedValue(undefined),
     }) as AnyType;
 
@@ -169,8 +175,7 @@ describe('WritebackPreviewService.createPreviewForPullRequest', () => {
     it('returns null when the PR branch comes from a fork', async () => {
         const githubClient = makeGithubClient();
         githubClient.getPullRequest.mockResolvedValue({
-            state: 'open',
-            headRef: 'feature/writeback',
+            ...openPullRequest(),
             headRepoFullName: 'fork/analytics',
         });
         const projectService = {
