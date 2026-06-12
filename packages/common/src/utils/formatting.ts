@@ -229,7 +229,9 @@ export const toIsoWithProjectOffset = (
 
 // TIMESTAMPs and TIMESTAMP-base DATE intervals shift; calendar DATEs and
 // dims with `skipTimezoneConversion` stay put. Used by spreadsheet exports.
-export const shouldShiftItemTimezone = (item: Item | undefined): boolean => {
+export const shouldShiftItemTimezone = (
+    item: Item | AdditionalMetric | undefined,
+): boolean => {
     if (!isField(item)) return false;
     if (isDimension(item) && item.skipTimezoneConversion) return false;
     if (item.type === DimensionType.TIMESTAMP) return true;
@@ -607,6 +609,7 @@ export function formatValueWithExpression(
     expression: string,
     value: unknown,
     locale?: string,
+    timezone?: string,
 ) {
     try {
         let sanitizedValue = value;
@@ -663,11 +666,15 @@ export function formatValueWithExpression(
             if (!isMomentInput(sanitizedValue)) {
                 return 'NaT';
             }
-            return formatWithExpression(
-                expression,
-                moment(sanitizedValue).toDate(),
-                { ignoreTimezone: true },
-            );
+            // Shift into the project tz then relabel wall-clock as UTC so
+            // numfmt's `ignoreTimezone` renders it verbatim. Gated like
+            // formatTimestamp (`if (timezone)`).
+            const dateForExpression = timezone
+                ? moment.utc(sanitizedValue).tz(timezone).utc(true).toDate()
+                : moment(sanitizedValue).toDate();
+            return formatWithExpression(expression, dateForExpression, {
+                ignoreTimezone: true,
+            });
         }
 
         // format text
@@ -1023,6 +1030,12 @@ export function formatItemValue(
                 getEffectiveSeparator(item),
             );
 
+            // Only shift genuinely timezone-shiftable temporal fields, so
+            // calendar DATEs and skipTimezoneConversion fields stay put.
+            const expressionTimezone = shouldShiftItemTimezone(item)
+                ? timezone
+                : undefined;
+
             // Check if format uses parameter placeholders
             const hasParameterPlaceholders =
                 item.format.includes(
@@ -1043,6 +1056,7 @@ export function formatItemValue(
                             formatExpression,
                             value,
                             separatorLocale,
+                            expressionTimezone,
                         );
                         return result;
                     } catch (error) {
@@ -1061,6 +1075,7 @@ export function formatItemValue(
                     item.format,
                     value,
                     separatorLocale,
+                    expressionTimezone,
                 );
                 return result;
             } catch (error) {
@@ -1088,11 +1103,18 @@ export function formatItemValue(
                 customFormat.custom &&
                 isMomentInput(value)
             ) {
+                // Mirror the default DATE branch: calendar days never shift,
+                // only real instants do. (isCalendarValueDimension is false for
+                // any TIMESTAMP, so this is a no-op there.)
+                const customExpressionTimezone = isCalendarValueDimension(item)
+                    ? undefined
+                    : effectiveTimezone;
                 try {
                     return formatValueWithExpression(
                         customFormat.custom,
                         value,
                         separatorToNumfmtLocale(customFormat.separator),
+                        customExpressionTimezone,
                     );
                 } catch {
                     // Fall through to the default date/timestamp render.
