@@ -1,3 +1,10 @@
+# [0.3156.0](https://github.com/lightdash/lightdash/compare/0.3155.1...0.3156.0) (2026-06-12)
+
+
+### Features
+
+* add FE PDF exports for data apps ([#24243](https://github.com/lightdash/lightdash/issues/24243)) ([a11a5b0](https://github.com/lightdash/lightdash/commit/a11a5b014328d9ba6a9ad68108c8b81bfa2227bd))
+
 ## [0.3155.1](https://github.com/lightdash/lightdash/compare/0.3155.0...0.3155.1) (2026-06-12)
 
 
