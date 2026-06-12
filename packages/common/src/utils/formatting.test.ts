@@ -1229,6 +1229,32 @@ describe('Formatting', () => {
             ).toEqual('2024-01-14 20:00:00');
         });
 
+        test('formatItemValue does not shift a calendar DATE with a CUSTOM format (GLITCH-492)', () => {
+            // A bare calendar date has no instant — applying the project tz
+            // would drag it across midnight (off-by-one in negative offsets).
+            // The CUSTOM-format branch must honour the same calendar guard as
+            // the default DATE render.
+            const dateWithCustom = {
+                ...dimension,
+                type: DimensionType.DATE,
+                formatOptions: {
+                    type: CustomFormatType.CUSTOM,
+                    custom: 'yyyy-mm-dd',
+                },
+            };
+            const value = new Date('2024-01-15T00:00:00.000Z');
+
+            expect(
+                formatItemValue(
+                    dateWithCustom,
+                    value,
+                    false,
+                    undefined,
+                    'America/New_York',
+                ),
+            ).toEqual('2024-01-15');
+        });
+
         describe('formatItemValue timestamp handling', () => {
             const mockTimestampField = {
                 type: DimensionType.TIMESTAMP,

@@ -1103,12 +1103,18 @@ export function formatItemValue(
                 customFormat.custom &&
                 isMomentInput(value)
             ) {
+                // Mirror the default DATE branch: calendar days never shift,
+                // only real instants do. (isCalendarValueDimension is false for
+                // any TIMESTAMP, so this is a no-op there.)
+                const customExpressionTimezone = isCalendarValueDimension(item)
+                    ? undefined
+                    : effectiveTimezone;
                 try {
                     return formatValueWithExpression(
                         customFormat.custom,
                         value,
                         separatorToNumfmtLocale(customFormat.separator),
-                        effectiveTimezone,
+                        customExpressionTimezone,
                     );
                 } catch {
                     // Fall through to the default date/timestamp render.
