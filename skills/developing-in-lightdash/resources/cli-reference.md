@@ -24,11 +24,13 @@ lightdash config set-project --uuid abc123-def456
 
 ## Compilation & Deployment
 
+**Production guidance for agents:** Do not run `lightdash deploy` against a production project by default. Production deployments should almost always happen through the project's CI/CD process, such as GitHub Actions after merge, or by refreshing dbt from the Lightdash UI. Use a direct production deploy only when the user explicitly confirms an exceptional reason.
+
 ```bash
 # Compile dbt models and validate
 lightdash compile --project-dir ./dbt --profiles-dir ./profiles
 
-# Deploy to Lightdash
+# Deploy to a non-production Lightdash project
 lightdash deploy --project-dir ./dbt --profiles-dir ./profiles
 
 # Create new project on deploy
@@ -201,7 +203,7 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-y
 - `-y, --assume-yes` - Skip confirmation prompts
 - `--verbose` - Show detailed output
 
-**Note:** This command reads warehouse credentials from profiles.yml, updates the connection on the project, and triggers a recompile. Run this before `lightdash deploy` if the project needs a different warehouse connection.
+**Note:** This command reads warehouse credentials from profiles.yml, updates the connection on the project, and triggers a recompile. For production projects, prefer the established CI/CD or UI refresh workflow over following this with a direct local deploy.
 
 ## Command Summary
 
@@ -209,7 +211,7 @@ lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-y
 | --------------------- | -------------------------------- |
 | `lightdash login`     | Authenticate with Lightdash      |
 | `lightdash config`    | Manage project selection         |
-| `lightdash deploy`    | Sync semantic layer to Lightdash |
+| `lightdash deploy`    | Sync semantic layer to Lightdash. Avoid direct production use; prefer CI/CD or UI refresh |
 | `lightdash upload`    | Upload charts/dashboards         |
 | `lightdash download`  | Download charts/dashboards       |
 | `lightdash preview`   | Create temporary test project    |

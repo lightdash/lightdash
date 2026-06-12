@@ -27,7 +27,7 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | Build dashboards | `lightdash download`, edit YAML, `lightdash upload` | [Dashboard Reference](./resources/dashboard-reference.md) |
 | Lint yaml files | `lightdash lint` | [CLI Reference](./resources/cli-reference.md) |
 | Set warehouse connection | `lightdash set-warehouse` from profiles.yml | [CLI Reference](./resources/cli-reference.md) |
-| Deploy changes | `lightdash deploy` (semantic layer), `lightdash upload` (content) | [CLI Reference](./resources/cli-reference.md) |
+| Deploy changes | Prefer CI/CD or UI refresh for production; use `lightdash deploy` only when explicitly appropriate | [CLI Reference](./resources/cli-reference.md) |
 | Test changes | `lightdash preview` | [Workflows](./resources/workflows-reference.md) |
 
 ## Common Mistakes
@@ -38,20 +38,23 @@ Build and deploy Lightdash analytics projects. This skill covers the **semantic 
 | **Not updating dashboard tiles after renaming a chart** | Dashboard tile still shows old title — `title` and `chartName` are independent overrides that do NOT auto-update | Download the dashboard, find tiles with matching `chartSlug`, update `title` and `chartName` to match |
 | **Including unused dimensions in metricQuery** | "Results may be incorrect" warning — extra dimensions change SQL grouping and produce wrong numbers | Every dimension in `metricQuery.dimensions` must appear in the chart config. For cartesian: `layout.xField`, `layout.yField`, or `pivotConfig.columns` |
 | **Unsorted YAML keys** | `lightdash upload` warns "unsorted YAML keys" and diffs become noisy | Always sort keys alphabetically at every nesting level — the CLI writes with `sortKeys: true` |
-| **Deploying to wrong project** | Overwrites production content | Always run `lightdash config get-project` before deploying |
+| **Running `lightdash deploy` ad hoc against production** | Bypasses the team's release process and can overwrite the production semantic layer | Avoid direct production deploys. Remind the user to use CI/CD (for example GitHub Actions) or refresh dbt from the Lightdash UI unless they explicitly confirm a rare direct-deploy reason |
+| **Deploying to wrong project** | Overwrites project content | Always run `lightdash config get-project` before any deploy or upload |
 | **Missing `contentType` field** | Content type can't be determined without relying on directory structure | Always include `contentType: chart`, `contentType: dashboard`, or `contentType: sql_chart` at the top level |
 
 ## Before You Start
 
 ### Check Your Target Project
 
-**Always verify which project you're deploying to.** Deploying to the wrong project can overwrite production content.
+**Always verify which project you're targeting.** Deploying or uploading to the wrong project can overwrite production content.
 
 ```bash
 lightdash config get-project        # Show current project
 lightdash config list-projects      # List available projects
 lightdash config set-project --name "My Project"  # Switch project
 ```
+
+**Production deploys:** Do not run `lightdash deploy` against production as a default agent action. Production updates should almost always happen through the project's CI/CD pipeline (for example GitHub Actions after merge) or by refreshing dbt from the Lightdash UI. Only run a direct production deploy when the user explicitly asks for it and confirms why the normal release path is not appropriate.
 
 ### Detect Your Project Type
 
@@ -123,7 +126,7 @@ If the project needs a different warehouse connection (e.g., switching from Post
 lightdash set-warehouse --project-dir ./dbt --profiles-dir ./profiles --assume-yes
 ```
 
-This reads credentials from profiles.yml, updates the warehouse connection on the currently selected project, and triggers a recompile. Run this before `lightdash deploy`.
+This reads credentials from profiles.yml, updates the warehouse connection on the currently selected project, and triggers a recompile. For production projects, prefer making this change through the established release process or UI workflow rather than following it with a direct local deploy.
 
 To target a specific project:
 
@@ -156,7 +159,7 @@ Read the CSV and use the **exact values** in your filter YAML. This applies to a
 1. **Find the model YAML file** (dbt: `models/*.yml`, pure Lightdash: `lightdash/models/*.yml`)
 2. **Edit metrics/dimensions** using the appropriate syntax for your project type
 3. **Validate**: `lightdash lint` (pure Lightdash) or `dbt compile` (dbt projects)
-4. **Deploy**: `lightdash deploy`
+4. **Ship**: open a PR and let CI/CD deploy, or ask the user to refresh dbt from the Lightdash UI. Use `lightdash deploy` only for non-production projects or a user-confirmed exceptional production deploy.
 
 See [Metrics Reference](./resources/metrics-reference.md) and [Dimensions Reference](./resources/dimensions-reference.md) for configuration options.
 
@@ -213,7 +216,7 @@ lightdash stop-preview --name "my-feature"
 
 | Command | Purpose |
 |---------|---------|
-| `lightdash deploy` | Sync semantic layer (metrics, dimensions) |
+| `lightdash deploy` | Sync semantic layer (metrics, dimensions). Avoid direct production use; prefer CI/CD or UI refresh |
 | `lightdash upload` | Upload charts/dashboards |
 | `lightdash download` | Download charts/dashboards as YAML |
 | `lightdash lint` | Validate YAML locally |
@@ -326,9 +329,9 @@ lightdash sql "SELECT SUM(amount) FROM orders" -o test.csv
 
 | Pattern | When to Use |
 |---------|-------------|
-| **Direct** (`deploy` + `upload`) | Solo dev, rapid iteration |
+| **Direct** (`deploy` + `upload`) | Non-production, solo dev, rapid iteration, or a user-confirmed exceptional production deploy |
 | **Preview-First** | Team, complex changes |
-| **CI/CD** | Automated on merge |
+| **CI/CD** | Production deploys automated on merge |
 
 See [Workflows Reference](./resources/workflows-reference.md) for detailed examples and CI/CD configurations.
 
