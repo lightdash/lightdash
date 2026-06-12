@@ -1,3 +1,10 @@
+## [0.3156.1](https://github.com/lightdash/lightdash/compare/0.3156.0...0.3156.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* import moment-timezone in time.ts so CLI compile of inThePast timestamp filters works ([#24250](https://github.com/lightdash/lightdash/issues/24250)) ([3386171](https://github.com/lightdash/lightdash/commit/3386171953e9d6a652531a752540e60ac145d675)), closes [#21637](https://github.com/lightdash/lightdash/issues/21637)
+
 # [0.3156.0](https://github.com/lightdash/lightdash/compare/0.3155.1...0.3156.0) (2026-06-12)
 
 
