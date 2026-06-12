@@ -3,14 +3,18 @@ import {
     SchedulerRunStatus,
     type ApiDashboardPaginatedSchedulersResponse,
     type ApiErrorPayload,
+    type ApiJobScheduledResponse,
     type ApiSchedulerRunsResponse,
+    type ExportContentRequest,
     type KnexPaginateArgs,
 } from '@lightdash/common';
 import {
+    Body,
     Get,
     Middlewares,
     OperationId,
     Path,
+    Post,
     Query,
     Request,
     Response,
@@ -35,6 +39,36 @@ import { VALID_SCHEDULER_RUN_DESTINATIONS } from '../schedulerConstants';
 @Response<ApiErrorPayload>('default', 'Error')
 @Tags('v2', 'Dashboards')
 export class DashboardControllerV2 extends BaseController {
+    /**
+     * Export dashboard content
+     * @summary Export dashboard content
+     * @param dashboardUuid The uuid of the dashboard
+     * @param req express request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Post('/exports')
+    @OperationId('exportDashboardContentV2')
+    async exportDashboardContent(
+        @Path() dashboardUuid: string,
+        @Body() body: ExportContentRequest,
+        @Request() req: express.Request,
+    ): Promise<ApiJobScheduledResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        return {
+            status: 'ok',
+            results: await this.services
+                .getDashboardService()
+                .scheduleExportContent(
+                    toSessionUser(req.account),
+                    dashboardUuid,
+                    body,
+                ),
+        };
+    }
+
     /**
      * Get all schedulers for a dashboard
      * @summary List dashboard schedulers

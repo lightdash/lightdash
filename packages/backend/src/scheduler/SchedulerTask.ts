@@ -13,6 +13,7 @@ import {
     derivePivotConfigurationFromPivotConfig,
     DownloadFileType,
     EmailNotificationPayload,
+    ExportContentPayload,
     ExportCsvDashboardPayload,
     FeatureFlags,
     FieldReferenceError,
@@ -75,6 +76,7 @@ import {
     SchedulerFormat,
     SchedulerJobStatus,
     SchedulerLog,
+    SchedulerResourceType,
     SessionUser,
     setUuidParam,
     SlackInstallationNotFoundError,
@@ -472,6 +474,10 @@ export default class SchedulerTask {
         jobId: string,
         isFinalAttempt: boolean,
         expirationSecondsOverride?: number,
+        exportOptions?: {
+            dashboardFilters?: ExportContentPayload['dashboardFilters'];
+            dateZoomGranularity?: ExportContentPayload['dateZoomGranularity'];
+        },
     ): Promise<NotificationPayloadBase['page']> {
         const {
             createdBy: userUuid,
@@ -762,12 +768,20 @@ export default class SchedulerTask {
                                 dashboardUuid,
                             );
 
-                        const dashboardFilters = dashboard.filters;
+                        const dashboardFilters =
+                            exportOptions?.dashboardFilters ??
+                            dashboard.filters;
                         const schedulerFilters = isDashboardScheduler(scheduler)
                             ? scheduler.filters
                             : undefined;
+                        const dateZoom = exportOptions?.dateZoomGranularity
+                            ? { granularity: exportOptions.dateZoomGranularity }
+                            : undefined;
 
-                        if (schedulerFilters) {
+                        if (
+                            !exportOptions?.dashboardFilters &&
+                            schedulerFilters
+                        ) {
                             dashboardFilters.dimensions =
                                 applyDimensionOverrides(
                                     dashboard.filters,
@@ -815,6 +829,9 @@ export default class SchedulerTask {
                         const sqlChartTiles = dashboard.tiles
                             .filter(isDashboardSqlChartTile)
                             .filter((tile) => !!tile.properties.savedSqlUuid)
+                            .filter((tile) =>
+                                isTileInSelectedTabs(tile, selectedTabs),
+                            )
                             .map((tile) => ({
                                 tileUuid: tile.uuid,
                                 chartUuid: tile.properties.savedSqlUuid!,
@@ -859,6 +876,7 @@ export default class SchedulerTask {
                                             dashboardUuid,
                                             dashboardFilters,
                                             dashboardSorts: [],
+                                            dateZoom,
                                             parameters: finalParameters,
                                             limit: chartLimit,
                                             pivotResults: shouldPivotResults,
@@ -4245,6 +4263,259 @@ export default class SchedulerTask {
         );
     }
 
+    private async createZipDownloadUrl({
+        files,
+        fileType,
+        zipNameBase,
+        organizationUuid,
+        projectUuid,
+        createdByUserUuid,
+        logContext,
+    }: {
+        files: {
+            filename: string;
+            localPath: string;
+            chartName?: string;
+        }[];
+        fileType: SchedulerFormat.CSV | SchedulerFormat.XLSX;
+        zipNameBase: string;
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+        logContext?: string;
+    }) {
+        if (!this.fileStorageClient.isEnabled()) {
+            throw new MissingConfigError('Cloud storage is not enabled');
+        }
+
+        if (files.length === 0) {
+            throw new UnexpectedServerError('No files to include in zip');
+        }
+
+        const zipPath = `/tmp/${nanoid()}.zip`;
+        let zipFileName: string;
+        try {
+            const zipWriteStream = fsSync.createWriteStream(zipPath);
+            const archive = archiver('zip', {
+                zlib: { level: 9 },
+            });
+
+            const zipDone = new Promise<void>((resolve, reject) => {
+                zipWriteStream.on('close', resolve);
+                zipWriteStream.on('error', reject);
+                archive.on('error', reject);
+            });
+            archive.pipe(zipWriteStream);
+
+            const streams = await Promise.all(
+                files.map(async (file) => {
+                    const fetchUrl = file.localPath;
+                    try {
+                        const response = await fetch(fetchUrl);
+                        if (!response.ok || !response.body) {
+                            Logger.warn(
+                                `Failed to fetch export file "${file.filename}": HTTP ${response.status} ${response.statusText}`,
+                            );
+                            return null;
+                        }
+
+                        return {
+                            filename: file.filename,
+                            stream: Readable.fromWeb(
+                                response.body as Parameters<
+                                    typeof Readable.fromWeb
+                                >[0],
+                            ),
+                        };
+                    } catch (e) {
+                        const cause =
+                            e instanceof Error && e.cause ? e.cause : undefined;
+                        Logger.error(
+                            `Failed to fetch export file "${file.filename}": ${getErrorMessage(e)}`,
+                            {
+                                chartName: file.chartName,
+                                fileUrl: fetchUrl.split('?')[0],
+                                cause:
+                                    cause instanceof Error
+                                        ? {
+                                              message: cause.message,
+                                              code: (
+                                                  cause as NodeJS.ErrnoException
+                                              ).code,
+                                          }
+                                        : cause,
+                            },
+                        );
+                        return null;
+                    }
+                }),
+            );
+
+            const validStreams = streams.filter(
+                (stream): stream is { filename: string; stream: Readable } =>
+                    stream !== null,
+            );
+
+            if (validStreams.length === 0) {
+                throw new UnexpectedServerError(
+                    'All file downloads failed — no files to include in zip',
+                );
+            }
+
+            const usedNames = new Set<string>();
+            const deduplicateName = (baseName: string): string => {
+                let name = sanitizeGenericFileName(baseName);
+                if (usedNames.has(name)) {
+                    let suffix = 2;
+                    while (usedNames.has(`${name}_${suffix}`)) suffix += 1;
+                    name = `${name}_${suffix}`;
+                }
+                usedNames.add(name);
+                return name;
+            };
+
+            validStreams.forEach((file) => {
+                archive.append(file.stream, {
+                    name: `${deduplicateName(file.filename)}.${fileType}`,
+                });
+            });
+
+            await archive.finalize();
+            await zipDone;
+
+            if (logContext) {
+                Logger.info(
+                    `Generated zip of ${validStreams.length} ${fileType}s for ${logContext}`,
+                );
+            }
+
+            zipFileName = `${sanitizeGenericFileName(
+                zipNameBase,
+            )}-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
+
+            await this.fileStorageClient.uploadZip(
+                fsSync.createReadStream(zipPath),
+                zipFileName,
+            );
+        } finally {
+            await fs.unlink(zipPath).catch(() => {});
+        }
+
+        return this.persistentDownloadFileService.createPersistentUrl({
+            s3Key: zipFileName,
+            fileType: 'zip',
+            organizationUuid,
+            projectUuid,
+            createdByUserUuid,
+        });
+    }
+
+    protected async exportContent(
+        jobId: string,
+        scheduledTime: Date,
+        payload: ExportContentPayload,
+    ) {
+        await this.logWrapper<string | number>(
+            {
+                task: SCHEDULER_TASKS.EXPORT_CONTENT,
+                jobId,
+                scheduledTime,
+                details: {
+                    createdByUserUuid: payload.userUuid,
+                    projectUuid: payload.projectUuid,
+                    organizationUuid: payload.organizationUuid,
+                },
+            },
+            async () => {
+                if (payload.resourceType !== SchedulerResourceType.DASHBOARD) {
+                    throw new ParameterError(
+                        'Only dashboard export is supported',
+                    );
+                }
+
+                const scheduler = {
+                    name: 'Content export',
+                    createdBy: payload.userUuid,
+                    format: payload.format,
+                    options: payload.options,
+                    cron: '* * * * *',
+                    timezone: 'UTC',
+                    savedChartUuid: null,
+                    dashboardUuid: payload.resourceUuid,
+                    savedSqlUuid: null,
+                    appUuid: null,
+                    appName: null,
+                    enabled: true,
+                    includeLinks: false,
+                    projectUuid: payload.projectUuid,
+                    targets: [],
+                    customViewportWidth: payload.customViewportWidth,
+                    selectedTabs: payload.selectedTabs ?? null,
+                } satisfies CreateSchedulerAndTargets & {
+                    dashboardUuid: string;
+                    customViewportWidth?: number;
+                    selectedTabs: string[] | null;
+                };
+
+                const page = await this.getNotificationPageData(
+                    scheduler,
+                    jobId,
+                    false,
+                    undefined,
+                    {
+                        dashboardFilters: payload.dashboardFilters,
+                        dateZoomGranularity: payload.dateZoomGranularity,
+                    },
+                );
+
+                if (payload.format === SchedulerFormat.IMAGE) {
+                    if (!page.imageUrl) {
+                        throw new UnexpectedServerError(
+                            'Dashboard image export failed',
+                        );
+                    }
+
+                    return {
+                        url: page.imageUrl,
+                        fileType: payload.format,
+                        numFailures: page.failures?.length ?? 0,
+                    };
+                }
+
+                if (
+                    payload.format === SchedulerFormat.CSV ||
+                    payload.format === SchedulerFormat.XLSX
+                ) {
+                    if (!page.csvUrls) {
+                        throw new UnexpectedServerError(
+                            'Dashboard data export failed',
+                        );
+                    }
+
+                    const url = await this.createZipDownloadUrl({
+                        files: page.csvUrls,
+                        fileType: payload.format,
+                        zipNameBase: page.details.name,
+                        organizationUuid: payload.organizationUuid,
+                        projectUuid: payload.projectUuid,
+                        createdByUserUuid: payload.userUuid,
+                    });
+
+                    return {
+                        url,
+                        fileType: payload.format,
+                        numFailures: page.failures?.length ?? 0,
+                    };
+                }
+
+                return assertUnreachable(
+                    payload.format,
+                    `Format ${payload.format} is not supported for export`,
+                );
+            },
+        );
+    }
+
     protected async exportCsvDashboard(
         jobId: string,
         scheduledTime: Date,
@@ -4381,134 +4652,19 @@ export default class SchedulerTask {
                     );
                 }
 
-                // Fetch CSVs from presigned URLs and zip them
-                const zipPath = `/tmp/${nanoid()}.zip`;
-                let zipFileName: string;
-                try {
-                    const zipWriteStream = fsSync.createWriteStream(zipPath);
-                    const archive = archiver('zip', {
-                        zlib: { level: 9 },
-                    });
-
-                    const zipDone = new Promise<void>((resolve, reject) => {
-                        zipWriteStream.on('close', resolve);
-                        zipWriteStream.on('error', reject);
-                        archive.on('error', reject);
-                    });
-                    archive.pipe(zipWriteStream);
-
-                    // Fetch all CSVs from presigned URLs in parallel
-                    const csvStreams = await Promise.all(
-                        successfulResults.map(async (r) => {
-                            const csvFetchUrl =
-                                r.value.s3FileUrl ?? r.value.fileUrl;
-                            try {
-                                const csvResponse = await fetch(csvFetchUrl);
-                                if (!csvResponse.ok || !csvResponse.body) {
-                                    Logger.warn(
-                                        `Failed to fetch CSV for ${r.value.chartName} from presigned URL: HTTP ${csvResponse.status} ${csvResponse.statusText}`,
-                                    );
-                                    return null;
-                                }
-                                return {
-                                    filename: r.value.filename,
-                                    stream: Readable.fromWeb(
-                                        csvResponse.body as Parameters<
-                                            typeof Readable.fromWeb
-                                        >[0],
-                                    ),
-                                };
-                            } catch (e) {
-                                const cause =
-                                    e instanceof Error && e.cause
-                                        ? e.cause
-                                        : undefined;
-                                Logger.error(
-                                    `Failed to fetch CSV for chart "${r.value.chartName}" from presigned URL: ${e instanceof Error ? e.message : String(e)}`,
-                                    {
-                                        chartName: r.value.chartName,
-                                        // Strip query params — they contain auth signatures
-                                        fileUrl: csvFetchUrl.split('?')[0],
-                                        cause:
-                                            cause instanceof Error
-                                                ? {
-                                                      message: cause.message,
-                                                      code: (
-                                                          cause as NodeJS.ErrnoException
-                                                      ).code,
-                                                  }
-                                                : cause,
-                                    },
-                                );
-                                return null;
-                            }
-                        }),
-                    );
-
-                    const usedNames = new Set<string>();
-                    const deduplicateName = (baseName: string): string => {
-                        let name = sanitizeGenericFileName(baseName);
-                        if (usedNames.has(name)) {
-                            let suffix = 2;
-                            while (usedNames.has(`${name}_${suffix}`))
-                                suffix += 1;
-                            name = `${name}_${suffix}`;
-                        }
-                        usedNames.add(name);
-                        return name;
-                    };
-
-                    const validCsvStreams = csvStreams.filter(
-                        (
-                            s,
-                        ): s is {
-                            filename: string;
-                            stream: Readable;
-                        } => s !== null,
-                    );
-
-                    if (validCsvStreams.length === 0) {
-                        throw new UnexpectedServerError(
-                            'All CSV downloads failed — no files to include in zip',
-                        );
-                    }
-
-                    validCsvStreams.forEach((s) => {
-                        const name = deduplicateName(s.filename);
-                        archive.append(s.stream, {
-                            name: `${name}.csv`,
-                        });
-                    });
-
-                    await archive.finalize();
-                    await zipDone;
-
-                    Logger.info(
-                        `Generated zip of ${successfulResults.length} CSVs for dashboard ${dashboardUuid}`,
-                    );
-
-                    zipFileName = `${sanitizeGenericFileName(
-                        dashboard.name,
-                    )}-${new Date().toISOString().replace(/[:.]/g, '-')}.zip`;
-
-                    await this.fileStorageClient.uploadZip(
-                        fsSync.createReadStream(zipPath),
-                        zipFileName,
-                    );
-                } finally {
-                    await fs.unlink(zipPath).catch(() => {});
-                }
-
-                const url =
-                    await this.persistentDownloadFileService.createPersistentUrl(
-                        {
-                            s3Key: zipFileName,
-                            fileType: 'zip',
-                            organizationUuid,
-                            projectUuid,
-                            createdByUserUuid: userUuid,
-                        },
-                    );
+                const url = await this.createZipDownloadUrl({
+                    files: successfulResults.map((r) => ({
+                        filename: r.value.filename,
+                        localPath: r.value.s3FileUrl ?? r.value.fileUrl,
+                        chartName: r.value.chartName,
+                    })),
+                    fileType: SchedulerFormat.CSV,
+                    zipNameBase: dashboard.name,
+                    organizationUuid,
+                    projectUuid,
+                    createdByUserUuid: userUuid,
+                    logContext: `dashboard ${dashboardUuid}`,
+                });
 
                 this.analytics.trackAccount(account, {
                     event: 'download_results.completed',
