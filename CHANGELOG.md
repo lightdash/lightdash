@@ -1,3 +1,15 @@
+# [0.3148.0](https://github.com/lightdash/lightdash/compare/0.3147.0...0.3148.0) (2026-06-12)
+
+
+### Features
+
+* **explorer:** chart timezone control in run-query settings ([#24210](https://github.com/lightdash/lightdash/issues/24210)) ([eecabc7](https://github.com/lightdash/lightdash/commit/eecabc7d670823a99d7c6fc2a774ab3af186e4d0))
+
+
+### Performance Improvements
+
+* replace full dashboard load with params-only query for chart execution ([#21549](https://github.com/lightdash/lightdash/issues/21549)) ([d3a0624](https://github.com/lightdash/lightdash/commit/d3a0624394312866d0469ca7413c2098fb551237))
+
 # [0.3147.0](https://github.com/lightdash/lightdash/compare/0.3146.1...0.3147.0) (2026-06-12)
 
 
