@@ -1,4 +1,4 @@
-import { type AiAgentReviewItemSummary } from '@lightdash/common';
+import { CiCheckState, type AiAgentReviewItemSummary } from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -11,6 +11,7 @@ import {
 } from '@mantine-8/core';
 import {
     IconArrowUpRight,
+    IconChecks,
     IconCircleCheck,
     IconCircleCheckFilled,
     IconColumns,
@@ -28,6 +29,7 @@ import {
     useAiAgentReviewItemPrDiff,
     useProjectUpstreamDiff,
 } from '../../hooks/useAiAgentAdmin';
+import { usePullRequestCiChecks } from '../../hooks/usePullRequestCiChecks';
 import { ReviewFieldsModal } from './ReviewFieldsModal';
 import { ReviewPrDiffModal } from './ReviewPrDiffModal';
 import { ReviewValidationModal } from './ReviewValidationModal';
@@ -45,6 +47,21 @@ type Props = {
 const getPrNumber = (prUrl: string): string | null => {
     const match = prUrl.match(/\/pull\/(\d+)/);
     return match ? match[1] : null;
+};
+
+// A single colour-coded phrase for the Checks row, prioritising whatever needs
+// attention: failures first, then in-flight runs, else all passed.
+const summariseChecks = (
+    checks: { state: CiCheckState }[],
+): { color: string; label: string } | null => {
+    if (checks.length === 0) return null;
+    const count = (state: CiCheckState) =>
+        checks.filter((c) => c.state === state).length;
+    const failed = count(CiCheckState.FAILURE);
+    const pending = count(CiCheckState.PENDING);
+    if (failed > 0) return { color: 'red.8', label: `${failed} failing` };
+    if (pending > 0) return { color: 'yellow.8', label: `${pending} running` };
+    return { color: 'green.8', label: `${checks.length} passed` };
 };
 
 const Row: FC<{
@@ -85,6 +102,16 @@ export const ReviewVerificationPanel: FC<Props> = ({
         useAiAgentReviewItemPrDiff(reviewItem.fingerprint, {
             enabled: !!linkedPrUrl,
         });
+
+    // The write-back PR lives in the source project's git repo, so its
+    // installation resolves the CI checks. No commit is pinned here — the
+    // backend falls back to the PR's live head.
+    const { data: ciChecks } = usePullRequestCiChecks(
+        remediation?.sourceProjectUuid,
+        linkedPrUrl,
+        null,
+    );
+    const checksSummary = ciChecks ? summariseChecks(ciChecks.checks) : null;
 
     const { data: upstreamDiff, isLoading: isLoadingFields } =
         useProjectUpstreamDiff(previewProjectUuid ?? undefined, {
@@ -196,6 +223,30 @@ export const ReviewVerificationPanel: FC<Props> = ({
                                 }
                             />
                         </UnstyledButton>
+                    )}
+
+                    {linkedPrUrl && checksSummary && (
+                        <Anchor
+                            className={styles.row}
+                            href={`${linkedPrUrl}/checks`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            underline="never"
+                        >
+                            <Row
+                                icon={IconChecks}
+                                label="Checks"
+                                trailing={
+                                    <Text
+                                        fz="sm"
+                                        fw={600}
+                                        c={checksSummary.color}
+                                    >
+                                        {checksSummary.label}
+                                    </Text>
+                                }
+                            />
+                        </Anchor>
                     )}
 
                     {showFieldsRow && (
