@@ -92,6 +92,21 @@ const getTotalableTableCalculations = (
         );
     });
 
+const assertNoRetainedArrayDimension = (
+    retainedDimensionIds: string[],
+    arrayDimensionIds: Set<string> | undefined,
+    totalLabel: string,
+): void => {
+    const retainedArrayDims = retainedDimensionIds.filter((id) =>
+        arrayDimensionIds?.has(id),
+    );
+    if (retainedArrayDims.length > 0) {
+        throw new NotSupportedError(
+            `${totalLabel} aren't supported over an unnested (array) dimension: ${retainedArrayDims.join(', ')}`,
+        );
+    }
+};
+
 const assertNoBlockingFilters = (
     metricQuery: MetricQuery,
     errorMessage: string,
@@ -177,14 +192,11 @@ export const getColumnTotalQueryFromSource = (
         );
     }
 
-    const retainedArrayDims = groupByFieldIds.filter((id) =>
-        source.arrayDimensionIds?.has(id),
+    assertNoRetainedArrayDimension(
+        groupByFieldIds,
+        source.arrayDimensionIds,
+        'Column totals',
     );
-    if (retainedArrayDims.length > 0) {
-        throw new NotSupportedError(
-            `Subtotals aren't supported over an unnested (array) dimension: ${retainedArrayDims.join(', ')}`,
-        );
-    }
 
     // PoP entries would fail validation once the index dim is dropped.
     const popMetricIds = getPopMetricIds(source.metricQuery);
@@ -258,15 +270,11 @@ export const getColumnSubtotalQueryFromSource = (
         );
     }
 
-    const retainedArrayDims = [
-        ...subtotalDimensions,
-        ...groupByFieldIds,
-    ].filter((id) => source.arrayDimensionIds?.has(id));
-    if (retainedArrayDims.length > 0) {
-        throw new NotSupportedError(
-            `Subtotals aren't supported over an unnested (array) dimension: ${retainedArrayDims.join(', ')}`,
-        );
-    }
+    assertNoRetainedArrayDimension(
+        [...subtotalDimensions, ...groupByFieldIds],
+        source.arrayDimensionIds,
+        'Subtotals',
+    );
 
     const popMetricIds = getPopMetricIds(source.metricQuery);
     const keptMetrics = source.metricQuery.metrics.filter(
@@ -340,6 +348,12 @@ export const getRowTotalQueryFromSource = (
             `Row total query references dimensions that were not in the source query: ${missing.join(', ')}`,
         );
     }
+
+    assertNoRetainedArrayDimension(
+        indexFieldIds,
+        source.arrayDimensionIds,
+        'Row totals',
+    );
 
     // PoP metrics are dropped to mirror `getColumnTotalQueryFromSource` —
     // they assume a specific time-dim anchoring that may not survive the
