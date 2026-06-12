@@ -12,6 +12,7 @@ Each gap has a short slug (`gap-...`) so user-facing documentation can cross-ref
 - **bug** — current behavior is broken or contradicts user expectations. Fix corrects it.
 - **breaking** — fix changes behavior customers experience without opting in. Charts, queries, or output may shift. **Not breaking if shipped behind an opt-in flag** — a `breaking` tag is a flag that we have to either gate it, migrate it, or eat the support cost.
 - **refactor** — internal code change with no customer-visible behavior change.hhxisting feature (better UI, clearer doc, more useful indicator). Not a net-new capability.
+- **decision** (❓) — behavior is internally inconsistent or undefined and needs a deliberate product call before any fix; the change type follows from the decision.
 
 Tags combine (e.g., `bug + breaking` for a correctness fix that, shipped without opt-in, will shift customer-visible state).
 
@@ -104,7 +105,8 @@ Minimum affordance: a distinguishing icon for TZ-immune vs TZ-sensitive dimensio
 ## Edge cases
 
 19. **DST transitions render correctly in every layer, including any wall-clock shift.**
-    ⚠️ `gap-echarts-dst` *[bug]* — Server SQL is correct; the ECharts shift is computed once per row and breaks at DST boundaries — fix or replace.
+    ⚠️ `gap-echarts-dst` *[bug]* — Server SQL is correct; the ECharts shift is computed once per row and breaks at DST boundaries — fix or replace. (Fixed for sub-day grains in GLITCH-449: raw-instant positioning + per-bucket `customValues`.)
+    ❓ `gap-dst-fold-bucketing` *[decision]* — At a DST fall-back, our SQL buckets the two wall-clock-identical 1 AM hours **inconsistently**: BigQuery/ClickHouse split (instant-domain trunc → two `01:00` rows), Postgres/Snowflake/Databricks/Trino/Redshift/DuckDB/Spark merge (naive-domain trunc → one `count=2` row). This is our per-adapter `dateTruncTimezoneConversions` choice, not a warehouse property (Postgres splits with PG14+ 3-arg `date_trunc`). No deliberate call has been made. Unifying on merge is achievable everywhere; unifying on split is blocked on Redshift/PG<14/Spark. Either way it rewrites bucketing SQL + cache keys. See [`timezone-questions.md`](./timezone-questions.md) → "DST fall-back".
 
 20. **Half-hour and 45-min timezones work end-to-end (India, Nepal, Eucla).**
     ✅ `gap-fractional-offset-tz` — Not a bug: the bare literal on BigQuery/ClickHouse is already a UTC instant (`formatTimestampAsUTCNoOffset`), so the offset is baked in, not dropped, and fractional boundaries are correct. Picker zones added + BigQuery/Postgres api-test coverage (GLITCH-453).

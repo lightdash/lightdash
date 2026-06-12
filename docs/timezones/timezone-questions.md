@@ -299,11 +299,38 @@ The companion filter parity is also implemented ([`timezone-handling.md:149`](./
 
 **Two different stories.**
 
-1. **Server-side warehouse SQL**: handled correctly by the warehouse's native DST-aware functions. `CONVERT_TIMEZONE` / `AT TIME ZONE` / `TIMESTAMP_TRUNC(..., 'tz')` all produce real 23- or 25-hour days at DST boundaries. A "spring forward" Sunday in `America/New_York` correctly returns 23 hourly buckets, with the 2am hour missing.
+1. **Server-side warehouse SQL**: spring-forward is handled correctly and uniformly. `CONVERT_TIMEZONE` / `AT TIME ZONE` / `TIMESTAMP_TRUNC(..., 'tz')` all return 23 hourly buckets for a "spring forward" Sunday in `America/New_York`, with the 2am hour missing, on every warehouse. **Fall-back (the 25-hour day) is NOT uniform** across warehouses, see "DST fall-back" below.
 
 2. **Frontend ECharts shift** (`packages/frontend/src/hooks/echarts/timezoneShift.ts`): **broken at DST boundaries.** The shift offset is computed *per row* (`getTimezoneOffsetMs(rawMs, timezone)`) but applied as a constant adjustment when ECharts renders. For an hour-grain chart spanning a DST transition, the bars before and after the transition use different offsets — visually correct in position but the gap between them looks like a 1-hour jump.
 
-The internal doc does not mention DST. Flagged in [`timezone-review.md` section B](./timezone-review.md#b-the-echarts-shifted-column-workaround). Add a unit test that exercises 2024-03-10 (spring forward) and 2024-11-03 (fall back) for `America/New_York` to either prove or fix this.
+The internal doc does not mention DST. Flagged in [`timezone-review.md` section B](./timezone-review.md#b-the-echarts-shifted-column-workaround). The frontend half is now fixed (GLITCH-449): sub-day buckets are positioned by raw UTC instant, so the two folded hours render at distinct x with per-bucket tick alignment. The fall-back bucketing question below is separate and still open.
+
+### DST fall-back — do the two 1 AM hours merge into one bucket or split into two?
+
+At a fall-back the local clock hits 1 AM twice. The two hours are wall-clock-identical but are genuinely distinct instants an hour apart (New York 2024-11-03: `01:00 EDT` = `05:00Z` and `01:00 EST` = `06:00Z`). Whether an HOUR `DATE_TRUNC` produces one bucket or two **diverges by warehouse**.
+
+Verified 2026-06-12 by querying the fold pair at HOUR + count, project TZ `America/New_York` (via `POST /api/v2/projects/{uuid}/query/metric-query`):
+
+| Warehouse | Result | Buckets |
+| --- | --- | --- |
+| BigQuery, ClickHouse | **SPLIT** | two `01:00` rows (`05:00Z` and `06:00Z`), count 1 each |
+| Postgres, Snowflake, Databricks, Trino | **MERGE** | one `01:00` row, count 2 |
+| Redshift, DuckDB, Spark | **MERGE** (by the same route, not re-tested) | one `01:00` row, count 2 |
+
+So a 25-hour fall-back day renders as 25 distinct hourly buckets on BigQuery/ClickHouse but as 24 (with one double-counted hour) on the merge warehouses.
+
+**This is our SQL, not a warehouse property.** It is decided entirely by whether our per-adapter conversion in `dateTruncTimezoneConversions` (`timeFrames.ts:94`) lands the value in the **naive wall-clock domain** or the **instant domain** before `DATE_TRUNC` runs:
+
+- **Merge route**: `toProjectTz` strips the offset first. Postgres `(col)::timestamptz AT TIME ZONE 'tz'` yields a `timestamp WITHOUT time zone`; Snowflake wraps in `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ...))`. Both 1 AMs become the bare `01:xx:00` and `GROUP BY` collapses them.
+- **Split route**: BigQuery `TIMESTAMP_TRUNC(col, part, 'tz')` and ClickHouse `toTimeZone(...)` truncate in the instant domain, so the two instants stay distinct.
+
+The same warehouse can do either. Postgres merges with our `AT TIME ZONE` route but **splits** with 3-arg `date_trunc(unit, ts, 'tz')` (PG14+), confirmed locally. So the divergence is an artifact of our conversion map, not intrinsic warehouse behavior on identical SQL.
+
+**Which is "correct"?** Under Lightdash's wall-clock contract (group by the local wall-clock hour), **merge is the contract-consistent answer**: both folds are "1 AM" locally, so they belong in one bucket. By that reading the merge warehouses honor the contract and BigQuery/ClickHouse leak instant-domain semantics. The opposite reading (a fall-back day really has 25 hours, so splitting is the truthful representation) is defensible for precise time-series. The codebase has not made a deliberate call either way, and the seed comment (`timezone_test.yml:18`) only notes the divergence descriptively.
+
+**Fixability is asymmetric.** Unifying on **merge** is achievable everywhere (the naive route is always expressible, including wrapping BigQuery/ClickHouse). Unifying on **split** is not: Redshift has no 3-arg `date_trunc`, Postgres needs 14+, and Spark/Databricks timestamps are session-zone naive. Either direction rewrites bucketing SQL, and therefore cache keys and historical results, for every hour/day query.
+
+Tracked as `gap-dst-fold-bucketing` in [`timezones-v2-design.md`](./timezones-v2-design.md) (decision pending).
 
 ### Half-hour / 45-minute timezones (India, Nepal, Australia)?
 

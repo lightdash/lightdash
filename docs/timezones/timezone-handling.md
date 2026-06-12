@@ -135,6 +135,8 @@ The source TZ for step 1 is derived once per query at the service boundary via `
 
 The SQL differs per warehouse (some have native TZ-aware truncation, others compose `AT TIME ZONE` / `CONVERT_TIMEZONE` / `to_utc_timestamp`), but the shape is identical everywhere. Flag off → falls back to raw `DATE_TRUNC` grouping in UTC (old behavior).
 
+> **Per-warehouse divergence at a DST fall-back.** The naive-domain routes (Postgres, Snowflake, Databricks, Trino, Redshift, DuckDB, Spark) and the instant-domain routes (BigQuery, ClickHouse) bucket the two folded 1 AM hours differently: merge into one `count=2` bucket vs split into two. This is a property of our conversion map, not of the warehouses, and no deliberate call has been made. See [`timezone-questions.md`](./timezone-questions.md) → "DST fall-back" and `gap-dst-fold-bucketing`.
+
 **No-op short-circuit when target equals source.** When the resolved query timezone matches the column source TZ (e.g. a UTC project on a UTC-stored column), the wrap is semantically a no-op — and on BigQuery it defeats partition pruning, leading to unbounded scans. `resolveTimezoneWrap` (via the shared `isTimezoneRoundTripNoOp` predicate) skips the wrap entirely at the boundary, so every call site — DATE_TRUNC, EXTRACT, format wrap, filter literal — short-circuits to the unwrapped form symmetrically. The predicate lives in `timeFrames.ts` so new call sites that forget to check it inherit the same behavior.
 
 **Filter parity.** When the round-trip is active, the WHERE clause reuses the same wrapped expression for the LHS so filter literals (still UTC with a `+00:00` offset on most warehouses) compare against the same shifted value the SELECT groups on.
