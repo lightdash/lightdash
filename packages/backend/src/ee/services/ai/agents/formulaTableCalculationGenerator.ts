@@ -100,6 +100,31 @@ function buildFieldReferenceGuide(
     return sections.join('\n');
 }
 
+function getPartitionCandidateFieldIds(
+    fieldsContext: TableCalculationFieldContext[],
+): string[] {
+    return fieldsContext
+        .filter(
+            (f) =>
+                f.fieldType === 'dimension' &&
+                f.type !== 'date' &&
+                f.type !== 'timestamp',
+        )
+        .map(getFieldId);
+}
+
+function getTimeDimensionFieldIds(
+    fieldsContext: TableCalculationFieldContext[],
+): string[] {
+    return fieldsContext
+        .filter(
+            (f) =>
+                f.fieldType === 'dimension' &&
+                (f.type === 'date' || f.type === 'timestamp'),
+        )
+        .map(getFieldId);
+}
+
 function buildSystemPrompt(): string {
     return `You are a spreadsheet formula expert helping users create table calculations for a data visualization tool.
 
@@ -114,6 +139,10 @@ SYNTAX RULES:
 - Boolean operators: AND, OR, NOT
 - String literals use double quotes: "text"
 - Parentheses for grouping: (a + b) * c
+- Window clauses are supported inside window functions:
+  - PARTITION BY groups rows before calculating the window
+  - ORDER BY defines row order for rolling/running/previous-row calculations
+  - Example: MOVING_AVG(orders_total_revenue, 6, PARTITION BY orders_partner_name, ORDER BY orders_order_month)
 
 AVAILABLE FUNCTIONS:
 
@@ -130,16 +159,24 @@ Note: Use format type "percent" for this calculation.
 
 3. RUNNING TOTAL:
 RUNNING_TOTAL(orders_total_revenue)
+For per-group running totals, include PARTITION BY:
+RUNNING_TOTAL(orders_total_revenue, PARTITION BY orders_partner_name, ORDER BY orders_order_date)
 
 4. PERCENT CHANGE FROM PREVIOUS:
 (orders_total_revenue - LAG(orders_total_revenue)) / LAG(orders_total_revenue)
+For per-group percent change, include PARTITION BY:
+(orders_total_revenue - LAG(orders_total_revenue, PARTITION BY orders_partner_name, ORDER BY orders_order_date)) / LAG(orders_total_revenue, PARTITION BY orders_partner_name, ORDER BY orders_order_date)
 Note: Use format type "percent" for this calculation.
 
 5. MOVING AVERAGE:
 MOVING_AVG(orders_total_revenue, 3)
+For rolling averages split by a dimension, include PARTITION BY:
+MOVING_AVG(orders_total_revenue, 6, PARTITION BY orders_partner_name, ORDER BY orders_order_month)
 
 6. RANK:
 RANK()
+For rank within each group, include PARTITION BY:
+RANK(PARTITION BY orders_partner_name, ORDER BY orders_total_revenue DESC)
 
 7. NULL HANDLING:
 COALESCE(orders_discount, 0)
@@ -202,6 +239,7 @@ TYPE CONSISTENCY:
 IMPORTANT:
 - Only use fields that are provided in the available fields list
 - Use the exact field IDs shown
+- When the user asks for a rolling, running, lag/lead, rank, or moving calculation "by", "per", "for each", "grouped by", or "split by" a dimension, include that dimension in PARTITION BY. Usually use date/timestamp dimensions in ORDER BY, not PARTITION BY.
 - Do NOT include a leading = sign`;
 }
 
@@ -224,12 +262,23 @@ function buildPromptModeContent(
     context: Extract<FormulaTableCalculationContext, { mode: 'prompt' }>,
     fieldReferenceGuide: string,
 ): string {
+    const partitionCandidates = getPartitionCandidateFieldIds(
+        context.fieldsContext,
+    );
+    const timeDimensions = getTimeDimensionFieldIds(context.fieldsContext);
+
     return `Create a formula table calculation based on this request: "${context.prompt}"
 
 Data source: "${context.tableName}"
 
 Available fields to reference:
 ${fieldReferenceGuide}
+
+Selected non-date dimensions, usually PARTITION BY candidates for per-group window calculations:
+${partitionCandidates.length > 0 ? partitionCandidates.join(', ') : 'None'}
+
+Selected date/time dimensions, usually ORDER BY candidates for rolling/running window calculations:
+${timeDimensions.length > 0 ? timeDimensions.join(', ') : 'None'}
 
 ${
     context.currentFormula
