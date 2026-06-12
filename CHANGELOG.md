@@ -1,3 +1,10 @@
+# [0.3147.0](https://github.com/lightdash/lightdash/compare/0.3146.1...0.3147.0) (2026-06-12)
+
+
+### Features
+
+* add JSON cell viewer ([#24221](https://github.com/lightdash/lightdash/issues/24221)) ([f3c9c55](https://github.com/lightdash/lightdash/commit/f3c9c55f68dfe12b189ce85e059a789f02346949)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3146.1](https://github.com/lightdash/lightdash/compare/0.3146.0...0.3146.1) (2026-06-12)
 
 
