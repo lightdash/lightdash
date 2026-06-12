@@ -908,7 +908,12 @@ export type Project = {
 
 export type ProjectSummary = Pick<
     Project,
-    'name' | 'projectUuid' | 'organizationUuid' | 'type' | 'upstreamProjectUuid'
+    | 'name'
+    | 'projectUuid'
+    | 'organizationUuid'
+    | 'type'
+    | 'upstreamProjectUuid'
+    | 'createdByUserUuid'
 >;
 
 export type ApiProjectResponse = {

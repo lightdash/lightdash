@@ -2291,12 +2291,13 @@ describe('scopeAbilityBuilder', () => {
             expect(ability.can('manage', contentAsCodeSubject)).toBe(true);
         });
 
-        it('manage:ContentAsCode@self allows upload only to own preview projects (PROD-8004)', () => {
+        it('manage:ContentAsCode@self allows upload only to own previews from the granted project', () => {
             const ability = buildAbility(['manage:ContentAsCode@self']);
 
             const ownPreview = subject('ContentAsCode', {
                 organizationUuid: 'org-123',
-                projectUuid: 'project-123',
+                projectUuid: 'preview-123',
+                upstreamProjectUuid: 'project-123',
                 type: ProjectType.PREVIEW,
                 createdByUserUuid: 'user-456',
             });
@@ -2308,9 +2309,17 @@ describe('scopeAbilityBuilder', () => {
             });
             const othersPreview = subject('ContentAsCode', {
                 organizationUuid: 'org-123',
-                projectUuid: 'project-123',
+                projectUuid: 'preview-123',
+                upstreamProjectUuid: 'project-123',
                 type: ProjectType.PREVIEW,
                 createdByUserUuid: 'another-user',
+            });
+            const ownPreviewFromAnotherProject = subject('ContentAsCode', {
+                organizationUuid: 'org-123',
+                projectUuid: 'preview-456',
+                upstreamProjectUuid: 'another-project',
+                type: ProjectType.PREVIEW,
+                createdByUserUuid: 'user-456',
             });
 
             // Can upload to a preview project they created
@@ -2321,6 +2330,10 @@ describe('scopeAbilityBuilder', () => {
 
             // Cannot upload to a preview created by someone else
             expect(ability.can('manage', othersPreview)).toBe(false);
+
+            expect(ability.can('manage', ownPreviewFromAnotherProject)).toBe(
+                false,
+            );
 
             // Does not grant blanket manage when the subject lacks self context
             expect(ability.can('manage', contentAsCodeSubject)).toBe(false);
@@ -2571,6 +2584,51 @@ describe('scopeAbilityBuilder', () => {
                         organizationUuid: 'org-123',
                         projectUuid: 'other-project',
                     }),
+                ),
+            ).toBe(false);
+        });
+
+        it('project-management @self scopes match own previews from the granted upstream project', () => {
+            const ability = buildWith(baseContext, [
+                'manage:DeployProject@self',
+                'update:Project@self',
+                'delete:Project@self',
+            ]);
+            const ownPreviewFromProject = () => ({
+                organizationUuid: 'org-123',
+                projectUuid: 'preview-123',
+                upstreamProjectUuid: 'project-123',
+                type: ProjectType.PREVIEW,
+                createdByUserUuid: 'user1',
+            });
+            const ownPreviewFromAnotherProject = {
+                ...ownPreviewFromProject(),
+                projectUuid: 'preview-456',
+                upstreamProjectUuid: 'another-project',
+            };
+
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DeployProject', ownPreviewFromProject()),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'update',
+                    subject('Project', ownPreviewFromProject()),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'delete',
+                    subject('Project', ownPreviewFromProject()),
+                ),
+            ).toBe(true);
+            expect(
+                ability.can(
+                    'manage',
+                    subject('DeployProject', ownPreviewFromAnotherProject),
                 ),
             ).toBe(false);
         });
