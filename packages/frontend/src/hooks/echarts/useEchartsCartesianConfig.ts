@@ -1505,8 +1505,76 @@ export const padDatasetForContinuousAxis = (
  */
 type CategoryDateAxisConfig = {
     data?: string[];
-    axisTick?: { alignWithLabel: boolean; interval: number };
+    axisTick?: Record<string, unknown>;
+    axisLabel?: Record<string, unknown>;
     boundaryGap?: boolean;
+};
+
+type SubDayTimeAxisConfig = Pick<
+    CategoryDateAxisConfig,
+    'axisTick' | 'axisLabel'
+>;
+
+const SUB_DAY_TIME_INTERVALS = new Set<TimeFrames>([
+    TimeFrames.SECOND,
+    TimeFrames.MINUTE,
+    TimeFrames.HOUR,
+]);
+
+const getAxisInstantMs = (raw: unknown): number | undefined => {
+    if (typeof raw === 'number') {
+        return Number.isFinite(raw) ? raw : undefined;
+    }
+    if (raw instanceof Date) {
+        return Number.isFinite(raw.getTime()) ? raw.getTime() : undefined;
+    }
+    if (typeof raw !== 'string') {
+        return undefined;
+    }
+    const parsed = dayjs.utc(raw).valueOf();
+    return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+export const getSubDayTimeAxisConfig = (
+    axisId?: string,
+    axisField?: Field | TableCalculation | CustomDimension,
+    rows?: ResultRow[],
+    axisType?: string,
+    resolvedTimezone?: string,
+): SubDayTimeAxisConfig => {
+    if (
+        !axisId ||
+        !rows ||
+        !axisField ||
+        axisType !== 'time' ||
+        !resolvedTimezone ||
+        !isDimension(axisField) ||
+        isCalendarValueDimension(axisField)
+    ) {
+        return {};
+    }
+
+    const { timeInterval } = axisField;
+    if (!timeInterval || !SUB_DAY_TIME_INTERVALS.has(timeInterval)) {
+        return {};
+    }
+
+    const customValues = Array.from(
+        new Set(
+            rows
+                .map((row) => getAxisInstantMs(row[axisId]?.value.raw))
+                .filter((value): value is number => value !== undefined),
+        ),
+    ).sort((a, b) => a - b);
+
+    if (!customValues.length) {
+        return {};
+    }
+
+    return {
+        axisTick: { customValues },
+        axisLabel: { customValues },
+    };
 };
 
 export const getCategoryDateAxisConfig = (
@@ -1846,6 +1914,20 @@ const getEchartAxes = ({
         eChartsSeries,
         resolvedTimezone,
     );
+    const bottomAxisSubDayConfig = getSubDayTimeAxisConfig(
+        bottomAxisXId,
+        bottomAxisXField,
+        axisRows,
+        bottomAxisType,
+        resolvedTimezone,
+    );
+    const leftAxisSubDayConfig = getSubDayTimeAxisConfig(
+        leftAxisYId,
+        leftAxisYField,
+        axisRows,
+        leftAxisType,
+        resolvedTimezone,
+    );
 
     const axisLabelFontSize =
         validCartesianConfig?.eChartsConfig?.axisLabelFontSize;
@@ -2073,6 +2155,44 @@ const getEchartAxes = ({
         ? rightAxisYFieldIds && rightAxisYFieldIds.length > 0
         : false;
 
+    const bottomAxisLabelConfig = bottomAxisConfigWithStyle.axisLabel
+        ? {
+              ...bottomAxisConfigWithStyle.axisLabel,
+              ...(shouldStack100 && validCartesianConfig.layout.flipAxes
+                  ? { formatter: '{value}%' }
+                  : {}),
+              ...(!validCartesianConfig.layout.flipAxes &&
+              (xAxisConfiguration?.[0] as XAxis | undefined)?.enableDataZoom &&
+              bottomAxisType === 'category' &&
+              showXAxis
+                  ? {
+                        interval: 0,
+                        hideOverlap: true,
+                    }
+                  : {}),
+              ...bottomAxisSubDayConfig.axisLabel,
+          }
+        : undefined;
+
+    const leftAxisLabelConfig = leftAxisConfigWithStyle.axisLabel
+        ? {
+              ...leftAxisConfigWithStyle.axisLabel,
+              ...(shouldStack100 && !validCartesianConfig.layout.flipAxes
+                  ? { formatter: '{value}%' }
+                  : {}),
+              ...(validCartesianConfig.layout.flipAxes &&
+              (yAxisConfiguration?.[0] as XAxis | undefined)?.enableDataZoom &&
+              leftAxisType === 'category' &&
+              showLeftYAxis
+                  ? {
+                        interval: 0,
+                        hideOverlap: false,
+                    }
+                  : {}),
+              ...leftAxisSubDayConfig.axisLabel,
+          }
+        : undefined;
+
     return {
         xAxis: [
             {
@@ -2108,33 +2228,19 @@ const getEchartAxes = ({
                       ? gridStyle
                       : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(
-                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
-                ),
-                // Override formatter for 100% stacking with flipped axes
-                ...(shouldStack100 &&
-                    validCartesianConfig.layout.flipAxes &&
-                    showXAxis && {
-                        axisLabel: {
-                            ...(bottomAxisConfigWithStyle.axisLabel || {}),
-                            formatter: '{value}%',
-                        },
-                    }),
-                // Override axisLabel settings when scrollable is enabled (not flipped)
-                ...(!validCartesianConfig.layout.flipAxes &&
-                    (xAxisConfiguration?.[0] as XAxis | undefined)
-                        ?.enableDataZoom &&
-                    bottomAxisType === 'category' &&
-                    showXAxis && {
-                        axisLabel: {
-                            ...(bottomAxisConfigWithStyle.axisLabel || {}),
-                            interval: 0,
-                            // Keep hideOverlap true to avoid overlapping when labels are long on X axis
-                            hideOverlap: true,
-                        },
-                    }),
                 inverse: !!xAxisConfiguration?.[0]?.inverse,
+                axisTick: {
+                    ...getAxisTickStyle(
+                        validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                    ),
+                    ...bottomAxisSubDayConfig.axisTick,
+                },
+                // Spread last so a category-date axisTick keeps replacing the
+                // tick style (sub-day time axes never set extraConfig.axisTick).
                 ...bottomAxisExtraConfig,
+                ...(bottomAxisLabelConfig
+                    ? { axisLabel: bottomAxisLabelConfig }
+                    : {}),
                 min: bottomAxisBounds.min,
                 max: maxXAxisValue,
             },
@@ -2216,28 +2322,6 @@ const getEchartAxes = ({
                 min: minYAxisValue,
                 max: maxYAxisValue,
                 ...leftAxisConfigWithStyle,
-                // Override formatter for 100% stacking without flipped axes
-                ...(shouldStack100 &&
-                    !validCartesianConfig.layout.flipAxes &&
-                    showLeftYAxis && {
-                        axisLabel: {
-                            ...(leftAxisConfigWithStyle.axisLabel || {}),
-                            formatter: '{value}%',
-                        },
-                    }),
-                // Override axisLabel settings when scrollable is enabled and axes are flipped
-                ...(validCartesianConfig.layout.flipAxes &&
-                    (yAxisConfiguration?.[0] as XAxis | undefined)
-                        ?.enableDataZoom &&
-                    leftAxisType === 'category' &&
-                    showLeftYAxis && {
-                        axisLabel: {
-                            ...(leftAxisConfigWithStyle.axisLabel || {}),
-                            interval: 0,
-                            // Set hideOverlap to false to avoid hiding labels
-                            hideOverlap: false,
-                        },
-                    }),
                 splitLine: validCartesianConfig.layout.flipAxes
                     ? showGridX
                         ? gridStyle
@@ -2246,11 +2330,19 @@ const getEchartAxes = ({
                       ? gridStyle
                       : { show: false },
                 axisLine: getAxisLineStyle(),
-                axisTick: getAxisTickStyle(
-                    validCartesianConfig?.eChartsConfig?.showAxisTicks,
-                ),
                 inverse: !!yAxisConfiguration?.[0]?.inverse,
+                axisTick: {
+                    ...getAxisTickStyle(
+                        validCartesianConfig?.eChartsConfig?.showAxisTicks,
+                    ),
+                    ...leftAxisSubDayConfig.axisTick,
+                },
+                // Spread last so a category-date axisTick keeps replacing the
+                // tick style (sub-day time axes never set extraConfig.axisTick).
                 ...leftAxisExtraConfig,
+                ...(leftAxisLabelConfig
+                    ? { axisLabel: leftAxisLabelConfig }
+                    : {}),
             },
             {
                 type: rightAxisType,
