@@ -1,3 +1,10 @@
+# [0.3152.0](https://github.com/lightdash/lightdash/compare/0.3151.0...0.3152.0) (2026-06-12)
+
+
+### Features
+
+* **dashboard:** add timezone source indicator to chart tile ([#24235](https://github.com/lightdash/lightdash/issues/24235)) ([19ed1ca](https://github.com/lightdash/lightdash/commit/19ed1ca43f9c14ef808cf45ecfdb9d5af2a59461))
+
 # [0.3151.0](https://github.com/lightdash/lightdash/compare/0.3150.0...0.3151.0) (2026-06-12)
 
 
