@@ -227,37 +227,25 @@ export const toIsoWithProjectOffset = (
     return m.tz(timezone).toISOString(true);
 };
 
-// TIMESTAMPs and TIMESTAMP-base DATE intervals shift; calendar DATEs and
-// dims with `skipTimezoneConversion` stay put. Used by spreadsheet exports.
+// Only TIMESTAMP instants shift; calendar DATEs (incl. day-or-coarser truncs,
+// which now compile to a real DATE — GLITCH-452) and dims with
+// `skipTimezoneConversion` stay put. Used by spreadsheet exports.
 export const shouldShiftItemTimezone = (
     item: Item | AdditionalMetric | undefined,
 ): boolean => {
     if (!isField(item)) return false;
     if (isDimension(item) && item.skipTimezoneConversion) return false;
-    if (item.type === DimensionType.TIMESTAMP) return true;
-    return (
-        item.type === DimensionType.DATE &&
-        isDimension(item) &&
-        item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
-    );
+    return item.type === DimensionType.TIMESTAMP;
 };
 
 // A calendar value is a bare wall-clock date (year/month/day, no instant) that
-// must never be timezone-shifted or anchored. True for plain DATE columns,
-// DATE-base truncations and DATE metrics; false for any TIMESTAMP (including
-// `skipTimezoneConversion` ones — those are TZ-immune but still real instants)
-// and for a DATE truncated from a TIMESTAMP base, which is a bucketed instant
-// that still anchors and shifts.
+// must never be timezone-shifted or anchored. GLITCH-452: every DATE-typed
+// field is now a calendar value — plain DATE columns, DATE-base truncs, DATE
+// metrics, and day-or-coarser truncs of a TIMESTAMP base (which now compile to
+// a real DATE). Only TIMESTAMP-typed fields are instants.
 export const isCalendarValueDimension = (
     item: Item | AdditionalMetric | undefined,
-): boolean => {
-    if (!isField(item)) return false;
-    if (item.type !== DimensionType.DATE) return false;
-    return !(
-        isDimension(item) &&
-        item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
-    );
-};
+): boolean => isField(item) && item.type === DimensionType.DATE;
 
 // Renders a temporal cell as the wall-clock string Excel and Google Sheets
 // auto-detect as a date. TIMESTAMP → `YYYY-MM-DD HH:mm:ss.SSS`, DATE →

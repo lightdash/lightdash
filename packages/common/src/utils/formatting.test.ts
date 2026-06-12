@@ -799,14 +799,15 @@ describe('Formatting', () => {
             // DATE truncated from a DATE base — any grain
             expect(isCalendarValueDimension(dateOverDateDay)).toBe(true);
             expect(isCalendarValueDimension(dateOverDateWeek)).toBe(true);
+            // GLITCH-452: a DATE truncated from a TIMESTAMP base now compiles to a
+            // real DATE (CAST(... AS DATE)), so it is a calendar value too.
+            expect(isCalendarValueDimension(dateOverTimestampDay)).toBe(true);
             // A date-typed metric (MetricType.DATE) — not a Dimension, still calendar
             expect(isCalendarValueDimension(dateMetric)).toBe(true);
         });
 
         test('treats real instants as non-calendar values', () => {
-            // DATE truncated from a TIMESTAMP base is a bucketed instant
-            expect(isCalendarValueDimension(dateOverTimestampDay)).toBe(false);
-            // plain + sub-day TIMESTAMP
+            // plain + sub-day TIMESTAMP are real instants
             expect(isCalendarValueDimension(timestampRaw)).toBe(false);
             expect(isCalendarValueDimension(timestampHour)).toBe(false);
         });
@@ -915,7 +916,8 @@ describe('Formatting', () => {
                     'Pacific/Pago_Pago',
                 ),
             ).toEqual('2026-03-03');
-            // TIMESTAMP base: timezone still applies
+            // TIMESTAMP base: GLITCH-452 — now a real DATE (calendar value), so the
+            // display timezone no longer applies (no negative-offset roll-back).
             expect(
                 formatItemValue(
                     {
@@ -929,7 +931,7 @@ describe('Formatting', () => {
                     undefined,
                     'Pacific/Pago_Pago',
                 ),
-            ).toEqual('2026-03-02');
+            ).toEqual('2026-03-03');
         });
 
         test('formatItemValue DATE ignores display timezone for plain DATE columns and DATE metrics', () => {
@@ -1027,7 +1029,9 @@ describe('Formatting', () => {
                 ...dateOverTs,
                 skipTimezoneConversion: true,
             };
-            expect(shouldShiftItemTimezone(dateOverTs)).toBe(true);
+            // GLITCH-452: a DATE-over-TIMESTAMP trunc is now a real DATE — it no
+            // longer shifts (only TIMESTAMP instants do).
+            expect(shouldShiftItemTimezone(dateOverTs)).toBe(false);
             expect(shouldShiftItemTimezone(dateOverTsOptOut)).toBe(false);
         });
 
@@ -2358,10 +2362,11 @@ describe('Formatting', () => {
                 ).toContain('(-11:00)');
             });
 
-            test('DATE DAY over TIMESTAMP base shifts into project TZ (positive offset canary)', () => {
-                // A day-grain truncation of a TIMESTAMP column is a midnight
-                // instant, so it still shifts. Tokyo midnight Jan 14 = UTC Jan 13 15:00
-                const value = new Date('2024-01-13T15:00:00.000Z');
+            test('DATE DAY over TIMESTAMP base is a calendar value — renders as-is, no shift (GLITCH-452)', () => {
+                // A day-grain truncation now compiles to a real DATE (the
+                // project-local calendar day), so it renders as-is regardless of
+                // the project timezone — no midnight-instant shift.
+                const value = new Date('2024-01-14T00:00:00.000Z');
                 expect(
                     formatItemValue(
                         {

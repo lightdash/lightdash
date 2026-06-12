@@ -758,15 +758,10 @@ describe('getCategoryDateAxisConfig', () => {
                 ]);
             });
 
-            // Complement of the above: TIMESTAMP-base dims are bucketed
-            // instants, so they DO shift with the resolved timezone.
-            test('TIMESTAMP-base dim honors resolvedTimezone and snaps in project tz', () => {
-                const tz = 'America/Los_Angeles';
-                const months: Array<[number, number]> = [
-                    [2024, 4],
-                    [2024, 5],
-                    [2024, 6],
-                ];
+            // GLITCH-452: a TIMESTAMP-base day-or-coarser dim now compiles to a
+            // real DATE (calendar value), so it snaps in UTC like a DATE-base dim
+            // — no project-tz shift.
+            test('TIMESTAMP-base dim is now a calendar value — snaps in UTC (GLITCH-452)', () => {
                 const tsBaseField = {
                     fieldType: FieldType.DIMENSION,
                     type: DimensionType.DATE,
@@ -775,15 +770,24 @@ describe('getCategoryDateAxisConfig', () => {
                     name: 'created_at_month',
                     table: 'orders',
                 } as unknown as Dimension;
+                const rows = createRows([
+                    '2024-04-01T00:00:00Z',
+                    '2024-05-01T00:00:00Z',
+                    '2024-06-01T00:00:00Z',
+                ]);
                 const result = getCategoryDateAxisConfig(
                     axisId,
                     tsBaseField,
-                    monthlyRowsFor(tz, months),
+                    rows,
                     'category',
                     undefined,
-                    tz,
+                    'America/Los_Angeles',
                 );
-                expect(result.data).toEqual(expectedMonthlyRange(tz, months));
+                expect(result.data).toEqual([
+                    '2024-04-01T00:00:00Z',
+                    '2024-05-01T00:00:00Z',
+                    '2024-06-01T00:00:00Z',
+                ]);
             });
         });
 
