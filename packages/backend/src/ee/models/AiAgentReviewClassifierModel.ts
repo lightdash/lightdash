@@ -22,6 +22,8 @@ import type {
     AiAgentReviewItemWritebackEligibility,
     AiAgentReviewItemWritebackStatus,
     AiAgentReviewRemediation,
+    AiAgentReviewRemediationEvent,
+    AiAgentReviewRemediationEventDetail,
     AiAgentReviewRemediationStatus,
     AiAgentReviewSignalSummary,
     AiAgentRootCause,
@@ -44,15 +46,18 @@ import {
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTableName,
+    AiAgentReviewRemediationEventsTableName,
     AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
     type AiAgentReviewClassifierRunTable,
     type AiAgentReviewItemTable,
+    type AiAgentReviewRemediationEventsTable,
     type AiAgentReviewRemediationTable,
     type AiAgentTurnSignalTable,
     type DbAiAgentReviewClassifierRun,
     type DbAiAgentReviewItem,
     type DbAiAgentReviewRemediation,
+    type DbAiAgentReviewRemediationEvent,
     type DbAiAgentTurnSignal,
 } from '../database/entities/aiAgentReviewClassifier';
 
@@ -1332,7 +1337,7 @@ export class AiAgentReviewClassifierModel {
     async updateReviewRemediationStatus(
         args: UpdateReviewRemediationStatusArgs,
     ): Promise<void> {
-        await this.database<AiAgentReviewRemediationTable>(
+        const updatedCount = await this.database<AiAgentReviewRemediationTable>(
             AiAgentReviewRemediationTableName,
         )
             .where('ai_agent_review_remediation_uuid', args.remediationUuid)
@@ -1350,6 +1355,77 @@ export class AiAgentReviewClassifierModel {
                         : null,
                 updated_at: this.database.fn.now() as never,
             });
+
+        // Terminal transitions emit activity events centrally so no call site
+        // can forget; moment events (pr_opened, preview_compiled, …) are
+        // written by the services where the moment happens.
+        if (updatedCount === 0) {
+            return;
+        }
+        if (args.status === 'resolved') {
+            await this.createRemediationEvent({
+                remediationUuid: args.remediationUuid,
+                organizationUuid: args.organizationUuid,
+                event: { eventType: 'resolved', payload: {} },
+                createdByUserUuid: args.resolvedByUserUuid ?? null,
+            });
+        } else if (args.status === 'failed') {
+            await this.createRemediationEvent({
+                remediationUuid: args.remediationUuid,
+                organizationUuid: args.organizationUuid,
+                event: {
+                    eventType: 'failed',
+                    payload: { errorMessage: args.errorMessage ?? null },
+                },
+            });
+        }
+    }
+
+    async createRemediationEvent(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+        event: AiAgentReviewRemediationEventDetail;
+        occurredAt?: Date;
+        createdByUserUuid?: string | null;
+    }): Promise<void> {
+        await this.database<AiAgentReviewRemediationEventsTable>(
+            AiAgentReviewRemediationEventsTableName,
+        ).insert({
+            ai_agent_review_remediation_uuid: args.remediationUuid,
+            organization_uuid: args.organizationUuid,
+            event_type: args.event.eventType,
+            payload: args.event.payload,
+            occurred_at: args.occurredAt ?? (this.database.fn.now() as never),
+            created_by_user_uuid: args.createdByUserUuid ?? null,
+        });
+    }
+
+    async listRemediationEvents(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+    }): Promise<AiAgentReviewRemediationEvent[]> {
+        const rows = await this.database<AiAgentReviewRemediationEventsTable>(
+            AiAgentReviewRemediationEventsTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .orderBy('occurred_at', 'asc')
+            .select('*');
+
+        return rows.map(AiAgentReviewClassifierModel.mapRemediationEvent);
+    }
+
+    private static mapRemediationEvent(
+        row: DbAiAgentReviewRemediationEvent,
+    ): AiAgentReviewRemediationEvent {
+        return {
+            uuid: row.ai_agent_review_remediation_event_uuid,
+            remediationUuid: row.ai_agent_review_remediation_uuid,
+            occurredAt: row.occurred_at,
+            createdByUserUuid: row.created_by_user_uuid,
+            eventType: row.event_type,
+            payload: row.payload,
+        } as AiAgentReviewRemediationEvent;
     }
 
     /**

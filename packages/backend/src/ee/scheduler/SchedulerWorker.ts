@@ -127,6 +127,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                             await this.aiAgentService.executeReviewRemediationRun(
                                 payload,
                             );
+                            await this.aiAgentAdminService.recordReviewRemediationVerified(
+                                payload,
+                            );
                         },
                     ),
                     helpers.job,

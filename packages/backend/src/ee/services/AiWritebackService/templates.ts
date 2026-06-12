@@ -3,6 +3,8 @@ import {
     COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
+    PR_SUMMARY_CLOSE,
+    PR_SUMMARY_OPEN,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
     SHARED_SKILL_PATH,
@@ -153,8 +155,8 @@ ${
 6. End your final reply with the two structured-output blocks below.`
 }
 
-The two structured-output blocks let the host pick up the PR metadata reliably.
-The host strips both blocks before showing your reply to the user, so they will
+The structured-output blocks let the host pick up the PR metadata reliably.
+The host strips the blocks before showing your reply to the user, so they will
 not appear in Slack. Emit them verbatim, on their own lines, each opening and
 closing tag exactly as shown:
 
@@ -165,6 +167,11 @@ closing tag exactly as shown:
    ${PR_DESCRIPTION_OPEN}
    PR description in plain markdown, no emojis
    ${PR_DESCRIPTION_CLOSE}
+
+   ${PR_SUMMARY_OPEN}
+   one or two short sentences, plain text, written for a business user:
+   what this change lets them do, not how the files changed
+   ${PR_SUMMARY_CLOSE}
 
 If you did not change any files, skip these steps entirely and do not emit the
 blocks.

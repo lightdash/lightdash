@@ -3,11 +3,13 @@ import {
     AiAgentAdminConversationsSummary,
     AiAgentAdminFilters,
     AiAgentAdminSort,
+    AiAgentReviewItemActivity,
     AiAgentReviewItemPrDiff,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
     AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
+    AiAgentReviewRemediationRunJobPayload,
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
@@ -33,6 +35,10 @@ import {
     type AiAgentReviewItemWritebackPreview,
     type AiAgentReviewItemWritebackStrategy,
     type AiAgentReviewRemediation,
+    type AiAgentReviewRemediationEvent,
+    type AiAgentReviewRemediationEventType,
+    type AiAgentReviewRemediationLiveState,
+    type AiAgentReviewRemediationStatus,
     type PullRequest,
     type SessionUser,
 } from '@lightdash/common';
@@ -727,6 +733,20 @@ export class AiAgentAdminService extends BaseService {
                             prState,
                         },
                     );
+                    if (item.remediation) {
+                        await this.aiAgentReviewClassifierModel.createRemediationEvent(
+                            {
+                                remediationUuid: item.remediation.uuid,
+                                organizationUuid,
+                                event: {
+                                    eventType: pr.merged
+                                        ? 'pr_merged'
+                                        : 'pr_closed',
+                                    payload: { prUrl: item.linkedPrUrl! },
+                                },
+                            },
+                        );
+                    }
                     overrides.set(item.fingerprint, { status, prState });
                     // Loop closure: a merged project_context PR changed the file,
                     // so re-ingest to refresh the cache for future agent turns.
@@ -975,6 +995,22 @@ export class AiAgentAdminService extends BaseService {
             throw error;
         }
 
+        // Anchor the feed at the finding itself, backdated to when it was
+        // first seen — the remediation row is created much later.
+        await this.aiAgentReviewClassifierModel.createRemediationEvent({
+            remediationUuid: remediation.uuid,
+            organizationUuid,
+            event: {
+                eventType: 'finding_opened',
+                payload: {
+                    excerpt: retryPrompt,
+                    sourceThreadUuid: finding.threadUuid,
+                    sourcePromptUuid: finding.promptUuid,
+                },
+            },
+            occurredAt: reviewItem.firstSeenAt,
+        });
+
         await this.aiAgentReviewClassifierModel.setReviewItemWritebackStatus({
             fingerprint,
             organizationUuid,
@@ -1140,6 +1176,24 @@ export class AiAgentAdminService extends BaseService {
                     },
                 });
                 prUrl = result.prUrl;
+                if (remediationUuid) {
+                    await this.aiAgentReviewClassifierModel.createRemediationEvent(
+                        {
+                            remediationUuid,
+                            organizationUuid,
+                            event: {
+                                eventType: 'writeback_completed',
+                                payload: {
+                                    files: (result.steps ?? [])
+                                        .filter((step) => step.kind === 'edit')
+                                        .map((step) => step.label),
+                                    additions: result.additions ?? null,
+                                    deletions: result.deletions ?? null,
+                                },
+                            },
+                        },
+                    );
+                }
                 pullRequest = prUrl
                     ? await this.pullRequestsModel.findByProjectAndUrl(
                           projectUuid,
@@ -1182,6 +1236,21 @@ export class AiAgentAdminService extends BaseService {
                             remediationUuid,
                             organizationUuid,
                             pullRequestUuid: pullRequest.pullRequestUuid,
+                        },
+                    );
+                    await this.aiAgentReviewClassifierModel.createRemediationEvent(
+                        {
+                            remediationUuid,
+                            organizationUuid,
+                            event: {
+                                eventType: 'pr_opened',
+                                payload: {
+                                    prUrl,
+                                    prNumber:
+                                        parsePullRequestUrl(prUrl)
+                                            ?.pullNumber ?? null,
+                                },
+                            },
                         },
                     );
                 } else if (remediationUuid) {
@@ -1319,6 +1388,85 @@ export class AiAgentAdminService extends BaseService {
     }
 
     /**
+     * The per-PR activity feed for a review finding: stored lifecycle events
+     * plus a derived in-flight state (never stored) for the accented live row.
+     */
+    async getReviewItemActivity(
+        user: SessionUser,
+        fingerprint: string,
+    ): Promise<AiAgentReviewItemActivity> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        this.checkOrganizationAdminAccess(user);
+
+        const reviewItem =
+            await this.aiAgentReviewClassifierModel.getReviewItem(
+                organizationUuid,
+                fingerprint,
+            );
+        if (!reviewItem?.remediation) {
+            return { events: [], liveState: null, liveMessage: null };
+        }
+
+        const events =
+            await this.aiAgentReviewClassifierModel.listRemediationEvents({
+                remediationUuid: reviewItem.remediation.uuid,
+                organizationUuid,
+            });
+
+        const liveState = AiAgentAdminService.deriveRemediationLiveState(
+            reviewItem.remediation.status,
+            events,
+        );
+        return {
+            events,
+            liveState,
+            liveMessage:
+                liveState === 'writeback'
+                    ? reviewItem.prWritebackMessage
+                    : null,
+        };
+    }
+
+    private static deriveRemediationLiveState(
+        status: AiAgentReviewRemediationStatus,
+        events: AiAgentReviewRemediationEvent[],
+    ): AiAgentReviewRemediationLiveState | null {
+        if (status === 'queued' || status === 'running') {
+            return 'writeback';
+        }
+        if (status !== 'pr_open' && status !== 'preview_ready') {
+            return null;
+        }
+        const has = (eventType: AiAgentReviewRemediationEventType) =>
+            events.some((event) => event.eventType === eventType);
+        if (!has('pr_opened') || has('verification_completed')) {
+            return null;
+        }
+        return has('preview_compiled') ? 'verifying' : 'compiling';
+    }
+
+    /**
+     * Called by the worker after the remediation verification run finishes —
+     * the run itself lives in AiAgentService, which doesn't own remediation
+     * lifecycle state.
+     */
+    async recordReviewRemediationVerified(
+        payload: AiAgentReviewRemediationRunJobPayload,
+    ): Promise<void> {
+        await this.aiAgentReviewClassifierModel.createRemediationEvent({
+            remediationUuid: payload.remediationUuid,
+            organizationUuid: payload.organizationUuid,
+            event: {
+                eventType: 'verification_completed',
+                payload: { previewThreadUuid: payload.threadUuid },
+            },
+        });
+    }
+
+    /**
      * Self-rescheduling poll: checks the preview's compile job and only seeds
      * the verification thread once the explores exist — the verification agent
      * snapshots explores at run start, so prompting earlier produces a false
@@ -1364,6 +1512,14 @@ export class AiAgentAdminService extends BaseService {
         const job = await this.jobModel.get(compileJobUuid);
         switch (job.jobStatus) {
             case JobStatusType.DONE:
+                await this.aiAgentReviewClassifierModel.createRemediationEvent({
+                    remediationUuid,
+                    organizationUuid,
+                    event: {
+                        eventType: 'preview_compiled',
+                        payload: { previewProjectUuid },
+                    },
+                });
                 await this.setReviewRemediationPreviewFromProject({
                     organizationUuid,
                     remediationUuid,

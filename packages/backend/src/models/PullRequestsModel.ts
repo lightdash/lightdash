@@ -39,6 +39,7 @@ type CreatePullRequest = {
     repo: string;
     prNumber: number;
     prUrl: string;
+    summary?: string | null;
 };
 
 type AiThreadInfo = { aiThreadUuid: string; aiAgentUuid: string | null };
@@ -76,6 +77,7 @@ const mapDbPullRequest = (
     repo: row.repo,
     prNumber: row.pr_number,
     prUrl: row.pr_url,
+    summary: row.summary,
     aiThreadUuid: aiThread?.aiThreadUuid ?? null,
     aiAgentUuid: aiThread?.aiAgentUuid ?? null,
     reviewContext,
@@ -377,6 +379,7 @@ export class PullRequestsModel {
                 repo: data.repo,
                 pr_number: data.prNumber,
                 pr_url: data.prUrl,
+                summary: data.summary ?? null,
             })
             .returning('*');
 
@@ -406,6 +409,7 @@ export class PullRequestsModel {
                 repo: data.repo,
                 pr_number: data.prNumber,
                 pr_url: data.prUrl,
+                summary: data.summary ?? null,
             })
             .onConflict(['provider', 'owner', 'repo', 'pr_number'])
             .ignore()
@@ -413,6 +417,19 @@ export class PullRequestsModel {
 
         if (inserted.length > 0) {
             return mapDbPullRequest(inserted[0], null, null);
+        }
+
+        // A follow-up turn carries a fresher description of what the PR now
+        // does — refresh the stored summary while preserving attribution.
+        if (data.summary) {
+            await this.database(PullRequestsTableName)
+                .where({
+                    provider: data.provider,
+                    owner: data.owner,
+                    repo: data.repo,
+                    pr_number: data.prNumber,
+                })
+                .update({ summary: data.summary });
         }
 
         // The insert was ignored because a row already exists — return it.
@@ -494,6 +511,36 @@ export class PullRequestsModel {
                 reviewContext.byPrUrl.get(row.pr_url) ??
                 null,
         );
+    }
+
+    /**
+     * The PR an AI thread produced, via the enterprise `ai_writeback_thread`
+     * link. Null in deployments without that table or when the thread never
+     * opened a PR.
+     */
+    async findByAiThreadUuid(
+        aiThreadUuid: string,
+    ): Promise<PullRequest | null> {
+        if (this.aiWritebackTableExists === undefined) {
+            this.aiWritebackTableExists = await this.database.schema.hasTable(
+                AiWritebackThreadTableName,
+            );
+        }
+        if (!this.aiWritebackTableExists) {
+            return null;
+        }
+
+        const row = await this.database(PullRequestsTableName)
+            .innerJoin(
+                AiWritebackThreadTableName,
+                `${AiWritebackThreadTableName}.pull_request_uuid`,
+                `${PullRequestsTableName}.pull_request_uuid`,
+            )
+            .where(`${AiWritebackThreadTableName}.ai_thread_uuid`, aiThreadUuid)
+            .select(`${PullRequestsTableName}.*`)
+            .first();
+
+        return row ? mapDbPullRequest(row, null, null) : null;
     }
 
     /**

@@ -665,6 +665,7 @@ export class AiWritebackService extends BaseService {
             const {
                 title: prTitle,
                 description: prDescription,
+                summary: prSummary,
                 sanitizedStdout,
             } = extractPrMetadata(agent.stdout);
             this.logger.info(
@@ -732,6 +733,7 @@ export class AiWritebackService extends BaseService {
                 setStage,
                 prTitle,
                 prDescription,
+                prSummary,
             });
             pauseOnExit = applied.pauseOnExit;
 
@@ -1476,6 +1478,7 @@ export class AiWritebackService extends BaseService {
         setStage,
         prTitle,
         prDescription,
+        prSummary,
     }: {
         sandbox: Sandbox;
         installation: GitInstallation;
@@ -1488,6 +1491,7 @@ export class AiWritebackService extends BaseService {
         setStage: SetStage;
         prTitle: string | null;
         prDescription: string | null;
+        prSummary: string | null;
     }): Promise<AppliedChanges> {
         if (!hasChanges) {
             this.logger.info(
@@ -1542,6 +1546,7 @@ export class AiWritebackService extends BaseService {
                     aiThreadUuid,
                     sandbox,
                     prUrl: targetPrUrl,
+                    summary: prSummary,
                 });
             }
 
@@ -1582,6 +1587,7 @@ export class AiWritebackService extends BaseService {
             aiThreadUuid,
             sandbox,
             prUrl,
+            summary: prSummary,
         });
 
         return {
@@ -1637,6 +1643,7 @@ export class AiWritebackService extends BaseService {
         aiThreadUuid,
         sandbox,
         prUrl,
+        summary,
     }: {
         turn: TurnContext;
         projectUuid: string;
@@ -1644,6 +1651,7 @@ export class AiWritebackService extends BaseService {
         aiThreadUuid: string | undefined;
         sandbox: Sandbox;
         prUrl: string;
+        summary: string | null;
     }): Promise<void> {
         const pullRequest = await this.pullRequestsModel.findOrCreate({
             organizationUuid: turn.organizationUuid,
@@ -1655,6 +1663,7 @@ export class AiWritebackService extends BaseService {
             repo: turn.gitConnection.repo,
             prNumber: parsePullNumber(prUrl),
             prUrl,
+            summary,
         });
 
         if (aiThreadUuid) {
