@@ -164,7 +164,7 @@ import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
-import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
+import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -4938,11 +4938,12 @@ export class AsyncQueryService extends ProjectService {
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-            { projectUuid },
+        const dashboardParameters = convertDashboardParametersToValuesMap(
+            await this.dashboardModel.getDashboardParametersByIdOrSlug(
+                dashboardUuid,
+                projectUuid,
+            ),
         );
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Load project parameters once and pass to both combineParameters and prepareMetricQueryAsyncQueryArgs
         const projectParameters =
@@ -5928,11 +5929,12 @@ export class AsyncQueryService extends ProjectService {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-            { projectUuid },
+        const dashboardParameters = convertDashboardParametersToValuesMap(
+            await this.dashboardModel.getDashboardParametersByIdOrSlug(
+                dashboardUuid,
+                projectUuid,
+            ),
         );
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
