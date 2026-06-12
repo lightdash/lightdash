@@ -268,4 +268,23 @@ describe('loadLightdashProjectConfig', () => {
         );
         expect(config.custom_granularities).toBeUndefined();
     });
+
+    it('should load config with dbt_semantic_layer enabled', async () => {
+        const config = await loadLightdashProjectConfig(
+            `
+spotlight:
+  default_visibility: show
+dbt_semantic_layer:
+  enabled: true
+`,
+        );
+        expect(config.dbt_semantic_layer).toEqual({ enabled: true });
+    });
+
+    it('should load config without dbt_semantic_layer', async () => {
+        const config = await loadLightdashProjectConfig(
+            'spotlight:\n  default_visibility: show\n',
+        );
+        expect(config.dbt_semantic_layer).toBeUndefined();
+    });
 });
