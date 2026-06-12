@@ -2048,6 +2048,7 @@ export class AsyncQueryService extends ProjectService {
                               const rawValue = formatRawValue(
                                   field,
                                   row[c.reference],
+                                  displayTimezone ?? undefined,
                               );
                               const formattedValue = field
                                   ? formatItemValue(
@@ -6834,6 +6835,20 @@ export class AsyncQueryService extends ProjectService {
                 pivotDimensions,
             );
 
+        // GLITCH-452: format subtotal raw values with the same resolved display
+        // timezone as the main rows so DATE dimensions compare and render
+        // identically (null when the timezone flag is off → legacy ISO output).
+        const { displayTimezone } = await this.resolveTimezoneContext({
+            projectUuid,
+            organizationUuid,
+            userUuid: account.user.id,
+            userTimezone: getAccountUserTimezone(account),
+            // Only used as a presence gate for DATE raw formatting; the flag
+            // null-vs-set gating is independent of sessionTimezone.
+            sessionTimezone: null,
+            metricQuery,
+        });
+
         const subtotalsPromises = dimensionGroupsToSubtotal.map<
             Promise<[string, Record<string, unknown>[]]>
         >(async (subtotalDimensions) => {
@@ -6862,7 +6877,11 @@ export class AsyncQueryService extends ProjectService {
                         userAccessControls,
                     });
 
-                subtotals = formatRawRows(rows, fields);
+                subtotals = formatRawRows(
+                    rows,
+                    fields,
+                    displayTimezone ?? undefined,
+                );
             } catch (e) {
                 this.logger.error(
                     `Error running subtotal query for dimensions ${subtotalDimensions.join(

@@ -822,17 +822,24 @@ export function itemsInMetricQuery(
 export function formatRawValue(
     field: Field | Metric | TableCalculation | CustomDimension | undefined,
     value: AnyType,
+    // GLITCH-452: a resolved display timezone signals tz-aware mode is on, where
+    // DATE fields are real calendar values — emit a bare YYYY-MM-DD so `raw`
+    // matches the warehouse type. Undefined keeps the legacy ISO output,
+    // byte-identical. The value is never shifted; the tz is only a mode flag.
+    timezone?: string,
 ) {
-    const isTimestamp =
-        isField(field) &&
-        (field.type === DimensionType.DATE ||
-            field.type === DimensionType.TIMESTAMP);
-
-    if (isTimestamp && value !== null) {
+    if (!isField(field) || value === null) {
+        return value;
+    }
+    const isDate = field.type === DimensionType.DATE;
+    const isTimestamp = field.type === DimensionType.TIMESTAMP;
+    if (timezone && isDate) {
+        return dayjs(value).utc(true).format('YYYY-MM-DD');
+    }
+    if (isDate || isTimestamp) {
         // We want to return the datetime in UTC to avoid timezone issues in the frontend like in chart tooltips
         return dayjs(value).utc(true).format();
     }
-
     return value;
 }
 
@@ -840,6 +847,7 @@ export function formatRawValue(
 export function formatRawRows(
     rows: { [col: string]: AnyType }[],
     itemsMap: ItemsMap,
+    timezone?: string,
 ): Record<string, unknown>[] {
     return rows.map((row) => {
         const resultRow: ResultRow = {};
@@ -849,7 +857,7 @@ export function formatRawRows(
             const value = row[columnName];
             const item = itemsMap[columnName];
 
-            resultRow[columnName] = formatRawValue(item, value);
+            resultRow[columnName] = formatRawValue(item, value, timezone);
         }
 
         return resultRow;
@@ -873,7 +881,7 @@ export function formatRow(
 
         resultRow[columnName] = {
             value: {
-                raw: formatRawValue(item, value),
+                raw: formatRawValue(item, value, timezone),
                 formatted: formatItemValue(
                     item,
                     value,
