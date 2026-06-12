@@ -48,6 +48,7 @@ import {
     type ApiSuccess,
     type ApiTableGroupsResults,
     type ApiUpdateDashboardsResponse,
+    type ApiUpstreamDiffResponse,
     type ApiVerifiedContentListResponse,
     type CalculateSubtotalsFromQuery,
     type CreateDashboard,
@@ -1068,6 +1069,30 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         return {
             status: 'ok',
             results,
+        };
+    }
+
+    /**
+     * Diff a preview project against the project it was copied from, using the
+     * catalog index. Detects added/removed fields and label changes; does not
+     * detect SQL-only field changes.
+     * @summary Get upstream diff
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('{projectUuid}/upstreamDiff')
+    @OperationId('getUpstreamDiff')
+    async getUpstreamDiff(
+        @Path() projectUuid: string,
+        @Request() req: express.Request,
+    ): Promise<ApiUpstreamDiffResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.services
+                .getProjectService()
+                .getUpstreamDiff(projectUuid, req.account),
         };
     }
 
