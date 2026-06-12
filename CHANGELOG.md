@@ -1,3 +1,10 @@
+## [0.3153.1](https://github.com/lightdash/lightdash/compare/0.3153.0...0.3153.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* preserve custom format expressions on saved chart additional metrics ([#24240](https://github.com/lightdash/lightdash/issues/24240)) ([e9a1ce2](https://github.com/lightdash/lightdash/commit/e9a1ce2de8d58c59419b41e85f1fec96f2347058))
+
 # [0.3153.0](https://github.com/lightdash/lightdash/compare/0.3152.1...0.3153.0) (2026-06-12)
 
 
