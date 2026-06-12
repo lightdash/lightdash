@@ -5,7 +5,6 @@ import {
     getFieldsFromMetricQuery,
     getHiddenTableFields,
     getPivotConfig,
-    isTimeZone,
     NotFoundError,
     FeatureFlags,
     type ApiErrorDetail,
@@ -394,13 +393,8 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                     resolvedTimezone={
                                         query.data?.resolvedTimezone
                                     }
-                                    metricQueryTimezone={
-                                        query.data?.metricQuery?.timezone &&
-                                        isTimeZone(
-                                            query.data.metricQuery.timezone,
-                                        )
-                                            ? query.data.metricQuery.timezone
-                                            : undefined
+                                    timezoneSetting={
+                                        query.data?.metricQuery?.timezone
                                     }
                                 />
                                 {isEditMode ? (
