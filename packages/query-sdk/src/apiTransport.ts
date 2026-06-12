@@ -10,6 +10,10 @@
 
 import type {
     Column,
+    DownloadResultsFileType,
+    DownloadResultsLimit,
+    DownloadResultsOptions,
+    DownloadResultsResult,
     FormatFunction,
     InternalFilterDefinition,
     LightdashClientConfig,
@@ -29,6 +33,8 @@ const PAGE_SIZE = 500;
 const INITIAL_BACKOFF_MS = 250;
 const MAX_BACKOFF_MS = 1000;
 const MAX_POLL_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_DOWNLOAD_POLL_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+const ALL_RESULTS_LIMIT = Number.MAX_SAFE_INTEGER;
 
 type ApiResponse<T> = {
     status: 'ok';
@@ -39,6 +45,20 @@ type AsyncQueryResponse = {
     queryUuid: string;
     metricQuery: Record<string, unknown>;
     fields: Record<string, FieldMeta>;
+};
+
+type ScheduleDownloadResponse = {
+    jobId: string;
+};
+
+type SchedulerJobStatusResponse = {
+    status: 'scheduled' | 'started' | 'completed' | 'error';
+    details?: {
+        fileUrl?: string;
+        truncated?: boolean;
+        error?: string;
+        [key: string]: unknown;
+    } | null;
 };
 
 type FieldMeta = {
@@ -82,6 +102,11 @@ type PollResponse =
           queryUuid: string;
           error: string | null;
       };
+
+const sleep = (ms: number) =>
+    new Promise<void>((resolve) => {
+        setTimeout(resolve, ms);
+    });
 
 /**
  * A function that performs HTTP requests and returns parsed JSON results.
@@ -217,6 +242,97 @@ function createDefaultFetchAdapter(
     };
 }
 
+function buildMetricQueryBody(
+    query: QueryDefinition,
+    qualify: (fieldId: string) => string,
+    limit: number = query.limit,
+): Record<string, unknown> {
+    return {
+        query: {
+            exploreName: query.exploreName,
+            dimensions: query.dimensions.map(qualify),
+            metrics: query.metrics.map(qualify),
+            filters: buildApiFilters(
+                query.filters.map((f) => ({
+                    ...f,
+                    fieldId: qualify(f.fieldId),
+                })),
+            ),
+            sorts: query.sorts.map((s) => ({
+                fieldId: qualify(s.fieldId),
+                descending: s.descending,
+            })),
+            limit,
+            tableCalculations: query.tableCalculations,
+            ...(query.additionalMetrics.length > 0
+                ? { additionalMetrics: query.additionalMetrics }
+                : {}),
+            ...(query.customDimensions.length > 0
+                ? { customDimensions: query.customDimensions }
+                : {}),
+        },
+        // Parameters go at the TOP LEVEL of the body — the backend reads
+        // `body.parameters`, not `body.query.parameters`.
+        ...(query.parameters && Object.keys(query.parameters).length > 0
+            ? { parameters: query.parameters }
+            : {}),
+    };
+}
+
+async function executeMetricQuery(
+    fetchFn: FetchAdapter,
+    projectUuid: string,
+    query: QueryDefinition,
+    qualify: (fieldId: string) => string,
+    limit?: number,
+): Promise<AsyncQueryResponse> {
+    const metadata = query.label ? { label: query.label } : undefined;
+    return fetchFn<AsyncQueryResponse>(
+        'POST',
+        `/api/v2/projects/${projectUuid}/query/metric-query`,
+        buildMetricQueryBody(query, qualify, limit),
+        metadata,
+    );
+}
+
+function getDownloadLimit(limit: DownloadResultsLimit | undefined): {
+    kind: 'table' | 'rerun';
+    limit?: number;
+} {
+    if (limit === undefined || limit === 'table') {
+        return { kind: 'table' };
+    }
+    if (limit === 'all') {
+        return { kind: 'rerun', limit: ALL_RESULTS_LIMIT };
+    }
+    if (!Number.isInteger(limit) || limit < 1) {
+        throw new Error(
+            'Download limit must be "table", "all", or a positive integer.',
+        );
+    }
+    return { kind: 'rerun', limit };
+}
+
+const triggerBrowserDownload = (
+    fileUrl: string,
+    filename: string | undefined,
+    fileType: DownloadResultsFileType,
+) => {
+    if (typeof document === 'undefined') return;
+
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    if (filename) {
+        link.download = filename.toLowerCase().endsWith(`.${fileType}`)
+            ? filename
+            : `${filename}.${fileType}`;
+    }
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
 export function mapColumnType(type: string): Column['type'] {
     if (/timestamp/i.test(type)) return 'timestamp';
     if (/date/i.test(type)) return 'date';
@@ -230,34 +346,25 @@ export function mapColumnType(type: string): Column['type'] {
     return 'string';
 }
 
-async function pollQueryRows(
+async function pollQueryReady(
     fetchFn: FetchAdapter,
     projectUuid: string,
     queryUuid: string,
-): Promise<{
-    firstReadyPage: Extract<PollResponse, { status: 'ready' }>;
-    apiRows: ResultRow[];
-}> {
+    pageSize: number = PAGE_SIZE,
+): Promise<Extract<PollResponse, { status: 'ready' }>> {
     const pollUrl = (page: number) =>
-        `/api/v2/projects/${projectUuid}/query/${queryUuid}?page=${page}&pageSize=${PAGE_SIZE}`;
+        `/api/v2/projects/${projectUuid}/query/${queryUuid}?page=${page}&pageSize=${pageSize}`;
 
     // The poll endpoint returns status PENDING/QUEUED/EXECUTING while
     // the warehouse is still running, and READY once results are available.
     const deadline = Date.now() + MAX_POLL_DURATION_MS;
     let backoffMs = INITIAL_BACKOFF_MS;
-    let firstReadyPage: Extract<PollResponse, { status: 'ready' }> | null =
-        null;
-    const apiRows: ResultRow[] = [];
 
-    // Wait for the first ready page.
     while (Date.now() < deadline) {
         const pollResult = await fetchFn<PollResponse>('GET', pollUrl(1));
 
         if (pollResult.status === 'ready') {
-            firstReadyPage = pollResult;
-            apiRows.push(...pollResult.rows);
-            backoffMs = INITIAL_BACKOFF_MS;
-            break;
+            return pollResult;
         }
 
         if (pollResult.status === 'error' || pollResult.status === 'expired') {
@@ -272,14 +379,30 @@ async function pollQueryRows(
 
         // Still running — wait with exponential backoff and retry.
         const sleepMs = backoffMs;
-        // eslint-disable-next-line no-promise-executor-return
-        await new Promise((resolve) => setTimeout(resolve, sleepMs));
+        await sleep(sleepMs);
         backoffMs = Math.min(backoffMs * 2, MAX_BACKOFF_MS);
     }
 
-    if (!firstReadyPage) {
-        throw new Error('Query timed out waiting for results');
-    }
+    throw new Error('Query timed out waiting for results');
+}
+
+async function pollQueryRows(
+    fetchFn: FetchAdapter,
+    projectUuid: string,
+    queryUuid: string,
+): Promise<{
+    firstReadyPage: Extract<PollResponse, { status: 'ready' }>;
+    apiRows: ResultRow[];
+}> {
+    const pollUrl = (page: number) =>
+        `/api/v2/projects/${projectUuid}/query/${queryUuid}?page=${page}&pageSize=${PAGE_SIZE}`;
+
+    const firstReadyPage = await pollQueryReady(
+        fetchFn,
+        projectUuid,
+        queryUuid,
+    );
+    const apiRows: ResultRow[] = [...firstReadyPage.rows];
 
     // Drain remaining pages. The backend already streamed results to S3 by
     // the time the first page is ready, so subsequent pages resolve quickly.
@@ -302,6 +425,39 @@ async function pollQueryRows(
     }
 
     return { firstReadyPage, apiRows };
+}
+
+async function pollDownloadJob(
+    fetchFn: FetchAdapter,
+    jobId: string,
+): Promise<{ fileUrl: string; truncated: boolean }> {
+    const deadline = Date.now() + MAX_DOWNLOAD_POLL_DURATION_MS;
+
+    while (Date.now() < deadline) {
+        const result = await fetchFn<SchedulerJobStatusResponse>(
+            'GET',
+            `/api/v1/schedulers/job/${jobId}/status`,
+        );
+
+        if (result.status === 'completed') {
+            const fileUrl = result.details?.fileUrl;
+            if (!fileUrl) {
+                throw new Error('Download completed without a file URL.');
+            }
+            return {
+                fileUrl,
+                truncated: result.details?.truncated === true,
+            };
+        }
+
+        if (result.status === 'error') {
+            throw new Error(result.details?.error ?? 'Download failed.');
+        }
+
+        await sleep(2000);
+    }
+
+    throw new Error('Download timed out waiting for the export job.');
 }
 
 function mapApiRowsToQueryResult({
@@ -400,46 +556,11 @@ export function createApiTransport(
             const qualifiedMetrics = query.metrics.map(qualify);
 
             // Kick off the async query — returns a queryUuid we then poll.
-            const body = {
-                query: {
-                    exploreName: table,
-                    dimensions: qualifiedDims,
-                    metrics: qualifiedMetrics,
-                    filters: buildApiFilters(
-                        query.filters.map((f) => ({
-                            ...f,
-                            fieldId: qualify(f.fieldId),
-                        })),
-                    ),
-                    sorts: query.sorts.map((s) => ({
-                        fieldId: qualify(s.fieldId),
-                        descending: s.descending,
-                    })),
-                    limit: query.limit,
-                    tableCalculations: query.tableCalculations,
-                    ...(query.additionalMetrics.length > 0
-                        ? { additionalMetrics: query.additionalMetrics }
-                        : {}),
-                    ...(query.customDimensions.length > 0
-                        ? { customDimensions: query.customDimensions }
-                        : {}),
-                },
-                // Parameters go at the TOP LEVEL of the body — the backend reads
-                // `body.parameters`, not `body.query.parameters`.
-                ...(query.parameters && Object.keys(query.parameters).length > 0
-                    ? { parameters: query.parameters }
-                    : {}),
-            };
-
-            // Pass label as transport metadata (not in the API body)
-            // so the parent bridge can display it in the query inspector.
-            const metadata = query.label ? { label: query.label } : undefined;
-
-            const execResult = await fetchFn<AsyncQueryResponse>(
-                'POST',
-                `/api/v2/projects/${config.projectUuid}/query/metric-query`,
-                body,
-                metadata,
+            const execResult = await executeMetricQuery(
+                fetchFn,
+                config.projectUuid,
+                query,
+                qualify,
             );
 
             const { queryUuid, fields } = execResult;
@@ -528,10 +649,79 @@ export function createApiTransport(
                 };
             };
 
+            const downloadResults = async (
+                options: DownloadResultsOptions = {},
+            ): Promise<DownloadResultsResult> => {
+                const fileType = options.fileType ?? 'csv';
+                if (fileType !== 'csv' && fileType !== 'xlsx') {
+                    throw new Error(
+                        'Download fileType must be "csv" or "xlsx".',
+                    );
+                }
+
+                const values = options.values ?? 'formatted';
+                if (values !== 'formatted' && values !== 'raw') {
+                    throw new Error(
+                        'Download values must be "formatted" or "raw".',
+                    );
+                }
+
+                const downloadLimit = getDownloadLimit(options.limit);
+                let downloadQueryUuid = queryUuid;
+
+                if (downloadLimit.kind === 'rerun') {
+                    const downloadExecResult = await executeMetricQuery(
+                        fetchFn,
+                        config.projectUuid,
+                        query,
+                        qualify,
+                        downloadLimit.limit,
+                    );
+                    await pollQueryReady(
+                        fetchFn,
+                        config.projectUuid,
+                        downloadExecResult.queryUuid,
+                        1,
+                    );
+                    downloadQueryUuid = downloadExecResult.queryUuid;
+                }
+
+                const scheduled = await fetchFn<ScheduleDownloadResponse>(
+                    'POST',
+                    `/api/v2/projects/${config.projectUuid}/query/${downloadQueryUuid}/schedule-download`,
+                    {
+                        type: fileType,
+                        onlyRaw: values === 'raw',
+                        ...(options.filename
+                            ? { attachmentDownloadName: options.filename }
+                            : {}),
+                    },
+                );
+
+                const { fileUrl, truncated } = await pollDownloadJob(
+                    fetchFn,
+                    scheduled.jobId,
+                );
+
+                if (options.autoDownload !== false) {
+                    triggerBrowserDownload(fileUrl, options.filename, fileType);
+                }
+
+                return {
+                    queryUuid: downloadQueryUuid,
+                    jobId: scheduled.jobId,
+                    fileUrl,
+                    fileType,
+                    truncated,
+                };
+            };
+
             return {
                 ...mappedResult,
+                totalResults: firstReadyPage.totalResults,
                 queryUuid,
                 getUnderlyingData,
+                downloadResults,
             };
         },
 

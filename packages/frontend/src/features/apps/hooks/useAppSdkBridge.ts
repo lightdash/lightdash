@@ -74,6 +74,17 @@ const ALLOWED_ROUTES: Array<{ method: string; pattern: RegExp }> = [
         method: 'GET',
         pattern: /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+$/,
     },
+    // Schedule backend CSV/XLSX export jobs for SDK query results
+    {
+        method: 'POST',
+        pattern:
+            /^\/api\/v2\/projects\/[^/]+\/query\/[^/]+\/schedule-download$/,
+    },
+    // Poll export job status until the backend returns a file URL
+    {
+        method: 'GET',
+        pattern: /^\/api\/v1\/schedulers\/job\/[^/]+\/status$/,
+    },
     // Get current user
     { method: 'GET', pattern: /^\/api\/v1\/user$/ },
 ];

@@ -142,11 +142,13 @@ strings, numbers, or arrays of either. They are sent at the top level of the API
 | `data`    | `Row[]`         | Array of flat objects. Numbers are numbers, strings are strings. |
 | `columns` | `Column[]`      | Field metadata for returned rows.                                |
 | `format`  | `(row, fieldName) => string` | Server-formatted value for a field.                  |
+| `totalResults` | `number \| null` | Total rows returned by the loaded source query. |
 | `loading` | `boolean`       | True while the query is running.                                 |
 | `error`   | `Error \| null` | Error if the query failed.                                       |
 | `refetch` | `() => void`    | Re-run the query.                                                |
 | `queryUuid` | `string \| null` | Async query UUID for the loaded source query.                 |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>` | Fetch raw rows behind an aggregated metric value. |
+| `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for this query. |
 
 ## Underlying data
 
@@ -181,6 +183,49 @@ function RevenueTable() {
 
 Call it from a user action. Pass the original row from `data` and the same
 metric name used in `.metrics([...])`.
+
+## Backend downloads
+
+Use `downloadResults()` to export query results through Lightdash's backend
+CSV/XLSX pipeline:
+
+```tsx
+function ResultsTable() {
+    const { data, columns, format, downloadResults } = useLightdash(
+        lightdash
+            .model('orders')
+            .dimensions(['customer_segment'])
+            .metrics(['total_revenue']),
+    );
+
+    return (
+        <button
+            onClick={() =>
+                downloadResults({
+                    fileType: 'xlsx',
+                    values: 'formatted',
+                    limit: 'table',
+                    filename: 'revenue-by-segment',
+                })
+            }
+        >
+            Download
+        </button>
+    );
+}
+```
+
+Options:
+
+- `fileType`: `'csv'` or `'xlsx'`; defaults to `'csv'`.
+- `values`: `'formatted'` or `'raw'`; defaults to `'formatted'`.
+- `limit`: `'table'`, `'all'`, or a custom positive row count; defaults to `'table'`.
+- `filename`: optional download filename without extension.
+
+`limit: 'table'` reuses the loaded query. `limit: 'all'` and custom limits
+rerun the same metric query with the requested row limit, wait for it to be
+ready, and then schedule the backend export job. The full export is generated
+by Lightdash; rows are not serialized in the app iframe.
 
 ## User context
 

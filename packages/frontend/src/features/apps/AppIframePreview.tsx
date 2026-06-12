@@ -74,13 +74,14 @@ type Props = {
  * parent's cookies. `allow-modals` lets generated apps call `window.print()`
  * (needed for PDF Report templates) - it also enables `alert`/`confirm`/`prompt`,
  * which is acceptable here since the iframe is already isolated from parent
- * origin. `allow-popups-to-escape-sandbox` lets cards open links in a new
- * un-sandboxed tab, and `allow-top-navigation-by-user-activation` lets a clicked
- * link navigate the current tab (e.g. to another dashboard) without letting app
- * code redirect the page silently. None of these grant `allow-same-origin`, so
- * the parent session stays inaccessible. The SDK inside the iframe routes all
- * API calls through postMessage, and this component's bridge executes them
- * using the current user's session.
+ * origin. `allow-downloads` lets generated apps save backend-generated
+ * CSV/XLSX exports. `allow-popups-to-escape-sandbox` lets cards open links in
+ * a new un-sandboxed tab, and `allow-top-navigation-by-user-activation` lets a
+ * clicked link navigate the current tab (e.g. to another dashboard) without
+ * letting app code redirect the page silently. None of these grant
+ * `allow-same-origin`, so the parent session stays inaccessible. The SDK inside
+ * the iframe routes all API calls through postMessage, and this component's
+ * bridge executes them using the current user's session.
  *
  * Exposes a `captureScreenshot()` imperative handle for the parent. The
  * iframe rasterizes its own DOM with html2canvas-pro and posts the PNG
@@ -184,7 +185,7 @@ const AppIframePreview = forwardRef<AppIframePreviewHandle, Props>(
                 src={src}
                 style={{ width: '100%', height: '100%', border: 'none' }}
                 title="App preview"
-                sandbox="allow-scripts allow-modals allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+                sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
                 allow=""
                 onLoad={handleLoad}
             />

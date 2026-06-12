@@ -18,6 +18,8 @@ import { useTransport } from './LightdashProvider';
 import type { QueryBuilder } from './query';
 import type {
     Column,
+    DownloadResultsOptions,
+    DownloadResultsResult,
     FormatFunction,
     Row,
     UnderlyingDataOptions,
@@ -33,6 +35,8 @@ type UseLightdashResult = {
     columns: Column[];
     /** Format a field value for display: format(row, 'total_revenue') → "$1,234" */
     format: FormatFunction;
+    /** Total rows returned by the source query. */
+    totalResults: number | null;
     /** True while the query is executing */
     loading: boolean;
     /** Error if the query failed, null otherwise */
@@ -45,6 +49,10 @@ type UseLightdashResult = {
     getUnderlyingData: (
         options: UnderlyingDataOptions,
     ) => Promise<UnderlyingDataResult>;
+    /** Schedule a backend CSV/XLSX export for this query result. */
+    downloadResults: (
+        options?: DownloadResultsOptions,
+    ) => Promise<DownloadResultsResult>;
 };
 
 export function useLightdash(query: QueryBuilder): UseLightdashResult {
@@ -52,6 +60,7 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
     const [data, setData] = useState<Row[]>([]);
     const [columns, setColumns] = useState<Column[]>([]);
     const [format, setFormat] = useState<FormatFunction>(() => noopFormat);
+    const [totalResults, setTotalResults] = useState<number | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<Error | null>(null);
     const [fetchCount, setFetchCount] = useState(0);
@@ -62,6 +71,11 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         throw new Error(
             'Underlying data is not available before the query loads.',
         );
+    });
+    const [downloadResults, setDownloadResults] = useState<
+        UseLightdashResult['downloadResults']
+    >(() => async () => {
+        throw new Error('Downloads are not available before the query loads.');
     });
 
     const queryKey = useMemo(() => JSON.stringify(query.build()), [query]);
@@ -75,9 +89,15 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         setLoading(true);
         setError(null);
         setQueryUuid(null);
+        setTotalResults(null);
         setGetUnderlyingData(() => async () => {
             throw new Error(
                 'Underlying data is not available before the query loads.',
+            );
+        });
+        setDownloadResults(() => async () => {
+            throw new Error(
+                'Downloads are not available before the query loads.',
             );
         });
 
@@ -90,6 +110,7 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
                     setData(res.rows);
                     setColumns(res.columns);
                     setFormat(() => res.format);
+                    setTotalResults(res.totalResults ?? res.rows.length);
                     setQueryUuid(res.queryUuid ?? null);
                     setGetUnderlyingData(
                         () => async (options: UnderlyingDataOptions) => {
@@ -101,6 +122,16 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
                             return res.getUnderlyingData(options);
                         },
                     );
+                    setDownloadResults(
+                        () => async (options?: DownloadResultsOptions) => {
+                            if (!res.downloadResults) {
+                                throw new Error(
+                                    'Downloads are not supported by this Lightdash transport.',
+                                );
+                            }
+                            return res.downloadResults(options);
+                        },
+                    );
                     setLoading(false);
                 }
             })
@@ -110,6 +141,7 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
                         err instanceof Error ? err : new Error(String(err)),
                     );
                     setQueryUuid(null);
+                    setTotalResults(null);
                     setLoading(false);
                 }
             });
@@ -124,10 +156,12 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         data,
         columns,
         format,
+        totalResults,
         loading,
         error,
         refetch,
         queryUuid,
         getUnderlyingData,
+        downloadResults,
     };
 }

@@ -58,8 +58,8 @@ flowchart LR
    - `apps/{appUuid}/versions/{version}/source.tar` — source code (restored for future iterations)
 
 7. **Preview serving** — The built app is served through an Express router at `/api/apps/{appUuid}/versions/{version}/`.
-   Authentication uses short-lived JWT tokens. The iframe runs with `sandbox="allow-scripts allow-modals"` (no
-   same-origin access) and strict CSP headers.
+   Authentication uses short-lived JWT tokens. The iframe runs without same-origin access and strict CSP headers; see
+   [Iframe Sandboxing](#iframe-sandboxing) for the full sandbox policy.
 
 ### Starter Templates
 
@@ -430,16 +430,21 @@ Preview router: `packages/backend/src/routers/appPreviewRouter.ts`
 
 ### Iframe Sandboxing
 
-The preview iframe uses `sandbox="allow-scripts allow-modals"` without `allow-same-origin`. This means:
+The preview iframe uses `sandbox="allow-scripts allow-modals allow-downloads allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"` without `allow-same-origin`. This means:
 
 - The iframe cannot access the parent page's cookies or storage
 - The iframe cannot make credentialed requests to the Lightdash API directly
 - All API communication goes through a `postMessage` bridge
+- The iframe can trigger user-initiated downloads for backend-generated CSV/XLSX exports
 
 `allow-modals` is enabled so that PDF Report templates (and any generated app that wants a Print button) can call
 `window.print()`. It also enables `alert`/`confirm`/`prompt`, which are an accepted trade-off: the iframe is still
 isolated from the parent origin, the browser attributes dialog origins to the iframe, and a malicious app could
 already build an equivalent in-iframe HTML form.
+
+`allow-downloads` is enabled so generated apps can save CSV/XLSX exports produced by the Lightdash backend download
+pipeline. It does not grant parent-origin access; the app still schedules and polls export jobs through the
+parent-mediated SDK bridge.
 
 ### PostMessage Bridge (`useAppSdkBridge`)
 
@@ -455,6 +460,8 @@ Allowed routes (defined in `packages/frontend/src/features/apps/hooks/useAppSdkB
 - `POST /api/v2/projects/{uuid}/query/metric-query` — run metric queries
 - `POST /api/v2/projects/{uuid}/query/underlying-data` — run underlying-data queries for loaded SDK result rows
 - `GET /api/v2/projects/{uuid}/query/{queryId}` — poll for query results
+- `POST /api/v2/projects/{uuid}/query/{queryId}/schedule-download` — schedule CSV/XLSX exports for loaded SDK queries
+- `GET /api/v1/schedulers/job/{jobId}/status` — poll export jobs until a file URL is available
 - `GET /api/v1/user` — get current user info
 
 All other routes are rejected.
@@ -467,6 +474,28 @@ message `type` and forwards each to the right hook —
 `useAppSdkBridge` for SDK fetches and capability announces,
 `useIframeScreenshot` for screenshot responses. See
 [Screenshot Capture](#screenshot-capture) below.
+
+### Backend Data Downloads
+
+`useLightdash()` returns `downloadResults({ fileType, values, limit, filename })` after the source query has loaded.
+This mirrors the core chart/table export pipeline instead of serializing data in the iframe:
+
+1. For `limit: 'table'`, the SDK reuses the source query UUID.
+2. For `limit: 'all'` or a custom row count, the SDK reruns the same metric query with the requested limit and waits
+   until the query is ready without fetching every row into the iframe.
+3. The SDK calls `POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download`.
+4. The SDK polls `GET /api/v1/schedulers/job/{jobId}/status`.
+5. When the backend returns `fileUrl`, the iframe triggers a browser download.
+
+Supported options match the core export concepts:
+
+- `fileType`: `csv` or `xlsx`
+- `values`: `formatted` or `raw`
+- `limit`: `table`, `all`, or a custom positive row count
+- `filename`: optional download filename
+
+The backend owns CSV/XLSX generation, truncation, raw/formatted value handling, and file hosting. The app owns only the
+button/menu UI and when to call `downloadResults()`.
 
 ### Preview Token Authentication
 
@@ -644,8 +673,9 @@ the parent's origin safe. Capturing in-iframe avoids all of that, plus:
 
 ### Trust boundary summary
 
-There's only one trust boundary that matters: the preview iframe's `sandbox="allow-scripts allow-modals"`. The
-screenshot path doesn't cross any new boundary — pixels are inert. Two defences keep the path robust:
+There's only one trust boundary that matters: the preview iframe's sandbox, described in
+[Iframe Sandboxing](#iframe-sandboxing). The screenshot path doesn't cross any new boundary — pixels are inert. Two
+defences keep the path robust:
 
 1. **`event.source` identity check** in `useIframeScreenshot`'s response listener — only messages from the actual
    preview `contentWindow` are accepted, so a sibling window can't deliver a fake blob to upload.
