@@ -719,15 +719,20 @@ export const getSqlForTruncatedDate = (
     startOfWeek?: WeekDay | null,
     timezone?: string,
     sourceTimezone?: string,
+    castDayGrainToDate: boolean = false,
 ): string => {
     const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
+    // GLITCH-452: day-or-coarser grains emit a real DATE so the warehouse type
+    // matches the metadata; sub-day grains stay TIMESTAMP.
+    const castToDate = castDayGrainToDate && !isSubDayTimeFrame(timeFrame);
     if (!wrap) {
-        return warehouseConfigs[adapterType].getSqlForTruncatedDate(
+        const bare = warehouseConfigs[adapterType].getSqlForTruncatedDate(
             timeFrame,
             originalSql,
             type,
             startOfWeek,
         );
+        return castToDate ? `CAST(${bare} AS DATE)` : bare;
     }
 
     const { toProjectTz, toUTC } = dateTruncTimezoneConversions[adapterType];
@@ -739,7 +744,11 @@ export const getSqlForTruncatedDate = (
         startOfWeek,
         wrap.timezone,
     );
-    return toUTC(truncated, wrap.timezone);
+    // Cast the project-wall-clock value to DATE and drop the toUTC round-trip;
+    // casting the UTC instant instead would be session-tz-dependent (wrong day).
+    return castToDate
+        ? `CAST(${truncated} AS DATE)`
+        : toUTC(truncated, wrap.timezone);
 };
 
 // DATE base dimensions short-circuit: no time component to shift.
