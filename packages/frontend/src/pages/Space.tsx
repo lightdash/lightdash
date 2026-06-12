@@ -64,14 +64,6 @@ const Space: FC = () => {
     const { user, health } = useApp();
     const { track } = useTracking();
 
-    const userCanManageSpace = user.data?.ability?.can(
-        'create',
-        subject('Space', {
-            organizationUuid: user.data?.organizationUuid,
-            projectUuid,
-        }),
-    );
-
     const isDemo = health.data?.mode === LightdashMode.DEMO;
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled ?? false;
@@ -121,6 +113,22 @@ const Space: FC = () => {
     if (user.data?.ability?.cannot('view', subject('Space', { ...space }))) {
         return <ForbiddenPanel />;
     }
+
+    const userCanCreateProjectSpace = user.data?.ability?.can(
+        'create',
+        subject('Space', {
+            organizationUuid: user.data?.organizationUuid,
+            projectUuid,
+        }),
+    );
+
+    const userCanManageSpace = user.data?.ability?.can(
+        'manage',
+        subject('Space', { ...space }),
+    );
+
+    const userCanCreateNestedSpace =
+        userCanCreateProjectSpace || userCanManageSpace;
 
     const userCanCreateDashboards = user.data?.ability?.can(
         'create',
@@ -250,7 +258,7 @@ const Space: FC = () => {
                                 (userCanCreateDashboards ||
                                     userCanCreateCharts ||
                                     userCanCreateDataApps ||
-                                    userCanManageSpace) && (
+                                    userCanCreateNestedSpace) && (
                                     <Menu
                                         position="bottom-end"
                                         shadow="md"
@@ -274,7 +282,7 @@ const Space: FC = () => {
                                         </Menu.Target>
 
                                         <Menu.Dropdown>
-                                            {userCanManageSpace && (
+                                            {userCanCreateNestedSpace && (
                                                 <>
                                                     <Menu.Item
                                                         leftSection={
@@ -450,7 +458,7 @@ const Space: FC = () => {
                             [ColumnVisibility.SPACE]: false,
                         }}
                         enableBottomToolbar={false}
-                        enableRowSelection={userCanManageSpace}
+                        enableRowSelection={userCanCreateProjectSpace}
                         adminContentView={userCanManageProject}
                         initialAdminContentViewValue={
                             userCanManageSpaceAndHasNoDirectAccessToSpace

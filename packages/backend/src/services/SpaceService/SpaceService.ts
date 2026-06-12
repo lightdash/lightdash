@@ -231,18 +231,14 @@ export class SpaceService
             await this.projectModel.getSummary(projectUuid);
 
         const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'create',
-                subject('Space', {
-                    organizationUuid,
-                    projectUuid,
-                    metadata: { spaceName: space.name },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const canCreateProjectSpace = auditedAbility.can(
+            'create',
+            subject('Space', {
+                organizationUuid,
+                projectUuid,
+                metadata: { spaceName: space.name },
+            }),
+        );
 
         if (space.parentSpaceUuid) {
             // Check if parent space uuid is in project
@@ -252,6 +248,18 @@ export class SpaceService
             if (parentSpace.projectUuid !== projectUuid) {
                 throw new NotFoundError('Parent space not found');
             }
+
+            const canManageParentSpace = await this.spacePermissionService.can(
+                'manage',
+                user,
+                space.parentSpaceUuid,
+            );
+
+            if (!canCreateProjectSpace && !canManageParentSpace) {
+                throw new ForbiddenError();
+            }
+        } else if (!canCreateProjectSpace) {
+            throw new ForbiddenError();
         }
 
         let inheritParentPermissions: boolean;
