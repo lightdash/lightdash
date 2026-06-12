@@ -1,9 +1,12 @@
 import {
     DEFAULT_SPOTLIGHT_CONFIG,
+    isExploreError,
+    MetricType,
     SupportedDbtVersions,
     type LightdashProjectConfig,
     type WarehouseClient,
 } from '@lightdash/common';
+import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
 import fs from 'fs/promises';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import type { CachedWarehouse, DbtClient } from '../types';
@@ -152,6 +155,143 @@ describe('getProjectContext', () => {
         await expect(mockProjectAdapter.getProjectContext()).rejects.toThrow(
             /Invalid lightdash.project_context.yml with errors/,
         );
+    });
+});
+
+describe('compileAllExplores with dbt semantic layer enabled', () => {
+    const manifest = {
+        metadata: {
+            dbt_schema_version:
+                'https://schemas.getdbt.com/dbt/manifest/v12.json',
+            generated_at: '2023-01-01T00:00:00.000000Z',
+            adapter_type: 'postgres',
+        },
+        nodes: {
+            'model.test.claims': {
+                resource_type: 'model',
+                unique_id: 'model.test.claims',
+                name: 'claims',
+                database: 'test_db',
+                schema: 'test_schema',
+                alias: 'claims',
+                relation_name: '"test_db"."test_schema"."claims"',
+                meta: {},
+                config: { materialized: 'table' },
+                columns: {},
+                tags: [],
+                description: '',
+                package_name: 'test',
+                path: '',
+                original_file_path: '',
+                patch_path: null,
+                checksum: { name: '', checksum: '' },
+                fqn: [],
+                raw_code: '',
+                language: 'sql',
+                depends_on: { nodes: [] },
+            },
+        },
+        metrics: {},
+        docs: {},
+        semantic_models: {
+            'semantic_model.test.claims': {
+                unique_id: 'semantic_model.test.claims',
+                name: 'claims',
+                label: 'Claims',
+                model: "ref('claims')",
+                depends_on: { nodes: ['model.test.claims'] },
+                defaults: { agg_time_dimension: 'created_at' },
+                entities: [
+                    { name: 'claim', type: 'primary', expr: 'claim_id' },
+                ],
+                dimensions: [
+                    { name: 'category', type: 'categorical' },
+                    {
+                        name: 'created_at',
+                        type: 'time',
+                        type_params: { time_granularity: 'day' },
+                    },
+                ],
+                measures: [
+                    {
+                        name: 'total_claims',
+                        agg: 'count_distinct',
+                        expr: 'claim_id',
+                        create_metric: true,
+                    },
+                ],
+            },
+        },
+    };
+
+    const warehouseCatalog = {
+        test_db: {
+            test_schema: {
+                claims: {
+                    claim_id: 'number',
+                    category: 'string',
+                    created_at: 'date',
+                },
+            },
+        },
+    };
+
+    const buildAdapter = () => {
+        const warehouseClient = Object.assign(
+            warehouseSqlBuilderFromType('postgres'),
+            {
+                getCatalog: jest.fn().mockResolvedValue(warehouseCatalog),
+                credentials: { type: 'postgres' },
+            },
+        ) as unknown as WarehouseClient;
+        return new DbtBaseProjectAdapter(
+            {
+                getDbtManifest: jest.fn().mockResolvedValue({ manifest }),
+            } as unknown as DbtClient,
+            warehouseClient,
+            {
+                warehouseCatalog,
+                onWarehouseCatalogChange: jest.fn(),
+            } as unknown as CachedWarehouse,
+            SupportedDbtVersions.V1_9,
+            './some/path/to/dbt/project',
+        );
+    };
+
+    it('compiles semantic layer metrics into the explore', async () => {
+        readFileSpy.mockResolvedValueOnce(
+            'spotlight:\n  default_visibility: show\ndbt_semantic_layer:\n  enabled: true\n',
+        );
+        const explores = await buildAdapter().compileAllExplores();
+        const explore = explores.find((e) => e.name === 'claims');
+        if (explore === undefined || isExploreError(explore)) {
+            throw new Error('Expected claims explore to compile');
+        }
+        expect(explore.label).toEqual('Claims');
+        const table = explore.tables.claims;
+        expect(table.metrics.total_claims.type).toEqual(
+            MetricType.COUNT_DISTINCT,
+        );
+        expect(table.metrics.total_claims.defaultTimeDimension).toEqual({
+            field: 'created_at',
+            interval: 'DAY',
+        });
+        expect(table.dimensions.claim_id.hidden).toEqual(true);
+        expect(table.dimensions.category).toBeDefined();
+    });
+
+    it('ignores the semantic layer when not enabled', async () => {
+        readFileSpy.mockResolvedValueOnce(
+            'spotlight:\n  default_visibility: show\n',
+        );
+        const explores = await buildAdapter().compileAllExplores();
+        const explore = explores.find((e) => e.name === 'claims');
+        expect(explore).toBeDefined();
+        if (explore && !isExploreError(explore)) {
+            throw new Error(
+                'Expected claims explore to fail without dimensions',
+            );
+        }
     });
 });
 

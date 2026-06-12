@@ -1,5 +1,6 @@
 import {
     AnyType,
+    applyDbtSemanticLayerToModels,
     attachTypesToModels,
     convertExplores,
     DbtManifestVersion,
@@ -15,6 +16,7 @@ import {
     getDbtManifestVersion,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
+    getSemanticLayerFromManifest,
     InlineError,
     InlineErrorType,
     isSupportedDbtAdapter,
@@ -237,10 +239,35 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
             throw new NotFoundError(`No models found`);
         }
 
+        const lightdashProjectConfig =
+            await this.getLightdashProjectConfig(trackingParams);
+
+        let modelsForValidation: DbtRawModelNode[] = models;
+        if (lightdashProjectConfig.dbt_semantic_layer?.enabled) {
+            const { semanticModels, metrics: semanticLayerMetrics } =
+                getSemanticLayerFromManifest(manifest, manifestVersion);
+            const semanticLayerResult = applyDbtSemanticLayerToModels(
+                models,
+                semanticModels,
+                semanticLayerMetrics,
+            );
+            modelsForValidation = semanticLayerResult.models;
+            Logger.info(
+                `Converted ${semanticModels.length} dbt semantic model(s)`,
+            );
+            semanticLayerResult.warnings.forEach((warning) => {
+                Logger.warn(
+                    `dbt semantic layer conversion warning${
+                        warning.modelName ? ` (${warning.modelName})` : ''
+                    }: ${warning.message}`,
+                );
+            });
+        }
+
         const [validModels, failedExplores] =
             DbtBaseProjectAdapter._validateDbtModel(
                 adapterType,
-                models,
+                modelsForValidation,
                 manifestVersion,
             );
 
@@ -255,9 +282,6 @@ export class DbtBaseProjectAdapter implements ProjectAdapter {
                 ? []
                 : Object.values(manifest.metrics),
         );
-
-        const lightdashProjectConfig =
-            await this.getLightdashProjectConfig(trackingParams);
 
         // Be lazy and try to attach types to the remaining models without refreshing the catalog
         try {
