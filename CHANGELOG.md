@@ -1,3 +1,10 @@
+# [0.3150.0](https://github.com/lightdash/lightdash/compare/0.3149.0...0.3150.0) (2026-06-12)
+
+
+### Features
+
+* export data from data apps ([#24234](https://github.com/lightdash/lightdash/issues/24234)) ([f8bc5f5](https://github.com/lightdash/lightdash/commit/f8bc5f58dc603c57eb100896e7ed40eeb595f358))
+
 # [0.3149.0](https://github.com/lightdash/lightdash/compare/0.3148.0...0.3149.0) (2026-06-12)
 
 
