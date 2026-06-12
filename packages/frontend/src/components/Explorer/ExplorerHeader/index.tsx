@@ -1,32 +1,25 @@
 import { subject } from '@casl/ability';
-import { FeatureFlags, getTimezoneLabel, isTimeZone } from '@lightdash/common';
 import { Badge, Box, Button, Group, Tooltip } from '@mantine-8/core';
 import { IconAlertCircle, IconArrowLeft } from '@tabler/icons-react';
 import { memo, useEffect, useMemo, type FC } from 'react';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
 import {
-    explorerActions,
     selectIsValidQuery,
     selectQueryLimit,
     selectSavedChart,
-    selectTimezone,
     selectUnsavedChartVersion,
-    useExplorerDispatch,
     useExplorerSelector,
 } from '../../../features/explorer/store';
 import useDashboardStorage from '../../../hooks/dashboard/useDashboardStorage';
 import { useExplorerQuery } from '../../../hooks/useExplorerQuery';
 import { getExplorerUrlFromCreateSavedChartVersion } from '../../../hooks/useExplorerRoute';
-import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
 import useCreateInAnySpaceAccess from '../../../hooks/user/useCreateInAnySpaceAccess';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { Can } from '../../../providers/Ability';
 import { useAbilityContext } from '../../../providers/Ability/useAbilityContext';
 import useApp from '../../../providers/App/useApp';
 import MantineIcon from '../../common/MantineIcon';
 import ShareShortLinkButton from '../../common/ShareShortLinkButton';
-import TimeZonePicker from '../../common/TimeZonePicker';
 import { RefreshButton } from '../../RefreshButton';
 import RefreshDbtButton from '../../RefreshDbtButton';
 import SaveChartButton from '../SaveChartButton';
@@ -40,7 +33,6 @@ const ExplorerHeader: FC = memo(() => {
 
     // Get state from Redux and new hook
     const limit = useExplorerSelector(selectQueryLimit);
-    const selectedTimezone = useExplorerSelector(selectTimezone);
     const isValidQuery = useExplorerSelector(selectIsValidQuery);
     const { query, queryResults } = useExplorerQuery();
 
@@ -51,19 +43,9 @@ const ExplorerHeader: FC = memo(() => {
     );
     const queryWarnings = query.data?.warnings;
 
-    const dispatch = useExplorerDispatch();
-
     const savedChart = useExplorerSelector(selectSavedChart);
 
     const unsavedChartVersion = useExplorerSelector(selectUnsavedChartVersion);
-
-    const handleSetTimeZone = (timezone: string | null) => {
-        if (timezone === null) {
-            dispatch(explorerActions.setTimeZone(undefined));
-        } else if (isTimeZone(timezone)) {
-            dispatch(explorerActions.setTimeZone(timezone));
-        }
-    };
 
     const { getHasDashboardChanges } = useDashboardStorage();
 
@@ -138,21 +120,6 @@ const ExplorerHeader: FC = memo(() => {
         };
     }, [getHasDashboardChanges]);
 
-    const { data: enableUserTimezonesFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableUserTimezones,
-    );
-    const userTimeZonesEnabled = enableUserTimezonesFlag?.enabled ?? false;
-
-    const { data: project } = useProject(projectUuid);
-    const timezonePlaceholder = useMemo(() => {
-        const tz = project?.queryTimezone;
-        if (tz) {
-            const label = getTimezoneLabel(tz);
-            return label ? `Project: ${label}` : `Project: ${tz}`;
-        }
-        return 'Select timezone';
-    }, [project?.queryTimezone]);
-
     const userCanManageCompileProject = ability.can('manage', 'CompileProject');
 
     return (
@@ -201,15 +168,6 @@ const ExplorerHeader: FC = memo(() => {
                     queryWarnings.length > 0 && (
                         <QueryWarnings queryWarnings={queryWarnings} />
                     )}
-
-                {userTimeZonesEnabled && (
-                    <TimeZonePicker
-                        onChange={handleSetTimeZone}
-                        value={selectedTimezone ?? null}
-                        placeholder={timezonePlaceholder}
-                        clearable
-                    />
-                )}
 
                 <RefreshButton size="xs" />
 

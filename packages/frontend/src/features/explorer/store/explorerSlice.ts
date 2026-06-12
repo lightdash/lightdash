@@ -24,7 +24,7 @@ import {
     type SavedChart,
     type SortField,
     type TableCalculation,
-    type TimeZone,
+    type TimezoneSetting,
 } from '@lightdash/common';
 import {
     createNextState,
@@ -244,7 +244,10 @@ const explorerSlice = createSlice({
             state.unsavedChartVersion.metricQuery.limit = action.payload;
         },
 
-        setTimeZone: (state, action: PayloadAction<TimeZone | undefined>) => {
+        setTimeZone: (
+            state,
+            action: PayloadAction<TimezoneSetting | undefined>,
+        ) => {
             state.unsavedChartVersion.metricQuery.timezone = action.payload;
         },
 
