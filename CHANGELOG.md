@@ -1,3 +1,10 @@
+# [0.3158.0](https://github.com/lightdash/lightdash/compare/0.3157.0...0.3158.0) (2026-06-12)
+
+
+### Features
+
+* **ai-review:** PR activity feed + thread PR overview card ([#24254](https://github.com/lightdash/lightdash/issues/24254)) ([6fe112f](https://github.com/lightdash/lightdash/commit/6fe112f549c5c9e12c734aa886ee14ac09a9ee0b))
+
 # [0.3157.0](https://github.com/lightdash/lightdash/compare/0.3156.1...0.3157.0) (2026-06-12)
 
 
