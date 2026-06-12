@@ -80,6 +80,8 @@ export const InteractivityOptionsSchema = z.object({
     // existing canExplore opt-in: an explicit decision to widen the embed's
     // surface beyond pre-built chart queries.
     canViewDataApps: z.boolean().optional(),
+    // Pins tabs and the filter bar to the top while scrolling. Off by default.
+    stickyHeader: z.boolean().optional(),
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
@@ -192,6 +194,7 @@ export type CommonEmbedJwtContent = {
     canExplore?: boolean;
     canViewUnderlyingData?: boolean;
     canViewDataApps?: boolean;
+    stickyHeader?: boolean;
 };
 
 type CommonChartEmbedJwtContent = {

@@ -1,5 +1,5 @@
 import { type Dashboard, type InteractivityOptions } from '@lightdash/common';
-import { ActionIcon, getDefaultZIndex, Tooltip } from '@mantine/core';
+import { ActionIcon, Tooltip } from '@mantine-8/core';
 import { IconPrinter } from '@tabler/icons-react';
 import { type FC } from 'react';
 import MantineIcon from '../../../../../components/common/MantineIcon';
@@ -9,15 +9,10 @@ import '../styles/print.css';
 
 type Props = {
     dashboard: Dashboard & InteractivityOptions;
-    inHeader: boolean;
     projectUuid: string;
 };
 
-const EmbedDashboardExportPdf: FC<Props> = ({
-    projectUuid,
-    dashboard,
-    inHeader,
-}) => {
+const EmbedDashboardExportPdf: FC<Props> = ({ projectUuid, dashboard }) => {
     const { track } = useTracking();
 
     if (!dashboard.canExportPagePdf) {
@@ -83,16 +78,6 @@ const EmbedDashboardExportPdf: FC<Props> = ({
                 }}
                 size="lg"
                 radius="md"
-                sx={{
-                    ...(inHeader
-                        ? {}
-                        : {
-                              position: 'absolute',
-                              top: 20,
-                              right: 72, // Make sure the button does not overlap the chart options
-                          }),
-                    zIndex: getDefaultZIndex('modal') - 1,
-                }}
             >
                 <MantineIcon icon={IconPrinter} />
             </ActionIcon>

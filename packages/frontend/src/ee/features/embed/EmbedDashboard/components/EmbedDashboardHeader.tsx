@@ -4,63 +4,65 @@ import {
     type Dashboard,
     type InteractivityOptions,
 } from '@lightdash/common';
-import { Group } from '@mantine-8/core';
-import { type FC } from 'react';
-import { DateZoom } from '../../../../../features/dateZoom';
+import { Box } from '@mantine-8/core';
+import { type FC, type ReactNode } from 'react';
 import EmbedDashboardExportPdf from './EmbedDashboardExportPdf';
-import EmbedDashboardFilters from './EmbedDashboardFilters';
-import EmbedDashboardParameters from './EmbedDashboardParameters';
+import EmbedDashboardFilterBar from './EmbedDashboardFilterBar';
+import styles from './EmbedDashboardHeader.module.css';
 
 type Props = {
     dashboard: Dashboard & InteractivityOptions;
     projectUuid: string;
+    /** Tab switcher, pinned on top of the filters when the dashboard has tabs */
+    tabs?: ReactNode;
 };
 
-const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid }) => {
-    const hasHeader =
+const EmbedDashboardHeader: FC<Props> = ({ dashboard, projectUuid, tabs }) => {
+    const hasFilterBar =
         dashboard.canDateZoom ||
         isParameterInteractivityEnabled(dashboard.parameterInteractivity) ||
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity);
 
-    // If no header, and exportPagePdf is enabled, show the Export button on the top right corner
-    if (!hasHeader && dashboard.canExportPagePdf) {
-        return (
-            <EmbedDashboardExportPdf
-                dashboard={dashboard}
-                projectUuid={projectUuid}
-                inHeader={false}
-            />
-        );
+    if (!hasFilterBar && !tabs && !dashboard.canExportPagePdf) {
+        return null;
     }
 
-    const shouldShowFilters =
+    const shouldShowFilters = Boolean(
         dashboard.dashboardFiltersInteractivity &&
         isFilterInteractivityEnabled(dashboard.dashboardFiltersInteractivity) &&
-        !dashboard.dashboardFiltersInteractivity.hidden;
-    return (
-        <Group
-            justify="flex-start"
-            align="center"
-            wrap="wrap"
-            pos="relative"
-            m="sm"
-            mb="0"
-            gap="sm"
-        >
-            {isParameterInteractivityEnabled(
-                dashboard.parameterInteractivity,
-            ) && <EmbedDashboardParameters />}
-            {dashboard.canDateZoom && <DateZoom isEditMode={false} />}
+        !dashboard.dashboardFiltersInteractivity.hidden,
+    );
 
+    const isSticky = Boolean(dashboard.stickyHeader);
+
+    const filterBar = hasFilterBar ? (
+        <EmbedDashboardFilterBar
+            dashboard={dashboard}
+            shouldShowFilters={shouldShowFilters}
+        />
+    ) : null;
+
+    return (
+        <Box
+            className={styles.headerBar}
+            data-sticky={isSticky}
+            data-has-tabs={Boolean(tabs)}
+        >
+            <Box className={styles.primary}>{tabs ?? filterBar}</Box>
             {dashboard.canExportPagePdf && (
-                <EmbedDashboardExportPdf
-                    dashboard={dashboard}
-                    projectUuid={projectUuid}
-                    inHeader={true}
-                />
+                <Box className={styles.actions}>
+                    <EmbedDashboardExportPdf
+                        dashboard={dashboard}
+                        projectUuid={projectUuid}
+                    />
+                </Box>
             )}
-            {shouldShowFilters && <EmbedDashboardFilters />}
-        </Group>
+            {tabs && filterBar && (
+                <Box className={styles.secondary}>{filterBar}</Box>
+            )}
+            {/* The scroll-state query can't style the container's own pseudo-elements, so the stuck border needs a real descendant */}
+            {isSticky && <Box className={styles.stuckBorder} />}
+        </Box>
     );
 };
 

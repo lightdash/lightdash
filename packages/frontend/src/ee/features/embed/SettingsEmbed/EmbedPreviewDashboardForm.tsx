@@ -88,6 +88,7 @@ type FormValues = {
     canExplore?: boolean;
     canViewUnderlyingData?: boolean;
     canViewDataApps?: boolean;
+    stickyHeader?: boolean;
 } & IntrinsicUserAttributes;
 
 const EmbedPreviewDashboardForm: FC<{
@@ -135,6 +136,7 @@ const EmbedPreviewDashboardForm: FC<{
             canExplore: false,
             canViewUnderlyingData: false,
             canViewDataApps: false,
+            stickyHeader: false,
         },
         validate: {
             dashboardUuid: (value: undefined | string) => {
@@ -177,6 +179,7 @@ const EmbedPreviewDashboardForm: FC<{
                     canExplore: values.canExplore,
                     canViewUnderlyingData: values.canViewUnderlyingData,
                     canViewDataApps: values.canViewDataApps,
+                    stickyHeader: values.stickyHeader,
                 },
                 writeActions,
                 userAttributes: values.userAttributes.reduce(
@@ -464,6 +467,18 @@ const EmbedPreviewDashboardForm: FC<{
                                         }
                                     />
                                 )}
+                            </Stack>
+
+                            <Stack gap="xs">
+                                <Text size="sm" fw={500}>
+                                    Appearance:
+                                </Text>
+                                <Switch
+                                    {...form.getInputProps('stickyHeader', {
+                                        type: 'checkbox',
+                                    })}
+                                    label="Sticky header (keep tabs & filters visible when scrolling)"
+                                />
                             </Stack>
                         </Stack>
                     </Stack>

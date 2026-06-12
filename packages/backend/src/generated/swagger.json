@@ -1841,6 +1841,9 @@
             },
             "CommonEmbedJwtContent": {
                 "properties": {
+                    "stickyHeader": {
+                        "type": "boolean"
+                    },
                     "canViewDataApps": {
                         "type": "boolean"
                     },

@@ -355,11 +355,6 @@ const EmbedDashboard: FC<{
                 }
             }
         >
-            <EmbedDashboardHeader
-                dashboard={dashboard}
-                projectUuid={projectUuid}
-            />
-
             <LockedDashboardModal
                 opened={hasRequiredDashboardFiltersToSet && !!hasChartTiles}
             />
@@ -368,23 +363,30 @@ const EmbedDashboard: FC<{
                 <Tabs
                     value={activeTab?.uuid}
                     onChange={handleTabChange}
-                    mt="md"
                     classNames={{
                         list: tabStyles.list,
                         tab: tabStyles.tab,
                     }}
                 >
-                    <Tabs.List px="lg">
-                        {visibleTabs.map((tab) => (
-                            <Tabs.Tab
-                                key={tab.uuid}
-                                value={tab.uuid}
-                                maw={`${100 / (visibleTabs.length || 1)}vw`}
-                            >
-                                {tab.name}
-                            </Tabs.Tab>
-                        ))}
-                    </Tabs.List>
+                    <EmbedDashboardHeader
+                        dashboard={dashboard}
+                        projectUuid={projectUuid}
+                        tabs={
+                            <Tabs.List px="lg">
+                                {visibleTabs.map((tab) => (
+                                    <Tabs.Tab
+                                        key={tab.uuid}
+                                        value={tab.uuid}
+                                        maw={`${
+                                            100 / (visibleTabs.length || 1)
+                                        }vw`}
+                                    >
+                                        {tab.name}
+                                    </Tabs.Tab>
+                                ))}
+                            </Tabs.List>
+                        }
+                    />
                     <EmbedDashboardGrid
                         filteredTiles={filteredTiles}
                         layouts={layouts}
@@ -402,18 +404,26 @@ const EmbedDashboard: FC<{
                     />
                 </Tabs>
             ) : (
-                <EmbedDashboardGrid
-                    filteredTiles={filteredTiles}
-                    layouts={layouts}
-                    dashboard={dashboard}
-                    projectUuid={projectUuid}
-                    paletteColors={dashboard.selectedPalette?.colors}
-                    paletteDarkColors={dashboard.selectedPalette?.darkColors}
-                    hasRequiredDashboardFiltersToSet={
-                        hasRequiredDashboardFiltersToSet
-                    }
-                    gridProps={gridProps}
-                />
+                <>
+                    <EmbedDashboardHeader
+                        dashboard={dashboard}
+                        projectUuid={projectUuid}
+                    />
+                    <EmbedDashboardGrid
+                        filteredTiles={filteredTiles}
+                        layouts={layouts}
+                        dashboard={dashboard}
+                        projectUuid={projectUuid}
+                        paletteColors={dashboard.selectedPalette?.colors}
+                        paletteDarkColors={
+                            dashboard.selectedPalette?.darkColors
+                        }
+                        hasRequiredDashboardFiltersToSet={
+                            hasRequiredDashboardFiltersToSet
+                        }
+                        gridProps={gridProps}
+                    />
+                </>
             )}
         </div>
     );

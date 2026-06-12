@@ -318,6 +318,7 @@ const data = {
         canExportImages: {{canExportImages}},
         canExportPagePdf: {{canExportPagePdf}},
         canDateZoom: {{canDateZoom}},
+        stickyHeader: {{stickyHeader}},
         canExplore: {{canExplore}},
         canViewUnderlyingData: {{canViewUnderlyingData}},
         canViewDataApps: {{canViewDataApps}},
@@ -357,6 +358,7 @@ data = {
         "canExportImages": {{canExportImages}},
         "canExportPagePdf": {{canExportPagePdf}},
         "canDateZoom": {{canDateZoom}},
+        "stickyHeader": {{stickyHeader}},
         "canExplore": {{canExplore}},
         "canViewUnderlyingData": {{canViewUnderlyingData}},
         "canViewDataApps": {{canViewDataApps}},
@@ -406,6 +408,7 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            StickyHeader bool \`json:"stickyHeader"\`
             CanExplore bool \`json:"canExplore"\`
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
             CanViewDataApps bool \`json:"canViewDataApps"\`
@@ -441,6 +444,7 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            StickyHeader bool \`json:"stickyHeader"\`
             CanExplore bool \`json:"canExplore"\`
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
             CanViewDataApps bool \`json:"canViewDataApps"\`
@@ -466,6 +470,7 @@ func main() {
             CanExportImages: {{canExportImages}},
             CanExportPagePdf: {{canExportPagePdf}},
             CanDateZoom: {{canDateZoom}},
+            StickyHeader: {{stickyHeader}},
             CanExplore: {{canExplore}},
             CanViewUnderlyingData: {{canViewUnderlyingData}},
             CanViewDataApps: {{canViewDataApps}},
@@ -654,6 +659,7 @@ const data = {
         canExportImages: {{canExportImages}},
         canExportPagePdf: {{canExportPagePdf}},
         canDateZoom: {{canDateZoom}},
+        stickyHeader: {{stickyHeader}},
         canExplore: {{canExplore}},
         canViewUnderlyingData: {{canViewUnderlyingData}},
         canViewDataApps: {{canViewDataApps}},
@@ -692,6 +698,7 @@ data = {
         "canExportImages": {{canExportImages}},
         "canExportPagePdf": {{canExportPagePdf}},
         "canDateZoom": {{canDateZoom}},
+        "stickyHeader": {{stickyHeader}},
         "canExplore": {{canExplore}},
         "canViewUnderlyingData": {{canViewUnderlyingData}},
         "canViewDataApps": {{canViewDataApps}},
@@ -739,6 +746,7 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            StickyHeader bool \`json:"stickyHeader"\`
             CanExplore bool \`json:"canExplore"\`
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
             CanViewDataApps bool \`json:"canViewDataApps"\`
@@ -773,6 +781,7 @@ func main() {
             CanExportImages bool \`json:"canExportImages"\`
             CanExportPagePdf bool \`json:"canExportPagePdf"\`
             CanDateZoom bool \`json:"canDateZoom"\`
+            StickyHeader bool \`json:"stickyHeader"\`
             CanExplore bool \`json:"canExplore"\`
             CanViewUnderlyingData bool \`json:"canViewUnderlyingData"\`
             CanViewDataApps bool \`json:"canViewDataApps"\`
@@ -798,6 +807,7 @@ func main() {
             CanExportImages: {{canExportImages}},
             CanExportPagePdf: {{canExportPagePdf}},
             CanDateZoom: {{canDateZoom}},
+            StickyHeader: {{stickyHeader}},
             CanExplore: {{canExplore}},
             CanViewUnderlyingData: {{canViewUnderlyingData}},
             CanViewDataApps: {{canViewDataApps}},
@@ -944,6 +954,10 @@ const getBackendCodeSnippet = (
                 .replace(
                     '{{canExportPagePdf}}',
                     languageBoolean(language, data.content.canExportPagePdf),
+                )
+                .replace(
+                    '{{stickyHeader}}',
+                    languageBoolean(language, data.content.stickyHeader),
                 )
                 .replace(
                     '{{canDateZoom}}',
