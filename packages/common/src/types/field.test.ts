@@ -4,10 +4,12 @@ import {
     convertFieldRefToFieldId,
     CustomDimensionType,
     DimensionType,
+    isFilterableDimension,
     isFormat,
     MetricType,
     type CustomBinDimension,
     type CustomSqlDimension,
+    type Dimension,
     type TableCalculation,
 } from './field';
 import { type AdditionalMetric } from './metricQuery';
@@ -121,6 +123,29 @@ describe('field util functions', () => {
             expect(isFormat('invalid')).toBe(false);
             expect(isFormat(undefined)).toBe(false);
             expect(isFormat('')).toBe(false);
+        });
+    });
+    describe('isFilterableDimension', () => {
+        const dimensionOfType = (type: DimensionType) =>
+            ({ type }) as Dimension;
+
+        it('treats array dimensions as filterable', () => {
+            expect(
+                isFilterableDimension(dimensionOfType(DimensionType.ARRAY)),
+            ).toBe(true);
+        });
+
+        it('treats scalar dimensions as filterable', () => {
+            expect(
+                isFilterableDimension(dimensionOfType(DimensionType.STRING)),
+            ).toBe(true);
+            expect(
+                isFilterableDimension(dimensionOfType(DimensionType.NUMBER)),
+            ).toBe(true);
+        });
+
+        it('returns false for undefined', () => {
+            expect(isFilterableDimension(undefined)).toBe(false);
         });
     });
 });

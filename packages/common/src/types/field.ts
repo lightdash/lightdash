@@ -935,6 +935,7 @@ export const isFilterableDimension = (
         DimensionType.DATE,
         DimensionType.TIMESTAMP,
         DimensionType.BOOLEAN,
+        DimensionType.ARRAY,
     ].includes(dimension.type);
 
 export type DashboardFilterableField = FilterableDimension | Metric;
