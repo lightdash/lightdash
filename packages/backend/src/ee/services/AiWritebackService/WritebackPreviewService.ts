@@ -142,8 +142,7 @@ export class WritebackPreviewService extends BaseService {
                 : null;
             if (
                 !configuredRepo ||
-                expectedRepo !==
-                    `${parsed.owner}/${parsed.repo}`.toLowerCase()
+                expectedRepo !== `${parsed.owner}/${parsed.repo}`.toLowerCase()
             ) {
                 this.logger.warn(
                     `Refusing to create writeback preview for ${prUrl}: it does not match project ${projectUuid}'s configured repository`,
@@ -179,8 +178,7 @@ export class WritebackPreviewService extends BaseService {
             ) {
                 this.logger.warn(
                     `Refusing to create writeback preview for ${prUrl}: head branch is from ${
-                        pullRequest.headRepoFullName ??
-                        'an unknown repository'
+                        pullRequest.headRepoFullName ?? 'an unknown repository'
                     }, not ${expectedRepo}`,
                 );
                 return null;
