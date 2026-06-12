@@ -244,6 +244,7 @@ export const MetricsCatalogColumnName = forwardRef<HTMLDivElement, Props>(
                             tableName={row.original.tableName}
                             metricName={row.original.name}
                             projectUuid={projectUuid}
+                            showExploreButton={false}
                         >
                             <Highlight
                                 highlight={table.getState().globalFilter || ''}

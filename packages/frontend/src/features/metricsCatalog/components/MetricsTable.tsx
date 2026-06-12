@@ -2,6 +2,7 @@ import {
     assertUnreachable,
     SpotlightTableColumns,
     type CatalogCategoryFilterMode,
+    type CatalogField,
     type CatalogItem,
 } from '@lightdash/common';
 import {
@@ -98,6 +99,9 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const isMetricExploreModalOpen = useAppSelector(
         (state) => state.metricsCatalog.modals.metricExploreModal.isOpen,
     );
+    const exploreModalMetric = useAppSelector(
+        (state) => state.metricsCatalog.modals.metricExploreModal.metric,
+    );
     const search = useAppSelector((state) => state.metricsCatalog.search);
     const stateTableSorting = useAppSelector(
         (state) => state.metricsCatalog.tableSorting,
@@ -117,6 +121,18 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
     const onCloseMetricExploreModal = () => {
         dispatch(toggleMetricExploreModal(undefined));
     };
+
+    const handleSelectMetricInCanvas = useCallback(
+        (metric: CatalogField) => {
+            dispatch(
+                toggleMetricExploreModal({
+                    name: metric.name,
+                    tableName: metric.tableName,
+                }),
+            );
+        },
+        [dispatch],
+    );
 
     const {
         data,
@@ -619,40 +635,55 @@ export const MetricsTable: FC<MetricsTableProps> = ({ metricCatalogView }) => {
                             opened={isMetricExploreModalOpen}
                             onClose={onCloseMetricExploreModal}
                             metrics={flatData}
+                            navigation="url"
                         />
                     )}
                 </>
             );
         case MetricCatalogView.CANVAS:
             return (
-                <Paper {...mantinePaperProps}>
-                    <Box>
-                        <MetricsTableTopToolbar
-                            search={search}
-                            setSearch={(s) => dispatch(setSearch(s))}
-                            totalResults={totalResults}
-                            selectedCategories={categoryFilters}
-                            setSelectedCategories={handleSetCategoryFilters}
-                            categoryFilterMode={categoryFilterMode}
-                            setCategoryFilterMode={handleSetCategoryFilterMode}
-                            selectedTables={tableFilters}
-                            setSelectedTables={handleSetTableFilters}
-                            selectedOwners={ownerFilters}
-                            setSelectedOwners={handleSetOwnerFilters}
-                            position="apart"
-                            p={`${theme.spacing.lg} ${theme.spacing.xl}`}
-                            showCategoriesFilter={
-                                canManageTags || dataHasCategories
-                            }
-                            metricCatalogView={metricCatalogView}
-                            table={table}
+                <>
+                    <Paper {...mantinePaperProps}>
+                        <Box>
+                            <MetricsTableTopToolbar
+                                search={search}
+                                setSearch={(s) => dispatch(setSearch(s))}
+                                totalResults={totalResults}
+                                selectedCategories={categoryFilters}
+                                setSelectedCategories={handleSetCategoryFilters}
+                                categoryFilterMode={categoryFilterMode}
+                                setCategoryFilterMode={
+                                    handleSetCategoryFilterMode
+                                }
+                                selectedTables={tableFilters}
+                                setSelectedTables={handleSetTableFilters}
+                                selectedOwners={ownerFilters}
+                                setSelectedOwners={handleSetOwnerFilters}
+                                position="apart"
+                                p={`${theme.spacing.lg} ${theme.spacing.xl}`}
+                                showCategoriesFilter={
+                                    canManageTags || dataHasCategories
+                                }
+                                metricCatalogView={metricCatalogView}
+                                table={table}
+                            />
+                            <Divider color="ldGray.2" />
+                        </Box>
+                        <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
+                            <SavedTreesContainer />
+                        </Box>
+                    </Paper>
+                    {isMetricExploreModalOpen && exploreModalMetric && (
+                        <MetricExploreModal
+                            opened={isMetricExploreModalOpen}
+                            onClose={onCloseMetricExploreModal}
+                            metrics={flatData}
+                            navigation="state"
+                            selectedMetric={exploreModalMetric}
+                            onSelectMetric={handleSelectMetricInCanvas}
                         />
-                        <Divider color="ldGray.2" />
-                    </Box>
-                    <Box w="100%" h="calc(100dvh - 350px)" mih={600}>
-                        <SavedTreesContainer />
-                    </Box>
-                </Paper>
+                    )}
+                </>
             );
         default:
             return assertUnreachable(
