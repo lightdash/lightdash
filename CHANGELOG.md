@@ -1,3 +1,16 @@
+## [0.3152.1](https://github.com/lightdash/lightdash/compare/0.3152.0...0.3152.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* **ai-review:** wait for preview compile before verification; skip reviews on preview projects ([#24239](https://github.com/lightdash/lightdash/issues/24239)) ([201fcea](https://github.com/lightdash/lightdash/commit/201fceaabd6d1a0cf0be5ead3943adaf20d794df))
+* **ai:** reject mismatched repos for writeback previews ([#24192](https://github.com/lightdash/lightdash/issues/24192)) ([50e9037](https://github.com/lightdash/lightdash/commit/50e90374f62f4a1aa417488dac23127281f42a93))
+
+
+### Performance Improvements
+
+* parallelize warehouse creds, dashboard params, project params, and timezone loading ([#21552](https://github.com/lightdash/lightdash/issues/21552)) ([1736df9](https://github.com/lightdash/lightdash/commit/1736df97c193590030468b6ebe3ea57344b70c48))
+
 # [0.3152.0](https://github.com/lightdash/lightdash/compare/0.3151.0...0.3152.0) (2026-06-12)
 
 
