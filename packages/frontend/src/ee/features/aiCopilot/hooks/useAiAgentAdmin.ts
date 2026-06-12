@@ -4,6 +4,7 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentReviewItemActivityResponse,
     type ApiAiAgentReviewItemPrDiffResponse,
     type ApiAiAgentReviewItemResponse,
     type ApiAiAgentReviewItemsResponse,
@@ -23,6 +24,7 @@ import {
     useQueryClient,
     type QueryClient,
     type UseInfiniteQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -214,6 +216,35 @@ export const useAiAgentAdminReviewItem = (
     return useQuery<ApiAiAgentReviewItemResponse['results'], ApiError>({
         queryKey: ['ai-agent-admin-review-item', fingerprint],
         queryFn: () => getAiAgentAdminReviewItem(fingerprint),
+        enabled: options?.enabled ?? true,
+        refetchInterval: options?.refetchInterval,
+    });
+};
+
+const getAiAgentReviewItemActivity = async (fingerprint: string) => {
+    return lightdashApi<ApiAiAgentReviewItemActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/activity`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentReviewItemActivity = (
+    fingerprint: string,
+    options?: {
+        enabled?: boolean;
+        refetchInterval?: UseQueryOptions<
+            ApiAiAgentReviewItemActivityResponse['results'],
+            ApiError
+        >['refetchInterval'];
+    },
+) => {
+    return useQuery<ApiAiAgentReviewItemActivityResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-review-item-activity', fingerprint],
+        queryFn: () => getAiAgentReviewItemActivity(fingerprint),
         enabled: options?.enabled ?? true,
         refetchInterval: options?.refetchInterval,
     });

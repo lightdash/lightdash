@@ -11,6 +11,7 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
+    ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
@@ -18,6 +19,7 @@ import type {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
+    ApiAiAgentThreadPullRequestResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
@@ -1100,6 +1102,8 @@ type ApiResults =
     | ApiAiAgentAdminConversationsResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
     | ApiAiAgentReviewItemPrDiffResponse['results']
+    | ApiAiAgentReviewItemActivityResponse['results']
+    | ApiAiAgentThreadPullRequestResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']

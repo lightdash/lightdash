@@ -3,6 +3,7 @@ import {
     AiAgentAdminSort,
     AiAgentReviewItemStatus,
     ApiAiAgentAdminConversationsResponse,
+    ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemResponse,
     ApiAiAgentReviewItemsResponse,
@@ -181,6 +182,29 @@ export class AiAgentAdminController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiAgentAdminService().getReviewItem(
+                toSessionUser(req.account),
+                fingerprint,
+            ),
+        };
+    }
+
+    /**
+     * Get the remediation activity feed for a review item
+     * @summary Get AI agent review item activity
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/review-items/{fingerprint}/activity')
+    @OperationId('getAiAgentReviewItemActivity')
+    async getReviewItemActivity(
+        @Request() req: express.Request,
+        @Path() fingerprint: string,
+    ): Promise<ApiAiAgentReviewItemActivityResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentAdminService().getReviewItemActivity(
                 toSessionUser(req.account),
                 fingerprint,
             ),

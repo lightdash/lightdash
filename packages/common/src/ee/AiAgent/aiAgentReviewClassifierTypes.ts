@@ -688,6 +688,66 @@ export type AiAgentReviewItemPrDiff = {
 export type ApiAiAgentReviewItemPrDiffResponse =
     ApiSuccess<AiAgentReviewItemPrDiff>;
 
+export type AiAgentReviewRemediationEventDetail =
+    | {
+          eventType: 'finding_opened';
+          payload: {
+              excerpt: string | null;
+              sourceThreadUuid: string;
+              sourcePromptUuid: string;
+          };
+      }
+    | {
+          eventType: 'writeback_completed';
+          payload: {
+              files: string[];
+              additions: number | null;
+              deletions: number | null;
+          };
+      }
+    | {
+          eventType: 'pr_opened';
+          payload: { prUrl: string; prNumber: number | null };
+      }
+    | { eventType: 'preview_compiled'; payload: { previewProjectUuid: string } }
+    | {
+          eventType: 'verification_completed';
+          payload: { previewThreadUuid: string };
+      }
+    | { eventType: 'pr_merged'; payload: { prUrl: string } }
+    | { eventType: 'pr_closed'; payload: { prUrl: string } }
+    | { eventType: 'resolved'; payload: Record<string, never> }
+    | { eventType: 'failed'; payload: { errorMessage: string | null } };
+
+export type AiAgentReviewRemediationEventType =
+    AiAgentReviewRemediationEventDetail['eventType'];
+
+export type AiAgentReviewRemediationEvent = {
+    uuid: string;
+    remediationUuid: string;
+    occurredAt: Date;
+    createdByUserUuid: string | null;
+} & AiAgentReviewRemediationEventDetail;
+
+/**
+ * The in-flight step of a remediation, derived from current status + which
+ * events exist — never stored. Renders as the single accented "live" row.
+ */
+export type AiAgentReviewRemediationLiveState =
+    | 'writeback'
+    | 'compiling'
+    | 'verifying';
+
+export type AiAgentReviewItemActivity = {
+    events: AiAgentReviewRemediationEvent[];
+    liveState: AiAgentReviewRemediationLiveState | null;
+    /** Streaming progress text for the live row (writeback step messages). */
+    liveMessage: string | null;
+};
+
+export type ApiAiAgentReviewItemActivityResponse =
+    ApiSuccess<AiAgentReviewItemActivity>;
+
 export type AiAgentReviewSignalSummary = {
     uuid: string;
     runUuid: string;

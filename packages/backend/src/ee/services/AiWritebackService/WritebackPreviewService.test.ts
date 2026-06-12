@@ -23,6 +23,10 @@ const openPullRequest = () => ({
     mergeable: true,
     mergeableState: 'clean',
     draft: false,
+    title: 'Add metric',
+    additions: 9,
+    deletions: 1,
+    changedFiles: 1,
 });
 
 const userWithSourceCodeAccess = (canViewSourceCode: boolean): SessionUser => {

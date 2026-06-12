@@ -62,6 +62,12 @@ export type PullRequest = {
     prNumber: number;
     prUrl: string;
     /**
+     * Two-line user-facing "what this PR does", written by the AI write-back
+     * agent at PR creation. Null for non-AI PRs and PRs predating the field —
+     * consumers fall back to the live PR title.
+     */
+    summary: string | null;
+    /**
      * The AI thread that produced this PR, when it originated from an AI
      * write-back (source `ai_agent`). Null for non-AI PRs, or in deployments
      * without the enterprise AI write-back feature.

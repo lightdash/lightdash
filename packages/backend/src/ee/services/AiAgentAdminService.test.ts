@@ -190,6 +190,7 @@ const makeService = ({
             setReviewItemWritebackStatus: jest
                 .fn()
                 .mockResolvedValue(undefined),
+            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
             ...aiAgentReviewClassifierModel,
         },
         featureFlagService: {
@@ -244,6 +245,9 @@ const makeService = ({
             aiAgentReviewRemediationPreview: jest
                 .fn()
                 .mockResolvedValue(undefined),
+            aiAgentReviewRemediationCompile: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
             aiAgentReviewRemediationRun: jest
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
@@ -772,6 +776,144 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
     });
 });
 
+describe('AiAgentAdminService.getReviewItemActivity', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    const makeEvent = (eventType: string, payload = {}) => ({
+        uuid: `event-${eventType}`,
+        remediationUuid: REMEDIATION_UUID,
+        eventType,
+        occurredAt: NOW,
+        payload,
+        createdByUserUuid: null,
+    });
+
+    it('returns a writeback live state with the live progress message', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    prWritebackMessage: 'Reading payments.yml',
+                    remediation: makeRemediation({ status: 'running' }),
+                }),
+            ),
+            listRemediationEvents: jest
+                .fn()
+                .mockResolvedValue([makeEvent('finding_opened')]),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.liveState).toBe('writeback');
+        expect(activity.liveMessage).toBe('Reading payments.yml');
+    });
+
+    it('returns events with a compiling live state before the preview compiles', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    remediation: makeRemediation({ status: 'pr_open' }),
+                }),
+            ),
+            listRemediationEvents: jest
+                .fn()
+                .mockResolvedValue([
+                    makeEvent('finding_opened'),
+                    makeEvent('pr_opened'),
+                ]),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.events).toHaveLength(2);
+        expect(activity.liveState).toBe('compiling');
+    });
+
+    it('returns a verifying live state after the preview compiles', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    remediation: makeRemediation({ status: 'preview_ready' }),
+                }),
+            ),
+            listRemediationEvents: jest
+                .fn()
+                .mockResolvedValue([
+                    makeEvent('finding_opened'),
+                    makeEvent('pr_opened'),
+                    makeEvent('preview_compiled'),
+                ]),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.liveState).toBe('verifying');
+    });
+
+    it('returns no live state once verification completed or remediation is terminal', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    remediation: makeRemediation({ status: 'resolved' }),
+                }),
+            ),
+            listRemediationEvents: jest
+                .fn()
+                .mockResolvedValue([
+                    makeEvent('pr_opened'),
+                    makeEvent('preview_compiled'),
+                    makeEvent('verification_completed'),
+                    makeEvent('resolved'),
+                ]),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.liveState).toBeNull();
+    });
+
+    it('returns an empty feed when the item has no remediation', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest
+                .fn()
+                .mockResolvedValue(makeReviewItem({ remediation: null })),
+            listRemediationEvents: jest.fn(),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity).toEqual({
+            events: [],
+            liveState: null,
+            liveMessage: null,
+        });
+        expect(
+            aiAgentReviewClassifierModel.listRemediationEvents,
+        ).not.toHaveBeenCalled();
+    });
+});
+
 describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
     const payload = {
         fingerprint: 'fingerprint-1',
@@ -822,6 +964,56 @@ describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
         expect(
             schedulerClient.aiAgentReviewRemediationRun,
         ).not.toHaveBeenCalled();
+    });
+
+    it('records writeback_completed and pr_opened activity events', async () => {
+        const aiAgentReviewClassifierModel = {
+            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+        };
+        const aiWritebackService = {
+            run: jest.fn().mockResolvedValue({
+                prUrl: PR_URL,
+                additions: 9,
+                deletions: 1,
+                steps: [
+                    { kind: 'read', label: 'schema.yml' },
+                    { kind: 'edit', label: 'accounts.yml' },
+                ],
+            }),
+        };
+        const service = makeService({
+            aiAgentReviewClassifierModel,
+            aiWritebackService,
+        });
+
+        await service.runReviewItemWritebackJob(payload);
+
+        expect(
+            aiAgentReviewClassifierModel.createRemediationEvent,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                event: {
+                    eventType: 'writeback_completed',
+                    payload: {
+                        files: ['accounts.yml'],
+                        additions: 9,
+                        deletions: 1,
+                    },
+                },
+            }),
+        );
+        expect(
+            aiAgentReviewClassifierModel.createRemediationEvent,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: {
+                    eventType: 'pr_opened',
+                    payload: { prUrl: PR_URL, prNumber: 42 },
+                },
+            }),
+        );
     });
 });
 
@@ -887,6 +1079,32 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
         expect(
             schedulerClient.aiAgentReviewRemediationCompile,
         ).not.toHaveBeenCalled();
+    });
+
+    it('records a preview_compiled activity event when the compile lands', async () => {
+        const jobModel = {
+            get: jest.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
+        };
+        const aiAgentReviewClassifierModel = {
+            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            jobModel,
+            aiAgentReviewClassifierModel,
+        });
+
+        await service.pollReviewRemediationCompile(payload);
+
+        expect(
+            aiAgentReviewClassifierModel.createRemediationEvent,
+        ).toHaveBeenCalledWith({
+            remediationUuid: REMEDIATION_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            event: {
+                eventType: 'preview_compiled',
+                payload: { previewProjectUuid: PREVIEW_PROJECT_UUID },
+            },
+        });
     });
 
     it('re-enqueues itself while the compile job is still running', async () => {
@@ -991,6 +1209,34 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
         expect(
             schedulerClient.aiAgentReviewRemediationCompile,
         ).not.toHaveBeenCalled();
+    });
+
+    it('records a verification_completed event after the remediation run', async () => {
+        const aiAgentReviewClassifierModel = {
+            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        await service.recordReviewRemediationVerified({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PREVIEW_PROJECT_UUID,
+            userUuid: USER_UUID,
+            fingerprint: 'fingerprint-1',
+            remediationUuid: REMEDIATION_UUID,
+            agentUuid: PREVIEW_AGENT_UUID,
+            threadUuid: PREVIEW_THREAD_UUID,
+        });
+
+        expect(
+            aiAgentReviewClassifierModel.createRemediationEvent,
+        ).toHaveBeenCalledWith({
+            remediationUuid: REMEDIATION_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            event: {
+                eventType: 'verification_completed',
+                payload: { previewThreadUuid: PREVIEW_THREAD_UUID },
+            },
+        });
     });
 
     it('does nothing when the remediation is no longer pr_open', async () => {
