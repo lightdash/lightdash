@@ -1,3 +1,10 @@
+# [0.3153.0](https://github.com/lightdash/lightdash/compare/0.3152.1...0.3153.0) (2026-06-12)
+
+
+### Features
+
+* add underlying data download to query sdk ([#24236](https://github.com/lightdash/lightdash/issues/24236)) ([a6b026a](https://github.com/lightdash/lightdash/commit/a6b026aebc51d32eb16c0a2661fcce0d693c5e8d))
+
 ## [0.3152.1](https://github.com/lightdash/lightdash/compare/0.3152.0...0.3152.1) (2026-06-12)
 
 
