@@ -1,3 +1,12 @@
+## [0.3155.1](https://github.com/lightdash/lightdash/compare/0.3155.0...0.3155.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* **ai-review:** exclude config warnings from validator count ([#24249](https://github.com/lightdash/lightdash/issues/24249)) ([07296f3](https://github.com/lightdash/lightdash/commit/07296f35138c7b429e9a977fce0a77ffa272853d))
+* **formatting:** apply project tz to custom-format timestamps ([#24200](https://github.com/lightdash/lightdash/issues/24200)) ([ae85a90](https://github.com/lightdash/lightdash/commit/ae85a908617bf37e4af69c16d077bddcdecf41a0))
+* widen slack profile photo url column to prevent save error ([#24247](https://github.com/lightdash/lightdash/issues/24247)) ([ea59609](https://github.com/lightdash/lightdash/commit/ea59609a35d47a14fc4cb894bafb8f2f285de3bc))
+
 # [0.3155.0](https://github.com/lightdash/lightdash/compare/0.3154.0...0.3155.0) (2026-06-12)
 
 
