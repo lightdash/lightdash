@@ -664,23 +664,34 @@ export class EmbedService extends BaseService {
             ({ savedChartUuid }) => savedChartUuid,
         );
 
-        if (checkPermissions) {
-            await Promise.all(
-                savedQueryUuids.map((chartUuid) =>
-                    this._permissionsGetChartAndResults(
-                        { dashboardUuids, allowAllDashboards },
-                        projectUuid,
-                        chartUuid,
-                        dashboardUuid,
-                    ),
-                ),
-            );
-        }
-
         const savedCharts =
             await this.savedChartModel.getInfoForAvailableFilters(
                 savedQueryUuids,
             );
+
+        if (checkPermissions) {
+            const writeSpaceUuid =
+                account.embedWriteUser &&
+                account.authentication.data.writeActions?.spaceUuid;
+            const chartsByUuid = new Map(
+                savedCharts.map((chart) => [chart.uuid, chart]),
+            );
+            await Promise.all(
+                savedQueryUuids.map((chartUuid) => {
+                    const chart = chartsByUuid.get(chartUuid);
+                    if (chart && chart.spaceUuid === writeSpaceUuid) {
+                        return Promise.resolve();
+                    }
+
+                    return this._permissionsGetChartAndResults(
+                        { dashboardUuids, allowAllDashboards },
+                        projectUuid,
+                        chartUuid,
+                        dashboardUuid,
+                    );
+                }),
+            );
+        }
 
         const exploreCacheKeys: Record<string, boolean> = {};
         const exploreCache: Record<string, Explore | ExploreError> = {};

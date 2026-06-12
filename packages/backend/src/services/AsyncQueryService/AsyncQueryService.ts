@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
+    AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiExecuteAsyncSqlQueryResults,
@@ -4749,6 +4750,14 @@ export class AsyncQueryService extends ProjectService {
     ) {
         const auditedAbility = this.createAuditedAbility(account);
         if (isJwtUser(account)) {
+            const embedWriteActions = account.authentication.data.writeActions;
+            if (
+                account.embedWriteUser &&
+                embedWriteActions?.spaceUuid === space.uuid
+            ) {
+                return;
+            }
+
             await this.permissionsService.checkEmbedPermissions(
                 account,
                 savedChartUuid,
@@ -4787,6 +4796,45 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+    }
+
+    private async getJwtDashboardQueryContext(
+        account: AnonymousAccount,
+        projectUuid: string,
+        requestDashboardUuid: string | undefined,
+    ): Promise<{
+        dashboardUuid: string | undefined;
+    }> {
+        const embedWriteActions = account.authentication.data.writeActions;
+        const writeSpaceUuid = account.embedWriteUser
+            ? embedWriteActions?.spaceUuid
+            : undefined;
+
+        if (writeSpaceUuid && requestDashboardUuid) {
+            try {
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
+                    requestDashboardUuid,
+                    { projectUuid },
+                );
+
+                if (dashboard.spaceUuid === writeSpaceUuid) {
+                    return {
+                        dashboardUuid: dashboard.uuid,
+                    };
+                }
+            } catch (error) {
+                if (!(error instanceof NotFoundError)) {
+                    throw error;
+                }
+            }
+        }
+
+        return {
+            dashboardUuid:
+                account.access.content.type === 'dashboard'
+                    ? account.access.content.dashboardUuid
+                    : undefined,
+        };
     }
 
     async executeAsyncDashboardChartQuery({
@@ -4828,6 +4876,24 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
             ),
         ]);
+
+        let effectiveDashboardUuid: string | undefined = dashboardUuid;
+
+        if (isJwtUser(account)) {
+            const jwtDashboardContext = await this.getJwtDashboardQueryContext(
+                account,
+                projectUuid,
+                dashboardUuid,
+            );
+            effectiveDashboardUuid = jwtDashboardContext.dashboardUuid;
+        }
+
+        if (!effectiveDashboardUuid) {
+            throw new ForbiddenError(
+                'JWT does not grant access to a dashboard',
+            );
+        }
+        const resolvedDashboardUuid = effectiveDashboardUuid;
 
         await this.checkDashboardChartQueryPermissions(
             account,
@@ -4915,7 +4981,7 @@ export class AsyncQueryService extends ProjectService {
             tileUuid,
             chartUuid,
             context,
-            dashboardUuid,
+            dashboardUuid: resolvedDashboardUuid,
             dashboardFilters,
             dashboardSorts,
             dateZoom,
@@ -4928,7 +4994,7 @@ export class AsyncQueryService extends ProjectService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
-            dashboard_uuid: dashboardUuid,
+            dashboard_uuid: resolvedDashboardUuid,
             explore_name: explore.name,
             query_context: context,
         };
@@ -4954,7 +5020,7 @@ export class AsyncQueryService extends ProjectService {
                     organizationWarehouseCredentialsUuid,
             }),
             this.dashboardModel.getDashboardParametersByIdOrSlug(
-                dashboardUuid,
+                resolvedDashboardUuid,
                 projectUuid,
             ),
             this.projectParametersModel.find(projectUuid),
@@ -5047,7 +5113,7 @@ export class AsyncQueryService extends ProjectService {
                         ? routingDecision.route
                         : undefined,
                 chartId: savedChart.uuid,
-                dashboardId: dashboardUuid,
+                dashboardId: resolvedDashboardUuid,
             });
         }
 
@@ -5056,7 +5122,7 @@ export class AsyncQueryService extends ProjectService {
             exploreName: explore.name,
             routingDecision,
             chartUuid: savedChart.uuid,
-            dashboardUuid,
+            dashboardUuid: resolvedDashboardUuid,
             queryContext: context,
         });
 
@@ -5928,31 +5994,46 @@ export class AsyncQueryService extends ProjectService {
             limit,
         } = args;
 
-        // For JWT users, the dashboard scope is bound to the token, not the
-        // request body. Trusting `args.dashboardUuid` would let a JWT user
-        // merge another dashboard's parameter values into their query.
-        const dashboardUuid = isJwtUser(account)
-            ? account.access.content.dashboardUuid
-            : requestDashboardUuid;
+        let dashboardUuid: string | undefined = requestDashboardUuid;
+
+        // For JWT users without write actions, the dashboard scope is bound to
+        // the token. Write-action embeds may use a dashboard from their write
+        // space so newly added draft tiles can preview with dashboard context.
+        if (isJwtUser(account)) {
+            const jwtDashboardContext = await this.getJwtDashboardQueryContext(
+                account,
+                projectUuid,
+                requestDashboardUuid,
+            );
+            dashboardUuid = jwtDashboardContext.dashboardUuid;
+        }
 
         if (!dashboardUuid) {
             throw new ForbiddenError(
                 'JWT does not grant access to a dashboard',
             );
         }
+        const resolvedDashboardUuid = dashboardUuid;
 
         if (isJwtUser(account)) {
-            await this.permissionsService.checkEmbedSqlChartPermissions(
-                account,
-                savedChart.savedSqlUuid,
-            );
+            const embedWriteActions = account.authentication.data.writeActions;
+            const canUseWriteDashboard =
+                account.embedWriteUser &&
+                embedWriteActions?.spaceUuid === savedChart.space.uuid;
+
+            if (!canUseWriteDashboard) {
+                await this.permissionsService.checkEmbedSqlChartPermissions(
+                    account,
+                    savedChart.savedSqlUuid,
+                );
+            }
         } else {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
 
         const dashboardParameters = convertDashboardParametersToValuesMap(
             await this.dashboardModel.getDashboardParametersByIdOrSlug(
-                dashboardUuid,
+                resolvedDashboardUuid,
                 projectUuid,
             ),
         );

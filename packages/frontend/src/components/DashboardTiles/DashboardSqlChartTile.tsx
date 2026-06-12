@@ -46,6 +46,8 @@ interface Props extends Pick<
      * tile membership) instead of the registered chart endpoints.
      */
     isEmbed?: boolean;
+    projectUuidOverride?: string;
+    dashboardUuidOverride?: string;
 }
 
 /**
@@ -74,12 +76,21 @@ const DashboardOptions = memo(
     ),
 );
 
-const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
+const SqlChartTile: FC<Props> = ({
+    tile,
+    isEditMode,
+    isEmbed,
+    projectUuidOverride,
+    dashboardUuidOverride,
+    ...rest
+}) => {
     const { user } = useApp();
     const { projectUuid, dashboardUuid } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
     }>();
+    const effectiveProjectUuid = projectUuidOverride ?? projectUuid;
+    const effectiveDashboardUuid = dashboardUuidOverride ?? dashboardUuid;
     const context = useSearchParams('context') || undefined;
     const savedSqlUuid = tile.properties.savedSqlUuid || undefined;
     const [isDataExportModalOpen, setIsDataExportModalOpen] = useState(false);
@@ -87,7 +98,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
         'manage',
         subject('SqlRunner', {
             organizationUuid: user.data?.organizationUuid,
-            projectUuid,
+            projectUuid: effectiveProjectUuid,
         }),
     );
     const updateSqlChartTilesMetadata = useDashboardTileStatusContext(
@@ -123,7 +134,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
     } = useSavedSqlChartResults(
         isEmbed
             ? {
-                  projectUuid,
+                  projectUuid: effectiveProjectUuid,
                   savedSqlUuid,
                   context,
                   tileUuid: tile.uuid,
@@ -133,10 +144,10 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
                   isEmbed: true,
               }
             : {
-                  projectUuid,
+                  projectUuid: effectiveProjectUuid,
                   savedSqlUuid,
                   context,
-                  dashboardUuid: dashboardUuid!,
+                  dashboardUuid: effectiveDashboardUuid!,
                   tileUuid: tile.uuid,
                   dashboardFilters,
                   dashboardSorts: [],
@@ -243,14 +254,14 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
                 hasError={!!chartResultsError}
                 chartKind={chartData.config.type}
                 {...rest}
-                titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
+                titleHref={`/projects/${effectiveProjectUuid}/sql-runner/${chartData.slug}`}
                 extraMenuItems={
-                    projectUuid &&
+                    effectiveProjectUuid &&
                     canManageSqlRunner &&
                     chartData.slug && (
                         <DashboardOptions
                             isEditMode={isEditMode}
-                            projectUuid={projectUuid}
+                            projectUuid={effectiveProjectUuid}
                             slug={chartData.slug}
                         />
                     )
@@ -275,20 +286,20 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
         <TileBase
             isEditMode={isEditMode}
             chartName={tile.properties.chartName ?? ''}
-            titleHref={`/projects/${projectUuid}/sql-runner/${chartData.slug}`}
+            titleHref={`/projects/${effectiveProjectUuid}/sql-runner/${chartData.slug}`}
             tile={tile}
             title={tile.properties.title || tile.properties.chartName || ''}
             chartKind={chartData.config.type}
             fullWidth={chartData.config.type === ChartKind.TABLE}
             {...rest}
             extraMenuItems={
-                projectUuid &&
+                effectiveProjectUuid &&
                 (canManageSqlRunner || userCanExportData) && (
                     <>
                         {canManageSqlRunner && (
                             <DashboardOptions
                                 isEditMode={isEditMode}
-                                projectUuid={projectUuid}
+                                projectUuid={effectiveProjectUuid}
                                 slug={chartData.slug}
                             />
                         )}
@@ -333,7 +344,7 @@ const SqlChartTile: FC<Props> = ({ tile, isEditMode, isEmbed, ...rest }) => {
             <ExportDataModal
                 isOpen={isDataExportModalOpen}
                 onClose={closeDataExportModal}
-                projectUuid={projectUuid!}
+                projectUuid={effectiveProjectUuid!}
                 totalResults={
                     chartResultsData.chartUnderlyingData?.rows.length ?? 0
                 }

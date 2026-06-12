@@ -23,6 +23,7 @@ import {
     SqlRunnerPivotQueryBody,
     UpdateSqlChart,
     VIZ_DEFAULT_AGGREGATION,
+    type Account,
 } from '@lightdash/common';
 import { Knex } from 'knex';
 import { uniq } from 'lodash';
@@ -30,6 +31,7 @@ import {
     CreateSqlChartVersionEvent,
     LightdashAnalytics,
 } from '../../analytics/LightdashAnalytics';
+import { getAccountWriteContext } from '../../auth/account';
 import { LightdashConfig } from '../../config/parseConfig';
 import { AnalyticsModel } from '../../models/AnalyticsModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
@@ -261,6 +263,72 @@ export class SavedSqlService
             space: {
                 ...savedChart.space,
                 userAccess: spaceCtx.access[0],
+            },
+            resolvedColorPalette,
+        };
+    }
+
+    async getSqlChartFromAccount(
+        account: Account,
+        projectUuid: string,
+        savedSqlUuid: string | undefined,
+        slug?: string,
+    ): Promise<SqlChart> {
+        const { user, embedWriteActions } = getAccountWriteContext(account);
+
+        let savedChart;
+        if (savedSqlUuid) {
+            savedChart = await this.savedSqlModel.getByUuid(savedSqlUuid, {
+                projectUuid,
+            });
+        } else if (slug) {
+            savedChart = await this.savedSqlModel.getBySlug(projectUuid, slug);
+        } else {
+            throw new Error('Either savedSqlUuid or slug must be provided');
+        }
+
+        if (
+            embedWriteActions &&
+            savedChart.space.uuid !== embedWriteActions.spaceUuid
+        ) {
+            throw new ForbiddenError(
+                'SQL chart does not belong to embedded write space',
+            );
+        }
+
+        const spaceCtx = await this.hasAccess(
+            'view',
+            {
+                user,
+                projectUuid,
+            },
+            {
+                savedSqlUuid: savedChart.savedSqlUuid,
+            },
+        );
+
+        this.analytics.track({
+            event: 'sql_chart.view',
+            userId: user.userUuid,
+            properties: {
+                chartId: savedChart.savedSqlUuid,
+                projectId: savedChart.project.projectUuid,
+                organizationId: savedChart.organization.organizationUuid,
+            },
+        });
+
+        const resolvedColorPalette =
+            await this.savedSqlModel.resolveColorPalette({
+                projectUuid: savedChart.project.projectUuid,
+                dashboardUuid: savedChart.dashboard?.uuid,
+                spaceUuid: savedChart.space.uuid,
+            });
+
+        return {
+            ...savedChart,
+            space: {
+                ...savedChart.space,
+                userAccess: embedWriteActions ? undefined : spaceCtx.access[0],
             },
             resolvedColorPalette,
         };

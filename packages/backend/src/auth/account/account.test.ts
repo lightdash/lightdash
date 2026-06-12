@@ -1,6 +1,7 @@
 import { AbilityBuilder } from '@casl/ability';
 import {
     CreateEmbedJwt,
+    ForbiddenError,
     MemberAbility,
     OrganizationMemberRole,
     OssEmbed,
@@ -8,7 +9,7 @@ import {
     UserAccessControls,
 } from '@lightdash/common';
 // Import the functions we want to test
-import { fromJwt, fromSession } from './account';
+import { fromJwt, fromSession, getAccountWriteContext } from './account';
 
 describe('account', () => {
     describe('fromJwt', () => {
@@ -288,6 +289,90 @@ describe('account', () => {
 
             expect(result.user.email).toBeUndefined();
             expect(result.isAuthenticated()).toBe(true);
+        });
+    });
+
+    describe('getAccountWriteContext', () => {
+        const mockSessionUser: SessionUser = {
+            userUuid: 'session-user-uuid',
+            userId: 123,
+            role: OrganizationMemberRole.DEVELOPER,
+            email: 'session@example.com',
+            firstName: 'Session',
+            lastName: 'User',
+            organizationUuid: 'session-org-uuid',
+            organizationName: 'Session Organization',
+            organizationCreatedAt: new Date('2024-01-01'),
+            isActive: true,
+            isTrackingAnonymized: false,
+            isMarketingOptedIn: false,
+            timezone: null,
+            isSetupComplete: true,
+            createdAt: new Date('2024-01-01'),
+            updatedAt: new Date('2024-01-01'),
+            ability: {
+                can: jest.fn(),
+                cannot: jest.fn(),
+            } as unknown as MemberAbility,
+            abilityRules: [{}] as AbilityBuilder<MemberAbility>['rules'],
+        };
+
+        const buildJwtAccount = ({
+            writeActions,
+            embedWriteUser,
+        }: {
+            writeActions?: CreateEmbedJwt['writeActions'];
+            embedWriteUser?: SessionUser;
+        }) =>
+            ({
+                isJwtUser: () => true,
+                authentication: {
+                    type: 'jwt',
+                    data: {
+                        writeActions,
+                    },
+                },
+                embedWriteUser,
+            }) as Parameters<typeof getAccountWriteContext>[0];
+
+        it('returns the session user for registered accounts', () => {
+            const account = fromSession(mockSessionUser, 'session-cookie');
+            const context = getAccountWriteContext(account);
+
+            expect(context.embedWriteActions).toBeUndefined();
+            expect(context.user).toEqual(
+                expect.objectContaining({
+                    type: 'registered',
+                    userUuid: account.user.userUuid,
+                    organizationUuid: account.organization.organizationUuid,
+                    email: account.user.email,
+                }),
+            );
+        });
+
+        it('rejects JWT accounts without write actions', () => {
+            expect(() =>
+                getAccountWriteContext(buildJwtAccount({})),
+            ).toThrowError(ForbiddenError);
+        });
+
+        it('returns the embed write actor and space for write-action JWTs', () => {
+            expect(
+                getAccountWriteContext(
+                    buildJwtAccount({
+                        writeActions: {
+                            spaceUuid: 'write-space-uuid',
+                            userUuid: mockSessionUser.userUuid,
+                        },
+                        embedWriteUser: mockSessionUser,
+                    }),
+                ),
+            ).toEqual({
+                user: mockSessionUser,
+                embedWriteActions: {
+                    spaceUuid: 'write-space-uuid',
+                },
+            });
         });
     });
 });
