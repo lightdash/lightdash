@@ -1,4 +1,4 @@
-import { QueryExecutionContext } from '@lightdash/common';
+import { ProjectType, QueryExecutionContext } from '@lightdash/common';
 import type {
     AiAgentConfigSnapshot,
     AiAgentEvidenceExcerpt,
@@ -29,6 +29,7 @@ import type {
     AiAgentTurnSignal,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { ProjectTableName } from '../../database/entities/projects';
 import { PullRequestsTableName } from '../../database/entities/pullRequests';
 import { QueryHistoryTableName } from '../../database/entities/queryHistory';
 import {
@@ -718,6 +719,11 @@ export class AiAgentReviewClassifierModel {
                 'slack_thread.ai_thread_uuid',
                 'thread.ai_thread_uuid',
             )
+            .join(
+                `${ProjectTableName} as project`,
+                'project.project_uuid',
+                'thread.project_uuid',
+            )
             .select<BaseCandidateRow[]>({
                 ai_prompt_uuid: 'prompt.ai_prompt_uuid',
                 ai_thread_uuid: 'prompt.ai_thread_uuid',
@@ -740,6 +746,9 @@ export class AiAgentReviewClassifierModel {
             })
             .where('thread.organization_uuid', args.organizationUuid)
             .whereNotNull('thread.agent_uuid')
+            // Preview projects host writeback verification threads — reviewing
+            // them would feed the reviewer's own output back into itself.
+            .whereNot('project.project_type', ProjectType.PREVIEW)
             .whereIn('thread.created_from', ['web_app', 'slack'])
             .where((builder) => {
                 void builder

@@ -2,6 +2,7 @@ import includes from 'lodash/includes';
 import {
     type AiAgentEvalRunJobPayload,
     type AiAgentReviewClassifierJobPayload,
+    type AiAgentReviewRemediationCompileJobPayload,
     type AiAgentReviewRemediationPreviewJobPayload,
     type AiAgentReviewRemediationRunJobPayload,
     type AiAgentReviewWritebackJobPayload,
@@ -67,6 +68,7 @@ export const EE_SCHEDULER_TASKS = {
     AI_AGENT_REVIEW_CLASSIFIER: 'aiAgentReviewClassifier',
     AI_AGENT_REVIEW_WRITEBACK: 'aiAgentReviewWriteback',
     AI_AGENT_REVIEW_REMEDIATION_PREVIEW: 'aiAgentReviewRemediationPreview',
+    AI_AGENT_REVIEW_REMEDIATION_COMPILE: 'aiAgentReviewRemediationCompile',
     AI_AGENT_REVIEW_REMEDIATION_RUN: 'aiAgentReviewRemediationRun',
     EMBED_ARTIFACT_VERSION: 'embedArtifactVersion',
     GENERATE_ARTIFACT_QUESTION: 'generateArtifactQuestion',
@@ -156,6 +158,7 @@ export interface TaskPayloadMap {
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: AiAgentReviewRemediationPreviewJobPayload;
+    [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: AiAgentReviewRemediationCompileJobPayload;
     [SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;
@@ -169,6 +172,7 @@ export interface EETaskPayloadMap {
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_CLASSIFIER]: AiAgentReviewClassifierJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_WRITEBACK]: AiAgentReviewWritebackJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_PREVIEW]: AiAgentReviewRemediationPreviewJobPayload;
+    [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: AiAgentReviewRemediationCompileJobPayload;
     [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: AiAgentReviewRemediationRunJobPayload;
     [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: EmbedArtifactVersionJobPayload;
     [EE_SCHEDULER_TASKS.GENERATE_ARTIFACT_QUESTION]: GenerateArtifactQuestionJobPayload;

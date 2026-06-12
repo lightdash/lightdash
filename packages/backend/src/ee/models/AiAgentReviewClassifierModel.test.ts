@@ -1,3 +1,4 @@
+import { ProjectType } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AiPromptTableName } from '../database/entities/ai';
@@ -201,6 +202,20 @@ describe('AiAgentReviewClassifierModel', () => {
 
     afterEach(() => {
         tracker.reset();
+    });
+
+    describe('listTurnReviewCandidates', () => {
+        it('excludes turns from preview projects', async () => {
+            tracker.on.select(AiPromptTableName).responseOnce([]);
+
+            await model.listTurnReviewCandidates({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain('project_type');
+            expect(query.bindings).toContain(ProjectType.PREVIEW);
+        });
     });
 
     describe('createRun', () => {
