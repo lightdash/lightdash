@@ -1,3 +1,10 @@
+# [0.3155.0](https://github.com/lightdash/lightdash/compare/0.3154.0...0.3155.0) (2026-06-12)
+
+
+### Features
+
+* **ai-review:** show write-back PR check status in verification panel ([#24248](https://github.com/lightdash/lightdash/issues/24248)) ([4f2d038](https://github.com/lightdash/lightdash/commit/4f2d038d8b873ee88ca560d24f27df0681527028))
+
 # [0.3154.0](https://github.com/lightdash/lightdash/compare/0.3153.1...0.3154.0) (2026-06-12)
 
 
