@@ -4045,3 +4045,41 @@ export const METRIC_QUERY_ARRAY_DIM_WITH_SUM_DISTINCT: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
     compiledCustomDimensions: [],
 };
+
+export const EXPLORE_WITH_ARRAY_DIM_AND_JOIN: Explore = {
+    ...EXPLORE_WITH_ARRAY_DIM,
+    tables: {
+        ...EXPLORE_WITH_ARRAY_DIM.tables,
+        tags_info: {
+            name: 'tags_info',
+            label: 'tags_info',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '`db`.`schema`.`tags_info`',
+            dimensions: {
+                label: {
+                    type: DimensionType.STRING,
+                    name: 'label',
+                    label: 'label',
+                    table: 'tags_info',
+                    tableLabel: 'tags_info',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.label',
+                    compiledSql: '`tags_info`.label',
+                    tablesReferences: ['tags_info'],
+                    hidden: false,
+                },
+            },
+            metrics: {},
+            lineageGraph: {},
+        },
+    },
+    joinedTables: [
+        {
+            table: 'tags_info',
+            sqlOn: '${tags_info.id} = ${array_tags.id}',
+            compiledSqlOn: '(`tags_info`.id) = (`array_tags`.id)',
+            type: undefined,
+        },
+    ],
+};

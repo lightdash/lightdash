@@ -889,10 +889,18 @@ export class MetricQueryBuilder {
                     adapterType,
                     startOfWeek,
                 );
+                const arrayColumnSqlWithUserAttributes =
+                    replaceUserAttributesAsStrings(
+                        arrayColumnSql,
+                        intrinsicUserAttributes,
+                        userAttributes,
+                        warehouseSqlBuilder,
+                        { noWrap: true },
+                    );
                 const elementAlias = `${id}__unnested`;
                 unnests.push(
                     warehouseSqlBuilder.unnestDimension(
-                        arrayColumnSql,
+                        arrayColumnSqlWithUserAttributes,
                         elementAlias,
                     ),
                 );
@@ -4200,9 +4208,9 @@ export class MetricQueryBuilder {
         let finalSelectParts: Array<string | undefined> = [
             sqlSelect,
             sqlFrom,
-            ...dimensionsSQL.unnests,
             joins.joinSQL,
             ...dimensionsSQL.joins,
+            ...dimensionsSQL.unnests,
             dimensionsSQL.filtersSQL,
             dimensionsSQL.groupBySQL,
         ];
@@ -4223,7 +4231,7 @@ export class MetricQueryBuilder {
         }
         if (hasUnnest && this.popComparisonConfigs.length > 0) {
             throw new NotSupportedError(
-                'Unnesting an array dimension is not supported together with period-over-period comparisons.',
+                'Unnesting an array dimension is not supported together with period-over-period comparisons. Remove the array dimension to use period-over-period comparisons.',
             );
         }
         if (experimentalMetricsCteSQL.finalSelectParts) {
@@ -4399,7 +4407,7 @@ export class MetricQueryBuilder {
 
         if (hasUnnest && ddMetricIds.length > 0) {
             throw new NotSupportedError(
-                'Unnesting an array dimension is not supported together with distinct metrics.',
+                'Unnesting an array dimension is not supported together with distinct metrics. Remove the array dimension to use distinct metrics.',
             );
         }
         if (ddMetricIds.length > 0) {
@@ -4510,7 +4518,7 @@ export class MetricQueryBuilder {
         const nestedAggMetrics = this.getMetricsWithNestedAggregates();
         if (hasUnnest && nestedAggMetrics.length > 0) {
             throw new NotSupportedError(
-                'Unnesting an array dimension is not supported together with nested aggregations.',
+                'Unnesting an array dimension is not supported together with nested aggregations. Remove the array dimension to use metrics with nested aggregations.',
             );
         }
         if (nestedAggMetrics.length > 0) {
@@ -4586,7 +4594,7 @@ export class MetricQueryBuilder {
 
         if (hasUnnest && needsPostAgg) {
             throw new NotSupportedError(
-                'Unnesting an array dimension is not supported together with in-query totals.',
+                'Unnesting an array dimension is not supported together with in-query totals. Remove the array dimension to use in-query totals.',
             );
         }
         if (needsPostAgg) {

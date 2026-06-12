@@ -30,6 +30,7 @@ import {
     EXPLORE,
     EXPLORE_NESTED_AGG_NAME_COLLISION,
     EXPLORE_WITH_ARRAY_DIM,
+    EXPLORE_WITH_ARRAY_DIM_AND_JOIN,
     EXPLORE_WITH_ARRAY_DIM_AND_SUM_DISTINCT,
     EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
@@ -5466,5 +5467,33 @@ describe('ARRAY dimension unnesting (Databricks)', () => {
                 timezone: 'UTC',
             }),
         ).toThrow(NotSupportedError);
+    });
+
+    it('LATERAL VIEW comes after JOIN when explore has a plain join', () => {
+        const { query } = buildQuery({
+            explore: EXPLORE_WITH_ARRAY_DIM_AND_JOIN,
+            compiledMetricQuery: {
+                exploreName: 'array_tags',
+                dimensions: ['array_tags_tags', 'tags_info_label'],
+                metrics: ['array_tags_count'],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: databricksClientMock,
+            intrinsicUserAttributes: {},
+            timezone: 'UTC',
+        });
+
+        const joinIndex = query.indexOf('JOIN');
+        const lateralViewIndex = query.indexOf('LATERAL VIEW');
+
+        expect(joinIndex).toBeGreaterThan(-1);
+        expect(lateralViewIndex).toBeGreaterThan(-1);
+        expect(lateralViewIndex).toBeGreaterThan(joinIndex);
     });
 });
