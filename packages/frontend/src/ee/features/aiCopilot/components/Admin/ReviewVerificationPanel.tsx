@@ -13,16 +13,21 @@ import {
     IconArrowUpRight,
     IconCircleCheck,
     IconCircleCheckFilled,
+    IconColumns,
     IconFileDiff,
     IconGitPullRequest,
     IconListCheck,
     IconMessages,
     IconRefresh,
 } from '@tabler/icons-react';
-import { useState, type FC, type ReactNode } from 'react';
+import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
-import { useAiAgentReviewItemPrDiff } from '../../hooks/useAiAgentAdmin';
+import {
+    useAiAgentReviewItemPrDiff,
+    useProjectUpstreamDiff,
+} from '../../hooks/useAiAgentAdmin';
+import { ReviewFieldsModal } from './ReviewFieldsModal';
 import { ReviewPrDiffModal } from './ReviewPrDiffModal';
 import styles from './ReviewVerificationPanel.module.css';
 
@@ -63,12 +68,14 @@ export const ReviewVerificationPanel: FC<Props> = ({
     onMarkDone,
 }) => {
     const [diffOpened, setDiffOpened] = useState(false);
+    const [fieldsOpened, setFieldsOpened] = useState(false);
     const remediation = reviewItem.remediation ?? null;
     const linkedPrUrl = remediation?.linkedPrUrl ?? null;
     const prNumber = linkedPrUrl ? getPrNumber(linkedPrUrl) : null;
     const isResolved = reviewItem.status === 'resolved';
-    const validatorUrl = remediation?.previewProjectUuid
-        ? `/generalSettings/projectManagement/${remediation.previewProjectUuid}/validator`
+    const previewProjectUuid = remediation?.previewProjectUuid ?? null;
+    const validatorUrl = previewProjectUuid
+        ? `/generalSettings/projectManagement/${previewProjectUuid}/validator`
         : null;
     const sourceThreadUrl =
         remediation &&
@@ -78,6 +85,22 @@ export const ReviewVerificationPanel: FC<Props> = ({
         useAiAgentReviewItemPrDiff(reviewItem.fingerprint, {
             enabled: !!linkedPrUrl,
         });
+
+    const { data: upstreamDiff, isLoading: isLoadingFields } =
+        useProjectUpstreamDiff(previewProjectUuid ?? undefined, {
+            enabled: !!previewProjectUuid,
+        });
+    const fields = useMemo(() => upstreamDiff?.fields ?? [], [upstreamDiff]);
+    const fieldCounts = useMemo(
+        () => ({
+            added: fields.filter((f) => f.change === 'added').length,
+            updated: fields.filter((f) => f.change === 'label_changed').length,
+            removed: fields.filter((f) => f.change === 'removed').length,
+        }),
+        [fields],
+    );
+    const showFieldsRow =
+        !!previewProjectUuid && (isLoadingFields || fields.length > 0);
 
     return (
         <div className={styles.gutter}>
@@ -109,6 +132,32 @@ export const ReviewVerificationPanel: FC<Props> = ({
                 </Text>
 
                 <Stack gap={2}>
+                    {linkedPrUrl && (
+                        <Anchor
+                            className={styles.row}
+                            href={linkedPrUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            underline="never"
+                        >
+                            <Row
+                                icon={IconGitPullRequest}
+                                label={
+                                    prNumber
+                                        ? `Pull request #${prNumber}`
+                                        : 'Pull request'
+                                }
+                                trailing={
+                                    <MantineIcon
+                                        icon={IconArrowUpRight}
+                                        size="sm"
+                                        color="dimmed"
+                                    />
+                                }
+                            />
+                        </Anchor>
+                    )}
+
                     {linkedPrUrl && (
                         <UnstyledButton
                             className={styles.row}
@@ -145,30 +194,52 @@ export const ReviewVerificationPanel: FC<Props> = ({
                         </UnstyledButton>
                     )}
 
-                    {linkedPrUrl && (
-                        <Anchor
+                    {showFieldsRow && (
+                        <UnstyledButton
                             className={styles.row}
-                            href={linkedPrUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            underline="never"
+                            onClick={() => setFieldsOpened(true)}
                         >
                             <Row
-                                icon={IconGitPullRequest}
-                                label={
-                                    prNumber
-                                        ? `Pull request #${prNumber}`
-                                        : 'Pull request'
-                                }
+                                icon={IconColumns}
+                                label="Fields"
                                 trailing={
-                                    <MantineIcon
-                                        icon={IconArrowUpRight}
-                                        size="sm"
-                                        color="dimmed"
-                                    />
+                                    isLoadingFields ? (
+                                        <Loader size={12} color="gray" />
+                                    ) : (
+                                        <Text fz="sm" fw={600}>
+                                            <Text
+                                                span
+                                                fz="sm"
+                                                fw={600}
+                                                c="green.8"
+                                            >
+                                                +{fieldCounts.added}
+                                            </Text>{' '}
+                                            {fieldCounts.updated > 0 && (
+                                                <>
+                                                    <Text
+                                                        span
+                                                        fz="sm"
+                                                        fw={600}
+                                                        c="yellow.8"
+                                                    >
+                                                        ~{fieldCounts.updated}
+                                                    </Text>{' '}
+                                                </>
+                                            )}
+                                            <Text
+                                                span
+                                                fz="sm"
+                                                fw={600}
+                                                c="red.8"
+                                            >
+                                                −{fieldCounts.removed}
+                                            </Text>
+                                        </Text>
+                                    )
                                 }
                             />
-                        </Anchor>
+                        </UnstyledButton>
                     )}
 
                     {validatorUrl && (
@@ -258,6 +329,16 @@ export const ReviewVerificationPanel: FC<Props> = ({
                 diff={prDiff}
                 isLoading={isLoadingPrDiff}
             />
+
+            {previewProjectUuid && (
+                <ReviewFieldsModal
+                    opened={fieldsOpened}
+                    onClose={() => setFieldsOpened(false)}
+                    projectUuid={previewProjectUuid}
+                    fields={fields}
+                    isLoading={isLoadingFields}
+                />
+            )}
         </div>
     );
 };
