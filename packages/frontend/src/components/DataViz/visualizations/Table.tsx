@@ -5,6 +5,7 @@ import {
     type VizColumnsConfig,
     type VizTableHeaderSortConfig,
 } from '@lightdash/common';
+import { Menu } from '@mantine-8/core';
 import {
     Badge,
     Flex,
@@ -12,13 +13,20 @@ import {
     useMantineTheme,
     type FlexProps,
 } from '@mantine/core';
-import { IconArrowDown, IconArrowUp } from '@tabler/icons-react';
+import { IconArrowDown, IconArrowUp, IconCopy } from '@tabler/icons-react';
 import { flexRender } from '@tanstack/react-table';
+import useToaster from '../../../hooks/toaster/useToaster';
+import { JsonCellMenuItem } from '../../common/JsonViewer/JsonCellViewer';
+import {
+    getJsonCellValue,
+    getJsonLikeString,
+} from '../../common/JsonViewer/utils';
 import { SMALL_TEXT_LENGTH } from '../../common/LightTable/constants';
 import MantineIcon from '../../common/MantineIcon';
 import BodyCell from '../../common/Table/ScrollableTable/BodyCell';
 import { VirtualizedArea } from '../../common/Table/ScrollableTable/TableBody';
 import { Table as TableStyled, Tr } from '../../common/Table/Table.styles';
+import { type CellContextMenuProps } from '../../common/Table/types';
 import { useTableDataModel } from '../hooks/useTableDataModel';
 
 type TableProps<T extends IResultsRunner> = {
@@ -27,6 +35,34 @@ type TableProps<T extends IResultsRunner> = {
     flexProps?: FlexProps;
     thSortConfig?: VizTableHeaderSortConfig;
     onTHClick?: (fieldName: string) => void;
+    enableJsonViewer?: boolean;
+};
+
+const SqlRunnerCellContextMenu = ({
+    cell,
+    onViewJsonCell,
+}: CellContextMenuProps) => {
+    const { showToastSuccess } = useToaster();
+    const value = cell.getValue();
+    const jsonValue = getJsonCellValue(value) ?? getJsonLikeString(value);
+
+    return (
+        <>
+            <Menu.Item
+                leftSection={<MantineIcon icon={IconCopy} />}
+                onClick={() => {
+                    void navigator.clipboard?.writeText(String(value ?? ''));
+                    showToastSuccess({ title: 'Copied to clipboard!' });
+                }}
+            >
+                Copy value
+            </Menu.Item>
+
+            {jsonValue && onViewJsonCell ? (
+                <JsonCellMenuItem onClick={() => onViewJsonCell(jsonValue)} />
+            ) : null}
+        </>
+    );
 };
 
 export const Table = <T extends IResultsRunner>({
@@ -35,6 +71,7 @@ export const Table = <T extends IResultsRunner>({
     flexProps,
     thSortConfig,
     onTHClick,
+    enableJsonViewer = false,
 }: TableProps<T>) => {
     const theme = useMantineTheme();
     const {
@@ -48,6 +85,7 @@ export const Table = <T extends IResultsRunner>({
             columns: columnsConfig,
         },
         resultsRunner,
+        enableJsonViewer,
     });
 
     const columnsCount = getColumnsCount();
@@ -167,6 +205,11 @@ export const Table = <T extends IResultsRunner>({
                                                         cellValue?.toString() ||
                                                         ''
                                                     ).length > SMALL_TEXT_LENGTH
+                                                }
+                                                cellContextMenu={
+                                                    enableJsonViewer
+                                                        ? SqlRunnerCellContextMenu
+                                                        : undefined
                                                 }
                                             >
                                                 {cell.getIsPlaceholder()

@@ -13,7 +13,9 @@ import { describe, expect, test } from 'vitest';
 import {
     formatCellContent,
     formatResultsTableCell,
+    getJsonCellValue,
     getFormattedValueCell,
+    getJsonLikeString,
 } from './useColumns';
 
 /* eslint-disable testing-library/no-container */
@@ -59,6 +61,21 @@ const createMockCellContext = ({
 const renderWithMantine = (component: React.ReactElement) => {
     return render(<MantineProvider>{component}</MantineProvider>);
 };
+
+describe('JSON cell inspection', () => {
+    test('detects objects and arrays without parsing strings', () => {
+        expect(getJsonCellValue({ foo: 'bar' })).toEqual({ foo: 'bar' });
+        expect(getJsonCellValue('[{"foo":"bar"}]')).toBeUndefined();
+        expect(getJsonCellValue('"json string"')).toBeUndefined();
+    });
+
+    test('detects JSON-like object and array strings', () => {
+        expect(getJsonLikeString('[{"foo":"bar"}]')).toEqual([{ foo: 'bar' }]);
+        expect(getJsonLikeString('not json')).toBeUndefined();
+        expect(getJsonLikeString('"json string"')).toBeUndefined();
+        expect(getJsonLikeString(' true ')).toBeUndefined();
+    });
+});
 
 describe('getFormattedValueCell - Bar Chart Display', () => {
     test('should render bar for positive number when displayStyle is bar', () => {

@@ -12,7 +12,7 @@ import {
 } from '@lightdash/common';
 import { Menu, Text } from '@mantine-8/core';
 import { useClipboard } from '@mantine/hooks';
-import { IconCopy, IconEye, IconFilter, IconStack } from '@tabler/icons-react';
+import { IconCopy, IconFilter, IconStack } from '@tabler/icons-react';
 import mapValues from 'lodash/mapValues';
 import { useCallback, useMemo, type FC } from 'react';
 import useToaster from '../../../hooks/toaster/useToaster';
@@ -22,18 +22,25 @@ import { Can } from '../../../providers/Ability';
 import useApp from '../../../providers/App/useApp';
 import useTracking from '../../../providers/Tracking/useTracking';
 import { EventName } from '../../../types/Events';
+import { JsonCellMenuItem } from '../../common/JsonViewer/JsonCellViewer';
+import {
+    getJsonCellValue,
+    getJsonLikeString,
+} from '../../common/JsonViewer/utils';
 import MantineIcon from '../../common/MantineIcon';
 import { type CellContextMenuProps } from '../../common/Table/types';
 import DrillDownMenuItem from '../../MetricQueryData/DrillDownMenuItem';
 import { useMetricQueryDataContext } from '../../MetricQueryData/useMetricQueryDataContext';
 import UrlMenuItems from './UrlMenuItems';
 
+const MAX_FILTER_VALUE_LABEL_LENGTH = 40;
+
 const CellContextMenu: FC<
-    Pick<CellContextMenuProps, 'cell' | 'isEditMode'> & {
+    Pick<CellContextMenuProps, 'cell' | 'isEditMode' | 'onViewJsonCell'> & {
         itemsMap: Record<string, Field | TableCalculation>;
         onExpand: (name: string, data: object) => void;
     }
-> = ({ cell, isEditMode, itemsMap, onExpand }) => {
+> = ({ cell, isEditMode, itemsMap, onViewJsonCell }) => {
     const { addFilter } = useFilters();
     const { openUnderlyingDataModal, metricQuery, resolvedTimezone } =
         useMetricQueryDataContext();
@@ -101,18 +108,12 @@ const CellContextMenu: FC<
         addFilter(item, filterValue, resolvedTimezone);
     }, [track, addFilter, item, value, resolvedTimezone]);
 
-    let parseResult: null | object = null;
-    if (
-        !!value.raw &&
-        typeof value.raw === 'string' &&
-        (value.raw.startsWith('{') || value.raw.startsWith('['))
-    ) {
-        try {
-            parseResult = JSON.parse(String(value.raw));
-        } catch {
-            // Do nothing
-        }
-    }
+    const jsonValue =
+        getJsonCellValue(value.raw) ?? getJsonLikeString(value.raw);
+    const filterValueLabel =
+        value.formatted.length > MAX_FILTER_VALUE_LABEL_LENGTH
+            ? `${value.formatted.slice(0, MAX_FILTER_VALUE_LABEL_LENGTH)}...`
+            : value.formatted;
 
     return (
         <>
@@ -130,20 +131,8 @@ const CellContextMenu: FC<
             >
                 Copy value
             </Menu.Item>
-            {parseResult !== null && (
-                <Menu.Item
-                    leftSection={<MantineIcon icon={IconEye} />}
-                    onClick={() =>
-                        onExpand(
-                            item && 'displayName' in item
-                                ? item.displayName
-                                : item?.name || '',
-                            parseResult || {},
-                        )
-                    }
-                >
-                    Expand
-                </Menu.Item>
+            {jsonValue && onViewJsonCell && (
+                <JsonCellMenuItem onClick={() => onViewJsonCell(jsonValue)} />
             )}
             {item &&
                 !isDimension(item) &&
@@ -175,13 +164,40 @@ const CellContextMenu: FC<
                     <Menu.Item
                         leftSection={<MantineIcon icon={IconFilter} />}
                         onClick={handleFilterByValue}
+                        style={{ maxWidth: 360 }}
                     >
-                        <>
-                            Filter by{' '}
-                            <Text span fz="inherit" lh="inherit" fw="bold">
-                                {value.formatted}
+                        <Text
+                            span
+                            fz="inherit"
+                            lh="inherit"
+                            style={{
+                                display: 'block',
+                                maxWidth: '100%',
+                                minWidth: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                            }}
+                        >
+                            <Text span fz="inherit" lh="inherit">
+                                Filter by&nbsp;
                             </Text>
-                        </>
+                            <Text
+                                span
+                                fz="inherit"
+                                lh="inherit"
+                                fw="bold"
+                                title={value.formatted}
+                                style={{
+                                    minWidth: 0,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                {filterValueLabel}
+                            </Text>
+                        </Text>
                     </Menu.Item>
                 )}
 
