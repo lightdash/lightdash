@@ -6,17 +6,20 @@ import {
     AiAgentReviewItemPrDiff,
     AiAgentReviewItemStatus,
     AiAgentReviewItemSummary,
+    AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
     AiAgentReviewSignalSummary,
     AiAgentReviewWritebackJobPayload,
     AiAgentSummary,
     AlreadyExistsError,
+    assertUnreachable,
     DbtProjectType,
     extractPreviewProjectUuidFromUrl,
     extractPreviewUrlFromComments,
     FeatureFlags,
     ForbiddenError,
     getErrorMessage,
+    JobStatusType,
     KnexPaginateArgs,
     KnexPaginatedData,
     MissingConfigError,
@@ -45,6 +48,7 @@ import { type LightdashConfig } from '../../config/parseConfig';
 import { isUniqueConstraintViolation } from '../../database/errors';
 import { type GithubAppInstallationsModel } from '../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import { type GitlabAppInstallationsModel } from '../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
+import { type JobModel } from '../../models/JobModel/JobModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type PullRequestsModel } from '../../models/PullRequestsModel';
 import { type UserModel } from '../../models/UserModel';
@@ -78,6 +82,7 @@ type AiAgentAdminServiceDependencies = {
     userModel: UserModel;
     lightdashConfig: LightdashConfig;
     writebackPreviewService: WritebackPreviewService;
+    jobModel: JobModel;
 };
 
 const parsePullRequestUrl = (
@@ -117,6 +122,8 @@ const activeRemediationStatuses = new Set([
 
 const REVIEW_PREVIEW_POLL_INTERVAL_MS = 25_000;
 const REVIEW_PREVIEW_WAIT_TIMEOUT_MS = 10 * 60_000;
+const PREVIEW_COMPILE_POLL_INTERVAL_MS = 10_000;
+const PREVIEW_COMPILE_WAIT_TIMEOUT_MS = 10 * 60_000;
 
 const unavailableWritebackEligibility = (
     reason: AiAgentReviewItemWritebackBlockedReason,
@@ -294,6 +301,8 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly writebackPreviewService: WritebackPreviewService;
 
+    private readonly jobModel: JobModel;
+
     constructor(dependencies: AiAgentAdminServiceDependencies) {
         super();
         this.analytics = dependencies.analytics;
@@ -315,6 +324,7 @@ export class AiAgentAdminService extends BaseService {
         this.userModel = dependencies.userModel;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.writebackPreviewService = dependencies.writebackPreviewService;
+        this.jobModel = dependencies.jobModel;
     }
 
     private checkOrganizationAdminAccess(user: SessionUser): void {
@@ -1196,12 +1206,23 @@ export class AiAgentAdminService extends BaseService {
                 if (preview) {
                     terminalMessage = `Opened pull request · Preview: ${preview.previewUrl}`;
                     if (remediationUuid && pullRequest) {
-                        await this.setReviewRemediationPreviewFromProject({
-                            organizationUuid,
-                            remediationUuid,
-                            previewProjectUuid: preview.previewProjectUuid,
-                            userUuid,
-                        });
+                        // The verification agent snapshots the preview's
+                        // explores at run start, so prompting before the
+                        // compile finishes makes it report a false negative.
+                        // The wait runs as a self-rescheduling poll job so no
+                        // worker slot is held and a deploy can't strand it.
+                        await this.schedulerClient.aiAgentReviewRemediationCompile(
+                            {
+                                organizationUuid,
+                                projectUuid,
+                                userUuid,
+                                fingerprint,
+                                remediationUuid,
+                                previewProjectUuid: preview.previewProjectUuid,
+                                compileJobUuid: preview.compileJobUuid,
+                                startedAt: Date.now(),
+                            },
+                        );
                     }
                 }
                 await setTerminal('completed', terminalMessage);
@@ -1297,6 +1318,77 @@ export class AiAgentAdminService extends BaseService {
         }
     }
 
+    /**
+     * Self-rescheduling poll: checks the preview's compile job and only seeds
+     * the verification thread once the explores exist — the verification agent
+     * snapshots explores at run start, so prompting earlier produces a false
+     * negative. Runs as short scheduler jobs (state lives in the job queue) so
+     * no worker slot is held and a deploy mid-wait can't strand it.
+     */
+    async pollReviewRemediationCompile(
+        payload: AiAgentReviewRemediationCompileJobPayload,
+    ): Promise<void> {
+        const {
+            organizationUuid,
+            remediationUuid,
+            previewProjectUuid,
+            compileJobUuid,
+            startedAt,
+            userUuid,
+        } = payload;
+
+        // Status guard must run before the timeout: a poll firing after the
+        // remediation reached a terminal state must not overwrite that state.
+        const remediation =
+            await this.aiAgentReviewClassifierModel.getReviewRemediation({
+                organizationUuid,
+                remediationUuid,
+            });
+        if (!remediation || remediation.status !== 'pr_open') {
+            return;
+        }
+
+        const failRemediation = (errorMessage: string) =>
+            this.aiAgentReviewClassifierModel.updateReviewRemediationStatus({
+                remediationUuid,
+                organizationUuid,
+                status: 'failed',
+                errorMessage,
+            });
+
+        if (Date.now() - startedAt > PREVIEW_COMPILE_WAIT_TIMEOUT_MS) {
+            await failRemediation('Preview project did not compile in time');
+            return;
+        }
+
+        const job = await this.jobModel.get(compileJobUuid);
+        switch (job.jobStatus) {
+            case JobStatusType.DONE:
+                await this.setReviewRemediationPreviewFromProject({
+                    organizationUuid,
+                    remediationUuid,
+                    previewProjectUuid,
+                    userUuid,
+                });
+                return;
+            case JobStatusType.ERROR:
+                await failRemediation('Preview project failed to compile');
+                return;
+            case JobStatusType.STARTED:
+            case JobStatusType.RUNNING:
+                await this.schedulerClient.aiAgentReviewRemediationCompile(
+                    payload,
+                    new Date(Date.now() + PREVIEW_COMPILE_POLL_INTERVAL_MS),
+                );
+                return;
+            default:
+                assertUnreachable(
+                    job.jobStatus,
+                    `Unknown job status for compile job ${compileJobUuid}`,
+                );
+        }
+    }
+
     private static buildReviewVerificationPrompt(
         linkedPrUrl: string | null,
     ): string {
@@ -1306,6 +1398,8 @@ export class AiAgentAdminService extends BaseService {
             }. The conversation where the original question went wrong is attached as context.`,
             '',
             "Re-run the user's original question end-to-end against this project. Then compare the outcome with the attached conversation and state clearly whether the issue is resolved. Point out anything that still looks wrong.",
+            '',
+            'Answer through the governed explores only — do not fall back to raw SQL against the warehouse for the comparison. If the explores cannot be queried, report that instead of computing the answer another way.',
         ].join('\n');
     }
 

@@ -6,6 +6,7 @@ import {
     ForbiddenError,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
+    ProjectType,
     type AiAgentAvailableCapability,
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
@@ -27,6 +28,7 @@ import { createHash } from 'crypto';
 import { LightdashConfig } from '../../config/parseConfig';
 import Logger from '../../logging/logger';
 import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
+import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
 import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentModel } from '../models/AiAgentModel';
@@ -73,6 +75,7 @@ type AiAgentReviewClassifierServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
+    projectModel: Pick<ProjectModel, 'getSummary'>;
     featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
     judgeTurn?: AiAgentReviewClassifierJudge;
@@ -222,6 +225,8 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
 
+    private readonly projectModel: Pick<ProjectModel, 'getSummary'>;
+
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
     private readonly featureFlagService: FeatureFlagService;
@@ -236,6 +241,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             dependencies.aiAgentReviewClassifierModel;
         this.aiAgentModel = dependencies.aiAgentModel;
         this.catalogModel = dependencies.catalogModel;
+        this.projectModel = dependencies.projectModel;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
         this.featureFlagService = dependencies.featureFlagService;
@@ -303,6 +309,18 @@ export class AiAgentReviewClassifierService extends BaseService {
     async runLiveEvent(
         args: RunLiveEventArgs,
     ): Promise<AiAgentReviewClassifierRunResult | null> {
+        // Preview projects are scratch environments — most notably the ones
+        // writeback remediation spins up to verify its own fixes. Reviewing
+        // those turns would feed the reviewer's output back into itself.
+        const project = await this.projectModel.getSummary(args.projectUuid);
+        if (project.type === ProjectType.PREVIEW) {
+            this.debugLog('LiveEventSkippedPreviewProject', {
+                projectUuid: args.projectUuid,
+                promptUuid: args.promptUuid,
+            });
+            return null;
+        }
+
         const listCandidate = (promptUuid: string) =>
             this.aiAgentReviewClassifierModel.listTurnReviewCandidates({
                 organizationUuid: args.organizationUuid,
