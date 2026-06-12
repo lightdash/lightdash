@@ -1,4 +1,5 @@
 import {
+    applyDbtSemanticLayerToModels,
     attachTypesToModels,
     convertExplores,
     convertLightdashModelsToDbtModels,
@@ -12,11 +13,13 @@ import {
     getErrorMessage,
     getModelsFromManifest,
     getSchemaStructureFromDbtModels,
+    getSemanticLayerFromManifest,
     isExploreError,
     isSupportedDbtAdapter,
     LightdashProjectConfig,
     ParseError,
     preAggregatePostProcessor,
+    SEMANTIC_LAYER_MANIFEST_VERSIONS,
     WarehouseCatalog,
 } from '@lightdash/common';
 import { warehouseSqlBuilderFromType } from '@lightdash/warehouses';
@@ -198,6 +201,8 @@ export const compile = async (options: CompileHandlerOptions) => {
     // Try lightdash project compile
     let explores: (Explore | ExploreError)[] | null = null;
     let dbtMetrics: DbtManifest['metrics'] | null = null;
+    let semanticLayerModelCount = 0;
+    let semanticLayerWarningCount = 0;
 
     explores = await getExploresFromLightdashYmlProject(
         absoluteProjectPath,
@@ -266,7 +271,7 @@ export const compile = async (options: CompileHandlerOptions) => {
         // When using --defer, non-selected models pulled in via joins
         // have incorrect schema/relation_name (they point to the dev target
         // instead of production). Patch them from the state manifest.
-        const modelsForValidation =
+        let modelsForValidation =
             options.defer && options.state && originallySelectedModelIds
                 ? await patchDeferredModels(
                       compiledModels,
@@ -274,6 +279,46 @@ export const compile = async (options: CompileHandlerOptions) => {
                       options.state,
                   )
                 : compiledModels;
+
+        if (lightdashProjectConfig.dbt_semantic_layer?.enabled) {
+            if (!SEMANTIC_LAYER_MANIFEST_VERSIONS.includes(manifestVersion)) {
+                console.error(
+                    styles.warning(
+                        `dbt_semantic_layer.enabled requires dbt 1.6+ (manifest ${manifestVersion} is not supported). Skipping dbt semantic layer conversion.`,
+                    ),
+                );
+            } else {
+                const { semanticModels, metrics: semanticLayerMetrics } =
+                    getSemanticLayerFromManifest(manifest, manifestVersion);
+                const semanticLayerResult = applyDbtSemanticLayerToModels(
+                    modelsForValidation,
+                    semanticModels,
+                    semanticLayerMetrics,
+                );
+                modelsForValidation = semanticLayerResult.models;
+                semanticLayerModelCount = semanticModels.length;
+                semanticLayerWarningCount = semanticLayerResult.warnings.length;
+                GlobalState.debug(
+                    `> Converted ${semanticModels.length} dbt semantic model(s)`,
+                );
+                if (semanticLayerResult.warnings.length > 0) {
+                    const warningLines = semanticLayerResult.warnings.map(
+                        (warning) =>
+                            `- ${
+                                warning.modelName
+                                    ? `${warning.modelName}: `
+                                    : ''
+                            }${warning.message}\n`,
+                    );
+                    console.error(
+                        styles.warning(`Found ${
+                            semanticLayerResult.warnings.length
+                        } warnings when converting the dbt semantic layer:
+    ${warningLines.join('')}`),
+                    );
+                }
+            }
+        }
 
         const adapterType = manifest.metadata.adapter_type;
         const { valid: validModels, invalid: failedExplores } =
@@ -435,6 +480,8 @@ export const compile = async (options: CompileHandlerOptions) => {
             explores: explores.length,
             errors,
             dbtMetrics: metricsCount,
+            semanticLayerModels: semanticLayerModelCount,
+            semanticLayerWarnings: semanticLayerWarningCount,
             dbtVersion: dbtVersionResult.success
                 ? dbtVersionResult.version.verboseVersion
                 : undefined,
