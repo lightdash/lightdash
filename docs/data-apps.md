@@ -115,7 +115,7 @@ Properties of this flow:
   each) + the resources the user has already attached in the picker (chart names + their explores, dashboard name,
   count of attached images).
 - **What it deliberately doesn't do.** No sample-data fetch and no S3 image read for the clarify call. Sample rows and
-  pixel content don't change *whether* a question is worth asking, and skipping them keeps the call inside the 15s
+  pixel content don't change _whether_ a question is worth asking, and skipping them keeps the call inside the 15s
   budget. Both happen later in the generate pipeline if opted in.
 - **Resources flow.** The frontend forwards the same `charts: { uuid, includeSampleData }[]`,
   `dashboard: { uuid, includeSampleData }`, and `imageIds` already in scope at the chat input. `includeSampleData` is
@@ -199,7 +199,7 @@ runs against the warehouse fresh. (This mirrors the sticky behaviour of the dash
 ### Refreshing a data app inside a dashboard
 
 A data app embedded as a `DashboardDataAppTile` refreshes the same way a chart tile does when the dashboard's
-**refresh button** is pressed. The challenge is that the tile's queries run *inside* the sandboxed iframe (via the
+**refresh button** is pressed. The challenge is that the tile's queries run _inside_ the sandboxed iframe (via the
 postMessage bridge), so they can't piggyback on the React Query invalidation that re-fetches chart tiles. Two pieces
 bridge that gap, both driven by `clearCacheAndFetch` in `DashboardTileStatusProvider`:
 
@@ -230,7 +230,7 @@ ChatGPT's response-version selector:
   "the live one" without introducing a new color.
 
 Per-version actions beyond "preview this one" (e.g. the upcoming "Restore as new version" flow) will live elsewhere
-on the bubble — not stacked into the meta row — so the chip stays purely about *which version is shown*.
+on the bubble — not stacked into the meta row — so the chip stays purely about _which version is shown_.
 
 When a pinned version differs from the latest ready one, the **prompt input area is replaced** with an info
 `Callout`: title `"You're viewing version {n}"`, body explaining that new prompts always continue from the latest
@@ -311,8 +311,8 @@ When a project is copied to a preview environment, **every data app is duplicate
 apps and apps embedded as `DATA_APP` dashboard tiles. The preview gets its own `apps` + `app_versions` rows and its own
 S3 artifacts, so apps render and can be iterated on entirely inside the preview.
 
-The copy is the mirror image of [promotion](#promotion): promotion snapshots a preview app *up* into production;
-preview duplication snapshots production apps *down* into a fresh preview. It reuses the same per-app primitives
+The copy is the mirror image of [promotion](#promotion): promotion snapshots a preview app _up_ into production;
+preview duplication snapshots production apps _down_ into a fresh preview. It reuses the same per-app primitives
 (`copyVersionS3Prefix`, `buildCopiedResources`, the org-shared design guard) that `duplicateApp` / `promoteApp` use.
 
 Orchestration lives in `AppGenerateService.duplicateAppsForPreview`, called once from
@@ -347,10 +347,10 @@ Tracked in [PROD-7819](https://linear.app/lightdash/issue/PROD-7819/make-it-poss
 
 ### Database Tables
 
-| Table          | Purpose                                                                  |
-| -------------- | ------------------------------------------------------------------------ |
-| `apps`         | App metadata: name, description, project, creator, sandbox ID, template  |
-| `app_versions` | Version history: prompt, build status, error messages, status updates    |
+| Table          | Purpose                                                                 |
+| -------------- | ----------------------------------------------------------------------- |
+| `apps`         | App metadata: name, description, project, creator, sandbox ID, template |
+| `app_versions` | Version history: prompt, build status, error messages, status updates   |
 
 Key relationships:
 
@@ -475,19 +475,47 @@ message `type` and forwards each to the right hook —
 `useIframeScreenshot` for screenshot responses. See
 [Screenshot Capture](#screenshot-capture) below.
 
-### Backend Data Downloads
+### Interactive Query Actions
 
-`useLightdash()` returns `downloadResults({ fileType, values, limit, filename })` after the source query has loaded.
-This mirrors the core chart/table export pipeline instead of serializing data in the iframe:
+Generated apps can offer the same kinds of row-level exploration users expect from Lightdash charts, but the app has
+to wire those interactions explicitly in its React UI. The agent is taught these patterns in
+`sandboxes/data-apps/template/skill.md`; `docs/data-apps.md` is the architecture-level contract.
 
-1. For `limit: 'table'`, the SDK reuses the source query UUID.
-2. For `limit: 'all'` or a custom row count, the SDK reruns the same metric query with the requested limit and waits
-   until the query is ready without fetching every row into the iframe.
+**Drilldowns** are SDK-side query composition. `drillDown()` takes the source `QueryBuilder`, the clicked row, a metric,
+and a new drill-by dimension, then returns another `QueryBuilder`. The app passes that query to `useLightdash()` like
+any other metric query, so it uses the existing `POST /query/metric-query` bridge route and normal query polling.
+
+**Underlying data** uses Lightdash's native "View underlying data" backend path. `useLightdash()` returns
+`getUnderlyingData({ row, metric, limit? })` after the source query has loaded. The app calls it from a user action
+such as "View rows" or "View underlying data"; the SDK uses the loaded source query UUID plus the clicked result row
+to call `POST /api/v2/projects/{projectUuid}/query/underlying-data`, then polls the returned query UUID via
+`GET /api/v2/projects/{projectUuid}/query/{queryId}`.
+
+The returned value is shaped like a regular SDK result:
+
+```ts
+{
+    rows: Row[];
+    columns: Column[];
+    format: FormatFunction;
+    queryUuid: string;
+}
+```
+
+**Downloads** use Lightdash's backend export job pipeline rather than serializing rows in the iframe. `useLightdash()`
+returns `downloadResults({ fileType, values, limit, filename })` after the source query has loaded. The app calls it
+from an explicit user action such as an Export button or menu item.
+
+The download flow is:
+
+1. For `limit: 'table'`, the SDK reuses the loaded source query UUID.
+2. For `limit: 'all'` or a custom positive row count, the SDK reruns the same metric query with the requested limit and
+   waits until the query is ready without fetching every row into the iframe.
 3. The SDK calls `POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download`.
 4. The SDK polls `GET /api/v1/schedulers/job/{jobId}/status`.
 5. When the backend returns `fileUrl`, the iframe triggers a browser download.
 
-Supported options match the core export concepts:
+Supported download options match the core export concepts:
 
 - `fileType`: `csv` or `xlsx`
 - `values`: `formatted` or `raw`
@@ -495,7 +523,21 @@ Supported options match the core export concepts:
 - `filename`: optional download filename
 
 The backend owns CSV/XLSX generation, truncation, raw/formatted value handling, and file hosting. The app owns only the
-button/menu UI and when to call `downloadResults()`.
+button/menu UI and when to call `downloadResults()`. `limit: 'table'` means the rows loaded by the SDK query that owns
+`downloadResults()`, not arbitrary rows after local React filtering, pagination, or sorting. If the app needs to export
+exactly transformed client-side state, it should use a client-side CSV helper instead.
+
+Important constraints:
+
+- The iframe cannot call arbitrary Lightdash APIs directly; underlying data works only because the route is explicitly
+  allowlisted in `useAppSdkBridge`.
+- The action is not injected automatically onto every rendered value. Generated apps should add contextual buttons,
+  menus, or table actions where the source row and metric are unambiguous.
+- The row passed to `getUnderlyingData()` should be the original row returned by `useLightdash()`. If the app pivots,
+  aggregates, or transforms data for display, it should keep a reference to that original row for underlying-data
+  requests.
+- The backend still enforces the same underlying-data semantics as normal charts, including the source query context,
+  metric selection, model permissions, and the configured underlying fields.
 
 ### Preview Token Authentication
 
@@ -514,7 +556,7 @@ Each preview response includes a strict CSP header:
 - `frame-ancestors {lightdashOrigin}` — only allow embedding from Lightdash
 
 > **Why `'self'` isn't enough — the `{servingOrigin}` term.** The iframe is sandboxed
-> *without* `allow-same-origin`, so its document origin is opaque. WebKit/Safari resolves
+> _without_ `allow-same-origin`, so its document origin is opaque. WebKit/Safari resolves
 > the CSP `'self'` keyword against that opaque origin (which matches nothing) and blocks the
 > app's own scripts, styles, and fetches — the app renders as a blank page. Chromium/Firefox
 > resolve `'self'` against the response URL's origin, so they were unaffected. The fix lists
@@ -530,10 +572,10 @@ Each preview response includes a strict CSP header:
 Users can attach images to their prompts. There are two kinds and they share the same upload pipeline,
 distinguished only by an opaque `kind` tag stored on the S3 object's metadata:
 
-| Kind                       | Source                                                                                | Purpose for the agent                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| **attachment** *(default)* | User picks an image from disk / pastes / drag-and-drops in the chat UI.               | A **design reference** for layout, color, component choice — something to approximate. |
-| **screenshot**             | "Screenshot" button captures the live preview iframe (see [Screenshot Capture](#screenshot-capture)). | The **current state** of the built app — what the user is looking at when they prompt. |
+| Kind           | Source                                                                                                | Purpose for the agent                                                                  |
+| -------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **attachment** | User picks an image from disk / pastes / drag-and-drops in the chat UI.                               | A **design reference** for layout, color, component choice — something to approximate. |
+| **screenshot** | "Screenshot" button captures the live preview iframe (see [Screenshot Capture](#screenshot-capture)). | The **current state** of the built app — what the user is looking at when they prompt. |
 
 Up to `MAX_IMAGES_PER_VERSION = 4` images per submit, mixed kinds allowed.
 
@@ -639,11 +681,11 @@ flowchart LR
    `computedStyle.cssText` straight onto the clone, then wraps the result in SVG `<foreignObject>` and rasterizes
    via `<img src="data:image/svg+xml,...">` → canvas → blob. **Crucially it does not internally create any hidden
    iframe.** This matters here: the preview iframe runs with `sandbox="allow-scripts"` (no `allow-same-origin`) so
-   its origin is opaque, and any child iframe it creates would land in a *different* opaque origin — two opaque
+   its origin is opaque, and any child iframe it creates would land in a _different_ opaque origin — two opaque
    origins are never same-origin with each other, so the parent iframe's own JS can't read its child iframe's
    document. That breaks both `html2canvas` (clones the whole page into a nested iframe) and `modern-screenshot`
    (creates a sandbox iframe for default-style computation): both throw `Permission denied to access property
-   'document' on cross-origin object`. `html-to-image` avoids the problem by never touching a nested document.
+'document' on cross-origin object`. `html-to-image` avoids the problem by never touching a nested document.
 
 4. **Response** — The iframe posts back `{ type: 'lightdash:sdk:screenshot-response', id, blob }` to
    `window.parent` with `'*'` as the target origin (the sandboxed iframe's origin is opaque). The parent listener
@@ -697,17 +739,17 @@ defences keep the path robust:
 
 ### Key Hooks
 
-| Hook                   | File                                          | Purpose                              |
-| ---------------------- | --------------------------------------------- | ------------------------------------ |
-| `useGenerateApp`       | `features/apps/hooks/useGenerateApp.ts`       | POST to create a new app             |
-| `useIterateApp`        | `features/apps/hooks/useIterateApp.ts`        | POST to create a new version         |
-| `useGetApp`            | `features/apps/hooks/useGetApp.ts`            | Infinite query for version history   |
-| `useAppBuildPoller`    | `features/apps/hooks/useAppBuildPoller.ts`    | Web Worker polling build status      |
-| `useBuildNotification` | `features/apps/hooks/useBuildNotification.ts` | OS notification when build completes |
-| `useAppSdkBridge`      | `features/apps/hooks/useAppSdkBridge.ts`      | postMessage fetch proxy              |
-| `useAppPreviewToken`   | `features/apps/hooks/useAppPreviewToken.ts`   | Mint JWT for iframe preview          |
-| `useCancelAppVersion`  | `features/apps/hooks/useCancelAppVersion.ts`  | Cancel a building version            |
-| `useUpdateApp`         | `features/apps/hooks/useUpdateApp.ts`         | Update app name/description          |
+| Hook                   | File                                          | Purpose                                                                     |
+| ---------------------- | --------------------------------------------- | --------------------------------------------------------------------------- |
+| `useGenerateApp`       | `features/apps/hooks/useGenerateApp.ts`       | POST to create a new app                                                    |
+| `useIterateApp`        | `features/apps/hooks/useIterateApp.ts`        | POST to create a new version                                                |
+| `useGetApp`            | `features/apps/hooks/useGetApp.ts`            | Infinite query for version history                                          |
+| `useAppBuildPoller`    | `features/apps/hooks/useAppBuildPoller.ts`    | Web Worker polling build status                                             |
+| `useBuildNotification` | `features/apps/hooks/useBuildNotification.ts` | OS notification when build completes                                        |
+| `useAppSdkBridge`      | `features/apps/hooks/useAppSdkBridge.ts`      | postMessage fetch proxy                                                     |
+| `useAppPreviewToken`   | `features/apps/hooks/useAppPreviewToken.ts`   | Mint JWT for iframe preview                                                 |
+| `useCancelAppVersion`  | `features/apps/hooks/useCancelAppVersion.ts`  | Cancel a building version                                                   |
+| `useUpdateApp`         | `features/apps/hooks/useUpdateApp.ts`         | Update app name/description                                                 |
 | `useIframeScreenshot`  | `features/apps/hooks/useIframeScreenshot.ts`  | Requests a PNG blob from the iframe (rasterized in-iframe by html-to-image) |
 
 ### Build Status Polling
@@ -720,12 +762,12 @@ notification via `useBuildNotification`.
 
 ## Infrastructure Dependencies
 
-| Service                          | Purpose                                                                  | Config                                              |
-| -------------------------------- | ------------------------------------------------------------------------ | --------------------------------------------------- |
-| **E2B**                          | Serverless sandbox for code generation and builds                        | `E2B_API_KEY`                                       |
-| **S3 / MinIO**                   | Stores built artifacts and source tarballs                               | `S3_REGION`, `S3_ENDPOINT`, `S3_BUCKET`, etc.       |
-| **Anthropic API** *(default)*    | Powers Claude Code inside the sandbox                                    | `ANTHROPIC_API_KEY`                                 |
-| **AWS Bedrock** *(alternative)*  | Routes Claude Code through Bedrock instead of the Anthropic API          | See [LLM provider](#llm-provider-anthropic-vs-bedrock) |
+| Service                         | Purpose                                                         | Config                                                 |
+| ------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
+| **E2B**                         | Serverless sandbox for code generation and builds               | `E2B_API_KEY`                                          |
+| **S3 / MinIO**                  | Stores built artifacts and source tarballs                      | `S3_REGION`, `S3_ENDPOINT`, `S3_BUCKET`, etc.          |
+| **Anthropic API** _(default)_   | Powers Claude Code inside the sandbox                           | `ANTHROPIC_API_KEY`                                    |
+| **AWS Bedrock** _(alternative)_ | Routes Claude Code through Bedrock instead of the Anthropic API | See [LLM provider](#llm-provider-anthropic-vs-bedrock) |
 
 ### Configuration (`AppRuntimeConfig`)
 
@@ -743,11 +785,11 @@ APP_RUNTIME_PREVIEW_ORIGIN=https://preview.example # Optional Separate domain fo
 
 The `claude` CLI inside the E2B sandbox routes through either the Anthropic API or AWS Bedrock, following the same `AI_DEFAULT_PROVIDER` switch the AI copilot uses (`lightdashConfig.ai.copilot`). Claude Code itself only supports these two providers — any value other than `bedrock` falls back to the Anthropic API.
 
-| Mode                                         | Sandbox env vars                                                                                                                                                                                                                                          | Firewall allowlist                                                                                |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| **Anthropic** *(default)*                    | `ANTHROPIC_API_KEY`                                                                                                                                                                                                                                       | `api.anthropic.com`                                                                                |
-| **Bedrock — bearer token** (`apiKey` set)    | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_BEARER_TOKEN_BEDROCK`                                                                                                                                                                                     | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com`                         |
-| **Bedrock — IAM** (`accessKeyId` set)        | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN`                                                                                                                                     | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com`                         |
+| Mode                                      | Sandbox env vars                                                                                                      | Firewall allowlist                                                         |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| **Anthropic** _(default)_                 | `ANTHROPIC_API_KEY`                                                                                                   | `api.anthropic.com`                                                        |
+| **Bedrock — bearer token** (`apiKey` set) | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_BEARER_TOKEN_BEDROCK`                                                 | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com` |
+| **Bedrock — IAM** (`accessKeyId` set)     | `CLAUDE_CODE_USE_BEDROCK=1`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_SESSION_TOKEN` | `bedrock-runtime.{region}.amazonaws.com`, `bedrock.{region}.amazonaws.com` |
 
 Bedrock mode reuses the AI copilot's existing `BEDROCK_*` configuration (`lightdashConfig.ai.copilot.providers.bedrock`) — no separate data-apps credentials.
 
@@ -775,22 +817,22 @@ S3 credentials are configured through the existing `S3_*` environment variables 
 
 ## Key Files
 
-| File                                                                        | Purpose                                        |
-| --------------------------------------------------------------------------- | ---------------------------------------------- |
-| `packages/backend/src/ee/services/AppGenerateService/AppGenerateService.ts` | Core pipeline: sandbox, Claude, build, S3, DB  |
+| File                                                                        | Purpose                                                                                      |
+| --------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `packages/backend/src/ee/services/AppGenerateService/AppGenerateService.ts` | Core pipeline: sandbox, Claude, build, S3, DB                                                |
 | `packages/backend/src/ee/services/AppGenerateService/claudeCodeEnv.ts`      | Builds the `claude` CLI env + firewall allowlist for the Anthropic / Bedrock provider switch |
-| `packages/backend/src/ee/controllers/appGenerateController.ts`              | TSOA REST controllers                          |
-| `packages/backend/src/models/AppModel.ts`                                   | Data access layer for apps and versions        |
-| `packages/backend/src/routers/appPreviewRouter.ts`                          | Express router serving built artifacts from S3 |
-| `packages/backend/src/routers/appPreviewToken.ts`                           | JWT minting and verification for preview auth  |
-| `packages/backend/src/database/entities/apps.ts`                            | DB entity type definitions                     |
-| `packages/common/src/ee/apps/types.ts`                                      | Shared API response types                      |
-| `packages/frontend/src/pages/AppGenerate.tsx`                               | Split-panel chat UI for creation and iteration |
-| `packages/frontend/src/features/apps/AppIframePreview.tsx`                  | Sandboxed iframe component (forwards ref so the parent can call `captureScreenshot()`) |
-| `packages/frontend/src/features/apps/hooks/useAppSdkBridge.ts`              | postMessage fetch proxy + inspector/screenshot capability routing |
-| `packages/frontend/src/features/apps/hooks/useIframeScreenshot.ts`          | postMessage round-trip to fetch a PNG blob from the iframe |
-| `sandboxes/data-apps/template/src/screenshotHandler.js`                     | Iframe-side handler — html-to-image rasterizes the live DOM and posts the blob back |
-| `packages/query-sdk/src/postMessageTransport.ts`                            | Shared SDK message types — fetch, ready, inspector, screenshot |
+| `packages/backend/src/ee/controllers/appGenerateController.ts`              | TSOA REST controllers                                                                        |
+| `packages/backend/src/models/AppModel.ts`                                   | Data access layer for apps and versions                                                      |
+| `packages/backend/src/routers/appPreviewRouter.ts`                          | Express router serving built artifacts from S3                                               |
+| `packages/backend/src/routers/appPreviewToken.ts`                           | JWT minting and verification for preview auth                                                |
+| `packages/backend/src/database/entities/apps.ts`                            | DB entity type definitions                                                                   |
+| `packages/common/src/ee/apps/types.ts`                                      | Shared API response types                                                                    |
+| `packages/frontend/src/pages/AppGenerate.tsx`                               | Split-panel chat UI for creation and iteration                                               |
+| `packages/frontend/src/features/apps/AppIframePreview.tsx`                  | Sandboxed iframe component (forwards ref so the parent can call `captureScreenshot()`)       |
+| `packages/frontend/src/features/apps/hooks/useAppSdkBridge.ts`              | postMessage fetch proxy + inspector/screenshot capability routing                            |
+| `packages/frontend/src/features/apps/hooks/useIframeScreenshot.ts`          | postMessage round-trip to fetch a PNG blob from the iframe                                   |
+| `sandboxes/data-apps/template/src/screenshotHandler.js`                     | Iframe-side handler — html-to-image rasterizes the live DOM and posts the blob back          |
+| `packages/query-sdk/src/postMessageTransport.ts`                            | Shared SDK message types — fetch, ready, inspector, screenshot                               |
 
 ---
 
@@ -800,16 +842,18 @@ Data apps follow the same space-based permission model as charts and dashboards,
 exist as **personal** (`space_uuid IS NULL`) before its creator decides to share it by moving it into a space. The
 scopes, all defined in `packages/common/src/authorization/scopes.ts`:
 
-| Scope                  | Granted to          | Effect                                                                                                       |
-| ---------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `view:DataApp`         | viewer+             | View any app whose space the user can view (or where the project inherits org/project access).               |
+| Scope                  | Granted to          | Effect                                                                                                                                                                                                                 |
+| ---------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `view:DataApp`         | interactive_viewer+ | View any app whose space the user can view (or where the project inherits org/project access). Plain viewers do not get data app access.                                                                               |
 | `create:DataApp`       | interactive_viewer+ | Start a new app from a prompt. By default the app is personal until moved into a space; passing `spaceUuid` on the create request creates it directly in a space (also requires `manage:DataApp@space` on that space). |
-| `view:DataApp@self`    | interactive_viewer+ | View own personal apps (matched on `createdByUserUuid`).                                                     |
-| `manage:DataApp@self`  | interactive_viewer+ | Iterate, edit, pin (n/a for personal), move, and delete own personal apps.                                   |
-| `manage:DataApp@space` | interactive_viewer+ | Iterate, edit, cancel, pin, move, and delete apps in spaces where the user has the `EDITOR` or `ADMIN` role. |
-| `manage:DataApp`       | admin               | Project-wide manage — covers any app, and gates restore + permanent-delete.                                  |
+| `view:DataApp@self`    | interactive_viewer+ | View own personal apps (matched on `createdByUserUuid`).                                                                                                                                                               |
+| `manage:DataApp@self`  | interactive_viewer+ | Iterate, edit, pin (n/a for personal), move, and delete own personal apps.                                                                                                                                             |
+| `manage:DataApp@space` | interactive_viewer+ | Iterate, edit, cancel, pin, move, and delete apps in spaces where the user has the `EDITOR` or `ADMIN` role.                                                                                                           |
+| `manage:DataApp`       | admin               | Project-wide manage — covers any app, and gates restore + permanent-delete.                                                                                                                                            |
 
 ### Permission matrix
+
+The space columns assume the user is also at least an interactive viewer at the project/organization role level.
 
 | Action                                    | Project admin | Space admin/editor | Space viewer | App creator (personal app)        |
 | ----------------------------------------- | ------------- | ------------------ | ------------ | --------------------------------- |
