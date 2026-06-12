@@ -432,11 +432,131 @@ Parameters are independent of `.filters()` — a filter restricts which rows are
 | `data` | `Row[]` | Flat objects keyed by short field name. Raw values. Use for charts. |
 | `columns` | `Column[]` | Field metadata (`name`, `label`, `type`). Use for table headers. |
 | `format` | `(row, fieldName) => string` | Server-side formatted value — preserves currency, %, prefix/suffix from the dbt YAML. **Tabular** form (e.g. `2025-03`, `2025-03-17`) — fine in dense table cells, **not** chart-friendly. For dates, chart axes, and human-readable date columns, prefer the `formatField` / `formatDate` / `formatNumber` helpers from `@/lib/format` (see [Formatting](#formatting)). |
+| `totalResults` | `number \| null` | Total rows returned by the loaded source query. Use for export labels/counts. |
 | `loading` | `boolean` | True while query is in flight. |
 | `error` | `Error \| null` | Query error. |
 | `refetch` | `() => void` | Re-run the query on demand. |
 | `queryUuid` | `string \| null` | The async Lightdash query UUID for the loaded source query. Rarely needed directly. |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<{ rows, columns, format, queryUuid }>` | Fetch raw rows behind an aggregated metric value. Call from a user action, never on initial render. |
+| `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<{ fileUrl, truncated, queryUuid, jobId }>` | Schedule a backend CSV/XLSX export. Call from a user action. |
+
+### Backend data downloads
+
+Use `downloadResults()` when the user asks to download or export Lightdash query results. It uses the same backend export pipeline as core charts/tables: real CSV/XLSX files, formatted or raw values, and table/all/custom row limits. It does **not** serialize rows in the iframe.
+
+Default generated export UI should give the user the same important choices they get in core Lightdash charts:
+
+- File type: CSV or XLSX.
+- Row scope: loaded table results or all matching results.
+- Value mode: formatted values or raw values.
+
+Do **not** default to only two bare "CSV" / "XLSX" buttons unless the user explicitly asks for the simplest possible UI. Use a compact export menu, popover, toolbar group, or dialog that exposes row scope and value mode. For dense tables, a single "Export" button that opens a small popover is usually best.
+
+Be precise about row-scope labels:
+
+- `limit: 'table'` exports the rows loaded by the Lightdash SDK query that owns `downloadResults()` — not arbitrary rows after local React filtering, pagination, or sorting.
+- `limit: 'all'` reruns the same Lightdash query for all matching rows allowed by backend export limits.
+- If the table query already loads all or nearly all rows, the two exports may be identical. In that case, either omit the row-scope selector or label it honestly as "Loaded rows" vs. "All matching rows".
+- If you show a row-scope selector, keep the table query's `.limit(...)` intentional and explainable. For example, a table showing `.limit(100)` can label the option "Loaded rows (up to 100)" and the all option "All matching rows".
+- Do not label a limited table "All customers", "All orders", etc. unless the query is intentionally meant to contain all rows. Use "Top 100 customers", "Loaded customers", or "Customer results" for limited queries.
+- Backend downloads export Lightdash query results. If the app transforms, groups, locally filters, or paginates `data` in React and the user asks to export exactly the visible table, use a client-side CSV/copy helper for that visible state instead of `downloadResults()`.
+
+```tsx
+import { Button } from '@/components/ui/button';
+import { Download, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+
+function ExportControls() {
+    const { data, loading, downloadResults } = useLightdash(revenueQuery);
+    const [fileType, setFileType] = useState<'csv' | 'xlsx'>('csv');
+    const [limit, setLimit] = useState<'table' | 'all'>('table');
+    const [values, setValues] = useState<'formatted' | 'raw'>('formatted');
+    const [exporting, setExporting] = useState(false);
+
+    const disabled = loading || exporting || data.length === 0;
+
+    const exportData = async () => {
+        setExporting(true);
+        try {
+            const result = await downloadResults({
+                fileType,
+                values,
+                limit,
+                filename: 'revenue-by-segment',
+            });
+            if (result.truncated) {
+                // Show a toast or inline warning in real app code.
+                console.warn('Export was truncated by backend size limits.');
+            }
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={fileType}
+                onChange={(e) => setFileType(e.target.value as 'csv' | 'xlsx')}
+                disabled={disabled}
+                aria-label="Export file type"
+            >
+                <option value="csv">CSV</option>
+                <option value="xlsx">XLSX</option>
+            </select>
+            <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={limit}
+                onChange={(e) => setLimit(e.target.value as 'table' | 'all')}
+                disabled={disabled}
+                aria-label="Export row scope"
+            >
+                <option value="table">Loaded rows</option>
+                <option value="all">All matching rows</option>
+            </select>
+            <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={values}
+                onChange={(e) => setValues(e.target.value as 'formatted' | 'raw')}
+                disabled={disabled}
+                aria-label="Export value mode"
+            >
+                <option value="formatted">Formatted values</option>
+                <option value="raw">Raw values</option>
+            </select>
+            <Button
+                variant="outline"
+                size="sm"
+                disabled={disabled}
+                onClick={exportData}
+            >
+                {exporting ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                    <Download className="h-4 w-4 mr-1" />
+                )}
+                {exporting ? 'Exporting...' : 'Export'}
+            </Button>
+        </div>
+    );
+}
+```
+
+Options:
+- `fileType`: `'csv'` or `'xlsx'`; default `'csv'`.
+- `values`: `'formatted'` or `'raw'`; default `'formatted'`.
+- `limit`: `'table'`, `'all'`, or a custom positive row count; default `'table'`.
+- `filename`: descriptive filename without extension.
+
+Rules:
+- Only call from explicit user actions such as a button or menu item.
+- Default selected options should be `fileType: 'csv'`, `values: 'formatted'`, and `limit: 'table'`, but the UI should let the user change file type, row scope, and value mode.
+- Offer `limit: 'table'` and `limit: 'all'` in the default export UI. Add a custom row-count input only when the user asks for custom limits or advanced export controls.
+- Make the loaded-row option reflect the query limit when possible, e.g. "Loaded rows (up to 100)" or "Table rows (25)".
+- Disable export buttons while the query is loading or when `data.length === 0`.
+- Track export state (`exporting`, `isExporting`, etc.), disable export controls while awaiting `downloadResults()`, and show a spinner or "Exporting..." label until the promise settles.
+- Show a toast or inline note if the returned result has `truncated: true`.
 
 ### Underlying data
 
@@ -645,7 +765,14 @@ When `/app/src/design/` does not exist or is empty, behave as if these rules don
 
 ### Loading states
 
-Every component that uses `useLightdash()` **must** show a loading spinner while `loading` is true. Never render an empty chart or table while waiting for data.
+Every component that uses `useLightdash()` **must** show a loading spinner while `loading` is true. Never render an empty chart, table, or KPI while waiting for data.
+
+Every user-triggered async data action must also show a loading state while it is waiting:
+
+- `downloadResults()` exports: disable export controls and show a spinner or "Exporting..." label until the promise settles.
+- `getUnderlyingData()` requests: show a spinner in the dialog/sheet/table area until rows arrive.
+- Drilldown queries: show a spinner in the drilldown dialog while the drill query loads.
+- `refetch()` flows: show an inline refresh spinner or disabled refreshing state.
 
 **Keep the surrounding UI stable during loading.** Cards, headings, and layout should always render — only the data-driven content (chart, table body, KPI value) should be replaced with a spinner. This prevents the page from flashing or reflowing when data arrives.
 
@@ -904,12 +1031,13 @@ Every table component must include these standard interactions:
 1. **Row hover highlight** — highlight the row under the cursor
 2. **Copy cell** — clicking a cell copies its formatted value to the clipboard (show a brief toast confirmation)
 3. **Copy table as CSV** — a button above the table copies all rows as CSV to the clipboard
-4. **Scrollable with max height** — tables should be at most ~600px tall and scroll vertically within that. Use `ScrollArea` for the table body. Unless the user specifies a different height, default to `max-h-[600px]`.
+4. **Export controls** — controls above the table call `downloadResults()` for backend-generated exports and expose file type, row scope, and value mode
+5. **Scrollable with max height** — tables should be at most ~600px tall and scroll vertically within that. Use `ScrollArea` for the table body. Unless the user specifies a different height, default to `max-h-[600px]`.
 
 ```tsx
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Copy } from 'lucide-react';
+import { Copy, Download, Loader2 } from 'lucide-react';
 
 function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
@@ -923,12 +1051,31 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
     return [header, ...rows].join('\n');
 }
 
-// Table header area
+// Table header area. Assumes exportFileType, exportLimit, exportValues,
+// isExporting, and exportTableResults are state/handlers from the component.
 <div className="flex justify-between items-center mb-2">
     <h3 className="text-base font-medium">Results</h3>
-    <Button variant="outline" size="sm" onClick={() => copyToClipboard(tableToCsv(columns, data, format))}>
-        <Copy className="h-4 w-4 mr-1" /> Copy CSV
-    </Button>
+    <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => copyToClipboard(tableToCsv(columns, data, format))}>
+            <Copy className="h-4 w-4 mr-1" /> Copy CSV
+        </Button>
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" value={exportFileType} onChange={(e) => setExportFileType(e.target.value)}>
+            <option value="csv">CSV</option>
+            <option value="xlsx">XLSX</option>
+        </select>
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" value={exportLimit} onChange={(e) => setExportLimit(e.target.value)}>
+            <option value="table">Loaded rows</option>
+            <option value="all">All matching rows</option>
+        </select>
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" value={exportValues} onChange={(e) => setExportValues(e.target.value)}>
+            <option value="formatted">Formatted values</option>
+            <option value="raw">Raw values</option>
+        </select>
+        <Button variant="outline" size="sm" disabled={loading || isExporting || data.length === 0} onClick={exportTableResults}>
+            {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+            {isExporting ? 'Exporting...' : 'Export'}
+        </Button>
+    </div>
 </div>
 
 // Scrollable table with sticky header

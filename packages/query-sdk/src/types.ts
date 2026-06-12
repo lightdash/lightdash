@@ -157,6 +157,8 @@ export type QueryResult = {
     rows: Row[];
     columns: Column[];
     format: FormatFunction;
+    /** Total rows returned by the source query, across all fetched pages. */
+    totalResults?: number;
     /** Async query UUID for the source query. Useful for debugging and advanced flows. */
     queryUuid?: string;
     /**
@@ -166,6 +168,40 @@ export type QueryResult = {
     getUnderlyingData?: (
         options: UnderlyingDataOptions,
     ) => Promise<UnderlyingDataResult>;
+    /**
+     * Schedule a backend CSV/XLSX export for this query result.
+     * Available when the transport supports Lightdash download jobs.
+     */
+    downloadResults?: (
+        options?: DownloadResultsOptions,
+    ) => Promise<DownloadResultsResult>;
+};
+
+export type DownloadResultsFileType = 'csv' | 'xlsx';
+
+export type DownloadResultsValues = 'formatted' | 'raw';
+
+export type DownloadResultsLimit = 'table' | 'all' | number;
+
+export type DownloadResultsOptions = {
+    /** Export file type. Defaults to CSV. */
+    fileType?: DownloadResultsFileType;
+    /** Formatted display values or raw values. Defaults to formatted. */
+    values?: DownloadResultsValues;
+    /** Current table rows, all results, or a custom row count. Defaults to table. */
+    limit?: DownloadResultsLimit;
+    /** Download filename without extension. */
+    filename?: string;
+    /** Whether to trigger a browser download when the job completes. Defaults to true. */
+    autoDownload?: boolean;
+};
+
+export type DownloadResultsResult = {
+    queryUuid: string;
+    jobId: string;
+    fileUrl: string;
+    fileType: DownloadResultsFileType;
+    truncated: boolean;
 };
 
 export type UnderlyingDataOptions = {
