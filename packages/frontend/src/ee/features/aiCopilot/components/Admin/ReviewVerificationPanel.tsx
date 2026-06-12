@@ -1,4 +1,8 @@
-import { CiCheckState, type AiAgentReviewItemSummary } from '@lightdash/common';
+import {
+    CiCheckState,
+    ValidationErrorType,
+    type AiAgentReviewItemSummary,
+} from '@lightdash/common';
 import {
     Anchor,
     Button,
@@ -131,7 +135,12 @@ export const ReviewVerificationPanel: FC<Props> = ({
 
     const { data: validationErrors, isLoading: isLoadingValidation } =
         useProjectValidation(previewProjectUuid);
-    const validationErrorCount = validationErrors?.length ?? 0;
+    // Match the validator modal, which hides chart-configuration warnings by
+    // default — so the count here lines up with what the modal shows.
+    const validationErrorCount =
+        validationErrors?.filter(
+            (e) => e.errorType !== ValidationErrorType.ChartConfiguration,
+        ).length ?? 0;
 
     return (
         <div className={styles.gutter}>
