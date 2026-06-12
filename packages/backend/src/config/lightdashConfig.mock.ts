@@ -254,6 +254,7 @@ export const lightdashConfigMock: LightdashConfig = {
         allowAll: {
             dashboards: false,
             charts: false,
+            apps: false,
         },
         events: undefined,
     },

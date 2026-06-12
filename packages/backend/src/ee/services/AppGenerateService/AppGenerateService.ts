@@ -35,6 +35,7 @@ import {
     type ChartSampleData,
     type DataAppClaudeModel,
     type DataAppTemplate,
+    type EmbedProjectApp,
     type PromoteAppAction,
     type PromoteAppDiff,
     type SessionUser,
@@ -4759,6 +4760,30 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
         };
     }
 
+    /**
+     * List all (non-deleted) data apps in a project — used by the embed config
+     * UI to populate the standalone-app allowlist picker.
+     */
+    async listAppsForProject(
+        user: SessionUser,
+        projectUuid: string,
+    ): Promise<EmbedProjectApp[]> {
+        await this.assertDataAppsEnabled(user);
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('DataApp', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError('Insufficient permissions');
+        }
+        const apps = await this.appModel.listAppsByProject(projectUuid);
+        return apps.map((app) => ({ appUuid: app.app_id, name: app.name }));
+    }
+
     async listMyApps(
         user: SessionUser,
         paginateArgs?: { page: number; pageSize: number },
@@ -5375,12 +5400,16 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
      * the resolved latest ready version so the frontend doesn't need a
      * separate round-trip to find it.
      *
-     * The token is issued only when the data app is referenced by a tile on
-     * a dashboard in the embed's allowlist (or `allowAllDashboards` is set),
-     * mirroring how embedded charts are gated by whitelisted dashboards.
-     * The app must live in the embed's project — preview environments where
-     * the dashboard tile references a source-project app are explicitly out
-     * of scope and surface as a 404 to the frontend.
+     * Authorization depends on the embed content type:
+     * - standalone `dataApp` embed: the signed JWT names this exact app and
+     *   self-authorizes it (the project opted in via `allow_all_apps` or the
+     *   `app_uuids` allowlist, enforced at account build); a mismatched appUuid
+     *   is rejected outright.
+     * - dashboard-tile embed: the app must be referenced by a tile on a
+     *   dashboard in the embed's allowlist (or `allowAllDashboards`), mirroring
+     *   how embedded charts are gated by whitelisted dashboards.
+     * The app must live in the embed's project — source-project apps (preview
+     * environments) are out of scope and surface as a 404 to the frontend.
      */
     async getEmbedAppPreviewToken(
         account: AnonymousAccount,
@@ -5414,7 +5443,20 @@ Each question, when asked, must be a single sentence, 5–15 words.`,
             );
         }
 
-        if (!account.embed.allowAllDashboards) {
+        if (account.access.content.type === 'dataApp') {
+            // A standalone data app JWT authorizes EXACTLY its named app
+            // (already gated at account build in
+            // EmbedService.getAccountFromJwt). Requesting any other app is
+            // denied — we must NOT fall through to the dashboard-allowlist gate,
+            // which could otherwise mint a token for an app that merely sits on
+            // an allowlisted dashboard, bypassing the per-app `app_uuids`
+            // allowlist.
+            if (account.access.content.appUuid !== appUuid) {
+                throw new ForbiddenError(
+                    'This embed is not authorized for this data app',
+                );
+            }
+        } else if (!account.embed.allowAllDashboards) {
             const dashboardsWithApp =
                 await this.appModel.findDashboardsContainingApp(
                     appUuid,

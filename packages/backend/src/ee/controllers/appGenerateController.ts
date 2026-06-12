@@ -11,6 +11,7 @@ import {
     type ApiCreateAppSchedulerResponse,
     type ApiDeleteAppResponse,
     type ApiDuplicateAppResponse,
+    type ApiEmbedProjectAppsResponse,
     type ApiGenerateAppResponse,
     type ApiGetAppResponse,
     type ApiMyAppsResponse,
@@ -81,6 +82,30 @@ export class AppGenerateController extends BaseController {
         return {
             status: 'ok',
             results: result,
+        };
+    }
+
+    /**
+     * List the project's data apps (for the embed config allowlist picker).
+     * @summary List project data apps
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/')
+    @OperationId('listProjectApps')
+    async listProjectApps(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiEmbedProjectAppsResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results = await this.getAppGenerateService().listAppsForProject(
+            toSessionUser(req.account),
+            projectUuid,
+        );
+        return {
+            status: 'ok',
+            results,
         };
     }
 

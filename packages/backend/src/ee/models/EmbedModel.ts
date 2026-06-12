@@ -1,5 +1,6 @@
 import { Embed, NotFoundError, UpdateEmbed } from '@lightdash/common';
 import { Knex } from 'knex';
+import { AppsTableName } from '../../database/entities/apps';
 import { DashboardsTableName } from '../../database/entities/dashboards';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 
@@ -22,6 +23,8 @@ export class EmbedModel {
                 'embedding.allow_all_dashboards',
                 'embedding.chart_uuids',
                 'embedding.allow_all_charts',
+                'embedding.allow_all_apps',
+                'embedding.app_uuids',
                 'embedding.created_at',
                 'users.user_uuid',
                 'users.first_name',
@@ -49,21 +52,28 @@ export class EmbedModel {
             );
         }
 
-        const dashboards = await this.database(DashboardsTableName)
-            .select()
-            .whereIn('dashboard_uuid', embed.dashboard_uuids)
-            .whereNull('deleted_at');
+        const [dashboards, charts, apps] = await Promise.all([
+            this.database(DashboardsTableName)
+                .select()
+                .whereIn('dashboard_uuid', embed.dashboard_uuids)
+                .whereNull('deleted_at'),
+            this.database(SavedChartsTableName)
+                .select()
+                .whereIn('saved_query_uuid', embed.chart_uuids)
+                .whereNull('deleted_at'),
+            this.database(AppsTableName)
+                .select()
+                .whereIn('app_id', embed.app_uuids)
+                .whereNull('deleted_at'),
+        ]);
 
         const validDashboardUuids = dashboards.map(
             (dashboard) => dashboard.dashboard_uuid,
         );
 
-        const charts = await this.database(SavedChartsTableName)
-            .select()
-            .whereIn('saved_query_uuid', embed.chart_uuids)
-            .whereNull('deleted_at');
-
         const validChartUuids = charts.map((chart) => chart.saved_query_uuid);
+
+        const validAppUuids = apps.map((app) => app.app_id);
 
         return {
             projectUuid: embed.project_uuid,
@@ -77,6 +87,8 @@ export class EmbedModel {
             allowAllDashboards: embed.allow_all_dashboards,
             chartUuids: validChartUuids,
             allowAllCharts: embed.allow_all_charts,
+            allowAllApps: embed.allow_all_apps,
+            appUuids: validAppUuids,
             createdAt: embed.created_at,
             user: embed.user_uuid
                 ? {
@@ -96,6 +108,8 @@ export class EmbedModel {
         allowAllDashboards: boolean = false,
         chartUuids: string[] = [],
         allowAllCharts: boolean = false,
+        appUuids: string[] = [],
+        allowAllApps: boolean = false,
     ): Promise<void> {
         await this.database('embedding')
             .insert({
@@ -106,6 +120,8 @@ export class EmbedModel {
                 allow_all_dashboards: allowAllDashboards,
                 chart_uuids: chartUuids,
                 allow_all_charts: allowAllCharts,
+                allow_all_apps: allowAllApps,
+                app_uuids: appUuids,
             })
             .onConflict('project_uuid')
             .merge();
@@ -133,6 +149,8 @@ export class EmbedModel {
             allowAllDashboards,
             chartUuids,
             allowAllCharts,
+            allowAllApps,
+            appUuids,
         }: UpdateEmbed,
     ): Promise<void> {
         await this.database('embedding')
@@ -141,6 +159,8 @@ export class EmbedModel {
                 allow_all_dashboards: allowAllDashboards,
                 chart_uuids: chartUuids,
                 allow_all_charts: allowAllCharts,
+                allow_all_apps: allowAllApps,
+                app_uuids: appUuids,
             })
             .where('project_uuid', projectUuid);
     }

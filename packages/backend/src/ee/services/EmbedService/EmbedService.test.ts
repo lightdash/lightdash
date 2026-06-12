@@ -239,6 +239,25 @@ describe('EmbedService', () => {
         });
     });
 
+    describe('getContentUuidFromJwt', () => {
+        test('resolves standalone dataApp content carrying the appUuid', async () => {
+            const content = await service.getContentUuidFromJwt(
+                {
+                    content: { type: 'dataApp', appUuid: 'app-123' },
+                    exp: Date.now() / 1000 + 3600,
+                },
+                mockProjectUuid,
+            );
+            expect(content).toEqual({
+                appUuid: 'app-123',
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'dataApp',
+                explores: [],
+            });
+        });
+    });
+
     describe('searchFilterValues', () => {
         test('scopes dashboard lookup to the requested project', async () => {
             const dashboardUuid = 'dashboard-1';

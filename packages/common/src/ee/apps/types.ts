@@ -293,6 +293,14 @@ export type ApiAppSummary = {
     lastVersionStatus: AppVersionStatus | null;
 };
 
+/** Minimal app shape for the embed config's standalone-app allowlist picker. */
+export type EmbedProjectApp = {
+    appUuid: string;
+    name: string;
+};
+
+export type ApiEmbedProjectAppsResponse = ApiSuccess<EmbedProjectApp[]>;
+
 /**
  * Sample of rows from a chart's underlying query, captured at request time
  * and inlined into the sandbox alongside the chart's metric query. Opt-in
