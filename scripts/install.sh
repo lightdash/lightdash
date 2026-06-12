@@ -52,7 +52,7 @@ is_mac() {
 }
 
 is_windows() {
-    [[ $OSTYPE == msys* ]]
+    [[ $OSTYPE == msys* || $OSTYPE == cygwin* ]]
 }
 
 check_os() {
