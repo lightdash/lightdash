@@ -1,3 +1,10 @@
+# [0.3157.0](https://github.com/lightdash/lightdash/compare/0.3156.1...0.3157.0) (2026-06-12)
+
+
+### Features
+
+* **timezones:** GLITCH-452 casting day-or-coarser DATE_TRUNCs to DATE design doc ([#24208](https://github.com/lightdash/lightdash/issues/24208)) ([0cf2345](https://github.com/lightdash/lightdash/commit/0cf2345725e71d4eda074e3cfe9dc37cb9a1163b))
+
 ## [0.3156.1](https://github.com/lightdash/lightdash/compare/0.3156.0...0.3156.1) (2026-06-12)
 
 
