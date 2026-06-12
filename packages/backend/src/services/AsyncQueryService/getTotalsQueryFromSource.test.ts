@@ -916,4 +916,47 @@ describe('getColumnSubtotalQueryFromSource', () => {
             expect(result.pivotConfiguration).toBeUndefined();
         });
     });
+
+    describe('array dimension guard', () => {
+        it('rejects a subtotal over an unnested (array) dimension', () => {
+            expect(() =>
+                getColumnSubtotalQueryFromSource({
+                    metricQuery: {
+                        exploreName: 'array_tags',
+                        dimensions: [
+                            'array_tags_tags',
+                            'array_tags_customer_name',
+                        ],
+                        metrics: ['array_tags_total_amount'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    pivotConfiguration: null,
+                    subtotalDimensions: ['array_tags_tags'],
+                    arrayDimensionIds: new Set(['array_tags_tags']),
+                }),
+            ).toThrow(/unnested|not supported/i);
+        });
+
+        it('allows a subtotal over a non-array dimension', () => {
+            expect(() =>
+                getColumnSubtotalQueryFromSource({
+                    metricQuery: {
+                        exploreName: 'array_tags',
+                        dimensions: ['array_tags_customer_name'],
+                        metrics: ['array_tags_total_amount'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    pivotConfiguration: null,
+                    subtotalDimensions: ['array_tags_customer_name'],
+                    arrayDimensionIds: new Set(['array_tags_tags']),
+                }),
+            ).not.toThrow();
+        });
+    });
 });

@@ -4241,9 +4241,23 @@ export class AsyncQueryService extends ProjectService {
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
+        const rawExplore = await this.projectModel.getExploreFromCache(
+            projectUuid,
+            source.metricQuery.exploreName,
+        );
+        const arrayDimensionIds = isExploreError(rawExplore)
+            ? new Set<string>()
+            : new Set(
+                  Object.values(rawExplore.tables)
+                      .flatMap((t) => Object.values(t.dimensions))
+                      .filter((d) => d.type === DimensionType.ARRAY)
+                      .map((d) => getItemId(d)),
+              );
+
         const sourceInputs = {
             metricQuery: source.metricQuery,
             pivotConfiguration: source.pivotConfiguration,
+            arrayDimensionIds,
         };
         let metricQuery: MetricQuery;
         let pivotConfiguration: PivotConfiguration | undefined;

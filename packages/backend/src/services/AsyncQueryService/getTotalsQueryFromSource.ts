@@ -145,6 +145,7 @@ export const getGrandTotalMetricQuery = (
 type GetTotalQueryFromSourceArgs = {
     metricQuery: MetricQuery;
     pivotConfiguration: PivotConfiguration | null;
+    arrayDimensionIds?: Set<string>;
 };
 
 type GetTotalQueryFromSourceResult = {
@@ -173,6 +174,15 @@ export const getColumnTotalQueryFromSource = (
     if (missing.length > 0) {
         throw new NotSupportedError(
             `Column total query references dimensions that were not in the source query: ${missing.join(', ')}`,
+        );
+    }
+
+    const retainedArrayDims = groupByFieldIds.filter((id) =>
+        source.arrayDimensionIds?.has(id),
+    );
+    if (retainedArrayDims.length > 0) {
+        throw new NotSupportedError(
+            `Subtotals aren't supported over an unnested (array) dimension: ${retainedArrayDims.join(', ')}`,
         );
     }
 
@@ -245,6 +255,16 @@ export const getColumnSubtotalQueryFromSource = (
     if (missing.length > 0) {
         throw new NotSupportedError(
             `Column subtotal query references dimensions that were not in the source query: ${missing.join(', ')}`,
+        );
+    }
+
+    const retainedArrayDims = [
+        ...subtotalDimensions,
+        ...groupByFieldIds,
+    ].filter((id) => source.arrayDimensionIds?.has(id));
+    if (retainedArrayDims.length > 0) {
+        throw new NotSupportedError(
+            `Subtotals aren't supported over an unnested (array) dimension: ${retainedArrayDims.join(', ')}`,
         );
     }
 
