@@ -17,6 +17,7 @@ export type SchedulerCsvOptions = {
     limit: 'table' | 'all' | number;
     asAttachment?: boolean;
     exportPivotedData?: boolean;
+    xlsxFileLayout?: 'zip' | 'workbook';
 };
 
 export type SchedulerImageOptions = {
@@ -597,6 +598,7 @@ export type NotificationPayloadBase = {
         csvUrls?: {
             path: string;
             filename: string;
+            chartName?: string;
             localPath: string;
             truncated: boolean;
         }[];

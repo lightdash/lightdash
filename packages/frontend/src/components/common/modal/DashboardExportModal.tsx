@@ -85,6 +85,8 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     const [selectedTabs, setSelectedTabs] = useState<string[]>(
         dashboard?.tabs?.map((tab) => tab.uuid) || [],
     );
+    const [xlsxFileLayout, setXlsxFileLayout] =
+        useState<NonNullable<SchedulerCsvOptions['xlsxFileLayout']>>('zip');
 
     const exportSelectedTabs =
         isDashboardTabsAvailable && !allTabsSelected && selectedTabs.length > 0
@@ -117,8 +119,19 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
             limit: limit === Limit.CUSTOM ? customLimit : limit,
             asAttachment: false,
             exportPivotedData,
+            xlsxFileLayout:
+                exportType === SchedulerFormat.XLSX
+                    ? xlsxFileLayout
+                    : undefined,
         }),
-        [customLimit, exportPivotedData, formatted, limit],
+        [
+            customLimit,
+            exportPivotedData,
+            exportType,
+            formatted,
+            limit,
+            xlsxFileLayout,
+        ],
     );
 
     const handleAsyncExport = useCallback(() => {
@@ -281,7 +294,11 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                     {exportType !== SchedulerFormat.IMAGE && (
                         <Text fs="italic" fz="sm" c="dimmed">
                             Charts from the selected tabs will be exported as
-                            tables in a ZIP file.
+                            tables
+                            {exportType === SchedulerFormat.XLSX &&
+                            xlsxFileLayout === 'workbook'
+                                ? ' in one workbook.'
+                                : ' in a ZIP file.'}
                         </Text>
                     )}
                 </Stack>
@@ -317,6 +334,53 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                         </Button>
                         <Collapse in={showFormatting} pl="md">
                             <Group align="start" gap="xxl">
+                                {exportType === SchedulerFormat.XLSX && (
+                                    <Radio.Group
+                                        label={
+                                            <>
+                                                XLSX output
+                                                <Tooltip
+                                                    withinPortal
+                                                    maw={300}
+                                                    multiline
+                                                    label="Separate files puts each dashboard tile in its own XLSX file inside a ZIP. Single workbook puts each tile on its own sheet in one XLSX file."
+                                                    position="top"
+                                                >
+                                                    <MantineIcon
+                                                        icon={IconHelpCircle}
+                                                        size="md"
+                                                        display="inline"
+                                                        color="gray"
+                                                        style={{
+                                                            marginLeft: '4px',
+                                                            marginBottom:
+                                                                '-4px',
+                                                        }}
+                                                    />
+                                                </Tooltip>
+                                            </>
+                                        }
+                                        value={xlsxFileLayout}
+                                        onChange={(value) =>
+                                            setXlsxFileLayout(
+                                                value as NonNullable<
+                                                    SchedulerCsvOptions['xlsxFileLayout']
+                                                >,
+                                            )
+                                        }
+                                    >
+                                        <Stack gap="xxs" pt="xs">
+                                            <Radio
+                                                label="Separate files (ZIP)"
+                                                value="zip"
+                                            />
+                                            <Radio
+                                                label="Single workbook"
+                                                value="workbook"
+                                            />
+                                        </Stack>
+                                    </Radio.Group>
+                                )}
                                 <Radio.Group
                                     label="Values"
                                     value={formatted}
