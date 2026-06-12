@@ -1,5 +1,7 @@
 import moment from 'moment';
 import {
+    DimensionType,
+    formatRawValue,
     getDateGroupLabel,
     getFilterRuleFromFieldWithDefaultValue,
     getPasswordSchema,
@@ -201,5 +203,30 @@ describe('email validation', () => {
         ['demo@lightdash.c', 'Top-level domain too short'],
     ])('invalid email: %s - %s', (email) => {
         expect(isValidEmailAddress(email)).toBe(false);
+    });
+});
+
+describe('formatRawValue (GLITCH-452)', () => {
+    const value = '2024-01-15T00:00:00.000Z';
+    const dateField = { ...dateDayDimension, type: DimensionType.DATE };
+    const tsField = { ...dateDayDimension, type: DimensionType.TIMESTAMP };
+
+    test('flag off (no timezone): DATE keeps the full ISO raw (unchanged)', () => {
+        expect(formatRawValue(dateField, value)).toContain('T');
+    });
+
+    test('flag on (timezone present): DATE emits a bare YYYY-MM-DD raw, never shifted', () => {
+        // The timezone only signals "tz-aware mode is on"; a calendar DATE is
+        // never shifted, so the result is identical across offsets.
+        expect(formatRawValue(dateField, value, 'Asia/Tokyo')).toBe(
+            '2024-01-15',
+        );
+        expect(formatRawValue(dateField, value, 'Pacific/Pago_Pago')).toBe(
+            '2024-01-15',
+        );
+    });
+
+    test('TIMESTAMP keeps the full ISO raw even in tz-aware mode (still an instant)', () => {
+        expect(formatRawValue(tsField, value, 'Asia/Tokyo')).toContain('T');
     });
 });
