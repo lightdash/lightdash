@@ -19,6 +19,19 @@ export type DeleteProjectGroupAccess = Pick<
     'projectUuid' | 'groupUuid'
 >;
 
+/**
+ * One entry in the `LD_SETUP_GROUP_PROJECT_ACCESS` instance-config env var. The
+ * group is referenced by name (and the project optionally by name) because
+ * SCIM-synced groups are created by the IdP, so their UUIDs aren't known at
+ * deploy time. `role` is a system role (e.g. "developer") or a custom role name.
+ */
+export type GroupProjectAccessSetupEntry = {
+    groupName: string;
+    projectName?: string;
+    projectUuid?: string;
+    role: string;
+};
+
 export type ApiCreateProjectGroupAccess = {
     status: 'ok';
     results: ProjectGroupAccess;

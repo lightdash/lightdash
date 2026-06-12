@@ -26,6 +26,7 @@ import {
     SupportedDbtVersions,
     WarehouseTypes,
     WeekDay,
+    type GroupProjectAccessSetupEntry,
     type SchedulerTaskName,
     type UserAttributeSetupEntry,
 } from '@lightdash/common';
@@ -527,6 +528,76 @@ export const getUserAttributesSetupConfig = ():
     return result.data;
 };
 
+const groupProjectAccessSetupEntrySchema = z
+    .object({
+        groupName: z.string().min(1),
+        projectName: z.string().min(1).optional(),
+        projectUuid: z.string().min(1).optional(),
+        role: z.string().min(1),
+    })
+    .refine((entry) => Boolean(entry.projectName || entry.projectUuid), {
+        message: 'Each entry must specify either projectName or projectUuid',
+    });
+
+const groupProjectAccessSetupSchema = z
+    .array(groupProjectAccessSetupEntrySchema)
+    .refine(
+        (entries) => {
+            const keys = entries.map(
+                (e) => `${e.groupName}::${e.projectUuid ?? e.projectName}`,
+            );
+            return new Set(keys).size === keys.length;
+        },
+        (entries) => {
+            const keys = entries.map(
+                (e) => `${e.groupName}::${e.projectUuid ?? e.projectName}`,
+            );
+            const duplicate = keys.find((k, i) => keys.indexOf(k) !== i);
+            return {
+                message: `Duplicate group/project pair "${duplicate}" in LD_SETUP_GROUP_PROJECT_ACCESS`,
+            };
+        },
+    );
+
+export const getGroupProjectAccessSetupConfig = ():
+    | GroupProjectAccessSetupEntry[]
+    | undefined => {
+    const raw = process.env.LD_SETUP_GROUP_PROJECT_ACCESS;
+    if (!raw) return undefined;
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(raw);
+    } catch (e) {
+        throw new ParseError(
+            `Failed to parse LD_SETUP_GROUP_PROJECT_ACCESS: ${getErrorMessage(
+                e,
+            )}`,
+        );
+    }
+
+    if (Array.isArray(parsed) && parsed.length === 0) {
+        return undefined;
+    }
+
+    const result = groupProjectAccessSetupSchema.safeParse(parsed);
+    if (!result.success) {
+        const errorDetails = result.error.errors
+            .map((err) =>
+                err.path.length > 0
+                    ? `  - ${err.path.join('.')}: ${err.message}`
+                    : `  - ${err.message}`,
+            )
+            .join('\n');
+        throw new ParseError(
+            `Invalid LD_SETUP_GROUP_PROJECT_ACCESS:\n${errorDetails}\n\n` +
+                `See https://docs.lightdash.com/self-host/customize-deployment/environment-variables for details.`,
+        );
+    }
+
+    return result.data as GroupProjectAccessSetupEntry[];
+};
+
 const getInitialSetupConfig = (): LightdashConfig['initialSetup'] => {
     const parseCompute = (): CreateDatabricksCredentials['compute'] => {
         // This is a stringified array of objects, in JSON format
@@ -702,6 +773,7 @@ export const getUpdateSetupConfig = (): LightdashConfig['updateSetup'] => {
         },
         projects: getMultiProjectSetupConfig(),
         userAttributes: getUserAttributesSetupConfig(),
+        groupProjectAccess: getGroupProjectAccessSetupConfig(),
         embed: {
             allowAllDashboards:
                 process.env.LD_SETUP_EMBED_ALLOW_ALL_DASHBOARDS === 'true',
@@ -1341,6 +1413,7 @@ export type LightdashConfig = {
         };
         projects?: MultiProjectSetupEntry[];
         userAttributes?: UserAttributeSetupEntry[];
+        groupProjectAccess?: GroupProjectAccessSetupEntry[];
         serviceAccount?: {
             token: string;
             expirationTime: Date | null;

@@ -12,6 +12,7 @@ import { VERSION } from '../version';
 import {
     getFloatArrayFromEnvironmentVariable,
     getFloatFromEnvironmentVariable,
+    getGroupProjectAccessSetupConfig,
     getIntegerFromEnvironmentVariable,
     getMaybeBase64EncodedFromEnvironmentVariable,
     getMultiProjectSetupConfig,
@@ -794,6 +795,136 @@ describe('getUpdateSetupConfig userAttributes', () => {
 
     test('userAttributes is undefined when env var not set', () => {
         expect(getUpdateSetupConfig()?.userAttributes).toBeUndefined();
+    });
+});
+
+describe('getGroupProjectAccessSetupConfig', () => {
+    beforeEach(() => {
+        delete process.env.LD_SETUP_GROUP_PROJECT_ACCESS;
+    });
+
+    test('returns undefined when LD_SETUP_GROUP_PROJECT_ACCESS is not set', () => {
+        expect(getGroupProjectAccessSetupConfig()).toBeUndefined();
+    });
+
+    test('returns undefined when the array is empty', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = '[]';
+        expect(getGroupProjectAccessSetupConfig()).toBeUndefined();
+    });
+
+    test('parses an entry referencing the project by name', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = JSON.stringify([
+            {
+                groupName: 'Core Data Developer',
+                projectName: 'Production',
+                role: 'developer',
+            },
+        ]);
+        expect(getGroupProjectAccessSetupConfig()).toEqual([
+            {
+                groupName: 'Core Data Developer',
+                projectName: 'Production',
+                role: 'developer',
+            },
+        ]);
+    });
+
+    test('parses an entry referencing the project by uuid with a custom role name', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = JSON.stringify([
+            {
+                groupName: 'Data Analyst',
+                projectUuid: 'abc-123',
+                role: 'PII Analyst',
+            },
+        ]);
+        expect(getGroupProjectAccessSetupConfig()).toEqual([
+            {
+                groupName: 'Data Analyst',
+                projectUuid: 'abc-123',
+                role: 'PII Analyst',
+            },
+        ]);
+    });
+
+    test('throws ParseError on malformed JSON', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = '{not json';
+        expect(() => getGroupProjectAccessSetupConfig()).toThrowError(
+            ParseError,
+        );
+    });
+
+    test('throws ParseError when groupName is missing', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = JSON.stringify([
+            { projectName: 'Production', role: 'developer' },
+        ]);
+        expect(() => getGroupProjectAccessSetupConfig()).toThrowError(
+            ParseError,
+        );
+    });
+
+    test('throws ParseError when neither projectName nor projectUuid is given', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = JSON.stringify([
+            { groupName: 'Core Data Developer', role: 'developer' },
+        ]);
+        expect(() => getGroupProjectAccessSetupConfig()).toThrowError(
+            ParseError,
+        );
+    });
+
+    test('accepts both projectName and projectUuid (uuid wins at reconcile time)', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = JSON.stringify([
+            {
+                groupName: 'Core Data Developer',
+                projectName: 'Production',
+                projectUuid: 'abc-123',
+                role: 'developer',
+            },
+        ]);
+        expect(getGroupProjectAccessSetupConfig()).toEqual([
+            {
+                groupName: 'Core Data Developer',
+                projectName: 'Production',
+                projectUuid: 'abc-123',
+                role: 'developer',
+            },
+        ]);
+    });
+
+    test('throws ParseError on a duplicate group/project pair', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = JSON.stringify([
+            {
+                groupName: 'Core Data Developer',
+                projectName: 'Production',
+                role: 'developer',
+            },
+            {
+                groupName: 'Core Data Developer',
+                projectName: 'Production',
+                role: 'editor',
+            },
+        ]);
+        expect(() => getGroupProjectAccessSetupConfig()).toThrowError(
+            'Duplicate group/project pair',
+        );
+    });
+});
+
+describe('getUpdateSetupConfig groupProjectAccess', () => {
+    beforeEach(() => {
+        delete process.env.LD_SETUP_GROUP_PROJECT_ACCESS;
+    });
+
+    test('includes parsed groupProjectAccess from the env var', () => {
+        process.env.LD_SETUP_GROUP_PROJECT_ACCESS = JSON.stringify([
+            { groupName: 'G', projectName: 'P', role: 'developer' },
+        ]);
+        expect(getUpdateSetupConfig()?.groupProjectAccess).toEqual([
+            { groupName: 'G', projectName: 'P', role: 'developer' },
+        ]);
+    });
+
+    test('groupProjectAccess is undefined when env var not set', () => {
+        expect(getUpdateSetupConfig()?.groupProjectAccess).toBeUndefined();
     });
 });
 
