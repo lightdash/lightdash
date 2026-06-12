@@ -2610,7 +2610,9 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
         values: ['2024-01-15'],
     };
 
-    test('DATE-over-TIMESTAMP filter wraps literal in project TZ when parameter is true', () => {
+    // GLITCH-452: day-or-coarser dims now compile to a real DATE, so the filter
+    // LHS is a DATE and the literal stays bare — the old timestamptz wrap is gone.
+    test('DATE-over-TIMESTAMP filter emits a bare literal (GLITCH-452)', () => {
         const sql = renderFilterRuleSql(
             equalsFilter,
             DimensionType.DATE,
@@ -2625,8 +2627,8 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             true,
             DimensionType.TIMESTAMP,
         );
-        expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
-        expect(sql).toContain("'2024-01-15'::timestamp");
+        expect(sql).not.toContain('AT TIME ZONE');
+        expect(sql).not.toContain('::timestamp');
     });
 
     test('DATE filter leaves literal bare when parameter is omitted', () => {
@@ -2662,7 +2664,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
         expect(sql).not.toContain('::timestamp');
     });
 
-    test('BigQuery DATE-over-TIMESTAMP filter emits TIMESTAMP(literal, tz)', () => {
+    test('BigQuery DATE-over-TIMESTAMP filter emits a bare literal (GLITCH-452)', () => {
         const sql = renderFilterRuleSql(
             equalsFilter,
             DimensionType.DATE,
@@ -2677,8 +2679,8 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             true,
             DimensionType.TIMESTAMP,
         );
-        expect(sql).toContain("TIMESTAMP('2024-01-15', 'Asia/Tokyo')");
-        expect(sql).not.toContain('::timestamp');
+        expect(sql).not.toContain('TIMESTAMP(');
+        expect(sql).toContain("'2024-01-15'");
     });
 
     test('BigQuery DATE filter over a DATE base emits a bare literal (no TIMESTAMP wrap)', () => {
@@ -2700,7 +2702,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
         expect(sql).toContain("'2024-01-15'");
     });
 
-    test('ClickHouse DATE-over-TIMESTAMP filter anchors literal with toDateTime(literal, tz)', () => {
+    test('ClickHouse DATE-over-TIMESTAMP filter emits a bare literal (GLITCH-452)', () => {
         const sql = renderFilterRuleSql(
             equalsFilter,
             DimensionType.DATE,
@@ -2715,8 +2717,8 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             true,
             DimensionType.TIMESTAMP,
         );
-        expect(sql).toContain("toDateTime('2024-01-15', 'Asia/Tokyo')");
-        expect(sql).not.toContain('::timestamp');
+        expect(sql).not.toContain('toDateTime(');
+        expect(sql).toContain("'2024-01-15'");
     });
 
     test('ClickHouse DATE filter over a DATE base emits a bare literal (no toDateTime wrap)', () => {
@@ -2780,7 +2782,9 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 baseTimeIntervalDimensionType,
             );
 
-        test('inThePast completed day wraps boundaries in project TZ', () => {
+        // GLITCH-452: boundaries are still computed in the project TZ, but the
+        // LHS is now a DATE so they render bare (no timestamptz wrap).
+        test('inThePast completed day emits bare project-TZ boundaries (GLITCH-452)', () => {
             const filter: FilterRule<FilterOperator, unknown> = {
                 id: 'id',
                 target: { fieldId: 'fieldId' },
@@ -2789,11 +2793,12 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 settings: { unitOfTime: UnitOfTime.days, completed: true },
             };
             const sql = renderWithParam(filter, true);
-            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
-            expect(sql).toContain("'2026-04-21'::timestamp");
+            expect(sql).not.toContain('AT TIME ZONE');
+            expect(sql).not.toContain('::timestamp');
+            expect(sql).toContain("'2026-04-21'");
         });
 
-        test('inTheCurrent day wraps boundaries in project TZ', () => {
+        test('inTheCurrent day emits bare project-TZ boundaries (GLITCH-452)', () => {
             const filter: FilterRule<FilterOperator, unknown> = {
                 id: 'id',
                 target: { fieldId: 'fieldId' },
@@ -2802,11 +2807,12 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 settings: { unitOfTime: UnitOfTime.days },
             };
             const sql = renderWithParam(filter, true);
-            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
-            expect(sql).toContain("'2026-04-22'::timestamp");
+            expect(sql).not.toContain('AT TIME ZONE');
+            expect(sql).not.toContain('::timestamp');
+            expect(sql).toContain("'2026-04-22'");
         });
 
-        test('inTheNext day wraps boundaries in project TZ', () => {
+        test('inTheNext day emits bare project-TZ boundaries (GLITCH-452)', () => {
             const filter: FilterRule<FilterOperator, unknown> = {
                 id: 'id',
                 target: { fieldId: 'fieldId' },
@@ -2815,7 +2821,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 settings: { unitOfTime: UnitOfTime.days, completed: false },
             };
             const sql = renderWithParam(filter, true);
-            expect(sql).toContain("AT TIME ZONE 'Asia/Tokyo'");
+            expect(sql).not.toContain('AT TIME ZONE');
         });
 
         test('inThePast completed day leaves boundaries bare when parameter is omitted', () => {
@@ -2914,7 +2920,9 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             expect(sql).not.toContain('TIMESTAMP(');
         });
 
-        test('BigQuery: non-matching source/target preserves the wrap', () => {
+        // GLITCH-452: LHS is a real DATE regardless of source/target, so the
+        // literal is bare — there is no wrap left to preserve.
+        test('BigQuery: non-matching source/target still emits a bare literal (GLITCH-452)', () => {
             const sql = renderFilterRuleSql(
                 equalsFilter,
                 DimensionType.DATE,
@@ -2930,9 +2938,8 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 DimensionType.TIMESTAMP,
                 'UTC',
             );
-            expect(sql).toContain(
-                "TIMESTAMP('2024-01-15', 'America/New_York')",
-            );
+            expect(sql).not.toContain('TIMESTAMP(');
+            expect(sql).toContain("'2024-01-15'");
         });
 
         test('Postgres: matching source/target drops the AT TIME ZONE wrap on the literal', () => {
@@ -2974,7 +2981,7 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             expect(sql).not.toContain('toDateTime(');
         });
 
-        test('Postgres: non-matching source/target preserves the AT TIME ZONE wrap', () => {
+        test('Postgres: non-matching source/target still emits a bare literal (GLITCH-452)', () => {
             const sql = renderFilterRuleSql(
                 equalsFilter,
                 DimensionType.DATE,
@@ -2990,11 +2997,11 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 DimensionType.TIMESTAMP,
                 'UTC',
             );
-            expect(sql).toContain("AT TIME ZONE 'America/New_York'");
-            expect(sql).toContain("'2024-01-15'::timestamp");
+            expect(sql).not.toContain('AT TIME ZONE');
+            expect(sql).not.toContain('::timestamp');
         });
 
-        test('ClickHouse: non-matching source/target preserves the toDateTime wrap', () => {
+        test('ClickHouse: non-matching source/target still emits a bare literal (GLITCH-452)', () => {
             const sql = renderFilterRuleSql(
                 equalsFilter,
                 DimensionType.DATE,
@@ -3010,9 +3017,8 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 DimensionType.TIMESTAMP,
                 'UTC',
             );
-            expect(sql).toContain(
-                "toDateTime('2024-01-15', 'America/New_York')",
-            );
+            expect(sql).not.toContain('toDateTime(');
+            expect(sql).toContain("'2024-01-15'");
         });
     });
 });

@@ -679,6 +679,9 @@ export class MetricQueryBuilder {
                 startOfWeek,
                 timezone,
                 this.columnTimezone,
+                // GLITCH-452: reached only when useTimezoneAwareDateTrunc is on,
+                // so day-or-coarser grains emit a real DATE (matches metadata).
+                true,
             );
         }
 
