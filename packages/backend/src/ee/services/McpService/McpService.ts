@@ -509,7 +509,7 @@ export class McpService extends BaseService {
         const maxLimit = this.lightdashConfig.ai.copilot.maxQueryLimit;
 
         const additionalMetrics = populateCustomMetricsSQL(
-            queryTool.customMetrics,
+            queryTool.queryConfig.customMetrics,
             explore,
         );
 
@@ -529,10 +529,10 @@ export class McpService extends BaseService {
                     queryTool.queryConfig.limit,
                     maxLimit,
                 ),
-                filters: queryTool.filters,
+                filters: queryTool.queryConfig.filters,
                 additionalMetrics,
                 tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
-                    queryTool.tableCalculations,
+                    queryTool.queryConfig.tableCalculations,
                 ),
             },
             userAttributeOverrides:
@@ -659,8 +659,6 @@ export class McpService extends BaseService {
         return {
             title: renderTool.title,
             description: renderTool.description,
-            customMetrics: null,
-            tableCalculations: null,
             queryConfig: {
                 exploreName: metricQuery.exploreName,
                 dimensions: metricQuery.dimensions,
@@ -670,9 +668,11 @@ export class McpService extends BaseService {
                     nullsFirst: sort.nullsFirst ?? null,
                 })),
                 limit: metricQuery.limit,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: metricQuery.filters,
             },
             chartConfig: renderTool.chartConfig,
-            filters: metricQuery.filters,
         };
     }
 

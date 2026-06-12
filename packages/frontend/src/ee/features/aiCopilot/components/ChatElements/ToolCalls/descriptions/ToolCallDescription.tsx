@@ -6,6 +6,8 @@ import type {
 } from '@lightdash/common';
 import {
     assertUnreachable,
+    isRunQueryArgsV1,
+    migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
     type ToolDashboardArgs,
     type ToolDescribeWarehouseTableArgs,
@@ -23,7 +25,8 @@ import {
     type ToolListWarehouseTablesArgs,
     type ToolName,
     type ToolRunContentQueryArgs,
-    type ToolRunQueryArgs,
+    type ToolRunQueryArgsV1,
+    type ToolRunQueryArgsV2,
     type ToolRunSqlArgs,
     type ToolSearchFieldValuesArgs,
     type ToolSearchSemanticLayerArgs,
@@ -168,14 +171,19 @@ export const ToolCallDescription: FC<{
             );
         case 'generateVisualization':
         case 'runQuery':
-            const queryToolArgs = toolCall.toolArgs as ToolRunQueryArgs;
+            // Persisted args may be V1 or V2; normalize to V2 so the
+            // description reads everything from queryConfig.
+            const rawQueryToolArgs = toolCall.toolArgs as
+                | ToolRunQueryArgsV1
+                | ToolRunQueryArgsV2;
+            const queryToolArgs = isRunQueryArgsV1(rawQueryToolArgs)
+                ? migrateRunQueryArgsV1ToV2(rawQueryToolArgs)
+                : rawQueryToolArgs;
             return (
                 <QueryResultToolCallDescription
                     title={queryToolArgs.title}
                     queryConfig={queryToolArgs.queryConfig}
                     chartConfig={queryToolArgs.chartConfig}
-                    customMetrics={queryToolArgs.customMetrics}
-                    tableCalculations={queryToolArgs.tableCalculations}
                 />
             );
         case 'generateBarVizConfig':

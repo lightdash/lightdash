@@ -4,23 +4,20 @@ import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
 import { formatFieldName } from '../utils/formatFieldName';
 
-type QueryResultToolCallDescriptionProps = Pick<
-    ToolRunQueryArgs,
-    | 'title'
-    | 'queryConfig'
-    | 'chartConfig'
-    | 'customMetrics'
-    | 'tableCalculations'
->;
+type QueryResultToolCallDescriptionProps = {
+    title: ToolRunQueryArgs['title'];
+    queryConfig: ToolRunQueryArgs['queryConfig'];
+    chartConfig: ToolRunQueryArgs['chartConfig'];
+};
 
 export const QueryResultToolCallDescription: FC<
     QueryResultToolCallDescriptionProps
-> = ({ title, queryConfig, chartConfig, customMetrics, tableCalculations }) => {
+> = ({ title, queryConfig, chartConfig }) => {
     const dimensions = queryConfig?.dimensions || [];
     const metrics = queryConfig?.metrics || [];
     const groupBy = chartConfig?.groupBy || [];
-    const customMetricsArray = customMetrics || [];
-    const tableCalculationsArray = tableCalculations || [];
+    const customMetricsArray = queryConfig?.customMetrics || [];
+    const tableCalculationsArray = queryConfig?.tableCalculations || [];
 
     // Separate dimensions into regular dimensions and groupBy dimensions
     const regularDimensions = dimensions.filter(
