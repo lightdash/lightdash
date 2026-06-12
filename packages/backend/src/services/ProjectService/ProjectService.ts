@@ -795,20 +795,26 @@ export class ProjectService extends BaseService {
             : account.organization.organizationUuid;
         const email = user ? user.email : account.user.email;
 
-        const userAttributes =
-            await this.userAttributesModel.getAttributeValuesForOrgMember({
-                organizationUuid: organizationUuid || '',
-                userUuid: userId || '',
-            });
-
         // Service accounts have no email and no row in the `emails` table —
         // `getPrimaryEmailStatus` would 404. They also have no intrinsic
         // email attributes to attach.
         if (account?.isServiceAccount()) {
+            const userAttributes =
+                await this.userAttributesModel.getAttributeValuesForOrgMember({
+                    organizationUuid: organizationUuid || '',
+                    userUuid: userId || '',
+                });
             return { userAttributes, intrinsicUserAttributes: {} };
         }
 
-        const emailStatus = await this.emailModel.getPrimaryEmailStatus(userId);
+        // Run attribute queries and email status in parallel (independent)
+        const [userAttributes, emailStatus] = await Promise.all([
+            this.userAttributesModel.getAttributeValuesForOrgMember({
+                organizationUuid: organizationUuid || '',
+                userUuid: userId || '',
+            }),
+            this.emailModel.getPrimaryEmailStatus(userId),
+        ]);
         const intrinsicUserAttributes = emailStatus.isVerified
             ? getIntrinsicUserAttributes({ email })
             : {};
