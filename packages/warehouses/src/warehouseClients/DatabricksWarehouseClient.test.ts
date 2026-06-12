@@ -1,9 +1,31 @@
+import { DimensionType } from '@lightdash/common';
 import {
     DatabricksSqlBuilder,
     DatabricksWarehouseClient,
 } from './DatabricksWarehouseClient';
 import { credentials, rows, schema } from './DatabricksWarehouseClient.mock';
 import { expectedFields } from './WarehouseClient.mock';
+
+// Catalog mock rows for testing mapFieldType via getCatalog.
+// TYPE_NAME uses the string form returned by Databricks' getColumns API (e.g. "ARRAY<STRING>").
+const catalogMockRows = [
+    {
+        TABLE_CAT: 'database',
+        TABLE_SCHEM: 'mySchema',
+        TABLE_NAME: 'myTable',
+        COLUMN_NAME: 'myArrayColumn',
+        DATA_TYPE: 0,
+        TYPE_NAME: 'ARRAY<STRING>',
+    },
+    {
+        TABLE_CAT: 'database',
+        TABLE_SCHEM: 'mySchema',
+        TABLE_NAME: 'myTable',
+        COLUMN_NAME: 'myStructColumn',
+        DATA_TYPE: 0,
+        TYPE_NAME: 'STRUCT<x:STRING,y:INT>',
+    },
+];
 
 jest.mock('@databricks/sql', () => ({
     ...jest.requireActual('@databricks/sql'),
@@ -16,6 +38,10 @@ jest.mock('@databricks/sql', () => ({
                     hasMoreRows: jest.fn(async () => false),
                     close: jest.fn(async () => undefined),
                 })),
+                getColumns: jest.fn(async () => ({
+                    fetchAll: jest.fn(async () => catalogMockRows),
+                    close: jest.fn(async () => undefined),
+                })),
                 close: jest.fn(async () => undefined),
             })),
             close: jest.fn(async () => undefined),
@@ -23,14 +49,58 @@ jest.mock('@databricks/sql', () => ({
     })),
 }));
 
+// Databricks overrides the shared expectedFields: ARRAY maps to DimensionType.ARRAY.
+const databricksExpectedFields = {
+    ...expectedFields,
+    myArrayColumn: { type: DimensionType.ARRAY },
+};
+
 describe('DatabricksWarehouseClient', () => {
     it('expect query fields and rows', async () => {
         const warehouse = new DatabricksWarehouseClient(credentials);
 
         const results = await warehouse.runQuery('fake sql');
 
-        expect(results.fields).toEqual(expectedFields);
+        expect(results.fields).toEqual(databricksExpectedFields);
         expect(results.rows[0]).toEqual(rows[0]);
+    });
+});
+
+describe('DatabricksWarehouseClient ARRAY type mapping', () => {
+    it('ARRAY_TYPE resolves to DimensionType.ARRAY via convertDataTypeToDimensionType (runQuery)', async () => {
+        const warehouse = new DatabricksWarehouseClient(credentials);
+        const results = await warehouse.runQuery('fake sql');
+        expect(results.fields.myArrayColumn).toEqual({
+            type: DimensionType.ARRAY,
+        });
+    });
+
+    it('STRUCT_TYPE still resolves to DimensionType.STRING via convertDataTypeToDimensionType (runQuery)', async () => {
+        const warehouse = new DatabricksWarehouseClient(credentials);
+        const results = await warehouse.runQuery('fake sql');
+        expect(results.fields.myObjectColumn).toEqual({
+            type: DimensionType.STRING,
+        });
+    });
+
+    it('ARRAY<...> TYPE_NAME resolves to DimensionType.ARRAY via mapFieldType (getCatalog)', async () => {
+        const warehouse = new DatabricksWarehouseClient(credentials);
+        const catalog = await warehouse.getCatalog([
+            { database: 'database', schema: 'mySchema', table: 'myTable' },
+        ]);
+        expect(catalog.DEFAULT.mySchema.myTable.myArrayColumn).toBe(
+            DimensionType.ARRAY,
+        );
+    });
+
+    it('STRUCT<...> TYPE_NAME still resolves to DimensionType.STRING via mapFieldType (getCatalog)', async () => {
+        const warehouse = new DatabricksWarehouseClient(credentials);
+        const catalog = await warehouse.getCatalog([
+            { database: 'database', schema: 'mySchema', table: 'myTable' },
+        ]);
+        expect(catalog.DEFAULT.mySchema.myTable.myStructColumn).toBe(
+            DimensionType.STRING,
+        );
     });
 });
 

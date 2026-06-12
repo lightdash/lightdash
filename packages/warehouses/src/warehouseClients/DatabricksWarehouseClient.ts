@@ -96,9 +96,10 @@ const convertDataTypeToDimensionType = (
             return DimensionType.DATE;
         case DatabricksDataTypes.TIMESTAMP_TYPE:
             return DimensionType.TIMESTAMP;
+        case DatabricksDataTypes.ARRAY_TYPE:
+            return DimensionType.ARRAY;
         case DatabricksDataTypes.STRING_TYPE:
         case DatabricksDataTypes.BINARY_TYPE:
-        case DatabricksDataTypes.ARRAY_TYPE:
         case DatabricksDataTypes.STRUCT_TYPE:
         case DatabricksDataTypes.UNION_TYPE:
         case DatabricksDataTypes.USER_DEFINED_TYPE:
@@ -174,10 +175,11 @@ const mapFieldType = (type: string): DimensionType => {
         case DatabricksTypes.DEC:
         case DatabricksTypes.NUMERIC:
             return DimensionType.NUMBER;
+        case DatabricksTypes.ARRAY:
+            return DimensionType.ARRAY;
         case DatabricksTypes.STRING:
         case DatabricksTypes.BINARY:
         case DatabricksTypes.INTERVAL:
-        case DatabricksTypes.ARRAY:
         case DatabricksTypes.STRUCT:
         case DatabricksTypes.MAP:
         case DatabricksTypes.CHAR:
