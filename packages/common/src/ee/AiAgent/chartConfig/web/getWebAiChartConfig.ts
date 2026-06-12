@@ -1,13 +1,7 @@
 import { type ItemsMap } from '../../../../types/field';
 import { type MetricQuery } from '../../../../types/metricQuery';
 import assertUnreachable from '../../../../utils/assertUnreachable';
-import {
-    type ToolRunQueryArgs,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
-} from '../../schemas';
-import { AiResultType } from '../../types';
+import { AiResultType, type AiArtifactChartConfig } from '../../types';
 import { parseVizConfig } from '../../utils';
 import { getVerticalBarChartConfig } from './generateBarVizConfigTool/getVerticalBarChartConfig';
 import { getTableChartConfig } from './generateTableVizConfigTool/getTableChartConfig';
@@ -21,11 +15,7 @@ export const getWebAiChartConfig = ({
     fieldsMap,
     overrideChartType,
 }: {
-    vizConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs;
+    vizConfig: AiArtifactChartConfig;
     metricQuery: MetricQuery;
     maxQueryLimit?: number;
     fieldsMap: ItemsMap;
@@ -76,9 +66,20 @@ export const getWebAiChartConfig = ({
                 echartsConfig: getTableChartConfig(),
             };
         case AiResultType.QUERY_RESULT:
+            // Chart-as-code already carries a runtime ChartConfig — render it as-is.
+            if (parsedConfig.chartAsCode) {
+                return {
+                    type: parsedConfig.type,
+                    vizTool: null,
+                    chartAsCode: parsedConfig.chartAsCode,
+                    metricQuery: parsedConfig.metricQuery,
+                    echartsConfig: parsedConfig.chartAsCode.chartConfig,
+                } as const;
+            }
             return {
                 type: parsedConfig.type,
                 vizTool: parsedConfig.vizTool,
+                chartAsCode: null,
                 metricQuery: parsedConfig.metricQuery,
                 echartsConfig: getRunQueryChartConfig({
                     queryTool: parsedConfig.vizTool,

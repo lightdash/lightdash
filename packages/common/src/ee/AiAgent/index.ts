@@ -10,10 +10,6 @@ import type {
     ToolDashboardArgs,
     ToolName,
     ToolProposeChangeOutput,
-    ToolRunQueryArgs,
-    ToolTableVizArgs,
-    ToolTimeSeriesArgs,
-    ToolVerticalBarArgs,
 } from '../..';
 import { type AiEvalRunResultAssessment } from './aiEvalAssessment';
 import {
@@ -23,7 +19,11 @@ import {
 } from './requestTypes';
 import { type AgentToolOutput } from './schemas';
 import { ToolNameSchema } from './schemas/visualizations';
-import { type AiMetricQuery, type AiResultType } from './types';
+import {
+    type AiArtifactChartConfig,
+    type AiMetricQuery,
+    type AiResultType,
+} from './types';
 
 export * from './adminTypes';
 export * from './aiEvalAssessment';
@@ -31,6 +31,7 @@ export * from './chartConfig/slack';
 export * from './chartConfig/web';
 export * from './constants';
 export * from './aiAgentReviewClassifierTypes';
+export * from './chartAsCodeArtifact';
 export * from './documentTypes';
 export * from './filterExploreByTags';
 export * from './followUpTools';
@@ -651,12 +652,7 @@ export type AiArtifact = {
     title: string | null;
     description: string | null;
     // We store raw tool calls
-    chartConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs
-        | null;
+    chartConfig: AiArtifactChartConfig | null;
     dashboardConfig: ToolDashboardArgs | null;
     versionCreatedAt: Date;
     verifiedByUserUuid: string | null;

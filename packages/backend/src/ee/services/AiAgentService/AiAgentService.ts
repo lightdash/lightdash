@@ -1353,7 +1353,11 @@ export class AiAgentService extends BaseService {
             ),
             additionalMetrics: populatedCustomMetrics,
         };
-        const fields = getItemMap(explore);
+        const fields = getItemMap(
+            explore,
+            populatedCustomMetrics,
+            metricQuery.tableCalculations,
+        );
         const webAiChartConfig = getWebAiChartConfig({
             vizConfig,
             metricQuery: metricQueryWithCustomMetrics,
@@ -3660,14 +3664,19 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             artifact.chartConfig,
-            parsedVizConfig.vizTool.customMetrics,
+            parsedVizConfig.vizTool?.customMetrics,
         );
 
         const metadata = {
-            title: artifact.title ?? parsedVizConfig.vizTool?.title ?? null,
+            title:
+                artifact.title ??
+                parsedVizConfig.vizTool?.title ??
+                parsedVizConfig.chartAsCode?.name ??
+                null,
             description:
                 artifact.description ??
                 parsedVizConfig.vizTool?.description ??
+                parsedVizConfig.chartAsCode?.description ??
                 null,
         } satisfies AiVizMetadata;
 
@@ -3796,7 +3805,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             chartConfig,
-            parsedVizConfig.vizTool.customMetrics,
+            parsedVizConfig.vizTool?.customMetrics,
         );
 
         const metadata = {

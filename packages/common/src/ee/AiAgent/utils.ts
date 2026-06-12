@@ -1,3 +1,7 @@
+import {
+    getChartAsCodeMetricQuery,
+    isChartAsCodeArtifactConfig,
+} from './chartAsCodeArtifact';
 import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import {
     convertAiTableCalcsSchemaToTableCalcs,
@@ -21,6 +25,15 @@ export const parseVizConfig = (
         return null;
     }
 
+    if (isChartAsCodeArtifactConfig(vizConfigUnknown)) {
+        return {
+            type: AiResultType.QUERY_RESULT,
+            vizTool: null,
+            chartAsCode: vizConfigUnknown,
+            metricQuery: getChartAsCodeMetricQuery(vizConfigUnknown, maxLimit),
+        } as const;
+    }
+
     const toolVerticalBarArgsParsed =
         toolVerticalBarArgsSchemaTransformed.safeParse(vizConfigUnknown);
 
@@ -38,6 +51,7 @@ export const parseVizConfig = (
         return {
             type: AiResultType.VERTICAL_BAR_RESULT,
             vizTool,
+            chartAsCode: null,
             metricQuery,
         } as const;
     }
@@ -58,6 +72,7 @@ export const parseVizConfig = (
         return {
             type: AiResultType.TIME_SERIES_RESULT,
             vizTool,
+            chartAsCode: null,
             metricQuery,
         } as const;
     }
@@ -78,6 +93,7 @@ export const parseVizConfig = (
         return {
             type: AiResultType.TABLE_RESULT,
             vizTool,
+            chartAsCode: null,
             metricQuery,
         } as const;
     }
@@ -112,6 +128,7 @@ export const parseVizConfig = (
         return {
             type: AiResultType.QUERY_RESULT,
             vizTool,
+            chartAsCode: null,
             metricQuery,
         } as const;
     }

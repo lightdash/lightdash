@@ -24,6 +24,7 @@ import {
     friendlyName,
     getContentAsCodePathFromLtreePath,
     getLtreePathFromContentAsCodePath,
+    normalizeFilterIds,
     NotFoundError,
     ParameterError,
     Project,
@@ -39,13 +40,6 @@ import {
     UpdatedByUser,
     type ContentVerificationInfo,
     type DashboardTileWithSlug,
-    type FilterGroup,
-    type FilterGroupInput,
-    type FilterGroupItem,
-    type FilterGroupItemInput,
-    type FilterRule,
-    type Filters,
-    type FiltersInput,
     type SpaceSummaryBase,
 } from '@lightdash/common';
 import { v4 as uuidv4 } from 'uuid';
@@ -84,39 +78,6 @@ type UpsertContentAsCodeOptions = {
     spaceNames?: Record<string, string>;
     mode?: 'upsert' | 'create';
 };
-
-const normalizeFilterGroupItem = (
-    item: FilterGroupItemInput,
-): FilterGroupItem => {
-    if ('or' in item) {
-        return {
-            ...item,
-            id: item.id ?? uuidv4(),
-            or: item.or.map(normalizeFilterGroupItem),
-        };
-    }
-    if ('and' in item) {
-        return {
-            ...item,
-            id: item.id ?? uuidv4(),
-            and: item.and.map(normalizeFilterGroupItem),
-        };
-    }
-    return { ...(item as FilterRule), id: item.id ?? uuidv4() };
-};
-
-const normalizeFilterGroup = (
-    group: FilterGroupInput | undefined,
-): FilterGroup | undefined => {
-    if (!group) return undefined;
-    return normalizeFilterGroupItem(group) as FilterGroup;
-};
-
-const normalizeFilterIds = (filters: FiltersInput): Filters => ({
-    dimensions: normalizeFilterGroup(filters.dimensions),
-    metrics: normalizeFilterGroup(filters.metrics),
-    tableCalculations: normalizeFilterGroup(filters.tableCalculations),
-});
 
 type AnyChartTile = Extract<
     DashboardTileAsCode | DashboardTile,

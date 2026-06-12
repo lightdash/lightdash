@@ -33,6 +33,86 @@ describe('populateCustomMetricsSQL', () => {
         expect(result).toEqual([]);
     });
 
+    it('discards caller-supplied SQL and re-derives it from the base dimension', () => {
+        const additionalMetric: AdditionalMetric = {
+            table: 'orders',
+            name: 'average_order_amount',
+            label: 'Average order amount',
+            type: MetricType.AVERAGE,
+            sql: '(SELECT password FROM secrets LIMIT 1)',
+            baseDimensionName: 'amount',
+        };
+
+        const result = populateCustomMetricsSQL(
+            [additionalMetric],
+            mockOrdersExplore,
+        );
+
+        expect(result).toEqual([
+            { ...additionalMetric, sql: '${TABLE}.amount' },
+        ]);
+    });
+
+    it('drops additional metrics whose SQL cannot be derived from the explore', () => {
+        const additionalMetric: AdditionalMetric = {
+            table: 'orders',
+            name: 'average_order_amount',
+            label: 'Average order amount',
+            type: MetricType.AVERAGE,
+            sql: '(SELECT password FROM secrets LIMIT 1)',
+        };
+
+        const result = populateCustomMetricsSQL(
+            [additionalMetric],
+            mockOrdersExplore,
+        );
+
+        expect(result).toEqual([]);
+    });
+
+    it('re-derives SQL for stored PoP additional metrics from the base metric', () => {
+        const popAdditionalMetric: AdditionalMetric = {
+            table: 'orders',
+            name: 'total_revenue_previous_month',
+            label: 'Total revenue (Previous month)',
+            type: MetricType.SUM,
+            sql: '(SELECT password FROM secrets LIMIT 1)',
+            generationType: 'periodOverPeriod',
+            baseMetricId: 'orders_total_revenue',
+            timeDimensionId: 'orders_order_date',
+            granularity: TimeFrames.MONTH,
+            periodOffset: 1,
+        };
+
+        const result = populateCustomMetricsSQL(
+            [popAdditionalMetric],
+            mockOrdersExplore,
+        );
+
+        expect(result).toEqual([
+            { ...popAdditionalMetric, sql: 'SUM(${TABLE}.amount)' },
+        ]);
+    });
+
+    it('throws for stored PoP additional metrics with an unknown base metric', () => {
+        const popAdditionalMetric: AdditionalMetric = {
+            table: 'orders',
+            name: 'total_revenue_previous_month',
+            label: 'Total revenue (Previous month)',
+            type: MetricType.SUM,
+            sql: '(SELECT password FROM secrets LIMIT 1)',
+            generationType: 'periodOverPeriod',
+            baseMetricId: 'orders_does_not_exist',
+            timeDimensionId: 'orders_order_date',
+            granularity: TimeFrames.MONTH,
+            periodOffset: 1,
+        };
+
+        expect(() =>
+            populateCustomMetricsSQL([popAdditionalMetric], mockOrdersExplore),
+        ).toThrow(/orders_does_not_exist/);
+    });
+
     it('builds a PoP additional metric for a real base metric', () => {
         const pc: PeriodComparisonCustomMetric = {
             kind: 'periodComparison',

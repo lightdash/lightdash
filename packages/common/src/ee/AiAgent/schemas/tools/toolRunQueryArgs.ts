@@ -10,6 +10,7 @@ import sortFieldSchema from '../sortField';
 import { tableCalcsSchema } from '../tableCalcs/tableCalcs';
 import { createToolSchema } from '../toolSchemaBuilder';
 import visualizationMetadataSchema from '../visualizationMetadata';
+import { toolChartAsCodeMetricQuerySchema } from './toolCreateContentArgs';
 import {
     buildMcpQueryRunResponseDescription,
     buildMcpVisualizationFollowUpInstruction,
@@ -161,6 +162,15 @@ Notes:
 ${MCP_QUERY_COMMON_NOTES}
 `;
 
+export const TOOL_GENERATE_VISUALIZATION_DESCRIPTION = `Build and run a chart-as-code visualization.
+
+Use this for ad hoc chart artifacts. Provide a chart-as-code metricQuery plus runtime chartConfig. The server validates the normalized chart JSON against chart-as-code-1.0 and returns repairable validation errors.
+
+For table formatting, use canonical chart-as-code only: chartConfig.config.columns for column display options and chartConfig.config.conditionalFormattings for conditional formatting rules. Do not put columns or conditionalFormattings at chartConfig root. Do not use dataBarColor.
+
+This returns CSV data for the query and creates/updates the chart artifact shown to the user.
+`;
+
 export const toolRunQueryArgsSchema = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
@@ -256,3 +266,59 @@ export const toolRunQueryOutputSchema = z.object({
 });
 
 export type ToolRunQueryOutput = z.infer<typeof toolRunQueryOutputSchema>;
+
+const generateVisualizationChartConfigSchema = z
+    .object({
+        type: z
+            .string()
+            .describe(
+                'Runtime chart-as-code chartConfig.type. Must match chart-as-code-1.0.json.',
+            ),
+    })
+    .passthrough()
+    .describe(
+        'Runtime chart-as-code chartConfig object. Use canonical chart-as-code shape exactly. For tables, put table options under chartConfig.config, e.g. { type: "table", config: { columns: { fieldId: { displayStyle: "bar", color: "#4CAF50" } }, conditionalFormattings: [{ target: { fieldId }, color: "#1B5E20", rules: [{ id, operator, values }], applyTo: "cell" }] } }. Do not put columns or conditionalFormattings at chartConfig root. Do not use dataBarColor.',
+    );
+
+const generateVisualizationPivotConfigSchema = z
+    .object({
+        columns: z.array(z.string()),
+    })
+    .nullable()
+    .describe('Top-level chart-as-code pivotConfig, or null.');
+
+const generateVisualizationTableConfigSchema = z
+    .object({
+        columnOrder: z.array(z.string()),
+    })
+    .nullable()
+    .describe('Top-level chart-as-code tableConfig, or null.');
+
+export const toolGenerateVisualizationArgsSchema = createToolSchema()
+    .extend({
+        ...visualizationMetadataSchema.shape,
+        tableName: z
+            .string()
+            .min(1)
+            .describe('Explore/table name this chart queries from.'),
+        metricQuery: toolChartAsCodeMetricQuerySchema,
+        chartConfig: generateVisualizationChartConfigSchema,
+        pivotConfig: generateVisualizationPivotConfigSchema,
+        tableConfig: generateVisualizationTableConfigSchema,
+    })
+    .build();
+
+export const toolGenerateVisualizationArgsSchemaTransformed =
+    toolGenerateVisualizationArgsSchema.transform((data) => ({
+        ...data,
+        pivotConfig: data.pivotConfig ?? undefined,
+        tableConfig: data.tableConfig ?? undefined,
+    }));
+
+export type ToolGenerateVisualizationArgs = z.infer<
+    typeof toolGenerateVisualizationArgsSchema
+>;
+
+export type ToolGenerateVisualizationArgsTransformed = z.infer<
+    typeof toolGenerateVisualizationArgsSchemaTransformed
+>;

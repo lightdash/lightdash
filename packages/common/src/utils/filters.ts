@@ -3,6 +3,11 @@ import isNil from 'lodash/isNil';
 import moment from 'moment';
 import { v4 as uuidv4 } from 'uuid';
 import { type AnyType } from '../types/any';
+import type {
+    FilterGroupInput,
+    FilterGroupItemInput,
+    FiltersInput,
+} from '../types/coder';
 import { DashboardTileTypes, type DashboardTile } from '../types/dashboard';
 import { type Explore } from '../types/explore';
 import {
@@ -83,6 +88,41 @@ export const getTotalFilterRules = (filters: Filters): FilterRule[] => [
 
 export const countTotalFilterRules = (filters: Filters): number =>
     getTotalFilterRules(filters).length;
+
+const normalizeFilterGroupItemIds = (
+    item: FilterGroupItemInput,
+): FilterGroupItem => {
+    if ('or' in item) {
+        return {
+            ...item,
+            id: item.id ?? uuidv4(),
+            or: item.or.map(normalizeFilterGroupItemIds),
+        };
+    }
+
+    if ('and' in item) {
+        return {
+            ...item,
+            id: item.id ?? uuidv4(),
+            and: item.and.map(normalizeFilterGroupItemIds),
+        };
+    }
+
+    return { ...(item as FilterRule), id: item.id ?? uuidv4() };
+};
+
+const normalizeFilterGroupIds = (
+    group: FilterGroupInput | undefined,
+): FilterGroup | undefined =>
+    group ? (normalizeFilterGroupItemIds(group) as FilterGroup) : undefined;
+
+export const normalizeFilterIds = (
+    filters: FiltersInput | undefined,
+): Filters => ({
+    dimensions: normalizeFilterGroupIds(filters?.dimensions),
+    metrics: normalizeFilterGroupIds(filters?.metrics),
+    tableCalculations: normalizeFilterGroupIds(filters?.tableCalculations),
+});
 
 export const hasNestedGroups = (filters: Filters): boolean => {
     const hasGroups = (filterGroup: FilterGroup): boolean => {

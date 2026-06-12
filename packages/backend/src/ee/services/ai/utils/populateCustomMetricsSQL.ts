@@ -14,14 +14,10 @@ import {
 } from '@lightdash/common';
 
 /**
- * Populates SQL for a single custom metric from explore fields
- * This is needed because custom metrics are stored without SQL for security,
- * but we need to populate it from the explore when executing queries.
- *
- * Period-over-period additional metrics are passed through unchanged — they
- * already carry the SQL of their base metric (built server-side in
- * buildPopAdditionalMetric) and use baseMetricId rather than
- * baseDimensionName, so the dimension lookup below would drop them.
+ * Populates SQL for a single custom metric from explore fields.
+ * Custom metric SQL is always derived server-side from the explore — any
+ * caller-supplied SQL (e.g. from model output or stored artifacts) is
+ * discarded so the model can never inject raw SQL into the warehouse query.
  */
 export function populateCustomMetricSQL(
     metric:
@@ -30,14 +26,6 @@ export function populateCustomMetricSQL(
         | AdditionalMetric,
     explore: Explore,
 ): AdditionalMetric | null {
-    if (
-        'generationType' in metric &&
-        'sql' in metric &&
-        isPeriodOverPeriodAdditionalMetric(metric)
-    ) {
-        return metric;
-    }
-
     const exploreFields = getFields(explore);
 
     // Find the dimension field to get its SQL
@@ -82,6 +70,10 @@ export function populateCustomMetricsSQL(
         return [];
     }
 
+    const popAdditionalMetrics = customMetrics.filter(
+        isPeriodOverPeriodAdditionalMetric,
+    );
+
     const aggregationMetrics = customMetrics.filter(
         (
             metric,
@@ -89,7 +81,9 @@ export function populateCustomMetricsSQL(
             | CustomMetricBaseTransformed
             | Omit<AdditionalMetric, 'sql'>
             | AdditionalMetric =>
-            !isPeriodComparisonCustomMetric(metric as TransformedCustomMetric),
+            !isPeriodComparisonCustomMetric(
+                metric as TransformedCustomMetric,
+            ) && !isPeriodOverPeriodAdditionalMetric(metric),
     );
 
     const populatedAggregationMetrics = aggregationMetrics.reduce<
@@ -107,7 +101,10 @@ export function populateCustomMetricsSQL(
             isPeriodComparisonCustomMetric(metric as TransformedCustomMetric),
     );
 
-    if (periodComparisonMetrics.length === 0) {
+    if (
+        periodComparisonMetrics.length === 0 &&
+        popAdditionalMetrics.length === 0
+    ) {
         return populatedAggregationMetrics;
     }
 
@@ -123,8 +120,27 @@ export function populateCustomMetricsSQL(
         customMetricsById.set(getItemId(metric), metric);
     }
 
+    // PoP additional metrics (e.g. from stored artifacts) keep their identity —
+    // their id is referenced by the query and chart config — but their SQL is
+    // re-derived from the base metric rather than trusted from the input.
+    const populatedPopAdditionalMetrics = popAdditionalMetrics.map((metric) => {
+        const baseMetric =
+            realMetricsById.get(metric.baseMetricId) ??
+            customMetricsById.get(metric.baseMetricId);
+
+        if (!baseMetric) {
+            throw new AiAgentValidatorError(
+                `additionalMetrics period-over-period baseMetricId "${metric.baseMetricId}" is not a metric in this query. It must be a metric in the explore or defined as an aggregation custom metric.`,
+            );
+        }
+
+        return { ...metric, sql: baseMetric.sql };
+    });
+
     const populatedPopMetrics: AdditionalMetric[] = [];
-    const seenMetricIds = new Set<string>();
+    const seenMetricIds = new Set<string>(
+        populatedPopAdditionalMetrics.map(getItemId),
+    );
 
     for (const metric of periodComparisonMetrics) {
         const baseMetric =
@@ -161,7 +177,11 @@ export function populateCustomMetricsSQL(
         }
     }
 
-    return [...populatedAggregationMetrics, ...populatedPopMetrics];
+    return [
+        ...populatedAggregationMetrics,
+        ...populatedPopAdditionalMetrics,
+        ...populatedPopMetrics,
+    ];
 }
 
 export const getPopMetricIdsByBaseMetricId = (
@@ -196,8 +216,13 @@ export const expandMetricsWithPopAdditionalMetrics = (
     if (!metricIds) return [];
 
     const popMetricIdsByBase = getPopMetricIdsByBaseMetricId(additionalMetrics);
+    // Idempotent: ids already selected (e.g. chart-as-code metric queries
+    // persist PoP ids pre-expanded) are not inserted a second time.
+    const selectedMetricIds = new Set(metricIds);
     return metricIds.flatMap((metricId) => [
         metricId,
-        ...(popMetricIdsByBase.get(metricId) ?? []),
+        ...(popMetricIdsByBase.get(metricId) ?? []).filter(
+            (popMetricId) => !selectedMetricIds.has(popMetricId),
+        ),
     ]);
 };

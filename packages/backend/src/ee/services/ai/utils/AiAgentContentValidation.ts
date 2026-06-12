@@ -62,6 +62,53 @@ const CHART_CONFIG_SUPPORTED_TYPES = [
     'sankey',
 ] as const;
 
+// Chart config defs that AI-authored content is validated strictly against.
+// Strictness is applied here (AI repair loop) rather than in the canonical
+// chart-as-code schema so CLI lint/upload behavior is unchanged for users.
+const STRICT_CHART_CONFIG_DEFS = [
+    'BigNumber',
+    'CartesianChart',
+    'ColumnProperties',
+    'CustomVis',
+    'FunnelChart',
+    'GaugeChart',
+    'MapChart',
+    'PieChart',
+    'SankeyChart',
+    'TableChart',
+    'TreemapChart',
+];
+
+type JsonSchemaObject = Record<string, unknown>;
+
+const withNoAdditionalProperties = (
+    schema: JsonSchemaObject,
+): JsonSchemaObject =>
+    schema.properties && schema.additionalProperties === undefined
+        ? { ...schema, additionalProperties: false }
+        : schema;
+
+const strictifyChartSchema = (schema: JsonSchemaObject): JsonSchemaObject => {
+    const strict = structuredClone(schema);
+
+    const defs = strict.$defs as Record<string, JsonSchemaObject> | undefined;
+    STRICT_CHART_CONFIG_DEFS.forEach((defName) => {
+        if (defs?.[defName]) {
+            defs[defName] = withNoAdditionalProperties(defs[defName]);
+        }
+    });
+
+    const chartConfig = (strict.properties as Record<string, JsonSchemaObject>)
+        ?.chartConfig;
+    if (Array.isArray(chartConfig?.oneOf)) {
+        chartConfig.oneOf = chartConfig.oneOf.map((member) =>
+            withNoAdditionalProperties(member as JsonSchemaObject),
+        );
+    }
+
+    return strict;
+};
+
 export class AiAgentContentValidation {
     private readonly ajv: Ajv;
 
@@ -159,7 +206,9 @@ export class AiAgentContentValidation {
         }
 
         this.validators = {
-            chart: this.ajv.compile(chartAsCodeSchema),
+            chart: this.ajv.compile(
+                strictifyChartSchema(chartAsCodeSchema as JsonSchemaObject),
+            ),
             dashboard: this.ajv.compile(dashboardAsCodeSchema),
         };
 

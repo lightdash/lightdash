@@ -5,13 +5,10 @@ import {
     getGroupByDimensions,
     getWebAiChartConfig,
     type AiAgentChartTypeOption,
+    type AiArtifactChartConfig,
     type ApiAiAgentThreadMessageVizQuery,
     type ChartConfig,
     type EChartsSeries,
-    type ToolRunQueryArgs,
-    type ToolTableVizArgs,
-    type ToolTimeSeriesArgs,
-    type ToolVerticalBarArgs,
 } from '@lightdash/common';
 import {
     Box,
@@ -57,11 +54,7 @@ import {
 type Props = {
     vizQueryData: ApiAiAgentThreadMessageVizQuery;
     results: InfiniteQueryResults;
-    chartConfig:
-        | ToolTableVizArgs
-        | ToolTimeSeriesArgs
-        | ToolVerticalBarArgs
-        | ToolRunQueryArgs;
+    chartConfig: AiArtifactChartConfig;
     selectedChartType: AiAgentChartTypeOption | null;
     // When provided, an inline switcher is rendered above the chart. Omit
     // it (e.g. on the floating panel) when a parent renders its own.
@@ -172,7 +165,7 @@ export const AiVisualizationRenderer: FC<Props> = ({
 
     const defaultChartType: AiAgentChartTypeOption =
         webAiChartConfig.type === AiResultType.QUERY_RESULT
-            ? (webAiChartConfig.vizTool.chartConfig?.defaultVizType ?? 'table')
+            ? (webAiChartConfig.vizTool?.chartConfig?.defaultVizType ?? 'table')
             : 'table';
 
     const handleChartConfigChange = useCallback(

@@ -6,7 +6,11 @@ export const getGroupByDimensions = (
 ) => {
     switch (args.type) {
         case AiResultType.QUERY_RESULT:
-            return args.vizTool?.chartConfig?.groupBy ?? undefined;
+            return (
+                args.vizTool?.chartConfig?.groupBy ??
+                args.chartAsCode?.pivotConfig?.columns ??
+                undefined
+            );
         case AiResultType.VERTICAL_BAR_RESULT:
         case AiResultType.TIME_SERIES_RESULT:
             return args.vizTool?.vizConfig.breakdownByDimension

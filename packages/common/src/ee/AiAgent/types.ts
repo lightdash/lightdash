@@ -1,3 +1,4 @@
+import type { ChartAsCode } from '../../types/coder';
 import type { Filters } from '../../types/filter';
 import type { AdditionalMetric, MetricQuery } from '../../types/metricQuery';
 import type {
@@ -34,6 +35,13 @@ export type AiMetricQueryWithFilters = AiMetricQuery & {
     filters: Filters;
 };
 
+export type AiArtifactChartConfig =
+    | ChartAsCode
+    | ToolTableVizArgs
+    | ToolTimeSeriesArgs
+    | ToolVerticalBarArgs
+    | ToolRunQueryArgs;
+
 export type AiAgentVizConfig =
     | {
           type: 'vertical_bar_chart';
@@ -49,7 +57,7 @@ export type AiAgentVizConfig =
       }
     | {
           type: 'query_result';
-          config: ToolRunQueryArgs;
+          config: ToolRunQueryArgs | ChartAsCode;
       };
 
 export const AGENT_SUGGESTION_TOOLS = [

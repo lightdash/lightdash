@@ -39,6 +39,7 @@ import {
     TableCalculation,
     ToolRunQueryArgsTransformed,
     ToolSortField,
+    toTableCalculations,
     TransformedCustomMetric,
     WeekDay,
     WindowFunctionType,
@@ -96,7 +97,9 @@ ${nonExploreFields.join('\n')}
  */
 export function validateCustomMetricsDefinition(
     explore: Explore,
-    customMetrics: CustomMetricBaseTransformed[] | null,
+    customMetrics:
+        | (CustomMetricBaseTransformed | Omit<AdditionalMetric, 'sql'>)[]
+        | null,
 ) {
     if (!customMetrics || customMetrics.length === 0) {
         return;
@@ -352,17 +355,17 @@ export function validateCustomMetricFilters(
 export function validateFilterRules(
     explore: Explore,
     filterRules: FilterRule[],
-    customMetrics?: CustomMetricBaseTransformed[] | null,
-    tableCalculations?: TableCalcsSchema | null,
+    customMetrics?:
+        | (CustomMetricBaseTransformed | Omit<AdditionalMetric, 'sql'>)[]
+        | null,
+    tableCalculations?: TableCalcsSchema | TableCalculation[] | null,
 ) {
     const exploreFields = getFields(explore);
     const customMetricFields = populateCustomMetricsSQL(
         customMetrics || [],
         explore,
     );
-    const tableCalcFields = tableCalculations
-        ? convertAiTableCalcsSchemaToTableCalcs(tableCalculations)
-        : [];
+    const tableCalcFields = toTableCalculations(tableCalculations);
     const allFields = [
         ...exploreFields,
         ...customMetricFields,
@@ -599,12 +602,39 @@ Remember:
  * @param customMetrics - Custom metrics that may be used in sorts
  * @param tableCalculations - Table calculations that may be used in sorts
  */
+export function validatePivotColumnsAreSelectedDimensions(
+    pivotColumns: string[] | null | undefined,
+    selectedDimensions: string[],
+) {
+    if (!pivotColumns || pivotColumns.length === 0) {
+        return;
+    }
+
+    const missing = pivotColumns.filter(
+        (column) => !selectedDimensions.includes(column),
+    );
+
+    if (missing.length > 0) {
+        const errorMessage = `Invalid pivot configuration: every pivotConfig.columns entry must also be selected in metricQuery.dimensions. Missing: ${missing.join(
+            ', ',
+        )}`;
+
+        Logger.error(
+            `[AiAgent][Validate Pivot Columns Are Selected] ${errorMessage}`,
+        );
+
+        throw new AiAgentValidatorError(errorMessage);
+    }
+}
+
 export function validateSortFieldsAreSelected(
-    sorts: ToolSortField[],
+    sorts: Pick<ToolSortField, 'fieldId'>[],
     selectedDimensions: string[],
     selectedMetrics: string[],
-    customMetrics?: CustomMetricBaseTransformed[] | null,
-    tableCalculations?: TableCalcsSchema,
+    customMetrics?:
+        | (CustomMetricBaseTransformed | Omit<AdditionalMetric, 'sql'>)[]
+        | null,
+    tableCalculations?: TableCalcsSchema | TableCalculation[],
 ) {
     if (!sorts || sorts.length === 0) {
         return;
