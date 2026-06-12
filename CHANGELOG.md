@@ -1,3 +1,21 @@
+# [0.3149.0](https://github.com/lightdash/lightdash/compare/0.3148.0...0.3149.0) (2026-06-12)
+
+
+### Bug Fixes
+
+* detect Windows when $OSTYPE is cygwin in install.sh ([#24222](https://github.com/lightdash/lightdash/issues/24222)) ([825e907](https://github.com/lightdash/lightdash/commit/825e907c59384f45721a4f3f00b5a0ac7c41de99))
+
+
+### Features
+
+* **explorer:** explain timezone source in chart badge tooltip ([#24227](https://github.com/lightdash/lightdash/issues/24227)) ([b6dab4b](https://github.com/lightdash/lightdash/commit/b6dab4b39a1fc7a9afd0ae6cdb649d9975d53199))
+* **instance-config:** declare group → project access via LD_SETUP_GROUP_PROJECT_ACCESS ([#24198](https://github.com/lightdash/lightdash/issues/24198)) ([cbac8b7](https://github.com/lightdash/lightdash/commit/cbac8b749164ae4b96f0c13a6455b049d5836c46))
+
+
+### Performance Improvements
+
+* parallelize user attribute and email status queries ([#21550](https://github.com/lightdash/lightdash/issues/21550)) ([28c59a4](https://github.com/lightdash/lightdash/commit/28c59a40ca660ce184c28569c9ba563ed0c5f268))
+
 # [0.3148.0](https://github.com/lightdash/lightdash/compare/0.3147.0...0.3148.0) (2026-06-12)
 
 
