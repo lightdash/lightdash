@@ -39,8 +39,8 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             callOptions: {},
             providerOptions: {
-                strictJsonSchema: true,
-                parallelToolCalls: false,
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: true,
             },
         },
         {
@@ -53,8 +53,8 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             callOptions: {},
             providerOptions: {
-                strictJsonSchema: true,
-                parallelToolCalls: false,
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: true,
             },
         },
         {
@@ -67,8 +67,8 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             callOptions: {},
             providerOptions: {
-                strictJsonSchema: true,
-                parallelToolCalls: false,
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: true,
             },
         },
         {
@@ -81,8 +81,8 @@ export const MODEL_PRESETS: {
             supportsReasoning: true,
             callOptions: {},
             providerOptions: {
-                strictJsonSchema: true,
-                parallelToolCalls: false,
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: true,
                 reasoningEffort: 'minimal',
             },
         },
