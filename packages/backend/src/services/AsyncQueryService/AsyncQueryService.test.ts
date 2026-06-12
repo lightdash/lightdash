@@ -137,6 +137,10 @@ const projectModel = {
     updateTablesConfiguration: jest.fn(),
     getQueryTimezone: jest.fn(async () => 'UTC'),
     getExploreFromCache: jest.fn(async () => validExplore),
+    getProjectWarehouseConfig: jest.fn(async () => ({
+        organizationWarehouseCredentialsUuid: null,
+        queryTimezone: null,
+    })),
     findExploresFromCache: jest.fn(async () => allExplores),
     lockProcess: jest.fn((_projectUuid, fun) => fun()),
     getWarehouseCredentialsForProject: jest.fn(
