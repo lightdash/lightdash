@@ -231,6 +231,15 @@ export class BigqueryWarehouseClient extends WarehouseBaseClient<CreateBigqueryC
                 location: credentials.location || undefined,
                 maxRetries: credentials.retries,
                 apiEndpoint: credentials.accessUrl || undefined,
+                // drive.readonly is required for BigQuery external tables backed by Google Sheets/Drive.
+                ...(process.env.AUTH_ENABLE_BIGQUERY_DRIVE_SCOPE === 'true'
+                    ? {
+                          scopes: [
+                              'https://www.googleapis.com/auth/bigquery',
+                              'https://www.googleapis.com/auth/drive.readonly',
+                          ],
+                      }
+                    : {}),
 
                 ...(credentials.authenticationType ===
                 BigqueryAuthenticationType.ADC

@@ -976,6 +976,19 @@ test('should set groups.enabled only when the environment variable is set', () =
     expect(falseConfig.groups.enabled).toBe(false);
 });
 
+test('should enable BigQuery Drive scope only when AUTH_ENABLE_BIGQUERY_DRIVE_SCOPE is true', () => {
+    const undefinedConfig = parseConfig();
+    expect(undefinedConfig.auth.google.enableBigqueryDriveScope).toBe(false);
+
+    process.env.AUTH_ENABLE_BIGQUERY_DRIVE_SCOPE = 'true';
+    const trueConfig = parseConfig();
+    expect(trueConfig.auth.google.enableBigqueryDriveScope).toBe(true);
+
+    process.env.AUTH_ENABLE_BIGQUERY_DRIVE_SCOPE = 'false';
+    const falseConfig = parseConfig();
+    expect(falseConfig.auth.google.enableBigqueryDriveScope).toBe(false);
+});
+
 describe('getMultiProjectSetupConfig', () => {
     beforeEach(() => {
         delete process.env.LD_SETUP_PROJECTS;
