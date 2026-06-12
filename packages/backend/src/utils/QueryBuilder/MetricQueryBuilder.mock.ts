@@ -3980,3 +3980,68 @@ export const METRIC_QUERY_FANOUT_AND_DD_REFERENCE: CompiledMetricQuery = {
     compiledAdditionalMetrics: [],
     compiledCustomDimensions: [],
 };
+
+// Explore that combines an ARRAY dimension (requires unnesting on Databricks)
+// with a SUM_DISTINCT metric — used to test that NotSupportedError is raised.
+export const EXPLORE_WITH_ARRAY_DIM_AND_SUM_DISTINCT: Explore = {
+    targetDatabase: SupportedDbtAdapter.DATABRICKS,
+    name: 'array_tags',
+    label: 'array_tags',
+    baseTable: 'array_tags',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        array_tags: {
+            name: 'array_tags',
+            label: 'array_tags',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '`db`.`schema`.`array_tags`',
+            primaryKey: ['id'],
+            dimensions: {
+                tags: {
+                    type: DimensionType.ARRAY,
+                    name: 'tags',
+                    label: 'tags',
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.tags',
+                    compiledSql: '`array_tags`.tags',
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_revenue: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    name: 'total_revenue',
+                    label: 'Total Revenue',
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM(`array_tags`.amount)',
+                    compiledValueSql: '`array_tags`.amount',
+                    compiledDistinctKeys: ['`array_tags`.id'],
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+export const METRIC_QUERY_ARRAY_DIM_WITH_SUM_DISTINCT: CompiledMetricQuery = {
+    exploreName: 'array_tags',
+    dimensions: ['array_tags_tags'],
+    metrics: ['array_tags_total_revenue'],
+    filters: {},
+    sorts: [],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};

@@ -10,6 +10,7 @@ import {
     ForbiddenError,
     JoinRelationship,
     MetricType,
+    NotSupportedError,
     SortByDirection,
     SupportedDbtAdapter,
     TimeFrames,
@@ -29,6 +30,7 @@ import {
     EXPLORE,
     EXPLORE_NESTED_AGG_NAME_COLLISION,
     EXPLORE_WITH_ARRAY_DIM,
+    EXPLORE_WITH_ARRAY_DIM_AND_SUM_DISTINCT,
     EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
@@ -43,6 +45,7 @@ import {
     EXPLORE_WITHOUT_PRIMARY_KEYS,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
+    METRIC_QUERY_ARRAY_DIM_WITH_SUM_DISTINCT,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
@@ -5451,5 +5454,17 @@ describe('ARRAY dimension unnesting (Databricks)', () => {
 
         expect(query).not.toContain('LATERAL VIEW');
         expect(query).toContain('array_contains');
+    });
+
+    it('throws NotSupportedError when array dim is combined with a distinct metric', () => {
+        expect(() =>
+            buildQuery({
+                explore: EXPLORE_WITH_ARRAY_DIM_AND_SUM_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_ARRAY_DIM_WITH_SUM_DISTINCT,
+                warehouseSqlBuilder: databricksClientMock,
+                intrinsicUserAttributes: {},
+                timezone: 'UTC',
+            }),
+        ).toThrow(NotSupportedError);
     });
 });
