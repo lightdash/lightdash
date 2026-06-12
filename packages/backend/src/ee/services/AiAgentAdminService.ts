@@ -1990,6 +1990,26 @@ export class AiAgentAdminService extends BaseService {
         return { available: true, ...preview };
     }
 
+    private async assertReviewBatchEnabled(user: SessionUser): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const flag = await this.featureFlagService.get({
+            featureFlagId: FeatureFlags.AiReviewBatch,
+            user: {
+                userUuid: user.userUuid,
+                organizationUuid,
+                organizationName: user.organizationName ?? '',
+            },
+        });
+        if (!flag.enabled) {
+            throw new ForbiddenError(
+                'AI review batch analysis is not enabled',
+            );
+        }
+    }
+
     async startReviewBatch(
         user: SessionUser,
         args: CreateAiAgentReviewBatch,
@@ -1998,6 +2018,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid)
             throw new ForbiddenError('Organization not found');
         this.checkOrganizationAdminAccess(user);
+        await this.assertReviewBatchEnabled(user);
 
         const estimatedTurns =
             await this.aiAgentReviewClassifierModel.countTurnReviewCandidates({
@@ -2047,6 +2068,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid)
             throw new ForbiddenError('Organization not found');
         this.checkOrganizationAdminAccess(user);
+        await this.assertReviewBatchEnabled(user);
 
         const run = await this.aiAgentReviewClassifierModel.getBackfillRun({
             organizationUuid,
@@ -2066,6 +2088,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid)
             throw new ForbiddenError('Organization not found');
         this.checkOrganizationAdminAccess(user);
+        await this.assertReviewBatchEnabled(user);
 
         const report = await this.aiAgentReviewClassifierModel.getRunReport({
             organizationUuid,
@@ -2085,6 +2108,7 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid)
             throw new ForbiddenError('Organization not found');
         this.checkOrganizationAdminAccess(user);
+        await this.assertReviewBatchEnabled(user);
 
         return this.aiAgentReviewClassifierModel.listBackfillRuns({
             organizationUuid,

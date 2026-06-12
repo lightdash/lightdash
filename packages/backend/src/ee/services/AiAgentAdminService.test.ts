@@ -1306,6 +1306,27 @@ describe('AiAgentAdminService.startReviewBatch', () => {
         });
     });
 
+    it('throws when the AiReviewBatch feature flag is disabled', async () => {
+        const countTurnReviewCandidates = jest.fn();
+        const service = makeService({
+            aiAgentReviewClassifierModel: { countTurnReviewCandidates },
+            featureFlagService: {
+                get: jest.fn().mockResolvedValue({ enabled: false }),
+            },
+        });
+
+        await expect(
+            service.startReviewBatch(makeAdminUser(), {
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                startedAt: START_DATE,
+                endedAt: END_DATE,
+            }),
+        ).rejects.toThrow('not enabled');
+
+        expect(countTurnReviewCandidates).not.toHaveBeenCalled();
+    });
+
     it('creates a queued run and enqueues the batch job when under the cap', async () => {
         const ESTIMATED_TURNS = 42;
         const createQueuedBackfillRun = jest.fn().mockResolvedValue(RUN_UUID);

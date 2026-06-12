@@ -208,6 +208,15 @@ export enum FeatureFlags {
     AiWriteback = 'ai-writeback',
 
     /**
+     * Enable AI agent review batch analysis: the admin-triggered, analysis-only
+     * windowed review run (`/review-runs` endpoints + the Analysis panel). Off
+     * by default and independent of the `ai_agent_reviews_enabled` org setting,
+     * so the on-demand batch (which incurs LLM cost per run) can be rolled out
+     * separately from live per-turn review.
+     */
+    AiReviewBatch = 'ai-review-batch',
+
+    /**
      * Enable the `searchSemanticLayer` agent tool, which lets the AI agent
      * list/search metrics and dimensions across ALL explores at once (backed
      * by the catalog search index) to answer project-wide questions like
