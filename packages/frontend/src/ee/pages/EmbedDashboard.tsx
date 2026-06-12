@@ -1,3 +1,4 @@
+import { type EmbedDashboard as EmbedDashboardType } from '@lightdash/common';
 import { IconUnlink } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { useParams } from 'react-router';
@@ -8,7 +9,10 @@ import useEmbed from '../providers/Embed/useEmbed';
 
 const EmbedDashboardPage: FC<{
     containerStyles?: React.CSSProperties;
-}> = ({ containerStyles }) => {
+    initialDashboard?: EmbedDashboardType;
+    isEditMode?: boolean;
+    onEditModeChange?: (isEditMode: boolean) => void;
+}> = ({ containerStyles, initialDashboard, isEditMode, onEditModeChange }) => {
     const { projectUuid: projectUuidFromParams } = useParams<{
         projectUuid?: string;
     }>();
@@ -30,7 +34,12 @@ const EmbedDashboardPage: FC<{
 
     return (
         <DashboardProvider embedToken={embedToken} projectUuid={projectUuid}>
-            <EmbedDashboard containerStyles={containerStyles} />
+            <EmbedDashboard
+                containerStyles={containerStyles}
+                initialDashboard={initialDashboard}
+                isEditMode={isEditMode}
+                onEditModeChange={onEditModeChange}
+            />
         </DashboardProvider>
     );
 };

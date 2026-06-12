@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
+    AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiExecuteAsyncSqlQueryResults,
@@ -111,6 +112,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultColumns,
     type RunQueryTags,
+    type SessionUser,
     type SpaceSummaryBase,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
@@ -462,6 +464,79 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError("You don't have access to this chart");
+        }
+    }
+
+    private async assertSavedChartViewAccessForUser(
+        user: SessionUser,
+        savedChart: {
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+            savedChartUuid?: string;
+            savedSqlUuid?: string;
+        },
+    ) {
+        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            user.userUuid,
+            savedChart.spaceUuid,
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: savedChart.organizationUuid,
+                    projectUuid: savedChart.projectUuid,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                    access: ctx.access,
+                    metadata: {
+                        spaceUuid: savedChart.spaceUuid,
+                        savedChartUuid: savedChart.savedChartUuid,
+                        savedSqlUuid: savedChart.savedSqlUuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+    }
+
+    private async assertDashboardViewAccessForUser(
+        user: SessionUser,
+        dashboard: {
+            uuid: string;
+            name: string;
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+        },
+    ) {
+        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            user.userUuid,
+            dashboard.spaceUuid,
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                    access: ctx.access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
     }
 
@@ -4747,13 +4822,45 @@ export class AsyncQueryService extends ProjectService {
         savedChartUuid: string,
         space: SpaceSummaryBase,
     ) {
-        const auditedAbility = this.createAuditedAbility(account);
         if (isJwtUser(account)) {
+            const embedWriteActions = account.authentication.data.writeActions;
+            if (
+                account.embedWriteUser &&
+                embedWriteActions?.spaceUuid === space.uuid
+            ) {
+                const auditedAbility = this.createAuditedAbility(
+                    account.embedWriteUser,
+                );
+                await this.assertSavedChartViewAccessForUser(
+                    account.embedWriteUser,
+                    {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid,
+                        spaceUuid: space.uuid,
+                        savedChartUuid,
+                    },
+                );
+                if (
+                    auditedAbility.cannot(
+                        'view',
+                        subject('Project', {
+                            organizationUuid: space.organizationUuid,
+                            projectUuid,
+                            metadata: { savedChartUuid },
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                return;
+            }
+
             await this.permissionsService.checkEmbedPermissions(
                 account,
                 savedChartUuid,
             );
         } else {
+            const auditedAbility = this.createAuditedAbility(account);
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
                 space.uuid,
@@ -4775,6 +4882,7 @@ export class AsyncQueryService extends ProjectService {
             }
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -4787,6 +4895,50 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+    }
+
+    private async getJwtDashboardQueryContext(
+        account: AnonymousAccount,
+        projectUuid: string,
+        requestDashboardUuid: string | undefined,
+    ): Promise<{
+        dashboardUuid: string | undefined;
+    }> {
+        const { embedWriteUser } = account;
+        const embedWriteActions = account.authentication.data.writeActions;
+        const writeSpaceUuid = embedWriteUser
+            ? embedWriteActions?.spaceUuid
+            : undefined;
+
+        if (writeSpaceUuid && requestDashboardUuid) {
+            try {
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
+                    requestDashboardUuid,
+                    { projectUuid },
+                );
+
+                if (embedWriteUser && dashboard.spaceUuid === writeSpaceUuid) {
+                    await this.assertDashboardViewAccessForUser(
+                        embedWriteUser,
+                        dashboard,
+                    );
+                    return {
+                        dashboardUuid: dashboard.uuid,
+                    };
+                }
+            } catch (error) {
+                if (!(error instanceof NotFoundError)) {
+                    throw error;
+                }
+            }
+        }
+
+        return {
+            dashboardUuid:
+                account.access.content.type === 'dashboard'
+                    ? account.access.content.dashboardUuid
+                    : undefined,
+        };
     }
 
     async executeAsyncDashboardChartQuery({
@@ -4828,6 +4980,24 @@ export class AsyncQueryService extends ProjectService {
                 organizationUuid,
             ),
         ]);
+
+        let effectiveDashboardUuid: string | undefined = dashboardUuid;
+
+        if (isJwtUser(account)) {
+            const jwtDashboardContext = await this.getJwtDashboardQueryContext(
+                account,
+                projectUuid,
+                dashboardUuid,
+            );
+            effectiveDashboardUuid = jwtDashboardContext.dashboardUuid;
+        }
+
+        if (!effectiveDashboardUuid) {
+            throw new ForbiddenError(
+                'JWT does not grant access to a dashboard',
+            );
+        }
+        const resolvedDashboardUuid = effectiveDashboardUuid;
 
         await this.checkDashboardChartQueryPermissions(
             account,
@@ -4915,7 +5085,7 @@ export class AsyncQueryService extends ProjectService {
             tileUuid,
             chartUuid,
             context,
-            dashboardUuid,
+            dashboardUuid: resolvedDashboardUuid,
             dashboardFilters,
             dashboardSorts,
             dateZoom,
@@ -4928,7 +5098,7 @@ export class AsyncQueryService extends ProjectService {
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
-            dashboard_uuid: dashboardUuid,
+            dashboard_uuid: resolvedDashboardUuid,
             explore_name: explore.name,
             query_context: context,
         };
@@ -4954,7 +5124,7 @@ export class AsyncQueryService extends ProjectService {
                     organizationWarehouseCredentialsUuid,
             }),
             this.dashboardModel.getDashboardParametersByIdOrSlug(
-                dashboardUuid,
+                resolvedDashboardUuid,
                 projectUuid,
             ),
             this.projectParametersModel.find(projectUuid),
@@ -5047,7 +5217,7 @@ export class AsyncQueryService extends ProjectService {
                         ? routingDecision.route
                         : undefined,
                 chartId: savedChart.uuid,
-                dashboardId: dashboardUuid,
+                dashboardId: resolvedDashboardUuid,
             });
         }
 
@@ -5056,7 +5226,7 @@ export class AsyncQueryService extends ProjectService {
             exploreName: explore.name,
             routingDecision,
             chartUuid: savedChart.uuid,
-            dashboardUuid,
+            dashboardUuid: resolvedDashboardUuid,
             queryContext: context,
         });
 
@@ -5928,31 +6098,54 @@ export class AsyncQueryService extends ProjectService {
             limit,
         } = args;
 
-        // For JWT users, the dashboard scope is bound to the token, not the
-        // request body. Trusting `args.dashboardUuid` would let a JWT user
-        // merge another dashboard's parameter values into their query.
-        const dashboardUuid = isJwtUser(account)
-            ? account.access.content.dashboardUuid
-            : requestDashboardUuid;
+        let dashboardUuid: string | undefined = requestDashboardUuid;
+
+        // For JWT users without write actions, the dashboard scope is bound to
+        // the token. Write-action embeds may use a dashboard from their write
+        // space so newly added draft tiles can preview with dashboard context.
+        if (isJwtUser(account)) {
+            const jwtDashboardContext = await this.getJwtDashboardQueryContext(
+                account,
+                projectUuid,
+                requestDashboardUuid,
+            );
+            dashboardUuid = jwtDashboardContext.dashboardUuid;
+        }
 
         if (!dashboardUuid) {
             throw new ForbiddenError(
                 'JWT does not grant access to a dashboard',
             );
         }
+        const resolvedDashboardUuid = dashboardUuid;
 
         if (isJwtUser(account)) {
-            await this.permissionsService.checkEmbedSqlChartPermissions(
-                account,
-                savedChart.savedSqlUuid,
-            );
+            const { embedWriteUser } = account;
+            const embedWriteActions = account.authentication.data.writeActions;
+            const canUseWriteDashboard =
+                embedWriteUser &&
+                embedWriteActions?.spaceUuid === savedChart.space.uuid;
+
+            if (canUseWriteDashboard) {
+                await this.assertSavedChartViewAccessForUser(embedWriteUser, {
+                    organizationUuid: savedChart.organization.organizationUuid,
+                    projectUuid: savedChart.project.projectUuid,
+                    spaceUuid: savedChart.space.uuid,
+                    savedSqlUuid: savedChart.savedSqlUuid,
+                });
+            } else {
+                await this.permissionsService.checkEmbedSqlChartPermissions(
+                    account,
+                    savedChart.savedSqlUuid,
+                );
+            }
         } else {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
 
         const dashboardParameters = convertDashboardParametersToValuesMap(
             await this.dashboardModel.getDashboardParametersByIdOrSlug(
-                dashboardUuid,
+                resolvedDashboardUuid,
                 projectUuid,
             ),
         );

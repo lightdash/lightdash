@@ -40,6 +40,9 @@ type Props = {
     setAddingTab: (value: React.SetStateAction<boolean>) => void;
     activeTabUuid?: string;
     dashboardTabs?: Dashboard['tabs'];
+    allowedTileTypes?: DashboardTileTypes[];
+    spaceUuid?: string;
+    maxSelectedValues?: number;
 } & Pick<ButtonProps, 'disabled' | 'radius'>;
 
 const AddTileButton: FC<Props> = ({
@@ -49,6 +52,9 @@ const AddTileButton: FC<Props> = ({
     activeTabUuid,
     dashboardTabs,
     radius,
+    allowedTileTypes,
+    spaceUuid,
+    maxSelectedValues,
 }) => {
     const [addTileType, setAddTileType] = useState<DashboardTileTypes>();
     const [isAddChartTilesModalOpen, setIsAddChartTilesModalOpen] =
@@ -64,6 +70,19 @@ const AddTileButton: FC<Props> = ({
     const { health } = useApp();
     const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
     const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
+    const isTileTypeAllowed = useCallback(
+        (tileType: DashboardTileTypes) =>
+            !allowedTileTypes || allowedTileTypes.includes(tileType),
+        [allowedTileTypes],
+    );
+    const showSavedCharts = isTileTypeAllowed(DashboardTileTypes.SAVED_CHART);
+    const showNewChart = !allowedTileTypes;
+    const showDataApps =
+        dataAppsEnabled && isTileTypeAllowed(DashboardTileTypes.DATA_APP);
+    const showMarkdown = isTileTypeAllowed(DashboardTileTypes.MARKDOWN);
+    const showLoom = isTileTypeAllowed(DashboardTileTypes.LOOM);
+    const showTabs = !allowedTileTypes;
+    const showHeading = isTileTypeAllowed(DashboardTileTypes.HEADING);
 
     // Calculate current tiles in the active tab
     const currentTabTilesCount = useMemo(() => {
@@ -126,43 +145,51 @@ const AddTileButton: FC<Props> = ({
                     </Menu.Target>
                     <Menu.Dropdown>
                         <Menu.Label>Tiles</Menu.Label>
-                        <Menu.Item
-                            onClick={() => setIsAddChartTilesModalOpen(true)}
-                            leftSection={<MantineIcon icon={IconChartBar} />}
-                        >
-                            Saved chart
-                        </Menu.Item>
+                        {showSavedCharts && (
+                            <Menu.Item
+                                onClick={() =>
+                                    setIsAddChartTilesModalOpen(true)
+                                }
+                                leftSection={
+                                    <MantineIcon icon={IconChartBar} />
+                                }
+                            >
+                                Saved chart
+                            </Menu.Item>
+                        )}
 
-                        <Menu.Item
-                            onClick={() => {
-                                storeDashboard(
-                                    dashboardTiles,
-                                    dashboardFilters,
-                                    haveTilesChanged,
-                                    haveFiltersChanged,
-                                    dashboard?.uuid,
-                                    dashboard?.name,
-                                    activeTabUuid,
-                                    dashboardTabs,
-                                );
-                                void navigate(
-                                    `/projects/${projectUuid}/tables`,
-                                );
-                            }}
-                            leftSection={<MantineIcon icon={IconPlus} />}
-                        >
-                            <Group gap="xxs">
-                                <Text fz="sm">New chart</Text>
-                                <Tooltip label="Charts generated from here are exclusive to this dashboard">
-                                    <MantineIcon
-                                        icon={IconInfoCircle}
-                                        color="ldGray.6"
-                                    />
-                                </Tooltip>
-                            </Group>
-                        </Menu.Item>
+                        {showNewChart && (
+                            <Menu.Item
+                                onClick={() => {
+                                    storeDashboard(
+                                        dashboardTiles,
+                                        dashboardFilters,
+                                        haveTilesChanged,
+                                        haveFiltersChanged,
+                                        dashboard?.uuid,
+                                        dashboard?.name,
+                                        activeTabUuid,
+                                        dashboardTabs,
+                                    );
+                                    void navigate(
+                                        `/projects/${projectUuid}/tables`,
+                                    );
+                                }}
+                                leftSection={<MantineIcon icon={IconPlus} />}
+                            >
+                                <Group gap="xxs">
+                                    <Text fz="sm">New chart</Text>
+                                    <Tooltip label="Charts generated from here are exclusive to this dashboard">
+                                        <MantineIcon
+                                            icon={IconInfoCircle}
+                                            color="ldGray.6"
+                                        />
+                                    </Tooltip>
+                                </Group>
+                            </Menu.Item>
+                        )}
 
-                        {dataAppsEnabled && (
+                        {showDataApps && (
                             <Menu.Item
                                 onClick={() =>
                                     setAddTileType(DashboardTileTypes.DATA_APP)
@@ -175,42 +202,56 @@ const AddTileButton: FC<Props> = ({
                             </Menu.Item>
                         )}
 
-                        <Menu.Item
-                            onClick={() =>
-                                setAddTileType(DashboardTileTypes.MARKDOWN)
-                            }
-                            leftSection={<MantineIcon icon={IconMarkdown} />}
-                        >
-                            Markdown
-                        </Menu.Item>
+                        {showMarkdown && (
+                            <Menu.Item
+                                onClick={() =>
+                                    setAddTileType(DashboardTileTypes.MARKDOWN)
+                                }
+                                leftSection={
+                                    <MantineIcon icon={IconMarkdown} />
+                                }
+                            >
+                                Markdown
+                            </Menu.Item>
+                        )}
 
-                        <Menu.Item
-                            onClick={() =>
-                                setAddTileType(DashboardTileTypes.LOOM)
-                            }
-                            leftSection={<MantineIcon icon={IconVideo} />}
-                        >
-                            Loom video
-                        </Menu.Item>
+                        {showLoom && (
+                            <Menu.Item
+                                onClick={() =>
+                                    setAddTileType(DashboardTileTypes.LOOM)
+                                }
+                                leftSection={<MantineIcon icon={IconVideo} />}
+                            >
+                                Loom video
+                            </Menu.Item>
+                        )}
 
-                        <Menu.Divider />
+                        {(showTabs || showHeading) && <Menu.Divider />}
 
-                        <Menu.Label>Elements</Menu.Label>
-                        <Menu.Item
-                            onClick={() => setAddingTab(true)}
-                            leftSection={<MantineIcon icon={IconNewSection} />}
-                        >
-                            Tab
-                        </Menu.Item>
+                        {(showTabs || showHeading) && (
+                            <Menu.Label>Elements</Menu.Label>
+                        )}
+                        {showTabs && (
+                            <Menu.Item
+                                onClick={() => setAddingTab(true)}
+                                leftSection={
+                                    <MantineIcon icon={IconNewSection} />
+                                }
+                            >
+                                Tab
+                            </Menu.Item>
+                        )}
 
-                        <Menu.Item
-                            onClick={() =>
-                                setAddTileType(DashboardTileTypes.HEADING)
-                            }
-                            leftSection={<MantineIcon icon={IconHeading} />}
-                        >
-                            Heading
-                        </Menu.Item>
+                        {showHeading && (
+                            <Menu.Item
+                                onClick={() =>
+                                    setAddTileType(DashboardTileTypes.HEADING)
+                                }
+                                leftSection={<MantineIcon icon={IconHeading} />}
+                            >
+                                Heading
+                            </Menu.Item>
+                        )}
                     </Menu.Dropdown>
                 </Menu>
             ) : canAddTab ? (
@@ -248,6 +289,8 @@ const AddTileButton: FC<Props> = ({
                 <AddChartTilesModal
                     onClose={() => setIsAddChartTilesModalOpen(false)}
                     onAddTiles={onAddTiles}
+                    spaceUuid={spaceUuid}
+                    maxSelectedValues={maxSelectedValues}
                 />
             )}
 

@@ -258,13 +258,12 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSqlChart> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSqlChart(toSessionUser(req.account), projectUuid, uuid),
+                .getSqlChartFromAccount(req.account!, projectUuid, uuid),
         };
     }
 
@@ -284,14 +283,13 @@ export class SqlRunnerController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiSqlChart> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getSavedSqlService()
-                .getSqlChart(
-                    toSessionUser(req.account),
+                .getSqlChartFromAccount(
+                    req.account!,
                     projectUuid,
                     undefined,
                     slug,

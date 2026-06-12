@@ -395,6 +395,7 @@ export class ServiceRepository
                     searchModel: this.models.getSearchModel(),
                     schedulerService: this.getSchedulerService(),
                     savedChartModel: this.models.getSavedChartModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                     savedChartService: this.getSavedChartService(),
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
