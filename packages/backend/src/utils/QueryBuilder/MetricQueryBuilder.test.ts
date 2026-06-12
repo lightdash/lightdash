@@ -5164,6 +5164,7 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
                         hidden: false,
                         timeInterval: TimeFrames.DAY,
                         timeIntervalBaseDimensionName: 'occurred_at',
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
                     },
                 },
                 metrics: {
@@ -5210,6 +5211,39 @@ describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', 
         expect(query).toContain(
             `CAST(DATE_TRUNC('DAY', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE)`,
         );
+    });
+
+    test('TIMESTAMP base + flag on: day-grain EQUALS filter uses a bare date literal, not timestamptz (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: {
+                ...dayQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: { fieldId: 'events_occurred_at_day' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-15'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        // WHERE LHS is the DATE-cast expression…
+        expect(query).toContain(
+            `CAST(DATE_TRUNC('DAY', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE)`,
+        );
+        // …and the literal must be a bare date, not wrapped as a timestamptz
+        // (LHS is a DATE now — a timestamptz literal would re-introduce a tz drift).
+        expect(query).not.toContain(`'2024-01-15'::timestamp`);
     });
 });
 
