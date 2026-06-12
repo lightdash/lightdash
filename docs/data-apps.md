@@ -502,6 +502,19 @@ The returned value is shaped like a regular SDK result:
 }
 ```
 
+`useLightdash()` also returns `downloadUnderlyingData({ row, metric, fileType, values, limit, filename })` for exporting
+the same raw rows. This follows core's underlying-data export shape without serializing files in the iframe:
+
+1. The SDK executes `POST /api/v2/projects/{projectUuid}/query/underlying-data` for the clicked source row and metric.
+2. It waits for the returned query UUID to be ready using `GET /api/v2/projects/{projectUuid}/query/{queryId}`.
+3. It schedules the backend export with `POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download`.
+4. It polls `GET /api/v1/schedulers/job/{jobId}/status` until the backend returns `fileUrl`.
+5. The iframe triggers the browser download from that backend-generated file URL.
+
+For underlying-data downloads, `limit: 'table'` uses the backend's default underlying-data row limit, `limit: 'all'`
+passes `null` to the underlying-data query so Lightdash applies the configured export caps, and a number requests that
+many rows.
+
 **Downloads** use Lightdash's backend export job pipeline rather than serializing rows in the iframe. `useLightdash()`
 returns `downloadResults({ fileType, values, limit, filename })` after the source query has loaded. The app calls it
 from an explicit user action such as an Export button or menu item.
