@@ -755,8 +755,15 @@ Notes:
             ],
             "type": "object",
           },
-          "customMetrics": {
-            "description": "Define new metric columns the explore doesn't already have. Two kinds:
+          "description": {
+            "description": "A descriptive summary or explanation for the chart.",
+            "type": "string",
+          },
+          "queryConfig": {
+            "additionalProperties": false,
+            "properties": {
+              "customMetrics": {
+                "description": "Define new metric columns the explore doesn't already have. Two kinds:
 
 (1) kind: "aggregation" — a NEW metric built by aggregating a base dimension
     (SUM, AVG, COUNT, COUNT_DISTINCT, MIN, MAX, PERCENTILE, MEDIAN).
@@ -790,2427 +797,814 @@ Example B — "Revenue by month with year-over-year comparison"
   queryConfig.dimensions: ["orders_order_date_month"]
   queryConfig.metrics: ["orders_revenue"]
   customMetrics: [{ kind: "periodComparison", baseMetricId: "orders_revenue", timeDimensionId: "orders_order_date_month", granularity: "MONTH", periodOffset: 12 }], ",
-            "items": {
-              "anyOf": [
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "baseDimensionName": {
-                      "description": "Name of the base dimension/column this metric calculates from",
-                      "type": "string",
-                    },
-                    "description": {
-                      "description": "Brief explanation of what the metric represents, how it is calculated, and why it matters.",
-                      "type": "string",
-                    },
-                    "filters": {
-                      "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name., ",
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "filter": {
-                            "anyOf": [
-                              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "baseDimensionName": {
+                          "description": "Name of the base dimension/column this metric calculates from",
+                          "type": "string",
+                        },
+                        "description": {
+                          "description": "Brief explanation of what the metric represents, how it is calculated, and why it matters.",
+                          "type": "string",
+                        },
+                        "filters": {
+                          "description": "Optional filters for conditional metrics. Each filter needs fieldId (from findFields) and table name., ",
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "filter": {
                                 "anyOf": [
                                   {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "boolean",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "boolean",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "isNull",
-                                          "notNull",
-                                        ],
-                                        "type": "string",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "boolean",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "boolean",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "equals",
-                                          "notEquals",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "values": {
-                                        "items": {
-                                          "type": "boolean",
-                                        },
-                                        "maxItems": 1,
-                                        "minItems": 1,
-                                        "type": "array",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
-                                    ],
-                                    "type": "object",
-                                  },
-                                ],
-                              },
-                              {
-                                "anyOf": [
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "string",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "string",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "isNull",
-                                          "notNull",
-                                        ],
-                                        "type": "string",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "string",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "string",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "equals",
-                                          "notEquals",
-                                          "startsWith",
-                                          "endsWith",
-                                          "include",
-                                          "doesNotInclude",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "values": {
-                                        "items": {
-                                          "type": "string",
-                                        },
-                                        "type": "array",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
-                                    ],
-                                    "type": "object",
-                                  },
-                                ],
-                              },
-                              {
-                                "anyOf": [
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "number",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "number",
-                                          "percentile",
-                                          "median",
-                                          "average",
-                                          "count",
-                                          "count_distinct",
-                                          "sum",
-                                          "sum_distinct",
-                                          "average_distinct",
-                                          "min",
-                                          "max",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "isNull",
-                                          "notNull",
-                                        ],
-                                        "type": "string",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "number",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "number",
-                                          "percentile",
-                                          "median",
-                                          "average",
-                                          "count",
-                                          "count_distinct",
-                                          "sum",
-                                          "sum_distinct",
-                                          "average_distinct",
-                                          "min",
-                                          "max",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "equals",
-                                          "notEquals",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "values": {
-                                        "items": {
-                                          "type": "number",
-                                        },
-                                        "type": "array",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "number",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "number",
-                                          "percentile",
-                                          "median",
-                                          "average",
-                                          "count",
-                                          "count_distinct",
-                                          "sum",
-                                          "sum_distinct",
-                                          "average_distinct",
-                                          "min",
-                                          "max",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "lessThan",
-                                          "lessThanOrEqual",
-                                          "greaterThan",
-                                          "greaterThanOrEqual",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "values": {
-                                        "items": {
-                                          "type": "number",
-                                        },
-                                        "maxItems": 1,
-                                        "minItems": 1,
-                                        "type": "array",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "number",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "number",
-                                          "percentile",
-                                          "median",
-                                          "average",
-                                          "count",
-                                          "count_distinct",
-                                          "sum",
-                                          "sum_distinct",
-                                          "average_distinct",
-                                          "min",
-                                          "max",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "inBetween",
-                                          "notInBetween",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "values": {
-                                        "items": {
-                                          "type": "number",
-                                        },
-                                        "maxItems": 2,
-                                        "minItems": 2,
-                                        "type": "array",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
-                                    ],
-                                    "type": "object",
-                                  },
-                                ],
-                              },
-                              {
-                                "anyOf": [
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "date",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "date",
-                                          "timestamp",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "isNull",
-                                          "notNull",
-                                        ],
-                                        "type": "string",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "date",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "date",
-                                          "timestamp",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "equals",
-                                          "notEquals",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "values": {
-                                        "items": {
-                                          "anyOf": [
-                                            {
-                                              "format": "date",
-                                              "type": "string",
-                                            },
-                                            {
-                                              "format": "date-time",
-                                              "type": "string",
-                                            },
-                                          ],
-                                        },
-                                        "type": "array",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "date",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "date",
-                                          "timestamp",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "inThePast",
-                                          "notInThePast",
-                                          "inTheNext",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "settings": {
+                                    "anyOf": [
+                                      {
                                         "additionalProperties": false,
                                         "properties": {
-                                          "completed": {
-                                            "type": "boolean",
+                                          "fieldFilterType": {
+                                            "const": "boolean",
+                                            "type": "string",
                                           },
-                                          "unitOfTime": {
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
                                             "enum": [
-                                              "days",
-                                              "weeks",
-                                              "months",
-                                              "quarters",
-                                              "years",
+                                              "boolean",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "isNull",
+                                              "notNull",
                                             ],
                                             "type": "string",
                                           },
                                         },
                                         "required": [
-                                          "completed",
-                                          "unitOfTime",
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
                                         ],
                                         "type": "object",
                                       },
-                                      "values": {
-                                        "items": {
-                                          "type": "number",
-                                        },
-                                        "maxItems": 1,
-                                        "minItems": 1,
-                                        "type": "array",
-                                      },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
-                                      "settings",
-                                    ],
-                                    "type": "object",
-                                  },
-                                  {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "date",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "date",
-                                          "timestamp",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "inTheCurrent",
-                                          "notInTheCurrent",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "settings": {
+                                      {
                                         "additionalProperties": false,
                                         "properties": {
-                                          "completed": {
-                                            "const": false,
-                                            "type": "boolean",
+                                          "fieldFilterType": {
+                                            "const": "boolean",
+                                            "type": "string",
                                           },
-                                          "unitOfTime": {
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
                                             "enum": [
-                                              "days",
-                                              "weeks",
-                                              "months",
-                                              "quarters",
-                                              "years",
+                                              "boolean",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "equals",
+                                              "notEquals",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "type": "boolean",
+                                            },
+                                            "maxItems": 1,
+                                            "minItems": 1,
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                        ],
+                                        "type": "object",
+                                      },
+                                    ],
+                                  },
+                                  {
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "string",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "string",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "isNull",
+                                              "notNull",
                                             ],
                                             "type": "string",
                                           },
                                         },
                                         "required": [
-                                          "completed",
-                                          "unitOfTime",
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
                                         ],
                                         "type": "object",
                                       },
-                                      "values": {
-                                        "items": {
-                                          "const": 1,
-                                          "type": "number",
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "string",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "string",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "equals",
+                                              "notEquals",
+                                              "startsWith",
+                                              "endsWith",
+                                              "include",
+                                              "doesNotInclude",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "type": "string",
+                                            },
+                                            "type": "array",
+                                          },
                                         },
-                                        "maxItems": 1,
-                                        "minItems": 1,
-                                        "type": "array",
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                        ],
+                                        "type": "object",
                                       },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
-                                      "settings",
                                     ],
-                                    "type": "object",
                                   },
                                   {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "date",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "date",
-                                          "timestamp",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "enum": [
-                                          "lessThan",
-                                          "lessThanOrEqual",
-                                          "greaterThan",
-                                          "greaterThanOrEqual",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "values": {
-                                        "items": {
-                                          "anyOf": [
-                                            {
-                                              "format": "date",
-                                              "type": "string",
-                                            },
-                                            {
-                                              "format": "date-time",
-                                              "type": "string",
-                                            },
-                                          ],
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "number",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "number",
+                                              "percentile",
+                                              "median",
+                                              "average",
+                                              "count",
+                                              "count_distinct",
+                                              "sum",
+                                              "sum_distinct",
+                                              "average_distinct",
+                                              "min",
+                                              "max",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "isNull",
+                                              "notNull",
+                                            ],
+                                            "type": "string",
+                                          },
                                         },
-                                        "maxItems": 1,
-                                        "minItems": 1,
-                                        "type": "array",
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                        ],
+                                        "type": "object",
                                       },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "number",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "number",
+                                              "percentile",
+                                              "median",
+                                              "average",
+                                              "count",
+                                              "count_distinct",
+                                              "sum",
+                                              "sum_distinct",
+                                              "average_distinct",
+                                              "min",
+                                              "max",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "equals",
+                                              "notEquals",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "type": "number",
+                                            },
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "number",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "number",
+                                              "percentile",
+                                              "median",
+                                              "average",
+                                              "count",
+                                              "count_distinct",
+                                              "sum",
+                                              "sum_distinct",
+                                              "average_distinct",
+                                              "min",
+                                              "max",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "lessThan",
+                                              "lessThanOrEqual",
+                                              "greaterThan",
+                                              "greaterThanOrEqual",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "type": "number",
+                                            },
+                                            "maxItems": 1,
+                                            "minItems": 1,
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "number",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "number",
+                                              "percentile",
+                                              "median",
+                                              "average",
+                                              "count",
+                                              "count_distinct",
+                                              "sum",
+                                              "sum_distinct",
+                                              "average_distinct",
+                                              "min",
+                                              "max",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "inBetween",
+                                              "notInBetween",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "type": "number",
+                                            },
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                        ],
+                                        "type": "object",
+                                      },
                                     ],
-                                    "type": "object",
                                   },
                                   {
-                                    "additionalProperties": false,
-                                    "properties": {
-                                      "fieldFilterType": {
-                                        "const": "date",
-                                        "type": "string",
-                                      },
-                                      "fieldId": {
-                                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                                        "type": "string",
-                                      },
-                                      "fieldType": {
-                                        "enum": [
-                                          "date",
-                                          "timestamp",
-                                        ],
-                                        "type": "string",
-                                      },
-                                      "operator": {
-                                        "const": "inBetween",
-                                        "type": "string",
-                                      },
-                                      "values": {
-                                        "items": {
-                                          "anyOf": [
-                                            {
-                                              "format": "date",
-                                              "type": "string",
-                                            },
-                                            {
-                                              "format": "date-time",
-                                              "type": "string",
-                                            },
-                                          ],
+                                    "anyOf": [
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "date",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "date",
+                                              "timestamp",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "isNull",
+                                              "notNull",
+                                            ],
+                                            "type": "string",
+                                          },
                                         },
-                                        "maxItems": 2,
-                                        "minItems": 2,
-                                        "type": "array",
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                        ],
+                                        "type": "object",
                                       },
-                                    },
-                                    "required": [
-                                      "fieldId",
-                                      "fieldType",
-                                      "fieldFilterType",
-                                      "operator",
-                                      "values",
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "date",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "date",
+                                              "timestamp",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "equals",
+                                              "notEquals",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "format": "date",
+                                                  "type": "string",
+                                                },
+                                                {
+                                                  "format": "date-time",
+                                                  "type": "string",
+                                                },
+                                              ],
+                                            },
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "date",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "date",
+                                              "timestamp",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "inThePast",
+                                              "notInThePast",
+                                              "inTheNext",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "settings": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "completed": {
+                                                "type": "boolean",
+                                              },
+                                              "unitOfTime": {
+                                                "enum": [
+                                                  "days",
+                                                  "weeks",
+                                                  "months",
+                                                  "quarters",
+                                                  "years",
+                                                ],
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "completed",
+                                              "unitOfTime",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "type": "number",
+                                            },
+                                            "maxItems": 1,
+                                            "minItems": 1,
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                          "settings",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "date",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "date",
+                                              "timestamp",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "inTheCurrent",
+                                              "notInTheCurrent",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "settings": {
+                                            "additionalProperties": false,
+                                            "properties": {
+                                              "completed": {
+                                                "const": false,
+                                                "type": "boolean",
+                                              },
+                                              "unitOfTime": {
+                                                "enum": [
+                                                  "days",
+                                                  "weeks",
+                                                  "months",
+                                                  "quarters",
+                                                  "years",
+                                                ],
+                                                "type": "string",
+                                              },
+                                            },
+                                            "required": [
+                                              "completed",
+                                              "unitOfTime",
+                                            ],
+                                            "type": "object",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "const": 1,
+                                              "type": "number",
+                                            },
+                                            "maxItems": 1,
+                                            "minItems": 1,
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                          "settings",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "date",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "date",
+                                              "timestamp",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "enum": [
+                                              "lessThan",
+                                              "lessThanOrEqual",
+                                              "greaterThan",
+                                              "greaterThanOrEqual",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "format": "date",
+                                                  "type": "string",
+                                                },
+                                                {
+                                                  "format": "date-time",
+                                                  "type": "string",
+                                                },
+                                              ],
+                                            },
+                                            "maxItems": 1,
+                                            "minItems": 1,
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                        ],
+                                        "type": "object",
+                                      },
+                                      {
+                                        "additionalProperties": false,
+                                        "properties": {
+                                          "fieldFilterType": {
+                                            "const": "date",
+                                            "type": "string",
+                                          },
+                                          "fieldId": {
+                                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                            "type": "string",
+                                          },
+                                          "fieldType": {
+                                            "enum": [
+                                              "date",
+                                              "timestamp",
+                                            ],
+                                            "type": "string",
+                                          },
+                                          "operator": {
+                                            "const": "inBetween",
+                                            "type": "string",
+                                          },
+                                          "values": {
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "format": "date",
+                                                  "type": "string",
+                                                },
+                                                {
+                                                  "format": "date-time",
+                                                  "type": "string",
+                                                },
+                                              ],
+                                            },
+                                            "maxItems": 2,
+                                            "minItems": 2,
+                                            "type": "array",
+                                          },
+                                        },
+                                        "required": [
+                                          "fieldId",
+                                          "fieldType",
+                                          "fieldFilterType",
+                                          "operator",
+                                          "values",
+                                        ],
+                                        "type": "object",
+                                      },
                                     ],
-                                    "type": "object",
                                   },
                                 ],
                               },
+                              "table": {
+                                "description": "Table name this filter field belongs to",
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "filter",
+                              "table",
                             ],
+                            "type": "object",
                           },
-                          "table": {
-                            "description": "Table name this filter field belongs to",
-                            "type": "string",
-                          },
+                          "type": "array",
                         },
-                        "required": [
-                          "filter",
-                          "table",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
-                    },
-                    "kind": {
-                      "const": "aggregation",
-                      "description": "Custom metric defined by applying an aggregation to a base dimension. Use when the requested metric does not yet exist in the explore (e.g. "average customer age", "count of completed orders").",
-                      "type": "string",
-                    },
-                    "label": {
-                      "description": "Human-readable label for the metric (e.g., "Average Customer Age", "Total Revenue")",
-                      "type": "string",
-                    },
-                    "name": {
-                      "description": "Unique metric name using snake_case (e.g., "avg_customer_age", "total_revenue")",
-                      "type": "string",
-                    },
-                    "table": {
-                      "description": "Table name where the base column exists. Match with available dimensions in the explore.",
-                      "type": "string",
-                    },
-                    "type": {
-                      "description": "Aggregation type. If the base dimension type is STRING, TIMESTAMP, DATE, BOOLEAN, use COUNT_DISTINCT, COUNT, MIN, MAX. If NUMBER, use MIN, MAX, SUM, PERCENTILE, MEDIAN, AVERAGE, COUNT_DISTINCT, COUNT. If BOOLEAN, use COUNT_DISTINCT, COUNT.",
-                      "enum": [
-                        "average",
-                        "count",
-                        "count_distinct",
-                        "max",
-                        "min",
-                        "sum",
-                        "percentile",
-                        "median",
-                      ],
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "kind",
-                    "name",
-                    "label",
-                    "description",
-                    "baseDimensionName",
-                    "table",
-                    "type",
-                  ],
-                  "type": "object",
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "baseMetricId": {
-                      "description": "Field ID of the metric to shift. Must appear in queryConfig.metrics OR be an aggregation custom metric defined in this same customMetrics array. Format: "table_metric_name".",
-                      "type": "string",
-                    },
-                    "granularity": {
-                      "description": "Bucket unit for the offset. Must equal the bucket encoded in timeDimensionId's suffix.",
-                      "enum": [
-                        "DAY",
-                        "WEEK",
-                        "MONTH",
-                        "QUARTER",
-                        "YEAR",
-                      ],
-                      "type": "string",
-                    },
-                    "kind": {
-                      "const": "periodComparison",
-                      "description": "Custom metric that compares a base metric against itself shifted back in time. Use for "month-over-month", "year-over-year", "vs last quarter", "compared to N periods ago".",
-                      "type": "string",
-                    },
-                    "periodOffset": {
-                      "description": "Number of bucket units (granularity) to look back. >= 1. For year-over-year on monthly buckets: granularity=MONTH, periodOffset=12.",
-                      "minimum": 1,
-                      "type": "integer",
-                    },
-                    "timeDimensionId": {
-                      "description": "Field ID of the time dimension to anchor the shift on. Must be present in queryConfig.dimensions. Format: "table_column_granularity" — the suffix encodes the bucket (e.g. "..._month" → MONTH bucket).",
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "kind",
-                    "baseMetricId",
-                    "timeDimensionId",
-                    "granularity",
-                    "periodOffset",
-                  ],
-                  "type": "object",
-                },
-              ],
-            },
-            "type": "array",
-          },
-          "description": {
-            "description": "A descriptive summary or explanation for the chart.",
-            "type": "string",
-          },
-          "filters": {
-            "additionalProperties": false,
-            "description": ", ",
-            "properties": {
-              "dimensions": {
-                "description": ", ",
-                "items": {
-                  "anyOf": [
-                    {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "boolean",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "boolean",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "isNull",
-                                "notNull",
-                              ],
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "boolean",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "boolean",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "equals",
-                                "notEquals",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "boolean",
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                      ],
-                    },
-                    {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "string",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "string",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "isNull",
-                                "notNull",
-                              ],
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "string",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "string",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "equals",
-                                "notEquals",
-                                "startsWith",
-                                "endsWith",
-                                "include",
-                                "doesNotInclude",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "string",
-                              },
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                      ],
-                    },
-                    {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "number",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "number",
-                                "percentile",
-                                "median",
-                                "average",
-                                "count",
-                                "count_distinct",
-                                "sum",
-                                "sum_distinct",
-                                "average_distinct",
-                                "min",
-                                "max",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "isNull",
-                                "notNull",
-                              ],
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "number",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "number",
-                                "percentile",
-                                "median",
-                                "average",
-                                "count",
-                                "count_distinct",
-                                "sum",
-                                "sum_distinct",
-                                "average_distinct",
-                                "min",
-                                "max",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "equals",
-                                "notEquals",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "number",
-                              },
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "number",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "number",
-                                "percentile",
-                                "median",
-                                "average",
-                                "count",
-                                "count_distinct",
-                                "sum",
-                                "sum_distinct",
-                                "average_distinct",
-                                "min",
-                                "max",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "lessThan",
-                                "lessThanOrEqual",
-                                "greaterThan",
-                                "greaterThanOrEqual",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "number",
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "number",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "number",
-                                "percentile",
-                                "median",
-                                "average",
-                                "count",
-                                "count_distinct",
-                                "sum",
-                                "sum_distinct",
-                                "average_distinct",
-                                "min",
-                                "max",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "inBetween",
-                                "notInBetween",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "number",
-                              },
-                              "maxItems": 2,
-                              "minItems": 2,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                      ],
-                    },
-                    {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "isNull",
-                                "notNull",
-                              ],
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "equals",
-                                "notEquals",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "anyOf": [
-                                  {
-                                    "format": "date",
-                                    "type": "string",
-                                  },
-                                  {
-                                    "format": "date-time",
-                                    "type": "string",
-                                  },
-                                ],
-                              },
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "inThePast",
-                                "notInThePast",
-                                "inTheNext",
-                              ],
-                              "type": "string",
-                            },
-                            "settings": {
-                              "additionalProperties": false,
-                              "properties": {
-                                "completed": {
-                                  "type": "boolean",
-                                },
-                                "unitOfTime": {
-                                  "enum": [
-                                    "days",
-                                    "weeks",
-                                    "months",
-                                    "quarters",
-                                    "years",
-                                  ],
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "completed",
-                                "unitOfTime",
-                              ],
-                              "type": "object",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "number",
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                            "settings",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "inTheCurrent",
-                                "notInTheCurrent",
-                              ],
-                              "type": "string",
-                            },
-                            "settings": {
-                              "additionalProperties": false,
-                              "properties": {
-                                "completed": {
-                                  "const": false,
-                                  "type": "boolean",
-                                },
-                                "unitOfTime": {
-                                  "enum": [
-                                    "days",
-                                    "weeks",
-                                    "months",
-                                    "quarters",
-                                    "years",
-                                  ],
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "completed",
-                                "unitOfTime",
-                              ],
-                              "type": "object",
-                            },
-                            "values": {
-                              "items": {
-                                "const": 1,
-                                "type": "number",
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                            "settings",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "lessThan",
-                                "lessThanOrEqual",
-                                "greaterThan",
-                                "greaterThanOrEqual",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "anyOf": [
-                                  {
-                                    "format": "date",
-                                    "type": "string",
-                                  },
-                                  {
-                                    "format": "date-time",
-                                    "type": "string",
-                                  },
-                                ],
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "const": "inBetween",
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "anyOf": [
-                                  {
-                                    "format": "date",
-                                    "type": "string",
-                                  },
-                                  {
-                                    "format": "date-time",
-                                    "type": "string",
-                                  },
-                                ],
-                              },
-                              "maxItems": 2,
-                              "minItems": 2,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                      ],
-                    },
-                  ],
-                },
-                "type": "array",
-              },
-              "metrics": {
-                "description": ", ",
-                "items": {
-                  "anyOf": [
-                    {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "boolean",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "boolean",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "isNull",
-                                "notNull",
-                              ],
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "boolean",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "boolean",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "equals",
-                                "notEquals",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "boolean",
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                      ],
-                    },
-                    {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "string",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "string",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "isNull",
-                                "notNull",
-                              ],
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "string",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "string",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "equals",
-                                "notEquals",
-                                "startsWith",
-                                "endsWith",
-                                "include",
-                                "doesNotInclude",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "string",
-                              },
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                      ],
-                    },
-                    {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "number",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "number",
-                                "percentile",
-                                "median",
-                                "average",
-                                "count",
-                                "count_distinct",
-                                "sum",
-                                "sum_distinct",
-                                "average_distinct",
-                                "min",
-                                "max",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "isNull",
-                                "notNull",
-                              ],
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "number",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "number",
-                                "percentile",
-                                "median",
-                                "average",
-                                "count",
-                                "count_distinct",
-                                "sum",
-                                "sum_distinct",
-                                "average_distinct",
-                                "min",
-                                "max",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "equals",
-                                "notEquals",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "number",
-                              },
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "number",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "number",
-                                "percentile",
-                                "median",
-                                "average",
-                                "count",
-                                "count_distinct",
-                                "sum",
-                                "sum_distinct",
-                                "average_distinct",
-                                "min",
-                                "max",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "lessThan",
-                                "lessThanOrEqual",
-                                "greaterThan",
-                                "greaterThanOrEqual",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "number",
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "number",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "number",
-                                "percentile",
-                                "median",
-                                "average",
-                                "count",
-                                "count_distinct",
-                                "sum",
-                                "sum_distinct",
-                                "average_distinct",
-                                "min",
-                                "max",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "inBetween",
-                                "notInBetween",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "number",
-                              },
-                              "maxItems": 2,
-                              "minItems": 2,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                      ],
-                    },
-                    {
-                      "anyOf": [
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "isNull",
-                                "notNull",
-                              ],
-                              "type": "string",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "equals",
-                                "notEquals",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "anyOf": [
-                                  {
-                                    "format": "date",
-                                    "type": "string",
-                                  },
-                                  {
-                                    "format": "date-time",
-                                    "type": "string",
-                                  },
-                                ],
-                              },
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "inThePast",
-                                "notInThePast",
-                                "inTheNext",
-                              ],
-                              "type": "string",
-                            },
-                            "settings": {
-                              "additionalProperties": false,
-                              "properties": {
-                                "completed": {
-                                  "type": "boolean",
-                                },
-                                "unitOfTime": {
-                                  "enum": [
-                                    "days",
-                                    "weeks",
-                                    "months",
-                                    "quarters",
-                                    "years",
-                                  ],
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "completed",
-                                "unitOfTime",
-                              ],
-                              "type": "object",
-                            },
-                            "values": {
-                              "items": {
-                                "type": "number",
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                            "settings",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "inTheCurrent",
-                                "notInTheCurrent",
-                              ],
-                              "type": "string",
-                            },
-                            "settings": {
-                              "additionalProperties": false,
-                              "properties": {
-                                "completed": {
-                                  "const": false,
-                                  "type": "boolean",
-                                },
-                                "unitOfTime": {
-                                  "enum": [
-                                    "days",
-                                    "weeks",
-                                    "months",
-                                    "quarters",
-                                    "years",
-                                  ],
-                                  "type": "string",
-                                },
-                              },
-                              "required": [
-                                "completed",
-                                "unitOfTime",
-                              ],
-                              "type": "object",
-                            },
-                            "values": {
-                              "items": {
-                                "const": 1,
-                                "type": "number",
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                            "settings",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "enum": [
-                                "lessThan",
-                                "lessThanOrEqual",
-                                "greaterThan",
-                                "greaterThanOrEqual",
-                              ],
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "anyOf": [
-                                  {
-                                    "format": "date",
-                                    "type": "string",
-                                  },
-                                  {
-                                    "format": "date-time",
-                                    "type": "string",
-                                  },
-                                ],
-                              },
-                              "maxItems": 1,
-                              "minItems": 1,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                        {
-                          "additionalProperties": false,
-                          "properties": {
-                            "fieldFilterType": {
-                              "const": "date",
-                              "type": "string",
-                            },
-                            "fieldId": {
-                              "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                              "type": "string",
-                            },
-                            "fieldType": {
-                              "enum": [
-                                "date",
-                                "timestamp",
-                              ],
-                              "type": "string",
-                            },
-                            "operator": {
-                              "const": "inBetween",
-                              "type": "string",
-                            },
-                            "values": {
-                              "items": {
-                                "anyOf": [
-                                  {
-                                    "format": "date",
-                                    "type": "string",
-                                  },
-                                  {
-                                    "format": "date-time",
-                                    "type": "string",
-                                  },
-                                ],
-                              },
-                              "maxItems": 2,
-                              "minItems": 2,
-                              "type": "array",
-                            },
-                          },
-                          "required": [
-                            "fieldId",
-                            "fieldType",
-                            "fieldFilterType",
-                            "operator",
-                            "values",
-                          ],
-                          "type": "object",
-                        },
-                      ],
-                    },
-                  ],
-                },
-                "type": "array",
-              },
-              "tableCalculations": {
-                "description": ", ",
-                "items": {
-                  "anyOf": [
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "fieldFilterType": {
-                          "const": "number",
+                        "kind": {
+                          "const": "aggregation",
+                          "description": "Custom metric defined by applying an aggregation to a base dimension. Use when the requested metric does not yet exist in the explore (e.g. "average customer age", "count of completed orders").",
                           "type": "string",
                         },
-                        "fieldId": {
-                          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                        "label": {
+                          "description": "Human-readable label for the metric (e.g., "Average Customer Age", "Total Revenue")",
                           "type": "string",
                         },
-                        "fieldType": {
+                        "name": {
+                          "description": "Unique metric name using snake_case (e.g., "avg_customer_age", "total_revenue")",
+                          "type": "string",
+                        },
+                        "table": {
+                          "description": "Table name where the base column exists. Match with available dimensions in the explore.",
+                          "type": "string",
+                        },
+                        "type": {
+                          "description": "Aggregation type. If the base dimension type is STRING, TIMESTAMP, DATE, BOOLEAN, use COUNT_DISTINCT, COUNT, MIN, MAX. If NUMBER, use MIN, MAX, SUM, PERCENTILE, MEDIAN, AVERAGE, COUNT_DISTINCT, COUNT. If BOOLEAN, use COUNT_DISTINCT, COUNT.",
                           "enum": [
-                            "number",
-                            "percentile",
-                            "median",
                             "average",
                             "count",
                             "count_distinct",
-                            "sum",
-                            "sum_distinct",
-                            "average_distinct",
-                            "min",
                             "max",
-                          ],
-                          "type": "string",
-                        },
-                        "operator": {
-                          "enum": [
-                            "isNull",
-                            "notNull",
+                            "min",
+                            "sum",
+                            "percentile",
+                            "median",
                           ],
                           "type": "string",
                         },
                       },
                       "required": [
-                        "fieldId",
-                        "fieldType",
-                        "fieldFilterType",
-                        "operator",
+                        "kind",
+                        "name",
+                        "label",
+                        "description",
+                        "baseDimensionName",
+                        "table",
+                        "type",
                       ],
                       "type": "object",
                     },
                     {
                       "additionalProperties": false,
                       "properties": {
-                        "fieldFilterType": {
-                          "const": "number",
+                        "baseMetricId": {
+                          "description": "Field ID of the metric to shift. Must appear in queryConfig.metrics OR be an aggregation custom metric defined in this same customMetrics array. Format: "table_metric_name".",
                           "type": "string",
                         },
-                        "fieldId": {
-                          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                          "type": "string",
-                        },
-                        "fieldType": {
+                        "granularity": {
+                          "description": "Bucket unit for the offset. Must equal the bucket encoded in timeDimensionId's suffix.",
                           "enum": [
-                            "number",
-                            "percentile",
-                            "median",
-                            "average",
-                            "count",
-                            "count_distinct",
-                            "sum",
-                            "sum_distinct",
-                            "average_distinct",
-                            "min",
-                            "max",
+                            "DAY",
+                            "WEEK",
+                            "MONTH",
+                            "QUARTER",
+                            "YEAR",
                           ],
                           "type": "string",
                         },
-                        "operator": {
-                          "enum": [
-                            "equals",
-                            "notEquals",
-                          ],
+                        "kind": {
+                          "const": "periodComparison",
+                          "description": "Custom metric that compares a base metric against itself shifted back in time. Use for "month-over-month", "year-over-year", "vs last quarter", "compared to N periods ago".",
                           "type": "string",
                         },
-                        "values": {
-                          "items": {
-                            "type": "number",
-                          },
-                          "type": "array",
+                        "periodOffset": {
+                          "description": "Number of bucket units (granularity) to look back. >= 1. For year-over-year on monthly buckets: granularity=MONTH, periodOffset=12.",
+                          "minimum": 1,
+                          "type": "integer",
+                        },
+                        "timeDimensionId": {
+                          "description": "Field ID of the time dimension to anchor the shift on. Must be present in queryConfig.dimensions. Format: "table_column_granularity" — the suffix encodes the bucket (e.g. "..._month" → MONTH bucket).",
+                          "type": "string",
                         },
                       },
                       "required": [
-                        "fieldId",
-                        "fieldType",
-                        "fieldFilterType",
-                        "operator",
-                        "values",
-                      ],
-                      "type": "object",
-                    },
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "fieldFilterType": {
-                          "const": "number",
-                          "type": "string",
-                        },
-                        "fieldId": {
-                          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                          "type": "string",
-                        },
-                        "fieldType": {
-                          "enum": [
-                            "number",
-                            "percentile",
-                            "median",
-                            "average",
-                            "count",
-                            "count_distinct",
-                            "sum",
-                            "sum_distinct",
-                            "average_distinct",
-                            "min",
-                            "max",
-                          ],
-                          "type": "string",
-                        },
-                        "operator": {
-                          "enum": [
-                            "lessThan",
-                            "lessThanOrEqual",
-                            "greaterThan",
-                            "greaterThanOrEqual",
-                          ],
-                          "type": "string",
-                        },
-                        "values": {
-                          "items": {
-                            "type": "number",
-                          },
-                          "maxItems": 1,
-                          "minItems": 1,
-                          "type": "array",
-                        },
-                      },
-                      "required": [
-                        "fieldId",
-                        "fieldType",
-                        "fieldFilterType",
-                        "operator",
-                        "values",
-                      ],
-                      "type": "object",
-                    },
-                    {
-                      "additionalProperties": false,
-                      "properties": {
-                        "fieldFilterType": {
-                          "const": "number",
-                          "type": "string",
-                        },
-                        "fieldId": {
-                          "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                          "type": "string",
-                        },
-                        "fieldType": {
-                          "enum": [
-                            "number",
-                            "percentile",
-                            "median",
-                            "average",
-                            "count",
-                            "count_distinct",
-                            "sum",
-                            "sum_distinct",
-                            "average_distinct",
-                            "min",
-                            "max",
-                          ],
-                          "type": "string",
-                        },
-                        "operator": {
-                          "enum": [
-                            "inBetween",
-                            "notInBetween",
-                          ],
-                          "type": "string",
-                        },
-                        "values": {
-                          "items": {
-                            "type": "number",
-                          },
-                          "maxItems": 2,
-                          "minItems": 2,
-                          "type": "array",
-                        },
-                      },
-                      "required": [
-                        "fieldId",
-                        "fieldType",
-                        "fieldFilterType",
-                        "operator",
-                        "values",
+                        "kind",
+                        "baseMetricId",
+                        "timeDimensionId",
+                        "granularity",
+                        "periodOffset",
                       ],
                       "type": "object",
                     },
@@ -3218,23 +1612,6 @@ Example B — "Revenue by month with year-over-year comparison"
                 },
                 "type": "array",
               },
-              "type": {
-                "description": "Type of filter group operation",
-                "enum": [
-                  "and",
-                  "or",
-                ],
-                "type": "string",
-              },
-            },
-            "required": [
-              "type",
-            ],
-            "type": "object",
-          },
-          "queryConfig": {
-            "additionalProperties": false,
-            "properties": {
               "dimensions": {
                 "description": "The field ids for the dimensions to group the metrics by. dimensions[0] is the primary grouping (x-axis for charts). dimensions[1+] create additional grouping levels.",
                 "items": {
@@ -3249,6 +1626,7 @@ Example B — "Revenue by month with year-over-year comparison"
               },
               "filters": {
                 "additionalProperties": false,
+                "description": ", ",
                 "properties": {
                   "dimensions": {
                     "description": ", ",
@@ -4907,17 +3285,8 @@ Example B — "Revenue by month with year-over-year comparison"
                 },
                 "type": "array",
               },
-            },
-            "required": [
-              "exploreName",
-              "dimensions",
-              "metrics",
-              "sorts",
-            ],
-            "type": "object",
-          },
-          "tableCalculations": {
-            "description": "
+              "tableCalculations": {
+                "description": "
 Table calculations perform row-by-row calculations on query results without collapsing rows. Similar to SQL window functions.
 
 **Available Types:**
@@ -4930,250 +3299,250 @@ Table calculations perform row-by-row calculations on query results without coll
 - Multiple calculations can be combined in a single query
 - All fields referenced must exist in the query (dimensions, metrics, or other table calculations)
 , ",
-            "items": {
-              "anyOf": [
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "displayName": {
-                      "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                      "type": "string",
-                    },
-                    "fieldId": {
-                      "description": "Field whose values you want to compare "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                      "type": "string",
-                    },
-                    "name": {
-                      "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                      "type": "string",
-                    },
-                    "orderBy": {
-                      "description": "Specifies the order in which rows are processed by the table calculation.
-For time-series: typically order by date/time ascending.
-For rankings: order by the metric you want to rank, descending for highest-first.",
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "fieldId": {
-                            "description": "Field to order by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": "string",
-                          },
-                          "order": {
-                            "description": ", ",
-                            "enum": [
-                              "asc",
-                              "desc",
-                            ],
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "fieldId",
-                        ],
-                        "type": "object",
-                      },
-                      "minItems": 1,
-                      "type": "array",
-                    },
-                    "partitionBy": {
-                      "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows)., ",
-                      "items": {
-                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                        "type": "string",
-                      },
-                      "type": "array",
-                    },
-                    "type": {
-                      "const": "percent_change_from_previous",
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "name",
-                    "displayName",
-                    "type",
-                    "fieldId",
-                    "orderBy",
-                  ],
-                  "type": "object",
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "displayName": {
-                      "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                      "type": "string",
-                    },
-                    "fieldId": {
-                      "description": "Field whose values you want to compare "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                      "type": "string",
-                    },
-                    "name": {
-                      "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                      "type": "string",
-                    },
-                    "orderBy": {
-                      "description": "Specifies the order in which rows are processed by the table calculation.
-For time-series: typically order by date/time ascending.
-For rankings: order by the metric you want to rank, descending for highest-first.",
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "fieldId": {
-                            "description": "Field to order by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": "string",
-                          },
-                          "order": {
-                            "description": ", ",
-                            "enum": [
-                              "asc",
-                              "desc",
-                            ],
-                            "type": "string",
-                          },
-                        },
-                        "required": [
-                          "fieldId",
-                        ],
-                        "type": "object",
-                      },
-                      "minItems": 1,
-                      "type": "array",
-                    },
-                    "partitionBy": {
-                      "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows)., ",
-                      "items": {
-                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                        "type": "string",
-                      },
-                      "type": "array",
-                    },
-                    "type": {
-                      "const": "percent_of_previous_value",
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "name",
-                    "displayName",
-                    "type",
-                    "fieldId",
-                    "orderBy",
-                  ],
-                  "type": "object",
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "displayName": {
-                      "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                      "type": "string",
-                    },
-                    "fieldId": {
-                      "description": "Field to calculate percentage of column total "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                      "type": "string",
-                    },
-                    "name": {
-                      "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                      "type": "string",
-                    },
-                    "partitionBy": {
-                      "description": "Fields to PARTITION BY - divides result set into independent groups.
-Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
-Empty array or null: single partition (calculations across all rows)., ",
-                      "items": {
-                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                        "type": "string",
-                      },
-                      "type": "array",
-                    },
-                    "type": {
-                      "const": "percent_of_column_total",
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "name",
-                    "displayName",
-                    "type",
-                    "fieldId",
-                  ],
-                  "type": "object",
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "displayName": {
-                      "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                      "type": "string",
-                    },
-                    "fieldId": {
-                      "description": "Field to rank by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                      "type": "string",
-                    },
-                    "name": {
-                      "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                      "type": "string",
-                    },
-                    "type": {
-                      "const": "rank_in_column",
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "name",
-                    "displayName",
-                    "type",
-                    "fieldId",
-                  ],
-                  "type": "object",
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "displayName": {
-                      "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                      "type": "string",
-                    },
-                    "fieldId": {
-                      "description": "Field to calculate running total of "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                      "type": "string",
-                    },
-                    "name": {
-                      "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                      "type": "string",
-                    },
-                    "type": {
-                      "const": "running_total",
-                      "type": "string",
-                    },
-                  },
-                  "required": [
-                    "name",
-                    "displayName",
-                    "type",
-                    "fieldId",
-                  ],
-                  "type": "object",
-                },
-                {
-                  "additionalProperties": false,
-                  "properties": {
-                    "displayName": {
-                      "description": "Display name for the table calculation, e.g. "MoM revenue change"",
-                      "type": "string",
-                    },
-                    "fieldId": {
-                      "description": "Field to aggregate (required for sum/avg/count/min/max, not used for row_number/percent_rank/cume_dist/rank) "fieldId" must come from the previously searched Fields; otherwise, it will throw an error, Field to aggregate (required for sum/avg/count/min/max, not used for row_number/percent_rank/cume_dist/rank) "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                      "type": "string",
-                    },
-                    "frame": {
+                "items": {
+                  "anyOf": [
+                    {
                       "additionalProperties": false,
-                      "description": "Defines which rows to include in calculation. Null uses database defaults.
+                      "properties": {
+                        "displayName": {
+                          "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                          "type": "string",
+                        },
+                        "fieldId": {
+                          "description": "Field whose values you want to compare "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                          "type": "string",
+                        },
+                        "name": {
+                          "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                          "type": "string",
+                        },
+                        "orderBy": {
+                          "description": "Specifies the order in which rows are processed by the table calculation.
+For time-series: typically order by date/time ascending.
+For rankings: order by the metric you want to rank, descending for highest-first.",
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "fieldId": {
+                                "description": "Field to order by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                "type": "string",
+                              },
+                              "order": {
+                                "description": ", ",
+                                "enum": [
+                                  "asc",
+                                  "desc",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
+                            ],
+                            "type": "object",
+                          },
+                          "minItems": 1,
+                          "type": "array",
+                        },
+                        "partitionBy": {
+                          "description": "Fields to PARTITION BY - divides result set into independent groups.
+Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
+Empty array or null: single partition (calculations across all rows)., ",
+                          "items": {
+                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "type": {
+                          "const": "percent_change_from_previous",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "displayName",
+                        "type",
+                        "fieldId",
+                        "orderBy",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "displayName": {
+                          "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                          "type": "string",
+                        },
+                        "fieldId": {
+                          "description": "Field whose values you want to compare "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                          "type": "string",
+                        },
+                        "name": {
+                          "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                          "type": "string",
+                        },
+                        "orderBy": {
+                          "description": "Specifies the order in which rows are processed by the table calculation.
+For time-series: typically order by date/time ascending.
+For rankings: order by the metric you want to rank, descending for highest-first.",
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "fieldId": {
+                                "description": "Field to order by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                "type": "string",
+                              },
+                              "order": {
+                                "description": ", ",
+                                "enum": [
+                                  "asc",
+                                  "desc",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
+                            ],
+                            "type": "object",
+                          },
+                          "minItems": 1,
+                          "type": "array",
+                        },
+                        "partitionBy": {
+                          "description": "Fields to PARTITION BY - divides result set into independent groups.
+Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
+Empty array or null: single partition (calculations across all rows)., ",
+                          "items": {
+                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "type": {
+                          "const": "percent_of_previous_value",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "displayName",
+                        "type",
+                        "fieldId",
+                        "orderBy",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "displayName": {
+                          "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                          "type": "string",
+                        },
+                        "fieldId": {
+                          "description": "Field to calculate percentage of column total "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                          "type": "string",
+                        },
+                        "name": {
+                          "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                          "type": "string",
+                        },
+                        "partitionBy": {
+                          "description": "Fields to PARTITION BY - divides result set into independent groups.
+Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
+Empty array or null: single partition (calculations across all rows)., ",
+                          "items": {
+                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "type": {
+                          "const": "percent_of_column_total",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "displayName",
+                        "type",
+                        "fieldId",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "displayName": {
+                          "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                          "type": "string",
+                        },
+                        "fieldId": {
+                          "description": "Field to rank by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                          "type": "string",
+                        },
+                        "name": {
+                          "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                          "type": "string",
+                        },
+                        "type": {
+                          "const": "rank_in_column",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "displayName",
+                        "type",
+                        "fieldId",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "displayName": {
+                          "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                          "type": "string",
+                        },
+                        "fieldId": {
+                          "description": "Field to calculate running total of "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                          "type": "string",
+                        },
+                        "name": {
+                          "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                          "type": "string",
+                        },
+                        "type": {
+                          "const": "running_total",
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "displayName",
+                        "type",
+                        "fieldId",
+                      ],
+                      "type": "object",
+                    },
+                    {
+                      "additionalProperties": false,
+                      "properties": {
+                        "displayName": {
+                          "description": "Display name for the table calculation, e.g. "MoM revenue change"",
+                          "type": "string",
+                        },
+                        "fieldId": {
+                          "description": "Field to aggregate (required for sum/avg/count/min/max, not used for row_number/percent_rank/cume_dist/rank) "fieldId" must come from the previously searched Fields; otherwise, it will throw an error, Field to aggregate (required for sum/avg/count/min/max, not used for row_number/percent_rank/cume_dist/rank) "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                          "type": "string",
+                        },
+                        "frame": {
+                          "additionalProperties": false,
+                          "description": "Defines which rows to include in calculation. Null uses database defaults.
 
 **Common patterns:**
 - Moving average (N periods): {frameType: "rows", start: {type: "preceding", offset: N-1}, end: {type: "current_row"}}
@@ -5184,121 +3553,121 @@ Empty array or null: single partition (calculations across all rows)., ",
 - Aggregates WITH ORDER BY: RANGE UNBOUNDED PRECEDING AND CURRENT ROW (cumulative)
 - Aggregates WITHOUT ORDER BY: Entire partition (all rows)
 - Ranking functions: Always use entire partition (frame clause has no effect), ",
-                      "properties": {
-                        "end": {
-                          "additionalProperties": false,
-                          "description": "End boundary (required)",
                           "properties": {
-                            "offset": {
-                              "description": "Number of rows for PRECEDING/FOLLOWING, ",
-                              "exclusiveMinimum": 0,
-                              "type": "integer",
-                            },
-                            "type": {
-                              "enum": [
-                                "unbounded_preceding",
-                                "preceding",
-                                "current_row",
-                                "following",
-                                "unbounded_following",
+                            "end": {
+                              "additionalProperties": false,
+                              "description": "End boundary (required)",
+                              "properties": {
+                                "offset": {
+                                  "description": "Number of rows for PRECEDING/FOLLOWING, ",
+                                  "exclusiveMinimum": 0,
+                                  "type": "integer",
+                                },
+                                "type": {
+                                  "enum": [
+                                    "unbounded_preceding",
+                                    "preceding",
+                                    "current_row",
+                                    "following",
+                                    "unbounded_following",
+                                  ],
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "type",
                               ],
-                              "type": "string",
+                              "type": "object",
                             },
-                          },
-                          "required": [
-                            "type",
-                          ],
-                          "type": "object",
-                        },
-                        "frameType": {
-                          "description": "Frame type:
+                            "frameType": {
+                              "description": "Frame type:
 - rows: Physical row count
 - range: Logical value-based (includes peer rows with same ORDER BY value)",
-                          "enum": [
-                            "rows",
-                            "range",
-                          ],
-                          "type": "string",
-                        },
-                        "start": {
-                          "additionalProperties": false,
-                          "description": "Start boundary. Null for single-boundary syntax., ",
-                          "properties": {
-                            "offset": {
-                              "description": "Number of rows for PRECEDING/FOLLOWING (e.g., 6 for "6 PRECEDING"), ",
-                              "exclusiveMinimum": 0,
-                              "type": "integer",
-                            },
-                            "type": {
                               "enum": [
-                                "unbounded_preceding",
-                                "preceding",
-                                "current_row",
-                                "following",
-                                "unbounded_following",
+                                "rows",
+                                "range",
                               ],
                               "type": "string",
                             },
+                            "start": {
+                              "additionalProperties": false,
+                              "description": "Start boundary. Null for single-boundary syntax., ",
+                              "properties": {
+                                "offset": {
+                                  "description": "Number of rows for PRECEDING/FOLLOWING (e.g., 6 for "6 PRECEDING"), ",
+                                  "exclusiveMinimum": 0,
+                                  "type": "integer",
+                                },
+                                "type": {
+                                  "enum": [
+                                    "unbounded_preceding",
+                                    "preceding",
+                                    "current_row",
+                                    "following",
+                                    "unbounded_following",
+                                  ],
+                                  "type": "string",
+                                },
+                              },
+                              "required": [
+                                "type",
+                              ],
+                              "type": "object",
+                            },
                           },
                           "required": [
-                            "type",
+                            "frameType",
+                            "end",
                           ],
                           "type": "object",
                         },
-                      },
-                      "required": [
-                        "frameType",
-                        "end",
-                      ],
-                      "type": "object",
-                    },
-                    "name": {
-                      "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
-                      "type": "string",
-                    },
-                    "orderBy": {
-                      "description": "Specifies the order in which rows are processed by the table calculation.
+                        "name": {
+                          "description": "Unique name for the table calculation, e.g. "percent_change_from_previous"",
+                          "type": "string",
+                        },
+                        "orderBy": {
+                          "description": "Specifies the order in which rows are processed by the table calculation.
 For time-series: typically order by date/time ascending.
 For rankings: order by the metric you want to rank, descending for highest-first., ",
-                      "items": {
-                        "additionalProperties": false,
-                        "properties": {
-                          "fieldId": {
-                            "description": "Field to order by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                            "type": "string",
-                          },
-                          "order": {
-                            "description": ", ",
-                            "enum": [
-                              "asc",
-                              "desc",
+                          "items": {
+                            "additionalProperties": false,
+                            "properties": {
+                              "fieldId": {
+                                "description": "Field to order by "fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                                "type": "string",
+                              },
+                              "order": {
+                                "description": ", ",
+                                "enum": [
+                                  "asc",
+                                  "desc",
+                                ],
+                                "type": "string",
+                              },
+                            },
+                            "required": [
+                              "fieldId",
                             ],
-                            "type": "string",
+                            "type": "object",
                           },
+                          "type": "array",
                         },
-                        "required": [
-                          "fieldId",
-                        ],
-                        "type": "object",
-                      },
-                      "type": "array",
-                    },
-                    "partitionBy": {
-                      "description": "Fields to PARTITION BY - divides result set into independent groups.
+                        "partitionBy": {
+                          "description": "Fields to PARTITION BY - divides result set into independent groups.
 Each partition calculates independently (rankings restart, percentages sum to 100% per partition).
 Empty array or null: single partition (calculations across all rows)., ",
-                      "items": {
-                        "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
-                        "type": "string",
-                      },
-                      "type": "array",
-                    },
-                    "type": {
-                      "const": "window_function",
-                      "type": "string",
-                    },
-                    "windowFunction": {
-                      "description": "Type of window function to apply.
+                          "items": {
+                            "description": ""fieldId" must come from the previously searched Fields; otherwise, it will throw an error",
+                            "type": "string",
+                          },
+                          "type": "array",
+                        },
+                        "type": {
+                          "const": "window_function",
+                          "type": "string",
+                        },
+                        "windowFunction": {
+                          "description": "Type of window function to apply.
 
 **Ranking functions** (fieldId optional, ignored if provided):
 - row_number: Sequential numbering (1, 2, 3...)
@@ -5312,31 +3681,40 @@ Empty array or null: single partition (calculations across all rows)., ",
 - count: Count values within frame
 - min: Minimum value within frame
 - max: Maximum value within frame",
-                      "enum": [
-                        "row_number",
-                        "percent_rank",
-                        "cume_dist",
-                        "rank",
-                        "sum",
-                        "avg",
-                        "count",
-                        "min",
-                        "max",
+                          "enum": [
+                            "row_number",
+                            "percent_rank",
+                            "cume_dist",
+                            "rank",
+                            "sum",
+                            "avg",
+                            "count",
+                            "min",
+                            "max",
+                          ],
+                          "type": "string",
+                        },
+                      },
+                      "required": [
+                        "name",
+                        "displayName",
+                        "type",
+                        "windowFunction",
                       ],
-                      "type": "string",
+                      "type": "object",
                     },
-                  },
-                  "required": [
-                    "name",
-                    "displayName",
-                    "type",
-                    "windowFunction",
                   ],
-                  "type": "object",
                 },
-              ],
+                "type": "array",
+              },
             },
-            "type": "array",
+            "required": [
+              "exploreName",
+              "dimensions",
+              "metrics",
+              "sorts",
+            ],
+            "type": "object",
           },
           "title": {
             "description": "A descriptive title for the chart",

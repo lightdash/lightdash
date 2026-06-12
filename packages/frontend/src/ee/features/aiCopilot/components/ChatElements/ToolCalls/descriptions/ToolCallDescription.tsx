@@ -169,13 +169,21 @@ export const ToolCallDescription: FC<{
         case 'generateVisualization':
         case 'runQuery':
             const queryToolArgs = toolCall.toolArgs as ToolRunQueryArgs;
+            const customMetrics =
+                queryToolArgs.queryConfig.customMetrics ??
+                queryToolArgs.customMetrics ??
+                null;
+            const tableCalculations =
+                queryToolArgs.queryConfig.tableCalculations ??
+                queryToolArgs.tableCalculations ??
+                null;
             return (
                 <QueryResultToolCallDescription
                     title={queryToolArgs.title}
                     queryConfig={queryToolArgs.queryConfig}
                     chartConfig={queryToolArgs.chartConfig}
-                    customMetrics={queryToolArgs.customMetrics}
-                    tableCalculations={queryToolArgs.tableCalculations}
+                    customMetrics={customMetrics}
+                    tableCalculations={tableCalculations}
                 />
             );
         case 'generateBarVizConfig':

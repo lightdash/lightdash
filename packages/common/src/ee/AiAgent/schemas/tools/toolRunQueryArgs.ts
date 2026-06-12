@@ -18,7 +18,7 @@ import {
 import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
 
 // Query configuration schema - what data to fetch
-const queryConfigSchema = z.object({
+const queryConfigBaseSchema = z.object({
     exploreName: z
         .string()
         .describe(
@@ -45,11 +45,16 @@ const queryConfigSchema = z.object({
         .describe(
             'The total number of data points / rows allowed on the chart.',
         ),
-    // External LLMs frequently nest filters inside queryConfig instead of at
-    // the top level. Accepting them here prevents Zod from silently stripping
-    // the key. The transform in `toolRunQueryArgsSchemaTransformed` lifts
-    // nested filters to the top level.
-    filters: filtersSchemaV2.optional(),
+});
+
+const queryConfigSchemaV1 = queryConfigBaseSchema.extend({
+    filters: filtersSchemaV2.nullable().default(null),
+});
+
+const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
+    customMetrics: customMetricsSchema,
+    tableCalculations: tableCalcsSchema,
+    filters: filtersSchemaV2.nullable(),
 });
 
 // Chart-specific configuration for rendering hints
@@ -161,34 +166,85 @@ Notes:
 ${MCP_QUERY_COMMON_NOTES}
 `;
 
-export const toolRunQueryArgsSchema = createToolSchema()
+export const toolRunQueryArgsSchemaV1 = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
-        customMetrics: customMetricsSchema,
-        tableCalculations: tableCalcsSchema,
-        queryConfig: queryConfigSchema,
-        chartConfig: chartConfigSchema,
-        filters: filtersSchemaV2.nullable(),
+        customMetrics: customMetricsSchema.default(null),
+        tableCalculations: tableCalcsSchema.default(null),
+        queryConfig: queryConfigSchemaV1,
+        chartConfig: chartConfigSchema.default(null),
+        filters: filtersSchemaV2.nullable().default(null),
     })
     .build();
 
-export type ToolRunQueryArgs = z.infer<typeof toolRunQueryArgsSchema>;
-
-export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
+export const toolRunQueryArgsSchemaV2 = createToolSchema()
     .extend({
-        customMetrics: customMetricsSchema
-            .default(null)
-            .pipe(customMetricsSchemaTransformed),
-        tableCalculations: tableCalcsSchema.default(null),
-        chartConfig: chartConfigSchema.default(null),
+        ...visualizationMetadataSchema.shape,
+        queryConfig: queryConfigSchemaV2,
+        chartConfig: chartConfigSchema,
     })
-    .transform((data) => {
-        // LLMs often nest filters inside queryConfig instead of at the top
-        // level. Prefer top-level filters, fall back to queryConfig.filters.
-        const resolvedFilters =
-            data.filters ?? data.queryConfig.filters ?? null;
+    .build();
+
+export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV2;
+
+export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;
+export type ToolRunQueryArgsV2 = z.infer<typeof toolRunQueryArgsSchemaV2>;
+
+type ToolRunQueryArgsQueryConfigV2Fields = Pick<
+    ToolRunQueryArgsV2['queryConfig'],
+    'customMetrics' | 'tableCalculations' | 'filters'
+>;
+
+type ToolRunQueryArgsV1Compat = ToolRunQueryArgsV1 & {
+    queryConfig: ToolRunQueryArgsV1['queryConfig'] &
+        Partial<ToolRunQueryArgsQueryConfigV2Fields>;
+};
+
+type ToolRunQueryArgsV2Compat = ToolRunQueryArgsV2 &
+    Partial<ToolRunQueryArgsQueryConfigV2Fields>;
+
+export type ToolRunQueryArgs =
+    | ToolRunQueryArgsV1Compat
+    | ToolRunQueryArgsV2Compat;
+
+const toolRunQueryArgsSchemaCompat = createToolSchema()
+    .extend({
+        ...visualizationMetadataSchema.shape,
+        customMetrics: customMetricsSchema.default(null),
+        tableCalculations: tableCalcsSchema.default(null),
+        queryConfig: queryConfigBaseSchema.extend({
+            customMetrics: customMetricsSchema.default(null),
+            tableCalculations: tableCalcsSchema.default(null),
+            filters: filtersSchemaV2.nullable().default(null),
+        }),
+        chartConfig: chartConfigSchema.default(null),
+        filters: filtersSchemaV2.nullable().default(null),
+    })
+    .build();
+
+export const toolRunQueryArgsSchemaTransformed =
+    toolRunQueryArgsSchemaCompat.transform((data) => {
+        const resolvedCustomMetrics =
+            data.queryConfig.customMetrics ?? data.customMetrics;
+        const resolvedTableCalculations =
+            data.queryConfig.tableCalculations ?? data.tableCalculations;
+        const resolvedFilters = data.queryConfig.filters ?? data.filters;
+
         return {
-            ...data,
+            title: data.title,
+            description: data.description,
+            customMetrics: customMetricsSchemaTransformed.parse(
+                resolvedCustomMetrics,
+            ),
+            tableCalculations: resolvedTableCalculations,
+            queryConfig: {
+                exploreName: data.queryConfig.exploreName,
+                dimensions: data.queryConfig.dimensions,
+                metrics: data.queryConfig.metrics,
+                sorts: data.queryConfig.sorts,
+                limit: data.queryConfig.limit,
+            },
+            chartConfig: data.chartConfig,
             filters: filtersSchemaTransformed.parse(resolvedFilters),
         };
     });
