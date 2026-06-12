@@ -319,6 +319,24 @@ describe('createFilterRuleFromField — time-interval DATE dims', () => {
     });
 });
 
+describe('createFilterRuleFromField — default operator', () => {
+    test('array dimension defaults to includes (not equals)', () => {
+        const arrayDim = {
+            ...dimension('tags', 'orders'),
+            type: DimensionType.ARRAY,
+        };
+        expect(createFilterRuleFromField(arrayDim).operator).toBe(
+            FilterOperator.INCLUDE,
+        );
+    });
+
+    test('string dimension still defaults to equals', () => {
+        expect(
+            createFilterRuleFromField(dimension('name', 'orders')).operator,
+        ).toBe(FilterOperator.EQUALS);
+    });
+});
+
 describe('createFilterRuleFromModelRequiredFilterRule', () => {
     test('should create a correct FilterRule', () => {
         const result = createFilterRuleFromModelRequiredFilterRule(
