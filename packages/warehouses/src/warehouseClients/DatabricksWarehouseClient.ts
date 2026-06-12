@@ -268,6 +268,11 @@ export class DatabricksSqlBuilder extends WarehouseBaseSqlBuilder {
         }
         return `COLLECT_LIST(${expression})`;
     }
+
+    unnestDimension(arrayColumnSql: string, elementAlias: string): string {
+        // Inner explode: rows whose array is NULL or empty drop out of the breakdown
+        return `LATERAL VIEW explode(${arrayColumnSql}) ${elementAlias}_view AS ${elementAlias}`;
+    }
 }
 
 const DATABRICKS_SOCKET_TIMEOUT_MS = 60000;

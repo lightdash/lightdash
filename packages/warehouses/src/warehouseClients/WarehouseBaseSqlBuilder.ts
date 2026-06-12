@@ -123,4 +123,10 @@ export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBui
         }
         return `ARRAY_AGG(${expression})`;
     }
+
+    unnestDimension(_arrayColumnSql: string, _elementAlias: string): string {
+        throw new Error(
+            'Unnesting array dimensions is not supported for this warehouse type',
+        );
+    }
 }

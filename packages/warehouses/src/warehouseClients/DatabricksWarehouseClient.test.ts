@@ -104,6 +104,20 @@ describe('DatabricksWarehouseClient ARRAY type mapping', () => {
     });
 });
 
+describe('DatabricksSqlBuilder.unnestDimension', () => {
+    it('builds a LATERAL VIEW explode fragment', () => {
+        const sqlBuilder = new DatabricksSqlBuilder();
+        expect(
+            sqlBuilder.unnestDimension(
+                '`array_tags`.tags',
+                'array_tags_tags__unnested',
+            ),
+        ).toBe(
+            'LATERAL VIEW explode(`array_tags`.tags) array_tags_tags__unnested_view AS array_tags_tags__unnested',
+        );
+    });
+});
+
 describe('DatabricksSqlBuilder escaping', () => {
     const databricksSqlBuilder = new DatabricksSqlBuilder();
 

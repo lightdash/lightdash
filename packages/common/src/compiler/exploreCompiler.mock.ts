@@ -97,6 +97,8 @@ export const warehouseClientMock: WarehouseClient = {
         orderBy
             ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
             : `ARRAY_AGG(${expression})`,
+    unnestDimension: (arrayColumnSql, elementAlias) =>
+        `LATERAL VIEW explode(${arrayColumnSql}) ${elementAlias}_view AS ${elementAlias}`,
 };
 
 const sourceMock: Source = {
