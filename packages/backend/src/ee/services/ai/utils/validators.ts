@@ -223,6 +223,9 @@ function validateFilterRule(
 
             break;
         case FilterType.ARRAY:
+            throw new AiAgentValidatorError(
+                'Array field filtering is not supported by the AI agent',
+            );
         case FilterType.STRING:
             const parsedStringFilterRule = stringFilterSchema.safeParse({
                 fieldId: filterRule.target.fieldId,
