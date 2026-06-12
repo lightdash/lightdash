@@ -22,6 +22,7 @@ const FilterInputComponent = <T extends BaseFilterRule>(
     props: FilterInputsProps<T>,
 ) => {
     switch (props.filterType) {
+        case FilterType.ARRAY:
         case FilterType.STRING:
         case FilterType.NUMBER:
             return <DefaultFilterInputs<T> {...props} />;

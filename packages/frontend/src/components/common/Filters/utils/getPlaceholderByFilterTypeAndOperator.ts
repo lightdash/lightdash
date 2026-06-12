@@ -57,6 +57,7 @@ export const getPlaceholderByFilterTypeAndOperator = ({
                 default:
                     return assertUnreachable(operator, 'unknown operator');
             }
+        case FilterType.ARRAY:
         case FilterType.STRING:
             switch (operator) {
                 case FilterOperator.EQUALS:

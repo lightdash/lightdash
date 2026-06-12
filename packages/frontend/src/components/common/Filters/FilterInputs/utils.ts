@@ -128,6 +128,13 @@ export const getFilterOperatorOptions = (
                 FilterOperator.EQUALS,
                 FilterOperator.NOT_EQUALS,
             ]);
+        case FilterType.ARRAY:
+            return getFilterOptions([
+                FilterOperator.NULL,
+                FilterOperator.NOT_NULL,
+                FilterOperator.INCLUDE,
+                FilterOperator.NOT_INCLUDE,
+            ]);
         default:
             return assertUnreachable(
                 filterType,
@@ -146,6 +153,7 @@ const getValueAsString = (
     const secondValue = values?.[1];
 
     switch (filterType) {
+        case FilterType.ARRAY:
         case FilterType.STRING:
         case FilterType.NUMBER:
             switch (operator) {
