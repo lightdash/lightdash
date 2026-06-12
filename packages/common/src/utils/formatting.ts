@@ -1023,13 +1023,6 @@ export function formatItemValue(
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (item) {
-        const isTimestampMetricResult =
-            'type' in item &&
-            (item.type === MetricType.MAX || item.type === MetricType.MIN) &&
-            (value instanceof Date || isTimestampString(value));
-        const shouldShiftExpressionTimezone =
-            shouldShiftItemTimezone(item) || isTimestampMetricResult;
-
         if (hasValidFormatExpression(item)) {
             // A field-level separator localises the ECMA-376 expression, which
             // numfmt otherwise renders with US separators regardless of locale.
@@ -1038,9 +1031,8 @@ export function formatItemValue(
             );
 
             // Only shift genuinely timezone-shiftable temporal fields, so
-            // calendar DATEs stay put, while MIN/MAX timestamp metrics follow
-            // the same project-tz render path as their default formatter.
-            const expressionTimezone = shouldShiftExpressionTimezone
+            // calendar DATEs and skipTimezoneConversion fields stay put.
+            const expressionTimezone = shouldShiftItemTimezone(item)
                 ? timezone
                 : undefined;
 
@@ -1099,9 +1091,6 @@ export function formatItemValue(
                 isDimension(item) && item.skipTimezoneConversion
                     ? undefined
                     : timezone;
-            const customExpressionTimezone = shouldShiftExpressionTimezone
-                ? effectiveTimezone
-                : undefined;
 
             // Date/Timestamp table calculations may carry a CUSTOM format
             // expression (e.g. "mmmm d, yyyy"). The default switch path
@@ -1109,8 +1098,7 @@ export function formatItemValue(
             // it, so honour the custom expression first.
             if (
                 (type === TableCalculationType.DATE ||
-                    type === TableCalculationType.TIMESTAMP ||
-                    isTimestampMetricResult) &&
+                    type === TableCalculationType.TIMESTAMP) &&
                 customFormat?.type === CustomFormatType.CUSTOM &&
                 customFormat.custom &&
                 isMomentInput(value)
@@ -1120,7 +1108,7 @@ export function formatItemValue(
                         customFormat.custom,
                         value,
                         separatorToNumfmtLocale(customFormat.separator),
-                        customExpressionTimezone,
+                        effectiveTimezone,
                     );
                 } catch {
                     // Fall through to the default date/timestamp render.

@@ -1190,56 +1190,6 @@ describe('Formatting', () => {
             ).toEqual('2024-01-14 20:00:00');
         });
 
-        test('formatItemValue shifts a custom-format MAX timestamp metric into the project tz from a Date OR an ISO string (GLITCH-492)', () => {
-            const maxMetric = {
-                ...metric,
-                type: MetricType.MAX,
-                format: 'yyyy-mm-dd hh:mm:ss',
-            };
-            const isoString = '2024-01-14T20:00:00.000Z';
-            const asDate = new Date(isoString); // 15:00 in NY (EST)
-
-            const fromDate = formatItemValue(
-                maxMetric,
-                asDate,
-                false,
-                undefined,
-                'America/New_York',
-            );
-            const fromString = formatItemValue(
-                maxMetric,
-                isoString,
-                false,
-                undefined,
-                'America/New_York',
-            );
-
-            expect(fromDate).toEqual('2024-01-14 15:00:00');
-            expect(fromString).toEqual(fromDate);
-        });
-
-        test('formatItemValue shifts a CUSTOM-format MAX timestamp metric into the project tz (GLITCH-492)', () => {
-            const maxMetric = {
-                ...metric,
-                type: MetricType.MAX,
-                formatOptions: {
-                    type: CustomFormatType.CUSTOM,
-                    custom: 'yyyy-mm-dd hh:mm:ss',
-                },
-            };
-            const value = new Date('2024-01-14T20:00:00.000Z'); // 15:00 in NY (EST)
-
-            expect(
-                formatItemValue(
-                    maxMetric,
-                    value,
-                    false,
-                    undefined,
-                    'America/New_York',
-                ),
-            ).toEqual('2024-01-14 15:00:00');
-        });
-
         test('formatItemValue shifts a parameterized custom-format timestamp into the project tz (GLITCH-492)', () => {
             const tsWithFormat = {
                 ...dimension,
