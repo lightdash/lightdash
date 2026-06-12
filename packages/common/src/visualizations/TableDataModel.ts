@@ -21,7 +21,9 @@ export class TableDataModel {
     }) {
         this.resultsRunner = args.resultsRunner;
         this.columnsConfig =
-            args.columnsConfig ?? this.getResultOptions().defaultColumnConfig;
+            args.columnsConfig && Object.keys(args.columnsConfig).length > 0
+                ? args.columnsConfig
+                : this.getResultOptions().defaultColumnConfig;
     }
 
     private getColumns() {

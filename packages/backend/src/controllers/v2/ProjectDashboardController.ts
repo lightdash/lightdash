@@ -81,13 +81,12 @@ export class ProjectDashboardControllerV2 extends BaseController {
         @Body() body: UpdateDashboard,
         @Request() req: express.Request,
     ): Promise<ApiDashboardResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getDashboardService()
-                .update(toSessionUser(req.account), dashboardUuidOrSlug, body, {
+                .updateFromAccount(req.account!, dashboardUuidOrSlug, body, {
                     projectUuid,
                 }),
         };
