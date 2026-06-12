@@ -744,6 +744,7 @@ export class MetricQueryBuilder {
     private getDimensionsSQL(): {
         ctes: string[];
         joins: string[];
+        unnests: string[];
         tables: string[];
         selects: Record<string, string>;
         groupBySQL: string | undefined;
@@ -828,6 +829,9 @@ export class MetricQueryBuilder {
             joins.push(customBinDimensionSql.join);
         }
 
+        // Lateral view unnests (for ARRAY dimensions on supported warehouses)
+        const unnests: string[] = [];
+
         // Tables
         const tables = dimensionsObjects.reduce<string[]>(
             (acc, dim) => [...acc, ...(dim.tablesReferences || [dim.table])],
@@ -877,6 +881,24 @@ export class MetricQueryBuilder {
         dimensionsObjects.forEach((dimension) => {
             const id = getItemId(dimension);
             const quotedAlias = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
+
+            if (dimension.type === DimensionType.ARRAY) {
+                const arrayColumnSql = this.getTimezoneAwareDimensionSql(
+                    dimension,
+                    adapterType,
+                    startOfWeek,
+                );
+                const elementAlias = `${id}__unnested`;
+                unnests.push(
+                    warehouseSqlBuilder.unnestDimension(
+                        arrayColumnSql,
+                        elementAlias,
+                    ),
+                );
+                selects[id] = `  ${elementAlias} AS ${quotedAlias}`;
+                return;
+            }
+
             const sql = this.getTimezoneAwareDimensionSql(
                 dimension,
                 adapterType,
@@ -911,6 +933,7 @@ export class MetricQueryBuilder {
         return {
             ctes,
             joins,
+            unnests,
             tables,
             selects,
             groupBySQL,
@@ -4175,6 +4198,7 @@ export class MetricQueryBuilder {
         let finalSelectParts: Array<string | undefined> = [
             sqlSelect,
             sqlFrom,
+            ...dimensionsSQL.unnests,
             joins.joinSQL,
             ...dimensionsSQL.joins,
             dimensionsSQL.filtersSQL,

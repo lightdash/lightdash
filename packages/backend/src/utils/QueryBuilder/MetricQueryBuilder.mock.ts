@@ -130,6 +130,11 @@ export const warehouseClientMock: WarehouseClient = {
         orderBy
             ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
             : `ARRAY_AGG(${expression})`,
+    unnestDimension: (_arrayColumnSql: string, _elementAlias: string) => {
+        throw new Error(
+            'Unnesting array dimensions is not supported for this warehouse type',
+        );
+    },
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -210,6 +215,91 @@ export const bigqueryClientMock: WarehouseClient = {
         orderBy
             ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
             : `ARRAY_AGG(${expression})`,
+    unnestDimension: (_arrayColumnSql: string, _elementAlias: string) => {
+        throw new Error(
+            'Unnesting array dimensions is not supported for this warehouse type',
+        );
+    },
+};
+
+export const databricksClientMock: WarehouseClient = {
+    ...warehouseClientMock,
+    credentials: {
+        type: WarehouseTypes.DATABRICKS,
+    } as CreateWarehouseCredentials,
+    getFieldQuoteChar: () => '`',
+    getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+    getMetricSql: (sql, metric) => {
+        switch (metric.type) {
+            case MetricType.COUNT:
+                return `COUNT(${sql})`;
+            case MetricType.SUM:
+                return `SUM(${sql})`;
+            default:
+                return sql;
+        }
+    },
+    unnestDimension: (arrayColumnSql: string, elementAlias: string) =>
+        `LATERAL VIEW explode(${arrayColumnSql}) ${elementAlias}_view AS ${elementAlias}`,
+};
+
+export const EXPLORE_WITH_ARRAY_DIM: Explore = {
+    targetDatabase: SupportedDbtAdapter.DATABRICKS,
+    name: 'array_tags',
+    label: 'array_tags',
+    baseTable: 'array_tags',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        array_tags: {
+            name: 'array_tags',
+            label: 'array_tags',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '`db`.`schema`.`array_tags`',
+            dimensions: {
+                tags: {
+                    type: DimensionType.ARRAY,
+                    name: 'tags',
+                    label: 'tags',
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.tags',
+                    compiledSql: '`array_tags`.tags',
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+                customer_name: {
+                    type: DimensionType.STRING,
+                    name: 'customer_name',
+                    label: 'customer_name',
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.customer_name',
+                    compiledSql: '`array_tags`.customer_name',
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                count: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    name: 'count',
+                    label: 'count',
+                    sql: '${TABLE}.id',
+                    compiledSql: 'COUNT(`array_tags`.id)',
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
 };
 
 export const emptyTable = (name: string): CompiledTable => ({

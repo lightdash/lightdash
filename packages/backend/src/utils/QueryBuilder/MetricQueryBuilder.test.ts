@@ -25,8 +25,10 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    databricksClientMock,
     EXPLORE,
     EXPLORE_NESTED_AGG_NAME_COLLISION,
+    EXPLORE_WITH_ARRAY_DIM,
     EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
@@ -5380,5 +5382,74 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
         expect(selectClause).toContain(bare);
         expect(selectClause).not.toContain(wrapped);
         expect(whereClause).toContain(wrapped);
+    });
+});
+
+describe('ARRAY dimension unnesting (Databricks)', () => {
+    it('selected array dim rewrites select and emits LATERAL VIEW', () => {
+        const { query } = buildQuery({
+            explore: EXPLORE_WITH_ARRAY_DIM,
+            compiledMetricQuery: {
+                exploreName: 'array_tags',
+                dimensions: ['array_tags_tags'],
+                metrics: ['array_tags_count'],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: databricksClientMock,
+            intrinsicUserAttributes: {},
+            timezone: 'UTC',
+        });
+
+        expect(replaceWhitespace(query)).toContain(
+            'LATERAL VIEW explode(`array_tags`.tags) array_tags_tags__unnested_view AS array_tags_tags__unnested',
+        );
+        expect(replaceWhitespace(query)).toContain(
+            'array_tags_tags__unnested AS `array_tags_tags`',
+        );
+        expect(replaceWhitespace(query)).not.toContain(
+            '`array_tags`.tags AS `array_tags_tags`',
+        );
+    });
+
+    it('filter-only array dim does not emit LATERAL VIEW', () => {
+        const { query } = buildQuery({
+            explore: EXPLORE_WITH_ARRAY_DIM,
+            compiledMetricQuery: {
+                exploreName: 'array_tags',
+                dimensions: ['array_tags_customer_name'],
+                metrics: ['array_tags_count'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: '1',
+                                target: { fieldId: 'array_tags_tags' },
+                                operator: FilterOperator.INCLUDE,
+                                values: ['billing'],
+                            },
+                        ],
+                    },
+                },
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: databricksClientMock,
+            intrinsicUserAttributes: {},
+            timezone: 'UTC',
+        });
+
+        expect(query).not.toContain('LATERAL VIEW');
+        expect(query).toContain('array_contains');
     });
 });
