@@ -151,6 +151,7 @@ import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
 import TileExecutionInfo from './TileExecutionInfo';
+import TileTimezoneInfo from './TileTimezoneInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
 interface ExportGoogleSheetProps {
@@ -591,6 +592,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 appliedDashboardFilters,
                 cacheMetadata,
                 metricQuery,
+                resolvedTimezone,
                 usedParametersValues,
             },
             chart,
@@ -1434,6 +1436,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         </HoverCard.Target>
                                     </HoverCard>
                                 )}
+                            <TileTimezoneInfo
+                                resolvedTimezone={resolvedTimezone}
+                                timezoneSetting={metricQuery?.timezone}
+                            />
                             <TileExecutionInfo
                                 cacheMetadata={cacheMetadata}
                                 performance={performance}
