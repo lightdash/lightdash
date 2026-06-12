@@ -1,3 +1,11 @@
+## [0.3146.1](https://github.com/lightdash/lightdash/compare/0.3146.0...0.3146.1) (2026-06-12)
+
+
+### Bug Fixes
+
+* **ai-review:** surface agent writeback PRs to the judge + block double-PR remediation ([#24214](https://github.com/lightdash/lightdash/issues/24214)) ([8a377bb](https://github.com/lightdash/lightdash/commit/8a377bbbbb318e54bb6c895da01dec9c3a054bdb))
+* improve formula window prompt ([#24220](https://github.com/lightdash/lightdash/issues/24220)) ([c02437c](https://github.com/lightdash/lightdash/commit/c02437c0b5e6a1634a702a2c0589c71c9cc261ab))
+
 # [0.3146.0](https://github.com/lightdash/lightdash/compare/0.3145.0...0.3146.0) (2026-06-11)
 
 
