@@ -1,3 +1,12 @@
+# [0.3154.0](https://github.com/lightdash/lightdash/compare/0.3153.1...0.3154.0) (2026-06-12)
+
+
+### Features
+
+* add Fields diff to AI review verification card ([#24245](https://github.com/lightdash/lightdash/issues/24245)) ([a249087](https://github.com/lightdash/lightdash/commit/a24908771430a37eb337a8c0907a04420f1255c6)), closes [#24244](https://github.com/lightdash/lightdash/issues/24244) [#102](https://github.com/lightdash/lightdash/issues/102)
+* add preview-to-upstream field diff endpoint ([#24244](https://github.com/lightdash/lightdash/issues/24244)) ([d295db7](https://github.com/lightdash/lightdash/commit/d295db7d0ae9d6328ccc2440d1e39cf949086b5b))
+* open validator in a modal from AI review card ([#24246](https://github.com/lightdash/lightdash/issues/24246)) ([abb7856](https://github.com/lightdash/lightdash/commit/abb7856d339d8a4b9add748843a5adaf61dbc938)), closes [#24245](https://github.com/lightdash/lightdash/issues/24245)
+
 ## [0.3153.1](https://github.com/lightdash/lightdash/compare/0.3153.0...0.3153.1) (2026-06-12)
 
 
