@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
-import { getValueCell } from '../../../hooks/useColumns';
+import { getJsonValueCell, getValueCell } from '../../../hooks/useColumns';
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 import { calculateColumnStats } from '../utils/columnStats';
@@ -21,9 +21,11 @@ import { calculateColumnStats } from '../utils/columnStats';
 export const useTableDataModel = ({
     config,
     resultsRunner,
+    enableJsonViewer = false,
 }: {
     config: VizTableColumnsConfig | undefined;
     resultsRunner: IResultsRunner;
+    enableJsonViewer?: boolean;
 }) => {
     const tableModel = useMemo(() => {
         return new TableDataModel({
@@ -70,9 +72,9 @@ export const useTableDataModel = ({
             // do not remove the line below
             accessorFn: TableDataModel.getColumnsAccessorFn(column),
             header: config?.columns[column].label || column,
-            cell: getValueCell,
+            cell: enableJsonViewer ? getJsonValueCell : getValueCell,
         }));
-    }, [columns, config?.columns]);
+    }, [columns, config?.columns, enableJsonViewer]);
 
     const table = useReactTable({
         data: rows,

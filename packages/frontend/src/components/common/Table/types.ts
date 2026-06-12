@@ -18,11 +18,13 @@ import {
 } from '@tanstack/react-table';
 import { type FC } from 'react';
 import { type CSSProperties } from 'styled-components';
+import { type JsonCellValue } from '../JsonViewer/utils';
 
 export type HeaderProps = { header: Header<ResultRow, any> };
 export type CellContextMenuProps = {
     cell: Cell<ResultRow, ResultRow[0]>;
     isEditMode?: boolean;
+    onViewJsonCell?: (value: JsonCellValue) => void;
 };
 
 export type Sort = {

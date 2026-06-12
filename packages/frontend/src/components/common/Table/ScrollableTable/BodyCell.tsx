@@ -22,6 +22,8 @@ import {
 } from 'react';
 import { type CSSProperties } from 'styled-components';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { JsonCellModal } from '../../JsonViewer/JsonCellViewer';
+import { type JsonCellValue } from '../../JsonViewer/utils';
 import { Td } from '../Table.styles';
 import { type CellContextMenuProps } from '../types';
 import CellMenu from './CellMenu';
@@ -63,6 +65,9 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
 
     const [isCopying, setCopying] = useState(false);
     const [isMenuOpen, { toggle: toggleMenu }] = useDisclosure(false);
+    const [jsonModalValue, setJsonModalValue] = useState<
+        JsonCellValue | undefined
+    >();
     const [isTooltipOpen, { open: openTooltip, close: closeTooltip }] =
         useDisclosure(false);
     const [elementBounds, setElementBounds] = useState<DOMRect | null>(null);
@@ -175,6 +180,15 @@ const BodyCell: FC<React.PropsWithChildren<CommonBodyCellProps>> = ({
                     menuItems={cellContextMenu}
                     elementBounds={elementBounds}
                     onClose={toggleMenu}
+                    onViewJsonCell={setJsonModalValue}
+                />
+            ) : null}
+
+            {jsonModalValue ? (
+                <JsonCellModal
+                    value={jsonModalValue}
+                    opened
+                    onClose={() => setJsonModalValue(undefined)}
                 />
             ) : null}
 

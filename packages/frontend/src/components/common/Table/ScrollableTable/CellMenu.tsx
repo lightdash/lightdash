@@ -3,18 +3,21 @@ import { Menu, Portal, type MenuProps } from '@mantine-8/core';
 import { type Cell } from '@tanstack/react-table';
 import { type FC } from 'react';
 import { usePreventScroll } from '../../../../hooks/useBlockScroll';
+import { type JsonCellValue } from '../../JsonViewer/utils';
 import { type CellContextMenuProps } from '../types';
 
 type CellMenuProps = MenuProps & {
     menuItems: FC<React.PropsWithChildren<CellContextMenuProps>>;
     cell: Cell<ResultRow, ResultRow[0]>;
     elementBounds: DOMRect | null;
+    onViewJsonCell?: (value: JsonCellValue) => void;
 };
 
 const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
     cell,
     elementBounds,
     menuItems: MenuItems,
+    onViewJsonCell,
     ...rest
 }) => {
     usePreventScroll();
@@ -33,7 +36,7 @@ const CellMenu: FC<React.PropsWithChildren<CellMenuProps>> = ({
                 {...rest}
             >
                 <Menu.Dropdown>
-                    <MenuItems cell={cell} />
+                    <MenuItems cell={cell} onViewJsonCell={onViewJsonCell} />
                 </Menu.Dropdown>
 
                 <Menu.Target>

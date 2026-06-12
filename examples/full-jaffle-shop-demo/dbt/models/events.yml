@@ -162,6 +162,12 @@ models:
           metrics:
             count:
               type: count
+      - name: event_properties_json
+        description: "Demo JSON payload for result table cell inspection"
+        meta:
+          dimension:
+            type: string
+            groups: ["events"]
       - name: image_url
         description: "Image URL for the event from events.sql"
         meta:

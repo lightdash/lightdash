@@ -31,6 +31,11 @@ import { IconExclamationCircle } from '@tabler/icons-react';
 import { type CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
 import { useMemo } from 'react';
+import { JsonCellPreview } from '../components/common/JsonViewer/JsonCellViewer';
+import {
+    getJsonCellValue,
+    getJsonLikeString,
+} from '../components/common/JsonViewer/utils';
 import MantineIcon from '../components/common/MantineIcon';
 import {
     BrokenImageCell,
@@ -63,6 +68,8 @@ import { TableCellBar } from './TableCellBar';
 import { useAsyncCalculateTotal } from './useAsyncCalculateTotal';
 import { useExplore } from './useExplore';
 import { useExplorerQuery } from './useExplorerQuery';
+
+export { getJsonCellValue, getJsonLikeString };
 
 export const formatCellContent = (
     data?: { value: ResultValue },
@@ -116,6 +123,17 @@ export const formatResultsTableCell = (
     }
 
     return formatItemValue(item, data.value.raw, false, parameters, timezone);
+};
+
+const getResultJsonCellValue = (
+    cellValue: { value: ResultValue } | undefined,
+) => {
+    if (!cellValue) return;
+
+    const rawJsonValue = getJsonCellValue(cellValue.value.raw);
+    if (rawJsonValue) return rawJsonValue;
+
+    return getJsonLikeString(cellValue.value.raw);
 };
 
 const isBarDisplay = (
@@ -365,6 +383,7 @@ const formatImageCell = (
 export const getFormattedValueCell = (
     info: CellContext<ResultRow, { value: ResultValue }>,
     parameters?: ParametersValuesMap,
+    options?: { enableJsonViewer?: boolean },
 ) => {
     const cellValue = info.getValue();
     const item = info.column.columnDef.meta?.item;
@@ -386,12 +405,25 @@ export const getFormattedValueCell = (
         return formatImageCell(item, info);
     }
 
+    if (options?.enableJsonViewer) {
+        const jsonValue = getResultJsonCellValue(cellValue);
+        if (jsonValue) {
+            return <JsonCellPreview value={jsonValue} />;
+        }
+    }
+
     return formatCellContent(cellValue, item, parameters);
 };
+
+const getJsonFormattedValueCell = (
+    info: CellContext<ResultRow, { value: ResultValue }>,
+    parameters?: ParametersValuesMap,
+) => getFormattedValueCell(info, parameters, { enableJsonViewer: true });
 
 export const getValueCell = (
     info: CellContext<RawResultRow, string>,
     parameters?: ParametersValuesMap,
+    options?: { enableJsonViewer?: boolean },
 ) => {
     const value = info.getValue();
 
@@ -412,10 +444,22 @@ export const getValueCell = (
         return formatImageCell(item, info);
     }
 
+    if (options?.enableJsonViewer) {
+        const jsonValue = getJsonCellValue(value) ?? getJsonLikeString(value);
+        if (jsonValue) {
+            return <JsonCellPreview value={jsonValue} />;
+        }
+    }
+
     // Default text rendering
     const formatted = formatRowValueFromWarehouse(value);
     return <span>{formatted}</span>;
 };
+
+export const getJsonValueCell = (
+    info: CellContext<RawResultRow, string>,
+    parameters?: ParametersValuesMap,
+) => getValueCell(info, parameters, { enableJsonViewer: true });
 
 export const useColumns = (): TableColumn[] => {
     const tableName = useExplorerSelector(selectTableName);
@@ -600,13 +644,20 @@ export const useColumns = (): TableColumn[] => {
                     ),
                     cell: (
                         info: CellContext<ResultRow, { value: ResultValue }>,
-                    ) =>
-                        formatResultsTableCell(
+                    ) => {
+                        const cellValue = info.getValue();
+                        const jsonValue = getResultJsonCellValue(cellValue);
+                        if (jsonValue) {
+                            return <JsonCellPreview value={jsonValue} />;
+                        }
+
+                        return formatResultsTableCell(
                             info.getValue(),
                             info.column.columnDef.meta?.item,
                             parameters,
                             timezone,
-                        ),
+                        );
+                    },
                     footer: () =>
                         totals?.[fieldId]
                             ? formatItemValue(
@@ -664,7 +715,7 @@ export const useColumns = (): TableColumn[] => {
                                 </TableHeaderBoldLabel>
                             </Group>
                         ),
-                        cell: getFormattedValueCell,
+                        cell: getJsonFormattedValueCell,
                         meta: {
                             isInvalidItem: true,
                         },
