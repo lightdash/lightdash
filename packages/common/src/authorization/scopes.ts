@@ -51,6 +51,36 @@ const isSelfPreview = (context: ScopeContext) =>
         context.projectCreatedByUserUuid === context.userUuid,
     );
 
+const ownPreviewProjectConditions = (context: ScopeContext) => {
+    if (context.organizationUuid) {
+        return [
+            {
+                // Org assignments can reach any preview created by this principal.
+                organizationUuid: context.organizationUuid,
+                createdByUserUuid: context.userUuid || false,
+                type: ProjectType.PREVIEW,
+            },
+        ];
+    }
+
+    if (!context.projectUuid || !context.userUuid) return null;
+
+    return [
+        {
+            // Direct preview assignment: the grant is on the preview itself.
+            projectUuid: context.projectUuid,
+            createdByUserUuid: context.userUuid,
+            type: ProjectType.PREVIEW,
+        },
+        {
+            // Upstream assignment: the grant is on the source project.
+            upstreamProjectUuid: context.projectUuid,
+            createdByUserUuid: context.userUuid,
+            type: ProjectType.PREVIEW,
+        },
+    ];
+};
+
 /**
  * Project-wide grant inside the user's own preview. For subjects with no space
  * access to gate on (Explore). Returns null (no rule) outside the own preview.
@@ -339,13 +369,7 @@ const scopes: Scope[] = [
         description: 'Update projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: (context) => [
-            {
-                projectUuid: context.projectUuid,
-                createdByUserUuid: context.userUuid || false,
-                type: ProjectType.PREVIEW,
-            },
-        ],
+        getConditions: ownPreviewProjectConditions,
     },
     {
         name: 'delete:Project',
@@ -359,13 +383,7 @@ const scopes: Scope[] = [
         description: 'Delete projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: (context) => [
-            {
-                projectUuid: context.projectUuid,
-                createdByUserUuid: context.userUuid || false,
-                type: ProjectType.PREVIEW,
-            },
-        ],
+        getConditions: ownPreviewProjectConditions,
     },
     {
         name: 'manage:Project',
@@ -393,13 +411,7 @@ const scopes: Scope[] = [
         description: 'Deploy to preview projects created by the user',
         isEnterprise: false,
         group: ScopeGroup.PROJECT_MANAGEMENT,
-        getConditions: (context) => [
-            {
-                projectUuid: context.projectUuid,
-                createdByUserUuid: context.userUuid || false,
-                type: ProjectType.PREVIEW,
-            },
-        ],
+        getConditions: ownPreviewProjectConditions,
     },
     {
         name: 'manage:Validation',
@@ -576,13 +588,7 @@ const scopes: Scope[] = [
             'Upload content as code to preview projects created by the user',
         isEnterprise: true,
         group: ScopeGroup.ORGANIZATION_MANAGEMENT,
-        getConditions: (context) => [
-            {
-                projectUuid: context.projectUuid,
-                createdByUserUuid: context.userUuid || false,
-                type: ProjectType.PREVIEW,
-            },
-        ],
+        getConditions: ownPreviewProjectConditions,
     },
     {
         name: 'manage:PersonalAccessToken',

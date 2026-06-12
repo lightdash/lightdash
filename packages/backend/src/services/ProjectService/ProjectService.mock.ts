@@ -352,6 +352,7 @@ export const projectSummary: ProjectSummary = {
     projectUuid: 'projectUuid',
     name: 'name',
     type: ProjectType.DEFAULT,
+    createdByUserUuid: sessionAccount.user.id,
 };
 export const defaultProject: OrganizationProject = {
     projectUuid: 'projectUuid',

@@ -2706,6 +2706,7 @@ export class ProjectService extends BaseService {
                 subject('DeployProject', {
                     projectUuid,
                     organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
                     metadata: {
@@ -2857,7 +2858,10 @@ export class ProjectService extends BaseService {
                 'update',
                 subject('Project', {
                     organizationUuid: savedProject.organizationUuid,
-                    projectUuid,
+                    projectUuid: savedProject.projectUuid,
+                    upstreamProjectUuid: savedProject.upstreamProjectUuid,
+                    type: savedProject.type,
+                    createdByUserUuid: savedProject.createdByUserUuid,
                 }),
             )
         ) {
@@ -2971,7 +2975,10 @@ export class ProjectService extends BaseService {
                 'update',
                 subject('Project', {
                     organizationUuid: savedProject.organizationUuid,
-                    projectUuid,
+                    projectUuid: savedProject.projectUuid,
+                    upstreamProjectUuid: savedProject.upstreamProjectUuid,
+                    type: savedProject.type,
+                    createdByUserUuid: savedProject.createdByUserUuid,
                 }),
             )
         ) {
@@ -3404,6 +3411,7 @@ export class ProjectService extends BaseService {
                     type: project.type,
                     organizationUuid: project.organizationUuid,
                     projectUuid: project.projectUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
                     createdByUserUuid: project.createdByUserUuid,
                     metadata: {
                         createdByUserUuid: project.createdByUserUuid,
