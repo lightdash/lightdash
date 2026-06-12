@@ -203,23 +203,25 @@ export const renderArrayFilterSql = (
     stringQuoteChar: string,
 ): string => {
     if (adapterType !== SupportedDbtAdapter.DATABRICKS) {
-        return raiseInvalidFilterError('array', filter);
+        throw new CompileError(
+            `Array filters are only supported on Databricks (adapter: ${adapterType})`,
+        );
     }
     const values = (filter.values ?? []).filter((v) => v !== '');
     const quoted = values.map(
         (v) => `${stringQuoteChar}${v}${stringQuoteChar}`,
     );
-    const containsExpr =
+    const buildContains = () =>
         quoted.length === 1
             ? `array_contains(${dimensionSql}, ${quoted[0]})`
             : `arrays_overlap(${dimensionSql}, array(${quoted.join(', ')}))`;
 
     switch (filter.operator) {
         case FilterOperator.INCLUDE:
-            return quoted.length > 0 ? `(${containsExpr})` : 'true';
+            return quoted.length > 0 ? `(${buildContains()})` : 'true';
         case FilterOperator.NOT_INCLUDE:
             return quoted.length > 0
-                ? `(NOT ${containsExpr} OR (${dimensionSql}) IS NULL)`
+                ? `(NOT ${buildContains()} OR (${dimensionSql}) IS NULL)`
                 : 'true';
         case FilterOperator.NULL:
             return `(${dimensionSql}) IS NULL`;

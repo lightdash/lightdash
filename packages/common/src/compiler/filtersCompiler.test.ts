@@ -3097,6 +3097,76 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                     SupportedDbtAdapter.SNOWFLAKE,
                     "'",
                 ),
+            ).toThrow(/Databricks/);
+        });
+
+        test('NOT_NULL produces IS NOT NULL', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_NULL,
+                    values: [],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual('("t".tags) IS NOT NULL');
+        });
+
+        test('NOT_INCLUDE multiple values produces arrays_overlap with IS NULL guard and no unnest/explode', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_INCLUDE,
+                    values: ['billing', 'open'],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual(
+                '(NOT arrays_overlap("t".tags, array(\'billing\', \'open\')) OR ("t".tags) IS NULL)',
+            );
+            expect(result).not.toMatch(/unnest|explode/i);
+        });
+
+        test('INCLUDE with empty values returns true', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                { ...baseFilter, operator: FilterOperator.INCLUDE, values: [] },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual('true');
+        });
+
+        test('NOT_INCLUDE with empty values returns true', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_INCLUDE,
+                    values: [],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual('true');
+        });
+
+        test('unsupported operator on Databricks throws', () => {
+            expect(() =>
+                renderArrayFilterSql(
+                    arrayDimensionSql,
+                    {
+                        ...baseFilter,
+                        operator: FilterOperator.EQUALS,
+                        values: ['billing'],
+                    },
+                    SupportedDbtAdapter.DATABRICKS,
+                    "'",
+                ),
             ).toThrow();
         });
     });
