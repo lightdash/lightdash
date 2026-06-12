@@ -1,17 +1,19 @@
-import { type ToolRunQueryArgs } from '@lightdash/common';
+import {
+    type ToolRunQueryArgs,
+    type ToolRunQueryArgsV2,
+} from '@lightdash/common';
 import { Group, Text } from '@mantine-8/core';
 import type { FC } from 'react';
 import { ToolCallChip } from '../ToolCallChip';
 import { formatFieldName } from '../utils/formatFieldName';
 
-type QueryResultToolCallDescriptionProps = Pick<
-    ToolRunQueryArgs,
-    | 'title'
-    | 'queryConfig'
-    | 'chartConfig'
-    | 'customMetrics'
-    | 'tableCalculations'
->;
+type QueryResultToolCallDescriptionProps = {
+    title: ToolRunQueryArgs['title'];
+    queryConfig: ToolRunQueryArgs['queryConfig'];
+    chartConfig: ToolRunQueryArgs['chartConfig'];
+    customMetrics: ToolRunQueryArgsV2['queryConfig']['customMetrics'];
+    tableCalculations: ToolRunQueryArgsV2['queryConfig']['tableCalculations'];
+};
 
 export const QueryResultToolCallDescription: FC<
     QueryResultToolCallDescriptionProps
