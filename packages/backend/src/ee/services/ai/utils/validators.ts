@@ -222,6 +222,7 @@ function validateFilterRule(
             }
 
             break;
+        case FilterType.ARRAY:
         case FilterType.STRING:
             const parsedStringFilterRule = stringFilterSchema.safeParse({
                 fieldId: filterRule.target.fieldId,
