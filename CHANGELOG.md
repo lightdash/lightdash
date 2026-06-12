@@ -1,3 +1,15 @@
+# [0.3151.0](https://github.com/lightdash/lightdash/compare/0.3150.0...0.3151.0) (2026-06-12)
+
+
+### Features
+
+* **embedding:** sticky filter bar and tabs on embedded dashboards ([#24229](https://github.com/lightdash/lightdash/issues/24229)) ([5599dcf](https://github.com/lightdash/lightdash/commit/5599dcf39e1f28cc101c135e27dfdbc537229679))
+
+
+### Performance Improvements
+
+* use lightweight project query in getWarehouseCredentials ([#21551](https://github.com/lightdash/lightdash/issues/21551)) ([1b084da](https://github.com/lightdash/lightdash/commit/1b084dabacb959a486e5c821373852e4fa6bafd0))
+
 # [0.3150.0](https://github.com/lightdash/lightdash/compare/0.3149.0...0.3150.0) (2026-06-12)
 
 
