@@ -1418,7 +1418,8 @@
                                 "number",
                                 "timestamp",
                                 "date",
-                                "boolean"
+                                "boolean",
+                                "array"
                             ]
                         },
                         "label": {
@@ -1653,7 +1654,8 @@
                                         "number",
                                         "timestamp",
                                         "date",
-                                        "boolean"
+                                        "boolean",
+                                        "array"
                                     ]
                                 },
                                 "label": {
