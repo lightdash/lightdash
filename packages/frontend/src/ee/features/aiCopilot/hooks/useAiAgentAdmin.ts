@@ -12,6 +12,7 @@ import {
     type ApiAiAgentSummaryResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
+    type ApiUpstreamDiffResponse,
     type UpdateAiAgentReviewItemStatus,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -239,6 +240,30 @@ export const useAiAgentReviewItemPrDiff = (
         enabled: options?.enabled ?? true,
         retry: false,
         // Each fetch costs ~2 GitHub API calls per changed file — keep it warm.
+        staleTime: 5 * 60_000,
+    });
+};
+
+const getProjectUpstreamDiff = async (projectUuid: string) => {
+    return lightdashApi<ApiUpstreamDiffResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/upstreamDiff`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+// Diffs a preview project's fields against the project it was copied from.
+// Errors (e.g. project is not a preview) are surfaced via the query state.
+export const useProjectUpstreamDiff = (
+    projectUuid: string | undefined,
+    options?: { enabled?: boolean },
+) => {
+    return useQuery<ApiUpstreamDiffResponse['results'], ApiError>({
+        queryKey: ['project-upstream-diff', projectUuid],
+        queryFn: () => getProjectUpstreamDiff(projectUuid!),
+        enabled: (options?.enabled ?? true) && !!projectUuid,
+        retry: false,
         staleTime: 5 * 60_000,
     });
 };
