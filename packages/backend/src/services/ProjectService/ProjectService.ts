@@ -2567,6 +2567,14 @@ export class ProjectService extends BaseService {
                         newProjectUuid,
                         lightdashProjectConfig.table_groups,
                     );
+                    // Mirrors CLI deploy semantics: only overwrite stored
+                    // defaults when the config file defines them
+                    if (lightdashProjectConfig.defaults) {
+                        await this.projectModel.updateProjectDefaults(
+                            newProjectUuid,
+                            lightdashProjectConfig.defaults,
+                        );
+                    }
                     await this.replaceProjectContext(
                         newProjectUuid,
                         projectContext,
@@ -3098,6 +3106,14 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                                 lightdashProjectConfig.table_groups,
                             );
+                            // Mirrors CLI deploy semantics: only overwrite
+                            // stored defaults when the config file defines them
+                            if (lightdashProjectConfig.defaults) {
+                                await this.projectModel.updateProjectDefaults(
+                                    projectUuid,
+                                    lightdashProjectConfig.defaults,
+                                );
+                            }
                             await this.replaceProjectContext(
                                 projectUuid,
                                 projectContext,
@@ -6188,6 +6204,14 @@ export class ProjectService extends BaseService {
                             projectUuid,
                             lightdashProjectConfig.table_groups,
                         );
+                        // Mirrors CLI deploy semantics: only overwrite stored
+                        // defaults when the config file defines them
+                        if (lightdashProjectConfig.defaults) {
+                            await this.projectModel.updateProjectDefaults(
+                                projectUuid,
+                                lightdashProjectConfig.defaults,
+                            );
+                        }
                         await this.replaceProjectContext(
                             projectUuid,
                             projectContext,
