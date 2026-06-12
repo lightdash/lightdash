@@ -130,6 +130,157 @@ LIMIT
   10"
 `;
 
+exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a fanout-protected metric that references average_distinct on the same table 1`] = `
+"WITH
+  cte_keys_customers AS (
+    SELECT DISTINCT
+      "customers".customer_id AS "pk_customer_id"
+    FROM
+      customers AS "customers"
+      LEFT OUTER JOIN orders AS "orders" ON ("customers".customer_id) = ("orders".customer_id)
+  ),
+  cte_metrics_customers AS (
+    SELECT
+      SUM("customers".lifetime_value) AS "customers_total_customer_value"
+    FROM
+      cte_keys_customers
+      LEFT JOIN customers AS "customers" ON cte_keys_customers."pk_customer_id" = "customers".customer_id
+  ),
+  cte_unaffected AS (
+    SELECT
+      SUM("orders".amount) AS "orders_total_order_amount"
+    FROM
+      customers AS "customers"
+      LEFT OUTER JOIN orders AS "orders" ON ("customers".customer_id) = ("orders".customer_id)
+  ),
+  dd_customers_average_customer_value_distinct AS (
+    SELECT
+      CAST(
+        SUM(
+          CASE
+            WHEN __dd_rn = 1 THEN __dd_val
+            ELSE NULL
+          END
+        ) AS FLOAT
+      ) / CAST(
+        NULLIF(
+          COUNT(
+            CASE
+              WHEN __dd_rn = 1 THEN __dd_val
+            END
+          ),
+          0
+        ) AS FLOAT
+      ) AS "customers_average_customer_value_distinct"
+    FROM
+      (
+        SELECT
+          ("customers".lifetime_value) AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              ("customers".customer_id)
+            ORDER BY
+              ("customers".lifetime_value)
+          ) AS __dd_rn
+        FROM
+          customers AS "customers"
+          LEFT OUTER JOIN orders AS "orders" ON ("customers".customer_id) = ("orders".customer_id)
+      ) __dd_sub
+  ),
+  dd_base AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_customers."customers_total_customer_value" AS "customers_total_customer_value"
+    FROM
+      cte_unaffected
+      CROSS JOIN cte_metrics_customers
+  )
+SELECT
+  dd_base.*,
+  dd_customers_average_customer_value_distinct."customers_average_customer_value_distinct" AS "customers_average_customer_value_distinct",
+  dd_base."customers_total_customer_value" / NULLIF(
+    dd_customers_average_customer_value_distinct."customers_average_customer_value_distinct",
+    0
+  ) AS "customers_customer_value_vs_distinct_average"
+FROM
+  dd_base
+  CROSS JOIN dd_customers_average_customer_value_distinct
+ORDER BY
+  "customers_customer_value_vs_distinct_average" DESC
+LIMIT
+  500"
+`;
+
+exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a fanout-protected metric that references sum_distinct on the same table 1`] = `
+"WITH
+  cte_keys_customers AS (
+    SELECT DISTINCT
+      "customers".customer_id AS "pk_customer_id"
+    FROM
+      customers AS "customers"
+      LEFT OUTER JOIN orders AS "orders" ON ("customers".customer_id) = ("orders".customer_id)
+  ),
+  cte_metrics_customers AS (
+    SELECT
+      SUM("customers".lifetime_value) AS "customers_total_customer_value"
+    FROM
+      cte_keys_customers
+      LEFT JOIN customers AS "customers" ON cte_keys_customers."pk_customer_id" = "customers".customer_id
+  ),
+  cte_unaffected AS (
+    SELECT
+      SUM("orders".amount) AS "orders_total_order_amount"
+    FROM
+      customers AS "customers"
+      LEFT OUTER JOIN orders AS "orders" ON ("customers".customer_id) = ("orders".customer_id)
+  ),
+  dd_customers_total_customer_value_deduped AS (
+    SELECT
+      SUM(
+        CASE
+          WHEN __dd_rn = 1 THEN __dd_val
+          ELSE NULL
+        END
+      ) AS "customers_total_customer_value_deduped"
+    FROM
+      (
+        SELECT
+          ("customers".lifetime_value) AS __dd_val,
+          ROW_NUMBER() OVER (
+            PARTITION BY
+              ("customers".customer_id)
+            ORDER BY
+              ("customers".lifetime_value)
+          ) AS __dd_rn
+        FROM
+          customers AS "customers"
+          LEFT OUTER JOIN orders AS "orders" ON ("customers".customer_id) = ("orders".customer_id)
+      ) __dd_sub
+  ),
+  dd_base AS (
+    SELECT
+      cte_unaffected.*,
+      cte_metrics_customers."customers_total_customer_value" AS "customers_total_customer_value"
+    FROM
+      cte_unaffected
+      CROSS JOIN cte_metrics_customers
+  )
+SELECT
+  dd_base.*,
+  dd_customers_total_customer_value_deduped."customers_total_customer_value_deduped" AS "customers_total_customer_value_deduped",
+  dd_base."customers_total_customer_value" / NULLIF(
+    dd_customers_total_customer_value_deduped."customers_total_customer_value_deduped",
+    0
+  ) AS "customers_average_customer_value_deduped"
+FROM
+  dd_base
+  CROSS JOIN dd_customers_total_customer_value_deduped
+ORDER BY
+  "customers_average_customer_value_deduped" DESC
+LIMIT
+  500"
+`;
+
 exports[`MetricQueryBuilder snapshot: fanout queries matches snapshot for a filter-only fanout metric query 1`] = `
 "WITH
   cte_keys_table2 AS (
