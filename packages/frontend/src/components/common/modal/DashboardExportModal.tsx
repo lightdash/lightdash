@@ -6,38 +6,32 @@ import {
 import {
     Button,
     Checkbox,
-    Collapse,
     Group,
     Input,
     MultiSelect,
-    NumberInput,
-    Radio,
     SegmentedControl,
     Stack,
     Text,
     Tooltip,
 } from '@mantine-8/core';
 import {
-    IconChevronDown,
-    IconChevronUp,
     IconCsv,
     IconFileExport,
     IconFileTypeXls,
     IconHelpCircle,
     IconLayoutDashboard,
     IconScreenshot,
-    IconSettings,
 } from '@tabler/icons-react';
 import { useCallback, useState, type FC } from 'react';
 import { useLocation } from 'react-router';
 import { PreviewAndCustomizeScreenshot } from '../../../features/preview';
+import { CsvFormattingOptions } from '../../../features/scheduler/components/CsvFormattingOptions';
 import { Limit, Values } from '../../../features/scheduler/components/types';
 import { CUSTOM_WIDTH_OPTIONS } from '../../../features/scheduler/constants';
 import {
     useExportDashboardContent,
     useExportDashboard,
 } from '../../../hooks/dashboard/useDashboard';
-import useHealth from '../../../hooks/health/useHealth';
 import useDashboardContext from '../../../providers/Dashboard/useDashboardContext';
 import Callout from '../Callout';
 import MantineIcon from '../MantineIcon';
@@ -61,7 +55,6 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
         SchedulerFormat.IMAGE | SchedulerFormat.CSV | SchedulerFormat.XLSX
     >(SchedulerFormat.IMAGE);
     const location = useLocation();
-    const health = useHealth();
     const exportDashboardContentMutation = useExportDashboardContent();
     const dashboardFilters = useDashboardContext((c) => c.allFilters);
     const dateZoomGranularity = useDashboardContext(
@@ -74,19 +67,18 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
     >(CUSTOM_WIDTH_OPTIONS[1].value);
     const exportDashboardMutation = useExportDashboard();
 
-    const [showFormatting, setShowFormatting] = useState(false);
     const [formatted, setFormatted] = useState<Values>(Values.FORMATTED);
     const [limit, setLimit] = useState<Limit>(Limit.TABLE);
     const [customLimit, setCustomLimit] = useState(1);
     const [exportPivotedData, setExportPivotedData] = useState(true);
+    const [xlsxFileLayout, setXlsxFileLayout] =
+        useState<NonNullable<SchedulerCsvOptions['xlsxFileLayout']>>('zip');
     const isDashboardTabsAvailable =
         dashboard?.tabs !== undefined && dashboard.tabs.length > 0;
     const [allTabsSelected, setAllTabsSelected] = useState(true);
     const [selectedTabs, setSelectedTabs] = useState<string[]>(
         dashboard?.tabs?.map((tab) => tab.uuid) || [],
     );
-    const [xlsxFileLayout, setXlsxFileLayout] =
-        useState<NonNullable<SchedulerCsvOptions['xlsxFileLayout']>>('zip');
 
     const exportSelectedTabs =
         isDashboardTabsAvailable && !allTabsSelected && selectedTabs.length > 0
@@ -314,182 +306,19 @@ export const DashboardExportModal: FC<DashboardExportModalProps> = ({
                                 date zoom granularity.
                             </Callout>
                         )}
-                        <Button
-                            variant="subtle"
-                            size="compact-sm"
-                            style={{ alignSelf: 'start' }}
-                            leftSection={<MantineIcon icon={IconSettings} />}
-                            rightSection={
-                                <MantineIcon
-                                    icon={
-                                        showFormatting
-                                            ? IconChevronUp
-                                            : IconChevronDown
-                                    }
-                                />
-                            }
-                            onClick={() => setShowFormatting((old) => !old)}
-                        >
-                            Formatting options
-                        </Button>
-                        <Collapse in={showFormatting} pl="md">
-                            <Group align="start" gap="xxl">
-                                {exportType === SchedulerFormat.XLSX && (
-                                    <Radio.Group
-                                        label={
-                                            <>
-                                                XLSX output
-                                                <Tooltip
-                                                    withinPortal
-                                                    maw={300}
-                                                    multiline
-                                                    label="Separate files puts each dashboard tile in its own XLSX file inside a ZIP. Single workbook puts each tile on its own sheet in one XLSX file."
-                                                    position="top"
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconHelpCircle}
-                                                        size="md"
-                                                        display="inline"
-                                                        color="gray"
-                                                        style={{
-                                                            marginLeft: '4px',
-                                                            marginBottom:
-                                                                '-4px',
-                                                        }}
-                                                    />
-                                                </Tooltip>
-                                            </>
-                                        }
-                                        value={xlsxFileLayout}
-                                        onChange={(value) =>
-                                            setXlsxFileLayout(
-                                                value as NonNullable<
-                                                    SchedulerCsvOptions['xlsxFileLayout']
-                                                >,
-                                            )
-                                        }
-                                    >
-                                        <Stack gap="xxs" pt="xs">
-                                            <Radio
-                                                label="Separate files (ZIP)"
-                                                value="zip"
-                                            />
-                                            <Radio
-                                                label="Single workbook"
-                                                value="workbook"
-                                            />
-                                        </Stack>
-                                    </Radio.Group>
-                                )}
-                                <Radio.Group
-                                    label="Values"
-                                    value={formatted}
-                                    onChange={(value) =>
-                                        setFormatted(value as Values)
-                                    }
-                                >
-                                    <Stack gap="xxs" pt="xs">
-                                        <Radio
-                                            label="Formatted"
-                                            value={Values.FORMATTED}
-                                        />
-                                        <Radio label="Raw" value={Values.RAW} />
-                                    </Stack>
-                                </Radio.Group>
-                                <Stack gap="xs">
-                                    <Radio.Group
-                                        label="Limit"
-                                        value={limit}
-                                        onChange={(value) =>
-                                            setLimit(value as Limit)
-                                        }
-                                    >
-                                        <Stack gap="xxs" pt="xs">
-                                            <Radio
-                                                label="Results in Table"
-                                                value={Limit.TABLE}
-                                            />
-                                            <Radio
-                                                label="All Results"
-                                                value={Limit.ALL}
-                                            />
-                                            <Radio
-                                                label="Custom..."
-                                                value={Limit.CUSTOM}
-                                            />
-                                        </Stack>
-                                    </Radio.Group>
-                                    {limit === Limit.CUSTOM && (
-                                        <NumberInput
-                                            w={150}
-                                            min={1}
-                                            required
-                                            value={customLimit}
-                                            onChange={(value) =>
-                                                setCustomLimit(
-                                                    Number(value) || 1,
-                                                )
-                                            }
-                                        />
-                                    )}
-
-                                    {(limit === Limit.ALL ||
-                                        limit === Limit.CUSTOM) && (
-                                        <i>
-                                            Results are limited to{' '}
-                                            {Number(
-                                                health.data?.query
-                                                    .csvCellsLimit || 100000,
-                                            ).toLocaleString()}{' '}
-                                            cells for each file
-                                        </i>
-                                    )}
-                                </Stack>
-                                <Radio.Group
-                                    label={
-                                        <>
-                                            Layout
-                                            <Tooltip
-                                                withinPortal
-                                                maw={300}
-                                                multiline
-                                                label="Applies to cartesian charts with pivoted dimensions. Grouped keeps the chart's column structure; Flat returns the raw rows from the query."
-                                                position="top"
-                                            >
-                                                <MantineIcon
-                                                    icon={IconHelpCircle}
-                                                    size="md"
-                                                    display="inline"
-                                                    color="gray"
-                                                    style={{
-                                                        marginLeft: '4px',
-                                                        marginBottom: '-4px',
-                                                    }}
-                                                />
-                                            </Tooltip>
-                                        </>
-                                    }
-                                    value={
-                                        exportPivotedData
-                                            ? 'pivoted'
-                                            : 'unpivoted'
-                                    }
-                                    onChange={(value) =>
-                                        setExportPivotedData(
-                                            value === 'pivoted',
-                                        )
-                                    }
-                                >
-                                    <Stack gap="xxs" pt="xs">
-                                        <Radio
-                                            label="Grouped"
-                                            value="pivoted"
-                                        />
-                                        <Radio label="Flat" value="unpivoted" />
-                                    </Stack>
-                                </Radio.Group>
-                            </Group>
-                        </Collapse>
+                        <CsvFormattingOptions
+                            format={exportType}
+                            formatted={formatted}
+                            onFormattedChange={setFormatted}
+                            limit={limit}
+                            onLimitChange={setLimit}
+                            customLimit={customLimit}
+                            onCustomLimitChange={setCustomLimit}
+                            exportPivotedData={exportPivotedData}
+                            onExportPivotedDataChange={setExportPivotedData}
+                            xlsxFileLayout={xlsxFileLayout}
+                            onXlsxFileLayoutChange={setXlsxFileLayout}
+                        />
                     </Stack>
                 )}
 
