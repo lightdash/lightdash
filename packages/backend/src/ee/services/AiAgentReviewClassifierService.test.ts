@@ -728,6 +728,30 @@ describe('AiAgentReviewClassifierService', () => {
             }),
         );
     });
+
+    it('reuses a pre-created queued run when runUuid is supplied', async () => {
+        const QUEUED_RUN_UUID = 'run-existing';
+        model.listTurnReviewCandidates.mockResolvedValue([makeCandidate()]);
+
+        await service.run({
+            organizationUuid: ORGANIZATION_UUID,
+            startedAt: NOW,
+            endedAt: NOW,
+            runUuid: QUEUED_RUN_UUID,
+            promoteFindingsToReviewItems: false,
+        });
+
+        expect(model.createRun).not.toHaveBeenCalled();
+        expect(model.updateRun).toHaveBeenCalledWith(
+            expect.objectContaining({
+                runUuid: QUEUED_RUN_UUID,
+                status: 'running',
+            }),
+        );
+        expect(model.createTurnSignal).toHaveBeenCalledWith(
+            expect.objectContaining({ runUuid: QUEUED_RUN_UUID }),
+        );
+    });
 });
 
 describe('resolveReviewJudgeProvider', () => {

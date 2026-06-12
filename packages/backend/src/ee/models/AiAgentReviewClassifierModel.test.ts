@@ -11,6 +11,7 @@ import {
 } from '../database/entities/aiAgentReviewClassifier';
 import {
     AiAgentReviewClassifierModel,
+    buildRunReportActions,
     WRITEBACK_STALE_MS,
 } from './AiAgentReviewClassifierModel';
 
@@ -1290,6 +1291,144 @@ describe('AiAgentReviewClassifierModel', () => {
             );
             expect(tracker.history.update[0].bindings).toContain('resolved');
             expect(tracker.history.update[0].bindings).toContain('merged');
+        });
+    });
+
+    describe('buildRunReportActions', () => {
+        const makeReportSignalRow = (
+            overrides: {
+                promoted_to_finding?: boolean;
+                primary_root_cause?:
+                    | import('@lightdash/common').AiAgentRootCause
+                    | null;
+                owner_type?:
+                    | import('@lightdash/common').AiAgentReviewItemOwnerType
+                    | null;
+                fix_targets?:
+                    | import('@lightdash/common').AiAgentFixTarget[]
+                    | null;
+            } = {},
+        ) => ({
+            ai_agent_review_turn_signal_uuid: TURN_SIGNAL_UUID,
+            ai_prompt_uuid: PROMPT_UUID,
+            ai_thread_uuid: THREAD_UUID,
+            signal: 'implicit_correction' as const,
+            confidence: 'high' as const,
+            promoted_to_finding: true,
+            primary_root_cause: 'semantic_layer' as const,
+            owner_type: 'semantic_layer_owner' as const,
+            fix_targets: [
+                'semantic_yaml_patch' as const,
+            ] as import('@lightdash/common').AiAgentFixTarget[],
+            review_item_title: 'Some title',
+            created_at: SEEN_AT,
+            ...overrides,
+        });
+
+        it('groups promoted rows by (primaryRootCause, ownerType, firstFixTarget) sorted by count desc', () => {
+            const rows = [
+                makeReportSignalRow(),
+                makeReportSignalRow(),
+                makeReportSignalRow({
+                    primary_root_cause: 'project_context',
+                    owner_type: 'agent_admin',
+                    fix_targets: ['project_context_rule'],
+                }),
+            ];
+
+            const actions = buildRunReportActions(rows);
+
+            expect(actions).toHaveLength(2);
+            expect(actions[0]).toEqual({
+                primaryRootCause: 'semantic_layer',
+                ownerType: 'semantic_layer_owner',
+                fixTarget: 'semantic_yaml_patch',
+                count: 2,
+            });
+            expect(actions[1]).toEqual({
+                primaryRootCause: 'project_context',
+                ownerType: 'agent_admin',
+                fixTarget: 'project_context_rule',
+                count: 1,
+            });
+        });
+
+        it('excludes non-promoted rows', () => {
+            const rows = [
+                makeReportSignalRow({ promoted_to_finding: false }),
+                makeReportSignalRow({ promoted_to_finding: true }),
+            ];
+
+            const actions = buildRunReportActions(rows);
+
+            expect(actions).toHaveLength(1);
+            expect(actions[0].count).toBe(1);
+        });
+
+        it('uses null fixTarget when fix_targets is empty', () => {
+            const rows = [makeReportSignalRow({ fix_targets: [] })];
+
+            const actions = buildRunReportActions(rows);
+
+            expect(actions[0].fixTarget).toBeNull();
+        });
+
+        it('returns flaggedRate correctly via turnsReviewed and flaggedTurns', () => {
+            const promoted = makeReportSignalRow({ promoted_to_finding: true });
+            const notPromoted = makeReportSignalRow({
+                promoted_to_finding: false,
+            });
+            const allRows = [promoted, notPromoted];
+            const flaggedTurns = allRows.filter(
+                (r) => r.promoted_to_finding,
+            ).length;
+            const turnsReviewed = allRows.length;
+            const flaggedRate = flaggedTurns / turnsReviewed;
+
+            expect(flaggedRate).toBe(0.5);
+            expect(flaggedTurns).toBe(1);
+        });
+    });
+
+    describe('getRunReport', () => {
+        it('aggregates signal rows into a batch report', async () => {
+            tracker.on
+                .select(AiAgentReviewClassifierRunTableName)
+                .responseOnce([makeRunRow()]);
+            tracker.on.select(AiAgentTurnSignalTableName).responseOnce([
+                makeTurnSignalRow({ promoted_to_finding: true }),
+                makeTurnSignalRow({
+                    ai_agent_review_turn_signal_uuid:
+                        '00000000-0000-0000-0000-000000000099',
+                    promoted_to_finding: false,
+                    signal: 'new_question',
+                }),
+            ]);
+
+            const report = await model.getRunReport({
+                organizationUuid: ORGANIZATION_UUID,
+                runUuid: RUN_UUID,
+            });
+
+            expect(report?.runUuid).toBe(RUN_UUID);
+            expect(report?.turnsReviewed).toBe(2);
+            expect(report?.flaggedTurns).toBe(1);
+            expect(report?.flaggedRate).toBe(0.5);
+            expect(report?.actions).toHaveLength(1);
+            expect(report?.actions[0]).toEqual(
+                expect.objectContaining({
+                    primaryRootCause: 'semantic_layer',
+                    count: 1,
+                }),
+            );
+            expect(report?.signalsByType).toEqual(
+                expect.objectContaining({
+                    implicit_correction: 1,
+                    new_question: 1,
+                }),
+            );
+            expect(report?.topExamples).toHaveLength(1);
+            expect(report?.topExamples[0].promptUuid).toBe(PROMPT_UUID);
         });
     });
 });

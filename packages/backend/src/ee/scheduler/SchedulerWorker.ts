@@ -26,6 +26,7 @@ const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const AI_AGENT_REVIEW_BATCH_TIMEOUT_MS = 30 * 60_000;
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
 
 type CommercialSchedulerWorkerArguments = SchedulerWorkerArguments & {
@@ -288,6 +289,45 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                                 organizationUuid: payload.organizationUuid,
                                 projectUuid: payload.projectUuid,
                                 fingerprint: payload.fingerprint,
+                            },
+                        });
+                    },
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_BATCH]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_BATCH,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentReviewClassifierService.runReviewBatchJob(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_REVIEW_BATCH_TIMEOUT_MS,
+                    async (job, e) => {
+                        await this.aiAgentReviewClassifierService.failReviewBatchRun(
+                            {
+                                runUuid: payload.runUuid,
+                                message: getErrorMessage(e),
+                            },
+                        );
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_BATCH,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                organizationUuid: payload.organizationUuid,
+                                runUuid: payload.runUuid,
                             },
                         });
                     },

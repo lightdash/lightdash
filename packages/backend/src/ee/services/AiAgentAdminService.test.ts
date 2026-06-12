@@ -1270,3 +1270,113 @@ describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
         ).not.toHaveBeenCalled();
     });
 });
+
+const START_DATE = new Date('2026-01-01T00:00:00.000Z');
+const END_DATE = new Date('2026-06-01T00:00:00.000Z');
+const RUN_UUID = '00000000-0000-0000-0000-000000000099';
+
+describe('AiAgentAdminService.startReviewBatch', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('throws ParameterError when estimated turns exceed the cap', async () => {
+        const aiAgentReviewClassifierModel = {
+            countTurnReviewCandidates: jest.fn().mockResolvedValue(5000),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        await expect(
+            service.startReviewBatch(makeAdminUser(), {
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                startedAt: START_DATE,
+                endedAt: END_DATE,
+            }),
+        ).rejects.toThrow('exceeds the 500 cap');
+
+        expect(
+            aiAgentReviewClassifierModel.countTurnReviewCandidates,
+        ).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            startedAt: START_DATE,
+            endedAt: END_DATE,
+        });
+    });
+
+    it('throws when the AiReviewBatch feature flag is disabled', async () => {
+        const countTurnReviewCandidates = jest.fn();
+        const service = makeService({
+            aiAgentReviewClassifierModel: { countTurnReviewCandidates },
+            featureFlagService: {
+                get: jest.fn().mockResolvedValue({ enabled: false }),
+            },
+        });
+
+        await expect(
+            service.startReviewBatch(makeAdminUser(), {
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+                startedAt: START_DATE,
+                endedAt: END_DATE,
+            }),
+        ).rejects.toThrow('not enabled');
+
+        expect(countTurnReviewCandidates).not.toHaveBeenCalled();
+    });
+
+    it('creates a queued run and enqueues the batch job when under the cap', async () => {
+        const ESTIMATED_TURNS = 42;
+        const createQueuedBackfillRun = jest.fn().mockResolvedValue(RUN_UUID);
+        const aiAgentReviewBatch = jest
+            .fn()
+            .mockResolvedValue({ jobId: 'job-1' });
+        const aiAgentReviewClassifierModel = {
+            countTurnReviewCandidates: jest
+                .fn()
+                .mockResolvedValue(ESTIMATED_TURNS),
+            createQueuedBackfillRun,
+        };
+        const schedulerClient = {
+            aiAgentReviewBatch,
+        };
+        const service = makeService({
+            aiAgentReviewClassifierModel,
+            schedulerClient,
+        });
+
+        const result = await service.startReviewBatch(makeAdminUser(), {
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            startedAt: START_DATE,
+            endedAt: END_DATE,
+        });
+
+        expect(result).toEqual({
+            runUuid: RUN_UUID,
+            estimatedTurns: ESTIMATED_TURNS,
+        });
+        expect(createQueuedBackfillRun).toHaveBeenCalledWith({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            startedAt: START_DATE,
+            endedAt: END_DATE,
+            totalTurns: ESTIMATED_TURNS,
+            reviewAgentVersion: 'llm-judge-v1',
+            judgePromptHash: 'ai-agent-review-judge-v3',
+        });
+        expect(aiAgentReviewBatch).toHaveBeenCalledWith({
+            runUuid: RUN_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            startedAt: START_DATE.toISOString(),
+            endedAt: END_DATE.toISOString(),
+            limit: 500,
+            requestedByUserUuid: USER_UUID,
+        });
+    });
+});

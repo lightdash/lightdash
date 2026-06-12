@@ -11,6 +11,7 @@ import {
     type AiAgentConfigSnapshot,
     type AiAgentConfigurationSetting,
     type AiAgentEvidenceExcerpt,
+    type AiAgentReviewBatchJobPayload,
     type AiAgentReviewClassifierEventType,
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierRunScope,
@@ -37,8 +38,8 @@ import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettin
 import { defaultAgentOptions } from './ai/agents/agentV2';
 import { getModel } from './ai/models';
 
-const REVIEW_AGENT_VERSION = 'llm-judge-v1';
-const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
+export const REVIEW_AGENT_VERSION = 'llm-judge-v1';
+export const JUDGE_PROMPT_HASH = 'ai-agent-review-judge-v3';
 const WRITEBACK_TOOL_NAMES = new Set([
     'editDbtProject',
     'propose_writeback',
@@ -153,6 +154,7 @@ type RunArgs = {
     persistSignals?: boolean;
     persistFindings?: boolean;
     promoteFindingsToReviewItems?: boolean;
+    runUuid?: string;
 };
 
 type RunLiveEventArgs = {
@@ -177,6 +179,7 @@ type ProcessCandidatesArgs = {
     persistFindings?: boolean;
     promoteFindingsToReviewItems?: boolean;
     failWhenDisabled?: boolean;
+    runUuid?: string;
 };
 
 export type AiAgentReviewClassifierRunResult = {
@@ -299,6 +302,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             persistFindings: args.persistFindings,
             promoteFindingsToReviewItems: args.promoteFindingsToReviewItems,
             failWhenDisabled: true,
+            runUuid: args.runUuid,
         });
         if (!result) {
             throw new ForbiddenError('AI agent review agent is not enabled');
@@ -409,20 +413,32 @@ export class AiAgentReviewClassifierService extends BaseService {
             },
         });
 
-        const run = await this.aiAgentReviewClassifierModel.createRun({
-            organizationUuid: args.organizationUuid,
-            reviewAgentVersion: REVIEW_AGENT_VERSION,
-            judgePromptHash: JUDGE_PROMPT_HASH,
-            status: 'running',
-            totalTurns: args.candidates.length,
-            runScope: args.runScope,
-            agentConfigSnapshotHash: runAgentConfig.snapshotHash,
-            agentConfigSnapshot: runAgentConfig.snapshot,
-            agentConfigSnapshotAgentUpdatedAt: runAgentConfig.agentUpdatedAt,
-        });
+        let runUuid: string;
+        if (args.runUuid) {
+            runUuid = args.runUuid;
+            await this.aiAgentReviewClassifierModel.updateRun({
+                runUuid,
+                status: 'running',
+                totalTurns: args.candidates.length,
+            });
+        } else {
+            const run = await this.aiAgentReviewClassifierModel.createRun({
+                organizationUuid: args.organizationUuid,
+                reviewAgentVersion: REVIEW_AGENT_VERSION,
+                judgePromptHash: JUDGE_PROMPT_HASH,
+                status: 'running',
+                totalTurns: args.candidates.length,
+                runScope: args.runScope,
+                agentConfigSnapshotHash: runAgentConfig.snapshotHash,
+                agentConfigSnapshot: runAgentConfig.snapshot,
+                agentConfigSnapshotAgentUpdatedAt:
+                    runAgentConfig.agentUpdatedAt,
+            });
+            runUuid = run.uuid;
+        }
 
         this.debugLog('RunStarted', {
-            runUuid: run.uuid,
+            runUuid,
             organizationUuid: args.organizationUuid,
             runScope: args.runScope,
             agentConfigSnapshotHash: runAgentConfig.snapshotHash,
@@ -470,7 +486,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             for (const { classifiedTurn } of reviewedTurns) {
                 if (shouldPersistSignals) {
                     await this.aiAgentReviewClassifierModel.createTurnSignal({
-                        runUuid: run.uuid,
+                        runUuid,
                         turnSignal: classifiedTurn.signal,
                         finding: shouldPersistFindings
                             ? classifiedTurn.finding
@@ -494,7 +510,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             /* eslint-enable no-await-in-loop */
 
             await this.aiAgentReviewClassifierModel.updateRun({
-                runUuid: run.uuid,
+                runUuid,
                 status: 'completed',
                 processedTurns,
                 signalCount,
@@ -504,7 +520,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             });
 
             this.debugLog('RunCompleted', {
-                runUuid: run.uuid,
+                runUuid,
                 processedTurns,
                 signalCount,
                 findingCount: reviewedFindingCount,
@@ -512,7 +528,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             });
 
             return {
-                runUuid: run.uuid,
+                runUuid,
                 processedTurns,
                 signalCount,
                 findingCount: reviewedFindingCount,
@@ -521,7 +537,7 @@ export class AiAgentReviewClassifierService extends BaseService {
             };
         } catch (error) {
             this.debugLog('RunFailed', {
-                runUuid: run.uuid,
+                runUuid,
                 processedTurns,
                 signalCount,
                 findingCount,
@@ -530,7 +546,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     error instanceof Error ? error.message : String(error),
             });
             await this.aiAgentReviewClassifierModel.updateRun({
-                runUuid: run.uuid,
+                runUuid,
                 status: 'failed',
                 processedTurns,
                 signalCount,
@@ -1277,6 +1293,36 @@ Set projectContextEntry ONLY when primaryRootCause=project_context and a single 
             : '';
 
         return `${subagentPrefix}: ${evidence.toolName} (${evidence.toolCallId}).${args}${result}`;
+    }
+
+    async runReviewBatchJob(
+        payload: AiAgentReviewBatchJobPayload,
+    ): Promise<void> {
+        await this.run({
+            runUuid: payload.runUuid,
+            organizationUuid: payload.organizationUuid,
+            projectUuid: payload.projectUuid,
+            agentUuid: payload.agentUuid,
+            startedAt: new Date(payload.startedAt),
+            endedAt: new Date(payload.endedAt),
+            limit: payload.limit,
+            requestedByUserUuid: payload.requestedByUserUuid,
+            dryRun: false,
+            persistSignals: true,
+            persistFindings: true,
+            promoteFindingsToReviewItems: false,
+        });
+    }
+
+    async failReviewBatchRun(args: {
+        runUuid: string;
+        message: string;
+    }): Promise<void> {
+        await this.aiAgentReviewClassifierModel.updateRun({
+            runUuid: args.runUuid,
+            status: 'failed',
+            errorMessage: args.message,
+        });
     }
 
     private static getRelevantCatalogMatches({

@@ -1,3 +1,4 @@
+import { FeatureFlags } from '@lightdash/common';
 import { Button, Drawer, Group, Stack, Text } from '@mantine-8/core';
 import { IconRoute } from '@tabler/icons-react';
 import { useMemo } from 'react';
@@ -7,10 +8,12 @@ import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { NAVBAR_HEIGHT } from '../../../../../../components/common/Page/constants';
 import PageBreadcrumbs from '../../../../../../components/common/PageBreadcrumbs';
 import { useGuidedTour } from '../../../../../../hooks/useGuidedTour';
+import { useServerFeatureFlag } from '../../../../../../hooks/useServerOrClientFeatureFlag';
 import { useAiOrganizationSettings } from '../../../hooks/useAiOrganizationSettings';
 import AiAgentAdminReviewItemsTable, {
     type AiAgentAdminReviewItemPreviewTarget,
 } from '../AiAgentAdminReviewItemsTable';
+import { BatchAnalysisPanel } from '../BatchAnalysisPanel';
 import { REVIEWS_TOUR_STEPS } from '../onboarding';
 import { ThreadPreviewSidebar } from '../ThreadPreviewSidebar';
 import { AiFeaturesDisabledAlert } from './AiFeaturesDisabledAlert';
@@ -18,6 +21,10 @@ import drawerClasses from './ThreadPreviewDrawer.module.css';
 
 export const AiReviewsSettingsPage = () => {
     const { data: settings } = useAiOrganizationSettings();
+    const { data: batchAnalysisFlag } = useServerFeatureFlag(
+        FeatureFlags.AiReviewBatch,
+    );
+    const isBatchAnalysisEnabled = batchAnalysisFlag?.enabled === true;
     const [searchParams, setSearchParams] = useSearchParams();
 
     // The selected review item and the sidebar's open state are derived
@@ -123,6 +130,10 @@ export const AiReviewsSettingsPage = () => {
             </Stack>
 
             {settings?.aiAgentsVisible === false && <AiFeaturesDisabledAlert />}
+
+            {isBatchAnalysisEnabled && (
+                <BatchAnalysisPanel projectUuid={null} agentUuid={null} />
+            )}
 
             <AiAgentAdminReviewItemsTable
                 selectedReviewItemUuid={selectedReviewItem?.reviewItemUuid}
