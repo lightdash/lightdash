@@ -40,6 +40,7 @@ import {
     type SessionUser,
     type TablesConfiguration,
     type Tag,
+    type UpstreamFieldDiff,
     type UserAttributeValueMap,
 } from '@lightdash/common';
 import { Knex } from 'knex';
@@ -2490,6 +2491,81 @@ export class CatalogModel {
             firstName: r.first_name,
             lastName: r.last_name,
             email: r.email,
+        }));
+    }
+
+    /**
+     * Field-level diff between a preview project and its upstream, computed
+     * entirely in SQL over `catalog_search`. Detects added/removed fields and
+     * label changes. Does not see SQL-only changes.
+     */
+    async getUpstreamDiff(
+        previewProjectUuid: string,
+        upstreamProjectUuid: string,
+    ): Promise<UpstreamFieldDiff[]> {
+        const { rows } = await this.database.raw<{
+            rows: {
+                change: UpstreamFieldDiff['change'];
+                explore_name: string;
+                table_name: string;
+                field_name: string;
+                field_type: string | null;
+                upstream_label: string | null;
+                preview_label: string | null;
+            }[];
+        }>(
+            `
+            WITH u AS (
+                SELECT cs.table_name, cs.name, cs.field_type, cs.label,
+                       ce.name AS explore_name
+                FROM ?? cs
+                JOIN ?? ce ON ce.cached_explore_uuid = cs.cached_explore_uuid
+                WHERE cs.project_uuid = ?
+            ), pv AS (
+                SELECT cs.table_name, cs.name, cs.field_type, cs.label,
+                       ce.name AS explore_name
+                FROM ?? cs
+                JOIN ?? ce ON ce.cached_explore_uuid = cs.cached_explore_uuid
+                WHERE cs.project_uuid = ?
+            )
+            SELECT
+                CASE
+                    WHEN u.name IS NULL THEN 'added'
+                    WHEN pv.name IS NULL THEN 'removed'
+                    WHEN u.label IS DISTINCT FROM pv.label THEN 'label_changed'
+                END AS change,
+                COALESCE(pv.explore_name, u.explore_name) AS explore_name,
+                COALESCE(u.table_name, pv.table_name) AS table_name,
+                COALESCE(u.name, pv.name) AS field_name,
+                COALESCE(u.field_type, pv.field_type) AS field_type,
+                u.label AS upstream_label, pv.label AS preview_label
+            FROM u
+            FULL OUTER JOIN pv
+                ON u.table_name = pv.table_name
+                AND u.name = pv.name
+                AND u.field_type IS NOT DISTINCT FROM pv.field_type
+            WHERE u.name IS NULL OR pv.name IS NULL
+                OR u.label IS DISTINCT FROM pv.label
+            ORDER BY change, table_name, field_name
+            `,
+            [
+                CatalogTableName,
+                CachedExploreTableName,
+                upstreamProjectUuid,
+                CatalogTableName,
+                CachedExploreTableName,
+                previewProjectUuid,
+            ],
+        );
+
+        return rows.map((row) => ({
+            change: row.change,
+            exploreName: row.explore_name,
+            tableName: row.table_name,
+            fieldName: row.field_name,
+            fieldType: row.field_type,
+            upstreamLabel: row.upstream_label,
+            previewLabel: row.preview_label,
         }));
     }
 }

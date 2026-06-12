@@ -252,6 +252,7 @@ import {
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
 import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
+import { type ApiUpstreamDiffResults } from './upstreamDiff';
 import {
     type LightdashUser,
     type LoginOptions,
@@ -933,6 +934,7 @@ type ApiResults =
     | ApiRefreshResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
+    | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess
     | Organization
