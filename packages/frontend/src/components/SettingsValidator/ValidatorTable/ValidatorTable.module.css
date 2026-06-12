@@ -11,6 +11,14 @@
     flex-direction: column;
 }
 
+.paperFlush {
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    display: flex;
+    flex-direction: column;
+}
+
 .tableContainer {
     max-height: calc(100dvh - 370px);
 }

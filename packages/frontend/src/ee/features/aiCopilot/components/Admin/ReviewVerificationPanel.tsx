@@ -23,12 +23,14 @@ import {
 import { useMemo, useState, type FC, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { useProjectValidation } from '../../../../../hooks/validation/useValidation';
 import {
     useAiAgentReviewItemPrDiff,
     useProjectUpstreamDiff,
 } from '../../hooks/useAiAgentAdmin';
 import { ReviewFieldsModal } from './ReviewFieldsModal';
 import { ReviewPrDiffModal } from './ReviewPrDiffModal';
+import { ReviewValidationModal } from './ReviewValidationModal';
 import styles from './ReviewVerificationPanel.module.css';
 
 type Props = {
@@ -69,14 +71,12 @@ export const ReviewVerificationPanel: FC<Props> = ({
 }) => {
     const [diffOpened, setDiffOpened] = useState(false);
     const [fieldsOpened, setFieldsOpened] = useState(false);
+    const [validationOpened, setValidationOpened] = useState(false);
     const remediation = reviewItem.remediation ?? null;
     const linkedPrUrl = remediation?.linkedPrUrl ?? null;
     const prNumber = linkedPrUrl ? getPrNumber(linkedPrUrl) : null;
     const isResolved = reviewItem.status === 'resolved';
     const previewProjectUuid = remediation?.previewProjectUuid ?? null;
-    const validatorUrl = previewProjectUuid
-        ? `/generalSettings/projectManagement/${previewProjectUuid}/validator`
-        : null;
     const sourceThreadUrl =
         remediation &&
         `/projects/${remediation.sourceProjectUuid}/ai-agents/${remediation.sourceAgentUuid}/threads/${remediation.sourceThreadUuid}`;
@@ -101,6 +101,10 @@ export const ReviewVerificationPanel: FC<Props> = ({
     );
     const showFieldsRow =
         !!previewProjectUuid && (isLoadingFields || fields.length > 0);
+
+    const { data: validationErrors, isLoading: isLoadingValidation } =
+        useProjectValidation(previewProjectUuid);
+    const validationErrorCount = validationErrors?.length ?? 0;
 
     return (
         <div className={styles.gutter}>
@@ -242,25 +246,33 @@ export const ReviewVerificationPanel: FC<Props> = ({
                         </UnstyledButton>
                     )}
 
-                    {validatorUrl && (
-                        <Anchor
+                    {previewProjectUuid && (
+                        <UnstyledButton
                             className={styles.row}
-                            component={Link}
-                            to={validatorUrl}
-                            underline="never"
+                            onClick={() => setValidationOpened(true)}
                         >
                             <Row
                                 icon={IconListCheck}
-                                label="Validate"
+                                label="Validator"
                                 trailing={
-                                    <MantineIcon
-                                        icon={IconArrowUpRight}
-                                        size="sm"
-                                        color="dimmed"
-                                    />
+                                    isLoadingValidation ? (
+                                        <Loader size={12} color="gray" />
+                                    ) : (
+                                        <Text
+                                            fz="sm"
+                                            fw={600}
+                                            c={
+                                                validationErrorCount > 0
+                                                    ? 'red.8'
+                                                    : 'green.8'
+                                            }
+                                        >
+                                            {validationErrorCount}
+                                        </Text>
+                                    )
                                 }
                             />
-                        </Anchor>
+                        </UnstyledButton>
                     )}
 
                     {sourceThreadUrl && (
@@ -337,6 +349,14 @@ export const ReviewVerificationPanel: FC<Props> = ({
                     projectUuid={previewProjectUuid}
                     fields={fields}
                     isLoading={isLoadingFields}
+                />
+            )}
+
+            {previewProjectUuid && (
+                <ReviewValidationModal
+                    opened={validationOpened}
+                    onClose={() => setValidationOpened(false)}
+                    projectUuid={previewProjectUuid}
                 />
             )}
         </div>
