@@ -27,6 +27,7 @@ export type {
     DownloadResultsOptions,
     DownloadResultsResult,
     DownloadResultsValues,
+    DownloadUnderlyingDataOptions,
     Filter,
     FilterOperator,
     FilterValue,
