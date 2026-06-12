@@ -1190,6 +1190,95 @@ describe('Formatting', () => {
             ).toEqual('2024-01-14 20:00:00');
         });
 
+        test('formatItemValue shifts a custom-format MAX timestamp metric into the project tz from a Date OR an ISO string (GLITCH-492)', () => {
+            const maxMetric = {
+                ...metric,
+                type: MetricType.MAX,
+                format: 'yyyy-mm-dd hh:mm:ss',
+            };
+            const isoString = '2024-01-14T20:00:00.000Z';
+            const asDate = new Date(isoString); // 15:00 in NY (EST)
+
+            const fromDate = formatItemValue(
+                maxMetric,
+                asDate,
+                false,
+                undefined,
+                'America/New_York',
+            );
+            const fromString = formatItemValue(
+                maxMetric,
+                isoString,
+                false,
+                undefined,
+                'America/New_York',
+            );
+
+            expect(fromDate).toEqual('2024-01-14 15:00:00');
+            expect(fromString).toEqual(fromDate);
+        });
+
+        test('formatItemValue shifts a CUSTOM-format MAX timestamp metric into the project tz (GLITCH-492)', () => {
+            const maxMetric = {
+                ...metric,
+                type: MetricType.MAX,
+                formatOptions: {
+                    type: CustomFormatType.CUSTOM,
+                    custom: 'yyyy-mm-dd hh:mm:ss',
+                },
+            };
+            const value = new Date('2024-01-14T20:00:00.000Z'); // 15:00 in NY (EST)
+
+            expect(
+                formatItemValue(
+                    maxMetric,
+                    value,
+                    false,
+                    undefined,
+                    'America/New_York',
+                ),
+            ).toEqual('2024-01-14 15:00:00');
+        });
+
+        test('formatItemValue shifts a parameterized custom-format timestamp into the project tz (GLITCH-492)', () => {
+            const tsWithFormat = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+                format: '${ld.parameters.style=="long"?"yyyy-mm-dd hh:mm:ss":"yyyy-mm-dd"}',
+            };
+            const value = new Date('2024-01-14T20:00:00.000Z'); // 15:00 in NY (EST)
+
+            expect(
+                formatItemValue(
+                    tsWithFormat,
+                    value,
+                    false,
+                    { style: 'long' },
+                    'America/New_York',
+                ),
+            ).toEqual('2024-01-14 15:00:00');
+        });
+
+        test('formatItemValue custom-format timestamp respects skipTimezoneConversion (GLITCH-492)', () => {
+            const tsWithFormat = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+                skipTimezoneConversion: true,
+                format: 'yyyy-mm-dd hh:mm:ss',
+            };
+            const value = new Date('2024-01-14T20:00:00.000Z');
+
+            expect(
+                formatItemValue(
+                    tsWithFormat,
+                    value,
+                    false,
+                    undefined,
+                    'America/New_York',
+                ),
+            ).toEqual('2024-01-14 20:00:00');
+        });
+
         describe('formatItemValue timestamp handling', () => {
             const mockTimestampField = {
                 type: DimensionType.TIMESTAMP,
@@ -1769,6 +1858,28 @@ describe('Formatting', () => {
             // Test larger values
             expect(formatItemValue(mockMetric, 1024)).toEqual('1.00KiB');
             expect(formatItemValue(mockMetric, 3072)).toEqual('3.00KiB');
+        });
+
+        test('formatValueWithExpression ignores the incidental runtime timezone for date expressions (#19759)', () => {
+            const previousTz = process.env.TZ;
+            process.env.TZ = 'America/New_York';
+
+            try {
+                const value = new Date('2024-11-01T00:00:00.000Z');
+
+                // Even when the host runtime is non-UTC, a date expression
+                // with no project timezone should render the raw UTC wall-clock
+                // rather than drifting into the machine-local zone.
+                expect(
+                    formatValueWithExpression('d mmm yyyy hh:mm:ss', value),
+                ).toEqual('1 Nov 2024 00:00:00');
+            } finally {
+                if (previousTz === undefined) {
+                    delete process.env.TZ;
+                } else {
+                    process.env.TZ = previousTz;
+                }
+            }
         });
     });
 
