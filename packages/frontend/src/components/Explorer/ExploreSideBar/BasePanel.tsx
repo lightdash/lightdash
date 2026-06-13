@@ -1,6 +1,6 @@
 import { subject } from '@casl/ability';
 import { ExploreType, type SummaryExplore } from '@lightdash/common';
-import { ActionIcon, Stack, TextInput } from '@mantine/core';
+import { ActionIcon, Group, Stack, TextInput } from '@mantine/core';
 import { useDebouncedValue } from '@mantine/hooks';
 import {
     IconAlertCircle,
@@ -21,6 +21,7 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import SuboptimalState from '../../common/SuboptimalState/SuboptimalState';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
+import { CollapseSidebarButton } from '../SidebarToggleButtons';
 import { buildExploreTree, sortExploreTree } from './exploreTree';
 import VirtualizedExploreList from './VirtualizedExploreList';
 
@@ -32,7 +33,11 @@ const getPreAggregateName = (explore: SummaryExplore) =>
 const exploreHasGroups = (explore: SummaryExplore): boolean =>
     !!(explore.groups && explore.groups.length > 0) || !!explore.groupLabel;
 
-const BasePanel = () => {
+interface BasePanelProps {
+    onCollapse?: () => void;
+}
+
+const BasePanel = ({ onCollapse }: BasePanelProps) => {
     const navigate = useNavigate();
     const location = useLocation();
     const projectUuid = useProjectUuid();
@@ -157,18 +162,23 @@ const BasePanel = () => {
             <>
                 <ItemDetailProvider>
                     <Stack h="100%" sx={{ flexGrow: 1 }}>
-                        <Can
-                            I="manage"
-                            this={subject('Explore', {
-                                organizationUuid: org?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <PageBreadcrumbs
-                                size="md"
-                                items={[{ title: 'Tables', active: true }]}
-                            />
-                        </Can>
+                        <Group position="apart" align="center">
+                            <Can
+                                I="manage"
+                                this={subject('Explore', {
+                                    organizationUuid: org?.organizationUuid,
+                                    projectUuid,
+                                })}
+                            >
+                                <PageBreadcrumbs
+                                    size="md"
+                                    items={[{ title: 'Tables', active: true }]}
+                                />
+                            </Can>
+                            {onCollapse && (
+                                <CollapseSidebarButton onClick={onCollapse} />
+                            )}
+                        </Group>
 
                         <TextInput
                             icon={<MantineIcon icon={IconSearch} />}

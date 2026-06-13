@@ -1,4 +1,5 @@
 import { subject } from '@casl/ability';
+import { Group } from '@mantine-8/core';
 import { useHotkeys } from '@mantine/hooks';
 import { memo, useCallback, useState } from 'react';
 import { Provider } from 'react-redux';
@@ -6,11 +7,13 @@ import { useNavigate, useParams } from 'react-router';
 import Page from '../components/common/Page/Page';
 import Explorer from '../components/Explorer';
 import ExploreSideBar from '../components/Explorer/ExploreSideBar/index';
+import { SidebarOpenGutter } from '../components/Explorer/SidebarToggleButtons';
 import ForbiddenPanel from '../components/ForbiddenPanel';
 import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    selectIsVisualizationConfigOpen,
     selectTableName,
     useExplorerDispatch,
     useExplorerSelector,
@@ -34,6 +37,17 @@ const ExplorerContent = memo(() => {
     const dispatch = useExplorerDispatch();
     const navigate = useNavigate();
 
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // The chart config panel renders inside the sidebar (via a portal), so the
+    // sidebar must be visible whenever config is open — even if collapsed.
+    // Deriving it (rather than reacting in an effect) keeps the portal target
+    // mounted in the same render the config opens, so it has somewhere to go.
+    const isVizConfigOpen = useExplorerSelector(
+        selectIsVisualizationConfigOpen,
+    );
+    const isSidebarVisible = isSidebarOpen || isVizConfigOpen;
+
     // Get table name from Redux
     const tableId = useExplorerSelector(selectTableName);
     const { data } = useExplore(tableId);
@@ -54,11 +68,27 @@ const ExplorerContent = memo(() => {
     return (
         <Page
             title={data ? data?.label : 'Tables'}
-            sidebar={<ExploreSideBar />}
+            sidebar={
+                <ExploreSideBar onCollapse={() => setIsSidebarOpen(false)} />
+            }
+            isSidebarOpen={isSidebarVisible}
             withFullHeight
             withPaddedContent
         >
-            <Explorer />
+            <Group
+                h="100%"
+                align="stretch"
+                wrap="nowrap"
+                gap="xs"
+                style={{ flexGrow: 1 }}
+            >
+                {!isSidebarVisible && (
+                    <SidebarOpenGutter onClick={() => setIsSidebarOpen(true)} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <Explorer />
+                </div>
+            </Group>
         </Page>
     );
 });

@@ -50,15 +50,17 @@ import PageBreadcrumbs from '../../common/PageBreadcrumbs';
 import ExploreTree from '../ExploreTree';
 import LoadingSkeleton from '../ExploreTree/LoadingSkeleton';
 import { ItemDetailProvider } from '../ExploreTree/TableTree/ItemDetailProvider';
+import { CollapseSidebarButton } from '../SidebarToggleButtons';
 import WarningsHoverCardContent from '../WarningsHoverCardContent';
 import { useIsGitProject } from '../WriteBackModal/hooks';
 import { VisualizationConfigPortalId } from './constants';
 
 interface ExplorePanelProps {
     onBack?: () => void;
+    onCollapse?: () => void;
 }
 
-const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
+const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack, onCollapse }) => {
     const { track } = useTracking();
     const { user } = useApp();
     const [isEditVirtualViewOpen, setIsEditVirtualViewOpen] = useState(false);
@@ -235,62 +237,11 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                             </HoverCard>
                         )}
                     </Group>
-                    {explore.type === ExploreType.VIRTUAL && (
-                        <Can
-                            I="create"
-                            this={subject('VirtualView', {
-                                organizationUuid: user.data?.organizationUuid,
-                                projectUuid,
-                            })}
-                        >
-                            <Menu withArrow offset={-2}>
-                                <Menu.Target>
-                                    <ActionIcon variant="transparent">
-                                        <MantineIcon icon={IconDots} />
-                                    </ActionIcon>
-                                </Menu.Target>
-                                <Menu.Dropdown>
-                                    <Menu.Item
-                                        leftSection={
-                                            <MantineIcon icon={IconPencil} />
-                                        }
-                                        onClick={handleEditVirtualView}
-                                    >
-                                        <Text fz="xs" fw={500}>
-                                            Edit virtual view
-                                        </Text>
-                                    </Menu.Item>
-                                    <Can
-                                        I="delete"
-                                        this={subject('VirtualView', {
-                                            organizationUuid:
-                                                user.data?.organizationUuid,
-                                            projectUuid,
-                                        })}
-                                    >
-                                        <Menu.Item
-                                            leftSection={
-                                                <MantineIcon icon={IconTrash} />
-                                            }
-                                            color="red"
-                                            onClick={handleDeleteVirtualView}
-                                        >
-                                            <Text fz="xs" fw={500}>
-                                                Delete
-                                            </Text>
-                                        </Menu.Item>
-                                    </Can>
-                                </Menu.Dropdown>
-                            </Menu>
-                        </Can>
-                    )}
-                    {explore.type !== ExploreType.VIRTUAL &&
-                        isGitProject &&
-                        explore.ymlPath &&
-                        editYamlInUiFlag?.enabled && (
+                    <Group spacing="xs">
+                        {explore.type === ExploreType.VIRTUAL && (
                             <Can
-                                I="view"
-                                this={subject('SourceCode', {
+                                I="create"
+                                this={subject('VirtualView', {
                                     organizationUuid:
                                         user.data?.organizationUuid,
                                     projectUuid,
@@ -305,18 +256,83 @@ const ExplorePanel: FC<ExplorePanelProps> = memo(({ onBack }) => {
                                     <Menu.Dropdown>
                                         <Menu.Item
                                             leftSection={
-                                                <MantineIcon icon={IconCode} />
+                                                <MantineIcon
+                                                    icon={IconPencil}
+                                                />
                                             }
-                                            onClick={handleViewSourceCode}
+                                            onClick={handleEditVirtualView}
                                         >
                                             <Text fz="xs" fw={500}>
-                                                View source code
+                                                Edit virtual view
                                             </Text>
                                         </Menu.Item>
+                                        <Can
+                                            I="delete"
+                                            this={subject('VirtualView', {
+                                                organizationUuid:
+                                                    user.data?.organizationUuid,
+                                                projectUuid,
+                                            })}
+                                        >
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                }
+                                                color="red"
+                                                onClick={
+                                                    handleDeleteVirtualView
+                                                }
+                                            >
+                                                <Text fz="xs" fw={500}>
+                                                    Delete
+                                                </Text>
+                                            </Menu.Item>
+                                        </Can>
                                     </Menu.Dropdown>
                                 </Menu>
                             </Can>
                         )}
+                        {explore.type !== ExploreType.VIRTUAL &&
+                            isGitProject &&
+                            explore.ymlPath &&
+                            editYamlInUiFlag?.enabled && (
+                                <Can
+                                    I="view"
+                                    this={subject('SourceCode', {
+                                        organizationUuid:
+                                            user.data?.organizationUuid,
+                                        projectUuid,
+                                    })}
+                                >
+                                    <Menu withArrow offset={-2}>
+                                        <Menu.Target>
+                                            <ActionIcon variant="transparent">
+                                                <MantineIcon icon={IconDots} />
+                                            </ActionIcon>
+                                        </Menu.Target>
+                                        <Menu.Dropdown>
+                                            <Menu.Item
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconCode}
+                                                    />
+                                                }
+                                                onClick={handleViewSourceCode}
+                                            >
+                                                <Text fz="xs" fw={500}>
+                                                    View source code
+                                                </Text>
+                                            </Menu.Item>
+                                        </Menu.Dropdown>
+                                    </Menu>
+                                </Can>
+                            )}
+                        {onCollapse && (
+                            <CollapseSidebarButton onClick={onCollapse} />
+                        )}
+                    </Group>
                 </Group>
 
                 <ItemDetailProvider>

@@ -1,3 +1,4 @@
+import { Group } from '@mantine-8/core';
 import { lazy, memo, Suspense, useEffect, useState } from 'react';
 import { Provider } from 'react-redux';
 import { useParams } from 'react-router';
@@ -7,10 +8,13 @@ import SuboptimalState from '../components/common/SuboptimalState/SuboptimalStat
 import Explorer from '../components/Explorer';
 import LoadingSkeleton from '../components/Explorer/ExploreTree/LoadingSkeleton';
 import SavedChartsHeader from '../components/Explorer/SavedChartsHeader';
+import { SidebarOpenGutter } from '../components/Explorer/SidebarToggleButtons';
 import {
     buildInitialExplorerState,
     createExplorerStore,
     explorerActions,
+    selectIsVisualizationConfigOpen,
+    useExplorerSelector,
 } from '../features/explorer/store';
 import useDashboardStorage from '../hooks/dashboard/useDashboardStorage';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
@@ -26,8 +30,22 @@ const SavedExplorerContent = memo(() => {
     const { mode } = useParams<{ mode?: string }>();
     const isEditMode = mode === 'edit';
 
+    const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+
+    // The chart config panel renders inside the sidebar (via a portal), so the
+    // sidebar must be visible whenever config is open — even if collapsed.
+    // Deriving it (rather than reacting in an effect) keeps the portal target
+    // mounted in the same render the config opens, so it has somewhere to go.
+    const isVizConfigOpen = useExplorerSelector(
+        selectIsVisualizationConfigOpen,
+    );
+
     // Run the query effects hook - orchestrates all query effects
     useExplorerQueryEffects();
+
+    // Sidebar only exists in edit mode
+    const isSidebarVisible = isEditMode && (isSidebarOpen || isVizConfigOpen);
+    const showGutter = isEditMode && !isSidebarVisible;
 
     return (
         <Page
@@ -35,14 +53,29 @@ const SavedExplorerContent = memo(() => {
             header={<SavedChartsHeader />}
             sidebar={
                 <Suspense fallback={<LoadingSkeleton />}>
-                    <LazyExplorePanel />
+                    <LazyExplorePanel
+                        onCollapse={() => setIsSidebarOpen(false)}
+                    />
                 </Suspense>
             }
-            isSidebarOpen={isEditMode}
+            isSidebarOpen={isSidebarVisible}
             withFullHeight
             withPaddedContent
         >
-            <Explorer />
+            <Group
+                h="100%"
+                align="stretch"
+                wrap="nowrap"
+                gap="xs"
+                style={{ flexGrow: 1 }}
+            >
+                {showGutter && (
+                    <SidebarOpenGutter onClick={() => setIsSidebarOpen(true)} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <Explorer />
+                </div>
+            </Group>
         </Page>
     );
 });
