@@ -1466,7 +1466,14 @@ export const attachTypesToModels = (
     const getType = (
         { database, schema, name, alias }: DbtModelNode,
         columnName: string,
+        column: DbtModelColumn,
     ): DimensionType | undefined => {
+        // Columns with an explicit dimension type don't need a catalog entry
+        // (the explicit type wins in convertDimension) and may not exist as
+        // physical columns, e.g. expr-based dbt semantic layer dimensions.
+        const explicitDimensionType =
+            column.config?.meta?.dimension?.type ??
+            column.meta?.dimension?.type;
         const tableName = alias || name;
         const databaseMatch = Object.keys(warehouseCatalog).find((db) =>
             caseSensitiveMatching
@@ -1505,7 +1512,7 @@ export const attachTypesToModels = (
                 columnMatch
             ];
         }
-        if (throwOnMissingCatalogEntry) {
+        if (throwOnMissingCatalogEntry && !explicitDimensionType) {
             throw new MissingCatalogEntryError(
                 `Column "${columnName}" from model "${tableName}" does not exist.\n "${tableName}.${columnName}" was not found in your target warehouse at ${database}.${schema}.${tableName}. Try rerunning dbt to update your warehouse.`,
                 {},
@@ -1520,7 +1527,7 @@ export const attachTypesToModels = (
         columns: Object.fromEntries(
             Object.entries(model.columns).map(([column_name, column]) => [
                 column_name,
-                { ...column, data_type: getType(model, column_name) },
+                { ...column, data_type: getType(model, column_name, column) },
             ]),
         ),
     }));
