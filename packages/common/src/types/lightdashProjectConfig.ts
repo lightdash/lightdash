@@ -72,6 +72,15 @@ export type LightdashProjectConfig = {
      * Explore sidebar. Missing keys fall back to using the key as the label.
      */
     table_groups?: Record<string, GroupType>;
+    /**
+     * When enabled, dbt semantic layer (MetricFlow) config in the dbt
+     * manifest (`semantic_models` + `metrics`) is converted into Lightdash
+     * dimensions and metrics at compile time. dbt semantic layer config wins
+     * over Lightdash `meta` config on name conflicts.
+     */
+    dbt_semantic_layer?: {
+        enabled: boolean;
+    };
 };
 
 export const DEFAULT_SPOTLIGHT_CONFIG: SpotlightConfig = {
