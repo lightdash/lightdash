@@ -45,7 +45,6 @@ import {
     isField,
     isMetric,
     isPivotReferenceWithValues,
-    isSubDayTimeFrame,
     isTableCalculation,
     LightdashParameters,
     MetricType,
@@ -105,6 +104,7 @@ import {
     applyTimezoneShiftToEchartsOptions,
     resolveAxisTimezone,
     TIME_INTERVALS_FOR_CATEGORY_AXIS,
+    type DetectedTimeAxisField,
 } from './timezoneShift';
 import { useLegendDoubleClickTooltip } from './useLegendDoubleClickTooltip';
 
@@ -1506,15 +1506,20 @@ export const padDatasetForContinuousAxis = (
  */
 type CategoryDateAxisConfig = {
     data?: string[];
-    axisTick?: Record<string, unknown>;
-    axisLabel?: Record<string, unknown>;
+    axisTick?: { alignWithLabel: boolean; interval: number };
     boundaryGap?: boolean;
 };
 
-type SubDayTimeAxisConfig = Pick<
-    CategoryDateAxisConfig,
-    'axisTick' | 'axisLabel'
->;
+// Sub-day axes pin ticks/labels to the raw UTC bucket instants and relabel them
+// in-zone, so both configs are keyed on the same `customValues` instant list.
+type SubDayTimeAxisConfig = {
+    axisTick?: { customValues: number[] };
+    axisLabel?: {
+        customValues: number[];
+        rich: undefined;
+        formatter: (value: number) => string;
+    };
+};
 
 const getAxisInstantMs = (raw: unknown): number | undefined => {
     if (typeof raw === 'number') {
@@ -1546,27 +1551,19 @@ const formatSubDayAxisLabel = (value: number, timezone: string): string => {
     return date.format('YYYY');
 };
 
+// resolveAxisTimezone decides which field qualifies and forwards it as a
+// sub-day-format timeAxisField; here we only build its tick/label config.
 export const getSubDayTimeAxisConfig = (
-    axisId?: string,
-    axisField?: Field | TableCalculation | CustomDimension,
-    rows?: ResultRow[],
-    axisType?: string,
-    resolvedTimezone?: string,
+    axisId: string | undefined,
+    rows: ResultRow[] | undefined,
+    timeAxisField: DetectedTimeAxisField | undefined,
 ): SubDayTimeAxisConfig => {
     if (
         !axisId ||
         !rows ||
-        !axisField ||
-        axisType !== 'time' ||
-        !resolvedTimezone ||
-        !isDimension(axisField) ||
-        isCalendarValueDimension(axisField)
+        timeAxisField?.mode !== 'sub-day-format' ||
+        timeAxisField.fieldId !== axisId
     ) {
-        return {};
-    }
-
-    const { timeInterval } = axisField;
-    if (!timeInterval || !isSubDayTimeFrame(timeInterval)) {
         return {};
     }
 
@@ -1586,8 +1583,10 @@ export const getSubDayTimeAxisConfig = (
         axisTick: { customValues },
         axisLabel: {
             customValues,
+            // Drop the rich-text style ECharts' leveled formatter leaves behind.
+            rich: undefined,
             formatter: (value: number) =>
-                formatSubDayAxisLabel(value, resolvedTimezone),
+                formatSubDayAxisLabel(value, timeAxisField.timezone),
         },
     };
 };
@@ -1717,6 +1716,7 @@ const getEchartAxes = ({
     parameters,
     resolvedTimezone,
     displayTimezone,
+    timeAxisField,
 }: {
     validCartesianConfig: CartesianChart;
     itemsMap: ItemsMap;
@@ -1727,6 +1727,7 @@ const getEchartAxes = ({
     parameters?: ParametersValuesMap;
     resolvedTimezone?: string;
     displayTimezone?: string;
+    timeAxisField: DetectedTimeAxisField | undefined;
 }) => {
     const xAxisItemId = validCartesianConfig.layout.flipAxes
         ? validCartesianConfig.layout?.yField?.[0]
@@ -1931,17 +1932,13 @@ const getEchartAxes = ({
     );
     const bottomAxisSubDayConfig = getSubDayTimeAxisConfig(
         bottomAxisXId,
-        bottomAxisXField,
         axisRows,
-        bottomAxisType,
-        resolvedTimezone,
+        timeAxisField,
     );
     const leftAxisSubDayConfig = getSubDayTimeAxisConfig(
         leftAxisYId,
-        leftAxisYField,
         axisRows,
-        leftAxisType,
-        resolvedTimezone,
+        timeAxisField,
     );
 
     const axisLabelFontSize =
@@ -2596,7 +2593,7 @@ const useEchartsCartesianConfig = (
         return visualizationConfig.chartConfig.validConfig;
     }, [visualizationConfig]);
 
-    const { shiftedField, axisTimezone, axisDisplayTimezone } = useMemo(
+    const { timeAxisField, axisTimezone, axisDisplayTimezone } = useMemo(
         () =>
             resolveAxisTimezone({
                 validCartesianConfig,
@@ -2700,6 +2697,7 @@ const useEchartsCartesianConfig = (
             parameters,
             resolvedTimezone: axisTimezone,
             displayTimezone: axisDisplayTimezone,
+            timeAxisField,
         });
     }, [
         itemsMap,
@@ -2711,6 +2709,7 @@ const useEchartsCartesianConfig = (
         parameters,
         axisTimezone,
         axisDisplayTimezone,
+        timeAxisField,
     ]);
 
     // Shared by stackedSeriesWithColorAssignments (non-stacked bar styling) and
@@ -3729,8 +3728,8 @@ const useEchartsCartesianConfig = (
             }),
         };
 
-        return shiftedField
-            ? applyTimezoneShiftToEchartsOptions(baseOptions, shiftedField)
+        return timeAxisField?.mode === 'shift'
+            ? applyTimezoneShiftToEchartsOptions(baseOptions, timeAxisField)
             : baseOptions;
     }, [
         sortedAxes,
@@ -3743,7 +3742,7 @@ const useEchartsCartesianConfig = (
         currentGrid,
         theme?.other.chartFont,
         validCartesianConfig,
-        shiftedField,
+        timeAxisField,
     ]);
 
     if (

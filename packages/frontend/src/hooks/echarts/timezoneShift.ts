@@ -2,6 +2,7 @@ import {
     extractableTimeFrames,
     isDimension,
     isSubDayTimeFrame,
+    shouldShiftItemTimezone,
     TimeFrames,
     type CartesianChart,
     type ItemsMap,
@@ -32,11 +33,18 @@ type DetectedTimezoneAxisField = TimezoneShiftedField & {
     timeInterval: TimeFrames;
 };
 
-// Exactly one of axisTimezone / axisDisplayTimezone is set: axisDisplayTimezone
-// when values are shifted to wall-clock, axisTimezone when raw UTC instants
-// should be formatted in the project timezone.
+// The detected time-axis field and how to apply its zone: 'shift' rewrites rows
+// to wall-clock (DAY+); 'sub-day-format' keeps raw UTC positions and only
+// relabels ticks (sub-day grains, where wall-clock shifting breaks across DST).
+export type DetectedTimeAxisField = TimezoneShiftedField & {
+    mode: 'shift' | 'sub-day-format';
+};
+
+// timeAxisField is the single source of truth for both paths. axisTimezone /
+// axisDisplayTimezone are the formatter zone inputs: axisDisplayTimezone for
+// pre-shifted values, axisTimezone for raw UTC formatted in-zone.
 export type AxisTimezoneConfig = {
-    shiftedField: TimezoneShiftedField | undefined;
+    timeAxisField: DetectedTimeAxisField | undefined;
     axisTimezone: string | undefined;
     axisDisplayTimezone: string | undefined;
 };
@@ -91,6 +99,11 @@ const detectTimezoneShiftedField = ({
     ) {
         return undefined;
     }
+    // Honor the same opt-out as the table and exports: calendar DATEs and
+    // skipTimezoneConversion dims are not shiftable instants.
+    if (!shouldShiftItemTimezone(field)) {
+        return undefined;
+    }
     return {
         fieldId: timeFieldId,
         timezone: resolvedTimezone,
@@ -107,24 +120,30 @@ export const resolveAxisTimezone = (params: {
     const detectedField = detectTimezoneShiftedField(params);
     if (detectedField && isSubDayTimeFrame(detectedField.timeInterval)) {
         return {
-            shiftedField: undefined,
+            timeAxisField: {
+                fieldId: detectedField.fieldId,
+                timezone: detectedField.timezone,
+                flipAxes: detectedField.flipAxes,
+                mode: 'sub-day-format',
+            },
             axisTimezone: detectedField.timezone,
             axisDisplayTimezone: undefined,
         };
     }
     if (detectedField) {
         return {
-            shiftedField: {
+            timeAxisField: {
                 fieldId: detectedField.fieldId,
                 timezone: detectedField.timezone,
                 flipAxes: detectedField.flipAxes,
+                mode: 'shift',
             },
             axisTimezone: undefined,
             axisDisplayTimezone: detectedField.timezone,
         };
     }
     return {
-        shiftedField: undefined,
+        timeAxisField: undefined,
         axisTimezone: params.resolvedTimezone,
         axisDisplayTimezone: undefined,
     };

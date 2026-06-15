@@ -840,40 +840,58 @@ describe('getSubDayTimeAxisConfig', () => {
             [axisId]: { value: { raw: d, formatted: d } },
         }));
 
-    const createAxisField = (timeInterval: TimeFrames) =>
+    const subDayField = (timezone: string) =>
         ({
-            fieldType: FieldType.DIMENSION,
-            timeInterval,
-            name: 'test_time',
-            table: 'test_table',
-            type: DimensionType.TIMESTAMP,
-        }) as unknown as Field;
+            fieldId: axisId,
+            timezone,
+            flipAxes: false,
+            mode: 'sub-day-format',
+        }) as const;
 
-    test('returns empty object when axisType is not time', () => {
+    test('returns empty object when timeAxisField is undefined', () => {
         const result = getSubDayTimeAxisConfig(
             axisId,
-            createAxisField(TimeFrames.HOUR),
             createRows([
                 '2024-10-26T23:00:00.000Z',
                 '2024-10-27T02:00:00.000Z',
             ]),
-            'category',
-            'Europe/London',
+            undefined,
         );
 
         expect(result).toEqual({});
     });
 
-    test('returns empty object for day intervals', () => {
+    test('returns empty object when timeAxisField targets another axis', () => {
         const result = getSubDayTimeAxisConfig(
             axisId,
-            createAxisField(TimeFrames.DAY),
             createRows([
                 '2024-10-26T23:00:00.000Z',
                 '2024-10-27T02:00:00.000Z',
             ]),
-            'time',
-            'Europe/London',
+            {
+                fieldId: 'a_different_axis',
+                timezone: 'Europe/London',
+                flipAxes: false,
+                mode: 'sub-day-format',
+            },
+        );
+
+        expect(result).toEqual({});
+    });
+
+    test('returns empty object when timeAxisField is in shift mode', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createRows([
+                '2024-10-26T23:00:00.000Z',
+                '2024-10-27T02:00:00.000Z',
+            ]),
+            {
+                fieldId: axisId,
+                timezone: 'Europe/London',
+                flipAxes: false,
+                mode: 'shift',
+            },
         );
 
         expect(result).toEqual({});
@@ -882,15 +900,13 @@ describe('getSubDayTimeAxisConfig', () => {
     test('uses raw UTC instants as custom tick values across DST fall-back', () => {
         const result = getSubDayTimeAxisConfig(
             axisId,
-            createAxisField(TimeFrames.HOUR),
             createRows([
                 '2024-10-26T23:00:00.000Z',
                 '2024-10-27T00:00:00.000Z',
                 '2024-10-27T01:00:00.000Z',
                 '2024-10-27T02:00:00.000Z',
             ]),
-            'time',
-            'Europe/London',
+            subDayField('Europe/London'),
         );
 
         expect(result.axisTick?.customValues).toEqual([
@@ -904,17 +920,25 @@ describe('getSubDayTimeAxisConfig', () => {
         );
     });
 
+    test('clears the leveled rich-text style left by the default formatter', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createRows(['2024-01-01T00:15:00.000Z']),
+            subDayField('Asia/Kathmandu'),
+        );
+
+        expect(result.axisLabel?.rich).toBeUndefined();
+    });
+
     test('preserves fractional-offset bucket boundaries for hourly ticks', () => {
         const result = getSubDayTimeAxisConfig(
             axisId,
-            createAxisField(TimeFrames.HOUR),
             createRows([
                 '2024-01-01T00:15:00.000Z',
                 '2024-01-01T01:15:00.000Z',
                 '2024-01-01T02:15:00.000Z',
             ]),
-            'time',
-            'Asia/Kathmandu',
+            subDayField('Asia/Kathmandu'),
         );
 
         expect(result.axisTick?.customValues).toEqual([
@@ -924,22 +948,15 @@ describe('getSubDayTimeAxisConfig', () => {
         ]);
     });
 
-    const getFormatter = (
-        timeInterval: TimeFrames,
-        timezone: string,
-        raw: string,
-    ) =>
+    const getFormatter = (timezone: string, raw: string) =>
         getSubDayTimeAxisConfig(
             axisId,
-            createAxisField(timeInterval),
             createRows([raw]),
-            'time',
-            timezone,
+            subDayField(timezone),
         ).axisLabel?.formatter as ((value: number) => string) | undefined;
 
     test('labels ticks in the resolved zone across the fall-back boundary', () => {
         const format = getFormatter(
-            TimeFrames.HOUR,
             'Europe/London',
             '2024-10-27T00:00:00.000Z',
         )!;
@@ -953,7 +970,6 @@ describe('getSubDayTimeAxisConfig', () => {
 
     test('labels ticks in the resolved zone across the spring-forward boundary', () => {
         const format = getFormatter(
-            TimeFrames.HOUR,
             'Europe/London',
             '2024-03-31T00:00:00.000Z',
         )!;
@@ -965,7 +981,6 @@ describe('getSubDayTimeAxisConfig', () => {
 
     test('labels fractional-offset zones at their real wall-clock minute', () => {
         const format = getFormatter(
-            TimeFrames.HOUR,
             'Asia/Kathmandu',
             '2024-01-01T00:15:00.000Z',
         )!;
@@ -980,7 +995,7 @@ describe('getSubDayTimeAxisConfig', () => {
         ['2024-01-01T10:30:45.000Z', '19:30:45'],
         ['2024-01-01T10:30:45.500Z', '19:30:45 500'],
     ])('renders %s at the finest non-zero unit', (raw, expected) => {
-        const format = getFormatter(TimeFrames.SECOND, 'Asia/Tokyo', raw)!;
+        const format = getFormatter('Asia/Tokyo', raw)!;
         expect(format(Date.parse(raw))).toBe(expected);
     });
 });
