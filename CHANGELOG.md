@@ -1,3 +1,18 @@
+# [0.3164.0](https://github.com/lightdash/lightdash/compare/0.3163.0...0.3164.0) (2026-06-15)
+
+
+### Features
+
+* **ai-agents:** offer writeback for un-modeled data, gate writeback to GitHub/GitLab ([#24293](https://github.com/lightdash/lightdash/issues/24293)) ([32889b5](https://github.com/lightdash/lightdash/commit/32889b5b1148dd028ef37ef0551b0d82a25778f3))
+
+
+### Performance Improvements
+
+* **dashboard:** parallelize views/tiles/tabs/verification queries ([#24287](https://github.com/lightdash/lightdash/issues/24287)) ([e90260f](https://github.com/lightdash/lightdash/commit/e90260ff4002c431cd5ec3486ac310f08cc6c974))
+* fire-and-forget dashboard view + loaded analytics in GET dashboard ([#24289](https://github.com/lightdash/lightdash/issues/24289)) ([01ee51f](https://github.com/lightdash/lightdash/commit/01ee51f95abef58bbbe25d5c4efb951fb46a429d))
+* **query:** reuse known organizationUuid in executeAsyncQuery ([#24288](https://github.com/lightdash/lightdash/issues/24288)) ([e7b5186](https://github.com/lightdash/lightdash/commit/e7b5186eddad3a7039a952888d997858bc8e77b6))
+* replace correlated subquery in getInfoForAvailableFilters with lateral join ([#24290](https://github.com/lightdash/lightdash/issues/24290)) ([69d9b02](https://github.com/lightdash/lightdash/commit/69d9b024751d3a19c4d90969045b7c49111cd007))
+
 # [0.3163.0](https://github.com/lightdash/lightdash/compare/0.3162.3...0.3163.0) (2026-06-15)
 
 
