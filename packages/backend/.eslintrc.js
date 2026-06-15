@@ -110,6 +110,14 @@ module.exports = {
                 '@typescript-eslint/no-unsafe-assignment': 'off',
                 '@typescript-eslint/no-unsafe-call': 'off',
                 'no-restricted-imports': 'off',
+                // Allow bracket access to private/protected members for testing
+                '@typescript-eslint/dot-notation': [
+                    'error',
+                    {
+                        allowPrivateClassPropertyAccess: true,
+                        allowProtectedClassPropertyAccess: true,
+                    },
+                ],
             },
         },
         {

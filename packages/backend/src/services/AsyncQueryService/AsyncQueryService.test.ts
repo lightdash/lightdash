@@ -523,7 +523,7 @@ describe('AsyncQueryService', () => {
             );
 
             // WHEN: executeAsyncQuery is called
-            const result = await serviceWithCache.executeAsyncQuery(
+            const result = await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -616,7 +616,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called
-            const result = await serviceWithCache.executeAsyncQuery(
+            const result = await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -716,7 +716,7 @@ describe('AsyncQueryService', () => {
                 'runAsyncWarehouseQuery',
             ).mockResolvedValue(undefined);
 
-            await serviceWithCache.executeAsyncQuery(
+            await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -772,7 +772,7 @@ describe('AsyncQueryService', () => {
                 'runAsyncWarehouseQuery',
             ).mockResolvedValue(undefined);
 
-            await serviceWithCache.executeAsyncQuery(
+            await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -830,7 +830,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called with invalidateCache: true
-            const result = await serviceWithCache.executeAsyncQuery(
+            const result = await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -918,7 +918,7 @@ describe('AsyncQueryService', () => {
                 'runAsyncWarehouseQuery',
             ).mockResolvedValue(undefined);
 
-            await serviceWithCache.executeAsyncQuery(
+            await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -980,7 +980,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called
-            const result = await serviceWithoutCache.executeAsyncQuery(
+            const result = await serviceWithoutCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1071,7 +1071,7 @@ describe('AsyncQueryService', () => {
             );
 
             // WHEN: executeAsyncQuery is called with missing parameter references
-            const result = await serviceWithCache.executeAsyncQuery(
+            const result = await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1143,7 +1143,7 @@ describe('AsyncQueryService', () => {
                 .spyOn(service, 'runAsyncPreAggregateQuery')
                 .mockResolvedValue(undefined);
 
-            await service.executeAsyncQuery(
+            await service['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1212,7 +1212,7 @@ describe('AsyncQueryService', () => {
                 'runAsyncPreAggregateQuery',
             );
 
-            await service.executeAsyncQuery(
+            await service['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1293,7 +1293,7 @@ describe('AsyncQueryService', () => {
                 'enqueuePreAggregateQuery',
             );
 
-            await service.executeAsyncQuery(
+            await service['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1377,7 +1377,7 @@ describe('AsyncQueryService', () => {
                 'enqueueWarehouseQuery',
             );
 
-            await service.executeAsyncQuery(
+            await service['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1489,7 +1489,7 @@ describe('AsyncQueryService', () => {
                     },
                     availableParameterDefinitions: {},
                 });
-            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+            service['executeAsyncQuery'] = jest.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
                     cacheHit: false,
@@ -1510,7 +1510,7 @@ describe('AsyncQueryService', () => {
                 pivotConfiguration: undefined,
             });
 
-            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
                 expect.objectContaining({
                     preAggregationRoute: {
                         sourceExploreName: 'valid_explore',
@@ -2533,7 +2533,7 @@ describe('AsyncQueryService', () => {
                 .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
                 .mockResolvedValue(undefined);
 
-            await serviceWithCache.executeAsyncQuery(
+            await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -2817,7 +2817,7 @@ describe('AsyncQueryService', () => {
             jest.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue(
                 materializationExplore,
             );
-            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+            service['executeAsyncQuery'] = jest.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
                     cacheHit: false,
@@ -2840,19 +2840,19 @@ describe('AsyncQueryService', () => {
             });
 
             expect(service.getUserAttributes).not.toHaveBeenCalled();
-            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
                 expect.objectContaining({
                     sql: expect.stringContaining("'EMEA', 'APAC'"),
                 }),
                 expect.any(Object),
             );
-            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
                 expect.objectContaining({
                     sql: expect.stringContaining('materialize@acme.com'),
                 }),
                 expect.any(Object),
             );
-            expect(service.executeAsyncQuery).not.toHaveBeenCalledWith(
+            expect(service['executeAsyncQuery']).not.toHaveBeenCalledWith(
                 expect.objectContaining({
                     sql: expect.stringContaining('viewer-region'),
                 }),
