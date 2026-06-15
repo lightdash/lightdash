@@ -8053,7 +8053,7 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                        "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "groupLabel": {
                         "type": "string",
@@ -31053,7 +31053,7 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                        "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "baseTable": {
                         "type": "string"
@@ -31174,7 +31174,7 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                        "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     }
                 },
                 "required": ["name", "label"],
@@ -34429,7 +34429,7 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                        "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "aiHint": {
                         "anyOf": [
@@ -34500,7 +34500,7 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                        "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "aiHint": {
                         "anyOf": [
@@ -34625,7 +34625,7 @@
                             "type": "string"
                         },
                         "type": "array",
-                        "description": "Nested groups for the sidebar (max 3 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
+                        "description": "Nested groups for the sidebar (max 5 levels). Group keys resolve to\nlabels/descriptions via the project-level `table_groups` config\n(fetched separately); missing keys fall back to using the key as\nthe label."
                     },
                     "baseTable": {
                         "type": "string"

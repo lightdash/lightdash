@@ -479,12 +479,12 @@
                 },
                 "groups": {
                     "type": "array",
-                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 3 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
+                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 5 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
                     "items": {
                         "type": "string",
                         "minLength": 1
                     },
-                    "maxItems": 3
+                    "maxItems": 5
                 },
                 "required_attributes": {
                     "$ref": "#/definitions/RequiredAttributes"
