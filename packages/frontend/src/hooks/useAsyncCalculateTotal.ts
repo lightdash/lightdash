@@ -100,14 +100,10 @@ const fetchTotals = async (
 };
 
 /**
- * Whether column totals should be calculated when nothing has explicitly
- * enabled them, e.g. the explorer results table. Controlled by the
- * `column_totals` project default; charts that explicitly enable
- * "Show column totals" should not use this.
- *
- * Returns false while the project is still loading so the totals query never
- * fires before the default is known. The project endpoint requires app
- * authentication, so embed mode skips it and keeps the default behavior.
+ * Resolves the `column_totals` project default for callers with no explicit
+ * "Show column totals" toggle (e.g. the explorer results table). Returns false
+ * while loading so the totals query never fires before the default is known;
+ * embed mode skips the app-only project endpoint and keeps default behavior.
  */
 export const useColumnTotalsEnabledByDefault = (
     projectUuid: string | undefined,
@@ -115,8 +111,7 @@ export const useColumnTotalsEnabledByDefault = (
     const { embedToken } = useEmbed();
     const projectQuery = useProject(projectUuid, {
         enabled: !embedToken && !!projectUuid,
-        // Errors fall back to the default behavior (totals enabled), so they
-        // shouldn't surface to the user
+        // Errors fall back to totals enabled, so don't surface them
         onError: () => {},
     });
     if (embedToken) return true;
