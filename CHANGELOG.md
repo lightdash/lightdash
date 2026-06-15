@@ -1,3 +1,10 @@
+# [0.3167.0](https://github.com/lightdash/lightdash/compare/0.3166.0...0.3167.0) (2026-06-15)
+
+
+### Features
+
+* **ai-agents:** surface GitHub PR attribution to writeback agent + in-chat nudge (PROD-8322) ([#24306](https://github.com/lightdash/lightdash/issues/24306)) ([2183f63](https://github.com/lightdash/lightdash/commit/2183f6330c33909fea06cb4871cde3e218efe790))
+
 # [0.3166.0](https://github.com/lightdash/lightdash/compare/0.3165.3...0.3166.0) (2026-06-15)
 
 
