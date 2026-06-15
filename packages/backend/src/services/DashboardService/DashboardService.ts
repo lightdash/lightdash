@@ -521,10 +521,14 @@ export class DashboardService
             );
         }
 
-        await this.analyticsModel.addDashboardViewEvent(
-            dashboard.uuid,
-            user.userUuid,
-        );
+        void this.analyticsModel
+            .addDashboardViewEvent(dashboard.uuid, user.userUuid)
+            .catch((err) => {
+                this.logger.warn('dashboard view event failed', {
+                    dashboardUuid: dashboard.uuid,
+                    err: err instanceof Error ? err.message : String(err),
+                });
+            });
 
         this.analytics.track({
             event: 'dashboard.view',
@@ -539,14 +543,12 @@ export class DashboardService
 
         // Wide observability event for diagnosing stale dashboard filter references
         // (e.g. PROD-5931). Best-effort — never block the request on logging errors.
-        try {
-            await this.logDashboardLoadedEvent(dashboard);
-        } catch (err) {
+        void this.logDashboardLoadedEvent(dashboard).catch((err) => {
             this.logger.warn('dashboard.loaded log failed', {
                 dashboardUuid: dashboard.uuid,
                 err: err instanceof Error ? err.message : String(err),
             });
-        }
+        });
 
         return dashboard;
     }
