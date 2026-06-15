@@ -1,3 +1,16 @@
+# [0.3161.0](https://github.com/lightdash/lightdash/compare/0.3160.0...0.3161.0) (2026-06-15)
+
+
+### Bug Fixes
+
+* **docker-dev:** fix EE reconcile INSERT on empty install table + add dbt repoint step ([#24272](https://github.com/lightdash/lightdash/issues/24272)) ([abf4ad6](https://github.com/lightdash/lightdash/commit/abf4ad6f73c23339a3408b338f9b016c42f4d7ee))
+
+
+### Features
+
+* **explorer:** show TZ-sensitivity icons on datetime dimensions in picker ([#24269](https://github.com/lightdash/lightdash/issues/24269)) ([5a6c8a9](https://github.com/lightdash/lightdash/commit/5a6c8a9c506fdcbd8c5aa721f41e172c56729c7a))
+* increase maximum table group nesting depth to 5 levels ([#24267](https://github.com/lightdash/lightdash/issues/24267)) ([eee2372](https://github.com/lightdash/lightdash/commit/eee2372d6678af0be17fe94677381bc00791ceba))
+
 # [0.3160.0](https://github.com/lightdash/lightdash/compare/0.3159.0...0.3160.0) (2026-06-15)
 
 
