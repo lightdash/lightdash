@@ -1950,10 +1950,19 @@ export class SavedChartModel {
                     `${SavedChartsTableName}.space_id`,
                 );
             })
-            .innerJoin(
-                SavedChartVersionsTableName,
-                `${SavedChartsTableName}.saved_query_id`,
-                'saved_queries_versions.saved_query_id',
+            .joinRaw(
+                `inner join lateral (
+                    select sqv.explore_name
+                    from ?? as sqv
+                    where sqv.saved_query_id = ??.saved_query_id
+                    order by sqv.saved_queries_version_id desc
+                    limit 1
+                ) as ?? on true`,
+                [
+                    SavedChartVersionsTableName,
+                    SavedChartsTableName,
+                    SavedChartVersionsTableName,
+                ],
             )
             .leftJoin(
                 'projects',
@@ -1964,15 +1973,6 @@ export class SavedChartModel {
                 OrganizationTableName,
                 'organizations.organization_id',
                 'projects.organization_id',
-            )
-            .where(
-                // filter by last version
-                `saved_queries_version_id`,
-                this.database.raw(`(select saved_queries_version_id
-                                           from ${SavedChartVersionsTableName}
-                                           where ${SavedChartsTableName}.saved_query_id = ${SavedChartVersionsTableName}.saved_query_id
-                                           order by ${SavedChartVersionsTableName}.created_at desc
-                                           limit 1)`),
             )
             .whereNull(`${SavedChartsTableName}.deleted_at`)
             .whereNull(`${SpaceTableName}.deleted_at`);
