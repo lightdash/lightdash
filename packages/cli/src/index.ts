@@ -999,10 +999,13 @@ program
         parseUseDbtListOption,
         true,
     )
-    .option(
-        '--disable-timestamp-conversion [true|false]',
-        'Ignored: the setting is read from the project settings.',
-        parseDisableTimestampConversionOption,
+    .addOption(
+        new Option(
+            '--disable-timestamp-conversion [true|false]',
+            '(deprecated) Ignored: the setting is read from the project settings.',
+        )
+            .argParser(parseDisableTimestampConversionOption)
+            .hideHelp(),
     )
     .option(
         '--show-chart-configuration-warnings',
