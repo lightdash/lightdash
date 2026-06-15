@@ -104,7 +104,7 @@ flowchart LR
     end
     subgraph Execute["Execute · Warehouse"]
         direction TB
-        E1["Session TZ ← <code>dataTimezone</code><br/>SQL returns UTC instants<br/>(project-TZ-aligned via round-trip)"]
+        E1["Session TZ ← <code>dataTimezone</code><br/>day-or-coarser → real DATE<br/>sub-day → UTC instant (round-trip)"]
     end
     subgraph Format["Format · Node.js"]
         direction TB
@@ -124,11 +124,13 @@ flowchart LR
 
 ### SELECT — DATE_TRUNC grouping
 
-With `useTimezoneAwareDateTrunc` on, truncation is timezone-aware. The base dimension SQL is round-tripped through the project timezone so boundaries fall on project-local wall-clock midnights, but the returned value is still a real UTC instant:
+With `useTimezoneAwareDateTrunc` on, truncation is timezone-aware. The base dimension SQL is round-tripped through the project timezone so boundaries fall on project-local wall-clock midnights:
 
 1. Shift the column value from its source TZ into project wall-clock
 2. Truncate on that wall-clock
-3. Convert the truncated wall-clock back to UTC
+3. **Day-or-coarser grains** (day / week / month / quarter / year) `CAST(... AS DATE)` the truncated wall-clock — the result is a real `DATE` calendar value (GLITCH-452). **Sub-day grains** (hour / minute / second / millisecond) convert the truncated wall-clock back to UTC and return a real UTC instant.
+
+> The cast is applied to the **truncated wall-clock value**, not to its UTC round-trip — casting the UTC instant would yield the wrong calendar date in non-UTC zones. So for day-or-coarser grains the final `toUTC` step is dropped, not wrapped.
 
 The source TZ for step 1 is derived once per query at the service boundary via `getColumnTimezone(credentials)` (in `packages/common/src/types/projects.ts`) and threaded through `timeFrames.ts` as `sourceTimezone`. It returns `'UTC'` for Snowflake when the translator wrap is active, `dataTimezone` when Snowflake's `disableTimestampConversion` opts out of that wrap, and `dataTimezone` (defaulting to UTC) for every other adapter. Most warehouses ignore it because their `toProjectTz` doesn't take a source TZ; Snowflake threads it into the inner `CONVERT_TIMEZONE`.
 
@@ -136,9 +138,11 @@ The SQL differs per warehouse (some have native TZ-aware truncation, others comp
 
 **No-op short-circuit when target equals source.** When the resolved query timezone matches the column source TZ (e.g. a UTC project on a UTC-stored column), the wrap is semantically a no-op — and on BigQuery it defeats partition pruning, leading to unbounded scans. `resolveTimezoneWrap` (via the shared `isTimezoneRoundTripNoOp` predicate) skips the wrap entirely at the boundary, so every call site — DATE_TRUNC, EXTRACT, format wrap, filter literal — short-circuits to the unwrapped form symmetrically. The predicate lives in `timeFrames.ts` so new call sites that forget to check it inherit the same behavior.
 
-**Filter parity.** When the round-trip is active, the WHERE clause reuses the same wrapped expression for the LHS so filter literals (still UTC with a `+00:00` offset on most warehouses) compare against the same shifted value the SELECT groups on.
+**Filter parity.** When the round-trip is active, the WHERE clause reuses the same wrapped expression for the LHS so filter literals compare against the same value the SELECT groups on — bare dates for day-or-coarser grains (matching the `DATE` LHS, see below), or UTC with a `+00:00` offset on most warehouses for sub-day grains.
 
 **Truncated intervals on a DATE base dimension skip the round-trip.** A truncated interval whose base column is a DATE (e.g. `order_date_month`) falls back to raw `DATE_TRUNC`. DATE values carry no time component — casting one into `timestamptz` for the round-trip would anchor at midnight and then cross a day boundary whenever the project timezone has a non-zero offset.
+
+**Day-or-coarser grains converge on `DATE` regardless of base type (GLITCH-452).** A DATE-base interval emits raw `DATE_TRUNC` (already a DATE); a TIMESTAMP-base interval round-trips through project wall-clock and then `CAST(... AS DATE)`. Both return a real calendar `DATE`, so the warehouse type matches the dimension metadata (`DATE`) and no display-time correction is needed. The WHERE clause for these dimensions emits **bare date literals** (no `+00:00` offset, no `::timestamptz`) to compare cleanly against the `DATE` LHS — the same literal path DATE-base dimensions already used. Only sub-day TIMESTAMP-base grains still return a UTC instant. Gated by `castDayGrainToDate` threaded from `MetricQueryBuilder.getTimezoneAwareDimensionSql`, so it is inert when the flag is off.
 
 ### SELECT — EXTRACT-based grouping
 
@@ -168,7 +172,7 @@ The flag is asymmetric: it affects **display** only.
 
 | Layer                                              | Honors `convert_timezone: false`? | Reason                                                              |
 | -------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------- |
-| SELECT — DATE_TRUNC                                | ✅                                | Wrap is skipped, raw `DATE_TRUNC` is emitted                        |
+| SELECT — DATE_TRUNC                                | ✅                                | Whole TZ-aware path skipped — raw `DATE_TRUNC` emitted, no DATE cast |
 | SELECT — EXTRACT-based                             | ✅                                | Wrap is skipped, bare EXTRACT is emitted                            |
 | SELECT — base TIMESTAMP value                      | ✅                                | Result formatting renders the UTC instant as-is                     |
 | WHERE — filter rendering                           | ❌                                | Filters always convert into the project TZ (filter literals do too) |
@@ -210,7 +214,7 @@ const formatTimestampAsUTCNoOffset = (date: Date): string =>
 // e.g. '2024-01-16 00:00:00'
 ```
 
-**Filters on a truncated interval with a DATE base dimension skip the timestamptz wrap.** A filter on e.g. `order_date_month` emits bare date literals — no `+00:00`, no `::timestamptz` cast. Same reason as the SELECT-side bypass: the LHS is a raw calendar value, so wrapping the literal as a timestamptz would re-introduce the midnight-anchor drift we're trying to avoid.
+**Filters on a day-or-coarser truncated interval emit bare date literals.** A filter on e.g. `order_date_month` emits bare date literals — no `+00:00`, no `::timestamptz` cast. For a DATE-base interval this was always the case; post-452 a TIMESTAMP-base interval at day-or-coarser grain compiles to a `DATE` too (the cast), so its filter takes the same bare-literal path. Same reason as the SELECT-side bypass: the LHS is a calendar value, so wrapping the literal as a timestamptz would re-introduce the midnight-anchor drift we're trying to avoid.
 
 **DATE-dimension boundaries are server-timezone-independent.** DATE-dimension filter boundaries are computed and formatted in UTC (flag off) or the project timezone (flag on) — never in the server's local timezone. Previously the default formatter used `moment(date)`, which read the process timezone — on a server with a positive UTC offset, `endOf('day')` would shift into the next calendar day and produce a 2-day filter range.
 
@@ -218,17 +222,18 @@ const formatTimestampAsUTCNoOffset = (date: Date): string =>
 
 ### Cell actions — filter-by, drill-down, view-underlying-data
 
-When a user clicks a result cell to filter, drill, or view underlying rows, the row's stored raw value is a UTC instant. For time-interval dimensions whose base is a TIMESTAMP (e.g. `created_at_day`, `created_at_month`), the displayed bucket is a project-TZ wall-clock date, so feeding the raw UTC instant straight into a filter would target the previous calendar day in any positive-offset project (e.g. Europe/Paris).
+When a user clicks a result cell to filter, drill, or view underlying rows, the row's raw value is fed into a filter rule. Pre-452, a day-or-coarser TIMESTAMP-base interval (e.g. `created_at_day`, `created_at_month`) stored a UTC instant while its displayed bucket was a project-TZ wall-clock date, so the raw instant had to be shifted into the project TZ first or the filter would target the previous calendar day in a positive-offset project (e.g. Europe/Paris). 452 makes the warehouse return a real `DATE` for those grains, so the raw value is already the bucket's calendar date — no correction is needed.
 
-`normalizeCellRawForFilter` (in `@lightdash/common`) shifts the raw UTC instant into the resolved project TZ and reformats as `YYYY-MM-DD` before constructing the filter rule. The shift is gated by `shouldShiftItemTimezone(field)`:
+`normalizeCellRawForFilter` (in `@lightdash/common`) is the guard that performed that shift. It only acts when `field.type === DATE` **and** `shouldShiftItemTimezone(field)` is true — but post-452 the latter is true only for `TIMESTAMP`-typed fields, so the two conditions are mutually exclusive and the function is now an inert pass-through (also a no-op with the flag off, since no resolved timezone is supplied). Every field shape now returns the raw value unchanged:
 
-| Field shape                              | Shifted? | Reason                                                              |
-| ---------------------------------------- | -------- | ------------------------------------------------------------------- |
-| Time-interval DATE on TIMESTAMP base     | ✅       | Bucket is project-TZ wall-clock; raw is UTC instant                 |
-| Time-interval DATE on DATE base          | ❌       | Bucket is already a calendar value                                  |
-| Plain DATE column (no time interval)     | ❌       | No time component to shift                                          |
-| `convert_timezone: false` on the dim     | ❌       | Display opt-out implies filters target the raw warehouse value      |
-| No resolved project timezone             | ❌       | Bit-identical to pre-feature behavior                               |
+| Field shape                                       | Shifted? | Reason                                                          |
+| ------------------------------------------------- | -------- | -------------------------------------------------------------- |
+| Day-or-coarser time-interval (any base)           | ❌       | Real calendar `DATE` post-452 — raw is already the bucket date |
+| Sub-day / plain TIMESTAMP field                   | ❌       | Not a `DATE` type, so the `type === DATE` guard skips it       |
+| Plain DATE column / DATE-base interval            | ❌       | Already a calendar value                                       |
+| `convert_timezone: false`, or no resolved zone    | ❌       | Inert regardless; bit-identical to pre-feature behavior        |
+
+Because it is now inert, the function (and its frontend call sites) is a candidate for removal in a follow-up — kept here as a defensive guard and a drill call-site seam.
 
 **Files:** `packages/common/src/utils/normalizeCellRawForFilter.ts`, `packages/common/src/utils/formatting.ts` (`shouldShiftItemTimezone`), `packages/frontend/src/providers/MetricQueryData/MetricQueryDataProvider.tsx` (Filter-by / Drill-down / Underlying-data call sites).
 
@@ -269,7 +274,7 @@ The data timezone UI field is hidden for BigQuery and Athena since there's no se
 
 ### Result formatting
 
-The DATE_TRUNC round-trip produces real UTC instants whose wall-clock alignment matches project midnights. Display formatters convert those instants back into the project zone at render time.
+Sub-day DATE_TRUNC grains produce real UTC instants whose wall-clock alignment matches project midnights; display formatters convert those instants back into the project zone at render time. Day-or-coarser grains are real `DATE`s (GLITCH-452) and need no conversion — they render as the calendar date they already are, and the API `raw` value serializes as `YYYY-MM-DD` rather than an ISO-Z instant (`formatRawValue` in `packages/common/src/index.ts`, gated on the resolved timezone being present), so raw-value consumers (SQL Runner, chart-as-code, external BI) see the calendar date directly.
 
 `formatTimestamp` takes two timezone parameters for different call-sites:
 
@@ -278,7 +283,7 @@ The DATE_TRUNC round-trip produces real UTC instants whose wall-clock alignment 
 | `timezone`        | Value is a UTC instant (common case — backend + CSV exports)                | Converts the UTC value into the given zone, then formats it |
 | `displayTimezone` | Value has already been pre-shifted to wall-clock ms (ECharts path only)     | Only appends the zone's offset suffix — no conversion       |
 
-`formatDate` takes a single `timezone` parameter and is bypassed entirely for truncated intervals on a DATE base dimension (see callout below).
+`formatDate` takes a single `timezone` parameter and is bypassed for any `DATE`-typed field — a calendar value is never timezone-shifted (see callout below).
 
 The resolved timezone rides on the API response (`resolvedTimezone` on `ApiExecuteAsyncQueryResultsCommon`) and is threaded into every downstream formatter:
 
@@ -294,7 +299,7 @@ The resolved timezone rides on the API response (`resolvedTimezone` on `ApiExecu
 
 ```mermaid
 flowchart LR
-    Q["Query result<br/>row values are UTC instants<br/>post-DATE_TRUNC round-trip"]
+    Q["Query result<br/>day-or-coarser: real DATE<br/>sub-day: UTC instant"]
     API["API response<br/>resolvedTimezone on payload"]
     BE["Backend formatRows<br/>passes displayTimezone"]
     FE["Frontend formatters<br/>(axes, tooltips, CSV)"]
@@ -302,14 +307,16 @@ flowchart LR
     Q --> API --> BE --> FE --> OUT
 ```
 
-> **Callout — truncated intervals on a DATE base dimension skip the timezone shift.**
-> A truncated interval whose base column is a DATE (e.g. `order_date_month`) is a pure calendar value with no time component. The DATE_TRUNC round-trip doesn't apply, and neither does display formatting: `formatItemValue` drops the `timezone` argument in the DATE branch when `timeIntervalBaseDimensionType === DATE`. Applying a TZ shift would anchor "March 1" at UTC midnight and then move it to Feb 28 in any negative-offset zone. These dimensions always render as the raw calendar date they represent.
+> **Callout — `DATE`-typed fields skip the timezone shift (GLITCH-452 collapsed the predicate).**
+> A `DATE` value is a pure calendar value with no time component, so display formatting never shifts it: `formatItemValue` drops the `timezone` argument in the DATE branch whenever the field type is `DATE` (`isCalendarValueDimension` / `shouldShiftItemTimezone` in `formatting.ts`). Pre-452 this needed a special case keyed on `timeIntervalBaseDimensionType === DATE` to "correct" a day-grain TIMESTAMP-base value that the warehouse returned as a UTC instant; 452 makes the warehouse return a real `DATE` for those grains, so the correction is gone and the predicate keys only on `type === DATE`. Applying a TZ shift would anchor "March 1" at UTC midnight and then move it to Feb 28 in any negative-offset zone.
 
 **Files:** `packages/common/src/utils/formatting.ts`, `packages/common/src/visualizations/helpers/getCartesianAxisFormatterConfig.ts`, `packages/common/src/visualizations/helpers/tooltipFormatter.ts`, `packages/common/src/types/api.ts`
 
 ### Frontend ECharts: x-axis wall-clock shift
 
 ECharts renders cartesian charts with `useUTC: true` — every numeric time value on a time axis sits on a UTC scale, and there's no supported way to tell it "draw this axis in project time." Feeding it a UTC instant with a non-UTC project TZ would snap tick marks to UTC midnights, contradicting the DATE_TRUNC round-trip the backend just did.
+
+> **Post-452 scope.** Day-or-coarser grains are now real `DATE`s (calendar values); `shouldShiftItemTimezone` returns false for them, so they are **not** shifted on the axis — they render directly. The wall-clock shift below applies only to **sub-day** TIMESTAMP grains (e.g. `order_date_hour`) and plain TIMESTAMP columns. The `order_date_day` examples below predate 452 — read them as any sub-day / TIMESTAMP field.
 
 **The workaround: a shifted-wall-clock companion column.** The shift helper adds a *new* column next to the original. For `order_date_day`, a sibling `order_date_day_ld_tz_shifted` gets appended to every row. The sibling holds the instant plus the project's offset for that instant — not a real UTC millisecond, but a value that ECharts (still in `useUTC: true`) renders exactly on project-local wall-clock positions. The original UTC column stays put, so drill-down, tooltip payloads, and anything else reading the row directly still see real instants.
 
@@ -437,8 +444,8 @@ flowchart TD
 ### What "fully working" means
 
 1. **Filters:** all relative operators compute boundaries in project TZ, literals are unambiguously UTC (with the known BigQuery/ClickHouse bare-literal caveat), and comparisons work for both TZ and NTZ columns on every warehouse with session-TZ plumbing.
-2. **Time dimensions:** groups at project-TZ boundaries on every warehouse. Truncated intervals (DATE_TRUNC) round-trip through project wall-clock; EXTRACT-based intervals (numeric and Name variants) shift their input into the project zone before extracting. Both paths bypass the wrap when the base dimension is a DATE.
-3. **Display:** formatted timestamps reflect the project timezone across Explorer, chart axes, tooltips, CSV exports, and Excel exports, with the resolved zone labelled in the UI. Truncated intervals on a DATE base dimension skip the shift so calendar dates render as-is.
+2. **Time dimensions:** groups at project-TZ boundaries on every warehouse. Truncated intervals (DATE_TRUNC) round-trip through project wall-clock and, at day-or-coarser grain, cast to a real `DATE`; EXTRACT-based intervals (numeric and Name variants) shift their input into the project zone before extracting. Both paths bypass the wrap when the base dimension is a DATE.
+3. **Display:** formatted timestamps reflect the project timezone across Explorer, chart axes, tooltips, CSV exports, and Excel exports, with the resolved zone labelled in the UI. Day-or-coarser truncated intervals are real `DATE`s and render as calendar dates as-is; only sub-day grains and base timestamps are shifted into the project zone.
 4. **NTZ normalization:** NTZ columns are interpreted via the data timezone at query time. Today this relies on warehouse session-TZ plumbing — every supported warehouse has it except BigQuery and Athena, where NTZ-style columns with non-UTC data are stuck.
 
 ---
