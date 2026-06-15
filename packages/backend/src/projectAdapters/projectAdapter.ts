@@ -26,12 +26,15 @@ export const projectAdapterFromConfig = async (
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     analytics?: LightdashAnalytics,
+    enableArrayDimensions: boolean = false,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
     );
-    const warehouseClient =
-        warehouseClientFromCredentials(warehouseCredentials);
+    const warehouseClient = warehouseClientFromCredentials(
+        warehouseCredentials,
+        { enableArrayDimensions },
+    );
     const configType = config.type;
     Logger.debug(`Initialize project adaptor of type ${configType}`);
 

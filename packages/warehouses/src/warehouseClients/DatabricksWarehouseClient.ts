@@ -23,7 +23,7 @@ import {
     WarehouseTypes,
 } from '@lightdash/common';
 import fetch from 'node-fetch';
-import { WarehouseCatalog } from '../types';
+import { WarehouseCatalog, WarehouseClientOptions } from '../types';
 import {
     DEFAULT_BATCH_SIZE,
     processPromisesInBatches,
@@ -80,6 +80,7 @@ type SchemaResult = {
 
 const convertDataTypeToDimensionType = (
     type: DatabricksDataTypes,
+    enableArrayDimensions: boolean,
 ): DimensionType => {
     switch (type) {
         case DatabricksDataTypes.BOOLEAN_TYPE:
@@ -97,7 +98,9 @@ const convertDataTypeToDimensionType = (
         case DatabricksDataTypes.TIMESTAMP_TYPE:
             return DimensionType.TIMESTAMP;
         case DatabricksDataTypes.ARRAY_TYPE:
-            return DimensionType.ARRAY;
+            return enableArrayDimensions
+                ? DimensionType.ARRAY
+                : DimensionType.STRING;
         case DatabricksDataTypes.STRING_TYPE:
         case DatabricksDataTypes.BINARY_TYPE:
         case DatabricksDataTypes.STRUCT_TYPE:
@@ -155,7 +158,10 @@ const normaliseDatabricksType = (type: string): DatabricksTypes => {
     return match[0] as DatabricksTypes;
 };
 
-const mapFieldType = (type: string): DimensionType => {
+const mapFieldType = (
+    type: string,
+    enableArrayDimensions: boolean,
+): DimensionType => {
     const normalizedType = normaliseDatabricksType(type);
 
     switch (normalizedType) {
@@ -176,7 +182,9 @@ const mapFieldType = (type: string): DimensionType => {
         case DatabricksTypes.NUMERIC:
             return DimensionType.NUMBER;
         case DatabricksTypes.ARRAY:
-            return DimensionType.ARRAY;
+            return enableArrayDimensions
+                ? DimensionType.ARRAY
+                : DimensionType.STRING;
         case DatabricksTypes.STRING:
         case DatabricksTypes.BINARY:
         case DatabricksTypes.INTERVAL:
@@ -287,11 +295,17 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
 
     private readonly enableTimeouts: boolean;
 
-    constructor(credentials: CreateDatabricksCredentials) {
+    private readonly enableArrayDimensions: boolean;
+
+    constructor(
+        credentials: CreateDatabricksCredentials,
+        options?: WarehouseClientOptions,
+    ) {
         super(credentials, new DatabricksSqlBuilder(credentials.startOfWeek));
         this.schema = credentials.database;
         this.catalog = credentials.catalog;
         this.enableTimeouts = process.env.DATABRICKS_ENABLE_TIMEOUTS === 'true';
+        this.enableArrayDimensions = options?.enableArrayDimensions ?? false;
 
         // Build connection options based on authentication type
         if (
@@ -424,6 +438,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                         type: convertDataTypeToDimensionType(
                             column.typeDesc.types[0]?.primitiveEntry?.type ??
                                 DatabricksDataTypes.STRING_TYPE,
+                            this.enableArrayDimensions,
                         ),
                     },
                 }),
@@ -512,7 +527,7 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
                 const columns = Object.fromEntries<DimensionType>(
                     result.map((col) => [
                         col.COLUMN_NAME,
-                        mapFieldType(col.TYPE_NAME),
+                        mapFieldType(col.TYPE_NAME, this.enableArrayDimensions),
                     ]),
                 );
                 const { schema, table } = requests[index];
@@ -559,7 +574,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             undefined,
             schema ? [schema] : undefined,
         );
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return this.parseWarehouseCatalog(rows, (type) =>
+            mapFieldType(type, this.enableArrayDimensions),
+        );
     }
 
     async getFields(
@@ -587,7 +604,9 @@ export class DatabricksWarehouseClient extends WarehouseBaseClient<CreateDatabri
             values.push(database);
         }
         const { rows } = await this.runQuery(query, tags, undefined, values);
-        return this.parseWarehouseCatalog(rows, mapFieldType);
+        return this.parseWarehouseCatalog(rows, (type) =>
+            mapFieldType(type, this.enableArrayDimensions),
+        );
     }
 }
 

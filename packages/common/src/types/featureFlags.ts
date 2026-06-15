@@ -8,6 +8,14 @@ export enum FeatureFlags {
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
+    /**
+     * Enable native ARRAY data-type support (array dimensions: filtering and
+     * unnesting). Off by default; enable per self-hosted instance via
+     * LIGHTDASH_ENABLE_FEATURE_FLAGS=array-dimensions. When off, array columns
+     * are mapped to STRING at compile time, reverting to legacy behaviour.
+     */
+    ArrayDimensions = 'array-dimensions',
+
     /* Send local timezone to the warehouse session */
     EnableUserTimezones = 'enable-user-timezones',
 
