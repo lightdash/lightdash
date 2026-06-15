@@ -1,3 +1,10 @@
+## [0.3165.2](https://github.com/lightdash/lightdash/compare/0.3165.1...0.3165.2) (2026-06-15)
+
+
+### Bug Fixes
+
+* only show thread sidebar for review/remediation flows ([#24302](https://github.com/lightdash/lightdash/issues/24302)) ([0c831a5](https://github.com/lightdash/lightdash/commit/0c831a5f7d94d33e8bba28ed5d0c3165ac44616f))
+
 ## [0.3165.1](https://github.com/lightdash/lightdash/compare/0.3165.0...0.3165.1) (2026-06-15)
 
 
