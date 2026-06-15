@@ -8,6 +8,7 @@
 # Usage (step names match dev-profiles.json `reconcile` + verify):
 #   dev-reconcile.sh github-app-installation
 #   dev-reconcile.sh github-dbt-repo
+#   dev-reconcile.sh github-dbt-repoint repo=owner/name branch=main subpath=/dbt
 #   dev-reconcile.sh org-settings ai_agent_reviews_enabled=true
 #   dev-reconcile.sh verify-token
 #   dev-reconcile.sh all            # installation -> dbt-repo-check -> verify-token
@@ -65,6 +66,7 @@ STEP="${1:-}"; shift || true
 case "$STEP" in
     github-app-installation) run_cjs installation ;;
     github-dbt-repo)         run_cjs dbt-repo-check ;;
+    github-dbt-repoint)      run_cjs dbt-repo-repoint "$@" ;;
     org-settings)            run_cjs org-settings "$@" ;;
     verify-token|verify)     run_cjs verify-token ;;
     list-accounts)           run_cjs list-accounts ;;
