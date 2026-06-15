@@ -1239,6 +1239,7 @@ export class McpService extends BaseService {
             },
             async (args, extra) => {
                 const ctx = getMcpContext(extra);
+                const { user } = McpService.getAccount(ctx);
 
                 const projectUuid = await this.resolveProjectUuid(ctx);
                 const argsWithProject = { ...args, projectUuid };
@@ -1267,11 +1268,33 @@ export class McpService extends BaseService {
                         experimental_context: { availableExplores },
                     },
                 );
+                const resultText = await McpService.streamToolResult(result);
+                const metadata = await this.getActiveContextMetadata(ctx);
+
+                const verifiedAnswerContext = metadata.agentUuid
+                    ? await this.aiAgentService.getRelevantVerifiedAnswerContextForAgent(
+                          user,
+                          {
+                              projectUuid,
+                              agentUuid: metadata.agentUuid,
+                              searchQuery: args.searchQuery,
+                          },
+                      )
+                    : { relevantVerifiedAnswers: [] };
+
+                const verifiedAnswersText =
+                    verifiedAnswerContext.relevantVerifiedAnswers.length > 0
+                        ? `\n\n<verifiedAnswers count="${verifiedAnswerContext.relevantVerifiedAnswers.length}">\n${JSON.stringify(
+                              verifiedAnswerContext.relevantVerifiedAnswers,
+                              null,
+                              2,
+                          )}\n</verifiedAnswers>`
+                        : '';
 
                 return this.buildScopedResponse(
                     ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
+                    `${resultText}${verifiedAnswersText}`,
+                    verifiedAnswerContext,
                     projectUuid,
                 );
             },
