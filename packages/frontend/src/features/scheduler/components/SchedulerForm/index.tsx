@@ -10,6 +10,7 @@ import {
 } from '@lightdash/common';
 import { Badge, Group, Tabs, Text } from '@mantine-8/core';
 import { type FC } from 'react';
+import { SchedulerFormChartFiltersTab } from './SchedulerFormChartFiltersTab';
 import { useSchedulerFormContext } from './schedulerFormContext';
 import { SchedulerFormCustomizationTab } from './SchedulerFormCustomizationTab';
 import { SchedulerFormFiltersTab } from './SchedulerFormFiltersTab';
@@ -29,6 +30,7 @@ type Props = {
     loading?: boolean;
     confirmText?: string;
     isThresholdAlert?: boolean;
+    projectUuid: string | undefined;
     itemsMap?: ItemsMap;
     currentParameterValues?: ParametersValuesMap;
     availableParameters?: ParameterDefinitions;
@@ -43,6 +45,8 @@ const SchedulerForm: FC<Props> = ({
     savedSchedulerData,
     loading,
     isThresholdAlert,
+    projectUuid,
+    itemsMap,
     currentParameterValues,
     availableParameters,
     dashboard,
@@ -56,8 +60,12 @@ const SchedulerForm: FC<Props> = ({
     const form = useSchedulerFormContext();
 
     const isDashboard = dashboard !== undefined;
+    // Threshold alerts are chart schedulers; expose chart-scoped overrides.
+    const isChartAlert = !!isThresholdAlert && !isDashboard;
 
-    const requiredFiltersWithoutValues = (form.values.filters ?? []).filter(
+    const requiredFiltersWithoutValues = (
+        form.values.dashboardFilters ?? []
+    ).filter(
         (filter) =>
             filter.required && (!filter.values || filter.values.length === 0),
     );
@@ -77,15 +85,18 @@ const SchedulerForm: FC<Props> = ({
                             <Tabs.Tab value="filters">
                                 <Group gap="xs">
                                     Filters
-                                    {form.values.filters &&
-                                    form.values.filters.length > 0 ? (
+                                    {form.values.dashboardFilters &&
+                                    form.values.dashboardFilters.length > 0 ? (
                                         <Badge
                                             color="blue"
                                             size="xs"
                                             variant="light"
                                             radius="sm"
                                         >
-                                            {form.values.filters.length}
+                                            {
+                                                form.values.dashboardFilters
+                                                    .length
+                                            }
                                         </Badge>
                                     ) : (
                                         ''
@@ -98,6 +109,13 @@ const SchedulerForm: FC<Props> = ({
                                     )}
                                 </Group>
                             </Tabs.Tab>
+                            <Tabs.Tab value="parameters">Parameters</Tabs.Tab>
+                        </>
+                    ) : null}
+
+                    {isChartAlert ? (
+                        <>
+                            <Tabs.Tab value="filters">Filters</Tabs.Tab>
                             <Tabs.Tab value="parameters">Parameters</Tabs.Tab>
                         </>
                     ) : null}
@@ -140,7 +158,7 @@ const SchedulerForm: FC<Props> = ({
                         <Tabs.Panel value="filters" p="md">
                             <SchedulerFormFiltersTab
                                 dashboard={dashboard}
-                                draftFilters={form.values.filters}
+                                draftFilters={form.values.dashboardFilters}
                                 isEditMode={savedSchedulerData !== undefined}
                                 savedFilters={
                                     savedSchedulerData &&
@@ -150,7 +168,7 @@ const SchedulerForm: FC<Props> = ({
                                 }
                                 onChange={(schedulerFilters) => {
                                     form.setFieldValue(
-                                        'filters',
+                                        'dashboardFilters',
                                         schedulerFilters,
                                     );
                                 }}
@@ -177,13 +195,49 @@ const SchedulerForm: FC<Props> = ({
                     </>
                 ) : null}
 
+                {isChartAlert ? (
+                    <>
+                        <Tabs.Panel value="filters" p="md">
+                            <SchedulerFormChartFiltersTab
+                                projectUuid={projectUuid}
+                                itemsMap={itemsMap}
+                                filters={form.values.chartFilters ?? {}}
+                                onChange={(chartFilters) => {
+                                    form.setFieldValue(
+                                        'chartFilters',
+                                        chartFilters,
+                                    );
+                                }}
+                            />
+                        </Tabs.Panel>
+
+                        <Tabs.Panel value="parameters" p="md">
+                            <SchedulerFormParametersTab
+                                projectUuid={projectUuid}
+                                currentParameterValues={currentParameterValues}
+                                schedulerParameterValues={
+                                    form.values.parameters
+                                }
+                                availableParameters={availableParameters}
+                                isLoading={!!loading}
+                                onChange={(schedulerParameters) => {
+                                    form.setFieldValue(
+                                        'parameters',
+                                        schedulerParameters,
+                                    );
+                                }}
+                            />
+                        </Tabs.Panel>
+                    </>
+                ) : null}
+
                 <Tabs.Panel value="customization">
                     <SchedulerFormCustomizationTab />
                 </Tabs.Panel>
                 {isDashboard ? (
                     <Tabs.Panel value="preview">
                         <SchedulerFormPreviewTab
-                            schedulerFilters={form.values.filters}
+                            schedulerFilters={form.values.dashboardFilters}
                             dashboard={dashboard}
                             customViewportWidth={
                                 form.values.customViewportWidth
