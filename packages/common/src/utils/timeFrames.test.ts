@@ -770,6 +770,27 @@ describe('TimeFrames', () => {
             ).toEqual(`CAST(DATE_TRUNC('DAY', ${col}) AS DATE)`);
         });
 
+        // GLITCH-452: BigQuery's TIMESTAMP_TRUNC returns the tz-midnight UTC
+        // instant, so the day grain must DATE(expr, tz) — CAST(... AS DATE) reads
+        // the UTC date and lands a day early in positive offsets (verified
+        // against BigQuery: Asia/Tokyo bucketed 15:00Z to the previous day).
+        test('BigQuery day grain casts via DATE(expr, tz), not CAST AS DATE', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    undefined,
+                    true, // castDayGrainToDate
+                ),
+            ).toEqual(
+                `DATE(TIMESTAMP_TRUNC(TIMESTAMP(${col}), DAY, '${tz}'), '${tz}')`,
+            );
+        });
+
         test('TIMESTAMP dimension with timezone still gets tz round-trip (Snowflake)', () => {
             expect(
                 getSqlForTruncatedDate(

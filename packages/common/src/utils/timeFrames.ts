@@ -744,11 +744,17 @@ export const getSqlForTruncatedDate = (
         startOfWeek,
         wrap.timezone,
     );
-    // Cast the project-wall-clock value to DATE and drop the toUTC round-trip;
-    // casting the UTC instant instead would be session-tz-dependent (wrong day).
-    return castToDate
-        ? `CAST(${truncated} AS DATE)`
-        : toUTC(truncated, wrap.timezone);
+    // Day-or-coarser grains return a real DATE (drop the toUTC round-trip).
+    // Most adapters truncate to a wall-clock value, so CAST(... AS DATE) yields
+    // the right calendar date. BigQuery's TIMESTAMP_TRUNC returns the tz-midnight
+    // UTC instant, so CAST(... AS DATE) would read its UTC date — off by one in
+    // positive offsets; DATE(expr, tz) reads the calendar date in the project tz.
+    if (!castToDate) {
+        return toUTC(truncated, wrap.timezone);
+    }
+    return adapterType === SupportedDbtAdapter.BIGQUERY
+        ? `DATE(${truncated}, '${wrap.timezone}')`
+        : `CAST(${truncated} AS DATE)`;
 };
 
 // DATE base dimensions short-circuit: no time component to shift.

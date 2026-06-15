@@ -131,6 +131,8 @@ With `useTimezoneAwareDateTrunc` on, truncation is timezone-aware. The base dime
 3. **Day-or-coarser grains** (day / week / month / quarter / year) `CAST(... AS DATE)` the truncated wall-clock — the result is a real `DATE` calendar value (GLITCH-452). **Sub-day grains** (hour / minute / second / millisecond) convert the truncated wall-clock back to UTC and return a real UTC instant.
 
 > The cast is applied to the **truncated wall-clock value**, not to its UTC round-trip — casting the UTC instant would yield the wrong calendar date in non-UTC zones. So for day-or-coarser grains the final `toUTC` step is dropped, not wrapped.
+>
+> **Per-adapter cast.** Most warehouses truncate to a naive wall-clock value, so `CAST(... AS DATE)` reads the right calendar date. **BigQuery** instead uses `DATE(<expr>, '<tz>')` — its `TIMESTAMP_TRUNC` returns the tz-midnight value as a *UTC instant*, so `CAST(... AS DATE)` would read its UTC date and land a day early in positive offsets (e.g. `Asia/Tokyo` bucketed a `15:00Z` row to the previous day until this was fixed; verified against BigQuery).
 
 The source TZ for step 1 is derived once per query at the service boundary via `getColumnTimezone(credentials)` (in `packages/common/src/types/projects.ts`) and threaded through `timeFrames.ts` as `sourceTimezone`. It returns `'UTC'` for Snowflake when the translator wrap is active, `dataTimezone` when Snowflake's `disableTimestampConversion` opts out of that wrap, and `dataTimezone` (defaulting to UTC) for every other adapter. Most warehouses ignore it because their `toProjectTz` doesn't take a source TZ; Snowflake threads it into the inner `CONVERT_TIMEZONE`.
 
