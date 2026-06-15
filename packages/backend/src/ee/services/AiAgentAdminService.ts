@@ -18,7 +18,6 @@ import {
     DbtProjectType,
     extractPreviewProjectUuidFromUrl,
     extractPreviewUrlFromComments,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     JobStatusType,
@@ -59,7 +58,6 @@ import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { type PullRequestsModel } from '../../models/PullRequestsModel';
 import { type UserModel } from '../../models/UserModel';
 import { BaseService } from '../../services/BaseService';
-import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type CommercialSchedulerClient } from '../scheduler/SchedulerClient';
@@ -76,7 +74,6 @@ type AiAgentAdminServiceDependencies = {
     analytics: LightdashAnalytics;
     aiAgentModel: AiAgentModel;
     aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
-    featureFlagService: FeatureFlagService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     projectModel: ProjectModel;
     aiWritebackService: AiWritebackService;
@@ -285,8 +282,6 @@ export class AiAgentAdminService extends BaseService {
 
     private readonly aiAgentReviewClassifierModel: AiAgentReviewClassifierModel;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     private readonly aiOrganizationSettingsService: AiOrganizationSettingsService;
 
     private readonly projectModel: ProjectModel;
@@ -315,7 +310,6 @@ export class AiAgentAdminService extends BaseService {
         this.aiAgentModel = dependencies.aiAgentModel;
         this.aiAgentReviewClassifierModel =
             dependencies.aiAgentReviewClassifierModel;
-        this.featureFlagService = dependencies.featureFlagService;
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
         this.projectModel = dependencies.projectModel;
@@ -507,20 +501,9 @@ export class AiAgentAdminService extends BaseService {
         if (!organizationUuid) {
             return false;
         }
-        const [reviewsEnabled, aiWritebackFlag] = await Promise.all([
-            this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
-                organizationUuid,
-            }),
-            this.featureFlagService.get({
-                featureFlagId: FeatureFlags.AiWriteback,
-                user: {
-                    userUuid: user.userUuid,
-                    organizationUuid,
-                    organizationName: user.organizationName ?? '',
-                },
-            }),
-        ]);
-        return reviewsEnabled && aiWritebackFlag.enabled;
+        return this.aiOrganizationSettingsService.isAiAgentReviewsEnabled({
+            organizationUuid,
+        });
     }
 
     private hasSemanticWritebackConfig(): boolean {

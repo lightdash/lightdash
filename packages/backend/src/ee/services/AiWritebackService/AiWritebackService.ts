@@ -1,7 +1,6 @@
 import { subject } from '@casl/ability';
 import {
     DbtProjectType,
-    FeatureFlags,
     ForbiddenError,
     getErrorMessage,
     isUserWithOrg,
@@ -27,7 +26,6 @@ import {
     getRepoTree,
 } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
-import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
 import type { GithubAppInstallationsModel } from '../../../models/GithubAppInstallations/GithubAppInstallationsModel';
 import type { GitlabAppInstallationsModel } from '../../../models/GitlabAppInstallations/GitlabAppInstallationsModel';
 import type { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
@@ -117,7 +115,6 @@ type AiWritebackServiceDeps = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
     projectModel: ProjectModel;
-    featureFlagModel: FeatureFlagModel;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubAppService: GithubAppService;
     gitlabAppInstallationsModel: GitlabAppInstallationsModel;
@@ -133,8 +130,6 @@ export class AiWritebackService extends BaseService {
 
     private readonly projectModel: ProjectModel;
 
-    private readonly featureFlagModel: FeatureFlagModel;
-
     private readonly aiWritebackThreadModel: AiWritebackThreadModel;
 
     private readonly pullRequestsModel: PullRequestsModel;
@@ -149,7 +144,6 @@ export class AiWritebackService extends BaseService {
         lightdashConfig,
         analytics,
         projectModel,
-        featureFlagModel,
         githubAppInstallationsModel,
         githubAppService,
         gitlabAppInstallationsModel,
@@ -161,7 +155,6 @@ export class AiWritebackService extends BaseService {
         this.lightdashConfig = lightdashConfig;
         this.analytics = analytics;
         this.projectModel = projectModel;
-        this.featureFlagModel = featureFlagModel;
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.pullRequestsModel = pullRequestsModel;
         this.prometheusMetrics = prometheusMetrics;
@@ -315,22 +308,6 @@ export class AiWritebackService extends BaseService {
             files: sorted.slice(0, MAX_FILES),
             truncated: truncated || sorted.length > MAX_FILES,
         };
-    }
-
-    private async assertEnabled(
-        user: SessionUser,
-        source: AiWritebackSource,
-    ): Promise<void> {
-        if (source === 'admin_review') {
-            return;
-        }
-        const { enabled } = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.AiWriteback,
-        });
-        if (!enabled) {
-            throw new ForbiddenError('AI writeback is not enabled');
-        }
     }
 
     private getE2bApiKey(): string {
@@ -548,7 +525,6 @@ export class AiWritebackService extends BaseService {
             user,
             projectUuid,
             aiThreadUuid,
-            source,
         });
 
         this.logger.info('AI writeback run started', {
@@ -811,23 +787,18 @@ export class AiWritebackService extends BaseService {
     }
 
     /**
-     * Pre-flight: enforce source-specific rollout gates, the
-     * `manage:SourceCode` permission, and resolve everything from the request
-     * that doesn't require a sandbox.
+     * Pre-flight: enforce the `manage:SourceCode` permission, and resolve
+     * everything from the request that doesn't require a sandbox.
      */
     private async prepareTurn({
         user,
         projectUuid,
         aiThreadUuid,
-        source,
     }: {
         user: SessionUser;
         projectUuid: string;
         aiThreadUuid: string | undefined;
-        source: AiWritebackSource;
     }): Promise<TurnContext> {
-        await this.assertEnabled(user, source);
-
         const project = await this.projectModel.get(projectUuid);
         // Writeback opens a PR from a freshly created feature branch
         // (`lightdash-ai-writeback/<uuid>`), so `isProtectedBranch: false`

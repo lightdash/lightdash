@@ -1,4 +1,4 @@
-import { FeatureFlags, ForbiddenError } from '@lightdash/common';
+import { ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import {
@@ -122,7 +122,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     analytics: context.lightdashAnalytics,
                     projectModel: models.getProjectModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
                     githubAppService: repository.getGithubAppService(),
@@ -318,7 +317,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentModel: models.getAiAgentModel(),
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
-                    featureFlagService: repository.getFeatureFlagService(),
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     projectModel: models.getProjectModel(),
@@ -358,7 +356,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiAgentService<AiAgentService>(),
                     lightdashConfig: context.lightdashConfig,
                 }),
-            aiAgentReviewClassifierService: ({ models, repository, context }) =>
+            aiAgentReviewClassifierService: ({ models, context }) =>
                 new AiAgentReviewClassifierService({
                     aiAgentReviewClassifierModel:
                         models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
@@ -367,7 +365,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiOrganizationSettingsModel(),
                     catalogModel: models.getCatalogModel(),
                     projectModel: models.getProjectModel(),
-                    featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
                 }),
             aiOrganizationSettingsService: ({ models, context }) =>
@@ -479,28 +476,12 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getOrganizationSettingsModel(),
                     projectContextModel:
                         models.getProjectContextModel<ProjectContextModel>(),
-                    isProjectContextEnabled: async ({
-                        user,
-                        organizationUuid,
-                    }) => {
-                        const [reviewsEnabled, aiWritebackFlag] =
-                            await Promise.all([
-                                repository
-                                    .getAiOrganizationSettingsService<AiOrganizationSettingsService>()
-                                    .isAiAgentReviewsEnabled({
-                                        organizationUuid,
-                                    }),
-                                models.getFeatureFlagModel().get({
-                                    featureFlagId: FeatureFlags.AiWriteback,
-                                    user: {
-                                        userUuid: user.userUuid,
-                                        organizationUuid,
-                                        organizationName: user.organizationName,
-                                    },
-                                }),
-                            ]);
-                        return reviewsEnabled && aiWritebackFlag.enabled;
-                    },
+                    isProjectContextEnabled: async ({ organizationUuid }) =>
+                        repository
+                            .getAiOrganizationSettingsService<AiOrganizationSettingsService>()
+                            .isAiAgentReviewsEnabled({
+                                organizationUuid,
+                            }),
                     // Lazy accessor (not the instance) to duplicate the
                     // upstream project's data apps when a preview is created.
                     // AppGenerateService depends on ProjectService, so resolving

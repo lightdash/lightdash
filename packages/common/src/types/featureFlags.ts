@@ -197,15 +197,6 @@ export enum FeatureFlags {
     OrganizationTrialWarning = 'organization-trial-warning',
 
     /**
-     * Enable the (in-progress) AI writeback feature. Spins up an e2b
-     * sandbox pre-loaded with dbt and the Claude Code CLI, then runs a
-     * user-supplied prompt against it synchronously. Off by default — gated
-     * while the sandbox runtime and write-back semantics are still being
-     * built out.
-     */
-    AiWriteback = 'ai-writeback',
-
-    /**
      * Enable the `searchSemanticLayer` agent tool, which lets the AI agent
      * list/search metrics and dimensions across ALL explores at once (backed
      * by the catalog search index) to answer project-wide questions like

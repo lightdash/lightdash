@@ -15,7 +15,6 @@ import {
     createToolRunSqlArgsSchema,
     editContentToolDefinition,
     Explore,
-    FeatureFlags,
     findContentToolDefinition,
     findExploresToolDefinition,
     findFieldsToolDefinition,
@@ -1142,9 +1141,8 @@ export class McpService extends BaseService {
     }
 
     setupHandlers(
-        options: { projectPinned: boolean; aiWritebackEnabled: boolean } = {
+        options: { projectPinned: boolean } = {
             projectPinned: false,
-            aiWritebackEnabled: false,
         },
     ): void {
         this.mcpServer.registerTool(
@@ -2644,14 +2642,7 @@ export class McpService extends BaseService {
 
         this.registerSkillToolHandlers();
 
-        // Dark-launched: this tool is only registered — and therefore only
-        // advertised in tools/list and invocable — when the AiWriteback
-        // feature flag is enabled for the caller. Clients without the flag
-        // never see it. The flag is resolved per-request in the MCP router
-        // (mcpRouter.ts) and passed through createServer.
-        if (options.aiWritebackEnabled) {
-            this.registerRunAiWritebackTool();
-        }
+        this.registerRunAiWritebackTool();
 
         this.mcpServer.registerPrompt(
             'lightdash-analyst',
@@ -2978,7 +2969,6 @@ export class McpService extends BaseService {
      */
     public async createServer(options?: {
         projectPinned?: boolean;
-        aiWritebackEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
@@ -3011,7 +3001,6 @@ export class McpService extends BaseService {
         this.mcpServer = newServer;
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
-            aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
         });
         this.mcpServer = originalServer;
 
@@ -3241,22 +3230,6 @@ export class McpService extends BaseService {
             aiCopilotFlag.enabled,
             user.organizationUuid,
         );
-    }
-
-    /**
-     * Whether the run_ai_writeback tool should be exposed to this caller.
-     * Gated behind the AiWriteback feature flag (off by default) so the tool
-     * can be dark launched — clients without the flag never see it in
-     * tools/list. Resolved per-request and passed into createServer.
-     */
-    public async isAiWritebackEnabled(
-        user: Pick<SessionUser, 'userUuid' | 'organizationUuid'>,
-    ): Promise<boolean> {
-        const flag = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.AiWriteback,
-        });
-        return flag.enabled;
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {

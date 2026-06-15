@@ -125,7 +125,7 @@ describe('MCP tool contracts', () => {
 
         mockRegisteredMcpTools.length = 0;
         mockRegisteredMcpPrompts.length = 0;
-        await mcpService.createServer({ aiWritebackEnabled: true });
+        await mcpService.createServer();
 
         expect({
             prompts: mockRegisteredMcpPrompts.map(({ name, config }) => ({

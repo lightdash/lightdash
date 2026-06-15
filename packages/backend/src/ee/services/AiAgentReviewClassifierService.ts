@@ -2,7 +2,6 @@
 import {
     aiAgentReviewClassifierJudgeOutputSchema,
     CatalogType,
-    FeatureFlags,
     ForbiddenError,
     getAiAgentConfigSnapshotHash,
     getAiAgentReviewItemFingerprint,
@@ -30,7 +29,6 @@ import Logger from '../../logging/logger';
 import { type CatalogModel } from '../../models/CatalogModel/CatalogModel';
 import { type ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { BaseService } from '../../services/BaseService';
-import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentModel } from '../models/AiAgentModel';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
@@ -76,7 +74,6 @@ type AiAgentReviewClassifierServiceDependencies = {
     aiOrganizationSettingsModel: AiOrganizationSettingsModel;
     catalogModel: Pick<CatalogModel, 'getCatalogItemsSummary'>;
     projectModel: Pick<ProjectModel, 'getSummary'>;
-    featureFlagService: FeatureFlagService;
     lightdashConfig: LightdashConfig;
     judgeTurn?: AiAgentReviewClassifierJudge;
 };
@@ -229,8 +226,6 @@ export class AiAgentReviewClassifierService extends BaseService {
 
     private readonly aiOrganizationSettingsModel: AiOrganizationSettingsModel;
 
-    private readonly featureFlagService: FeatureFlagService;
-
     private readonly lightdashConfig: LightdashConfig;
 
     private readonly judgeTurn: AiAgentReviewClassifierJudge;
@@ -244,7 +239,6 @@ export class AiAgentReviewClassifierService extends BaseService {
         this.projectModel = dependencies.projectModel;
         this.aiOrganizationSettingsModel =
             dependencies.aiOrganizationSettingsModel;
-        this.featureFlagService = dependencies.featureFlagService;
         this.lightdashConfig = dependencies.lightdashConfig;
         this.judgeTurn =
             dependencies.judgeTurn ??
@@ -400,14 +394,6 @@ export class AiAgentReviewClassifierService extends BaseService {
         const runAgentConfig = args.candidates[0]
             ? await this.captureAgentConfigSnapshot(args.candidates[0])
             : AiAgentReviewClassifierService.emptyAgentConfigEvidence();
-        const aiWritebackFlag = await this.featureFlagService.get({
-            featureFlagId: FeatureFlags.AiWriteback,
-            user: {
-                userUuid: args.requestedByUserUuid ?? 'system',
-                organizationUuid: args.organizationUuid,
-                organizationName: args.organizationName ?? '',
-            },
-        });
 
         const run = await this.aiAgentReviewClassifierModel.createRun({
             organizationUuid: args.organizationUuid,
@@ -452,7 +438,7 @@ export class AiAgentReviewClassifierService extends BaseService {
                     classifiedTurn: await this.classifyTurnWithJudge(
                         candidate,
                         runAgentConfig,
-                        { projectContextEnabled: aiWritebackFlag.enabled },
+                        { projectContextEnabled: true },
                     ),
                 })),
             );

@@ -5596,13 +5596,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 user,
                 featureFlagId: FeatureFlags.SearchSemanticLayer,
             });
-        let { enabled: aiWritebackEnabled } = await this.featureFlagService.get(
-            {
-                user,
-                featureFlagId: FeatureFlags.AiWriteback,
-            },
-        );
-        if (aiWritebackEnabled && !hasTrustedPromptUserIdentity) {
+        let aiWritebackEnabled = true;
+        if (!hasTrustedPromptUserIdentity) {
             this.logger.info(
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );

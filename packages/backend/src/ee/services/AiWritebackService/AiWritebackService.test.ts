@@ -3,7 +3,6 @@ import {
     AnyType,
     DbtProjectType,
     DbtVersionOptionLatest,
-    FeatureFlags,
     ForbiddenError,
     getLatestSupportDbtVersion,
     PullRequestProvider,
@@ -66,7 +65,6 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
         lightdashConfig: { gitlab: {} } as AnyType,
         analytics: { track: jest.fn() } as AnyType,
         projectModel: { get: jest.fn() } as AnyType,
-        featureFlagModel: { get: jest.fn() } as AnyType,
         githubAppInstallationsModel: {} as AnyType,
         githubAppService: {
             getValidUserToken: jest.fn().mockResolvedValue(undefined),
@@ -316,22 +314,8 @@ describe('AiWritebackService.prepareTurn', () => {
             aiThreadUuid: undefined,
         });
 
-    it('rejects when the AI writeback feature flag is disabled', async () => {
-        const service = buildService({
-            featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: false }),
-            } as AnyType,
-        });
-        await expect(prepareTurn(service, userWithOrg(true))).rejects.toThrow(
-            ForbiddenError,
-        );
-    });
-
     it('rejects when the user cannot manage source code', async () => {
         const service = buildService({
-            featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
-            } as AnyType,
             projectModel: {
                 get: jest.fn().mockResolvedValue(githubProject()),
             } as AnyType,
@@ -343,9 +327,6 @@ describe('AiWritebackService.prepareTurn', () => {
 
     it('resolves a fresh turn context for a permitted user', async () => {
         const service = buildService({
-            featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
-            } as AnyType,
             projectModel: {
                 get: jest.fn().mockResolvedValue(githubProject()),
             } as AnyType,
@@ -373,9 +354,6 @@ describe('AiWritebackService.prepareTurn', () => {
 
     it('resolves the project `latest` dbt version to the newest supported version', async () => {
         const service = buildService({
-            featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
-            } as AnyType,
             projectModel: {
                 get: jest
                     .fn()
@@ -396,9 +374,6 @@ describe('AiWritebackService.prepareTurn', () => {
 
     it('clamps a project pinned below the supported range to the oldest installed version', async () => {
         const service = buildService({
-            featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
-            } as AnyType,
             projectModel: {
                 get: jest
                     .fn()
@@ -419,9 +394,6 @@ describe('AiWritebackService.prepareTurn', () => {
 
     it('resolves a GitLab connection with its host for a GitLab project', async () => {
         const service = buildService({
-            featureFlagModel: {
-                get: jest.fn().mockResolvedValue({ enabled: true }),
-            } as AnyType,
             projectModel: {
                 get: jest.fn().mockResolvedValue(gitlabProject()),
             } as AnyType,
@@ -515,13 +487,6 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
                     e2bAiWritebackTemplateTag: '',
                 },
                 aiWriteback: { anthropicApiKey: 'anthropic-key' },
-            } as AnyType,
-            featureFlagModel: {
-                get: jest.fn(({ featureFlagId }: AnyType) =>
-                    Promise.resolve({
-                        enabled: featureFlagId === FeatureFlags.AiWriteback,
-                    }),
-                ),
             } as AnyType,
             projectModel: {
                 get: jest.fn().mockResolvedValue({

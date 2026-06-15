@@ -127,7 +127,6 @@ const makeAdminUser = (): SessionUser => ({
 const makeService = ({
     aiAgentModel = {},
     aiAgentReviewClassifierModel = {},
-    featureFlagService = {},
     aiOrganizationSettingsService = {},
     projectModel = {},
     schedulerClient = {},
@@ -141,7 +140,6 @@ const makeService = ({
 }: {
     aiAgentModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
-    featureFlagService?: Record<string, unknown>;
     aiOrganizationSettingsService?: Record<string, unknown>;
     projectModel?: Record<string, unknown>;
     schedulerClient?: Record<string, unknown>;
@@ -192,10 +190,6 @@ const makeService = ({
                 .mockResolvedValue(undefined),
             createRemediationEvent: jest.fn().mockResolvedValue(undefined),
             ...aiAgentReviewClassifierModel,
-        },
-        featureFlagService: {
-            get: jest.fn().mockResolvedValue({ enabled: true }),
-            ...featureFlagService,
         },
         aiOrganizationSettingsService: {
             isAiAgentReviewsEnabled: jest.fn().mockResolvedValue(true),

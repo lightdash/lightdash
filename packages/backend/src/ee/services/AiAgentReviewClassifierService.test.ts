@@ -1,11 +1,9 @@
 import {
-    FeatureFlags,
     ForbiddenError,
     ProjectType,
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierTurnCandidate,
 } from '@lightdash/common';
-import { type FeatureFlagService } from '../../services/FeatureFlag/FeatureFlagService';
 import { type AiAgentReviewClassifierModel } from '../models/AiAgentReviewClassifierModel';
 import { type AiOrganizationSettingsModel } from '../models/AiOrganizationSettingsModel';
 import {
@@ -241,47 +239,7 @@ const makeProductJudgeOutput = (): AiAgentReviewClassifierJudgeOutput =>
         },
     });
 
-const makeProjectContextJudgeOutput = (): AiAgentReviewClassifierJudgeOutput =>
-    makeJudgeOutput({
-        signal: 'implicit_correction',
-        implicitSignalSources: ['next_user_correction'],
-        confidence: 'high',
-        promotedToFinding: true,
-        promotionReason: 'LLM judge found missing project context.',
-        primaryRootCause: 'project_context',
-        secondaryRootCauses: [],
-        subcategories: ['wrong_explore_selection'],
-        fixTargets: ['project_context_rule'],
-        targetRefs: [
-            {
-                type: 'explore',
-                label: 'orders',
-                modelName: 'orders',
-                fieldName: 'orders',
-                setting: null,
-                key: null,
-            },
-        ],
-        ownerType: 'semantic_layer_owner',
-        projectContextEntry: {
-            op: 'create',
-            id: null,
-            kind: 'context',
-            content: 'Use the orders explore for revenue questions.',
-            terms: ['revenue'],
-            objects: ['orders'],
-        },
-        reviewItem: {
-            title: 'Review revenue routing',
-            description: 'LLM judge grouped missing project context.',
-        },
-    });
-
 describe('AiAgentReviewClassifierService', () => {
-    const featureFlagService = {
-        get: jest.fn(),
-    } as unknown as jest.Mocked<FeatureFlagService>;
-
     const model = {
         listTurnReviewCandidates: jest.fn(),
         createRun: jest.fn(),
@@ -309,17 +267,12 @@ describe('AiAgentReviewClassifierService', () => {
         aiOrganizationSettingsModel,
         catalogModel: catalogModel as never,
         projectModel: projectModel as never,
-        featureFlagService,
         lightdashConfig: {} as never,
         judgeTurn,
     });
 
     beforeEach(() => {
         jest.resetAllMocks();
-        featureFlagService.get.mockResolvedValue({
-            id: FeatureFlags.AiWriteback,
-            enabled: true,
-        });
         aiOrganizationSettingsModel.findByOrganizationUuid.mockResolvedValue({
             organizationUuid: ORGANIZATION_UUID,
             aiAgentsVisible: true,
@@ -529,38 +482,6 @@ describe('AiAgentReviewClassifierService', () => {
         expect(judgeTurn).toHaveBeenCalledTimes(1);
         expect(result.findingCount).toBe(1);
         expect(result.reviewItemCount).toBe(1);
-    });
-
-    it('drops project context entries when AI writeback is disabled', async () => {
-        featureFlagService.get.mockImplementation(({ featureFlagId }) =>
-            Promise.resolve({
-                id: featureFlagId,
-                enabled: false,
-            }),
-        );
-        judgeTurn.mockResolvedValueOnce(makeProjectContextJudgeOutput());
-        model.listTurnReviewCandidates.mockResolvedValue([
-            makeCandidate({
-                nextUserPrompt: 'No, use orders for revenue questions.',
-            }),
-        ]);
-
-        const result = await service.run({
-            organizationUuid: ORGANIZATION_UUID,
-            startedAt: NOW,
-            endedAt: NOW,
-            persistFindings: true,
-        });
-
-        expect(result.findingCount).toBe(1);
-        expect(model.createTurnSignal).toHaveBeenCalledWith(
-            expect.objectContaining({
-                finding: expect.objectContaining({
-                    primaryRootCause: 'project_context',
-                    projectContextEntry: null,
-                }),
-            }),
-        );
     });
 
     it('dry-runs without persisting signals or findings by default', async () => {
