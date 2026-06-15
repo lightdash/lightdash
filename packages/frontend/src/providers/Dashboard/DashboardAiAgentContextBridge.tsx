@@ -8,6 +8,11 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useParams } from 'react-router';
 import { scrollToDashboardTile } from '../../components/common/Dashboard/scrollToDashboardTile';
+import { setCurrentDashboard } from '../../ee/features/aiCopilot/store/aiAgentLauncherSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../ee/features/aiCopilot/store/hooks';
 import { useActiveAiAgentThreadStreamParts } from '../../ee/features/aiCopilot/streaming/useAiAgentThreadStreamQuery';
 import { getDashboard } from '../../hooks/dashboard/useDashboard';
 import { getSavedQuery } from '../../hooks/useSavedQuery';
@@ -33,11 +38,22 @@ const isDashboardChartReadyQueryForCharts = (
 const DashboardAiAgentContextBridge = () => {
     const queryClient = useQueryClient();
     // useDashboardQuery/saved_dashboard_query use UUID-or-slug; useDashboardChartReadyQuery/dashboard_chart_ready_query uses dashboard.uuid.
-    const { projectUuid, dashboardUuid: dashboardUuidOrSlug } = useParams<{
+    const {
+        projectUuid,
+        dashboardUuid: dashboardUuidOrSlug,
+        mode,
+    } = useParams<{
         projectUuid: string;
         dashboardUuid: string;
+        mode: string;
     }>();
+    const isEditMode = mode === 'edit';
+    const dispatch = useAiAgentStoreDispatch();
+    const dashboardRefreshRequest = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.dashboardRefreshRequest,
+    );
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const activeTab = useDashboardContext((c) => c.activeTab);
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const setDashboardTiles = useDashboardContext((c) => c.setDashboardTiles);
     const setDashboardTabs = useDashboardContext((c) => c.setDashboardTabs);
@@ -56,6 +72,7 @@ const DashboardAiAgentContextBridge = () => {
     const handledToolCallIdsRef = useRef<Set<string>>(new Set());
     const pendingChartSlugToFocusRef = useRef<string | null>(null);
     const focusRequestIdRef = useRef(0);
+    const handledRefreshRequestIdRef = useRef(0);
 
     const currentDashboardSlug = dashboard?.slug;
     const currentDashboardUuid = dashboard?.uuid;
@@ -256,6 +273,56 @@ const DashboardAiAgentContextBridge = () => {
         refreshChartTiles,
         refreshDashboard,
     ]);
+
+    // Publish the dashboard currently being viewed so the AI agent launcher can
+    // offer a "Save to current dashboard" quick action. Disabled in edit mode to
+    // avoid clobbering unsaved tile edits.
+    useEffect(() => {
+        if (!projectUuid || !currentDashboardUuid || !dashboard || isEditMode) {
+            dispatch(setCurrentDashboard(null));
+            return;
+        }
+        dispatch(
+            setCurrentDashboard({
+                projectUuid,
+                uuid: currentDashboardUuid,
+                name: dashboard.name,
+                activeTabUuid: activeTab?.uuid ?? null,
+            }),
+        );
+    }, [
+        dispatch,
+        projectUuid,
+        currentDashboardUuid,
+        dashboard,
+        activeTab?.uuid,
+        isEditMode,
+    ]);
+
+    useEffect(
+        () => () => {
+            dispatch(setCurrentDashboard(null));
+        },
+        [dispatch],
+    );
+
+    // React to a refresh requested by the launcher after it saved a chart into
+    // the currently viewed dashboard.
+    useEffect(() => {
+        if (!dashboardRefreshRequest) return;
+        if (
+            dashboardRefreshRequest.requestId <=
+            handledRefreshRequestIdRef.current
+        )
+            return;
+        if (dashboardRefreshRequest.dashboardUuid !== currentDashboardUuid)
+            return;
+
+        handledRefreshRequestIdRef.current = dashboardRefreshRequest.requestId;
+        void refreshDashboard(
+            dashboardRefreshRequest.focusChartSlug ?? undefined,
+        );
+    }, [dashboardRefreshRequest, currentDashboardUuid, refreshDashboard]);
 
     return null;
 };

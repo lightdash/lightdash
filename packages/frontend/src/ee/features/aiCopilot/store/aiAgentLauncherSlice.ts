@@ -11,6 +11,23 @@ export type LauncherPendingContext = {
     dashboardUuid?: string;
 };
 
+// The dashboard the user is currently viewing, published by the dashboard page
+// so the launcher can offer a "Save to current dashboard" quick action.
+export type LauncherCurrentDashboard = {
+    projectUuid: string;
+    uuid: string;
+    name: string;
+    activeTabUuid: string | null;
+};
+
+// Pub-sub bridge: the launcher asks the dashboard page to refresh its tiles
+// after a chart has been saved into the currently viewed dashboard.
+export type DashboardRefreshRequest = {
+    dashboardUuid: string;
+    focusChartSlug: string | null;
+    requestId: number;
+};
+
 type LauncherMode = 'collapsed' | 'panel-open';
 
 export interface AiAgentLauncherState {
@@ -18,6 +35,8 @@ export interface AiAgentLauncherState {
     activeThreadId: string | null;
     activeAgentUuid: string | null;
     pendingContext: LauncherPendingContext | null;
+    currentDashboard: LauncherCurrentDashboard | null;
+    dashboardRefreshRequest: DashboardRefreshRequest | null;
 }
 
 const initialState: AiAgentLauncherState = {
@@ -25,6 +44,8 @@ const initialState: AiAgentLauncherState = {
     activeThreadId: null,
     activeAgentUuid: null,
     pendingContext: null,
+    currentDashboard: null,
+    dashboardRefreshRequest: null,
 };
 
 export const aiAgentLauncherSlice = createSlice({
@@ -66,8 +87,33 @@ export const aiAgentLauncherSlice = createSlice({
                 state.pendingContext = null;
             }
         },
+        setCurrentDashboard: (
+            state,
+            action: PayloadAction<LauncherCurrentDashboard | null>,
+        ) => {
+            state.currentDashboard = action.payload;
+        },
+        requestDashboardRefresh: (
+            state,
+            action: PayloadAction<{
+                dashboardUuid: string;
+                focusChartSlug: string | null;
+            }>,
+        ) => {
+            state.dashboardRefreshRequest = {
+                dashboardUuid: action.payload.dashboardUuid,
+                focusChartSlug: action.payload.focusChartSlug,
+                requestId: (state.dashboardRefreshRequest?.requestId ?? 0) + 1,
+            };
+        },
     },
 });
 
-export const { openPanel, closePanel, resetActivePanel, dockItemRemoved } =
-    aiAgentLauncherSlice.actions;
+export const {
+    openPanel,
+    closePanel,
+    resetActivePanel,
+    dockItemRemoved,
+    setCurrentDashboard,
+    requestDashboardRefresh,
+} = aiAgentLauncherSlice.actions;
