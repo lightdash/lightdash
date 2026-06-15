@@ -3,9 +3,7 @@ export const isEmbedAiAgentRoute = () =>
     window.location.pathname.startsWith('/embed/');
 
 export const getAiAgentApiBase = (projectUuid: string) =>
-    isEmbedAiAgentRoute()
-        ? `/embed/${projectUuid}/aiAgents`
-        : `/projects/${projectUuid}/aiAgents`;
+    `/projects/${projectUuid}/aiAgents`;
 
 export const getAiAgentPageBase = (projectUuid: string) =>
     isEmbedAiAgentRoute()

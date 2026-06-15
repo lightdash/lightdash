@@ -100,14 +100,14 @@ describe('api', () => {
         const scope = nock(BASE_API_URL)
             .matchHeader(JWT_HEADER_NAME, 'system token')
             .post(
-                '/api/v1/embed/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/stream',
+                '/api/v1/projects/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/stream',
             )
             .query({ projectUuid: 'project-uuid' })
             .reply(200, 'stream response');
 
         const result = await lightdashApiStream({
             method: 'POST',
-            url: '/embed/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/stream',
+            url: '/projects/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/stream',
             body: JSON.stringify({}),
             headers: undefined,
         });
