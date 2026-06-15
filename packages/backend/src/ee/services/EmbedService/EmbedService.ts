@@ -6,6 +6,7 @@ import {
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiSqlChart,
+    assertUnreachable,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CommercialFeatureFlags,
@@ -208,6 +209,8 @@ export class EmbedService extends BaseService {
         let urlPath: string;
         if (jwtData.content.type === 'chart') {
             urlPath = `/embed/${projectUuid}/chart/${jwtData.content.contentId}#${jwtToken}`;
+        } else if (jwtData.content.type === 'dataApp') {
+            urlPath = `/embed/${projectUuid}/app/${jwtData.content.appUuid}#${jwtToken}`;
         } else {
             urlPath = `/embed/${projectUuid}#${jwtToken}`;
         }
@@ -286,6 +289,8 @@ export class EmbedService extends BaseService {
             this.lightdashConfig.embedding.allowAll.dashboards,
             data.chartUuids,
             this.lightdashConfig.embedding.allowAll.charts,
+            data.appUuids,
+            this.lightdashConfig.embedding.allowAll.apps,
         );
 
         return this.getConfig(account, projectUuid);
@@ -332,6 +337,8 @@ export class EmbedService extends BaseService {
             allowAllDashboards,
             chartUuids,
             allowAllCharts,
+            allowAllApps,
+            appUuids,
         }: UpdateEmbed,
     ) {
         const auditedAbility = this.createAuditedAbility(account);
@@ -361,6 +368,8 @@ export class EmbedService extends BaseService {
             allowAllDashboards,
             chartUuids,
             allowAllCharts,
+            allowAllApps,
+            appUuids,
         });
     }
 
@@ -455,7 +464,8 @@ export class EmbedService extends BaseService {
     }
 
     /**
-     * Extract content UUID (dashboard or chart) from JWT based on content type
+     * Extract content (dashboard, chart, or data app) from the JWT based on
+     * its content type.
      */
     async getContentUuidFromJwt(
         decodedToken: CreateEmbedJwt,
@@ -481,6 +491,20 @@ export class EmbedService extends BaseService {
                 chartUuids: [chart.uuid],
                 type: 'chart',
                 explores: [chart.tableName],
+            };
+        }
+
+        if (decodedToken.content.type === 'dataApp') {
+            // Standalone data app embed: the JWT names the app directly and
+            // self-authorizes it. The app's existence + project + ready version
+            // are validated downstream in getEmbedAppPreviewToken (which has the
+            // app model); here we only carry the appUuid through.
+            return {
+                appUuid: decodedToken.content.appUuid,
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'dataApp',
+                explores: [],
             };
         }
 
@@ -1592,40 +1616,55 @@ export class EmbedService extends BaseService {
     ) {
         const { type, dashboardUuid, chartUuids } = account.access.content;
 
-        // Handle chart embeds (direct chart access)
-        if (type === 'chart') {
-            // Validate that the requested chart matches the embedded chart
-            if (!chartUuids.includes(savedChartUuid)) {
+        switch (type) {
+            // Handle chart embeds (direct chart access)
+            case 'chart': {
+                // Validate that the requested chart matches the embedded chart
+                if (!chartUuids.includes(savedChartUuid)) {
+                    throw new ForbiddenError(
+                        `Not authorized to access chart ${savedChartUuid}`,
+                    );
+                }
+
+                const chart = await this.savedChartModel.get(savedChartUuid);
+
+                if (chart.projectUuid !== projectUuid) {
+                    throw new NotFoundError(
+                        `Chart ${savedChartUuid} not found in project ${projectUuid}`,
+                    );
+                }
+
+                const explore = await this.projectModel.getExploreFromCache(
+                    projectUuid,
+                    chart.tableName,
+                );
+
+                if (isExploreError(explore)) {
+                    throw new ForbiddenError(
+                        `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
+                    );
+                }
+
+                return {
+                    dashboardUuid: undefined,
+                    chart,
+                    explore,
+                    metricQuery: chart.metricQuery,
+                };
+            }
+            case 'dataApp':
+                // Data app JWTs have no saved-chart grants; reject explicitly
+                // rather than falling into the dashboard-tile path.
                 throw new ForbiddenError(
-                    `Not authorized to access chart ${savedChartUuid}`,
+                    'Data app embeds cannot access saved charts',
                 );
-            }
-
-            const chart = await this.savedChartModel.get(savedChartUuid);
-
-            if (chart.projectUuid !== projectUuid) {
-                throw new NotFoundError(
-                    `Chart ${savedChartUuid} not found in project ${projectUuid}`,
+            case 'dashboard':
+                break;
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unknown embed content type: ${type}`,
                 );
-            }
-
-            const explore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                chart.tableName,
-            );
-
-            if (isExploreError(explore)) {
-                throw new ForbiddenError(
-                    `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
-                );
-            }
-
-            return {
-                dashboardUuid: undefined,
-                chart,
-                explore,
-                metricQuery: chart.metricQuery,
-            };
         }
 
         // Handle dashboard embeds (chart via tile)
@@ -2246,6 +2285,24 @@ export class EmbedService extends BaseService {
                     throw new NotFoundError(
                         'Cannot verify JWT. Content not found',
                     );
+                }
+
+                // Secure-by-default: a standalone data app embed is honoured
+                // only when the project opted the app in — via the broad
+                // `allow_all_apps` toggle or the per-app `app_uuids` allowlist.
+                // Enforced here (fail-closed) so it blocks BOTH the app's metric
+                // queries and the preview-token mint — enabling dashboard/chart
+                // embeds does not silently enable arbitrary-query app embeds.
+                if (content.type === 'dataApp') {
+                    const appAuthorized =
+                        embed.allowAllApps ||
+                        (content.appUuid !== undefined &&
+                            embed.appUuids.includes(content.appUuid));
+                    if (!appAuthorized) {
+                        throw new ForbiddenError(
+                            'This data app is not authorized for standalone embedding',
+                        );
+                    }
                 }
 
                 return fromJwt({

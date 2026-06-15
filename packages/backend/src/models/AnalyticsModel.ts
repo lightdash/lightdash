@@ -8,6 +8,7 @@ import {
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { Knex } from 'knex';
+import { validate as isValidUuid } from 'uuid';
 import {
     AnalyticsAppViewsTableName,
     AnalyticsChartViewsTableName,
@@ -159,6 +160,11 @@ export class AnalyticsModel {
     }
 
     async addAppViewEvent(appId: string, userUuid: string): Promise<void> {
+        // Embed/anonymous viewers carry a synthesized non-UUID id (external::…)
+        // that can't be written to the uuid user_uuid column; skip their row.
+        if (!isValidUuid(userUuid)) {
+            return;
+        }
         await this.database.transaction(async (trx) => {
             await trx(AnalyticsAppViewsTableName).insert({
                 app_id: appId,

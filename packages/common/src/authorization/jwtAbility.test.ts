@@ -46,6 +46,8 @@ const embed: OssEmbed = {
     allowAllDashboards: false,
     chartUuids: [],
     allowAllCharts: false,
+    allowAllApps: false,
+    appUuids: [],
     createdAt: '2021-01-01',
     user: {
         firstName: 'John',
@@ -761,5 +763,122 @@ describe('Embedded dashboard abilities', () => {
                 ),
             ).toBe(false);
         });
+    });
+});
+
+const defineAbilityForDataAppEmbedUser = (
+    embedUser: CreateEmbedJwt,
+    appUuid: string,
+): MemberAbility => {
+    const builder = new AbilityBuilder<MemberAbility>(Ability);
+    applyEmbeddedAbility(
+        embedUser,
+        { appUuid, type: 'dataApp', chartUuids: [], explores: [] },
+        embed,
+        'external-id-1',
+        builder,
+    );
+    return builder.build();
+};
+
+describe('Embedded data app abilities', () => {
+    const appUuid = 'app-uuid-1';
+    const projectUuid = 'project-uuid-1';
+    const dataAppEmbedUser: CreateEmbedJwt = {
+        content: { type: 'dataApp', appUuid },
+        exp: Date.now() / 1000 + 3600,
+    };
+
+    it('grants unconstrained view:Explore so the app can run arbitrary queries', () => {
+        const ability = defineAbilityForDataAppEmbedUser(
+            dataAppEmbedUser,
+            appUuid,
+        );
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+        // Unconstrained: any explore name is allowed (NOT scoped like the
+        // chart grant's exploreNames: { $all: ... }).
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                    exploreNames: ['some_arbitrary_explore'],
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('grants view:DataApp for the named app (scoped) + view:Project', () => {
+        const ability = defineAbilityForDataAppEmbedUser(
+            dataAppEmbedUser,
+            appUuid,
+        );
+        // Scoped to the named app: the subject must carry metadata.appUuid.
+        expect(
+            ability.can(
+                'view',
+                subject('DataApp', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                    metadata: { appUuid },
+                }),
+            ),
+        ).toBe(true);
+        // A DIFFERENT app is NOT authorized by this JWT (per-app scoping —
+        // prevents a JWT for app A minting app B's preview token).
+        expect(
+            ability.can(
+                'view',
+                subject('DataApp', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                    metadata: { appUuid: 'a-different-app-uuid' },
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('Project', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid,
+                }),
+            ),
+        ).toBe(true);
+    });
+
+    it('does not grant access to a different project', () => {
+        const ability = defineAbilityForDataAppEmbedUser(
+            dataAppEmbedUser,
+            appUuid,
+        );
+        expect(
+            ability.can(
+                'view',
+                subject('Explore', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: 'different-project-uuid',
+                }),
+            ),
+        ).toBe(false);
+        expect(
+            ability.can(
+                'view',
+                subject('DataApp', {
+                    organizationUuid: organization.organizationUuid,
+                    projectUuid: 'different-project-uuid',
+                    metadata: { appUuid },
+                }),
+            ),
+        ).toBe(false);
     });
 });

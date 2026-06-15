@@ -1,4 +1,5 @@
 import {
+    FeatureFlags,
     type ApiError,
     type CreateEmbedJwt,
     type DecodedEmbed,
@@ -25,11 +26,14 @@ import {
     SettingsGridCard,
 } from '../../../../components/common/Settings/SettingsCard';
 import SuboptimalState from '../../../../components/common/SuboptimalState/SuboptimalState';
+import { useProjectApps } from '../../../../features/apps/hooks/useProjectApps';
 import { useDashboards } from '../../../../hooks/dashboard/useDashboards';
 import useToaster from '../../../../hooks/toaster/useToaster';
 import { useCharts } from '../../../../hooks/useCharts';
+import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useApp from '../../../../providers/App/useApp';
 import EmbedAllowListForm from './EmbedAllowListForm';
+import EmbedPreviewAppForm from './EmbedPreviewAppForm';
 import EmbedPreviewChartForm from './EmbedPreviewChartForm';
 import EmbedPreviewDashboardForm from './EmbedPreviewDashboardForm';
 import EmbedWriteActionsForm from './EmbedWriteActionsForm';
@@ -87,6 +91,8 @@ const useEmbedConfigUpdateMutation = (projectUuid: string) => {
             allowAllDashboards,
             chartUuids,
             allowAllCharts,
+            appUuids,
+            allowAllApps,
         }: UpdateEmbed) =>
             lightdashApi<null>({
                 url: `/embed/${projectUuid}/config`,
@@ -96,6 +102,8 @@ const useEmbedConfigUpdateMutation = (projectUuid: string) => {
                     allowAllDashboards,
                     chartUuids,
                     allowAllCharts,
+                    appUuids,
+                    allowAllApps,
                 }),
             }),
         {
@@ -126,15 +134,20 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
     );
 
     const { isLoading: isLoadingCharts, data: charts } = useCharts(projectUuid);
+    const dataAppsFlag = useServerFeatureFlag(FeatureFlags.EnableDataApps);
+    const dataAppsEnabled = dataAppsFlag.data?.enabled === true;
+    const { isLoading: isLoadingApps, data: apps } = useProjectApps(
+        dataAppsEnabled ? projectUuid : undefined,
+    );
     const { mutate: createEmbedConfig, isLoading: isCreating } =
         useEmbedConfigCreateMutation(projectUuid);
     const { mutate: updateEmbedConfig, isLoading: isUpdating } =
         useEmbedConfigUpdateMutation(projectUuid);
     const [writeActions, setWriteActions] =
         useState<CreateEmbedJwt['writeActions']>();
-    const [activeTab, setActiveTab] = useState<'dashboards' | 'charts'>(
-        'dashboards',
-    );
+    const [activeTab, setActiveTab] = useState<
+        'dashboards' | 'charts' | 'apps'
+    >('dashboards');
 
     const isSaving = isCreating || isUpdating;
     const allowedDashboards = useMemo(() => {
@@ -149,7 +162,23 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
         );
     }, [dashboards, embedConfig]);
 
-    if (isLoading || isLoadingDashboards || isLoadingCharts || !health.data) {
+    const allowedApps = useMemo(() => {
+        if (!apps || !embedConfig) {
+            return [];
+        }
+        if (embedConfig.allowAllApps) {
+            return apps;
+        }
+        return apps.filter((app) => embedConfig.appUuids.includes(app.appUuid));
+    }, [apps, embedConfig]);
+
+    if (
+        isLoading ||
+        isLoadingDashboards ||
+        isLoadingCharts ||
+        (dataAppsEnabled && isLoadingApps) ||
+        !health.data
+    ) {
         return (
             <div style={{ marginTop: '20px' }}>
                 <SuboptimalState title="Loading embed config" loading />
@@ -252,6 +281,8 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     embedConfig={embedConfig}
                     dashboards={dashboards || []}
                     charts={charts || []}
+                    apps={apps || []}
+                    showDataApps={dataAppsEnabled}
                     onSave={updateEmbedConfig}
                 />
             </SettingsCard>
@@ -267,7 +298,9 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     value={activeTab}
                     onChange={(value) =>
                         setActiveTab(
-                            value === 'charts' ? 'charts' : 'dashboards',
+                            value === 'charts' || value === 'apps'
+                                ? value
+                                : 'dashboards',
                         )
                     }
                     keepMounted
@@ -275,6 +308,9 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                     <Tabs.List>
                         <Tabs.Tab value="dashboards">Dashboards</Tabs.Tab>
                         <Tabs.Tab value="charts">Charts</Tabs.Tab>
+                        {dataAppsEnabled && (
+                            <Tabs.Tab value="apps">Data apps</Tabs.Tab>
+                        )}
                     </Tabs.List>
                     <Tabs.Panel value="dashboards">
                         <Stack mt="md">
@@ -314,6 +350,17 @@ const SettingsEmbed: FC<{ projectUuid: string }> = ({ projectUuid }) => {
                             />
                         </Stack>
                     </Tabs.Panel>
+                    {dataAppsEnabled && (
+                        <Tabs.Panel value="apps">
+                            <Stack mt="md">
+                                <EmbedPreviewAppForm
+                                    projectUuid={projectUuid}
+                                    siteUrl={health.data.siteUrl}
+                                    apps={allowedApps}
+                                />
+                            </Stack>
+                        </Tabs.Panel>
+                    )}
                 </Tabs>
             </SettingsCard>
         </Stack>

@@ -1,4 +1,9 @@
-import { AnonymousAccount, ForbiddenError, OssEmbed } from '@lightdash/common';
+import {
+    AnonymousAccount,
+    assertUnreachable,
+    ForbiddenError,
+    OssEmbed,
+} from '@lightdash/common';
 import { DashboardModel } from '../../models/DashboardModel/DashboardModel';
 import { BaseService } from '../BaseService';
 
@@ -69,22 +74,33 @@ export class PermissionsService extends BaseService {
             );
         }
 
-        if (content.type === 'dashboard' && content.dashboardUuid) {
-            return this.checkEmbeddedDashboardPermission(
-                content.dashboardUuid,
-                savedChartUuid,
-                embed,
-            );
+        switch (content.type) {
+            case 'dashboard':
+                if (!content.dashboardUuid) {
+                    throw new ForbiddenError(
+                        'Invalid access for embed permissions',
+                    );
+                }
+                return this.checkEmbeddedDashboardPermission(
+                    content.dashboardUuid,
+                    savedChartUuid,
+                    embed,
+                );
+            case 'chart':
+                return PermissionsService.checkEmbeddedChartPermissions(
+                    savedChartUuid,
+                    embed,
+                );
+            case 'dataApp':
+                throw new ForbiddenError(
+                    'Data app embeds cannot access charts',
+                );
+            default:
+                return assertUnreachable(
+                    content.type,
+                    'Invalid access for embed permissions',
+                );
         }
-
-        if (content.type === 'chart') {
-            return PermissionsService.checkEmbeddedChartPermissions(
-                savedChartUuid,
-                embed,
-            );
-        }
-
-        throw new ForbiddenError('Invalid access for embed permissions');
     }
 
     /**

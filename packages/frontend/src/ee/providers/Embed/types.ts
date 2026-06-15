@@ -44,6 +44,8 @@ export interface EmbedContext {
     savedChart?: SavedChart;
     // The UUID of the saved query being viewed in an embedded Chart
     savedQueryUuid?: string;
+    // The UUID of the data app being viewed in a standalone embedded App
+    appUuid?: string;
     // The mode of the embed: 'sdk' when embedded via SDK (no URL sync), 'direct' when navigating directly to /embed (sync URL)
     mode: EmbedMode;
     // Theme color scheme for the embed, set via ?theme=light|dark URL param
