@@ -45,3 +45,5 @@ minimumReleaseAgeExclude:
   - liquidjs@10.26.0
   # Renovate security update: axios@1.16.0
   - axios@1.16.0
+  # Renovate security update: form-data@4.0.6
+  - form-data@4.0.6
