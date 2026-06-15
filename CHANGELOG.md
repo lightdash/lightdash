@@ -1,3 +1,10 @@
+# [0.3159.0](https://github.com/lightdash/lightdash/compare/0.3158.1...0.3159.0) (2026-06-15)
+
+
+### Features
+
+* create embed dashboard ([#24226](https://github.com/lightdash/lightdash/issues/24226)) ([80cecc1](https://github.com/lightdash/lightdash/commit/80cecc10561e6c56ba2092e2a555f480c3ec3899))
+
 ## [0.3158.1](https://github.com/lightdash/lightdash/compare/0.3158.0...0.3158.1) (2026-06-15)
 
 
