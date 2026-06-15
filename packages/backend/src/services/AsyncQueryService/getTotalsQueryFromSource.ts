@@ -308,9 +308,10 @@ export const getRowTotalQueryFromSource = (
         source.pivotConfiguration!.indexColumn,
     );
     if (indexFieldIds.length === 0) {
-        throw new NotSupportedError(
-            'Row totals require a pivot index column on the source query',
-        );
+        return {
+            metricQuery: getGrandTotalMetricQuery(source.metricQuery),
+            pivotConfiguration: undefined,
+        };
     }
 
     const sourceDimensionIds = new Set(source.metricQuery.dimensions);

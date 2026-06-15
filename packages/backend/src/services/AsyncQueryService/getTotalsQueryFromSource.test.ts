@@ -716,6 +716,27 @@ describe('getRowTotalQueryFromSource', () => {
                 result.pivotConfiguration?.passthroughDimensions,
             ).toBeUndefined();
         });
+
+        it('supports metrics-as-rows pivots with no index column', () => {
+            const result = getRowTotalQueryFromSource({
+                metricQuery: baseMetricQuery,
+                pivotConfiguration: {
+                    ...pivotConfiguration,
+                    indexColumn: undefined,
+                    sortBy: [
+                        {
+                            reference: 'orders_payment_method',
+                            direction: SortByDirection.ASC,
+                        },
+                    ],
+                },
+            });
+
+            expect(result.metricQuery.dimensions).toEqual([]);
+            expect(result.metricQuery.sorts).toEqual([]);
+            expect(result.metricQuery.limit).toBe(1);
+            expect(result.pivotConfiguration).toBeUndefined();
+        });
     });
 
     describe('non-pivoted source', () => {
@@ -735,18 +756,6 @@ describe('getRowTotalQueryFromSource', () => {
                     pivotConfiguration: {
                         ...pivotConfiguration,
                         groupByColumns: [],
-                    },
-                }),
-            ).toThrow(NotSupportedError);
-        });
-
-        it('throws when the pivot configuration has no index column', () => {
-            expect(() =>
-                getRowTotalQueryFromSource({
-                    metricQuery: baseMetricQuery,
-                    pivotConfiguration: {
-                        ...pivotConfiguration,
-                        indexColumn: undefined,
                     },
                 }),
             ).toThrow(NotSupportedError);
