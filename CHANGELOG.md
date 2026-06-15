@@ -1,3 +1,10 @@
+## [0.3158.1](https://github.com/lightdash/lightdash/compare/0.3158.0...0.3158.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* **ai:** correct trailing moving average guidance ([#24256](https://github.com/lightdash/lightdash/issues/24256)) ([7654ce7](https://github.com/lightdash/lightdash/commit/7654ce7401effca36eb854563aecb5e2cb01cbfe))
+
 # [0.3158.0](https://github.com/lightdash/lightdash/compare/0.3157.0...0.3158.0) (2026-06-12)
 
 
