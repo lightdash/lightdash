@@ -29,6 +29,7 @@ import {
     AiResultType,
     AiVizMetadata,
     AiWebAppPrompt,
+    AiWritebackAttribution,
     AlreadyExistsError,
     AnyType,
     ApiAiAgentThreadCreateRequest,
@@ -164,6 +165,7 @@ import { CoderService } from '../../../services/CoderService/CoderService';
 import { ContentService } from '../../../services/ContentService/ContentService';
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
+import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { SearchService } from '../../../services/SearchService/SearchService';
@@ -324,6 +326,7 @@ type AiAgentServiceDependencies = {
     previewDeploySetupService: PreviewDeploySetupService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
+    githubAppService: GithubAppService;
     aiAgentToolsService: AiAgentToolsService;
     pullRequestsModel: Pick<PullRequestsModel, 'findByAiThreadUuid' | 'find'>;
     aiAgentReviewClassifierModel: Pick<
@@ -495,6 +498,8 @@ export class AiAgentService extends BaseService {
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
     private readonly githubAppInstallationsModel: GithubAppInstallationsModel;
+
+    private readonly githubAppService: GithubAppService;
 
     private readonly projectContextModel: ProjectContextModel;
 
@@ -741,6 +746,7 @@ export class AiAgentService extends BaseService {
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
+        this.githubAppService = dependencies.githubAppService;
         this.aiAgentToolsService = dependencies.aiAgentToolsService;
         this.pullRequestsModel = dependencies.pullRequestsModel;
         this.aiAgentReviewClassifierModel =
@@ -5619,6 +5625,40 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         if (aiWritebackEnabled && !writebackSupportedConnection) {
             aiWritebackEnabled = false;
         }
+
+        // Advisory signal of which GitHub identity a writeback PR would be
+        // attributed to, so the prompt can tell the user and nudge unlinked
+        // users to link their personal GitHub. GitHub-only (GitLab uses a
+        // project PAT, no personal linking) and only when the org has the app
+        // installed. Wrapped in try/catch and degraded to null so an attribution
+        // lookup can never block a chat turn.
+        let writebackAttribution: AiWritebackAttribution | null = null;
+        if (
+            aiWritebackEnabled &&
+            promptProject.dbtConnection.type === DbtProjectType.GITHUB &&
+            user.organizationUuid
+        ) {
+            try {
+                const installationId =
+                    await this.githubAppInstallationsModel.findInstallationId(
+                        user.organizationUuid,
+                    );
+                if (installationId) {
+                    writebackAttribution =
+                        await this.githubAppService.getAiWritebackAttribution(
+                            user,
+                        );
+                }
+            } catch (error) {
+                this.logger.warn(
+                    `Failed to resolve AI writeback attribution for prompt ${prompt.promptUuid}; continuing without it. ${getErrorMessage(
+                        error,
+                    )}`,
+                );
+                writebackAttribution = null;
+            }
+        }
+
         const projectContextEnabled =
             aiWritebackEnabled &&
             (await this.aiOrganizationSettingsService.isAiAgentReviewsEnabled(
@@ -5719,6 +5759,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableContentTools: canUseContentTools,
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
+            writebackAttribution,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoFs: repoFsEnabled,
             repoFsRoot,

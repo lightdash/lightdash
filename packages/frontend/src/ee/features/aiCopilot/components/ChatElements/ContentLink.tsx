@@ -199,6 +199,33 @@ export const ContentLink: FC<ContentLinkProps> = ({
             );
         }
 
+        case 'settings-link': {
+            // Same-origin settings deep-link (e.g. the "link your personal
+            // GitHub" nudge). Open in a new tab so the chat thread stays put,
+            // using the captured relative path to keep it same-origin.
+            const settingsPath =
+                'data-settings-path' in props &&
+                typeof props['data-settings-path'] === 'string'
+                    ? props['data-settings-path']
+                    : typeof props.href === 'string'
+                      ? props.href
+                      : undefined;
+
+            if (!settingsPath) return <a {...props}>{children}</a>;
+
+            return (
+                <Anchor
+                    component={Link}
+                    to={settingsPath}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={title}
+                >
+                    {children}
+                </Anchor>
+            );
+        }
+
         case 'sql-runner-link': {
             const state =
                 sqlRunnerLinkState?.limit !== undefined

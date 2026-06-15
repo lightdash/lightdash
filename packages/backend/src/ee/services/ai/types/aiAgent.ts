@@ -3,6 +3,7 @@ import {
     AiAgentDocumentSummary,
     AiMcpServer,
     AiMcpServerConnectionStatus,
+    AiWritebackAttribution,
     ProjectContextEntry,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -91,6 +92,9 @@ export type AiAgentArgs = AnyAiModel & {
     enableContentTools: boolean;
     enableSearchSemanticLayer: boolean;
     enableAiWriteback: boolean;
+    // Which GitHub identity a writeback PR would be attributed to (advisory,
+    // resolved at prompt-assembly time). null when not applicable/unresolved.
+    writebackAttribution: AiWritebackAttribution | null;
     enablePreviewDeploySetup: boolean;
     enableRepoFs: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,

@@ -52,4 +52,19 @@ describe('rehypeAiAgentContentLinks', () => {
             'data-chart-uuid': 'sql-chart-slug',
         });
     });
+
+    it('marks absolute settings deep-links with a same-origin relative path', () => {
+        expect(
+            processHref('https://app.lightdash.cloud/generalSettings/profile'),
+        ).toMatchObject({
+            'data-content-type': 'settings-link',
+            'data-settings-path': '/generalSettings/profile',
+        });
+    });
+
+    it('does not mark unrelated external links as settings links', () => {
+        expect(
+            processHref('https://docs.lightdash.com/references/dbt-projects'),
+        ).not.toHaveProperty('data-content-type');
+    });
 });
