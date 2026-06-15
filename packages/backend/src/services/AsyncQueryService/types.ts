@@ -84,6 +84,9 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     versionUuid?: string;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    // Chart-scoped overrides (threshold alerts): AND-combined onto the saved
+    // query's filters before execution. Chart-native Filters shape.
+    filterOverrides?: Filters;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {

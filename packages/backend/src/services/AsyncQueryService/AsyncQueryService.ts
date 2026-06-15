@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
+    addFiltersToMetricQuery,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
@@ -4541,6 +4542,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
         pivotResults,
+        filterOverrides,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
@@ -4556,9 +4558,14 @@ export class AsyncQueryService extends ProjectService {
             projectUuid: savedChartProjectUuid,
             spaceUuid: savedChartSpaceUuid,
             tableName: savedChartTableName,
-            metricQuery,
             parameters: savedChartParameters,
         } = savedChart;
+
+        // Chart-scoped overrides (threshold alerts) are AND-combined onto the
+        // saved query before execution so the alert evaluates a filtered subset.
+        const metricQuery = filterOverrides
+            ? addFiltersToMetricQuery(savedChart.metricQuery, filterOverrides)
+            : savedChart.metricQuery;
 
         // Check chart belongs to project
         if (savedChartProjectUuid !== projectUuid) {
