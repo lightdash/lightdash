@@ -1,7 +1,6 @@
 import {
     FeatureFlags,
     ForbiddenError,
-    ProjectType,
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierTurnCandidate,
 } from '@lightdash/common';
@@ -298,9 +297,6 @@ describe('AiAgentReviewClassifierService', () => {
     const catalogModel = {
         getCatalogItemsSummary: jest.fn(),
     };
-    const projectModel = {
-        getSummary: jest.fn(),
-    };
     const judgeTurn = jest.fn();
 
     const service = new AiAgentReviewClassifierService({
@@ -308,7 +304,6 @@ describe('AiAgentReviewClassifierService', () => {
         aiAgentModel: aiAgentModel as never,
         aiOrganizationSettingsModel,
         catalogModel: catalogModel as never,
-        projectModel: projectModel as never,
         featureFlagService,
         lightdashConfig: {} as never,
         judgeTurn,
@@ -347,13 +342,6 @@ describe('AiAgentReviewClassifierService', () => {
             groupAccess: [],
             userAccess: [],
             spaceAccess: [],
-        });
-        projectModel.getSummary.mockResolvedValue({
-            name: 'Jaffle Shop',
-            projectUuid: PROJECT_UUID,
-            organizationUuid: ORGANIZATION_UUID,
-            type: ProjectType.DEFAULT,
-            upstreamProjectUuid: null,
         });
         catalogModel.getCatalogItemsSummary.mockResolvedValue([
             {
@@ -657,29 +645,6 @@ describe('AiAgentReviewClassifierService', () => {
                 }),
             }),
         );
-    });
-
-    it('skips live review for preview projects', async () => {
-        projectModel.getSummary.mockResolvedValue({
-            name: 'Preview: fix-branch',
-            projectUuid: PROJECT_UUID,
-            organizationUuid: ORGANIZATION_UUID,
-            type: ProjectType.PREVIEW,
-            upstreamProjectUuid: PROJECT_UUID,
-        });
-
-        const result = await service.runLiveEvent({
-            eventType: 'response_saved',
-            organizationUuid: ORGANIZATION_UUID,
-            projectUuid: PROJECT_UUID,
-            agentUuid: AGENT_UUID,
-            threadUuid: THREAD_UUID,
-            promptUuid: PROMPT_UUID,
-        });
-
-        expect(result).toBeNull();
-        expect(model.listTurnReviewCandidates).not.toHaveBeenCalled();
-        expect(model.createRun).not.toHaveBeenCalled();
     });
 
     it('reviews only the target turn when it has no predecessor (first turn)', async () => {
