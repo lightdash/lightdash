@@ -309,6 +309,7 @@ export type DbAiOrganizationSettings = {
     organization_uuid: string;
     ai_agents_visible: boolean;
     ai_agent_reviews_enabled: boolean;
+    mcp_content_writes_enabled: boolean;
     created_at: Date;
     updated_at: Date;
 };
@@ -316,11 +317,18 @@ export type DbAiOrganizationSettings = {
 export type AiOrganizationSettingsTable = Knex.CompositeTableType<
     DbAiOrganizationSettings,
     Pick<DbAiOrganizationSettings, 'organization_uuid' | 'ai_agents_visible'> &
-        Partial<Pick<DbAiOrganizationSettings, 'ai_agent_reviews_enabled'>>,
+        Partial<
+            Pick<
+                DbAiOrganizationSettings,
+                'ai_agent_reviews_enabled' | 'mcp_content_writes_enabled'
+            >
+        >,
     Partial<
         Pick<
             DbAiOrganizationSettings,
-            'ai_agents_visible' | 'ai_agent_reviews_enabled'
+            | 'ai_agents_visible'
+            | 'ai_agent_reviews_enabled'
+            | 'mcp_content_writes_enabled'
         >
     >
 >;

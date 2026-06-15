@@ -324,6 +324,7 @@ describe('AiAgentReviewClassifierService', () => {
             organizationUuid: ORGANIZATION_UUID,
             aiAgentsVisible: true,
             aiAgentReviewsEnabled: true,
+            mcpContentWritesEnabled: true,
         });
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
@@ -377,6 +378,7 @@ describe('AiAgentReviewClassifierService', () => {
                 organizationUuid: ORGANIZATION_UUID,
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
+                mcpContentWritesEnabled: true,
             },
         );
 

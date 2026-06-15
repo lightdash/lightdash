@@ -30,6 +30,7 @@ export class AiOrganizationSettingsModel {
             organizationUuid: db.organization_uuid,
             aiAgentsVisible: db.ai_agents_visible,
             aiAgentReviewsEnabled: db.ai_agent_reviews_enabled,
+            mcpContentWritesEnabled: db.mcp_content_writes_enabled,
         };
     }
 
@@ -67,6 +68,7 @@ export class AiOrganizationSettingsModel {
                 organization_uuid: data.organizationUuid,
                 ai_agents_visible: data.aiAgentsVisible,
                 ai_agent_reviews_enabled: data.aiAgentReviewsEnabled,
+                mcp_content_writes_enabled: data.mcpContentWritesEnabled,
             })
             .returning('*');
 
@@ -80,7 +82,9 @@ export class AiOrganizationSettingsModel {
         const updateData: Partial<
             Pick<
                 DbAiOrganizationSettings,
-                'ai_agents_visible' | 'ai_agent_reviews_enabled'
+                | 'ai_agents_visible'
+                | 'ai_agent_reviews_enabled'
+                | 'mcp_content_writes_enabled'
             >
         > = {};
         if (data.aiAgentsVisible !== undefined) {
@@ -88,6 +92,10 @@ export class AiOrganizationSettingsModel {
         }
         if (data.aiAgentReviewsEnabled !== undefined) {
             updateData.ai_agent_reviews_enabled = data.aiAgentReviewsEnabled;
+        }
+        if (data.mcpContentWritesEnabled !== undefined) {
+            updateData.mcp_content_writes_enabled =
+                data.mcpContentWritesEnabled;
         }
         if (Object.keys(updateData).length === 0) {
             return this.getByOrganizationUuid(organizationUuid);
@@ -122,6 +130,7 @@ export class AiOrganizationSettingsModel {
             organizationUuid,
             aiAgentsVisible: data.aiAgentsVisible ?? true,
             aiAgentReviewsEnabled: data.aiAgentReviewsEnabled ?? false,
+            mcpContentWritesEnabled: data.mcpContentWritesEnabled ?? true,
         });
     }
 

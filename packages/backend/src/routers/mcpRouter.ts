@@ -177,9 +177,14 @@ mcpRouter.all(
                 // only awaits to register skill resources afterwards).
                 const aiWritebackEnabled =
                     await mcpService.isAiWritebackEnabled(req.user!);
+                // Content-write tools are only registered when the org-level
+                // setting allows it, so admins can lock down MCP edits.
+                const mcpContentWritesEnabled =
+                    await mcpService.isMcpContentWritesEnabled(req.user!);
                 const mcpServer = await mcpService.createServer({
                     projectPinned: headerProjectUuid !== undefined,
                     aiWritebackEnabled,
+                    mcpContentWritesEnabled,
                 });
                 const transport = new StreamableHTTPServerTransport({
                     enableJsonResponse: true,

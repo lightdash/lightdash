@@ -70,6 +70,7 @@ export type AiOrganizationSettings = {
     organizationUuid: string;
     aiAgentsVisible: boolean;
     aiAgentReviewsEnabled: boolean;
+    mcpContentWritesEnabled: boolean;
 };
 
 export type CreateAiOrganizationSettings = AiOrganizationSettings;
