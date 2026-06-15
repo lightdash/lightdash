@@ -10285,6 +10285,10 @@
             },
             "SchedulerCsvOptions": {
                 "properties": {
+                    "xlsxFileLayout": {
+                        "type": "string",
+                        "enum": ["zip", "workbook"]
+                    },
                     "exportPivotedData": {
                         "type": "boolean"
                     },

@@ -155,6 +155,7 @@ import {
 import { DashboardService } from '../services/DashboardService/DashboardService';
 import { DeployService } from '../services/DeployService';
 import { ExcelService } from '../services/ExcelService/ExcelService';
+import { WorkbookExportHelper } from '../services/ExcelService/WorkbookExportHelper';
 import type { FeatureFlagService } from '../services/FeatureFlag/FeatureFlagService';
 import { resolveOrganizationExportLimits } from '../services/OrganizationSettingsService/resolveExportLimits';
 import { PersistentDownloadFileService } from '../services/PersistentDownloadFileService/PersistentDownloadFileService';
@@ -1074,6 +1075,31 @@ export default class SchedulerTask {
                             failures = csvFailures;
                         }
 
+                        if (
+                            format === SchedulerFormat.XLSX &&
+                            csvUrls.length > 0 &&
+                            csvOptions?.xlsxFileLayout === 'workbook'
+                        ) {
+                            const workbookResult =
+                                await this.createWorkbookDownloadUrl({
+                                    files: csvUrls,
+                                    workbookNameBase: details.name,
+                                    organizationUuid,
+                                    projectUuid,
+                                    createdByUserUuid: userUuid,
+                                    expirationSecondsOverride,
+                                });
+
+                            csvUrls = [
+                                {
+                                    filename: details.name,
+                                    path: workbookResult.url,
+                                    localPath: workbookResult.url,
+                                    truncated: false,
+                                },
+                            ];
+                        }
+
                         this.analytics.trackAccount(account, {
                             event: 'download_results.completed',
                             userId: account.user.id,
@@ -1091,7 +1117,7 @@ export default class SchedulerTask {
                         `Unable to download XLSX on scheduled task: ${e}`,
                     );
 
-                    if (this.slackClient.isEnabled) {
+                    if (this.slackClient.isEnabled && isFinalAttempt) {
                         await this.slackClient.postMessageToNotificationChannel(
                             {
                                 organizationUuid,
@@ -4428,6 +4454,80 @@ export default class SchedulerTask {
         });
     }
 
+    private async createWorkbookDownloadUrl({
+        files,
+        workbookNameBase,
+        organizationUuid,
+        projectUuid,
+        createdByUserUuid,
+        expirationSecondsOverride,
+    }: {
+        files: NonNullable<NotificationPayloadBase['page']['csvUrls']>;
+        workbookNameBase: string;
+        organizationUuid: string;
+        projectUuid: string;
+        createdByUserUuid: string;
+        expirationSecondsOverride?: number;
+    }) {
+        if (!this.fileStorageClient.isEnabled()) {
+            throw new MissingConfigError('Cloud storage is not enabled');
+        }
+
+        if (files.length === 0) {
+            throw new UnexpectedServerError('No files to include in workbook');
+        }
+
+        const workbookPath = `/tmp/${nanoid()}.xlsx`;
+        let workbookFileName: string;
+        let workbookResult: Awaited<
+            ReturnType<typeof WorkbookExportHelper.createWorkbookFile>
+        >;
+        try {
+            workbookResult = await WorkbookExportHelper.createWorkbookFile({
+                files: files.map((file) => ({
+                    filename: file.filename,
+                    sheetName: file.chartName ?? file.filename,
+                    localPath: file.localPath,
+                })),
+                outputPath: workbookPath,
+                onFileError: (filename, error) => {
+                    Logger.warn(
+                        `Failed to add XLSX file "${filename}" to workbook: ${error}`,
+                    );
+                },
+            });
+
+            if (workbookResult.worksheetCount === 0) {
+                throw new UnexpectedServerError(
+                    'All XLSX downloads failed — no files to include in workbook',
+                );
+            }
+
+            workbookFileName = `${sanitizeGenericFileName(
+                workbookNameBase,
+            )}-${new Date().toISOString().replace(/[:.]/g, '-')}.xlsx`;
+
+            await this.fileStorageClient.uploadExcel(
+                fsSync.createReadStream(workbookPath),
+                workbookFileName,
+            );
+        } finally {
+            await fs.unlink(workbookPath).catch(() => {});
+        }
+
+        return {
+            url: await this.persistentDownloadFileService.createPersistentUrl({
+                s3Key: workbookFileName,
+                fileType: DownloadFileType.XLSX,
+                organizationUuid,
+                projectUuid,
+                createdByUserUuid,
+                expirationSeconds: expirationSecondsOverride,
+            }),
+            numFileFailures: workbookResult.failedFileCount,
+        };
+    }
+
     protected async exportContent(
         jobId: string,
         scheduledTime: Date,
@@ -4512,6 +4612,26 @@ export default class SchedulerTask {
                         );
                     }
 
+                    const shouldCreateWorkbook =
+                        payload.format === SchedulerFormat.XLSX &&
+                        isSchedulerCsvOptions(payload.options) &&
+                        payload.options.xlsxFileLayout === 'workbook';
+
+                    if (shouldCreateWorkbook) {
+                        const workbookUrl = page.csvUrls[0]?.path;
+                        if (!workbookUrl) {
+                            throw new UnexpectedServerError(
+                                'Dashboard workbook export failed',
+                            );
+                        }
+
+                        return {
+                            url: workbookUrl,
+                            fileType: DownloadFileType.XLSX,
+                            numFailures: page.failures?.length ?? 0,
+                        };
+                    }
+
                     const url = await this.createZipDownloadUrl({
                         files: page.csvUrls.map((file) => ({
                             entryNameBase: file.filename,
@@ -4526,7 +4646,7 @@ export default class SchedulerTask {
 
                     return {
                         url,
-                        fileType: payload.format,
+                        fileType: 'zip',
                         numFailures: page.failures?.length ?? 0,
                     };
                 }
