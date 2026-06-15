@@ -2212,7 +2212,7 @@ describe('ProjectService', () => {
             expect(emailModel.getPrimaryEmailStatus).not.toHaveBeenCalled();
         });
 
-        test('skips email lookup for users without an email and returns empty intrinsic attributes', async () => {
+        test('skips email lookup for embedded service-account write users and returns empty intrinsic attributes', async () => {
             emailModel.getPrimaryEmailStatus.mockImplementation(() => {
                 throw new NotFoundError(
                     "Cannot find matching verification status for user's email",
@@ -2223,6 +2223,10 @@ describe('ProjectService', () => {
                 user: {
                     ...user,
                     email: undefined,
+                    serviceAccount: {
+                        uuid: 'service-account-uuid',
+                        description: 'Embed write actor',
+                    },
                 },
             });
 
