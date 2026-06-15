@@ -9,10 +9,11 @@ export const getItemIconName = (
 ) => {
     switch (type) {
         case DimensionType.STRING:
-        case DimensionType.ARRAY:
         case MetricType.STRING:
         case TableCalculationType.STRING:
             return 'citation';
+        case DimensionType.ARRAY:
+            return 'array';
         case DimensionType.NUMBER:
         case MetricType.NUMBER:
         case TableCalculationType.NUMBER:

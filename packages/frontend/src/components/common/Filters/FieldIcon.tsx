@@ -14,6 +14,7 @@ import {
 import {
     Icon123,
     IconAbc,
+    IconBrackets,
     IconCalendar,
     IconClockHour4,
     IconMathFunction,
@@ -64,6 +65,8 @@ const FieldIcon = forwardRef<SVGSVGElement, Props>(
         switch (getFieldIcon(item)) {
             case 'citation':
                 return <MantineIcon icon={IconAbc} {...props} />;
+            case 'array':
+                return <MantineIcon icon={IconBrackets} {...props} />;
             case 'numerical':
                 return <MantineIcon icon={Icon123} {...props} />;
             case 'calendar':
