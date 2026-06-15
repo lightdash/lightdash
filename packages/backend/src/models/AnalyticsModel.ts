@@ -300,9 +300,30 @@ export class AnalyticsModel {
             user_first_name: string;
             user_last_name: string;
             space_name: string;
+            space_uuid: string;
+            space_path: string;
+            project_uuid: string;
         };
         const results = await this.database.transaction(async (trx) => {
+            const spacePathsCte = this.database.raw(
+                `
+                SELECT s.space_id, s.space_uuid, CAST(s.name AS text) AS path
+                FROM ${SpaceTableName} s
+                INNER JOIN ${ProjectTableName} p ON p.project_id = s.project_id
+                WHERE s.parent_space_uuid IS NULL
+                  AND s.deleted_at IS NULL
+                  AND p.project_uuid = ?
+                UNION ALL
+                SELECT c.space_id, c.space_uuid, sp.path || ' / ' || c.name
+                FROM ${SpaceTableName} c
+                INNER JOIN space_paths sp ON c.parent_space_uuid = sp.space_uuid
+                WHERE c.deleted_at IS NULL
+                `,
+                [projectUuid],
+            );
+
             const chartViews = trx
+                .withRecursive('space_paths', spacePathsCte)
                 .select<RawViewType[]>(
                     this.database.raw(`'chart' as type`),
                     this.database.raw(
@@ -314,6 +335,9 @@ export class AnalyticsModel {
                     `${UserTableName}.first_name as user_first_name`,
                     `${UserTableName}.last_name as user_last_name`,
                     `${SpaceTableName}.name as space_name`,
+                    `${SpaceTableName}.space_uuid as space_uuid`,
+                    `space_paths.path as space_path`,
+                    `${ProjectTableName}.project_uuid as project_uuid`,
                 )
                 .from(AnalyticsChartViewsTableName)
                 .leftJoin(SavedChartsTableName, function nonDeletedChartJoin() {
@@ -338,6 +362,11 @@ export class AnalyticsModel {
                     `${ProjectTableName}.project_id`,
                     `${SpaceTableName}.project_id`,
                 )
+                .leftJoin(
+                    'space_paths',
+                    `space_paths.space_id`,
+                    `${SpaceTableName}.space_id`,
+                )
                 .where(`${ProjectTableName}.project_uuid`, projectUuid)
                 .whereNull(`${SpaceTableName}.deleted_at`);
 
@@ -353,6 +382,9 @@ export class AnalyticsModel {
                     `${UserTableName}.first_name as user_first_name`,
                     `${UserTableName}.last_name as user_last_name`,
                     `${SpaceTableName}.name as space_name`,
+                    `${SpaceTableName}.space_uuid as space_uuid`,
+                    `space_paths.path as space_path`,
+                    `${ProjectTableName}.project_uuid as project_uuid`,
                 )
                 .from(AnalyticsDashboardViewsTableName)
                 .leftJoin(
@@ -374,6 +406,11 @@ export class AnalyticsModel {
                     ProjectTableName,
                     `${ProjectTableName}.project_id`,
                     `${SpaceTableName}.project_id`,
+                )
+                .leftJoin(
+                    'space_paths',
+                    `space_paths.space_id`,
+                    `${SpaceTableName}.space_id`,
                 )
                 .where(`${ProjectTableName}.project_uuid`, projectUuid)
                 .whereNull(`${SpaceTableName}.deleted_at`);
