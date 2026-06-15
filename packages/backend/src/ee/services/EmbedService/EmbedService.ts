@@ -40,6 +40,7 @@ import {
     getItemId,
     InteractivityOptions,
     IntrinsicUserAttributes,
+    isAiAgentContent,
     isChartContent,
     isDashboardChartTileType,
     isDashboardContent,
@@ -214,6 +215,8 @@ export class EmbedService extends BaseService {
             urlPath = `/embed/${projectUuid}/chart/${jwtData.content.contentId}#${jwtToken}`;
         } else if (jwtData.content.type === 'dataApp') {
             urlPath = `/embed/${projectUuid}/app/${jwtData.content.appUuid}#${jwtToken}`;
+        } else if (jwtData.content.type === 'aiAgent') {
+            urlPath = `/embed/${projectUuid}/ai-agents/${jwtData.content.agentUuid}/threads#${jwtToken}`;
         } else {
             urlPath = `/embed/${projectUuid}#${jwtToken}`;
         }
@@ -508,6 +511,16 @@ export class EmbedService extends BaseService {
                 chartUuids: [],
                 type: 'dataApp',
                 explores: [],
+            };
+        }
+
+        if (isAiAgentContent(decodedToken.content)) {
+            return {
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'aiAgent',
+                explores: [],
+                agentUuid: decodedToken.content.agentUuid,
             };
         }
 
@@ -2371,8 +2384,7 @@ export class EmbedService extends BaseService {
                 }),
             );
             const canUseAiAgent =
-                decodedToken.content.type === 'dashboard' &&
-                decodedToken.content.canUseAiAgent === true &&
+                decodedToken.content.type === 'aiAgent' &&
                 canCreateSavedChart &&
                 auditedAbility.can(
                     'view',

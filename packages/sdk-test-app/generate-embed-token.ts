@@ -168,7 +168,7 @@ async function main() {
             process.exit(1);
         }
 
-        const payload = {
+        const dashboardPayload = {
             content: {
                 type: 'dashboard',
                 projectUuid,
@@ -182,7 +182,6 @@ async function main() {
                 isPreview: false,
                 canDateZoom: false,
                 canExportPagePdf: false,
-                canUseAiAgent: true,
             },
             writeActions: {
                 userUuid: user.user_uuid,
@@ -193,8 +192,34 @@ async function main() {
             },
         };
 
-        const token = jwt.sign(payload, rawSecret, { expiresIn: '24h' });
-        const embedUrl = `${LIGHTDASH_URL}/embed#${token}`;
+        const dashboardToken = jwt.sign(dashboardPayload, rawSecret, {
+            expiresIn: '24h',
+        });
+        const embedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}#${dashboardToken}`;
+        const aiAgentPayload = aiAgent
+            ? {
+                  content: {
+                      type: 'aiAgent',
+                      projectUuid,
+                      agentUuid: aiAgent.ai_agent_uuid,
+                  },
+                  writeActions: {
+                      userUuid: user.user_uuid,
+                      spaceUuid,
+                  },
+                  user: {
+                      email: 'demo@lightdash.com',
+                  },
+              }
+            : null;
+        const aiAgentToken = aiAgentPayload
+            ? jwt.sign(aiAgentPayload, rawSecret, { expiresIn: '24h' })
+            : null;
+        const aiAgentEmbedUrl = aiAgent
+            ? `${LIGHTDASH_URL}/embed/${projectUuid}/ai-agents/${
+                  aiAgent.ai_agent_uuid
+              }/threads#${aiAgentToken}`
+            : null;
 
         console.log(
             JSON.stringify(
@@ -205,6 +230,7 @@ async function main() {
                     aiAgentUuid: aiAgent?.ai_agent_uuid ?? null,
                     aiAgentName: aiAgent?.name ?? null,
                     embedUrl,
+                    aiAgentEmbedUrl,
                 },
                 null,
                 2,
@@ -215,6 +241,7 @@ async function main() {
         console.log(`VITE_EMBED_URL="${embedUrl}"`);
         if (aiAgent) {
             console.log(`VITE_AI_AGENT_UUID="${aiAgent.ai_agent_uuid}"`);
+            console.log(`VITE_AI_AGENT_EMBED_URL="${aiAgentEmbedUrl}"`);
         }
     } finally {
         await db.destroy();

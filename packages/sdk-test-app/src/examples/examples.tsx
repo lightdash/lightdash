@@ -22,7 +22,7 @@ export const examples: ExampleDefinition[] = [
         path: '/examples/ai-agent',
         title: 'AI agent demo',
         description:
-            'Embed an AI agent using a dashboard embed token with AI access scoped to the configured write space.',
+            'Embed an AI agent using an AI-agent embed token scoped to the configured write space.',
         sourcePath: 'packages/sdk-test-app/src/examples/AiAgentExamplePage.tsx',
         component: AiAgentExamplePage,
     },

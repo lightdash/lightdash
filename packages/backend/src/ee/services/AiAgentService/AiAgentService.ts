@@ -1104,14 +1104,14 @@ export class AiAgentService extends BaseService {
     ): {
         user: SessionUser;
         spaceUuid: string;
+        tokenAgentUuid: string;
         runtimeOptions: EmbedAiAgentRuntimeOptions;
     } {
         const { writeActions, content } = account.authentication.data;
         const spaceUuid = writeActions?.spaceUuid;
 
         if (
-            content.type !== 'dashboard' ||
-            content.canUseAiAgent !== true ||
+            content.type !== 'aiAgent' ||
             !spaceUuid ||
             !account.embedWriteUser ||
             account.embedWriteContext?.canUseAiAgent !== true ||
@@ -1125,6 +1125,7 @@ export class AiAgentService extends BaseService {
         return {
             user: account.embedWriteUser,
             spaceUuid,
+            tokenAgentUuid: content.agentUuid,
             runtimeOptions: {
                 spaceAccess: [spaceUuid],
                 userAttributeOverrides:
@@ -1152,23 +1153,28 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         agentUuid: string,
     ) {
-        const { user, spaceUuid, runtimeOptions } =
+        const { user, spaceUuid, tokenAgentUuid, runtimeOptions } =
             AiAgentService.getEmbedAiAgentContext(account, projectUuid);
+        if (tokenAgentUuid !== agentUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow access to this AI agent',
+            );
+        }
+
         const agent = await this.getAgent(user, agentUuid, projectUuid);
         AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
         return { user, agent, runtimeOptions };
     }
 
     async listEmbedAgents(account: AnonymousAccount, projectUuid: string) {
-        const { user, spaceUuid } = AiAgentService.getEmbedAiAgentContext(
-            account,
-            projectUuid,
-        );
+        const { user, spaceUuid, tokenAgentUuid } =
+            AiAgentService.getEmbedAiAgentContext(account, projectUuid);
         const agents = await this.listAgents(user, projectUuid);
         return agents.filter(
             (agent) =>
-                agent.spaceAccess.length === 0 ||
-                agent.spaceAccess.includes(spaceUuid),
+                agent.uuid === tokenAgentUuid &&
+                (agent.spaceAccess.length === 0 ||
+                    agent.spaceAccess.includes(spaceUuid)),
         );
     }
 

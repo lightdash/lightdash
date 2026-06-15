@@ -70,7 +70,7 @@ The local development environment includes two stable example UUIDs so the demo 
 
 ## Generating a Demo Embed URL
 
-The test app includes a helper script that signs a JWT with the project embedding secret and prints a ready-to-paste `VITE_EMBED_URL`.
+The test app includes a helper script that signs JWTs with the project embedding secret and prints ready-to-paste environment values.
 
 ```bash
 pnpm -F @lightdash/sdk-test-app generate-embed-token
@@ -81,9 +81,9 @@ The script:
 - loads your local Lightdash environment from the repo root
 - finds the `Jaffle dashboard`
 - reads or creates the project's embedding secret in the `embedding` table
-- signs a 24 hour JWT for dashboard embed content with AI-agent access enabled
-- prints `VITE_AI_AGENT_UUID` when it finds an agent in the dashboard project
-- prints a `VITE_EMBED_URL="..."` value for `packages/sdk-test-app/.env.local`
+- signs a 24 hour JWT for dashboard embed content
+- signs a separate 24 hour JWT for AI-agent embed content when it finds an agent in the dashboard project
+- prints `VITE_EMBED_URL="..."`, `VITE_AI_AGENT_UUID="..."`, and `VITE_AI_AGENT_EMBED_URL="..."` values for `packages/sdk-test-app/.env.local`
 
 To target a specific agent, set `AI_AGENT_UUID` or `AI_AGENT_NAME` before
 running the generator.

@@ -22,12 +22,56 @@ const sourceUrl = getRepoSourceUrl(
 );
 
 const defaultAgentUuid = import.meta.env.VITE_AI_AGENT_UUID ?? '';
+const defaultAiAgentEmbedUrl = import.meta.env.VITE_AI_AGENT_EMBED_URL ?? '';
+
+const parseEmbedUrl = (value: string) => {
+    const trimmedValue = value.trim();
+
+    if (!trimmedValue) {
+        return { instanceUrl: null, token: null };
+    }
+
+    try {
+        const url = new URL(trimmedValue);
+        const embedSegmentIndex = url.pathname.indexOf('/embed');
+        const instancePath =
+            embedSegmentIndex >= 0
+                ? url.pathname.slice(0, embedSegmentIndex)
+                : url.pathname;
+
+        const normalizedPath = instancePath.endsWith('/')
+            ? instancePath
+            : `${instancePath}/`;
+
+        return {
+            instanceUrl: `${url.origin}${normalizedPath}`,
+            token: url.hash ? url.hash.slice(1) : null,
+        };
+    } catch {
+        const [instancePart, tokenPart] = trimmedValue.split('#');
+        const embedSegmentIndex = instancePart.indexOf('embed');
+        const maybeInstanceUrl =
+            embedSegmentIndex >= 0
+                ? instancePart.slice(0, embedSegmentIndex)
+                : instancePart;
+
+        return {
+            instanceUrl: maybeInstanceUrl || null,
+            token: tokenPart || null,
+        };
+    }
+};
 
 export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
     const [agentUuid, setAgentUuid] = useState(defaultAgentUuid);
+    const aiAgentEmbedConfig = parseEmbedUrl(defaultAiAgentEmbedUrl);
+    const instanceUrl =
+        aiAgentEmbedConfig.instanceUrl ?? embedConfig.instanceUrl;
+    const token = aiAgentEmbedConfig.token ?? embedConfig.token;
+    const remountKey =
+        defaultAiAgentEmbedUrl || `${embedConfig.remountKey}:${agentUuid}`;
 
-    const hasRequiredConfig =
-        !!embedConfig.instanceUrl && !!embedConfig.token && !!agentUuid.trim();
+    const hasRequiredConfig = !!instanceUrl && !!token && !!agentUuid.trim();
 
     return (
         <ExampleLayout
@@ -38,19 +82,20 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                 <>
                     This example embeds an AI agent with{' '}
                     <code>Lightdash.AiAgent</code>. The configured embed token
-                    must be a dashboard token with <code>canUseAiAgent</code>{' '}
-                    and <code>writeActions.spaceUuid</code>; agent tools are
-                    limited to that space.
+                    must use <code>content.type = "aiAgent"</code>, include the
+                    agent UUID, and set <code>writeActions.spaceUuid</code>;
+                    agent tools are limited to that space.
                 </>
             }
         >
-            {embedConfig.instanceUrl && embedConfig.token ? (
+            {instanceUrl && token ? (
                 <>
                     <section>
                         <h3 style={sectionTitleStyle}>Agent selector</h3>
                         <p style={sectionDescStyle}>
-                            Set <code>VITE_AI_AGENT_UUID</code> or paste an
-                            agent UUID below.
+                            Set <code>VITE_AI_AGENT_EMBED_URL</code> and{' '}
+                            <code>VITE_AI_AGENT_UUID</code>, or paste an agent
+                            UUID below.
                         </p>
 
                         <div style={filterPanelGridStyle}>
@@ -75,8 +120,9 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                     {JSON.stringify(
                                         {
                                             content: {
-                                                type: 'dashboard',
-                                                canUseAiAgent: true,
+                                                type: 'aiAgent',
+                                                agentUuid:
+                                                    'agent-for-this-embed',
                                             },
                                             writeActions: {
                                                 spaceUuid:
@@ -100,9 +146,9 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                         {hasRequiredConfig ? (
                             <div style={dashboardContainerStyle}>
                                 <Lightdash.AiAgent
-                                    key={`${embedConfig.remountKey}:${agentUuid}`}
-                                    instanceUrl={embedConfig.instanceUrl}
-                                    token={embedConfig.token}
+                                    key={`${remountKey}:${agentUuid}`}
+                                    instanceUrl={instanceUrl}
+                                    token={token}
                                     agentUuid={agentUuid.trim()}
                                 />
                             </div>

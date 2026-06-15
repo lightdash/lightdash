@@ -85,9 +85,6 @@ export const InteractivityOptionsSchema = z.object({
     canViewDataApps: z.boolean().optional(),
     // Pins tabs and the filter bar to the top while scrolling. Off by default.
     stickyHeader: z.boolean().optional(),
-    // Authorizes the embedded viewer to use AI agents through embed-specific
-    // endpoints. Requires writeActions and is scoped to writeActions.spaceUuid.
-    canUseAiAgent: z.boolean().optional(),
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
@@ -174,6 +171,11 @@ export const EmbedJwtSchema = z
                 appUuid: z.string(),
                 isPreview: z.boolean().optional(),
             }),
+            z.object({
+                type: z.literal('aiAgent'),
+                projectUuid: z.string().optional(),
+                agentUuid: z.string(),
+            }),
         ]),
         writeActions: EmbedWriteActionsSchema.optional(),
         iat: z.number().optional(),
@@ -207,7 +209,6 @@ export type CommonEmbedJwtContent = {
     canViewUnderlyingData?: boolean;
     canViewDataApps?: boolean;
     stickyHeader?: boolean;
-    canUseAiAgent?: boolean;
 };
 
 type CommonChartEmbedJwtContent = {
@@ -250,12 +251,19 @@ export type EmbedJwtContentDataApp = CommonDataAppEmbedJwtContent & {
     appUuid: string;
 };
 
+export type EmbedJwtContentAiAgent = {
+    type: 'aiAgent';
+    projectUuid?: string;
+    agentUuid: string;
+};
+
 export type CreateEmbedJwt = {
     content:
         | EmbedJwtContentDashboardUuid
         | EmbedJwtContentDashboardSlug
         | EmbedJwtContentChart
-        | EmbedJwtContentDataApp;
+        | EmbedJwtContentDataApp
+        | EmbedJwtContentAiAgent;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
     user?: {
@@ -283,6 +291,12 @@ export function isChartContent(
     content: CreateEmbedJwt['content'],
 ): content is EmbedJwtContentChart {
     return content.type === 'chart';
+}
+
+export function isAiAgentContent(
+    content: CreateEmbedJwt['content'],
+): content is EmbedJwtContentAiAgent {
+    return content.type === 'aiAgent';
 }
 
 export function isDashboardContent(

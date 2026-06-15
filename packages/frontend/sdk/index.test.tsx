@@ -326,7 +326,7 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
 
 describe('SDK AI agent', () => {
     const mockToken =
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InR5cGUiOiJhaUFnZW50IiwicHJvamVjdFV1aWQiOiJ0ZXN0LXByb2plY3QtdXVpZCIsImFnZW50VXVpZCI6InRlc3QtYWdlbnQtdXVpZCJ9fQ.test';
     const mockInstanceUrl = 'http://localhost:3000';
 
     it('renders the embed AI agent iframe for the token project', async () => {
