@@ -304,7 +304,7 @@ The companion filter parity is also implemented ([`timezone-handling.md:149`](./
 
 2. **Frontend ECharts shift** (`packages/frontend/src/hooks/echarts/timezoneShift.ts`): **broken at DST boundaries.** The shift offset is computed *per row* (`getTimezoneOffsetMs(rawMs, timezone)`) but applied as a constant adjustment when ECharts renders. For an hour-grain chart spanning a DST transition, the bars before and after the transition use different offsets — visually correct in position but the gap between them looks like a 1-hour jump.
 
-The internal doc does not mention DST. Flagged in [`timezone-review.md` section B](./timezone-review.md#b-the-echarts-shifted-column-workaround). The frontend half is now fixed (GLITCH-449): sub-day buckets are positioned by raw UTC instant, so the two folded hours render at distinct x with per-bucket tick alignment. The fall-back bucketing question below is separate and still open.
+The internal doc does not mention DST. Flagged in [`timezone-review.md` section B](./timezone-review.md#b-the-echarts-shifted-column-workaround). The frontend half is now fixed (GLITCH-449): sub-day buckets are positioned by raw UTC instant, so the two folded hours render at distinct x. (GLITCH-502 later restored ECharts' native adaptive ticks on that axis; only bar placement carried the DST correctness, so dropping the tick pinning was safe.) The fall-back bucketing question below is separate and still open.
 
 ### DST fall-back — do the two 1 AM hours merge into one bucket or split into two?
 
