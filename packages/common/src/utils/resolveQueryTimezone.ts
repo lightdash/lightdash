@@ -9,8 +9,7 @@ import { isValidTimezone } from './scheduler';
 
 /**
  * Returns the account's stored user-level timezone preference, or null for
- * anonymous viewers (embeds / JWT) who have no profile. The EnableUserTimezones
- * gate is applied downstream in resolveQueryTimezone, the single chokepoint.
+ * anonymous viewers (embeds / JWT) who have no profile.
  */
 export function getAccountUserTimezone(account: Account): string | null {
     if (account.user.type !== 'registered') {
@@ -29,8 +28,9 @@ export function getAccountUserTimezone(account: Account): string | null {
  *     project TZ for every viewer, tracking project-TZ changes, so the chart is
  *     deterministic across its audience. This replaces the old "unpinned charts
  *     fall through to the viewer's profile" behaviour.
- *   - `user_timezone` → the viewer's profile TZ when `isUserTimezoneEnabled`,
- *     else the project TZ.
+ *   - `user_timezone` → the viewer's profile TZ, falling back to the project
+ *     TZ when the viewer has no profile (anonymous embeds/JWT, or no stored
+ *     preference).
  *   - any other value → an override IANA zone, frozen regardless of viewer/project.
  *
  * Whether the resolved zone is actually applied to the query is gated by the
@@ -42,13 +42,11 @@ export function resolveQueryTimezone({
     metricQuery,
     projectTimezone,
     userTimezone,
-    isUserTimezoneEnabled,
 }: {
     sessionTimezone: string | null;
     metricQuery: Pick<MetricQuery, 'timezone'>;
     projectTimezone: string;
     userTimezone: string | null;
-    isUserTimezoneEnabled: boolean;
 }): string {
     const setting = metricQuery.timezone;
 
@@ -58,8 +56,7 @@ export function resolveQueryTimezone({
         timezone = sessionTimezone;
     } else if (setting === USER_TIMEZONE_SETTING) {
         // userTimezone may be null (no profile) → fall back to project.
-        timezone =
-            (isUserTimezoneEnabled ? userTimezone : null) ?? projectTimezone;
+        timezone = userTimezone ?? projectTimezone;
     } else if (!setting || setting === PROJECT_TIMEZONE_SETTING) {
         timezone = projectTimezone;
     } else {

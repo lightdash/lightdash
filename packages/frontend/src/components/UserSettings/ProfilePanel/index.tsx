@@ -51,10 +51,10 @@ const ProfilePanel: FC = () => {
     } = useApp();
     const { showToastSuccess, showToastApiError } = useToaster();
 
-    const { data: userTimezonesFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableUserTimezones,
+    const { data: timezoneSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
     );
-    const userTimezonesEnabled = userTimezonesFlag?.enabled === true;
+    const timezoneSupportEnabled = timezoneSupportFlag?.enabled === true;
 
     const form = useForm<FormValues>({
         validate: zodResolver(validationSchema),
@@ -198,10 +198,10 @@ const ProfilePanel: FC = () => {
                     }
                 />
 
-                {userTimezonesEnabled && (
+                {timezoneSupportEnabled && (
                     <TimeZonePicker
                         label="Default timezone"
-                        description="Used to render query results when a chart hasn't pinned its own timezone. Leave empty to use the project default."
+                        description="Used to render query results for charts pinned to the viewer timezone. Leave empty to fall back to the project timezone."
                         variant="default"
                         maw="100%"
                         size="sm"

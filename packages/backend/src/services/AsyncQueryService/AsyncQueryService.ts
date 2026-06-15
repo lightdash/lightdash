@@ -2826,16 +2826,11 @@ export class AsyncQueryService extends ProjectService {
         const projectTimezone = projectUuid
             ? await this.getQueryTimezoneForProject(projectUuid)
             : 'UTC';
-        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
-            userUuid,
-            organizationUuid,
-        });
         const resolvedTimezone = resolveQueryTimezone({
             sessionTimezone,
             metricQuery,
             projectTimezone,
             userTimezone,
-            isUserTimezoneEnabled,
         });
         const enabled = await this.isTimezoneSupportEnabled({
             userUuid,

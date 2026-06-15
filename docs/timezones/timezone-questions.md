@@ -101,17 +101,17 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 ### Per-content choice between a pinned TZ and a viewer TZ?
 
-**Partially.** The per-chart pin in Explorer (chart-level `metricQuery.timezone`) gives an **author-pinned** mode — once set, every viewer sees that zone. An unpinned chart with `EnableUserTimezones=on` gives a **viewer-TZ** mode — each viewer's profile drives the resolution.
+**Partially.** The per-chart pin in Explorer (chart-level `metricQuery.timezone`) gives an **author-pinned** mode — once set, every viewer sees that zone. A chart pinned to `user_timezone` with `EnableTimezoneSupport=on` gives a **viewer-TZ** mode — each viewer's profile drives the resolution.
 
 **What we don't have**: an *author-saved-at-save-time* default that silently inherits the author's zone. We require the author to explicitly pin if they want viewer-stable behavior. This is more honest, slightly less ergonomic.
 
 ### Is there a user-TZ concept at all? What's the roadmap?
 
-**Yes, today.** `users.timezone` (IANA string) is settable in Profile Settings → Default timezone, gated behind the `EnableUserTimezones` feature flag (`featureFlags.ts:12`). Stored in the database, validated server-side in `UserService.ts`, threaded through every authenticated query.
+**Yes, today.** `users.timezone` (IANA string) is settable in Profile Settings → Default timezone, gated behind the `EnableTimezoneSupport` feature flag. Stored in the database, validated server-side in `UserService.ts`, threaded through every authenticated query.
 
-**Admin opt-in**: yes — `EnableUserTimezones` defaults off and can be toggled per-org via `feature_flag_overrides`.
+**Admin opt-in**: yes — `EnableTimezoneSupport` defaults off and can be toggled per-org via `feature_flag_overrides`.
 
-**Flag-off behavior**: turning the flag off does NOT clear stored `users.timezone` values, but they are no longer applied — `getAccountUserTimezone(account, isUserTimezoneEnabled)` returns `null` when `EnableUserTimezones` is off, so resolution falls back to the project timezone for every user. The stored preference is preserved (non-destructive) and re-applies when the flag is turned back on.
+**Flag-off behavior**: turning the flag off does NOT clear stored `users.timezone` values, but they are no longer applied — when `EnableTimezoneSupport` is off, the surrounding query pipeline (warehouse session setup, timezone-aware `DATE_TRUNC`, returning `displayTimezone`) is short-circuited, so the resolved zone is not applied to the query. The stored preference is preserved (non-destructive) and re-applies when the flag is turned back on.
 
 ### Scheduled deliveries & embeds — which TZ wins?
 
@@ -163,11 +163,12 @@ The DATE-base bypass at `filtersCompiler.ts` is the same logic as the SELECT-sid
 
 | Configuration | Alice's SQL == Bob's SQL? |
 |---|---|
-| `EnableUserTimezones=off`, no chart pin | ✅ Yes — both get project TZ |
-| `EnableUserTimezones=off`, chart pinned to Pacific | ✅ Yes — pin wins |
-| `EnableUserTimezones=on`, no chart pin, neither has profile TZ | ✅ Yes — both fall through to project |
-| `EnableUserTimezones=on`, no chart pin, both have profile TZs | ❌ No — Alice's WHERE uses Tokyo bounds, Bob's uses LA bounds |
-| `EnableUserTimezones=on`, chart pinned to Pacific | ✅ Yes — pin wins over profile |
+| `EnableTimezoneSupport=off`, no chart pin | ✅ Yes — both get project TZ |
+| `EnableTimezoneSupport=off`, chart pinned to `user_timezone` | ✅ Yes — flag off, both fall back to project TZ |
+| `EnableTimezoneSupport=on`, no chart pin | ✅ Yes — both get project TZ |
+| `EnableTimezoneSupport=on`, chart pinned to `user_timezone`, neither has profile TZ | ✅ Yes — both fall through to project |
+| `EnableTimezoneSupport=on`, chart pinned to `user_timezone`, both have profile TZs | ❌ No — Alice's WHERE uses Tokyo bounds, Bob's uses LA bounds |
+| `EnableTimezoneSupport=on`, chart pinned to Pacific | ✅ Yes — pin wins over profile |
 | Dashboard date filter (absolute range) | ✅ Yes — absolute filters are UTC instants regardless of viewer |
 | Dashboard date filter (relative — "last 7 days") | depends on the chart settings as above |
 
@@ -379,12 +380,12 @@ Verified on Snowflake too: `CONVERT_TIMEZONE('America/New_York', '2026-06-09 12:
 
 ### What's the declared design intent — "consistent shape" or "viewer-local"?
 
-**Both, depending on configuration.** Off the rack with `EnableUserTimezones=off`:
-- Every viewer of a non-pinned chart sees project-TZ buckets → **consistent chart shape**.
+**Both, depending on configuration.** Off the rack with `EnableTimezoneSupport=off`:
+- Every viewer sees project-TZ buckets → **consistent chart shape**.
 
-With `EnableUserTimezones=on`:
-- Non-pinned charts shift per viewer → **viewer-local boundaries**.
-- Pinned charts override per viewer → **per-content choice**.
+With `EnableTimezoneSupport=on`:
+- Charts pinned to `user_timezone` shift per viewer → **viewer-local boundaries**.
+- Charts pinned to a specific zone override per viewer → **per-content choice**.
 
 So the architectural intent is "support both, default to consistent." **This is not documented anywhere a customer can find.** Customers discover it via:
 - The Profile Settings picker appearing or not appearing (depending on flag).
@@ -400,7 +401,7 @@ So the architectural intent is "support both, default to consistent." **This is 
 | Issue | Severity | Effort | Location |
 |---|---|---|---|
 | ECharts DST shift bug | Correctness | 1d test + 2d fix | `packages/frontend/src/hooks/echarts/timezoneShift.ts` |
-| ~~`EnableUserTimezones=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
+| ~~`EnableTimezoneSupport=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
 | Scheduled deliveries TZ interaction undocumented | Docs | 0.5d | `timezone-handling.md` |
 | Per-column wall-clock TZ annotation | Feature | 2d | `translator.ts` + `getColumnTimezone` |
 | ~~BigQuery half-hour offset bare-literal hole~~ ✅ not a bug (literal is a pre-converted UTC instant) | Correctness | 1d | `filtersCompiler.ts` |

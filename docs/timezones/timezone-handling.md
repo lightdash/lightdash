@@ -23,14 +23,13 @@ In addition, three overrides sit on top of the project timezone (the session tim
 
 Resolution order: `session (embed URL) → chart → user → project → server default ('UTC')`. A viewer with no profile preference falls through to the project. A viewer with a profile timezone sees their zone on charts that don't pin one. An embedding host can pin a single session to a zone via the `?timezone=` URL param, which outranks even the chart pin. See [User-level timezone](#user-level-timezone) below.
 
-Two flags gate timezone behavior:
+A single flag gates timezone behavior:
 
-| Flag                    | Env var                               | Gates                                                                                                                  |
-| ----------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `EnableTimezoneSupport` | `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT`   | Data timezone feature: warehouse UI field, session-TZ setup, and the project-level "filter inputs in project TZ" toggle |
-| `EnableUserTimezones`   | `enable-user-timezones` (flag only)   | UI surface for user-facing timezone pickers: Profile panel picker and Explorer chart-level picker                       |
+| Flag                    | Env var                               | Gates                                                                                                                                                  |
+| ----------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `EnableTimezoneSupport` | `LIGHTDASH_ENABLE_TIMEZONE_SUPPORT`   | The whole timezone feature: data-timezone warehouse field + session-TZ setup, the "filter inputs in project TZ" toggle, the user-facing timezone pickers (Profile panel, Explorer chart-level), and per-viewer (user-profile) timezone resolution |
 
-The project timezone setting itself is always available. Server-side resolution honors a user's profile timezone only when `EnableUserTimezones` is on: each call site resolves the flag and passes it into `getAccountUserTimezone(account, isUserTimezoneEnabled)`, which returns `null` when the flag is off so stored `users.timezone` values fall back to the project timezone. Both flags can be toggled per-organization (or per-user) via `feature_flag_overrides` in the database, which takes precedence over the env var, so we can roll out gradually without flipping the global switch.
+The project timezone setting itself is always available. `resolveQueryTimezone` always honors a chart pinned to `user_timezone` — falling back to the project timezone only when the viewer has no stored profile preference. The `EnableTimezoneSupport` flag gates the surrounding pipeline (warehouse session setup, timezone-aware `DATE_TRUNC`, returning `displayTimezone`), so when the flag is off the resolved zone simply isn't applied to the query. The flag can be toggled per-organization (or per-user) via `feature_flag_overrides` in the database, which takes precedence over the env var, so we can roll out gradually without flipping the global switch.
 
 ### Data timezone (`dataTimezone`)
 
@@ -244,7 +243,7 @@ Absolute-date filter pickers (`FilterDateTimePicker`, `FilterDateTimeRangePicker
 - Subtext flips to a local-time translation; side label shows the project TZ
 - Per-chart overrides via `metricQuery.timezone` are respected — the picker reads the resolved chart > user > project value rather than the project setting directly
 
-The toggle is independent of `EnableUserTimezones`: it controls picker rendering for absolute boundaries, not the chain that resolves which zone applies.
+The toggle controls picker rendering for absolute boundaries, not the chain that resolves which zone applies.
 
 **Files:** `packages/frontend/src/components/common/Filters/FilterInputs/FilterDateTimePicker.tsx`, `packages/frontend/src/components/SettingsQueryTimezone/index.tsx`, `packages/backend/src/database/migrations/20260511132608_add_use_project_timezone_in_filters_to_projects.ts`, `packages/backend/src/models/ProjectModel/ProjectModel.ts`.
 
