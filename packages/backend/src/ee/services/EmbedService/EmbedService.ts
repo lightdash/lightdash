@@ -1529,7 +1529,6 @@ export class EmbedService extends BaseService {
             metricQuery: metricQueryWithDashboardOverrides,
             projectTimezone,
             userTimezone: null,
-            isUserTimezoneEnabled: false,
         });
         const isTimezoneSupportEnabled =
             await this.projectService.isTimezoneSupportEnabled({
@@ -2176,7 +2175,6 @@ export class EmbedService extends BaseService {
             metricQuery,
             projectTimezone,
             userTimezone: null,
-            isUserTimezoneEnabled: false,
         });
 
         const { rows, cacheMetadata } = await this._runEmbedQuery({

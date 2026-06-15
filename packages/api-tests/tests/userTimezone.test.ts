@@ -18,9 +18,8 @@ import {
  * (+9) shifts events into Jan 15/16/17 — distinct from the UTC layout
  * (Jan 15/16), so a wrong grouping is immediately visible.
  *
- * Requires LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true and the EnableUserTimezones
- * flag enabled (LIGHTDASH_ENABLE_FEATURE_FLAGS=enable-user-timezones) in the
- * environment — `user_timezone` resolution is gated on the latter.
+ * Requires LIGHTDASH_ENABLE_TIMEZONE_SUPPORT=true in the environment —
+ * `user_timezone` resolution is gated on the EnableTimezoneSupport flag.
  */
 
 const DIMENSION_KEY = 'timezone_test_event_timestamp_day';

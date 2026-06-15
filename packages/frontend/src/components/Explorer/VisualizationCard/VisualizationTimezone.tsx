@@ -1,8 +1,7 @@
-import { FeatureFlags, getTimezoneLabel, isTimeZone } from '@lightdash/common';
+import { getTimezoneLabel } from '@lightdash/common';
 import { Badge, Tooltip } from '@mantine-8/core';
 import { IconClock } from '@tabler/icons-react';
 import { type FC } from 'react';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import { getTimezoneSourceLabel } from '../../../utils/timezoneSourceLabel';
 import MantineIcon from '../../common/MantineIcon';
 
@@ -17,21 +16,11 @@ const VisualizationTimezone: FC<Props> = ({
     resolvedTimezone,
     timezoneSetting,
 }) => {
-    const { data: enableUserTimezonesFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableUserTimezones,
-    );
-    const userTimeZonesEnabled = enableUserTimezonesFlag?.enabled ?? false;
-    // Backwards-compat fallback: before `EnableTimezoneSupport`, the only
-    // timezone signal is an explicit override zone on the query.
-    const overrideFallback =
-        timezoneSetting && isTimeZone(timezoneSetting) ? timezoneSetting : null;
-    const timezone =
-        resolvedTimezone ?? (userTimeZonesEnabled ? overrideFallback : null);
-    if (!timezone) return null;
+    if (!resolvedTimezone) return null;
 
     return (
         <Tooltip
-            label={getTimezoneSourceLabel(timezoneSetting, timezone)}
+            label={getTimezoneSourceLabel(timezoneSetting, resolvedTimezone)}
             position="bottom"
             multiline
             w={260}
@@ -43,7 +32,7 @@ const VisualizationTimezone: FC<Props> = ({
                 size="sm"
                 tt="none"
             >
-                {getTimezoneLabel(timezone)}
+                {getTimezoneLabel(resolvedTimezone)}
             </Badge>
         </Tooltip>
     );

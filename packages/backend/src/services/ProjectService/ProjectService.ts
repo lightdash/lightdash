@@ -3914,16 +3914,11 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
-            userUuid: account.user.id,
-            organizationUuid: account.organization.organizationUuid,
-        });
         const timezone = resolveQueryTimezone({
             sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: getAccountUserTimezone(account),
-            isUserTimezoneEnabled,
         });
         const useTimezoneAwareDateTrunc = await this.isTimezoneSupportEnabled({
             userUuid: account.user.id,
@@ -4604,22 +4599,18 @@ export class ProjectService extends BaseService {
 
                 const projectTimezone =
                     await this.getQueryTimezoneForProject(projectUuid);
-                const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
-                    userUuid: account.user.id,
-                    organizationUuid: account.organization.organizationUuid,
-                });
                 const resolvedTimezone = resolveQueryTimezone({
                     sessionTimezone: null,
                     metricQuery,
                     projectTimezone,
                     userTimezone: getAccountUserTimezone(account),
-                    isUserTimezoneEnabled,
                 });
-                const isTimezoneEnabled = await this.isTimezoneSupportEnabled({
-                    userUuid: account.user.id,
-                    organizationUuid: account.organization.organizationUuid,
-                });
-                const displayTimezone = isTimezoneEnabled
+                const isTimezoneSupportEnabled =
+                    await this.isTimezoneSupportEnabled({
+                        userUuid: account.user.id,
+                        organizationUuid: account.organization.organizationUuid,
+                    });
+                const displayTimezone = isTimezoneSupportEnabled
                     ? resolvedTimezone
                     : undefined;
 
@@ -4960,18 +4951,11 @@ export class ProjectService extends BaseService {
 
                     const projectTimezone =
                         await this.getQueryTimezoneForProject(projectUuid);
-                    const isUserTimezoneEnabled =
-                        await this.isUserTimezoneEnabled({
-                            userUuid: account.user.id,
-                            organizationUuid:
-                                account.organization.organizationUuid,
-                        });
                     const timezone = resolveQueryTimezone({
                         sessionTimezone: null,
                         metricQuery: metricQueryWithLimit,
                         projectTimezone,
                         userTimezone: getAccountUserTimezone(account),
-                        isUserTimezoneEnabled,
                     });
                     const useTimezoneAwareDateTrunc =
                         await this.isTimezoneSupportEnabled({
@@ -5574,13 +5558,11 @@ export class ProjectService extends BaseService {
 
         const projectTimezone =
             await this.getQueryTimezoneForProject(projectUuid);
-        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled(user);
         const timezone = resolveQueryTimezone({
             sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: user.timezone,
-            isUserTimezoneEnabled,
         });
         const useTimezoneAwareDateTrunc =
             await this.isTimezoneSupportEnabled(user);
@@ -8614,18 +8596,6 @@ export class ProjectService extends BaseService {
     }): Promise<boolean> {
         const { enabled } = await this.featureFlagModel.get({
             featureFlagId: FeatureFlags.EnableTimezoneSupport,
-            user,
-        });
-
-        return enabled;
-    }
-
-    protected async isUserTimezoneEnabled(user: {
-        userUuid: string;
-        organizationUuid?: string;
-    }): Promise<boolean> {
-        const { enabled } = await this.featureFlagModel.get({
-            featureFlagId: FeatureFlags.EnableUserTimezones,
             user,
         });
 

@@ -8,11 +8,9 @@ export enum FeatureFlags {
     /* Show user groups */
     UserGroupsEnabled = 'user-groups-enabled',
 
-    /* Send local timezone to the warehouse session */
-    EnableUserTimezones = 'enable-user-timezones',
-
     /* Gate new timezone features: warehouse session timezone, timezone-aware
-       DATE_TRUNC, result formatting, etc. Temporary — remove once stable. */
+       DATE_TRUNC, per-viewer (user-profile) timezone resolution, result
+       formatting, etc. Temporary — remove once stable. */
     EnableTimezoneSupport = 'enable-timezone-support',
 
     /**

@@ -39,10 +39,11 @@ Tags combine (e.g., `bug + breaking` for a correctness fix that, shipped without
    ✅ Implemented in `resolveQueryTimezone.ts`.
 
 6. **User-level TZ is an admin opt-in (org-wide feature flag).**
-   ✅ `EnableUserTimezones`.
+   ✅ `EnableTimezoneSupport` — the single timezone feature flag (the former
+   `EnableUserTimezones` flag was merged into it).
 
 7. **Disabling the user-TZ feature must actually disable it, not just hide the picker.**
-   ✅ `gap-flag-off-leak` fixed — `getAccountUserTimezone(account, isUserTimezoneEnabled)` returns `null` when `EnableUserTimezones` is off, so stored `users.timezone` values are ignored and resolution falls back to the project timezone. Non-destructive (values are kept, just not applied).
+   ✅ When `EnableTimezoneSupport` is off, the surrounding query pipeline (warehouse session setup, timezone-aware `DATE_TRUNC`, returning `displayTimezone`) is short-circuited, so the resolved zone is not applied to the query. The stored `users.timezone` is preserved (non-destructive) and re-applies when the flag is turned back on.
 
 8. **Resolved TZ persists with the query record; downstream paths read it back, never re-resolve.**
    ✅ Stamped onto `metricQuery.timezone` in `executePreparedAsyncQuery`.
