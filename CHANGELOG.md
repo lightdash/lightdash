@@ -1,3 +1,10 @@
+# [0.3166.0](https://github.com/lightdash/lightdash/compare/0.3165.3...0.3166.0) (2026-06-15)
+
+
+### Features
+
+* **ai-agent:** add 'Save to current dashboard' quick action ([#24305](https://github.com/lightdash/lightdash/issues/24305)) ([dd02c02](https://github.com/lightdash/lightdash/commit/dd02c02ee2b4f4a29908608b9628e4c21f78aae8))
+
 ## [0.3165.3](https://github.com/lightdash/lightdash/compare/0.3165.2...0.3165.3) (2026-06-15)
 
 
