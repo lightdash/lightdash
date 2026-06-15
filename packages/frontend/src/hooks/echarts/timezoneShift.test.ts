@@ -24,6 +24,11 @@ const SHIFTED_MS = UTC_MS + TZ_OFFSET_MS;
 const makeTimeDimension = (
     name: string,
     timeInterval: TimeFrames | undefined,
+    overrides?: {
+        type?: DimensionType;
+        skipTimezoneConversion?: boolean;
+        timeIntervalBaseDimensionType?: DimensionType;
+    },
 ): ItemsMap[string] =>
     ({
         compiledSql: '',
@@ -35,8 +40,17 @@ const makeTimeDimension = (
         table: 'orders',
         tableLabel: 'Orders',
         sql: '',
-        type: DimensionType.TIMESTAMP,
+        type: overrides?.type ?? DimensionType.TIMESTAMP,
         timeInterval,
+        ...(overrides?.skipTimezoneConversion !== undefined
+            ? { skipTimezoneConversion: overrides.skipTimezoneConversion }
+            : {}),
+        ...(overrides?.timeIntervalBaseDimensionType !== undefined
+            ? {
+                  timeIntervalBaseDimensionType:
+                      overrides.timeIntervalBaseDimensionType,
+              }
+            : {}),
     }) as ItemsMap[string];
 
 const makeMetric = (name: string): ItemsMap[string] =>
@@ -92,7 +106,7 @@ describe('resolveAxisTimezone', () => {
             resolvedTimezone: undefined,
         });
         expect(result).toEqual({
-            shiftedField: undefined,
+            timeAxisField: undefined,
             axisTimezone: undefined,
             axisDisplayTimezone: undefined,
         });
@@ -106,7 +120,7 @@ describe('resolveAxisTimezone', () => {
             itemsMap,
             resolvedTimezone: 'UTC',
         });
-        expect(result.shiftedField).toBeUndefined();
+        expect(result.timeAxisField).toBeUndefined();
         expect(result.axisTimezone).toBe('UTC');
         expect(result.axisDisplayTimezone).toBeUndefined();
     });
@@ -117,7 +131,7 @@ describe('resolveAxisTimezone', () => {
             itemsMap,
             resolvedTimezone: TZ,
         });
-        expect(result.shiftedField).toBeUndefined();
+        expect(result.timeAxisField).toBeUndefined();
         expect(result.axisTimezone).toBe(TZ);
     });
 
@@ -129,7 +143,7 @@ describe('resolveAxisTimezone', () => {
             itemsMap: undefined,
             resolvedTimezone: TZ,
         });
-        expect(result.shiftedField).toBeUndefined();
+        expect(result.timeAxisField).toBeUndefined();
     });
 
     test('no shift when the axis field is not a dimension', () => {
@@ -138,7 +152,7 @@ describe('resolveAxisTimezone', () => {
             itemsMap,
             resolvedTimezone: TZ,
         });
-        expect(result.shiftedField).toBeUndefined();
+        expect(result.timeAxisField).toBeUndefined();
     });
 
     test('no shift when the dimension has no timeInterval', () => {
@@ -149,7 +163,7 @@ describe('resolveAxisTimezone', () => {
             itemsMap,
             resolvedTimezone: TZ,
         });
-        expect(result.shiftedField).toBeUndefined();
+        expect(result.timeAxisField).toBeUndefined();
     });
 
     test.each([
@@ -167,32 +181,119 @@ describe('resolveAxisTimezone', () => {
             },
             resolvedTimezone: TZ,
         });
-        expect(result.shiftedField).toBeUndefined();
+        expect(result.timeAxisField).toBeUndefined();
         expect(result.axisTimezone).toBe(TZ);
     });
 
-    test.each([
-        TimeFrames.SECOND,
-        TimeFrames.MINUTE,
-        TimeFrames.HOUR,
-        TimeFrames.DAY,
-    ])('shifts for time-axis interval %s', (interval) => {
-        const fieldId = `orders_created_${interval.toLowerCase()}`;
+    test.each([TimeFrames.SECOND, TimeFrames.MINUTE, TimeFrames.HOUR])(
+        'keeps raw UTC positioning via a sub-day-format timeAxisField for interval %s',
+        (interval) => {
+            const fieldId = `orders_created_${interval.toLowerCase()}`;
+            const result = resolveAxisTimezone({
+                validCartesianConfig: makeCartesian({ xField: fieldId }),
+                itemsMap: {
+                    ...itemsMap,
+                    [fieldId]: makeTimeDimension(fieldId, interval),
+                },
+                resolvedTimezone: TZ,
+            });
+            expect(result.timeAxisField).toEqual({
+                fieldId,
+                timezone: TZ,
+                flipAxes: false,
+                mode: 'sub-day-format',
+            });
+            expect(result.axisTimezone).toBe(TZ);
+            expect(result.axisDisplayTimezone).toBeUndefined();
+        },
+    );
+
+    test('shifts day buckets to wall-clock for time-axis interval DAY', () => {
+        const fieldId = 'orders_created_day';
         const result = resolveAxisTimezone({
             validCartesianConfig: makeCartesian({ xField: fieldId }),
             itemsMap: {
                 ...itemsMap,
-                [fieldId]: makeTimeDimension(fieldId, interval),
+                [fieldId]: makeTimeDimension(fieldId, TimeFrames.DAY),
             },
             resolvedTimezone: TZ,
         });
-        expect(result.shiftedField).toEqual({
+        expect(result.timeAxisField).toEqual({
             fieldId,
             timezone: TZ,
             flipAxes: false,
+            mode: 'shift',
         });
         expect(result.axisTimezone).toBeUndefined();
         expect(result.axisDisplayTimezone).toBe(TZ);
+    });
+
+    test('does not shift or format a sub-day dim opted out via skipTimezoneConversion', () => {
+        const fieldId = 'orders_created_hour';
+        const result = resolveAxisTimezone({
+            validCartesianConfig: makeCartesian({ xField: fieldId }),
+            itemsMap: {
+                ...itemsMap,
+                [fieldId]: makeTimeDimension(fieldId, TimeFrames.HOUR, {
+                    skipTimezoneConversion: true,
+                }),
+            },
+            resolvedTimezone: TZ,
+        });
+        expect(result.timeAxisField).toBeUndefined();
+        expect(result.axisDisplayTimezone).toBeUndefined();
+        expect(result.axisTimezone).toBe(TZ);
+    });
+
+    test('does not shift a DAY dim opted out via skipTimezoneConversion', () => {
+        const fieldId = 'orders_created_day';
+        const result = resolveAxisTimezone({
+            validCartesianConfig: makeCartesian({ xField: fieldId }),
+            itemsMap: {
+                ...itemsMap,
+                [fieldId]: makeTimeDimension(fieldId, TimeFrames.DAY, {
+                    skipTimezoneConversion: true,
+                }),
+            },
+            resolvedTimezone: TZ,
+        });
+        expect(result.timeAxisField).toBeUndefined();
+    });
+
+    test('does not shift a calendar DATE day bucket', () => {
+        const fieldId = 'orders_created_day';
+        const result = resolveAxisTimezone({
+            validCartesianConfig: makeCartesian({ xField: fieldId }),
+            itemsMap: {
+                ...itemsMap,
+                [fieldId]: makeTimeDimension(fieldId, TimeFrames.DAY, {
+                    type: DimensionType.DATE,
+                }),
+            },
+            resolvedTimezone: TZ,
+        });
+        expect(result.timeAxisField).toBeUndefined();
+    });
+
+    test('shifts a DATE day bucket derived from a TIMESTAMP base', () => {
+        const fieldId = 'orders_created_day';
+        const result = resolveAxisTimezone({
+            validCartesianConfig: makeCartesian({ xField: fieldId }),
+            itemsMap: {
+                ...itemsMap,
+                [fieldId]: makeTimeDimension(fieldId, TimeFrames.DAY, {
+                    type: DimensionType.DATE,
+                    timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                }),
+            },
+            resolvedTimezone: TZ,
+        });
+        expect(result.timeAxisField).toEqual({
+            fieldId,
+            timezone: TZ,
+            flipAxes: false,
+            mode: 'shift',
+        });
     });
 
     test('uses yField[0] when flipAxes is true', () => {
@@ -204,10 +305,11 @@ describe('resolveAxisTimezone', () => {
             itemsMap,
             resolvedTimezone: TZ,
         });
-        expect(result.shiftedField).toEqual({
+        expect(result.timeAxisField).toEqual({
             fieldId: 'orders_created_day',
             timezone: TZ,
             flipAxes: true,
+            mode: 'shift',
         });
     });
 
@@ -217,7 +319,7 @@ describe('resolveAxisTimezone', () => {
             itemsMap,
             resolvedTimezone: TZ,
         });
-        expect(result.shiftedField).toBeUndefined();
+        expect(result.timeAxisField).toBeUndefined();
     });
 });
 
