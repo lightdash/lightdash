@@ -137,6 +137,15 @@ export class AiRouterService extends BaseService {
             );
         }
 
+        // The web routing UI is short-circuited when fewer than two agents are
+        // accessible, so the web endpoint keeps requiring at least two. MCP has
+        // no such picker, so a sole agent is routed to directly.
+        if (mode === 'web' && candidates.length < 2) {
+            throw new ParameterError(
+                'AI router requires at least two accessible agents',
+            );
+        }
+
         if (candidates.length === 1) {
             return {
                 candidates,

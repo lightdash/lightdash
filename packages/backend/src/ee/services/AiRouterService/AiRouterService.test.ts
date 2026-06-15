@@ -246,4 +246,19 @@ describe('AiRouterService', () => {
             }),
         );
     });
+
+    it('requires at least two agents on the web route', async () => {
+        const { service, aiRouterModel } = makeService({
+            candidates: [createCandidate({ uuid: 'agent-1', name: 'General' })],
+        });
+
+        await expect(
+            service.route(account, {
+                prompt: 'show revenue by month',
+                projectUuid,
+            }),
+        ).rejects.toThrow('AI router requires at least two accessible agents');
+        expect(selectAgent).not.toHaveBeenCalled();
+        expect(aiRouterModel.createDecision).not.toHaveBeenCalled();
+    });
 });
