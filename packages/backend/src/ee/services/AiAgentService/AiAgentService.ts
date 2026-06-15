@@ -278,6 +278,15 @@ type AgentResponseStream = {
 
 const MAX_AI_PROMPT_CONTEXT_ITEMS = 10;
 
+// Web (SSE) agent streams are kept warm with a transient keepalive chunk on
+// this interval. A long, output-silent tool call — notably AI writeback, whose
+// sandbox/agent stage can run for minutes with no streamed tokens — otherwise
+// lets the connection idle long enough for an intermediary (the GCP HTTPS load
+// balancer) to drop it, which the client surfaces as a spurious "something went
+// wrong" even though the backend job completes and opens the PR. 15s sits
+// comfortably under the usual 30-60s idle timeouts.
+const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
+
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
     aiAgentDocumentModel: AiAgentDocumentModel;
@@ -5811,6 +5820,16 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             dependencies,
             mcpToolSetup,
         });
+        // Heartbeat handle for the SSE keepalive (see STREAM_KEEPALIVE_INTERVAL_MS).
+        // Cleared in onFinish, and defensively if a write lands after the stream
+        // has closed.
+        let keepaliveInterval: ReturnType<typeof setInterval> | undefined;
+        const clearKeepalive = () => {
+            if (keepaliveInterval) {
+                clearInterval(keepaliveInterval);
+                keepaliveInterval = undefined;
+            }
+        };
         const streamWithMcpNotices = createUIMessageStream({
             execute: ({ writer }) => {
                 for (const unavailableMcpServer of mcpToolSetup.unavailableMcpServers) {
@@ -5820,6 +5839,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         transient: true,
                     });
                 }
+
+                // Keep the connection warm during long, output-silent tool
+                // calls so an idle-timeout proxy can't cut the stream (see
+                // STREAM_KEEPALIVE_INTERVAL_MS). `transient: true` → never
+                // persisted; the client drops unknown transient data parts, so
+                // this is invisible. Best-effort: a write after close throws,
+                // which just tears the heartbeat down.
+                keepaliveInterval = setInterval(() => {
+                    try {
+                        writer.write({
+                            type: 'data-keepalive',
+                            data: { ts: Date.now() },
+                            transient: true,
+                        });
+                    } catch {
+                        clearKeepalive();
+                    }
+                }, STREAM_KEEPALIVE_INTERVAL_MS);
 
                 // Forward step-progress events from tools (`updateProgress`,
                 // `editDbtProject`) to the client. `transient: true` so
@@ -5846,6 +5883,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 }
 
                 writer.merge(result.toUIMessageStream());
+            },
+            onFinish: () => {
+                clearKeepalive();
             },
         });
 
