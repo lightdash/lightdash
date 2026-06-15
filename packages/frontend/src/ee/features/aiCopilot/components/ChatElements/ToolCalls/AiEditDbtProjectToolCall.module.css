@@ -2,6 +2,83 @@
     container-type: inline-size;
 }
 
+/* Once the writeback PR is merged, wash the whole card in a soft Lightdash
+   purple so the terminal state reads at a glance — matching the managed-agent
+   violet tint. Mantine v8 applies its withBorder rule via :where() (zero
+   specificity), so a plain class override wins without !important. */
+.cardMerged {
+    /* Faint violet edges grading to a white centre = a soft glossy glint. */
+    --merged-shimmer: light-dark(
+        color-mix(in srgb, var(--mantine-color-violet-3) 9%, transparent),
+        color-mix(in srgb, var(--mantine-color-violet-3) 6%, transparent)
+    );
+    --merged-shimmer-core: light-dark(
+        color-mix(in srgb, white 22%, transparent),
+        color-mix(in srgb, white 11%, transparent)
+    );
+    position: relative;
+    overflow: hidden;
+    background-color: light-dark(
+        var(--mantine-color-violet-0),
+        var(--mantine-color-violet-9)
+    );
+    border-color: light-dark(
+        var(--mantine-color-violet-1),
+        var(--mantine-color-violet-7)
+    );
+}
+
+/* A faint, shiny glint glides diagonally up toward the right, then rests — a
+   subtle celebration of the merge. The overlay is non-interactive so the card's
+   buttons stay clickable, and overflow:hidden clips it to the rounded corners. */
+.cardMerged::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(
+        120deg,
+        transparent 46%,
+        var(--merged-shimmer) 49%,
+        var(--merged-shimmer-core) 50%,
+        var(--merged-shimmer) 51%,
+        transparent 54%
+    );
+    background-size: 250% 250%;
+    background-repeat: no-repeat;
+    animation: mergedShimmer 5s ease-in-out infinite;
+}
+
+@keyframes mergedShimmer {
+    0% {
+        background-position: 100% 0%;
+    }
+    50%,
+    100% {
+        background-position: 0% 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cardMerged::after {
+        animation: none;
+    }
+}
+
+/* A closed-without-merge PR is a muted terminal state — wash the card in a soft
+   Lightdash red with a matching border. No shimmer, no confetti: closing isn't
+   a celebration. */
+.cardClosed {
+    background-color: light-dark(
+        var(--mantine-color-red-0),
+        var(--mantine-color-red-9)
+    );
+    border-color: light-dark(
+        var(--mantine-color-red-1),
+        var(--mantine-color-red-7)
+    );
+}
+
 .actions {
     display: flex;
     flex-direction: row;
@@ -10,10 +87,25 @@
     gap: var(--mantine-spacing-xs);
 }
 
-/* The merged state is a terminal status, not an action — kill hover/cursor so
-   the violet marker reads as a label rather than a clickable button. */
-.mergedStatus {
+/* Terminal status markers (Merged / Closed) are labels, not actions — kill
+   hover/cursor so they read as status chips. A real `disabled` Button would
+   force Mantine's grey palette over the violet/red colour, so they render as
+   non-interactive divs instead. */
+.statusMarker {
     pointer-events: none;
+}
+
+/* "Closed" stays a real disabled button (cursor + non-interactive), but we
+   override Mantine's grey disabled palette with a darker Lightdash red. The
+   disabled rule is low-specificity (:where()), so a class + state selector wins
+   without !important. */
+.closedStatus:disabled,
+.closedStatus[data-disabled] {
+    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-3));
+    background-color: light-dark(
+        var(--mantine-color-red-1),
+        var(--mantine-color-red-9)
+    );
 }
 
 /* In the narrow minimized chat bubble, "View" + the Close/Merge group overflow
