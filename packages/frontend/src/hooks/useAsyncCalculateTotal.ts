@@ -204,11 +204,7 @@ export const useAsyncCalculateRowTotal = ({
                 invalidateCache,
             });
         },
-        enabled:
-            enabled &&
-            !!projectUuid &&
-            !!sourceQueryUuid &&
-            indexFieldIds.length > 0,
+        enabled: enabled && !!projectUuid && !!sourceQueryUuid,
         retry: false,
     });
 

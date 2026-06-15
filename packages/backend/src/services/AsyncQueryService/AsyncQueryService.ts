@@ -1359,7 +1359,7 @@ export class AsyncQueryService extends ProjectService {
                   (col) => col.reference,
               )
             : [];
-        if (pivotConfig.rowTotals && indexFieldIds.length > 0) {
+        if (pivotConfig.rowTotals) {
             try {
                 const { rows, fields } =
                     await this.executeCalculateTotalAndGetResults({

@@ -316,6 +316,45 @@ describe('convertSqlPivotedRowsToPivotData', () => {
         expect(result).toStrictEqual(EXPECTED_PIVOT_DATA_METRICS_AS_ROWS);
     });
 
+    it('uses warehouse row totals for metrics-as-rows pivots with no index dimensions', () => {
+        const result = convertSqlPivotedRowsToPivotData({
+            rows: [SQL_PIVOTED_ROWS[0]],
+            pivotDetails: {
+                ...SQL_PIVOT_DETAILS,
+                indexColumn: undefined,
+            },
+            pivotConfig: {
+                rowTotals: true,
+                columnTotals: false,
+                metricsAsRows: true,
+                columnOrder: [
+                    'payments_payment_method',
+                    'orders_order_date_year',
+                    'payments_total_revenue',
+                ],
+            },
+            getField: getFieldMock,
+            getFieldLabel: (fieldId) => fieldId,
+            groupedSubtotals: undefined,
+            warehouseRowTotals: {
+                [buildPivotRowTotalKey([])]: {
+                    payments_total_revenue_any: 999,
+                },
+            },
+        });
+
+        expect(result.indexValues).toStrictEqual([
+            [{ type: 'label', fieldId: 'payments_total_revenue' }],
+        ]);
+        expect(result.rowTotals).toStrictEqual([[999]]);
+        expect(result.retrofitData.allCombinedData[0]['row-total-0']).toEqual({
+            value: {
+                raw: 999,
+                formatted: '999',
+            },
+        });
+    });
+
     it('should convert complex SQL-pivoted rows to PivotData format', () => {
         // Convert SQL Pivoted rows to PivotData with metricsAsRows: true
         const result = convertSqlPivotedRowsToPivotData({
