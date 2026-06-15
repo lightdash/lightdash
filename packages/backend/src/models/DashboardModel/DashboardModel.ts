@@ -884,12 +884,12 @@ export class DashboardModel {
             throw new NotFoundError('Dashboard not found');
         }
 
-        const [view] = await this.database(DashboardViewsTableName)
+        const viewQuery = this.database(DashboardViewsTableName)
             .select('*')
             .orderBy(`${DashboardViewsTableName}.created_at`, 'desc')
             .where(`dashboard_version_id`, dashboard.dashboard_version_id);
 
-        const tiles = await this.database(DashboardTilesTableName)
+        const tilesQuery = this.database(DashboardTilesTableName)
             .select<
                 {
                     x_offset: number;
@@ -1078,7 +1078,7 @@ export class DashboardModel {
                 },
             ]);
 
-        const tabs = await this.database(DashboardTabsTableName)
+        const tabsQuery = this.database(DashboardTabsTableName)
             .select<DashboardTab[]>(
                 `${DashboardTabsTableName}.name`,
                 `${DashboardTabsTableName}.uuid`,
@@ -1094,6 +1094,19 @@ export class DashboardModel {
                 dashboard.dashboard_id,
             );
 
+        const verificationQuery = this.contentVerificationModel?.getByContent(
+            ContentType.DASHBOARD,
+            dashboard.dashboard_uuid,
+        );
+
+        const [[view], tiles, tabs, verificationResult] = await Promise.all([
+            viewQuery,
+            tilesQuery,
+            tabsQuery,
+            verificationQuery,
+        ]);
+        const verification = verificationResult ?? null;
+
         // A version may have no dashboard_views row (e.g. legacy or partially
         // written data). Guard the backfill — the return below already defaults
         // `filters` when `view` is absent.
@@ -1101,12 +1114,6 @@ export class DashboardModel {
             view.filters.tableCalculations =
                 view.filters.tableCalculations || [];
         }
-
-        const verification =
-            (await this.contentVerificationModel?.getByContent(
-                ContentType.DASHBOARD,
-                dashboard.dashboard_uuid,
-            )) ?? null;
 
         return {
             organizationUuid: dashboard.organization_uuid,
