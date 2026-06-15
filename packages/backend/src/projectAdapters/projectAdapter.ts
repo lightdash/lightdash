@@ -7,7 +7,6 @@ import {
     resolveDbtVersion,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
-import { type Readable } from 'stream';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { getInstallationToken } from '../clients/github/Github';
@@ -19,16 +18,11 @@ import { DbtCloudIdeProjectAdapter } from './dbtCloudIdeProjectAdapter';
 import { DbtGithubProjectAdapter } from './dbtGithubProjectAdapter';
 import { DbtGitlabProjectAdapter } from './dbtGitlabProjectAdapter';
 import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectAdapter';
-import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
+import {
+    DbtManifestProjectAdapter,
+    type ManifestSource,
+} from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
-
-const streamToString = async (stream: Readable): Promise<string> => {
-    const chunks: Buffer[] = [];
-    for await (const chunk of stream) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    return Buffer.concat(chunks).toString('utf-8');
-};
 
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
@@ -69,8 +63,10 @@ export const projectAdapterFromConfig = async (
 
         case DbtProjectType.MANIFEST: {
             // When the manifest is sourced from S3 (large multi-repo combined
-            // manifests), fetch it at compile time rather than reading it inline.
-            let { manifest } = config;
+            // manifests), it is streamed and reduced at compile time rather than
+            // read inline. Resolution is deferred to the adapter so the stream is
+            // consumed promptly when the manifest is actually needed.
+            let source: ManifestSource;
             if (config.manifestS3Path) {
                 if (!fileStorageClient) {
                     throw new ParameterError(
@@ -78,19 +74,22 @@ export const projectAdapterFromConfig = async (
                     );
                 }
                 Logger.debug(
-                    `Fetching preview manifest from S3: ${config.manifestS3Path}`,
+                    `Preview manifest will be sourced from S3: ${config.manifestS3Path}`,
                 );
-                const stream = await fileStorageClient.getFileStream(
-                    config.manifestS3Path,
-                );
-                manifest = await streamToString(stream);
+                source = {
+                    type: 's3',
+                    s3Path: config.manifestS3Path,
+                    fileStorageClient,
+                };
+            } else {
+                source = { type: 'inline', manifest: config.manifest };
             }
             return new DbtManifestProjectAdapter({
                 warehouseClient,
                 cachedWarehouse,
                 dbtVersion,
                 analytics,
-                manifest,
+                source,
             });
         }
 

@@ -3,6 +3,8 @@ import {
     SupportedDbtVersions,
     type WarehouseClient,
 } from '@lightdash/common';
+import { Readable } from 'stream';
+import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
 
 const mockWarehouseClient = {
@@ -49,7 +51,7 @@ const mockProjectAdapter = new DbtManifestProjectAdapter({
         onWarehouseCatalogChange: jest.fn(),
     },
     dbtVersion: SupportedDbtVersions.V1_8,
-    manifest: mockManifestString,
+    source: { type: 'inline', manifest: mockManifestString },
 });
 
 describe('DbtManifestProjectAdapter', () => {
@@ -95,7 +97,7 @@ describe('DbtManifestProjectAdapter', () => {
                 onWarehouseCatalogChange: jest.fn(),
             },
             dbtVersion: SupportedDbtVersions.V1_8,
-            manifest: 'invalid json',
+            source: { type: 'inline', manifest: 'invalid json' },
         });
 
         await expect(
@@ -116,7 +118,7 @@ describe('DbtManifestProjectAdapter', () => {
                 onWarehouseCatalogChange: jest.fn(),
             },
             dbtVersion: SupportedDbtVersions.V1_8,
-            manifest: incompleteManifest,
+            source: { type: 'inline', manifest: incompleteManifest },
         });
 
         await expect(
@@ -124,5 +126,59 @@ describe('DbtManifestProjectAdapter', () => {
         ).rejects.toThrow(
             'Cannot read response from dbt, manifest.json not valid',
         );
+    });
+
+    it('streams a manifest from S3, keeping only the keys Lightdash needs', async () => {
+        // Include keys Lightdash does not use to assert they are dropped.
+        const s3ManifestData = {
+            ...validManifestData,
+            macros: { 'macro.test.big': { macro_sql: 'x'.repeat(1000) } },
+            sources: { 'source.test.s': {} },
+            parent_map: { 'model.test.example': [] },
+        };
+        const fileStorageClient = {
+            getFileStream: jest
+                .fn()
+                .mockResolvedValue(
+                    Readable.from([JSON.stringify(s3ManifestData)]),
+                ),
+        } as unknown as FileStorageClient;
+
+        const s3Adapter = new DbtManifestProjectAdapter({
+            warehouseClient: mockWarehouseClient,
+            cachedWarehouse: {
+                warehouseCatalog: undefined,
+                onWarehouseCatalogChange: jest.fn(),
+            },
+            dbtVersion: SupportedDbtVersions.V1_8,
+            source: {
+                type: 's3',
+                s3Path: 'previews/combined-manifest.json',
+                fileStorageClient,
+            },
+        });
+
+        const manifestResult = await s3Adapter.dbtClient.getDbtManifest();
+
+        expect(fileStorageClient.getFileStream).toHaveBeenCalledWith(
+            'previews/combined-manifest.json',
+        );
+        expect(manifestResult.manifest.nodes).toEqual(validManifestData.nodes);
+        expect(manifestResult.manifest.metadata).toEqual(
+            validManifestData.metadata,
+        );
+        // Unused keys are dropped during the streaming reduce.
+        expect(
+            (manifestResult.manifest as unknown as Record<string, unknown>)
+                .macros,
+        ).toBeUndefined();
+        expect(
+            (manifestResult.manifest as unknown as Record<string, unknown>)
+                .sources,
+        ).toBeUndefined();
+        expect(
+            (manifestResult.manifest as unknown as Record<string, unknown>)
+                .parent_map,
+        ).toBeUndefined();
     });
 });
