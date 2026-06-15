@@ -1,3 +1,10 @@
+## [0.3162.2](https://github.com/lightdash/lightdash/compare/0.3162.1...0.3162.2) (2026-06-15)
+
+
+### Bug Fixes
+
+* **mcp:** surface verified answers in find explores ([#24281](https://github.com/lightdash/lightdash/issues/24281)) ([25274e6](https://github.com/lightdash/lightdash/commit/25274e6ae4de5b48d631636cc2570cda7c89bf4f))
+
 ## [0.3162.1](https://github.com/lightdash/lightdash/compare/0.3162.0...0.3162.1) (2026-06-15)
 
 
