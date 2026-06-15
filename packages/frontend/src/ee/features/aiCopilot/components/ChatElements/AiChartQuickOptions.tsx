@@ -164,8 +164,6 @@ export const AiChartQuickOptions = ({
         close();
     };
 
-    // Only offer "Save to current dashboard" when the dashboard the user is
-    // viewing belongs to the same project as the agent's chart.
     const quickSaveDashboard: LauncherCurrentDashboard | null =
         currentDashboard?.projectUuid === projectUuid ? currentDashboard : null;
 

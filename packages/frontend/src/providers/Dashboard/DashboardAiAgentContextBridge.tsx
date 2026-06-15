@@ -274,9 +274,6 @@ const DashboardAiAgentContextBridge = () => {
         refreshDashboard,
     ]);
 
-    // Publish the dashboard currently being viewed so the AI agent launcher can
-    // offer a "Save to current dashboard" quick action. Disabled in edit mode to
-    // avoid clobbering unsaved tile edits.
     useEffect(() => {
         if (!projectUuid || !currentDashboardUuid || !dashboard || isEditMode) {
             dispatch(setCurrentDashboard(null));
@@ -306,8 +303,6 @@ const DashboardAiAgentContextBridge = () => {
         [dispatch],
     );
 
-    // React to a refresh requested by the launcher after it saved a chart into
-    // the currently viewed dashboard.
     useEffect(() => {
         if (!dashboardRefreshRequest) return;
         if (

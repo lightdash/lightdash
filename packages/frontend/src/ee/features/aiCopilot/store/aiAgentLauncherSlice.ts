@@ -11,8 +11,6 @@ export type LauncherPendingContext = {
     dashboardUuid?: string;
 };
 
-// The dashboard the user is currently viewing, published by the dashboard page
-// so the launcher can offer a "Save to current dashboard" quick action.
 export type LauncherCurrentDashboard = {
     projectUuid: string;
     uuid: string;
@@ -20,8 +18,6 @@ export type LauncherCurrentDashboard = {
     activeTabUuid: string | null;
 };
 
-// Pub-sub bridge: the launcher asks the dashboard page to refresh its tiles
-// after a chart has been saved into the currently viewed dashboard.
 export type DashboardRefreshRequest = {
     dashboardUuid: string;
     focusChartSlug: string | null;

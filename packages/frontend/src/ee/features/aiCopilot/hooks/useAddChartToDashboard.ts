@@ -23,13 +23,6 @@ type AddChartArgs = {
     activeTabUuid: string | null;
 };
 
-/**
- * Creates a chart that belongs to an existing dashboard and appends it as a new
- * tile to the bottom of that dashboard. Mirrors the `SaveDestination.Dashboard`
- * branch of `SaveToSpaceOrDashboard`, but skips navigation and toasts so the AI
- * agent launcher can save in a single click while the user keeps viewing the
- * dashboard. Errors propagate to the caller, which owns the toast.
- */
 export const useAddChartToDashboard = (projectUuid: string) => {
     return useCallback(
         async ({
