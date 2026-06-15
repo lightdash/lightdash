@@ -435,7 +435,7 @@ The preview iframe uses `sandbox="allow-scripts allow-modals allow-downloads all
 - The iframe cannot access the parent page's cookies or storage
 - The iframe cannot make credentialed requests to the Lightdash API directly
 - All API communication goes through a `postMessage` bridge
-- The iframe can trigger user-initiated downloads for backend-generated CSV/XLSX exports
+- The iframe can trigger user-initiated downloads for backend-generated CSV/XLSX exports and client-generated PDF files
 
 `allow-modals` is enabled so that PDF Report templates (and any generated app that wants a Print button) can call
 `window.print()`. It also enables `alert`/`confirm`/`prompt`, which are an accepted trade-off: the iframe is still
@@ -443,8 +443,13 @@ isolated from the parent origin, the browser attributes dialog origins to the if
 already build an equivalent in-iframe HTML form.
 
 `allow-downloads` is enabled so generated apps can save CSV/XLSX exports produced by the Lightdash backend download
-pipeline. It does not grant parent-origin access; the app still schedules and polls export jobs through the
-parent-mediated SDK bridge.
+pipeline, and so PDF Report apps can save client-generated PDF files. It does not grant parent-origin access; the app
+still schedules and polls backend export jobs through the parent-mediated SDK bridge.
+
+PDF Report templates generate downloads in the iframe with pre-installed client-side libraries: `html-to-image`
+rasterizes the rendered report pages and `jspdf` writes the PDF file. This keeps PDF export independent of direct API
+access, but the output is image-based rather than selectable/searchable text. `window.print()` remains available as an
+optional Print action.
 
 ### PostMessage Bridge (`useAppSdkBridge`)
 
@@ -501,6 +506,19 @@ The returned value is shaped like a regular SDK result:
     queryUuid: string;
 }
 ```
+
+`useLightdash()` also returns `downloadUnderlyingData({ row, metric, fileType, values, limit, filename })` for exporting
+the same raw rows. This follows core's underlying-data export shape without serializing files in the iframe:
+
+1. The SDK executes `POST /api/v2/projects/{projectUuid}/query/underlying-data` for the clicked source row and metric.
+2. It waits for the returned query UUID to be ready using `GET /api/v2/projects/{projectUuid}/query/{queryId}`.
+3. It schedules the backend export with `POST /api/v2/projects/{projectUuid}/query/{queryUuid}/schedule-download`.
+4. It polls `GET /api/v1/schedulers/job/{jobId}/status` until the backend returns `fileUrl`.
+5. The iframe triggers the browser download from that backend-generated file URL.
+
+For underlying-data downloads, `limit: 'table'` uses the backend's default underlying-data row limit, `limit: 'all'`
+passes `null` to the underlying-data query so Lightdash applies the configured export caps, and a number requests that
+many rows.
 
 **Downloads** use Lightdash's backend export job pipeline rather than serializing rows in the iframe. `useLightdash()`
 returns `downloadResults({ fileType, values, limit, filename })` after the source query has loaded. The app calls it

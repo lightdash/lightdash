@@ -1,5 +1,6 @@
 import { Ability } from '@casl/ability';
 import {
+    Account,
     AnyType,
     CreateWarehouseCredentials,
     DimensionType,
@@ -299,7 +300,14 @@ const getMockedAsyncQueryService = (
         preAggregateStrategy: new NoOpPreAggregateStrategy(),
         projectCompileLogModel: {} as ProjectCompileLogModel,
         adminNotificationService: {} as AdminNotificationService,
-        spacePermissionService: {} as SpacePermissionService,
+        spacePermissionService: {
+            getSpaceAccessContext: jest.fn(async () => ({
+                organizationUuid: projectSummary.organizationUuid,
+                projectUuid,
+                inheritsFromOrgOrProject: true,
+                access: [],
+            })),
+        } as unknown as SpacePermissionService,
         organizationSettingsModel: {
             get: jest.fn(async () => ({
                 queryLimit: null,
@@ -312,7 +320,137 @@ const getMockedAsyncQueryService = (
 const getJsonlStream = (rows: Record<string, unknown>[]) =>
     Readable.from(rows.map((row) => `${JSON.stringify(row)}\n`).join(''));
 
+type JwtDashboardQueryContextTestService = {
+    getJwtDashboardQueryContext: (
+        account: Account,
+        projectUuid: string,
+        requestDashboardUuid: string | undefined,
+    ) => Promise<{ dashboardUuid: string | undefined }>;
+};
+
 describe('AsyncQueryService', () => {
+    describe('getJwtDashboardQueryContext', () => {
+        const buildDashboardEmbedAccount = () =>
+            ({
+                ...buildAccount({
+                    accountType: 'jwt',
+                    userType: 'anonymous',
+                }),
+                access: {
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid: 'embedded-dashboard-uuid',
+                    },
+                },
+                authentication: {
+                    type: 'jwt',
+                    data: {},
+                },
+            }) as unknown as Account;
+
+        const buildEmbedWriteAccount = () =>
+            ({
+                ...buildAccount({
+                    accountType: 'jwt',
+                    userType: 'anonymous',
+                }),
+                access: {
+                    content: {
+                        type: 'dashboard',
+                        dashboardUuid: 'embedded-dashboard-uuid',
+                    },
+                },
+                authentication: {
+                    type: 'jwt',
+                    data: {
+                        writeActions: {
+                            spaceUuid: 'write-space-uuid',
+                        },
+                    },
+                },
+                embedWriteUser: {
+                    ...sessionAccount.user,
+                    ability: new Ability<PossibleAbilities>([
+                        {
+                            subject: 'Dashboard',
+                            action: 'view',
+                            conditions: {
+                                projectUuid,
+                                inheritsFromOrgOrProject: true,
+                            },
+                        },
+                    ]),
+                },
+            }) as unknown as Account;
+
+        test('uses the embedded dashboard for non-write JWTs', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                dashboardModel: {
+                    getByIdOrSlug: jest.fn(),
+                } as unknown as DashboardModel,
+            });
+
+            const result = await (
+                service as unknown as JwtDashboardQueryContextTestService
+            ).getJwtDashboardQueryContext(
+                buildDashboardEmbedAccount(),
+                projectUuid,
+                'request-dashboard-uuid',
+            );
+
+            expect(result.dashboardUuid).toBe('embedded-dashboard-uuid');
+            expect(service.dashboardModel.getByIdOrSlug).not.toHaveBeenCalled();
+        });
+
+        test('uses request dashboard when it belongs to the embed write space', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                dashboardModel: {
+                    getByIdOrSlug: jest.fn(async () => ({
+                        uuid: 'request-dashboard-uuid',
+                        name: 'Request dashboard',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        spaceUuid: 'write-space-uuid',
+                    })),
+                } as unknown as DashboardModel,
+            });
+
+            const result = await (
+                service as unknown as JwtDashboardQueryContextTestService
+            ).getJwtDashboardQueryContext(
+                buildEmbedWriteAccount(),
+                projectUuid,
+                'request-dashboard-uuid',
+            );
+
+            expect(result.dashboardUuid).toBe('request-dashboard-uuid');
+        });
+
+        test('falls back to embedded dashboard when request dashboard is outside the embed write space', async () => {
+            const service = getMockedAsyncQueryService(lightdashConfigMock, {
+                dashboardModel: {
+                    getByIdOrSlug: jest.fn(async () => ({
+                        uuid: 'request-dashboard-uuid',
+                        name: 'Request dashboard',
+                        organizationUuid: projectSummary.organizationUuid,
+                        projectUuid,
+                        spaceUuid: 'other-space-uuid',
+                    })),
+                } as unknown as DashboardModel,
+            });
+
+            const result = await (
+                service as unknown as JwtDashboardQueryContextTestService
+            ).getJwtDashboardQueryContext(
+                buildEmbedWriteAccount(),
+                projectUuid,
+                'request-dashboard-uuid',
+            );
+
+            expect(result.dashboardUuid).toBe('embedded-dashboard-uuid');
+        });
+    });
+
     describe('executeAsyncQuery', () => {
         const serviceWithCache = getMockedAsyncQueryService({
             ...lightdashConfigMock,

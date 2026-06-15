@@ -14,6 +14,7 @@ export type DbPullRequest = {
     repo: string;
     pr_number: number;
     pr_url: string;
+    summary: string | null;
     created_at: Date;
 };
 
@@ -31,5 +32,7 @@ export type PullRequestsTable = Knex.CompositeTableType<
         | 'repo'
         | 'pr_number'
         | 'pr_url'
-    >
+    > &
+        Partial<Pick<DbPullRequest, 'summary'>>,
+    Pick<DbPullRequest, 'summary'>
 >;

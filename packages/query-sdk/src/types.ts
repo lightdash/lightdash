@@ -169,6 +169,13 @@ export type QueryResult = {
         options: UnderlyingDataOptions,
     ) => Promise<UnderlyingDataResult>;
     /**
+     * Schedule a backend CSV/XLSX export for rows behind an aggregated metric
+     * value from this query result.
+     */
+    downloadUnderlyingData?: (
+        options: DownloadUnderlyingDataOptions,
+    ) => Promise<DownloadResultsResult>;
+    /**
      * Schedule a backend CSV/XLSX export for this query result.
      * Available when the transport supports Lightdash download jobs.
      */
@@ -203,6 +210,12 @@ export type DownloadResultsResult = {
     fileType: DownloadResultsFileType;
     truncated: boolean;
 };
+
+export type DownloadUnderlyingDataOptions = Omit<
+    UnderlyingDataOptions,
+    'limit'
+> &
+    DownloadResultsOptions;
 
 export type UnderlyingDataOptions = {
     /** Row object from this query result. */

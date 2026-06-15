@@ -15,6 +15,8 @@ import {
     DBT_VENV_BIN_PREFIX,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
+    PR_SUMMARY_CLOSE,
+    PR_SUMMARY_OPEN,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
 } from './constants';
@@ -251,13 +253,21 @@ export const extractPrMetadata = (stdout: string): PrMetadata => {
             PR_DESCRIPTION_CLOSE,
         )}`,
     );
+    const summaryRe = new RegExp(
+        `${escapeRegExp(PR_SUMMARY_OPEN)}([\\s\\S]*?)${escapeRegExp(
+            PR_SUMMARY_CLOSE,
+        )}`,
+    );
     const title = stdout.match(titleRe)?.[1].trim() || null;
     const description = stdout.match(descRe)?.[1].trim() || null;
+    const summary = stdout.match(summaryRe)?.[1].trim() || null;
     const stripRe = new RegExp(
         `${escapeRegExp(PR_TITLE_OPEN)}[\\s\\S]*?${escapeRegExp(
             PR_TITLE_CLOSE,
         )}|${escapeRegExp(PR_DESCRIPTION_OPEN)}[\\s\\S]*?${escapeRegExp(
             PR_DESCRIPTION_CLOSE,
+        )}|${escapeRegExp(PR_SUMMARY_OPEN)}[\\s\\S]*?${escapeRegExp(
+            PR_SUMMARY_CLOSE,
         )}`,
         'g',
     );
@@ -265,7 +275,7 @@ export const extractPrMetadata = (stdout: string): PrMetadata => {
         .replace(stripRe, '')
         .replace(/\n{3,}/g, '\n\n')
         .trim();
-    return { title, description, sanitizedStdout };
+    return { title, description, summary, sanitizedStdout };
 };
 
 /**

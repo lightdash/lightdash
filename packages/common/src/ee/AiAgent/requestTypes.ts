@@ -207,6 +207,14 @@ export type AiAgentReviewRemediationPreviewJobPayload = TraceTaskBase & {
     startedAt: number;
 };
 
+export type AiAgentReviewRemediationCompileJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    remediationUuid: string;
+    previewProjectUuid: string;
+    compileJobUuid: string;
+    startedAt: number;
+};
+
 export type AiAgentReviewRemediationRunJobPayload = TraceTaskBase & {
     fingerprint: string;
     remediationUuid: string;

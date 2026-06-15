@@ -430,6 +430,28 @@ export type ApiAiAgentThreadResponse = {
     results: AiAgentThread;
 };
 
+/**
+ * Overview of the writeback PR a thread is associated with — either the PR the
+ * agent opened in this thread, or the PR a remediation verification thread is
+ * verifying. Live GitHub fields (state, counts) are null when the fetch fails;
+ * `summary` falls back to the PR title when no stored summary exists.
+ */
+export type AiAgentThreadPullRequest = {
+    prUrl: string;
+    repo: string | null;
+    prNumber: number | null;
+    title: string | null;
+    summary: string | null;
+    state: 'open' | 'merged' | 'closed' | null;
+    additions: number | null;
+    deletions: number | null;
+    changedFiles: number | null;
+    commitSha: string | null;
+};
+
+export type ApiAiAgentThreadPullRequestResponse =
+    ApiSuccess<AiAgentThreadPullRequest | null>;
+
 export type ApiAiAgentThreadCreateRequest = {
     prompt?: string;
     context?: AiPromptContextInput;

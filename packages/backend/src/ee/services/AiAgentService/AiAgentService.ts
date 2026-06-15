@@ -14,6 +14,7 @@ import {
     AiAgentSummary,
     AiAgentThread,
     AiAgentThreadFilters,
+    AiAgentThreadPullRequest,
     AiAgentThreadSummary,
     AiAgentUser,
     AiAgentUserPreferences,
@@ -72,6 +73,7 @@ import {
     ParameterError,
     parseVizConfig,
     ProjectType,
+    PullRequestProvider,
     QueryExecutionContext,
     ReadinessScore,
     ShareUrl,
@@ -131,7 +133,10 @@ import {
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
-import { getInstallationToken } from '../../../clients/github/Github';
+import {
+    getInstallationToken,
+    getPullRequest,
+} from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
@@ -145,6 +150,7 @@ import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallati
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { PullRequestsModel } from '../../../models/PullRequestsModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
@@ -174,6 +180,7 @@ import {
     type AiMcpCredential,
     type AiMcpServerWithSensitiveData,
 } from '../../models/AiAgentModel';
+import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -308,6 +315,11 @@ type AiAgentServiceDependencies = {
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     aiAgentToolsService: AiAgentToolsService;
+    pullRequestsModel: Pick<PullRequestsModel, 'findByAiThreadUuid' | 'find'>;
+    aiAgentReviewClassifierModel: Pick<
+        AiAgentReviewClassifierModel,
+        'findReviewRemediationByPreviewThread'
+    >;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -528,6 +540,16 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentToolsService: AiAgentToolsService;
 
+    private readonly pullRequestsModel: Pick<
+        PullRequestsModel,
+        'findByAiThreadUuid' | 'find'
+    >;
+
+    private readonly aiAgentReviewClassifierModel: Pick<
+        AiAgentReviewClassifierModel,
+        'findReviewRemediationByPreviewThread'
+    >;
+
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
 
     private static getPinnedContextAnalyticsProperties(
@@ -696,6 +718,9 @@ export class AiAgentService extends BaseService {
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
         this.aiAgentToolsService = dependencies.aiAgentToolsService;
+        this.pullRequestsModel = dependencies.pullRequestsModel;
+        this.aiAgentReviewClassifierModel =
+            dependencies.aiAgentReviewClassifierModel;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -845,6 +870,106 @@ export class AiAgentService extends BaseService {
      * 2. The user is the thread owner
      * 3. The user has manage permissions for the agent
      */
+    /**
+     * The writeback PR a thread is associated with — the PR the agent opened
+     * in this thread, or (for remediation verification threads) the PR being
+     * verified. Live fields (title/state/counts) are best-effort from GitHub;
+     * the stored summary renders without them. Null when the thread has no PR.
+     */
+    async getThreadPullRequest(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<AiAgentThreadPullRequest | null> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view this thread',
+            );
+        }
+
+        let pullRequest =
+            await this.pullRequestsModel.findByAiThreadUuid(threadUuid);
+        if (!pullRequest) {
+            const remediation =
+                await this.aiAgentReviewClassifierModel.findReviewRemediationByPreviewThread(
+                    { organizationUuid, previewThreadUuid: threadUuid },
+                );
+            if (remediation?.pullRequestUuid) {
+                pullRequest = await this.pullRequestsModel.find(
+                    remediation.pullRequestUuid,
+                );
+            }
+        }
+        if (!pullRequest) {
+            return null;
+        }
+
+        const result: AiAgentThreadPullRequest = {
+            prUrl: pullRequest.prUrl,
+            repo: `${pullRequest.owner}/${pullRequest.repo}`,
+            prNumber: pullRequest.prNumber,
+            title: null,
+            summary: pullRequest.summary,
+            state: null,
+            additions: null,
+            deletions: null,
+            changedFiles: null,
+            commitSha: null,
+        };
+
+        try {
+            if (pullRequest.provider === PullRequestProvider.GITHUB) {
+                const installationId =
+                    await this.githubAppInstallationsModel.findInstallationId(
+                        organizationUuid,
+                    );
+                if (installationId) {
+                    const pr = await getPullRequest({
+                        owner: pullRequest.owner,
+                        repo: pullRequest.repo,
+                        pullNumber: pullRequest.prNumber,
+                        installationId,
+                    });
+                    result.title = pr.title;
+                    result.state = pr.merged ? 'merged' : pr.state;
+                    result.additions = pr.additions;
+                    result.deletions = pr.deletions;
+                    result.changedFiles = pr.changedFiles;
+                }
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to resolve live PR state for thread ${threadUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+
+        return { ...result, summary: result.summary ?? result.title };
+    }
+
     private async checkAgentThreadAccess(
         user: SessionUser,
         agent: AiAgent,

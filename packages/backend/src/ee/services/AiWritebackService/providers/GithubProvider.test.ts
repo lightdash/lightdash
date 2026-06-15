@@ -44,6 +44,10 @@ const openPr = {
     mergeable: true,
     mergeableState: 'clean',
     draft: false,
+    title: 'Add metric',
+    additions: 9,
+    deletions: 1,
+    changedFiles: 1,
 };
 
 const adopt = (prUrl: string) =>

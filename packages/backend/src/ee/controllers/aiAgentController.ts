@@ -24,6 +24,7 @@ import {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
+    ApiAiAgentThreadPullRequestResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadStreamRequest,
@@ -749,6 +750,33 @@ export class AiAgentController extends BaseController {
         return {
             status: 'ok',
             results: await this.getAiAgentService().getAgentThread(
+                toSessionUser(req.account),
+                agentUuid,
+                threadUuid,
+            ),
+        };
+    }
+
+    /**
+     * Get the writeback pull request associated with a thread — the PR the
+     * agent opened in this thread, or the PR a verification thread verifies.
+     * @summary Get AI agent thread pull request
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/{agentUuid}/threads/{threadUuid}/pull-request')
+    @OperationId('getAgentThreadPullRequest')
+    async getAgentThreadPullRequest(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+        @Path() threadUuid: string,
+    ): Promise<ApiAiAgentThreadPullRequestResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        return {
+            status: 'ok',
+            results: await this.getAiAgentService().getThreadPullRequest(
                 toSessionUser(req.account),
                 agentUuid,
                 threadUuid,

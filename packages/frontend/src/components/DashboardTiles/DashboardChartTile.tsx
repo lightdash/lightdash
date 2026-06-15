@@ -22,6 +22,7 @@ import {
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
+    type QueryExecutionContext,
     type DashboardFilterRule,
     type EChartsSeries,
     type Field,
@@ -2117,6 +2118,7 @@ type DashboardChartTileProps = Omit<
     dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
     onExplore?: (options: { chart: SavedChart }) => void;
+    queryContextOverride?: QueryExecutionContext;
 };
 
 // Abstraction needed for enterprise version
@@ -2321,6 +2323,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     const readyQuery = useDashboardChartReadyQuery(
         props.tile.uuid,
         props.tile.properties?.savedChartUuid,
+        props.queryContextOverride,
     );
 
     // Use fresh chart data from useSavedQuery to keep dashboard tiles aligned

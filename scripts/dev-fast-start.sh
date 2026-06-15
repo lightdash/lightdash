@@ -35,6 +35,10 @@ cd "$REPO_ROOT" || { echo "FAIL: cd -- cannot enter repo root $REPO_ROOT" >&2; e
 SHARED_COMPOSE="docker/docker-compose.dev.shared.yml"
 INSTANCE_COMPOSE="docker/docker-compose.dev.instance.yml"
 SHARED_BASE_VOLUME="ld-shared_postgres_base"
+# Dedicated EE base (core + EE migrations + EE seed) so EE/writeback instances
+# bootstrap already-migrated and skip the slow EE migrate pass. Kept SEPARATE from
+# the core base, which must stay core-only for non-EE instances.
+EE_BASE_VOLUME="ld-shared_postgres_base_ee"
 
 fail() { echo "FAIL: $1 -- $2" >&2; exit 1; }
 step() { echo "STEP: $1"; }
@@ -95,9 +99,26 @@ fi
 
 # ---------------------------------------------------------------------------
 step "Ensure Python/dbt venv"
+# The dbt venv is identical across worktrees, so build it ONCE in a shared cache
+# (~/.lightdash/dev-venv) and symlink each worktree's ./venv at it. Saves the
+# ~30-60s pip install on every new worktree. A worktree that already has a real
+# (non-symlink) venv is left untouched.
+SHARED_VENV="${HOME}/.lightdash/dev-venv"
 if test -f venv/bin/dbt && test -f venv/bin/dbt1.7; then
     echo "SKIP: venv present"
+elif [ ! -e venv ]; then
+    if ! test -f "$SHARED_VENV/bin/dbt"; then
+        mkdir -p "$(dirname "$SHARED_VENV")"
+        python3 -m venv "$SHARED_VENV" || fail "venv" "python3 -m venv (shared cache) failed"
+        "$SHARED_VENV/bin/pip" install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0' >/dev/null 2>&1 \
+            || fail "venv" "pip install dbt into shared cache failed"
+        ln -sf dbt "$SHARED_VENV/bin/dbt1.7"
+    fi
+    ln -s "$SHARED_VENV" venv || fail "venv" "could not symlink venv -> $SHARED_VENV"
+    test -f venv/bin/dbt || fail "venv" "shared venv symlink is broken"
+    echo "OK: venv linked to shared cache ($SHARED_VENV)"
 else
+    # venv exists but is incomplete — rebuild in place (legacy path)
     python3 -m venv venv || fail "venv" "python3 -m venv failed"
     ./venv/bin/pip install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0' >/dev/null 2>&1 \
         || fail "venv" "pip install dbt failed"
@@ -209,21 +230,32 @@ MIGRATED="$(db_has "SELECT 1 FROM information_schema.tables WHERE table_name='se
 SEEDED="$(db_has "SELECT 1 FROM emails WHERE email='demo@lightdash.com'")"
 DBT_BUILT="$(db_has "SELECT 1 FROM information_schema.tables WHERE table_schema='jaffle' AND table_name='orders'")"
 BOOTSTRAPPED=false
+BOOTSTRAPPED_EE_BASE=false
+
+# Prefer the EE base when in EE mode and it exists — it's already EE-migrated,
+# so the EE migrate pass below becomes a fast no-pending check instead of applying
+# 70+ migrations. Otherwise fall back to the core base.
+BOOTSTRAP_VOLUME=""
+if [ "$EE_MODE" = true ] && docker volume inspect "$EE_BASE_VOLUME" >/dev/null 2>&1; then
+    BOOTSTRAP_VOLUME="$EE_BASE_VOLUME"; BOOTSTRAPPED_EE_BASE=true
+elif docker volume inspect "$SHARED_BASE_VOLUME" >/dev/null 2>&1; then
+    BOOTSTRAP_VOLUME="$SHARED_BASE_VOLUME"
+fi
 
 if [ "$MIGRATED" = yes ] && [ "$SEEDED" = yes ] && [ "$DBT_BUILT" = yes ]; then
     echo "SKIP: database already migrated, seeded, dbt built"
-elif docker volume inspect "$SHARED_BASE_VOLUME" >/dev/null 2>&1; then
-    echo "Bootstrapping from shared base snapshot..."
+elif [ -n "$BOOTSTRAP_VOLUME" ]; then
+    echo "Bootstrapping from $BOOTSTRAP_VOLUME..."
     docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" stop db-dev >/dev/null 2>&1
     docker run --rm \
-        -v "${SHARED_BASE_VOLUME}:/source:ro" \
+        -v "${BOOTSTRAP_VOLUME}:/source:ro" \
         -v "${LD_VOLUME_PREFIX}_postgres_data:/target" \
         alpine sh -c "rm -rf /target/* && cd /source && tar cf - . | (cd /target && tar xf -)" \
-        || fail "bootstrap" "failed to clone shared base volume"
+        || fail "bootstrap" "failed to clone base volume $BOOTSTRAP_VOLUME"
     docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" start db-dev >/dev/null 2>&1
     for _ in $(seq 1 30); do docker exec "$DB_CONTAINER" pg_isready -U postgres >/dev/null 2>&1 && break; sleep 1; done
     BOOTSTRAPPED=true
-    echo "OK: bootstrapped from shared base"
+    echo "OK: bootstrapped from $BOOTSTRAP_VOLUME"
 else
     echo "No shared base snapshot — running full setup (first instance)..."
     export PATH="$(pwd)/venv/bin:$PATH"
@@ -273,14 +305,42 @@ if [ "$EE_MODE" = true ]; then
     export PATH="$(pwd)/venv/bin:$PATH"
     # migrate is idempotent — always reconcile core+EE. A restored EE snapshot has
     # ai_agent_document yet can still lag this branch's HEAD, so never gate on it.
-    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate \
-        || fail "ee-migrate" "EE migrate failed"
-    if [ "$BOOTSTRAPPED" = true ]; then
+    # First run applies ~99 migrations and buffers stdout silently for minutes, so
+    # emit a heartbeat of the applied-migration count — otherwise it looks hung.
+    echo "OK: applying core+EE migrations (first run is slow — minutes; bootstrapping from the EE base is near-instant)"
+    ( while sleep 20; do
+        _n="$(docker exec "$DB_CONTAINER" psql -U postgres -tAc 'SELECT count(*) FROM knex_migrations' 2>/dev/null | tr -d '[:space:]')"
+        [ -n "$_n" ] && echo "...EE migrate working (knex_migrations=$_n applied)"
+      done ) & _HB=$!
+    PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- pnpm -F backend migrate
+    _MIG_RC=$?
+    kill "$_HB" 2>/dev/null; wait "$_HB" 2>/dev/null
+    [ "$_MIG_RC" -eq 0 ] || fail "ee-migrate" "EE migrate failed"
+    # The EE embed seed is already present when bootstrapped from the EE base; only
+    # run it when bootstrapped from the core base (avoids duplicate-seed errors).
+    if [ "$BOOTSTRAPPED" = true ] && [ "$BOOTSTRAPPED_EE_BASE" != true ]; then
         PGHOST=localhost PGPORT=$LD_PG_PORT pnpx dotenv-cli -e .env.development.local -e .env.development -- \
             pnpm -F backend exec knex seed:run --specific=01_embed.ts --knexfile src/knexfile.ts \
             || fail "ee-seed" "EE seed failed"
     fi
     echo "OK: EE migration pass complete"
+
+    # Seed the dedicated EE base for future EE instances (one-time). Captured here,
+    # right after a clean core+EE migrate/seed and BEFORE any profile reconcile
+    # (github seeding etc.), so the EE base stays generic. Never touches the core base.
+    if ! docker volume inspect "$EE_BASE_VOLUME" >/dev/null 2>&1; then
+        echo "Creating EE base snapshot ($EE_BASE_VOLUME) for future EE instances..."
+        docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" stop db-dev >/dev/null 2>&1
+        docker volume create "$EE_BASE_VOLUME" >/dev/null
+        docker run --rm \
+            -v "${LD_VOLUME_PREFIX}_postgres_data:/source:ro" \
+            -v "${EE_BASE_VOLUME}:/snapshot" \
+            alpine sh -c "cd /source && tar cf - . | (cd /snapshot && tar xf -)" \
+            || fail "ee-base" "failed to create EE base snapshot"
+        docker compose -p "$LD_COMPOSE_PROJECT" -f "$INSTANCE_COMPOSE" start db-dev >/dev/null 2>&1
+        for _ in $(seq 1 30); do docker exec "$DB_CONTAINER" pg_isready -U postgres >/dev/null 2>&1 && break; sleep 1; done
+        echo "OK: EE base snapshot created"
+    fi
 fi
 
 # ---------------------------------------------------------------------------

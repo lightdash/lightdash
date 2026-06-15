@@ -105,6 +105,14 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                     payload,
                 );
             },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: async (
+                payload,
+                _helpers,
+            ) => {
+                await this.aiAgentAdminService.pollReviewRemediationCompile(
+                    payload,
+                );
+            },
             [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: async (
                 payload,
                 helpers,
@@ -117,6 +125,9 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
                         payload,
                         async () => {
                             await this.aiAgentService.executeReviewRemediationRun(
+                                payload,
+                            );
+                            await this.aiAgentAdminService.recordReviewRemediationVerified(
                                 payload,
                             );
                         },

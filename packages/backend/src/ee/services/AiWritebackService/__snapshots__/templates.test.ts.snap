@@ -52,8 +52,8 @@ If you made any file changes, perform these follow-up steps before you finish:
 
 6. End your final reply with the two structured-output blocks below.
 
-The two structured-output blocks let the host pick up the PR metadata reliably.
-The host strips both blocks before showing your reply to the user, so they will
+The structured-output blocks let the host pick up the PR metadata reliably.
+The host strips the blocks before showing your reply to the user, so they will
 not appear in Slack. Emit them verbatim, on their own lines, each opening and
 closing tag exactly as shown:
 
@@ -64,6 +64,11 @@ closing tag exactly as shown:
    <lightdash-writeback-pr-description>
    PR description in plain markdown, no emojis
    </lightdash-writeback-pr-description>
+
+   <lightdash-writeback-pr-summary>
+   one or two short sentences, plain text, written for a business user:
+   what this change lets them do, not how the files changed
+   </lightdash-writeback-pr-summary>
 
 If you did not change any files, skip these steps entirely and do not emit the
 blocks."
@@ -121,8 +126,8 @@ If you made any file changes, perform these follow-up steps before you finish:
 
 6. End your final reply with the two structured-output blocks below.
 
-The two structured-output blocks let the host pick up the PR metadata reliably.
-The host strips both blocks before showing your reply to the user, so they will
+The structured-output blocks let the host pick up the PR metadata reliably.
+The host strips the blocks before showing your reply to the user, so they will
 not appear in Slack. Emit them verbatim, on their own lines, each opening and
 closing tag exactly as shown:
 
@@ -133,6 +138,11 @@ closing tag exactly as shown:
    <lightdash-writeback-pr-description>
    PR description in plain markdown, no emojis
    </lightdash-writeback-pr-description>
+
+   <lightdash-writeback-pr-summary>
+   one or two short sentences, plain text, written for a business user:
+   what this change lets them do, not how the files changed
+   </lightdash-writeback-pr-summary>
 
 If you did not change any files, skip these steps entirely and do not emit the
 blocks."

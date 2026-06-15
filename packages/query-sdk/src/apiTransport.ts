@@ -14,6 +14,7 @@ import type {
     DownloadResultsLimit,
     DownloadResultsOptions,
     DownloadResultsResult,
+    DownloadUnderlyingDataOptions,
     FormatFunction,
     InternalFilterDefinition,
     LightdashClientConfig,
@@ -295,6 +296,66 @@ async function executeMetricQuery(
     );
 }
 
+function buildUnderlyingDataBody({
+    query,
+    queryUuid,
+    row,
+    metricId,
+    qualify,
+    limit,
+}: {
+    query: QueryDefinition;
+    queryUuid: string;
+    row: Row;
+    metricId: string;
+    qualify: (fieldId: string) => string;
+    limit?: number | null;
+}): Record<string, unknown> {
+    return {
+        context: 'viewUnderlyingData',
+        underlyingDataSourceQueryUuid: queryUuid,
+        underlyingDataItemId: metricId,
+        filters: buildUnderlyingDataFilters(query, row, qualify),
+        ...(limit !== undefined ? { limit } : {}),
+        ...(query.parameters && Object.keys(query.parameters).length > 0
+            ? { parameters: query.parameters }
+            : {}),
+    };
+}
+
+async function executeUnderlyingDataQuery({
+    fetchFn,
+    projectUuid,
+    query,
+    queryUuid,
+    row,
+    metricId,
+    qualify,
+    limit,
+}: {
+    fetchFn: FetchAdapter;
+    projectUuid: string;
+    query: QueryDefinition;
+    queryUuid: string;
+    row: Row;
+    metricId: string;
+    qualify: (fieldId: string) => string;
+    limit?: number | null;
+}): Promise<AsyncQueryResponse> {
+    return fetchFn<AsyncQueryResponse>(
+        'POST',
+        `/api/v2/projects/${projectUuid}/query/underlying-data`,
+        buildUnderlyingDataBody({
+            query,
+            queryUuid,
+            row,
+            metricId,
+            qualify,
+            limit,
+        }),
+    );
+}
+
 function getDownloadLimit(limit: DownloadResultsLimit | undefined): {
     kind: 'table' | 'rerun';
     limit?: number;
@@ -311,6 +372,40 @@ function getDownloadLimit(limit: DownloadResultsLimit | undefined): {
         );
     }
     return { kind: 'rerun', limit };
+}
+
+function getUnderlyingDownloadLimit(
+    limit: DownloadResultsLimit | undefined,
+): number | null | undefined {
+    if (limit === undefined || limit === 'table') {
+        return undefined;
+    }
+    if (limit === 'all') {
+        return null;
+    }
+    if (!Number.isInteger(limit) || limit < 1) {
+        throw new Error(
+            'Download limit must be "table", "all", or a positive integer.',
+        );
+    }
+    return limit;
+}
+
+function getDownloadOptions(options: DownloadResultsOptions = {}): {
+    fileType: DownloadResultsFileType;
+    values: 'formatted' | 'raw';
+} {
+    const fileType = options.fileType ?? 'csv';
+    if (fileType !== 'csv' && fileType !== 'xlsx') {
+        throw new Error('Download fileType must be "csv" or "xlsx".');
+    }
+
+    const values = options.values ?? 'formatted';
+    if (values !== 'formatted' && values !== 'raw') {
+        throw new Error('Download values must be "formatted" or "raw".');
+    }
+
+    return { fileType, values };
 }
 
 const triggerBrowserDownload = (
@@ -332,6 +427,49 @@ const triggerBrowserDownload = (
     link.click();
     document.body.removeChild(link);
 };
+
+async function scheduleDownloadForQuery({
+    fetchFn,
+    projectUuid,
+    queryUuid,
+    options,
+}: {
+    fetchFn: FetchAdapter;
+    projectUuid: string;
+    queryUuid: string;
+    options?: DownloadResultsOptions;
+}): Promise<DownloadResultsResult> {
+    const { fileType, values } = getDownloadOptions(options);
+
+    const scheduled = await fetchFn<ScheduleDownloadResponse>(
+        'POST',
+        `/api/v2/projects/${projectUuid}/query/${queryUuid}/schedule-download`,
+        {
+            type: fileType,
+            onlyRaw: values === 'raw',
+            ...(options?.filename
+                ? { attachmentDownloadName: options.filename }
+                : {}),
+        },
+    );
+
+    const { fileUrl, truncated } = await pollDownloadJob(
+        fetchFn,
+        scheduled.jobId,
+    );
+
+    if (options?.autoDownload !== false) {
+        triggerBrowserDownload(fileUrl, options?.filename, fileType);
+    }
+
+    return {
+        queryUuid,
+        jobId: scheduled.jobId,
+        fileUrl,
+        fileType,
+        truncated,
+    };
+}
 
 export function mapColumnType(type: string): Column['type'] {
     if (/timestamp/i.test(type)) return 'timestamp';
@@ -599,27 +737,16 @@ export function createApiTransport(
                     );
                 }
 
-                const underlyingExecResult = await fetchFn<AsyncQueryResponse>(
-                    'POST',
-                    `/api/v2/projects/${config.projectUuid}/query/underlying-data`,
-                    {
-                        context: 'viewUnderlyingData',
-                        underlyingDataSourceQueryUuid: queryUuid,
-                        underlyingDataItemId: metricId,
-                        filters: buildUnderlyingDataFilters(
-                            query,
-                            options.row,
-                            qualify,
-                        ),
-                        ...(options.limit !== undefined
-                            ? { limit: options.limit }
-                            : {}),
-                        ...(query.parameters &&
-                        Object.keys(query.parameters).length > 0
-                            ? { parameters: query.parameters }
-                            : {}),
-                    },
-                );
+                const underlyingExecResult = await executeUnderlyingDataQuery({
+                    fetchFn,
+                    projectUuid: config.projectUuid,
+                    query,
+                    queryUuid,
+                    row: options.row,
+                    metricId,
+                    qualify,
+                    limit: options.limit,
+                });
 
                 const {
                     firstReadyPage: underlyingFirstReadyPage,
@@ -649,23 +776,45 @@ export function createApiTransport(
                 };
             };
 
+            const downloadUnderlyingData = async (
+                options: DownloadUnderlyingDataOptions,
+            ): Promise<DownloadResultsResult> => {
+                const metricId = qualify(options.metric);
+                if (!qualifiedMetrics.includes(metricId)) {
+                    throw new Error(
+                        `Cannot download underlying data for "${options.metric}" because it is not a metric in the source query.`,
+                    );
+                }
+
+                const underlyingExecResult = await executeUnderlyingDataQuery({
+                    fetchFn,
+                    projectUuid: config.projectUuid,
+                    query,
+                    queryUuid,
+                    row: options.row,
+                    metricId,
+                    qualify,
+                    limit: getUnderlyingDownloadLimit(options.limit),
+                });
+
+                await pollQueryReady(
+                    fetchFn,
+                    config.projectUuid,
+                    underlyingExecResult.queryUuid,
+                    1,
+                );
+
+                return scheduleDownloadForQuery({
+                    fetchFn,
+                    projectUuid: config.projectUuid,
+                    queryUuid: underlyingExecResult.queryUuid,
+                    options,
+                });
+            };
+
             const downloadResults = async (
                 options: DownloadResultsOptions = {},
             ): Promise<DownloadResultsResult> => {
-                const fileType = options.fileType ?? 'csv';
-                if (fileType !== 'csv' && fileType !== 'xlsx') {
-                    throw new Error(
-                        'Download fileType must be "csv" or "xlsx".',
-                    );
-                }
-
-                const values = options.values ?? 'formatted';
-                if (values !== 'formatted' && values !== 'raw') {
-                    throw new Error(
-                        'Download values must be "formatted" or "raw".',
-                    );
-                }
-
                 const downloadLimit = getDownloadLimit(options.limit);
                 let downloadQueryUuid = queryUuid;
 
@@ -686,34 +835,12 @@ export function createApiTransport(
                     downloadQueryUuid = downloadExecResult.queryUuid;
                 }
 
-                const scheduled = await fetchFn<ScheduleDownloadResponse>(
-                    'POST',
-                    `/api/v2/projects/${config.projectUuid}/query/${downloadQueryUuid}/schedule-download`,
-                    {
-                        type: fileType,
-                        onlyRaw: values === 'raw',
-                        ...(options.filename
-                            ? { attachmentDownloadName: options.filename }
-                            : {}),
-                    },
-                );
-
-                const { fileUrl, truncated } = await pollDownloadJob(
+                return scheduleDownloadForQuery({
                     fetchFn,
-                    scheduled.jobId,
-                );
-
-                if (options.autoDownload !== false) {
-                    triggerBrowserDownload(fileUrl, options.filename, fileType);
-                }
-
-                return {
+                    projectUuid: config.projectUuid,
                     queryUuid: downloadQueryUuid,
-                    jobId: scheduled.jobId,
-                    fileUrl,
-                    fileType,
-                    truncated,
-                };
+                    options,
+                });
             };
 
             return {
@@ -721,6 +848,7 @@ export function createApiTransport(
                 totalResults: firstReadyPage.totalResults,
                 queryUuid,
                 getUnderlyingData,
+                downloadUnderlyingData,
                 downloadResults,
             };
         },

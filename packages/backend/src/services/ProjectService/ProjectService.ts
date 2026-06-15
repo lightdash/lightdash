@@ -13,6 +13,7 @@ import {
     ApiFormulaValidationResults,
     ApiQueryResults,
     ApiSqlQueryResults,
+    ApiUpstreamDiffResults,
     assertEmbeddedAuth,
     assertIsAccountWithOrg,
     assertUnreachable,
@@ -1488,15 +1489,23 @@ export class ProjectService extends BaseService {
         userId,
         isRegisteredUser,
         isServiceAccount = false,
+        preloadedOrgWarehouseCredentialsUuid,
     }: {
         projectUuid: string;
         userId: string;
         isRegisteredUser: boolean;
         isServiceAccount?: boolean;
+        preloadedOrgWarehouseCredentialsUuid?: string | null;
     }) {
-        // Lightweight query for just the fields we need instead of loading the full project
-        const { organizationWarehouseCredentialsUuid } =
-            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+        // Use preloaded config if available, otherwise fetch it
+        const organizationWarehouseCredentialsUuid =
+            preloadedOrgWarehouseCredentialsUuid !== undefined
+                ? preloadedOrgWarehouseCredentialsUuid
+                : (
+                      await this.projectModel.getProjectWarehouseConfig(
+                          projectUuid,
+                      )
+                  ).organizationWarehouseCredentialsUuid;
 
         // Load base credentials from either organization or project table
         let credentials: CreateWarehouseCredentials =
@@ -2098,6 +2107,49 @@ export class ProjectService extends BaseService {
             throw new ForbiddenError();
         }
         return project;
+    }
+
+    private async getUpstreamProjectUuid(
+        projectUuid: string,
+        account: Account,
+    ): Promise<string> {
+        const { organizationUuid, upstreamProjectUuid } =
+            await this.projectModel.getSummary(projectUuid);
+        const auditedAbility = this.createAuditedAbility(account);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Project', { organizationUuid, projectUuid }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        if (!upstreamProjectUuid) {
+            throw new ParameterError(
+                'Project is not a preview and has no upstream project to compare against',
+            );
+        }
+        return upstreamProjectUuid;
+    }
+
+    /**
+     * Field-level diff of a preview against its upstream, computed in SQL over
+     * `catalog_search`. Detects added/removed fields and label changes; misses
+     * SQL-only changes.
+     */
+    async getUpstreamDiff(
+        projectUuid: string,
+        account: Account,
+    ): Promise<ApiUpstreamDiffResults> {
+        const upstreamProjectUuid = await this.getUpstreamProjectUuid(
+            projectUuid,
+            account,
+        );
+        const fields = await this.catalogModel.getUpstreamDiff(
+            projectUuid,
+            upstreamProjectUuid,
+        );
+        return { upstreamProjectUuid, fields };
     }
 
     async getDatabricksOAuthConfigForProject(

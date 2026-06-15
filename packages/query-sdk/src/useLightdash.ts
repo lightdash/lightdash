@@ -18,6 +18,7 @@ import { useTransport } from './LightdashProvider';
 import type { QueryBuilder } from './query';
 import type {
     Column,
+    DownloadUnderlyingDataOptions,
     DownloadResultsOptions,
     DownloadResultsResult,
     FormatFunction,
@@ -49,6 +50,10 @@ type UseLightdashResult = {
     getUnderlyingData: (
         options: UnderlyingDataOptions,
     ) => Promise<UnderlyingDataResult>;
+    /** Schedule a backend CSV/XLSX export for rows behind an aggregated metric value. */
+    downloadUnderlyingData: (
+        options: DownloadUnderlyingDataOptions,
+    ) => Promise<DownloadResultsResult>;
     /** Schedule a backend CSV/XLSX export for this query result. */
     downloadResults: (
         options?: DownloadResultsOptions,
@@ -77,6 +82,13 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
     >(() => async () => {
         throw new Error('Downloads are not available before the query loads.');
     });
+    const [downloadUnderlyingData, setDownloadUnderlyingData] = useState<
+        UseLightdashResult['downloadUnderlyingData']
+    >(() => async () => {
+        throw new Error(
+            'Underlying data downloads are not available before the query loads.',
+        );
+    });
 
     const queryKey = useMemo(() => JSON.stringify(query.build()), [query]);
 
@@ -98,6 +110,11 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         setDownloadResults(() => async () => {
             throw new Error(
                 'Downloads are not available before the query loads.',
+            );
+        });
+        setDownloadUnderlyingData(() => async () => {
+            throw new Error(
+                'Underlying data downloads are not available before the query loads.',
             );
         });
 
@@ -132,6 +149,17 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
                             return res.downloadResults(options);
                         },
                     );
+                    setDownloadUnderlyingData(
+                        () =>
+                            async (options: DownloadUnderlyingDataOptions) => {
+                                if (!res.downloadUnderlyingData) {
+                                    throw new Error(
+                                        'Underlying data downloads are not supported by this Lightdash transport.',
+                                    );
+                                }
+                                return res.downloadUnderlyingData(options);
+                            },
+                    );
                     setLoading(false);
                 }
             })
@@ -162,6 +190,7 @@ export function useLightdash(query: QueryBuilder): UseLightdashResult {
         refetch,
         queryUuid,
         getUnderlyingData,
+        downloadUnderlyingData,
         downloadResults,
     };
 }

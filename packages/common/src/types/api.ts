@@ -11,6 +11,7 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
+    ApiAiAgentReviewItemActivityResponse,
     ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
@@ -18,6 +19,7 @@ import type {
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
+    ApiAiAgentThreadPullRequestResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
@@ -252,6 +254,7 @@ import {
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
 import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
+import { type ApiUpstreamDiffResults } from './upstreamDiff';
 import {
     type LightdashUser,
     type LoginOptions,
@@ -933,6 +936,7 @@ type ApiResults =
     | ApiRefreshResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
+    | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess
     | Organization
@@ -1098,6 +1102,8 @@ type ApiResults =
     | ApiAiAgentAdminConversationsResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
     | ApiAiAgentReviewItemPrDiffResponse['results']
+    | ApiAiAgentReviewItemActivityResponse['results']
+    | ApiAiAgentThreadPullRequestResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']

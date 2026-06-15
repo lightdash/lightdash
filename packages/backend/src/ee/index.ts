@@ -307,6 +307,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getGithubAppInstallationsModel(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
+                    pullRequestsModel: models.getPullRequestsModel(),
+                    aiAgentReviewClassifierModel:
+                        models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>
@@ -334,6 +337,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
+                    jobModel: models.getJobModel(),
                 }),
             aiRouterService: ({ models, repository, context }) =>
                 new AiRouterService({
@@ -362,6 +366,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
                     catalogModel: models.getCatalogModel(),
+                    projectModel: models.getProjectModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
                 }),

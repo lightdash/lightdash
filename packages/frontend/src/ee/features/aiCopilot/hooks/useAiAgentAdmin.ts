@@ -4,6 +4,7 @@ import {
     type AiAgentReviewItemSummary,
     type AiAgentReviewItemStatus,
     type ApiAiAgentAdminConversationsResponse,
+    type ApiAiAgentReviewItemActivityResponse,
     type ApiAiAgentReviewItemPrDiffResponse,
     type ApiAiAgentReviewItemResponse,
     type ApiAiAgentReviewItemsResponse,
@@ -12,6 +13,7 @@ import {
     type ApiAiAgentSummaryResponse,
     type ApiAiAgentVerifiedArtifactsResponse,
     type ApiError,
+    type ApiUpstreamDiffResponse,
     type UpdateAiAgentReviewItemStatus,
 } from '@lightdash/common';
 import { IconArrowRight } from '@tabler/icons-react';
@@ -22,6 +24,7 @@ import {
     useQueryClient,
     type QueryClient,
     type UseInfiniteQueryOptions,
+    type UseQueryOptions,
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -218,6 +221,35 @@ export const useAiAgentAdminReviewItem = (
     });
 };
 
+const getAiAgentReviewItemActivity = async (fingerprint: string) => {
+    return lightdashApi<ApiAiAgentReviewItemActivityResponse['results']>({
+        version: 'v1',
+        url: `/aiAgents/admin/review-items/${encodeURIComponent(
+            fingerprint,
+        )}/activity`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+export const useAiAgentReviewItemActivity = (
+    fingerprint: string,
+    options?: {
+        enabled?: boolean;
+        refetchInterval?: UseQueryOptions<
+            ApiAiAgentReviewItemActivityResponse['results'],
+            ApiError
+        >['refetchInterval'];
+    },
+) => {
+    return useQuery<ApiAiAgentReviewItemActivityResponse['results'], ApiError>({
+        queryKey: ['ai-agent-admin-review-item-activity', fingerprint],
+        queryFn: () => getAiAgentReviewItemActivity(fingerprint),
+        enabled: options?.enabled ?? true,
+        refetchInterval: options?.refetchInterval,
+    });
+};
+
 const getAiAgentReviewItemPrDiff = async (fingerprint: string) => {
     return lightdashApi<ApiAiAgentReviewItemPrDiffResponse['results']>({
         version: 'v1',
@@ -239,6 +271,30 @@ export const useAiAgentReviewItemPrDiff = (
         enabled: options?.enabled ?? true,
         retry: false,
         // Each fetch costs ~2 GitHub API calls per changed file — keep it warm.
+        staleTime: 5 * 60_000,
+    });
+};
+
+const getProjectUpstreamDiff = async (projectUuid: string) => {
+    return lightdashApi<ApiUpstreamDiffResponse['results']>({
+        version: 'v1',
+        url: `/projects/${projectUuid}/upstreamDiff`,
+        method: 'GET',
+        body: undefined,
+    });
+};
+
+// Diffs a preview project's fields against the project it was copied from.
+// Errors (e.g. project is not a preview) are surfaced via the query state.
+export const useProjectUpstreamDiff = (
+    projectUuid: string | undefined,
+    options?: { enabled?: boolean },
+) => {
+    return useQuery<ApiUpstreamDiffResponse['results'], ApiError>({
+        queryKey: ['project-upstream-diff', projectUuid],
+        queryFn: () => getProjectUpstreamDiff(projectUuid!),
+        enabled: (options?.enabled ?? true) && !!projectUuid,
+        retry: false,
         staleTime: 5 * 60_000,
     });
 };

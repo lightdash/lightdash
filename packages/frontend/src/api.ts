@@ -75,12 +75,15 @@ const finalizeHeaders = (
 };
 
 function finalizeUrl(url: string, embed: InMemoryEmbed | undefined): string {
-    if (embed?.projectUuid && !url.includes('projectUuid')) {
-        const separator = url.includes('?') ? '&' : '?';
-        url += `${separator}projectUuid=${encodeURIComponent(
-            embed.projectUuid,
-        )}`;
+    if (embed?.projectUuid) {
+        const parsedUrl = new URL(url, window.location.origin);
+
+        if (!parsedUrl.searchParams.has('projectUuid')) {
+            parsedUrl.searchParams.set('projectUuid', embed.projectUuid);
+            return parsedUrl.toString();
+        }
     }
+
     return url;
 }
 

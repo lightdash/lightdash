@@ -1,6 +1,7 @@
 import { Ability } from '@casl/ability';
 import {
     AiAgentReviewRemediation,
+    JobStatusType,
     OrganizationMemberRole,
     PullRequestProvider,
     type AiAgentReviewItemSummary,
@@ -30,7 +31,9 @@ const PROMPT_UUID = '00000000-0000-0000-0000-000000000007';
 const PREVIEW_PROJECT_UUID = '00000000-0000-0000-0000-000000000008';
 const PREVIEW_AGENT_UUID = '00000000-0000-0000-0000-000000000009';
 const PREVIEW_THREAD_UUID = '00000000-0000-0000-0000-000000000010';
+const COMPILE_JOB_UUID = '00000000-0000-0000-0000-000000000011';
 const SITE_URL = 'https://app.lightdash.cloud';
+const PR_URL = 'https://github.com/acme/dbt/pull/42';
 
 const makeReviewItem = (
     overrides: Partial<AiAgentReviewItemSummary> = {},
@@ -130,6 +133,11 @@ const makeService = ({
     schedulerClient = {},
     githubAppInstallationsModel = {},
     gitlabAppInstallationsModel = {},
+    aiWritebackService = {},
+    pullRequestsModel = {},
+    writebackPreviewService = {},
+    jobModel = {},
+    userModel = {},
 }: {
     aiAgentModel?: Record<string, unknown>;
     aiAgentReviewClassifierModel?: Record<string, unknown>;
@@ -139,6 +147,11 @@ const makeService = ({
     schedulerClient?: Record<string, unknown>;
     githubAppInstallationsModel?: Record<string, unknown>;
     gitlabAppInstallationsModel?: Record<string, unknown>;
+    aiWritebackService?: Record<string, unknown>;
+    pullRequestsModel?: Record<string, unknown>;
+    writebackPreviewService?: Record<string, unknown>;
+    jobModel?: Record<string, unknown>;
+    userModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentAdminService({
         analytics: { track: jest.fn() },
@@ -163,6 +176,21 @@ const makeService = ({
             updateReviewRemediationStatus: jest
                 .fn()
                 .mockResolvedValue(undefined),
+            getPromotedFingerprintScope: jest.fn().mockResolvedValue({
+                projectUuid: PROJECT_UUID,
+                agentUuid: AGENT_UUID,
+            }),
+            updateReviewItemWritebackProgress: jest
+                .fn()
+                .mockResolvedValue(undefined),
+            setReviewItemPrLink: jest.fn().mockResolvedValue(undefined),
+            setReviewRemediationPullRequest: jest
+                .fn()
+                .mockResolvedValue(undefined),
+            setReviewItemWritebackStatus: jest
+                .fn()
+                .mockResolvedValue(undefined),
+            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
             ...aiAgentReviewClassifierModel,
         },
         featureFlagService: {
@@ -178,11 +206,32 @@ const makeService = ({
             getPreviewAiAgentUuid: jest
                 .fn()
                 .mockResolvedValue(PREVIEW_AGENT_UUID),
+            findExploresFromCache: jest.fn().mockResolvedValue({}),
             ...projectModel,
         },
-        aiWritebackService: {},
+        aiWritebackService: {
+            run: jest.fn().mockResolvedValue({ prUrl: PR_URL }),
+            ...aiWritebackService,
+        },
         projectContextService: {},
-        pullRequestsModel: {},
+        pullRequestsModel: {
+            findByProjectAndUrl: jest
+                .fn()
+                .mockResolvedValue({ pullRequestUuid: 'pull-request-1' }),
+            ...pullRequestsModel,
+        },
+        writebackPreviewService: {
+            createPreviewForPullRequest: jest.fn().mockResolvedValue({
+                previewProjectUuid: PREVIEW_PROJECT_UUID,
+                previewUrl: `${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/home`,
+                compileJobUuid: COMPILE_JOB_UUID,
+            }),
+            ...writebackPreviewService,
+        },
+        jobModel: {
+            get: jest.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
+            ...jobModel,
+        },
         githubAppInstallationsModel: {
             getInstallationId: jest.fn().mockResolvedValue('installation-1'),
             findInstallationId: jest.fn().mockResolvedValue(undefined),
@@ -196,12 +245,18 @@ const makeService = ({
             aiAgentReviewRemediationPreview: jest
                 .fn()
                 .mockResolvedValue(undefined),
+            aiAgentReviewRemediationCompile: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
             aiAgentReviewRemediationRun: jest
                 .fn()
                 .mockResolvedValue({ jobId: 'job-1' }),
             ...schedulerClient,
         },
-        userModel: {},
+        userModel: {
+            findSessionUserByUUID: jest.fn().mockResolvedValue(makeAdminUser()),
+            ...userModel,
+        },
         lightdashConfig: {
             siteUrl: SITE_URL,
             appRuntime: { e2bApiKey: 'e2b-api-key' },
@@ -683,6 +738,535 @@ describe('AiAgentAdminService.pollReviewRemediationPreview', () => {
         });
         expect(
             schedulerClient.aiAgentReviewRemediationPreview,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('instructs the verification agent to stay on governed explores', async () => {
+        const aiAgentModel = {
+            createWebAppThreadWithPrompt: jest.fn().mockResolvedValue({
+                threadUuid: PREVIEW_THREAD_UUID,
+                promptUuid: 'prompt-uuid-1',
+            }),
+            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+        };
+        const service = makeService({ aiAgentModel });
+        (getPullRequestComments as jest.Mock).mockResolvedValue([
+            `Preview ready: ${SITE_URL}/projects/${PREVIEW_PROJECT_UUID}/tables`,
+        ]);
+
+        await service.pollReviewRemediationPreview({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            userUuid: USER_UUID,
+            fingerprint: 'fingerprint-1',
+            remediationUuid: REMEDIATION_UUID,
+            prUrl: PR_URL,
+            startedAt: Date.now(),
+        });
+
+        expect(aiAgentModel.createWebAppThreadWithPrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                prompt: expect.objectContaining({
+                    prompt: expect.stringContaining(
+                        'do not fall back to raw SQL',
+                    ),
+                }),
+            }),
+        );
+    });
+});
+
+describe('AiAgentAdminService.getReviewItemActivity', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    const makeEvent = (eventType: string, payload = {}) => ({
+        uuid: `event-${eventType}`,
+        remediationUuid: REMEDIATION_UUID,
+        eventType,
+        occurredAt: NOW,
+        payload,
+        createdByUserUuid: null,
+    });
+
+    it('returns a writeback live state with the live progress message', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    prWritebackMessage: 'Reading payments.yml',
+                    remediation: makeRemediation({ status: 'running' }),
+                }),
+            ),
+            listRemediationEvents: jest
+                .fn()
+                .mockResolvedValue([makeEvent('finding_opened')]),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.liveState).toBe('writeback');
+        expect(activity.liveMessage).toBe('Reading payments.yml');
+    });
+
+    it('returns events with a compiling live state before the preview compiles', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    remediation: makeRemediation({ status: 'pr_open' }),
+                }),
+            ),
+            listRemediationEvents: jest
+                .fn()
+                .mockResolvedValue([
+                    makeEvent('finding_opened'),
+                    makeEvent('pr_opened'),
+                ]),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.events).toHaveLength(2);
+        expect(activity.liveState).toBe('compiling');
+    });
+
+    it('returns a verifying live state after the preview compiles', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    remediation: makeRemediation({ status: 'preview_ready' }),
+                }),
+            ),
+            listRemediationEvents: jest
+                .fn()
+                .mockResolvedValue([
+                    makeEvent('finding_opened'),
+                    makeEvent('pr_opened'),
+                    makeEvent('preview_compiled'),
+                ]),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.liveState).toBe('verifying');
+    });
+
+    it('returns no live state once verification completed or remediation is terminal', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest.fn().mockResolvedValue(
+                makeReviewItem({
+                    remediation: makeRemediation({ status: 'resolved' }),
+                }),
+            ),
+            listRemediationEvents: jest
+                .fn()
+                .mockResolvedValue([
+                    makeEvent('pr_opened'),
+                    makeEvent('preview_compiled'),
+                    makeEvent('verification_completed'),
+                    makeEvent('resolved'),
+                ]),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity.liveState).toBeNull();
+    });
+
+    it('returns an empty feed when the item has no remediation', async () => {
+        const aiAgentReviewClassifierModel = {
+            getReviewItem: jest
+                .fn()
+                .mockResolvedValue(makeReviewItem({ remediation: null })),
+            listRemediationEvents: jest.fn(),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        const activity = await service.getReviewItemActivity(
+            makeAdminUser(),
+            'fingerprint-1',
+        );
+
+        expect(activity).toEqual({
+            events: [],
+            liveState: null,
+            liveMessage: null,
+        });
+        expect(
+            aiAgentReviewClassifierModel.listRemediationEvents,
+        ).not.toHaveBeenCalled();
+    });
+});
+
+describe('AiAgentAdminService.runReviewItemWritebackJob', () => {
+    const payload = {
+        fingerprint: 'fingerprint-1',
+        organizationUuid: ORGANIZATION_UUID,
+        projectUuid: PROJECT_UUID,
+        userUuid: USER_UUID,
+        remediationUuid: REMEDIATION_UUID,
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('enqueues a compile poll instead of seeding the verification thread inline', async () => {
+        const aiAgentModel = {
+            createWebAppThreadWithPrompt: jest.fn(),
+            updateThreadTitle: jest.fn(),
+        };
+        const schedulerClient = {
+            aiAgentReviewRemediationCompile: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
+            aiAgentReviewRemediationRun: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-2' }),
+        };
+        const service = makeService({ aiAgentModel, schedulerClient });
+
+        await service.runReviewItemWritebackJob(payload);
+
+        expect(
+            schedulerClient.aiAgentReviewRemediationCompile,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                organizationUuid: ORGANIZATION_UUID,
+                projectUuid: PROJECT_UUID,
+                userUuid: USER_UUID,
+                fingerprint: 'fingerprint-1',
+                remediationUuid: REMEDIATION_UUID,
+                previewProjectUuid: PREVIEW_PROJECT_UUID,
+                compileJobUuid: COMPILE_JOB_UUID,
+                startedAt: expect.any(Number),
+            }),
+        );
+        expect(
+            aiAgentModel.createWebAppThreadWithPrompt,
+        ).not.toHaveBeenCalled();
+        expect(
+            schedulerClient.aiAgentReviewRemediationRun,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('records writeback_completed and pr_opened activity events', async () => {
+        const aiAgentReviewClassifierModel = {
+            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+        };
+        const aiWritebackService = {
+            run: jest.fn().mockResolvedValue({
+                prUrl: PR_URL,
+                additions: 9,
+                deletions: 1,
+                steps: [
+                    { kind: 'read', label: 'schema.yml' },
+                    { kind: 'edit', label: 'accounts.yml' },
+                ],
+            }),
+        };
+        const service = makeService({
+            aiAgentReviewClassifierModel,
+            aiWritebackService,
+        });
+
+        await service.runReviewItemWritebackJob(payload);
+
+        expect(
+            aiAgentReviewClassifierModel.createRemediationEvent,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                event: {
+                    eventType: 'writeback_completed',
+                    payload: {
+                        files: ['accounts.yml'],
+                        additions: 9,
+                        deletions: 1,
+                    },
+                },
+            }),
+        );
+        expect(
+            aiAgentReviewClassifierModel.createRemediationEvent,
+        ).toHaveBeenCalledWith(
+            expect.objectContaining({
+                event: {
+                    eventType: 'pr_opened',
+                    payload: { prUrl: PR_URL, prNumber: 42 },
+                },
+            }),
+        );
+    });
+});
+
+describe('AiAgentAdminService.pollReviewRemediationCompile', () => {
+    const payload = {
+        organizationUuid: ORGANIZATION_UUID,
+        projectUuid: PROJECT_UUID,
+        userUuid: USER_UUID,
+        fingerprint: 'fingerprint-1',
+        remediationUuid: REMEDIATION_UUID,
+        previewProjectUuid: PREVIEW_PROJECT_UUID,
+        compileJobUuid: COMPILE_JOB_UUID,
+        startedAt: Date.now(),
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('seeds the verification thread once the compile job is done', async () => {
+        const jobModel = {
+            get: jest.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
+        };
+        const aiAgentModel = {
+            createWebAppThreadWithPrompt: jest.fn().mockResolvedValue({
+                threadUuid: PREVIEW_THREAD_UUID,
+                promptUuid: 'prompt-uuid-1',
+            }),
+            updateThreadTitle: jest.fn().mockResolvedValue(undefined),
+        };
+        const schedulerClient = {
+            aiAgentReviewRemediationCompile: jest.fn(),
+            aiAgentReviewRemediationRun: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
+        };
+        const aiAgentReviewClassifierModel = {
+            setReviewRemediationPreviewThread: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            jobModel,
+            aiAgentModel,
+            schedulerClient,
+            aiAgentReviewClassifierModel,
+        });
+
+        await service.pollReviewRemediationCompile(payload);
+
+        expect(jobModel.get).toHaveBeenCalledWith(COMPILE_JOB_UUID);
+        expect(aiAgentModel.createWebAppThreadWithPrompt).toHaveBeenCalledWith(
+            expect.objectContaining({
+                thread: expect.objectContaining({
+                    projectUuid: PREVIEW_PROJECT_UUID,
+                }),
+            }),
+        );
+        expect(
+            aiAgentReviewClassifierModel.setReviewRemediationPreviewThread,
+        ).toHaveBeenCalled();
+        expect(schedulerClient.aiAgentReviewRemediationRun).toHaveBeenCalled();
+        expect(
+            schedulerClient.aiAgentReviewRemediationCompile,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('records a preview_compiled activity event when the compile lands', async () => {
+        const jobModel = {
+            get: jest.fn().mockResolvedValue({ jobStatus: JobStatusType.DONE }),
+        };
+        const aiAgentReviewClassifierModel = {
+            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            jobModel,
+            aiAgentReviewClassifierModel,
+        });
+
+        await service.pollReviewRemediationCompile(payload);
+
+        expect(
+            aiAgentReviewClassifierModel.createRemediationEvent,
+        ).toHaveBeenCalledWith({
+            remediationUuid: REMEDIATION_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            event: {
+                eventType: 'preview_compiled',
+                payload: { previewProjectUuid: PREVIEW_PROJECT_UUID },
+            },
+        });
+    });
+
+    it('re-enqueues itself while the compile job is still running', async () => {
+        const jobModel = {
+            get: jest
+                .fn()
+                .mockResolvedValue({ jobStatus: JobStatusType.RUNNING }),
+        };
+        const aiAgentModel = {
+            createWebAppThreadWithPrompt: jest.fn(),
+            updateThreadTitle: jest.fn(),
+        };
+        const schedulerClient = {
+            aiAgentReviewRemediationCompile: jest
+                .fn()
+                .mockResolvedValue({ jobId: 'job-1' }),
+            aiAgentReviewRemediationRun: jest.fn(),
+        };
+        const service = makeService({
+            jobModel,
+            aiAgentModel,
+            schedulerClient,
+        });
+
+        await service.pollReviewRemediationCompile(payload);
+
+        expect(
+            schedulerClient.aiAgentReviewRemediationCompile,
+        ).toHaveBeenCalledWith(payload, expect.any(Date));
+        expect(
+            aiAgentModel.createWebAppThreadWithPrompt,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('fails the remediation when the compile job errors', async () => {
+        const jobModel = {
+            get: jest
+                .fn()
+                .mockResolvedValue({ jobStatus: JobStatusType.ERROR }),
+        };
+        const schedulerClient = {
+            aiAgentReviewRemediationCompile: jest.fn(),
+            aiAgentReviewRemediationRun: jest.fn(),
+        };
+        const aiAgentReviewClassifierModel = {
+            updateReviewRemediationStatus: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            jobModel,
+            schedulerClient,
+            aiAgentReviewClassifierModel,
+        });
+
+        await service.pollReviewRemediationCompile(payload);
+
+        expect(
+            aiAgentReviewClassifierModel.updateReviewRemediationStatus,
+        ).toHaveBeenCalledWith({
+            remediationUuid: REMEDIATION_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            status: 'failed',
+            errorMessage: 'Preview project failed to compile',
+        });
+        expect(
+            schedulerClient.aiAgentReviewRemediationCompile,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('fails the remediation when the compile does not finish in time', async () => {
+        const jobModel = { get: jest.fn() };
+        const schedulerClient = {
+            aiAgentReviewRemediationCompile: jest.fn(),
+            aiAgentReviewRemediationRun: jest.fn(),
+        };
+        const aiAgentReviewClassifierModel = {
+            updateReviewRemediationStatus: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            jobModel,
+            schedulerClient,
+            aiAgentReviewClassifierModel,
+        });
+
+        await service.pollReviewRemediationCompile({
+            ...payload,
+            startedAt: Date.now() - 11 * 60_000,
+        });
+
+        expect(
+            aiAgentReviewClassifierModel.updateReviewRemediationStatus,
+        ).toHaveBeenCalledWith({
+            remediationUuid: REMEDIATION_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            status: 'failed',
+            errorMessage: 'Preview project did not compile in time',
+        });
+        expect(jobModel.get).not.toHaveBeenCalled();
+        expect(
+            schedulerClient.aiAgentReviewRemediationCompile,
+        ).not.toHaveBeenCalled();
+    });
+
+    it('records a verification_completed event after the remediation run', async () => {
+        const aiAgentReviewClassifierModel = {
+            createRemediationEvent: jest.fn().mockResolvedValue(undefined),
+        };
+        const service = makeService({ aiAgentReviewClassifierModel });
+
+        await service.recordReviewRemediationVerified({
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PREVIEW_PROJECT_UUID,
+            userUuid: USER_UUID,
+            fingerprint: 'fingerprint-1',
+            remediationUuid: REMEDIATION_UUID,
+            agentUuid: PREVIEW_AGENT_UUID,
+            threadUuid: PREVIEW_THREAD_UUID,
+        });
+
+        expect(
+            aiAgentReviewClassifierModel.createRemediationEvent,
+        ).toHaveBeenCalledWith({
+            remediationUuid: REMEDIATION_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            event: {
+                eventType: 'verification_completed',
+                payload: { previewThreadUuid: PREVIEW_THREAD_UUID },
+            },
+        });
+    });
+
+    it('does nothing when the remediation is no longer pr_open', async () => {
+        const jobModel = { get: jest.fn() };
+        const schedulerClient = {
+            aiAgentReviewRemediationCompile: jest.fn(),
+            aiAgentReviewRemediationRun: jest.fn(),
+        };
+        const aiAgentReviewClassifierModel = {
+            getReviewRemediation: jest
+                .fn()
+                .mockResolvedValue(makeRemediation({ status: 'resolved' })),
+            updateReviewRemediationStatus: jest
+                .fn()
+                .mockResolvedValue(undefined),
+        };
+        const service = makeService({
+            jobModel,
+            schedulerClient,
+            aiAgentReviewClassifierModel,
+        });
+
+        await service.pollReviewRemediationCompile(payload);
+
+        expect(jobModel.get).not.toHaveBeenCalled();
+        expect(
+            aiAgentReviewClassifierModel.updateReviewRemediationStatus,
+        ).not.toHaveBeenCalled();
+        expect(
+            schedulerClient.aiAgentReviewRemediationCompile,
         ).not.toHaveBeenCalled();
     });
 });

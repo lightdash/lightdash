@@ -1,0 +1,91 @@
+/* ldGray's dark-mode tuple is inverted (index 0 = darkest in dark), so the
+   same index reads as the same semantic shade in both schemes — no
+   light-dark() needed for grays here. */
+
+.timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    position: relative;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 5px;
+    top: 10px;
+    bottom: 10px;
+    width: 1px;
+    background: var(--mantine-color-ldGray-2);
+}
+
+.item {
+    position: relative;
+    padding: 0 0 14px 24px;
+}
+
+.item:last-child {
+    padding-bottom: 0;
+}
+
+.node {
+    position: absolute;
+    left: 0;
+    top: 4px;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    background: var(--mantine-color-body);
+    border: 1.5px solid var(--mantine-color-ldGray-4);
+    z-index: 1;
+}
+
+.item[data-done] .node {
+    background: var(--mantine-color-ldGray-9);
+    border-color: var(--mantine-color-ldGray-9);
+}
+
+.item[data-live] .node {
+    border-color: light-dark(
+        var(--mantine-color-teal-8),
+        var(--mantine-color-teal-4)
+    );
+    box-shadow: 0 0 0 3px
+        light-dark(rgba(12, 133, 99, 0.12), rgba(56, 217, 169, 0.16));
+}
+
+.event {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--mantine-color-ldGray-9);
+}
+
+.item[data-live] .event,
+.item[data-live] .when {
+    color: light-dark(var(--mantine-color-teal-8), var(--mantine-color-teal-4));
+}
+
+.when {
+    float: right;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    color: var(--mantine-color-ldGray-5);
+    margin-left: var(--mantine-spacing-xs);
+}
+
+.meta {
+    font-size: 12px;
+    line-height: 1.45;
+    margin-top: 2px;
+    color: var(--mantine-color-ldGray-6);
+    overflow-wrap: anywhere;
+}
+
+.meta a,
+.metaLink {
+    color: var(--mantine-color-ldGray-9);
+    text-decoration: none;
+    border-bottom: 1px solid var(--mantine-color-ldGray-3);
+    cursor: pointer;
+}

@@ -23,7 +23,6 @@ import {
     getItemId,
     isCustomBinDimension,
     isCustomSqlDimension,
-    isFormat,
     isFormulaTableCalculation,
     isSqlTableCalculation,
     isTemplateTableCalculation,
@@ -572,9 +571,9 @@ export class SavedChartModel {
             hidden: additionalMetric.hidden,
             round: additionalMetric.round,
             compact: additionalMetric.compact,
-            format: isFormat(additionalMetric.format)
-                ? additionalMetric.format
-                : undefined,
+            // format can be a legacy Format enum value or a custom format
+            // expression (e.g. '$#,##0.00'), so it must be passed through as-is
+            format: additionalMetric.format,
             percentile: additionalMetric.percentile,
             ...(additionalMetric.distinct_keys
                 ? {

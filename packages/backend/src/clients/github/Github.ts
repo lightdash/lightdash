@@ -850,6 +850,10 @@ export const getPullRequest = async ({
      */
     mergeableState: string;
     draft: boolean;
+    title: string;
+    additions: number;
+    deletions: number;
+    changedFiles: number;
 }> => {
     const { octokit, headers } = getOctokit(installationId, token);
 
@@ -869,6 +873,10 @@ export const getPullRequest = async ({
             mergeable: response.data.mergeable,
             mergeableState: response.data.mergeable_state,
             draft: response.data.draft === true,
+            title: response.data.title,
+            additions: response.data.additions,
+            deletions: response.data.deletions,
+            changedFiles: response.data.changed_files,
         };
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));

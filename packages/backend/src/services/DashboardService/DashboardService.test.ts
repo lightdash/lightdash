@@ -10,9 +10,11 @@ import {
     PossibleAbilities,
     ProjectMemberRole,
     SessionUser,
+    type Account,
     type Dashboard,
     type DashboardChartTile,
     type DashboardFilterRule,
+    type UpdateDashboard,
 } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { SlackClient } from '../../clients/Slack/SlackClient';
@@ -25,6 +27,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -80,6 +83,13 @@ const savedChartModel = {
         projectUuid: 'project_uuid',
     })),
     getInfoForAvailableFilters: jest.fn(async () => []),
+};
+const savedSqlModel = {
+    getByUuid: jest.fn(async () => ({
+        space: {
+            uuid: publicSpace.uuid,
+        },
+    })),
 };
 
 const projectModel = {
@@ -165,6 +175,7 @@ describe('DashboardService', () => {
         searchModel: searchModel as unknown as SearchModel,
         schedulerService: {} as SchedulerService,
         savedChartModel: savedChartModel as unknown as SavedChartModel,
+        savedSqlModel: savedSqlModel as unknown as SavedSqlModel,
         savedChartService: {} as SavedChartService, // Mock for test
         projectModel: projectModel as unknown as ProjectModel,
         slackClient: {} as SlackClient,
@@ -194,6 +205,63 @@ describe('DashboardService', () => {
             { projectUuid: undefined },
         );
     });
+
+    test('throws when an embed write token saves a SQL chart from outside the write space', async () => {
+        const embedWriteAccount = {
+            isJwtUser: () => true,
+            embedWriteUser: user,
+            authentication: {
+                type: 'jwt',
+                data: {
+                    writeActions: {
+                        spaceUuid: publicSpace.uuid,
+                    },
+                },
+            },
+        } as unknown as Account;
+        const updateDashboardWithSqlTile: UpdateDashboard = {
+            tiles: [
+                {
+                    uuid: 'sql-tile-uuid',
+                    type: DashboardTileTypes.SQL_CHART,
+                    x: 0,
+                    y: 0,
+                    h: 10,
+                    w: 10,
+                    tabUuid: undefined,
+                    properties: {
+                        savedSqlUuid: 'saved-sql-uuid',
+                        title: 'SQL chart',
+                        chartName: 'SQL chart',
+                    },
+                },
+            ],
+            filters: {
+                dimensions: [],
+                metrics: [],
+                tableCalculations: [],
+            },
+            tabs: [],
+        };
+
+        savedSqlModel.getByUuid.mockResolvedValueOnce({
+            space: {
+                uuid: privateSpace.uuid,
+            },
+        });
+
+        await expect(
+            service.updateFromAccount(
+                embedWriteAccount,
+                dashboard.uuid,
+                updateDashboardWithSqlTile,
+                { projectUuid: dashboard.projectUuid },
+            ),
+        ).rejects.toThrowError(ForbiddenError);
+
+        expect(dashboardModel.update).not.toHaveBeenCalled();
+    });
+
     test('should get dashboard charts after dashboard access check', async () => {
         const result = await service.getDashboardCharts(
             user,

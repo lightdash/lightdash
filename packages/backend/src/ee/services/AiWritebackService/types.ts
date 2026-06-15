@@ -170,10 +170,11 @@ export type AgentStreamEvent =
       }
     | { type: 'ignored' };
 
-/** Title/description parsed out of the agent's final stdout. */
+/** Title/description/summary parsed out of the agent's final stdout. */
 export type PrMetadata = {
     title: string | null;
     description: string | null;
+    summary: string | null;
     sanitizedStdout: string;
 };
 

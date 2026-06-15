@@ -148,6 +148,7 @@ strings, numbers, or arrays of either. They are sent at the top level of the API
 | `refetch` | `() => void`    | Re-run the query.                                                |
 | `queryUuid` | `string \| null` | Async query UUID for the loaded source query.                 |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<UnderlyingDataResult>` | Fetch raw rows behind an aggregated metric value. |
+| `downloadUnderlyingData` | `({ row, metric, fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for raw rows behind an aggregated metric value. |
 | `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<DownloadResultsResult>` | Schedule a backend CSV/XLSX export for this query. |
 
 ## Underlying data
@@ -183,6 +184,41 @@ function RevenueTable() {
 
 Call it from a user action. Pass the original row from `data` and the same
 metric name used in `.metrics([...])`.
+
+Use `downloadUnderlyingData()` when the user wants to export those underlying
+rows without fetching or serializing them in the iframe:
+
+```tsx
+function RevenueTable() {
+    const { data, downloadUnderlyingData } = useLightdash(
+        lightdash
+            .model('orders')
+            .dimensions(['customer_segment'])
+            .metrics(['total_revenue']),
+    );
+
+    return data.map((row) => (
+        <button
+            onClick={() =>
+                downloadUnderlyingData({
+                    row,
+                    metric: 'total_revenue',
+                    fileType: 'csv',
+                    values: 'formatted',
+                    limit: 'all',
+                    filename: `orders-${row.customer_segment}`,
+                })
+            }
+        >
+            Download rows
+        </button>
+    ));
+}
+```
+
+For underlying-data downloads, `limit: 'table'` uses the backend's default
+underlying-data row limit, `limit: 'all'` asks Lightdash for all matching rows
+within backend export caps, and a number requests that many rows.
 
 ## Backend downloads
 

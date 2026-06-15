@@ -118,6 +118,7 @@ export type ValidatorTableProps = {
     showConfigWarnings: boolean;
     setShowConfigWarnings: (show: boolean) => void;
     lastValidatedAt: Date | null;
+    flush?: boolean;
 };
 
 export const ValidatorTable: FC<ValidatorTableProps> = ({
@@ -138,6 +139,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
     showConfigWarnings,
     setShowConfigWarnings,
     lastValidatedAt,
+    flush = false,
 }) => {
     const tableContainerRef = useRef<HTMLDivElement>(null);
     const rowVirtualizerInstanceRef =
@@ -358,7 +360,7 @@ export const ValidatorTable: FC<ValidatorTableProps> = ({
         ),
         mantinePaperProps: {
             shadow: undefined,
-            className: classes.paper,
+            className: flush ? classes.paperFlush : classes.paper,
         },
         mantineTableHeadRowProps: {
             className: classes.headerRow,

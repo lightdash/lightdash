@@ -6,6 +6,17 @@ import {
 import { EMBED_KEY, type InMemoryEmbed } from '../ee/providers/Embed/types';
 import { getFromInMemoryStorage } from './inMemoryStorage';
 
+const LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY =
+    '__lightdash_sdk_instance_url';
+
+const resolveRequestUrl = (url: string) => {
+    const sdkInstanceUrl = sessionStorage.getItem(
+        LIGHTDASH_SDK_INSTANCE_URL_LOCAL_STORAGE_KEY,
+    );
+
+    return new URL(url, sdkInstanceUrl ?? window.location.origin).toString();
+};
+
 // To be reused across all hooks that need to fetch SQL query results
 export const getResultsFromStream = async <T>(url: string | undefined) => {
     try {
@@ -22,7 +33,7 @@ export const getResultsFromStream = async <T>(url: string | undefined) => {
         if (embed?.token) {
             headers[JWT_HEADER_NAME] = embed.token;
         }
-        const response = await fetch(url, {
+        const response = await fetch(resolveRequestUrl(url), {
             method: 'GET',
             headers,
         });

@@ -5,11 +5,12 @@ import { postEmbedDashboard } from './api';
 export const useEmbedDashboard = (
     projectUuid: string | undefined,
     paletteUuid?: string,
+    enabled: boolean = true,
 ) => {
     return useQuery<EmbedDashboard, ApiError>({
         queryKey: ['embed-dashboard', projectUuid, paletteUuid],
         queryFn: () => postEmbedDashboard(projectUuid!, { paletteUuid }),
-        enabled: !!projectUuid,
+        enabled: !!projectUuid && enabled,
         retry: false,
     });
 };
