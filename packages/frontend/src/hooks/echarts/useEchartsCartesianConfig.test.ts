@@ -923,6 +923,66 @@ describe('getSubDayTimeAxisConfig', () => {
             Date.parse('2024-01-01T02:15:00.000Z'),
         ]);
     });
+
+    const getFormatter = (
+        timeInterval: TimeFrames,
+        timezone: string,
+        raw: string,
+    ) =>
+        getSubDayTimeAxisConfig(
+            axisId,
+            createAxisField(timeInterval),
+            createRows([raw]),
+            'time',
+            timezone,
+        ).axisLabel?.formatter as ((value: number) => string) | undefined;
+
+    test('labels ticks in the resolved zone across the fall-back boundary', () => {
+        const format = getFormatter(
+            TimeFrames.HOUR,
+            'Europe/London',
+            '2024-10-27T00:00:00.000Z',
+        )!;
+        // 23:00Z is 00:00 BST — a day boundary, so ECharts shows the date (day-of-month).
+        expect(format(Date.parse('2024-10-26T23:00:00.000Z'))).toBe('27');
+        // Both folded 01:00 wall-clock hours (00:00Z BST and 01:00Z GMT) read 01:00.
+        expect(format(Date.parse('2024-10-27T00:00:00.000Z'))).toBe('01:00');
+        expect(format(Date.parse('2024-10-27T01:00:00.000Z'))).toBe('01:00');
+        expect(format(Date.parse('2024-10-27T02:00:00.000Z'))).toBe('02:00');
+    });
+
+    test('labels ticks in the resolved zone across the spring-forward boundary', () => {
+        const format = getFormatter(
+            TimeFrames.HOUR,
+            'Europe/London',
+            '2024-03-31T00:00:00.000Z',
+        )!;
+        expect(format(Date.parse('2024-03-31T00:00:00.000Z'))).toBe('31');
+        // 01:00Z springs forward to 02:00 BST — the 01:00 wall-clock hour is skipped.
+        expect(format(Date.parse('2024-03-31T01:00:00.000Z'))).toBe('02:00');
+        expect(format(Date.parse('2024-03-31T02:00:00.000Z'))).toBe('03:00');
+    });
+
+    test('labels fractional-offset zones at their real wall-clock minute', () => {
+        const format = getFormatter(
+            TimeFrames.HOUR,
+            'Asia/Kathmandu',
+            '2024-01-01T00:15:00.000Z',
+        )!;
+        // +05:45 → 00:15Z is 06:00 NPT.
+        expect(format(Date.parse('2024-01-01T00:15:00.000Z'))).toBe('06:00');
+    });
+
+    // Precision follows the value's finest non-zero unit (ECharts' getUnitFromValue
+    // rule), not the dimension grain. Asia/Tokyo is UTC+9 with no DST.
+    test.each([
+        ['2024-01-01T10:30:00.000Z', '19:30'],
+        ['2024-01-01T10:30:45.000Z', '19:30:45'],
+        ['2024-01-01T10:30:45.500Z', '19:30:45 500'],
+    ])('renders %s at the finest non-zero unit', (raw, expected) => {
+        const format = getFormatter(TimeFrames.SECOND, 'Asia/Tokyo', raw)!;
+        expect(format(Date.parse(raw))).toBe(expected);
+    });
 });
 
 describe('filterSeriesWithNoData', () => {

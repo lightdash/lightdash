@@ -1530,6 +1530,22 @@ const getAxisInstantMs = (raw: unknown): number | undefined => {
     return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+// Sub-day axes are positioned by raw UTC instant, so ECharts (useUTC) would
+// label the ticks in UTC. Render each tick in the resolved zone instead,
+// mirroring ECharts' own getUnitFromValue + defaultLeveledFormatter
+// (echarts/lib/util/time): the most-significant non-zero unit selects the
+// format, and a day boundary shows the date. Labels only — positions stay raw
+// UTC, so DST continuity is untouched.
+const formatSubDayAxisLabel = (value: number, timezone: string): string => {
+    const date = dayjs.utc(value).tz(timezone);
+    if (date.millisecond() !== 0) return date.format('HH:mm:ss SSS');
+    if (date.second() !== 0) return date.format('HH:mm:ss');
+    if (date.minute() !== 0 || date.hour() !== 0) return date.format('HH:mm');
+    if (date.date() !== 1) return date.format('D');
+    if (date.month() !== 0) return date.format('MMM');
+    return date.format('YYYY');
+};
+
 export const getSubDayTimeAxisConfig = (
     axisId?: string,
     axisField?: Field | TableCalculation | CustomDimension,
@@ -1568,7 +1584,11 @@ export const getSubDayTimeAxisConfig = (
 
     return {
         axisTick: { customValues },
-        axisLabel: { customValues },
+        axisLabel: {
+            customValues,
+            formatter: (value: number) =>
+                formatSubDayAxisLabel(value, resolvedTimezone),
+        },
     };
 };
 
