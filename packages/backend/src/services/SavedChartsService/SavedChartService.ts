@@ -1135,23 +1135,39 @@ export class SavedChartService
     ): Promise<{ access: SpaceAccess[]; inheritsFromOrgOrProject: boolean }> {
         let access;
         let inheritsFromOrgOrProject: boolean;
+        let permissionActor: Account | SessionUser = account;
         if (isJwtUser(account)) {
-            await this.permissionsService.checkEmbedPermissions(
-                account,
-                savedChart.uuid,
-            );
-            // We pass this access everytime, but we only define the ability
-            // rule for this chart only if the JWT is type: 'chart'.
-            // Dashboards won't have `access` defined in their abilityRules,
-            // so this CASL check will pass for them.
-            // TODO: Get all chartUuids for a given dashboard in the middleware.
-            //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
-            access = [{ chartUuid: savedChart.uuid }];
-            const spaceCtx =
-                await this.spacePermissionService.getAllSpaceAccessContext(
-                    space.uuid,
+            const { embedWriteUser } = account;
+            const writeSpaceUuid =
+                account.authentication.data.writeActions?.spaceUuid;
+            if (embedWriteUser && writeSpaceUuid === space.uuid) {
+                permissionActor = embedWriteUser;
+                const spaceCtx =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        embedWriteUser.userUuid,
+                        space.uuid,
+                    );
+
+                access = spaceCtx.access;
+                inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
+            } else {
+                await this.permissionsService.checkEmbedPermissions(
+                    account,
+                    savedChart.uuid,
                 );
-            inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
+                // We pass this access everytime, but we only define the ability
+                // rule for this chart only if the JWT is type: 'chart'.
+                // Dashboards won't have `access` defined in their abilityRules,
+                // so this CASL check will pass for them.
+                // TODO: Get all chartUuids for a given dashboard in the middleware.
+                //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
+                access = [{ chartUuid: savedChart.uuid }];
+                const spaceCtx =
+                    await this.spacePermissionService.getAllSpaceAccessContext(
+                        space.uuid,
+                    );
+                inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
+            }
         } else {
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.userUuid,
@@ -1161,7 +1177,7 @@ export class SavedChartService
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
 
-        const auditedAbility = this.createAuditedAbility(account);
+        const auditedAbility = this.createAuditedAbility(permissionActor);
         if (
             auditedAbility.cannot(
                 'view',

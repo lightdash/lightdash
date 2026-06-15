@@ -922,7 +922,6 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Request() req: express.Request,
         @Query() duplicateFrom?: string,
     ): Promise<ApiCreateDashboardResponse> {
-        assertRegisteredAccount(req.account);
         const dashboardService = this.services.getDashboardService();
         this.setStatus(201);
 
@@ -935,8 +934,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 );
             }
 
-            results = await dashboardService.duplicate(
-                toSessionUser(req.account),
+            results = await dashboardService.duplicateFromAccount(
+                req.account!,
                 projectUuid,
                 duplicateFrom.toString(),
                 body,
@@ -948,8 +947,8 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
                 );
             }
 
-            results = await dashboardService.create(
-                toSessionUser(req.account),
+            results = await dashboardService.createFromAccount(
+                req.account!,
                 projectUuid,
                 body,
             );

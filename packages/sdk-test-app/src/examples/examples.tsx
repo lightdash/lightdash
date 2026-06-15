@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
+import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
@@ -15,6 +16,16 @@ export type ExampleDefinition = {
 };
 
 export const examples: ExampleDefinition[] = [
+    {
+        slug: 'dashboard-builder',
+        path: '/examples/dashboard-builder',
+        title: 'Dashboard builder demo',
+        description:
+            'Create a new embedded dashboard, add saved charts from the configured write space, and save layout changes.',
+        sourcePath:
+            'packages/sdk-test-app/src/examples/DashboardBuilderExamplePage.tsx',
+        component: DashboardBuilderExamplePage,
+    },
     {
         slug: 'i18n',
         path: '/examples/i18n',

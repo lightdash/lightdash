@@ -41,6 +41,8 @@ type Props = {
         tileUuidMapping?: Record<string, string>,
     ) => void;
     onClose: () => void;
+    spaceUuid?: string;
+    maxSelectedValues?: number;
 };
 
 interface ItemProps extends React.ComponentPropsWithoutRef<'div'> {
@@ -96,8 +98,17 @@ const SelectItem = forwardRef<HTMLDivElement, ItemProps>(
     ),
 );
 
-const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
-    const { projectUuid } = useParams<{ projectUuid: string }>();
+const AddChartTilesModal: FC<Props> = ({
+    onAddTiles,
+    onClose,
+    spaceUuid,
+    maxSelectedValues,
+}) => {
+    const { projectUuid: projectUuidFromParams } = useParams<{
+        projectUuid: string;
+    }>();
+    const projectUuidFromContext = useDashboardContext((c) => c.projectUuid);
+    const projectUuid = projectUuidFromParams ?? projectUuidFromContext;
     const [searchQuery, setSearchQuery] = useState<string>('');
     const [debouncedSearchQuery] = useDebouncedValue(searchQuery, 300);
     const {
@@ -109,6 +120,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     } = useChartSummariesV2(
         {
             projectUuid,
+            spaceUuid,
             page: 1,
             pageSize: 25,
             search: debouncedSearchQuery,
@@ -127,8 +139,8 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         );
     }, [chartPages?.pages]);
 
-    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboard = useDashboardContext((c) => c.dashboard);
+    const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
 
     const form = useForm({
         initialValues: {
@@ -198,7 +210,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
     );
 
     const allSavedCharts = useMemo(() => {
-        const reorderedCharts = savedQueries?.sort((chartA, chartB) => {
+        const reorderedCharts = [...savedQueries].sort((chartA, chartB) => {
             if (
                 chartA.space.uuid === chartB.space.uuid &&
                 !!chartA.lastUpdatedAt &&
@@ -214,7 +226,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
             }
         });
 
-        return (reorderedCharts || []).map((chart) => {
+        return reorderedCharts.map((chart) => {
             const { uuid, name, space, chartKind } = chart;
             const isAlreadyAdded = dashboardTiles?.find((tile) => {
                 return (
@@ -285,7 +297,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
         onClose();
     });
 
-    if (!savedQueries || !dashboardTiles || isInitialLoading) return null;
+    if (!dashboardTiles || isInitialLoading) return null;
 
     return (
         <MantineModal
@@ -297,8 +309,8 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
             modalRootProps={{ closeOnClickOutside: false }}
             actions={
                 <Button
-                    type="submit"
-                    form="add-saved-charts-to-dashboard"
+                    type="button"
+                    onClick={() => handleSubmit()}
                     disabled={
                         isInitialLoading ||
                         form.values.savedChartsUuids.length === 0
@@ -352,6 +364,7 @@ const AddChartTilesModal: FC<Props> = ({ onAddTiles, onClose }) => {
                     searchValue={searchQuery}
                     onSearchChange={setSearchQuery}
                     maxDropdownHeight={300}
+                    maxSelectedValues={maxSelectedValues}
                     rightSection={
                         isFetching && <Loader size="xs" color="gray" />
                     }

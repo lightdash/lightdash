@@ -78,12 +78,25 @@ async function main() {
             .select(
                 'dashboards.dashboard_uuid',
                 'dashboards.name',
+                'spaces.space_uuid',
                 'projects.project_uuid',
             )
             .join('spaces', 'dashboards.space_id', 'spaces.space_id')
             .join('projects', 'spaces.project_id', 'projects.project_id')
             .whereNull('dashboards.deleted_at')
-            .where('dashboards.name', 'Jaffle dashboard')
+            .modify((queryBuilder) => {
+                if (process.env.DASHBOARD_UUID) {
+                    void queryBuilder.where(
+                        'dashboards.dashboard_uuid',
+                        process.env.DASHBOARD_UUID,
+                    );
+                } else {
+                    void queryBuilder.where(
+                        'dashboards.name',
+                        process.env.DASHBOARD_NAME || 'Jaffle dashboard',
+                    );
+                }
+            })
             .first();
         if (!dashboard) {
             console.error('No dashboards found in database');
@@ -91,6 +104,7 @@ async function main() {
         }
         const projectUuid = dashboard.project_uuid;
         const dashboardUuid = dashboard.dashboard_uuid;
+        const spaceUuid = dashboard.space_uuid;
 
         const existing = await db('embedding')
             .where({ project_uuid: projectUuid })
@@ -114,6 +128,13 @@ async function main() {
             });
         }
 
+        const user = await db('users').select('user_uuid').first();
+
+        if (!user) {
+            console.error('No users found in database');
+            process.exit(1);
+        }
+
         const payload = {
             content: {
                 type: 'dashboard',
@@ -128,6 +149,10 @@ async function main() {
                 isPreview: false,
                 canDateZoom: false,
                 canExportPagePdf: false,
+            },
+            writeActions: {
+                userUuid: user.user_uuid,
+                spaceUuid,
             },
             user: {
                 email: 'demo@lightdash.com',
