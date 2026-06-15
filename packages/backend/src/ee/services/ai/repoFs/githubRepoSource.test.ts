@@ -1,7 +1,8 @@
 import { NotFoundError, UnexpectedGitError } from '@lightdash/common';
-import { getFileContent } from '../../../../clients/github/Github';
+import { getFileContent, getRepoTree } from '../../../../clients/github/Github';
 import {
     createGithubRepoSource,
+    isDeniedRepoPath,
     type RepoFsTimingCallback,
 } from './githubRepoSource';
 
@@ -10,6 +11,7 @@ jest.mock('../../../../clients/github/Github');
 const mockGetFileContent = getFileContent as jest.MockedFunction<
     typeof getFileContent
 >;
+const mockGetRepoTree = getRepoTree as jest.MockedFunction<typeof getRepoTree>;
 
 const source = (onTiming?: RepoFsTimingCallback) =>
     createGithubRepoSource({
@@ -62,6 +64,44 @@ describe('githubRepoSource.readFile error handling', () => {
         await expect(source().readFile('models/x.sql')).rejects.toThrow(
             'socket hang up',
         );
+    });
+});
+
+describe('githubRepoSource secrets denylist', () => {
+    beforeEach(() => {
+        mockGetFileContent.mockReset();
+        mockGetRepoTree.mockReset();
+    });
+
+    it.each([
+        '.env',
+        '.env.production',
+        'config/.env.local',
+        'certs/server.pem',
+        'deploy/id_rsa',
+        'service.keyfile.json',
+    ])('does not list or read the denied path %s', async (path) => {
+        mockGetRepoTree.mockResolvedValue({
+            files: [
+                { path, size: 10 },
+                { path: 'models/x.sql', size: 20 },
+            ],
+            truncated: false,
+        });
+        const repo = source();
+        const { files } = await repo.listAllPaths();
+        expect(files.map((f) => f.path)).toEqual(['models/x.sql']);
+
+        // Even with a truncated listing, an explicit read is refused.
+        await expect(repo.readFile(path)).resolves.toBeNull();
+        expect(mockGetFileContent).not.toHaveBeenCalled();
+    });
+
+    it('flags common secret paths via isDeniedRepoPath', () => {
+        expect(isDeniedRepoPath('.env')).toBe(true);
+        expect(isDeniedRepoPath('a/b/.npmrc')).toBe(true);
+        expect(isDeniedRepoPath('models/orders.sql')).toBe(false);
+        expect(isDeniedRepoPath('README.md')).toBe(false);
     });
 });
 

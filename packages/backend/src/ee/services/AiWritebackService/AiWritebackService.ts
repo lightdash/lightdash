@@ -25,6 +25,7 @@ import type {
 import {
     getRepoDefaultBranch,
     getRepoTree,
+    listReposAccessibleToInstallation,
 } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -202,26 +203,31 @@ export class AiWritebackService extends BaseService {
      * writeback but never creates a sandbox or clone. GitHub-only for now;
      * throws {@link WritebackGitNotConnectedError} for any other connection.
      */
-    async getRepoReadAccess({
+    /**
+     * Resolve the org's GitHub App installation for read-only source access,
+     * gated by view:SourceCode. The dbt-independent core shared by
+     * {@link getRepoReadAccess} (the dbt project repo) and
+     * {@link getInstallationRepoReadAccess} (any accessible repo): org check →
+     * view:SourceCode ability gate → installation token. GitHub-only for now.
+     */
+    private async resolveSourceCodeInstallation({
         user,
         projectUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
     }): Promise<{
-        owner: string;
-        repo: string;
-        branch: string;
+        installationId: string;
         token: string;
-        subPath: string;
+        project: Awaited<ReturnType<ProjectModel['get']>>;
     }> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
         const project = await this.projectModel.get(projectUuid);
         // Reading repo source requires view:SourceCode (writeback requires the
-        // stricter manage:SourceCode). Gate the read so the repoShell tool can't
-        // expose dbt source to users without source-code access.
+        // stricter manage:SourceCode). Gate the read so the explore/discover
+        // tools can't expose source to users without source-code access.
         if (
             this.createAuditedAbility(user).cannot(
                 'view',
@@ -235,14 +241,6 @@ export class AiWritebackService extends BaseService {
                 'You do not have permission to view this project source code',
             );
         }
-        const provider = this.getGitProvider(project.dbtConnection.type);
-        if (provider.provider !== PullRequestProvider.GITHUB) {
-            throw new WritebackGitNotConnectedError(
-                provider.provider,
-                'Repository read access is currently only supported for GitHub dbt connections',
-            );
-        }
-        const connection = parseGithubConnection(project.dbtConnection);
         const installation = await this.githubProvider.resolveInstallation(
             user.organizationUuid,
         );
@@ -252,7 +250,37 @@ export class AiWritebackService extends BaseService {
                 'GitHub App is not installed for this organization',
             );
         }
-        // Read the project's configured dbt branch so repoShell inspects the
+        return {
+            installationId: installation.installationId,
+            token: installation.token,
+            project,
+        };
+    }
+
+    async getRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        owner: string;
+        repo: string;
+        branch: string;
+        token: string;
+        subPath: string;
+    }> {
+        const { installationId, token, project } =
+            await this.resolveSourceCodeInstallation({ user, projectUuid });
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        if (provider.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                provider.provider,
+                'Repository read access is currently only supported for GitHub dbt connections',
+            );
+        }
+        const connection = parseGithubConnection(project.dbtConnection);
+        // Read the project's configured dbt branch so the shell inspects the
         // same source the Lightdash project compiles from. Only fall back to the
         // repo's default branch when the project left the branch unset.
         const branch =
@@ -260,17 +288,62 @@ export class AiWritebackService extends BaseService {
             (await getRepoDefaultBranch({
                 owner: connection.owner,
                 repo: connection.repo,
-                installationId: installation.installationId,
+                installationId,
             }));
         return {
             owner: connection.owner,
             repo: connection.repo,
             branch,
-            token: installation.token,
+            token,
             // Scope the read-only VFS to the dbt project subdirectory so it
             // can't expose secrets/other files elsewhere in the repo. '.' (repo
             // root) means no scoping.
             subPath: connection.projectSubPath,
+        };
+    }
+
+    /**
+     * Generalized read-only access for the agent's repo discovery: resolve the
+     * org's installation token (same view:SourceCode gate as
+     * {@link getRepoReadAccess}) and expose helpers to (1) list every repository
+     * the installation can read and (2) resolve an arbitrary repo's default
+     * branch. Unlike getRepoReadAccess this does NOT depend on the project's dbt
+     * connection, so the agent can read any accessible repo (whole repo, no
+     * subPath scoping — a secrets denylist in the GitHub RepoSource is the
+     * remaining guard).
+     *
+     * First slice: authz is the single view:SourceCode gate on the active
+     * project. Per-user, per-repo permission intersection is a deliberate
+     * follow-up before wider rollout.
+     */
+    async getInstallationRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        installationId: string;
+        token: string;
+        listRepos: () => Promise<
+            {
+                owner: string;
+                repo: string;
+                defaultBranch: string;
+                private: boolean;
+            }[]
+        >;
+        resolveBranch: (owner: string, repo: string) => Promise<string>;
+    }> {
+        const { installationId, token } =
+            await this.resolveSourceCodeInstallation({ user, projectUuid });
+        return {
+            installationId,
+            token,
+            listRepos: () =>
+                listReposAccessibleToInstallation({ installationId }),
+            resolveBranch: (owner, repo) =>
+                getRepoDefaultBranch({ owner, repo, installationId }),
         };
     }
 

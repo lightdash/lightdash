@@ -20,6 +20,8 @@ import {
     getBranchHeadSha,
     getInstallationToken,
     getOrRefreshToken,
+    getRepoDefaultBranch,
+    listReposAccessibleToInstallation,
 } from '../../../clients/github/Github';
 import { AiWritebackService } from './AiWritebackService';
 import {
@@ -49,6 +51,9 @@ jest.mock('../../../clients/github/Github', () => ({
     getBranchHeadSha: jest.fn(),
     getInstallationToken: jest.fn(),
     getOrRefreshToken: jest.fn(),
+    getRepoDefaultBranch: jest.fn(),
+    getRepoTree: jest.fn(),
+    listReposAccessibleToInstallation: jest.fn(),
     updatePullRequest: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -640,5 +645,153 @@ describe('AiWritebackService.run (mocked end-to-end)', () => {
         });
         expect(createPullRequest).not.toHaveBeenCalled();
         expect(sandbox.kill).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('AiWritebackService repo read access', () => {
+    const userWithOrg = (canView: boolean): SessionUser => {
+        const { build, can } = new AbilityBuilder<MemberAbility>(Ability);
+        // `manage` implies `view`; grant nothing to model a user without access.
+        if (canView) can('manage', 'SourceCode', { organizationUuid: ORG });
+        return {
+            userUuid: 'u1',
+            organizationUuid: ORG,
+            organizationName: 'Acme',
+            organizationCreatedAt: new Date(),
+            role: 'admin',
+            ability: build(),
+        } as AnyType;
+    };
+
+    const githubProject = (): AnyType => ({
+        organizationUuid: ORG,
+        name: 'Analytics',
+        dbtConnection: {
+            type: DbtProjectType.GITHUB,
+            authorization_method: 'installation_id',
+            repository: 'acme/analytics',
+            branch: 'main',
+            project_sub_path: 'transform/dbt',
+        },
+        warehouseConnection: { type: WarehouseTypes.POSTGRES },
+        dbtVersion: SupportedDbtVersions.V1_9,
+    });
+
+    const buildWithInstallation = (project: AnyType = githubProject()) => {
+        const service = buildService({
+            projectModel: {
+                get: jest.fn().mockResolvedValue(project),
+            } as AnyType,
+        });
+        const resolveInstallation = jest.spyOn(
+            (service as AnyType).githubProvider,
+            'resolveInstallation',
+        );
+        resolveInstallation.mockResolvedValue({
+            provider: PullRequestProvider.GITHUB,
+            installationId: 'inst-1',
+            token: 'install-token',
+            userToken: null,
+            commitAuthor: { name: 'n', email: 'e' },
+            coAuthorTrailer: '',
+        } as AnyType);
+        return { service, resolveInstallation };
+    };
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    describe('getRepoReadAccess (dbt project repo, unchanged contract)', () => {
+        it('returns the dbt repo owner/repo/branch/token/subPath', async () => {
+            const { service } = buildWithInstallation();
+            await expect(
+                service.getRepoReadAccess({
+                    user: userWithOrg(true),
+                    projectUuid: 'p1',
+                }),
+            ).resolves.toEqual({
+                owner: 'acme',
+                repo: 'analytics',
+                branch: 'main',
+                token: 'install-token',
+                subPath: 'transform/dbt',
+            });
+            // Branch came from the connection; no default-branch lookup.
+            expect(getRepoDefaultBranch).not.toHaveBeenCalled();
+        });
+
+        it('rejects a user without view:SourceCode', async () => {
+            const { service } = buildWithInstallation();
+            await expect(
+                service.getRepoReadAccess({
+                    user: userWithOrg(false),
+                    projectUuid: 'p1',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+    });
+
+    describe('getInstallationRepoReadAccess (any accessible repo)', () => {
+        it('rejects a user without view:SourceCode', async () => {
+            const { service } = buildWithInstallation();
+            await expect(
+                service.getInstallationRepoReadAccess({
+                    user: userWithOrg(false),
+                    projectUuid: 'p1',
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
+        it('listRepos lists repos for the resolved installation and maps the shape', async () => {
+            const { service } = buildWithInstallation();
+            (
+                listReposAccessibleToInstallation as jest.Mock
+            ).mockResolvedValue([
+                {
+                    owner: 'lightdash',
+                    repo: 'lightdash',
+                    defaultBranch: 'main',
+                    private: false,
+                },
+            ]);
+
+            const access = await service.getInstallationRepoReadAccess({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+            });
+            const repos = await access.listRepos();
+
+            expect(listReposAccessibleToInstallation).toHaveBeenCalledWith({
+                installationId: 'inst-1',
+            });
+            expect(repos).toEqual([
+                {
+                    owner: 'lightdash',
+                    repo: 'lightdash',
+                    defaultBranch: 'main',
+                    private: false,
+                },
+            ]);
+            expect(access.token).toBe('install-token');
+        });
+
+        it('resolveBranch returns the repo default branch via the installation', async () => {
+            const { service } = buildWithInstallation();
+            (getRepoDefaultBranch as jest.Mock).mockResolvedValue('develop');
+
+            const access = await service.getInstallationRepoReadAccess({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+            });
+            const branch = await access.resolveBranch('lightdash', 'lightdash');
+
+            expect(getRepoDefaultBranch).toHaveBeenCalledWith({
+                owner: 'lightdash',
+                repo: 'lightdash',
+                installationId: 'inst-1',
+            });
+            expect(branch).toBe('develop');
+        });
     });
 });

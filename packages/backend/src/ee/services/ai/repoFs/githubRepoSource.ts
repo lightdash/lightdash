@@ -18,6 +18,30 @@ export type RepoFsTimingEvent =
 export type RepoFsTimingCallback = (event: RepoFsTimingEvent) => void;
 
 /**
+ * Paths that must never be exposed through the read-only shell. Removing the
+ * `subPath` confinement (so the whole repo is readable for an explicit
+ * `exploreRepo` target) widens the blast radius to secrets that previously lived
+ * outside the dbt subdirectory, so deny common credential/secret files at the
+ * source layer — they're filtered from listings and read back as absent.
+ */
+const DENIED_PATH_PATTERNS: RegExp[] = [
+    /(^|\/)\.env(\..*)?$/i, // .env, .env.local, .env.production, ...
+    /\.pem$/i,
+    /\.key$/i,
+    /\.p12$/i,
+    /\.pfx$/i,
+    /(^|\/)id_rsa(\.pub)?$/i,
+    /(^|\/)id_ed25519(\.pub)?$/i,
+    /(^|\/)\.npmrc$/i,
+    /(^|\/)\.pypirc$/i,
+    /(^|\/)credentials$/i,
+    /\.keyfile(\.json)?$/i,
+];
+
+export const isDeniedRepoPath = (path: string): boolean =>
+    DENIED_PATH_PATTERNS.some((re) => re.test(path));
+
+/**
  * A read-only {@link RepoSource} backed by the GitHub API (Git Trees + Contents)
  * using an App installation token — no clone, no sandbox. `readFile` returns
  * null for missing/binary/over-1MB files (the Contents API limit) so the shell
@@ -73,16 +97,25 @@ export const createGithubRepoSource = ({
                 },
             );
             onTiming?.({ kind: 'tree', durationMs });
-            if (!root) return { files, truncated };
+            if (!root) {
+                return {
+                    files: files.filter((f) => !isDeniedRepoPath(f.path)),
+                    truncated,
+                };
+            }
             const scoped = files
                 .filter((f) => f.path.startsWith(prefix))
                 .map((f) => ({
                     path: f.path.slice(prefix.length),
                     size: f.size,
-                }));
+                }))
+                .filter((f) => !isDeniedRepoPath(f.path));
             return { files: scoped, truncated };
         },
         readFile: async (path) => {
+            // Never read a denied secret file, even if a truncated tree means it
+            // wasn't filtered from the listing above.
+            if (isDeniedRepoPath(path)) return null;
             const start = Date.now();
             try {
                 const { content } = await getFileContent({

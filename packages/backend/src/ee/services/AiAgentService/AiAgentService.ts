@@ -218,15 +218,19 @@ import {
     getModel,
 } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
-import { runRepoShellCommand } from '../ai/repoFs/bashShell';
-import { createGithubRepoSource } from '../ai/repoFs/githubRepoSource';
+import { parseRepoTarget, runRepoShellCommand } from '../ai/repoFs/bashShell';
+import {
+    createGithubRepoSource,
+    type RepoFsTimingEvent,
+} from '../ai/repoFs/githubRepoSource';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
+    DiscoverReposFn,
     EditDbtProjectFn,
+    ExploreRepoFn,
     GetPromptFn,
-    RepoShellFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreReasoningFn,
@@ -5846,37 +5850,86 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return { ...result, previewDeployConfigured, previewUrl };
         };
 
-        // Read-only repo virtual filesystem for the repoShell tool. Resolve the
-        // GitHub access + fetch the file tree at most once per request, then
-        // reuse the cached RepoFs across every repoShell call in the run.
-        let repoFsPromise: Promise<RepoFs> | null = null;
-        const repoShell: RepoShellFn = async ({ command }) => {
+        // Read-only repo virtual filesystem for the exploreRepo tool. A RepoFs is
+        // memoised per target for the run (keyed by the raw target string) so the
+        // file tree is fetched at most once per repo. No target => the dbt
+        // project repo, subPath-scoped, as before. An "owner/repo" target => the
+        // whole repo on its default branch, via the org's installation token.
+        const onRepoFsTiming = (event: RepoFsTimingEvent) => {
+            if (event.kind === 'tree') {
+                this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
+                    event.durationMs,
+                );
+            } else {
+                this.prometheusMetrics?.observeRepoFsGithubFileDuration(
+                    event.durationMs,
+                    event.outcome,
+                );
+            }
+        };
+        const repoFsByKey = new Map<string, Promise<RepoFs>>();
+        let installationAccessPromise: ReturnType<
+            typeof this.aiWritebackService.getInstallationRepoReadAccess
+        > | null = null;
+
+        const buildDefaultRepoFs = async (): Promise<RepoFs> => {
+            const access = await this.aiWritebackService.getRepoReadAccess({
+                user,
+                projectUuid,
+            });
+            return new RepoFs(
+                createGithubRepoSource({ ...access, onTiming: onRepoFsTiming }),
+            );
+        };
+        const buildTargetRepoFs = async (
+            owner: string,
+            repo: string,
+        ): Promise<RepoFs> => {
+            if (!installationAccessPromise) {
+                installationAccessPromise =
+                    this.aiWritebackService.getInstallationRepoReadAccess({
+                        user,
+                        projectUuid,
+                    });
+            }
+            const access = await installationAccessPromise;
+            const branch = await access.resolveBranch(owner, repo);
+            return new RepoFs(
+                createGithubRepoSource({
+                    owner,
+                    repo,
+                    branch,
+                    token: access.token,
+                    // No subPath => the whole repo is readable, root-relative.
+                    onTiming: onRepoFsTiming,
+                }),
+            );
+        };
+
+        const exploreRepo: ExploreRepoFn = async ({ command, target }) => {
+            const trimmedTarget = target?.trim();
+            const key = trimmedTarget ? `target:${trimmedTarget}` : '__default__';
+            let repoFsPromise = repoFsByKey.get(key);
             if (!repoFsPromise) {
-                repoFsPromise = this.aiWritebackService
-                    .getRepoReadAccess({ user, projectUuid })
-                    .then(
-                        (access) =>
-                            new RepoFs(
-                                createGithubRepoSource({
-                                    ...access,
-                                    onTiming: (event) => {
-                                        if (event.kind === 'tree') {
-                                            this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
-                                                event.durationMs,
-                                            );
-                                        } else {
-                                            this.prometheusMetrics?.observeRepoFsGithubFileDuration(
-                                                event.durationMs,
-                                                event.outcome,
-                                            );
-                                        }
-                                    },
-                                }),
-                            ),
-                    );
+                if (trimmedTarget) {
+                    const parsed = parseRepoTarget(trimmedTarget);
+                    repoFsPromise = buildTargetRepoFs(parsed.owner, parsed.repo);
+                } else {
+                    repoFsPromise = buildDefaultRepoFs();
+                }
+                repoFsByKey.set(key, repoFsPromise);
             }
             const repoFs = await repoFsPromise;
             return runRepoShellCommand(repoFs, command);
+        };
+
+        const discoverRepos: DiscoverReposFn = async () => {
+            const access =
+                await this.aiWritebackService.getInstallationRepoReadAccess({
+                    user,
+                    projectUuid,
+                });
+            return access.listRepos();
         };
 
         return {
@@ -5913,7 +5966,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
-            repoShell,
+            exploreRepo,
+            discoverRepos,
             listProjects: toolsRuntime.listProjects,
             getProjectInfo: toolsRuntime.getProjectInfo,
             loadSkill: toolsRuntime.loadSkill,
@@ -6038,7 +6092,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             editDbtProject,
             setupPreviewDeploy,
-            repoShell,
+            exploreRepo,
+            discoverRepos,
             listProjects,
             getProjectInfo,
         } = await this.getAiAgentDependencies(user, prompt, {
@@ -6235,28 +6290,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled && aiPreviewDeploySetupFlag;
 
-        let { enabled: repoFsEnabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.RepoFs,
-        });
-        // repoShell reads repo source and its view:SourceCode check evaluates
-        // against the resolved user. On Slack without aiRequireOAuth that user
-        // is the app installer, not the requester — so disable it, exactly as
-        // runSql and writeback do above.
-        if (repoFsEnabled && !hasTrustedPromptUserIdentity) {
+        let { enabled: repoDiscoveryEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.RepoDiscovery,
+            });
+        // exploreRepo/discoverRepos read repo source and the view:SourceCode
+        // check evaluates against the resolved user. On Slack without
+        // aiRequireOAuth that user is the app installer, not the requester — so
+        // disable it, exactly as runSql and writeback do above.
+        if (repoDiscoveryEnabled && !hasTrustedPromptUserIdentity) {
             this.logger.info(
-                `Disabling repoShell for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
-            repoFsEnabled = false;
+            repoDiscoveryEnabled = false;
         }
 
         // The dbt project's root within the repo, so the prompt can point the
-        // repoShell agent at it (instead of hardcoding "dbt/"). Derived from the
-        // connection's project_sub_path: '.' = repo root, else a subdirectory.
-        // null when repoFs is off or the project isn't git-backed.
+        // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
+        // the connection's project_sub_path: '.' = repo root, else a
+        // subdirectory. null when repo discovery is off or not git-backed.
         let repoFsRoot: string | null = null;
         if (
-            repoFsEnabled &&
+            repoDiscoveryEnabled &&
             'project_sub_path' in promptProject.dbtConnection
         ) {
             const raw = (promptProject.dbtConnection.project_sub_path ?? '')
@@ -6317,7 +6373,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableAiWriteback: aiWritebackEnabled,
             writebackAttribution,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
-            enableRepoFs: repoFsEnabled,
+            enableRepoDiscovery: repoDiscoveryEnabled,
             repoFsRoot,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
@@ -6401,7 +6457,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             editDbtProject,
             setupPreviewDeploy,
-            repoShell,
+            exploreRepo,
+            discoverRepos,
             listProjects,
             getProjectInfo,
             updateProgress: (progress: string) => updateProgress(progress),

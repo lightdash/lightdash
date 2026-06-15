@@ -22,8 +22,9 @@ import { getListKnowledgeDocuments } from './listKnowledgeDocuments';
 import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getLoadSkill } from './loadSkill';
+import { getDiscoverRepos } from './discoverRepos';
+import { getExploreRepo } from './exploreRepo';
 import { getReadContent } from './readContent';
-import { getRepoShell } from './repoShell';
 import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
@@ -145,7 +146,8 @@ const makeAgentTools = () => {
         setupPreviewDeploy: getSetupPreviewDeploy({
             setupPreviewDeploy: noop,
         }),
-        repoShell: getRepoShell({ repoShell: noop }),
+        exploreRepo: getExploreRepo({ exploreRepo: noop }),
+        discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
         readContent: getReadContent({ readContent: noop }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,

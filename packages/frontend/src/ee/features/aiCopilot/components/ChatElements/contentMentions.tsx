@@ -81,7 +81,7 @@ const MAX_FILE_SUGGESTIONS = 8;
 
 // A dbt source file the user can `@`-mention. Unlike content mentions it carries
 // no context payload — picking it inserts the path as plain text so the agent
-// reads the file itself via its repoShell tool (the "path reference" approach).
+// reads the file itself via its exploreRepo tool (the "path reference" approach).
 export type FileMentionSuggestionItem = SuggestionItem & {
     kind: 'file';
     path: string;
@@ -506,7 +506,7 @@ const generateContentMentionSuggestion = ({
         // same pill, distinguished by a `file` contentType with the path stored
         // in `label`. The node's `renderText` returns the label, so the path
         // still lands in the prompt text verbatim — the agent reads the file via
-        // repoShell (no context payload, unlike chart/dashboard mentions).
+        // exploreRepo (no context payload, unlike chart/dashboard mentions).
         const attrs = isFileMentionItem(item)
             ? {
                   contentType: FILE_MENTION_CONTENT_TYPE,

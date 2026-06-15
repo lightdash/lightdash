@@ -1,5 +1,32 @@
-import { runRepoShellCommand, ShellError } from './bashShell';
+import { parseRepoTarget, runRepoShellCommand, ShellError } from './bashShell';
 import { RepoFs, type RepoSource } from './RepoFs';
+
+describe('parseRepoTarget', () => {
+    it('parses "owner/repo"', () => {
+        expect(parseRepoTarget('lightdash/lightdash')).toEqual({
+            owner: 'lightdash',
+            repo: 'lightdash',
+        });
+    });
+
+    it('trims surrounding whitespace', () => {
+        expect(parseRepoTarget('  acme/analytics  ')).toEqual({
+            owner: 'acme',
+            repo: 'analytics',
+        });
+    });
+
+    it.each(['lightdash', 'a/b/c', '/repo', 'owner/', ''])(
+        'throws ShellError for malformed target %p',
+        (target) => {
+            expect(() => parseRepoTarget(target)).toThrow(ShellError);
+        },
+    );
+
+    it('rejects an @branch suffix (default branch only)', () => {
+        expect(() => parseRepoTarget('owner/repo@main')).toThrow(ShellError);
+    });
+});
 
 /** A minimal in-memory RepoSource for exercising the shell end-to-end. */
 const fakeSource = (

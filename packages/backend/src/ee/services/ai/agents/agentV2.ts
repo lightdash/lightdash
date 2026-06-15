@@ -33,7 +33,8 @@ import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getReadContent } from '../tools/readContent';
 import { getReadPinnedThread } from '../tools/readPinnedThread';
-import { getRepoShell } from '../tools/repoShell';
+import { getExploreRepo } from '../tools/exploreRepo';
+import { getDiscoverRepos } from '../tools/discoverRepos';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
@@ -286,9 +287,15 @@ const getAgentTools = (
           })
         : null;
 
-    const repoShell = args.enableRepoFs
-        ? getRepoShell({
-              repoShell: dependencies.repoShell,
+    const exploreRepo = args.enableRepoDiscovery
+        ? getExploreRepo({
+              exploreRepo: dependencies.exploreRepo,
+          })
+        : null;
+
+    const discoverRepos = args.enableRepoDiscovery
+        ? getDiscoverRepos({
+              discoverRepos: dependencies.discoverRepos,
           })
         : null;
 
@@ -373,7 +380,8 @@ const getAgentTools = (
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
-        ...(repoShell ? { repoShell } : {}),
+        ...(exploreRepo ? { exploreRepo } : {}),
+        ...(discoverRepos ? { discoverRepos } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),
         ...(runSql ? { runSql } : {}),
         ...(listWarehouseTables ? { listWarehouseTables } : {}),
@@ -415,7 +423,7 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             enableAiWriteback: args.enableAiWriteback,
             writebackAttribution: args.writebackAttribution,
             siteUrl: args.siteUrl,
-            enableRepoFs: args.enableRepoFs,
+            enableRepoDiscovery: args.enableRepoDiscovery,
             repoFsRoot: args.repoFsRoot,
             enableContentTools:
                 args.enableAgentRevamp &&

@@ -645,6 +645,41 @@ export const createSignedCommitOnBranch = async ({
     }
 };
 
+/**
+ * List every repository the org's GitHub App installation can read, using the
+ * installation-scoped token. Powers the agent's `discoverRepos` tool so it can
+ * find a repo to inspect with `exploreRepo` — not just the dbt project repo.
+ * `octokit.paginate` normalizes this endpoint's `{ total_count, repositories }`
+ * envelope and walks every page.
+ */
+export const listReposAccessibleToInstallation = async ({
+    installationId,
+}: {
+    installationId: string;
+}): Promise<
+    { owner: string; repo: string; defaultBranch: string; private: boolean }[]
+> => {
+    const octokit = getOctokitRestForApp(installationId);
+    try {
+        const repos = await octokit.paginate(
+            octokit.rest.apps.listReposAccessibleToInstallation,
+            { per_page: 100 },
+        );
+        return repos.map((r) => ({
+            owner: r.owner.login,
+            repo: r.name,
+            defaultBranch: r.default_branch,
+            private: r.private,
+        }));
+    } catch (error) {
+        logGithubRateLimit(
+            error,
+            `listReposAccessibleToInstallation ${installationId}`,
+        );
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
 export const getInstallationToken = async (
     installationId: string,
 ): Promise<string> => {

@@ -222,7 +222,7 @@ export type ApiPullRequestPreviewResponse = {
 
 /**
  * The project's source files, read from the read-only repo virtual file system
- * (the same VFS the agent's repoShell sees). Used by the chat input's
+ * (the same VFS the agent's exploreRepo tool sees). Used by the chat input's
  * `@`-mention file picker. Paths are relative to the project's dbt sub-folder,
  * so an @-mentioned path is one the agent can act on directly. `truncated` is
  * true when the file tree exceeded the listing cap.

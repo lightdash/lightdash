@@ -28,6 +28,30 @@ import type { RepoFs } from './RepoFs';
 export class ShellError extends Error {}
 
 /**
+ * Parse an `exploreRepo` repository target ("owner/repo") into its parts. Throws
+ * a {@link ShellError} on malformed input so the tool surfaces it as an
+ * agent-recoverable message rather than paging Sentry. A `@branch` suffix is not
+ * supported in this slice (default branch only) and is rejected explicitly.
+ */
+export const parseRepoTarget = (
+    target: string,
+): { owner: string; repo: string } => {
+    const trimmed = target.trim();
+    if (trimmed.includes('@')) {
+        throw new ShellError(
+            `Invalid repository target "${target}": a branch suffix is not supported — pass just "owner/repo" (the default branch is read).`,
+        );
+    }
+    const parts = trimmed.split('/');
+    if (parts.length !== 2 || !parts[0].trim() || !parts[1].trim()) {
+        throw new ShellError(
+            `Invalid repository target "${target}": expected "owner/repo" (e.g. "lightdash/lightdash"). Use discoverRepos to list accessible repositories.`,
+        );
+    }
+    return { owner: parts[0].trim(), repo: parts[1].trim() };
+};
+
+/**
  * The read-only command allowlist. Anything that mutates the filesystem
  * (`mkdir`/`rm`/`cp`/`mv`/`ln`/`touch`/`chmod`/`tee`/`split`), spawns scripts
  * (`bash`/`sh`), or is otherwise irrelevant to read-only code exploration is

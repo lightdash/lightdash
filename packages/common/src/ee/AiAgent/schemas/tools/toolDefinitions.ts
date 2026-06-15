@@ -171,10 +171,15 @@ import {
     toolReadPinnedThreadOutputSchema,
 } from './toolReadPinnedThreadArgs';
 import {
-    TOOL_REPO_SHELL_DESCRIPTION,
-    toolRepoShellArgsSchema,
-    toolRepoShellOutputSchema,
-} from './toolRepoShellArgs';
+    TOOL_EXPLORE_REPO_DESCRIPTION,
+    toolExploreRepoArgsSchema,
+    toolExploreRepoOutputSchema,
+} from './toolExploreRepoArgs';
+import {
+    TOOL_DISCOVER_REPOS_DESCRIPTION,
+    toolDiscoverReposArgsSchema,
+    toolDiscoverReposOutputSchema,
+} from './toolDiscoverReposArgs';
 import {
     TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
     toolRunContentQueryArgsSchema,
@@ -591,13 +596,22 @@ export const editDbtProjectToolDefinition = defineTool({
     agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 
-export const repoShellToolDefinition = defineTool({
-    name: 'repoShell',
-    title: 'Read repository',
-    description: TOOL_REPO_SHELL_DESCRIPTION,
+export const exploreRepoToolDefinition = defineTool({
+    name: 'exploreRepo',
+    title: 'Explore repository',
+    description: TOOL_EXPLORE_REPO_DESCRIPTION,
     availability: ['agent'],
-    inputSchema: toolRepoShellArgsSchema,
-    agent: { outputSchema: toolRepoShellOutputSchema },
+    inputSchema: toolExploreRepoArgsSchema,
+    agent: { outputSchema: toolExploreRepoOutputSchema },
+});
+
+export const discoverReposToolDefinition = defineTool({
+    name: 'discoverRepos',
+    title: 'Discover repositories',
+    description: TOOL_DISCOVER_REPOS_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolDiscoverReposArgsSchema,
+    agent: { outputSchema: toolDiscoverReposOutputSchema },
 });
 
 export const setupPreviewDeployToolDefinition = defineTool({
@@ -906,7 +920,8 @@ type AgentToolDefinitionsByName = {
     loadProjectContext: typeof loadProjectContextToolDefinition;
     proposeChange: typeof proposeChangeToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
-    repoShell: typeof repoShellToolDefinition;
+    exploreRepo: typeof exploreRepoToolDefinition;
+    discoverRepos: typeof discoverReposToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
@@ -947,7 +962,8 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadProjectContext: loadProjectContextToolDefinition,
     proposeChange: proposeChangeToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
-    repoShell: repoShellToolDefinition,
+    exploreRepo: exploreRepoToolDefinition,
+    discoverRepos: discoverReposToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
@@ -990,7 +1006,8 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadProjectContextToolDefinition,
     proposeChangeToolDefinition,
     editDbtProjectToolDefinition,
-    repoShellToolDefinition,
+    exploreRepoToolDefinition,
+    discoverReposToolDefinition,
     setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,

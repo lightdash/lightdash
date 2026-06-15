@@ -17,8 +17,10 @@ import {
     CreateContentFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
+    DiscoverReposFn,
     EditContentFn,
     EditDbtProjectFn,
+    ExploreRepoFn,
     FindContentFn,
     FindExploresFn,
     FindFieldFn,
@@ -37,7 +39,6 @@ import {
     ReadContentFn,
     ReadPinnedThreadFn,
     RecordSqlApprovalFn,
-    RepoShellFn,
     RunAsyncQueryFn,
     RunSavedChartQueryFn,
     RunSqlJobFn,
@@ -96,9 +97,9 @@ export type AiAgentArgs = AnyAiModel & {
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
     enablePreviewDeploySetup: boolean;
-    enableRepoFs: boolean;
+    enableRepoDiscovery: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
-    // null when repoFs is off or the project is not git-backed.
+    // null when repo discovery is off or the project is not git-backed.
     repoFsRoot: string | null;
     canRunSql: boolean;
     autoApproveSql: boolean;
@@ -167,7 +168,8 @@ export type AiAgentDependencies = {
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     editDbtProject: EditDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
-    repoShell: RepoShellFn;
+    exploreRepo: ExploreRepoFn;
+    discoverRepos: DiscoverReposFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     waitForSqlApproval: WaitForSqlApprovalFn;
