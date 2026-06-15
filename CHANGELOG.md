@@ -1,3 +1,10 @@
+## [0.3165.1](https://github.com/lightdash/lightdash/compare/0.3165.0...0.3165.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* **pivot:** keep single-row cells centered + pad merged cells (PROD-8318) ([#24294](https://github.com/lightdash/lightdash/issues/24294)) ([829fd56](https://github.com/lightdash/lightdash/commit/829fd56e9223ce0697313915f7d722ac3df1dc22))
+
 # [0.3165.0](https://github.com/lightdash/lightdash/compare/0.3164.0...0.3165.0) (2026-06-15)
 
 
