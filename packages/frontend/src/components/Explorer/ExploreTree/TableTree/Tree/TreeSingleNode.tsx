@@ -1,4 +1,6 @@
 import {
+    DimensionType,
+    FeatureFlags,
     getItemId,
     isAdditionalMetric,
     isCompiledMetric,
@@ -8,6 +10,7 @@ import {
     isFilterableField,
     isTimeInterval,
     MetricType,
+    shouldShiftItemTimezone,
     timeFrameConfigs,
     type AdditionalMetric,
     type Dimension,
@@ -25,6 +28,8 @@ import {
 } from '@mantine/core';
 import {
     IconAlertTriangle,
+    IconCalendarPin,
+    IconClockPin,
     IconFilter,
     IconHierarchyOff,
     IconInfoCircle,
@@ -42,6 +47,7 @@ import {
 } from '../../../../../features/explorer/store';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { useAddFilter } from '../../../../../hooks/useFilters';
+import { useServerFeatureFlag } from '../../../../../hooks/useServerOrClientFeatureFlag';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import {
@@ -63,11 +69,67 @@ const NavItemIcon = ({
     isMissing?: boolean;
     item: Item | AdditionalMetric;
 }) => {
-    return isMissing ? (
-        <MantineIcon icon={IconAlertTriangle} color="ldGray.7" />
-    ) : (
-        <FieldIcon item={item} color={getFieldColor(item)} size="md" />
+    const { data: tzSupportFlag } = useServerFeatureFlag(
+        FeatureFlags.EnableTimezoneSupport,
     );
+    const tzSupportEnabled = tzSupportFlag?.enabled ?? false;
+
+    const tzAffordance = useMemo(() => {
+        if (isMissing || !tzSupportEnabled || !isField(item)) return null;
+        const isDate = item.type === DimensionType.DATE;
+        const isTimestamp = item.type === DimensionType.TIMESTAMP;
+        if (!isDate && !isTimestamp) return null;
+        // TZ-sensitive dims keep the default glyph; only the tooltip flags them.
+        if (shouldShiftItemTimezone(item)) {
+            return {
+                pinIcon: null,
+                tooltip: isDate
+                    ? "Calendar date, shifts with the chart's timezone"
+                    : "Timestamp, shifts with the chart's timezone",
+            };
+        }
+        // TZ-immune dims are "pinned" — a calendar/clock-pin by display type.
+        return isDate
+            ? {
+                  pinIcon: IconCalendarPin,
+                  tooltip:
+                      "Calendar date, not affected by the chart's timezone",
+              }
+            : {
+                  pinIcon: IconClockPin,
+                  tooltip:
+                      "Timestamp shown as stored, not affected by the chart's timezone",
+              };
+    }, [isMissing, tzSupportEnabled, item]);
+
+    if (isMissing) {
+        return <MantineIcon icon={IconAlertTriangle} color="ldGray.7" />;
+    }
+    if (tzAffordance) {
+        return (
+            <Tooltip
+                withinPortal
+                maw={300}
+                multiline
+                label={tzAffordance.tooltip}
+            >
+                {tzAffordance.pinIcon ? (
+                    <MantineIcon
+                        icon={tzAffordance.pinIcon}
+                        color={getFieldColor(item)}
+                        size="md"
+                    />
+                ) : (
+                    <FieldIcon
+                        item={item}
+                        color={getFieldColor(item)}
+                        size="md"
+                    />
+                )}
+            </Tooltip>
+        );
+    }
+    return <FieldIcon item={item} color={getFieldColor(item)} size="md" />;
 };
 
 NavItemIcon.displayName = 'NavItemIcon';
