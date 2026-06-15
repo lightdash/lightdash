@@ -340,12 +340,15 @@ export class AiRouterService extends BaseService {
             projectUuid,
             mode: 'web',
         });
-        const routerUuid =
-            selection.routerUuid ??
-            (await this.getEnabledRouter(organizationUuid)).routerUuid;
+        // Web routing requires at least two agents, so it always runs through an
+        // enabled router and never hits the single-agent fast-path that returns
+        // a null routerUuid.
+        if (!selection.routerUuid) {
+            throw new NotFoundError('AI router is not enabled');
+        }
 
         const decision = await this.aiRouterModel.createDecision({
-            routerUuid,
+            routerUuid: selection.routerUuid,
             userUuid: account.user.userUuid,
             prompt,
             suggestedAgentUuid: selection.suggestedAgent.uuid,
