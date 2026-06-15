@@ -92,7 +92,7 @@ export type Explore = {
     /** @deprecated Use `groups` instead */
     groupLabel?: string;
     /**
-     * Nested groups for the sidebar (max 3 levels). Group keys resolve to
+     * Nested groups for the sidebar (max 5 levels). Group keys resolve to
      * labels/descriptions via the project-level `table_groups` config
      * (fetched separately); missing keys fall back to using the key as
      * the label.

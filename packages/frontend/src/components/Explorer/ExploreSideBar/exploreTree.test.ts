@@ -82,9 +82,9 @@ describe('buildExploreTree', () => {
         expect(mktg.label).toBe('Marketing');
     });
 
-    it('caps nesting at 3 levels', () => {
+    it('caps nesting at 5 levels', () => {
         const tree = buildExploreTree([
-            explore('orders', { groups: ['a', 'b', 'c', 'd'] }),
+            explore('orders', { groups: ['a', 'b', 'c', 'd', 'e', 'f'] }),
         ]);
         let depth = 0;
         let cursor: ReturnType<typeof sortExploreTree>[number] | undefined =
@@ -93,7 +93,7 @@ describe('buildExploreTree', () => {
             depth += 1;
             cursor = sortExploreTree(cursor.children)[0];
         }
-        expect(depth).toBe(3);
+        expect(depth).toBe(5);
     });
 });
 
