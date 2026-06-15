@@ -91,6 +91,7 @@ export const metricQueryTimeSeriesViz = ({
         exploreName: vizConfig.exploreName,
         filters,
         additionalMetrics: filterAggregationCustomMetrics(customMetrics),
+        customMetrics: customMetrics ?? null,
         tableCalculations,
     };
 };
