@@ -134,6 +134,7 @@ describe('defineTool', () => {
             'read_skill',
             'read_skill_resource',
             'render_chart',
+            'route_agent',
             'run_ai_writeback',
             'run_metric_query',
             'run_sql',

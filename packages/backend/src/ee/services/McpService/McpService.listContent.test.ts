@@ -225,6 +225,7 @@ const makeMcpService = ({
         aiOrganizationSettingsService: {
             getSettings: jest.fn().mockResolvedValue({ aiAgentsVisible: true }),
         },
+        aiRouterService: {},
         aiWritebackService: {},
         analytics: { track: jest.fn() },
         asyncQueryService: {},

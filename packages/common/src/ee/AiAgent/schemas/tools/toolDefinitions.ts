@@ -254,6 +254,32 @@ const writeAnnotations: McpToolAnnotations = {
 
 const emptyInputSchema = z.object({});
 
+const routeAgentArgsSchema = z.object({
+    prompt: z.string(),
+    projectUuid: z.string().optional(),
+});
+
+const routeAgentStructuredOutputSchema = z.object({
+    agentUuid: z.string(),
+    agentName: z.string(),
+    agentDescription: z.string().nullable(),
+    agentTags: z.array(z.string()).nullable(),
+    agentSpaceAccess: z.array(z.string()),
+    agentProjectUuid: z.string(),
+    explores: z.array(z.string()),
+    verifiedQuestions: z.array(z.string()),
+    instruction: z.string().nullable(),
+    confidence: z.enum(['high', 'medium', 'low']),
+    reasoning: z.string(),
+    candidates: z.array(
+        z.object({
+            agentUuid: z.string(),
+            name: z.string(),
+            description: z.string().nullable(),
+        }),
+    ),
+});
+
 export const findExploresToolDefinition = defineTool({
     name: 'findExplores',
     title: 'Find explores',
@@ -758,7 +784,7 @@ export const setProjectToolDefinition = defineTool({
     name: 'setProject',
     title: 'Set project',
     description:
-        'Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, use list_agents to discover available AI agents and optionally set_agent to activate one.',
+        'Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string(),
@@ -781,7 +807,7 @@ export const listAgentsToolDefinition = defineTool({
     name: 'listAgents',
     title: 'List agents',
     description:
-        'List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Use this to discover which agents are available before calling set_agent.',
+        'List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection; use this tool when you need to inspect candidates or choose one manually before calling set_agent.',
     availability: ['mcp'],
     inputSchema: z.object({
         projectUuid: z.string().optional(),
@@ -789,11 +815,24 @@ export const listAgentsToolDefinition = defineTool({
     mcp: { annotations: readOnlyAnnotations },
 });
 
+export const routeAgentToolDefinition = defineTool({
+    name: 'routeAgent',
+    title: 'Route agent',
+    description:
+        'Automatically select and activate the best AI agent for a user request within the active project. Call this at the start of each new user request after setting project context. Returns routing metadata plus the selected agent context; use set_agent only when you want to override the automatic choice manually.',
+    availability: ['mcp'],
+    inputSchema: routeAgentArgsSchema,
+    mcp: {
+        annotations: writeAnnotations,
+        structuredContentSchema: routeAgentStructuredOutputSchema,
+    },
+});
+
 export const setAgentToolDefinition = defineTool({
     name: 'setAgent',
     title: 'Set agent',
     description:
-        "Set the active AI agent for the active project. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+        "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
     availability: ['mcp'],
     inputSchema: z.object({
         agentUuid: z.string(),
@@ -815,7 +854,7 @@ export const getCurrentAgentToolDefinition = defineTool({
     name: 'getCurrentAgent',
     title: 'Get current agent',
     description:
-        "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
+        'Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. The active agent is usually established by route_agent; use this to inspect the current automatic or manually overridden selection before making data queries.',
     availability: ['mcp'],
     inputSchema: emptyInputSchema,
     mcp: { annotations: readOnlyAnnotations },
@@ -975,6 +1014,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     setProjectToolDefinition,
     getCurrentProjectToolDefinition,
     listAgentsToolDefinition,
+    routeAgentToolDefinition,
     setAgentToolDefinition,
     clearAgentToolDefinition,
     getCurrentAgentToolDefinition,
