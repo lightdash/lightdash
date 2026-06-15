@@ -1,3 +1,10 @@
+## [0.3161.1](https://github.com/lightdash/lightdash/compare/0.3161.0...0.3161.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* dashboard chart totals and subtotals use active parameter value instead of default ([#24268](https://github.com/lightdash/lightdash/issues/24268)) ([c7ce365](https://github.com/lightdash/lightdash/commit/c7ce3658573d2b15a7060ab5a9e3a238b1c54184))
+
 # [0.3161.0](https://github.com/lightdash/lightdash/compare/0.3160.0...0.3161.0) (2026-06-15)
 
 

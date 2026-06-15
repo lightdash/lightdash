@@ -83,6 +83,7 @@ const makeMcpService = (): McpService =>
         aiAgentService: {},
         aiAgentToolsService: { createRuntime: jest.fn() },
         aiOrganizationSettingsService: {},
+        aiRouterService: {},
         aiWritebackService: {},
         analytics: {},
         asyncQueryService: {},

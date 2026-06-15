@@ -3,6 +3,7 @@ import {
     ForbiddenError,
     NotFoundError,
     ParameterError,
+    type AiAgentWithContext,
     type AiRouter,
     type AiRouterDecision,
     type AiRouterDecisionListFilters,
@@ -31,6 +32,18 @@ type Deps = {
     lightdashConfig: LightdashConfig;
     aiRouterModel: AiRouterModel;
     aiAgentService: AiAgentService;
+};
+
+type RoutePromptMode = 'web' | 'mcp';
+
+type PromptRouteSelection = {
+    candidates: AiAgentWithContext[];
+    suggestedAgent: AiAgentWithContext;
+    routerUuid: string | null;
+    confidence: 'high' | 'medium' | 'low';
+    reasoning: string;
+    shouldSkipForwardingQuery: boolean;
+    nextAction: 'create_thread' | 'show_picker';
 };
 
 export class AiRouterService extends BaseService {
@@ -94,6 +107,81 @@ export class AiRouterService extends BaseService {
             throw new NotFoundError('AI router is not enabled');
         }
         return router;
+    }
+
+    public async routePromptToAgent(
+        account: RegisteredAccount,
+        {
+            prompt,
+            projectUuid,
+            mode,
+        }: {
+            prompt: string;
+            projectUuid: string;
+            mode: RoutePromptMode;
+        },
+    ): Promise<PromptRouteSelection> {
+        const organizationUuid = AiRouterService.organizationUuidOf(account);
+        this.assertViewAiAgent(account, organizationUuid);
+
+        const candidates = await this.aiAgentService.getAvailableAgents(
+            organizationUuid,
+            account.user.userUuid,
+            { aiRequireOAuth: true },
+            { projectFilter: { projectUuid } },
+        );
+
+        if (candidates.length === 0) {
+            throw new ParameterError(
+                'No accessible AI agents are available for this project',
+            );
+        }
+
+        if (candidates.length === 1) {
+            return {
+                candidates,
+                suggestedAgent: candidates[0],
+                routerUuid: null,
+                confidence: 'high',
+                reasoning: 'Only one agent available',
+                shouldSkipForwardingQuery: false,
+                nextAction: 'create_thread',
+            };
+        }
+
+        const router = await this.getEnabledRouter(organizationUuid);
+        const instruction = await this.aiRouterModel.getLatestInstruction({
+            routerUuid: router.routerUuid,
+            projectUuid,
+        });
+
+        const { model } = getModel(this.lightdashConfig.ai.copilot);
+        const brain = await selectAgent({
+            model,
+            candidates,
+            prompt,
+            instructions: instruction?.instruction ?? null,
+        });
+
+        const suggestedAgent =
+            candidates.find(
+                (candidate) => candidate.uuid === brain.selectedAgentUuid,
+            ) ?? candidates[0];
+
+        return {
+            candidates,
+            suggestedAgent,
+            routerUuid: router.routerUuid,
+            confidence: brain.confidence,
+            reasoning: brain.reasoning,
+            shouldSkipForwardingQuery: brain.shouldSkipForwardingQuery,
+            nextAction:
+                mode === 'mcp' ||
+                (brain.confidence === 'high' &&
+                    !brain.shouldSkipForwardingQuery)
+                    ? 'create_thread'
+                    : 'show_picker',
+        };
     }
 
     async getConfig(account: RegisteredAccount): Promise<AiRouter> {
@@ -238,48 +326,23 @@ export class AiRouterService extends BaseService {
     ): Promise<AiRouterRouteResponseResult> {
         const organizationUuid = AiRouterService.organizationUuidOf(account);
         this.assertViewAiAgent(account, organizationUuid);
-
-        const router = await this.getEnabledRouter(organizationUuid);
-
-        const candidates = await this.aiAgentService.getAvailableAgents(
-            organizationUuid,
-            account.user.userUuid,
-            { aiRequireOAuth: true },
-            { projectFilter: { projectUuid } },
-        );
-
-        if (candidates.length < 2) {
-            throw new ParameterError(
-                'AI router requires at least two accessible agents',
-            );
-        }
-
-        const instruction = await this.aiRouterModel.getLatestInstruction({
-            routerUuid: router.routerUuid,
-            projectUuid,
-        });
-
-        const { model } = getModel(this.lightdashConfig.ai.copilot);
-        const brain = await selectAgent({
-            model,
-            candidates,
+        const selection = await this.routePromptToAgent(account, {
             prompt,
-            instructions: instruction?.instruction ?? null,
+            projectUuid,
+            mode: 'web',
         });
-
-        const nextAction =
-            brain.confidence === 'high' && !brain.shouldSkipForwardingQuery
-                ? 'create_thread'
-                : 'show_picker';
+        const routerUuid =
+            selection.routerUuid ??
+            (await this.getEnabledRouter(organizationUuid)).routerUuid;
 
         const decision = await this.aiRouterModel.createDecision({
-            routerUuid: router.routerUuid,
+            routerUuid,
             userUuid: account.user.userUuid,
             prompt,
-            suggestedAgentUuid: brain.selectedAgentUuid,
-            confidence: brain.confidence,
-            reasoning: brain.reasoning,
-            candidateAgentUuids: candidates.map((c) => c.uuid),
+            suggestedAgentUuid: selection.suggestedAgent.uuid,
+            confidence: selection.confidence,
+            reasoning: selection.reasoning,
+            candidateAgentUuids: selection.candidates.map((c) => c.uuid),
         });
 
         this.analytics.track<AiRouterMessageRoutedEvent>({
@@ -288,25 +351,25 @@ export class AiRouterService extends BaseService {
             properties: {
                 organizationId: organizationUuid,
                 projectId: projectUuid,
-                confidence: brain.confidence,
-                nextAction,
-                candidatesCount: candidates.length,
+                confidence: selection.confidence,
+                nextAction: selection.nextAction,
+                candidatesCount: selection.candidates.length,
             },
         });
 
         return {
             decision: {
                 decisionUuid: decision.decisionUuid,
-                suggestedAgentUuid: brain.selectedAgentUuid,
-                confidence: brain.confidence,
-                reasoning: brain.reasoning,
-                candidates: candidates.map((c) => ({
+                suggestedAgentUuid: selection.suggestedAgent.uuid,
+                confidence: selection.confidence,
+                reasoning: selection.reasoning,
+                candidates: selection.candidates.map((c) => ({
                     agentUuid: c.uuid,
                     name: c.name,
                     description: c.description ?? null,
                 })),
             },
-            nextAction,
+            nextAction: selection.nextAction,
         };
     }
 

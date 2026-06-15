@@ -653,6 +653,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentService: repository.getAiAgentService(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
+                    aiRouterService:
+                        repository.getAiRouterService<AiRouterService>(),
                     aiWritebackService: repository.getAiWritebackService(),
                 }),
             slackService: ({ repository, clients }) =>
