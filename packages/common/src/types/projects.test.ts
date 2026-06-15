@@ -1,8 +1,11 @@
 import {
+    DbtProjectType,
     getDbtEnvironmentVariableKeyError,
     getInvalidDbtEnvironmentVariableKeys,
     isSafeDbtEnvironmentVariableKey,
     LIGHTDASH_DBT_PROFILE_ENV_VAR_PREFIX,
+    maybeOverrideDbtConnection,
+    type DbtGithubProjectConfig,
 } from './projects';
 
 describe('dbt environment variable validation', () => {
@@ -48,5 +51,53 @@ describe('dbt environment variable validation', () => {
                 { key: 'PYTHONPATH', value: '/tmp' },
             ]),
         ).toEqual(['GIT_SSH_COMMAND', 'PYTHONPATH']);
+    });
+});
+
+describe('maybeOverrideDbtConnection', () => {
+    const githubConnection: DbtGithubProjectConfig = {
+        type: DbtProjectType.GITHUB,
+        authorization_method: 'personal_access_token',
+        personal_access_token: 'token',
+        repository: 'org/repo',
+        branch: 'main',
+        project_sub_path: '/',
+    };
+
+    test('builds an S3-sourced MANIFEST connection when manifestS3Path is set', () => {
+        const result = maybeOverrideDbtConnection(githubConnection, {
+            manifestS3Path: 'previews/combined-manifest.json',
+        });
+
+        expect(result).toEqual({
+            type: DbtProjectType.MANIFEST,
+            manifest: '',
+            manifestS3Path: 'previews/combined-manifest.json',
+            hideRefreshButton: true,
+        });
+    });
+
+    test('an explicit inline manifest overrides the S3 source for that preview', () => {
+        const result = maybeOverrideDbtConnection(githubConnection, {
+            manifest: '{"nodes":{},"metadata":{}}',
+            manifestS3Path: 'previews/combined-manifest.json',
+        });
+
+        expect(result).toEqual({
+            type: DbtProjectType.MANIFEST,
+            manifest: '{"nodes":{},"metadata":{}}',
+            hideRefreshButton: true,
+        });
+    });
+
+    test('leaves the connection unchanged when no manifest source is provided', () => {
+        const result = maybeOverrideDbtConnection(githubConnection, {
+            branch: 'feature-branch',
+        });
+
+        expect(result).toEqual({
+            ...githubConnection,
+            branch: 'feature-branch',
+        });
     });
 });

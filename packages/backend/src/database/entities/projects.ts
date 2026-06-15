@@ -41,6 +41,7 @@ export type DbProject = {
     expires_at: Date | null;
     default_preview_expiration_hours: number;
     max_preview_expiration_hours: number;
+    preview_manifest_s3_path: string | null;
 };
 
 type CreateDbProject = Pick<
@@ -82,6 +83,7 @@ type UpdateDbProject = Partial<
         | 'table_groups'
         | 'default_preview_expiration_hours'
         | 'max_preview_expiration_hours'
+        | 'preview_manifest_s3_path'
     >
 >;
 

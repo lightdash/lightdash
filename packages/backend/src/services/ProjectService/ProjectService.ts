@@ -3271,6 +3271,7 @@ export class ProjectService extends BaseService {
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
             this.analytics,
+            this.fileStorageClient,
         );
         try {
             await adapter.test();
@@ -3628,6 +3629,7 @@ export class ProjectService extends BaseService {
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
             this.analytics,
+            this.fileStorageClient,
         );
         return { adapter, sshTunnel };
     }
@@ -7920,6 +7922,13 @@ export class ProjectService extends BaseService {
                 `Missing warehouse connection for project ${projectUuid}`,
             );
         }
+
+        // If the upstream project is configured with an S3 manifest source,
+        // previews fetch their (large, multi-repo combined) manifest from there
+        // unless the request supplies an explicit inline manifest override.
+        const previewManifestS3Path =
+            await this.projectModel.getPreviewManifestS3Path(projectUuid);
+
         const previewData: CreateProject = {
             name: data.name,
             type: ProjectType.PREVIEW,
@@ -7927,10 +7936,10 @@ export class ProjectService extends BaseService {
                 project.warehouseConnection,
                 data.warehouseConnectionOverrides ?? {},
             ),
-            dbtConnection: maybeOverrideDbtConnection(
-                project.dbtConnection,
-                data.dbtConnectionOverrides ?? {},
-            ),
+            dbtConnection: maybeOverrideDbtConnection(project.dbtConnection, {
+                ...(data.dbtConnectionOverrides ?? {}),
+                manifestS3Path: previewManifestS3Path ?? undefined,
+            }),
             upstreamProjectUuid: data.copyContent ? projectUuid : undefined,
             organizationWarehouseCredentialsUuid:
                 project.organizationWarehouseCredentialsUuid,

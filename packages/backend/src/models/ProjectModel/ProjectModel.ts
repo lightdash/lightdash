@@ -1165,6 +1165,26 @@ export class ProjectModel {
         }
     }
 
+    // S3 key of a pre-combined manifest.json used to source the manifest for
+    // UI-created previews of this project (large multi-repo combined manifests).
+    async getPreviewManifestS3Path(
+        projectUuid: string,
+    ): Promise<string | null> {
+        const [row] = await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .select('preview_manifest_s3_path');
+        return row?.preview_manifest_s3_path ?? null;
+    }
+
+    async updatePreviewManifestS3Path(
+        projectUuid: string,
+        s3Path: string | null,
+    ): Promise<void> {
+        await this.database(ProjectTableName)
+            .where('project_uuid', projectUuid)
+            .update({ preview_manifest_s3_path: s3Path });
+    }
+
     async get(projectUuid: string): Promise<Project> {
         const project = await this.getWithSensitiveFields(projectUuid);
         const sensitiveCredentials = project.warehouseConnection;

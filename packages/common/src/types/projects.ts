@@ -765,7 +765,13 @@ export interface DbtNoneProjectConfig extends DbtProjectCompilerBase {
 
 export interface DbtManifestProjectConfig extends DbtProjectConfigBase {
     type: DbtProjectType.MANIFEST;
+    // Inline manifest JSON. Empty string when the manifest is sourced from S3
+    // (see manifestS3Path), which is resolved at compile time instead.
     manifest: string;
+    // When set, the manifest is fetched from this S3 key at compile time rather
+    // than read from `manifest`. Used for large multi-repo combined manifests
+    // that are too big to inline/paste.
+    manifestS3Path?: string;
     hideRefreshButton: boolean;
 }
 
@@ -858,13 +864,28 @@ export const maybeOverrideDbtConnection = <T extends DbtProjectConfig>(
         branch?: string;
         environment?: DbtProjectEnvironmentVariable[];
         manifest?: string;
+        manifestS3Path?: string;
     },
 ): T => {
-    // If manifest is provided, create a MANIFEST connection type
+    // An inline manifest is an explicit, opt-in per-preview override (paste box
+    // / direct API caller) — only set when the user deliberately provides one,
+    // so it wins when present.
     if (overrides.manifest) {
         return {
             type: DbtProjectType.MANIFEST,
             manifest: overrides.manifest,
+            hideRefreshButton: true,
+        } as T;
+    }
+
+    // Otherwise fall back to the project's configured S3 manifest source, which
+    // holds the full (multi-repo combined) manifest and is resolved at compile
+    // time. This is the default path for previews when nothing is pasted.
+    if (overrides.manifestS3Path) {
+        return {
+            type: DbtProjectType.MANIFEST,
+            manifest: '',
+            manifestS3Path: overrides.manifestS3Path,
             hideRefreshButton: true,
         } as T;
     }

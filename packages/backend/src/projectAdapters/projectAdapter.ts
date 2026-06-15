@@ -7,7 +7,9 @@ import {
     resolveDbtVersion,
 } from '@lightdash/common';
 import { warehouseClientFromCredentials } from '@lightdash/warehouses';
+import { type Readable } from 'stream';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
+import { type FileStorageClient } from '../clients/FileStorage/FileStorageClient';
 import { getInstallationToken } from '../clients/github/Github';
 import Logger from '../logging/logger';
 import { CachedWarehouse, ProjectAdapter } from '../types';
@@ -20,12 +22,21 @@ import { DbtLocalCredentialsProjectAdapter } from './dbtLocalCredentialsProjectA
 import { DbtManifestProjectAdapter } from './dbtManifestProjectAdapter';
 import { DbtNoneCredentialsProjectAdapter } from './dbtNoneCredentialsProjectAdapter';
 
+const streamToString = async (stream: Readable): Promise<string> => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) {
+        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    }
+    return Buffer.concat(chunks).toString('utf-8');
+};
+
 export const projectAdapterFromConfig = async (
     config: DbtProjectConfig,
     warehouseCredentials: CreateWarehouseCredentials,
     cachedWarehouse: CachedWarehouse,
     dbtVersionOption: DbtVersionOption,
     analytics?: LightdashAnalytics,
+    fileStorageClient?: FileStorageClient,
 ): Promise<ProjectAdapter> => {
     Logger.debug(
         `Initialize warehouse client of type ${warehouseCredentials.type}`,
@@ -56,14 +67,32 @@ export const projectAdapterFromConfig = async (
                 warehouseClient,
             });
 
-        case DbtProjectType.MANIFEST:
+        case DbtProjectType.MANIFEST: {
+            // When the manifest is sourced from S3 (large multi-repo combined
+            // manifests), fetch it at compile time rather than reading it inline.
+            let { manifest } = config;
+            if (config.manifestS3Path) {
+                if (!fileStorageClient) {
+                    throw new ParameterError(
+                        'Cannot resolve manifest from S3: file storage is not configured',
+                    );
+                }
+                Logger.debug(
+                    `Fetching preview manifest from S3: ${config.manifestS3Path}`,
+                );
+                const stream = await fileStorageClient.getFileStream(
+                    config.manifestS3Path,
+                );
+                manifest = await streamToString(stream);
+            }
             return new DbtManifestProjectAdapter({
                 warehouseClient,
                 cachedWarehouse,
                 dbtVersion,
                 analytics,
-                manifest: config.manifest,
+                manifest,
             });
+        }
 
         case DbtProjectType.DBT_CLOUD_IDE:
             return new DbtCloudIdeProjectAdapter({
