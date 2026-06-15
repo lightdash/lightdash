@@ -29,6 +29,7 @@ Ships behind `EnableTimezoneSupport` (default OFF) — no behavior change for an
 - Sub-day grains (HOUR / MINUTE / SECOND / MILLISECOND / RAW) — stay `TIMESTAMP`.
 - DATE-base dimensions — already calendar values; unaffected.
 - Pre-aggregate materialized column type (`buildPreAggregateExplore`) — **decision to confirm:** leave as-is in 452, track as follow-up.
+- `MIN`/`MAX` over a DATE column or day-grain dim — needs a metric-level type signal; split to **GLITCH-499** (see §3).
 
 ## Design
 
@@ -77,7 +78,8 @@ The WHERE LHS reuses the SELECT expression, so after the cast it's a `DATE`. The
 - `isCalendarValueDimension`: a DATE-base-TS dim is now a real calendar value → predicate collapses to `type === DATE`. *(This is the single update point GLITCH-450 was built to enable — see the Phase 1 milestone: "lands before the Phase 2 fixes so they have a single predicate to update.")*
 - `shouldShiftItemTimezone`: drop the DATE-base-TS clause; only `TIMESTAMP` shifts.
 - `formatItemValue` DATE branch then never shifts a `DATE` → `formatDate` receives a real date.
-- **`MetricType.DATE` MIN/MAX** path does a `value instanceof Date` check; once `raw` is a `"2026-05-19"` string it falls through and skips date rendering — extend it to also accept date strings. *(Adjacent to the latent MIN/MAX-of-DATE bug noted in GLITCH-450.)*
+
+**Out of scope — split to GLITCH-499:** `MIN`/`MAX` over a DATE column or day-grain dim. The formatter's MIN/MAX branch (`value instanceof Date || isTimestampString(value)` → `formatTimestamp`, from GLITCH-485) tz-**shifts** it — the value arrives as a JS `Date` (fresh) or `…T00:00:00Z` ISO string (cached), and *both* are caught and shifted, so it's not a date-string fall-through. Rendering it unshifted needs the aggregated column's underlying type on the metric (no signal on `Metric` today), so it's its own change.
 
 **Flag-off safety (proven, not assumed):** the formatter only ever receives a timezone via `displayTimezone = enabled ? resolvedTimezone : null` (`AsyncQueryService.ts:2836`). Flag OFF → no timezone → the DATE branch never shifts regardless of the predicate. So this change is **bit-identical when the flag is off** and correct when it's on.
 
