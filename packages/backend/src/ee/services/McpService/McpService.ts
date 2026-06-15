@@ -1141,10 +1141,102 @@ export class McpService extends BaseService {
         );
     }
 
+    private registerContentWriteTools(): void {
+        this.mcpServer.registerTool(
+            mcpCreateContentTool.name,
+            {
+                title: mcpCreateContentTool.title,
+                description: mcpCreateContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpCreateContentTool.inputSchema,
+                ),
+                annotations: mcpCreateContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(
+                    ctx,
+                    McpToolName.CREATE_CONTENT,
+                    projectUuid,
+                );
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const createContentTool = getCreateContent({
+                    createContent: toolsRuntime.createContent,
+                });
+                const result = await createContentTool.execute!(
+                    argsWithProject,
+                    {
+                        toolCallId: '',
+                        messages: [],
+                    },
+                );
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+
+        this.mcpServer.registerTool(
+            mcpEditContentTool.name,
+            {
+                title: mcpEditContentTool.title,
+                description: mcpEditContentTool.description,
+                inputSchema: this.getMcpCompatibleSchema(
+                    mcpEditContentTool.inputSchema,
+                ),
+                annotations: mcpEditContentTool.annotations,
+            },
+            async (args, extra) => {
+                const ctx = getMcpContext(extra);
+                const projectUuid = await this.resolveProjectUuid(ctx);
+                const argsWithProject = { ...args, projectUuid };
+
+                this.trackToolCall(ctx, McpToolName.EDIT_CONTENT, projectUuid);
+
+                const toolsRuntime = await this.getToolsRuntime(
+                    ctx,
+                    projectUuid,
+                );
+
+                const editContentTool = getEditContent({
+                    editContent: toolsRuntime.editContent,
+                });
+                const result = await editContentTool.execute!(argsWithProject, {
+                    toolCallId: '',
+                    messages: [],
+                });
+
+                return this.buildScopedResponse(
+                    ctx,
+                    await McpService.streamToolResult(result),
+                    undefined,
+                    projectUuid,
+                );
+            },
+        );
+    }
+
     setupHandlers(
-        options: { projectPinned: boolean; aiWritebackEnabled: boolean } = {
+        options: {
+            projectPinned: boolean;
+            aiWritebackEnabled: boolean;
+            mcpContentWritesEnabled: boolean;
+        } = {
             projectPinned: false,
             aiWritebackEnabled: false,
+            mcpContentWritesEnabled: true,
         },
     ): void {
         this.mcpServer.registerTool(
@@ -1464,90 +1556,11 @@ export class McpService extends BaseService {
             },
         );
 
-        this.mcpServer.registerTool(
-            mcpCreateContentTool.name,
-            {
-                title: mcpCreateContentTool.title,
-                description: mcpCreateContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpCreateContentTool.inputSchema,
-                ),
-                annotations: mcpCreateContentTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(
-                    ctx,
-                    McpToolName.CREATE_CONTENT,
-                    projectUuid,
-                );
-
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
-
-                const createContentTool = getCreateContent({
-                    createContent: toolsRuntime.createContent,
-                });
-                const result = await createContentTool.execute!(
-                    argsWithProject,
-                    {
-                        toolCallId: '',
-                        messages: [],
-                    },
-                );
-
-                return this.buildScopedResponse(
-                    ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
-                    projectUuid,
-                );
-            },
-        );
-
-        this.mcpServer.registerTool(
-            mcpEditContentTool.name,
-            {
-                title: mcpEditContentTool.title,
-                description: mcpEditContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpEditContentTool.inputSchema,
-                ),
-                annotations: mcpEditContentTool.annotations,
-            },
-            async (args, extra) => {
-                const ctx = getMcpContext(extra);
-                const projectUuid = await this.resolveProjectUuid(ctx);
-                const argsWithProject = { ...args, projectUuid };
-
-                this.trackToolCall(ctx, McpToolName.EDIT_CONTENT, projectUuid);
-
-                const toolsRuntime = await this.getToolsRuntime(
-                    ctx,
-                    projectUuid,
-                );
-
-                const editContentTool = getEditContent({
-                    editContent: toolsRuntime.editContent,
-                });
-                const result = await editContentTool.execute!(argsWithProject, {
-                    toolCallId: '',
-                    messages: [],
-                });
-
-                return this.buildScopedResponse(
-                    ctx,
-                    await McpService.streamToolResult(result),
-                    undefined,
-                    projectUuid,
-                );
-            },
-        );
+        // Content writes (create/edit) are gated by an org-level setting so
+        // admins can prevent MCP clients from modifying managed content.
+        if (options.mcpContentWritesEnabled) {
+            this.registerContentWriteTools();
+        }
 
         // When the project is pinned via header, hide the project-selection
         // tools so clients can't change context for a request-scoped pin.
@@ -2979,6 +2992,7 @@ export class McpService extends BaseService {
     public async createServer(options?: {
         projectPinned?: boolean;
         aiWritebackEnabled?: boolean;
+        mcpContentWritesEnabled?: boolean;
     }): Promise<McpServer> {
         const newServer = Sentry.wrapMcpServerWithSentry(
             new McpServer({
@@ -3012,6 +3026,7 @@ export class McpService extends BaseService {
         this.setupHandlers({
             projectPinned: options?.projectPinned ?? false,
             aiWritebackEnabled: options?.aiWritebackEnabled ?? false,
+            mcpContentWritesEnabled: options?.mcpContentWritesEnabled ?? true,
         });
         this.mcpServer = originalServer;
 
@@ -3257,6 +3272,14 @@ export class McpService extends BaseService {
             featureFlagId: FeatureFlags.AiWriteback,
         });
         return flag.enabled;
+    }
+
+    public async isMcpContentWritesEnabled(
+        user: Pick<SessionUser, 'organizationUuid'>,
+    ): Promise<boolean> {
+        return this.aiOrganizationSettingsService.isMcpContentWritesEnabled(
+            user,
+        );
     }
 
     public getLightdashVersion(context: McpProtocolContext): string {

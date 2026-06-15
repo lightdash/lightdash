@@ -157,6 +157,41 @@ export const AiGeneralSettingsPage = () => {
                     </SettingsCard>
 
                     <SettingsCard>
+                        <Group
+                            justify="space-between"
+                            wrap="nowrap"
+                            align="flex-start"
+                            gap="md"
+                        >
+                            <Box maw={620}>
+                                <Title order={5} mb={4}>
+                                    Allow content changes via MCP
+                                </Title>
+                                <Text c="dimmed" fz="xs">
+                                    Let MCP clients create and edit charts and
+                                    dashboards in this organization. Disable to
+                                    prevent unintended changes to managed
+                                    content; reading content over MCP stays
+                                    available either way, and individual users
+                                    are still bound by their existing
+                                    permissions.
+                                </Text>
+                            </Box>
+                            <Switch
+                                size="md"
+                                checked={settings.mcpContentWritesEnabled}
+                                disabled={isUpdatingSettings}
+                                onChange={(event) =>
+                                    updateSettings({
+                                        mcpContentWritesEnabled:
+                                            event.currentTarget.checked,
+                                    })
+                                }
+                            />
+                        </Group>
+                    </SettingsCard>
+
+                    <SettingsCard>
                         <Stack gap="md">
                             <Group
                                 justify="space-between"
