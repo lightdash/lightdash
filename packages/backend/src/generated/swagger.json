@@ -28171,6 +28171,10 @@
             },
             "ProjectDefaults": {
                 "properties": {
+                    "column_totals": {
+                        "type": "boolean",
+                        "description": "Default behavior for column totals in results tables.\nWhen false, the extra warehouse query that calculates column totals\nis not run by default for new queries. Charts that explicitly enable\n\"Show column totals\" still calculate them.\nDefaults to true if not specified."
+                    },
                     "case_sensitive": {
                         "type": "boolean",
                         "description": "Default case sensitivity for string filters across the project.\nWhen false, all string filters will be case insensitive by default.\nCan be overridden at explore or field level.\nDefaults to true if not specified."
