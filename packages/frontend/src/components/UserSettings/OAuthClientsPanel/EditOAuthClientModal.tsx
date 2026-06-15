@@ -1,5 +1,5 @@
 import { type OAuthClientSummary } from '@lightdash/common';
-import { Button, Stack, TextInput } from '@mantine-8/core';
+import { Button, Stack, Textarea, TextInput } from '@mantine-8/core';
 import { useForm } from '@mantine/form';
 import { IconPencil } from '@tabler/icons-react';
 import { type FC } from 'react';
@@ -77,11 +77,13 @@ export const EditOAuthClientModal: FC<{
                         required
                         {...form.getInputProps('clientName')}
                     />
-                    <TextInput
+                    <Textarea
                         label="Redirect URI"
                         disabled={isLoading}
+                        placeholder="https://myapp.example.com/callback"
                         required
                         description="One URI per line for multiple redirect URIs"
+                        minRows={3}
                         {...form.getInputProps('redirectUris')}
                     />
                 </Stack>
