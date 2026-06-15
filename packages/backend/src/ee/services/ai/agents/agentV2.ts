@@ -413,6 +413,8 @@ const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
             enableDataAccess: args.enableDataAccess,
             enableSearchSemanticLayer: args.enableSearchSemanticLayer,
             enableAiWriteback: args.enableAiWriteback,
+            writebackAttribution: args.writebackAttribution,
+            siteUrl: args.siteUrl,
             enableRepoFs: args.enableRepoFs,
             repoFsRoot: args.repoFsRoot,
             enableContentTools:

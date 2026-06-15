@@ -5,7 +5,8 @@ type ContentType =
     | 'dashboard-link'
     | 'chart-link'
     | 'artifact-link'
-    | 'sql-runner-link';
+    | 'sql-runner-link'
+    | 'settings-link';
 
 interface LinkProcessor {
     fragment: string;
@@ -79,6 +80,10 @@ const processLink = (node: Element, href: string): void => {
         const sqlRunnerMatch = href.match(
             /\/projects\/[^/]+\/sql-runner\/([^/#?]+)/,
         );
+        // Settings deep-links the agent emits (e.g. the "link your personal
+        // GitHub" nudge → /generalSettings/profile). Captured as a same-origin
+        // relative path so the click can route client-side instead of reloading.
+        const settingsMatch = href.match(/\/generalSettings\/[^\s)]*/);
 
         if (dashboardMatch) {
             node.properties = {
@@ -99,6 +104,13 @@ const processLink = (node: Element, href: string): void => {
                 ...node.properties,
                 'data-content-type': 'chart-link',
                 'data-chart-uuid': sqlRunnerMatch[1],
+                href,
+            };
+        } else if (settingsMatch) {
+            node.properties = {
+                ...node.properties,
+                'data-content-type': 'settings-link',
+                'data-settings-path': settingsMatch[0],
                 href,
             };
         }

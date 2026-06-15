@@ -91,6 +91,59 @@ describe('GithubAppService', () => {
         });
     });
 
+    describe('getAiWritebackAttribution', () => {
+        it('reports org/canLink:false without reading the credential when the feature is disabled', async () => {
+            const findCredential = jest.fn();
+            const service = buildService({
+                featureEnabled: false,
+                findCredential,
+            });
+
+            const attribution = await service.getAiWritebackAttribution({
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+
+            expect(attribution).toEqual({ mode: 'org', canLink: false });
+            expect(findCredential).not.toHaveBeenCalled();
+        });
+
+        it('reports personal attribution with the linked login when a credential exists', async () => {
+            const service = buildService({
+                featureEnabled: true,
+                findCredential: jest.fn().mockResolvedValue({
+                    providerLogin: 'octocat',
+                    token: 't',
+                    refreshToken: 'r',
+                }),
+            });
+
+            const attribution = await service.getAiWritebackAttribution({
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+
+            expect(attribution).toEqual({
+                mode: 'personal',
+                githubLogin: 'octocat',
+            });
+        });
+
+        it('reports org/canLink:true when the feature is on but no credential is linked', async () => {
+            const service = buildService({
+                featureEnabled: true,
+                findCredential: jest.fn().mockResolvedValue(undefined),
+            });
+
+            const attribution = await service.getAiWritebackAttribution({
+                userUuid: user.userUuid,
+                organizationUuid,
+            });
+
+            expect(attribution).toEqual({ mode: 'org', canLink: true });
+        });
+    });
+
     describe('getValidUserToken (credential retention on refresh failure)', () => {
         const credential = {
             token: 'old-token',

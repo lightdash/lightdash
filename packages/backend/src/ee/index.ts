@@ -305,6 +305,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    githubAppService: repository.getGithubAppService(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
                     pullRequestsModel: models.getPullRequestsModel(),
