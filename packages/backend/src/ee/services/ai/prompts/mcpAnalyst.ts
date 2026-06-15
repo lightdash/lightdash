@@ -2,6 +2,7 @@ export const MCP_ANALYST_PROMPT = `# Lightdash MCP Tools — Usage Guidelines
 
 ## Query Building Workflow
 
+0. **Route to the right agent first**: After project context is set, call \`route_agent\` at the start of each new user request so subsequent MCP tools inherit the best agent's scope and instructions
 1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models
    - Review the \`topMatchingFields\` to understand which explores match
    - If multiple explores match with similar scores, ask the user which data source they mean
