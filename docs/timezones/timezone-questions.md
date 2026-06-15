@@ -101,17 +101,17 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 ### Per-content choice between a pinned TZ and a viewer TZ?
 
-**Partially.** The per-chart pin in Explorer (chart-level `metricQuery.timezone`) gives an **author-pinned** mode — once set, every viewer sees that zone. An unpinned chart with `EnableUserTimezones=on` gives a **viewer-TZ** mode — each viewer's profile drives the resolution.
+**Partially.** The per-chart pin in Explorer (chart-level `metricQuery.timezone`) gives an **author-pinned** mode — once set, every viewer sees that zone. A chart pinned to `user_timezone` with `EnableTimezoneSupport=on` gives a **viewer-TZ** mode — each viewer's profile drives the resolution.
 
 **What we don't have**: an *author-saved-at-save-time* default that silently inherits the author's zone. We require the author to explicitly pin if they want viewer-stable behavior. This is more honest, slightly less ergonomic.
 
 ### Is there a user-TZ concept at all? What's the roadmap?
 
-**Yes, today.** `users.timezone` (IANA string) is settable in Profile Settings → Default timezone, gated behind the `EnableUserTimezones` feature flag (`featureFlags.ts:12`). Stored in the database, validated server-side in `UserService.ts`, threaded through every authenticated query.
+**Yes, today.** `users.timezone` (IANA string) is settable in Profile Settings → Default timezone, gated behind the `EnableTimezoneSupport` feature flag. Stored in the database, validated server-side in `UserService.ts`, threaded through every authenticated query.
 
-**Admin opt-in**: yes — `EnableUserTimezones` defaults off and can be toggled per-org via `feature_flag_overrides`.
+**Admin opt-in**: yes — `EnableTimezoneSupport` defaults off and can be toggled per-org via `feature_flag_overrides`.
 
-**Flag-off behavior**: turning the flag off does NOT clear stored `users.timezone` values, but they are no longer applied — `getAccountUserTimezone(account, isUserTimezoneEnabled)` returns `null` when `EnableUserTimezones` is off, so resolution falls back to the project timezone for every user. The stored preference is preserved (non-destructive) and re-applies when the flag is turned back on.
+**Flag-off behavior**: turning the flag off does NOT clear stored `users.timezone` values, but they are no longer applied — when `EnableTimezoneSupport` is off, the surrounding query pipeline (warehouse session setup, timezone-aware `DATE_TRUNC`, returning `displayTimezone`) is short-circuited, so the resolved zone is not applied to the query. The stored preference is preserved (non-destructive) and re-applies when the flag is turned back on.
 
 ### Scheduled deliveries & embeds — which TZ wins?
 
@@ -163,11 +163,12 @@ The DATE-base bypass at `filtersCompiler.ts` is the same logic as the SELECT-sid
 
 | Configuration | Alice's SQL == Bob's SQL? |
 |---|---|
-| `EnableUserTimezones=off`, no chart pin | ✅ Yes — both get project TZ |
-| `EnableUserTimezones=off`, chart pinned to Pacific | ✅ Yes — pin wins |
-| `EnableUserTimezones=on`, no chart pin, neither has profile TZ | ✅ Yes — both fall through to project |
-| `EnableUserTimezones=on`, no chart pin, both have profile TZs | ❌ No — Alice's WHERE uses Tokyo bounds, Bob's uses LA bounds |
-| `EnableUserTimezones=on`, chart pinned to Pacific | ✅ Yes — pin wins over profile |
+| `EnableTimezoneSupport=off`, no chart pin | ✅ Yes — both get project TZ |
+| `EnableTimezoneSupport=off`, chart pinned to `user_timezone` | ✅ Yes — flag off, both fall back to project TZ |
+| `EnableTimezoneSupport=on`, no chart pin | ✅ Yes — both get project TZ |
+| `EnableTimezoneSupport=on`, chart pinned to `user_timezone`, neither has profile TZ | ✅ Yes — both fall through to project |
+| `EnableTimezoneSupport=on`, chart pinned to `user_timezone`, both have profile TZs | ❌ No — Alice's WHERE uses Tokyo bounds, Bob's uses LA bounds |
+| `EnableTimezoneSupport=on`, chart pinned to Pacific | ✅ Yes — pin wins over profile |
 | Dashboard date filter (absolute range) | ✅ Yes — absolute filters are UTC instants regardless of viewer |
 | Dashboard date filter (relative — "last 7 days") | depends on the chart settings as above |
 
@@ -299,11 +300,38 @@ The companion filter parity is also implemented ([`timezone-handling.md:149`](./
 
 **Two different stories.**
 
-1. **Server-side warehouse SQL**: handled correctly by the warehouse's native DST-aware functions. `CONVERT_TIMEZONE` / `AT TIME ZONE` / `TIMESTAMP_TRUNC(..., 'tz')` all produce real 23- or 25-hour days at DST boundaries. A "spring forward" Sunday in `America/New_York` correctly returns 23 hourly buckets, with the 2am hour missing.
+1. **Server-side warehouse SQL**: spring-forward is handled correctly and uniformly. `CONVERT_TIMEZONE` / `AT TIME ZONE` / `TIMESTAMP_TRUNC(..., 'tz')` all return 23 hourly buckets for a "spring forward" Sunday in `America/New_York`, with the 2am hour missing, on every warehouse. **Fall-back (the 25-hour day) is NOT uniform** across warehouses, see "DST fall-back" below.
 
 2. **Frontend ECharts shift** (`packages/frontend/src/hooks/echarts/timezoneShift.ts`): **broken at DST boundaries.** The shift offset is computed *per row* (`getTimezoneOffsetMs(rawMs, timezone)`) but applied as a constant adjustment when ECharts renders. For an hour-grain chart spanning a DST transition, the bars before and after the transition use different offsets — visually correct in position but the gap between them looks like a 1-hour jump.
 
-The internal doc does not mention DST. Flagged in [`timezone-review.md` section B](./timezone-review.md#b-the-echarts-shifted-column-workaround). Add a unit test that exercises 2024-03-10 (spring forward) and 2024-11-03 (fall back) for `America/New_York` to either prove or fix this.
+The internal doc does not mention DST. Flagged in [`timezone-review.md` section B](./timezone-review.md#b-the-echarts-shifted-column-workaround). The frontend half is now fixed (GLITCH-449): sub-day buckets are positioned by raw UTC instant, so the two folded hours render at distinct x with per-bucket tick alignment. The fall-back bucketing question below is separate and still open.
+
+### DST fall-back — do the two 1 AM hours merge into one bucket or split into two?
+
+At a fall-back the local clock hits 1 AM twice. The two hours are wall-clock-identical but are genuinely distinct instants an hour apart (New York 2024-11-03: `01:00 EDT` = `05:00Z` and `01:00 EST` = `06:00Z`). Whether an HOUR `DATE_TRUNC` produces one bucket or two **diverges by warehouse**.
+
+Verified 2026-06-12 by querying the fold pair at HOUR + count, project TZ `America/New_York` (via `POST /api/v2/projects/{uuid}/query/metric-query`):
+
+| Warehouse | Result | Buckets |
+| --- | --- | --- |
+| BigQuery, ClickHouse | **SPLIT** | two `01:00` rows (`05:00Z` and `06:00Z`), count 1 each |
+| Postgres, Snowflake, Databricks, Trino | **MERGE** | one `01:00` row, count 2 |
+| Redshift, DuckDB, Spark | **MERGE** (by the same route, not re-tested) | one `01:00` row, count 2 |
+
+So a 25-hour fall-back day renders as 25 distinct hourly buckets on BigQuery/ClickHouse but as 24 (with one double-counted hour) on the merge warehouses.
+
+**This is our SQL, not a warehouse property.** It is decided entirely by whether our per-adapter conversion in `dateTruncTimezoneConversions` (`timeFrames.ts:94`) lands the value in the **naive wall-clock domain** or the **instant domain** before `DATE_TRUNC` runs:
+
+- **Merge route**: `toProjectTz` strips the offset first. Postgres `(col)::timestamptz AT TIME ZONE 'tz'` yields a `timestamp WITHOUT time zone`; Snowflake wraps in `TO_TIMESTAMP_NTZ(CONVERT_TIMEZONE('UTC', ...))`. Both 1 AMs become the bare `01:xx:00` and `GROUP BY` collapses them.
+- **Split route**: BigQuery `TIMESTAMP_TRUNC(col, part, 'tz')` and ClickHouse `toTimeZone(...)` truncate in the instant domain, so the two instants stay distinct.
+
+The same warehouse can do either. Postgres merges with our `AT TIME ZONE` route but **splits** with 3-arg `date_trunc(unit, ts, 'tz')` (PG14+), confirmed locally. So the divergence is an artifact of our conversion map, not intrinsic warehouse behavior on identical SQL.
+
+**Which is "correct"?** Under Lightdash's wall-clock contract (group by the local wall-clock hour), **merge is the contract-consistent answer**: both folds are "1 AM" locally, so they belong in one bucket. By that reading the merge warehouses honor the contract and BigQuery/ClickHouse leak instant-domain semantics. The opposite reading (a fall-back day really has 25 hours, so splitting is the truthful representation) is defensible for precise time-series. The codebase has not made a deliberate call either way, and the seed comment (`timezone_test.yml:18`) only notes the divergence descriptively.
+
+**Fixability is asymmetric.** Unifying on **merge** is achievable everywhere (the naive route is always expressible, including wrapping BigQuery/ClickHouse). Unifying on **split** is not: Redshift has no 3-arg `date_trunc`, Postgres needs 14+, and Spark/Databricks timestamps are session-zone naive. Either direction rewrites bucketing SQL, and therefore cache keys and historical results, for every hour/day query.
+
+Tracked as `gap-dst-fold-bucketing` in [`timezones-v2-design.md`](./timezones-v2-design.md) (decision pending).
 
 ### Half-hour / 45-minute timezones (India, Nepal, Australia)?
 
@@ -379,12 +407,12 @@ Verified on Snowflake too: `CONVERT_TIMEZONE('America/New_York', '2026-06-09 12:
 
 ### What's the declared design intent — "consistent shape" or "viewer-local"?
 
-**Both, depending on configuration.** Off the rack with `EnableUserTimezones=off`:
-- Every viewer of a non-pinned chart sees project-TZ buckets → **consistent chart shape**.
+**Both, depending on configuration.** Off the rack with `EnableTimezoneSupport=off`:
+- Every viewer sees project-TZ buckets → **consistent chart shape**.
 
-With `EnableUserTimezones=on`:
-- Non-pinned charts shift per viewer → **viewer-local boundaries**.
-- Pinned charts override per viewer → **per-content choice**.
+With `EnableTimezoneSupport=on`:
+- Charts pinned to `user_timezone` shift per viewer → **viewer-local boundaries**.
+- Charts pinned to a specific zone override per viewer → **per-content choice**.
 
 So the architectural intent is "support both, default to consistent." **This is not documented anywhere a customer can find.** Customers discover it via:
 - The Profile Settings picker appearing or not appearing (depending on flag).
@@ -400,7 +428,7 @@ So the architectural intent is "support both, default to consistent." **This is 
 | Issue | Severity | Effort | Location |
 |---|---|---|---|
 | ECharts DST shift bug | Correctness | 1d test + 2d fix | `packages/frontend/src/hooks/echarts/timezoneShift.ts` |
-| ~~`EnableUserTimezones=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
+| ~~`EnableTimezoneSupport=off` doesn't gate stored profile TZs~~ ✅ fixed | Correctness | 1d | `resolveQueryTimezone.ts` |
 | Scheduled deliveries TZ interaction undocumented | Docs | 0.5d | `timezone-handling.md` |
 | Per-column wall-clock TZ annotation | Feature | 2d | `translator.ts` + `getColumnTimezone` |
 | ~~BigQuery half-hour offset bare-literal hole~~ ✅ not a bug (literal is a pre-converted UTC instant) | Correctness | 1d | `filtersCompiler.ts` |

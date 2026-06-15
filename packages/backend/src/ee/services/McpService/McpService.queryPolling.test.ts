@@ -304,6 +304,9 @@ const makeMcpService = ({
                 ...agent,
             };
         }),
+        getRelevantVerifiedAnswerContextForAgent: jest.fn().mockResolvedValue({
+            relevantVerifiedAnswers: [],
+        }),
     };
 
     const contentVerificationService = {
@@ -420,6 +423,7 @@ const makeMcpService = ({
         aiOrganizationSettingsService: {
             getSettings: jest.fn().mockResolvedValue({ aiAgentsVisible: true }),
         },
+        aiRouterService: {},
         aiWritebackService: {},
         analytics: { track: jest.fn() },
         asyncQueryService,
@@ -616,6 +620,64 @@ describe('MCP async query polling', () => {
             agentUuid: 'agent-uuid',
             agentTags: ['ai'],
             agentSpaceAccess: ['space-uuid'],
+        });
+    });
+
+    it('returns relevant verified answers in find_explores for the active agent', async () => {
+        const relevantVerifiedAnswer = {
+            artifactVersionUuid: 'artifact-version-uuid',
+            artifactType: 'chart',
+            verifiedQuestion: 'What is revenue by month?',
+            title: 'Revenue by month',
+            description: 'Verified monthly revenue trend',
+            similarity: 0.98,
+            chartConfig: {
+                tableName: 'orders',
+                metricQuery: {
+                    metrics: ['orders_revenue'],
+                },
+            },
+        };
+
+        const { aiAgentService } = makeMcpService({
+            context: {
+                projectUuid,
+                projectName: 'Project',
+                agentUuid: 'agent-uuid',
+                agentName: 'Agent',
+                tags: null,
+            },
+            agent: {
+                uuid: 'agent-uuid',
+                name: 'Agent',
+                tags: ['ai'],
+                spaceAccess: [],
+            },
+        });
+        aiAgentService.getRelevantVerifiedAnswerContextForAgent.mockResolvedValue(
+            {
+                relevantVerifiedAnswers: [relevantVerifiedAnswer],
+            },
+        );
+
+        const result = await getToolCallback(McpToolName.FIND_EXPLORES)(
+            { searchQuery: 'Show me revenue by month' },
+            extra,
+        );
+
+        expect(
+            aiAgentService.getRelevantVerifiedAnswerContextForAgent,
+        ).toHaveBeenCalledWith(user, {
+            projectUuid,
+            agentUuid: 'agent-uuid',
+            searchQuery: 'Show me revenue by month',
+        });
+        expect(getTextResult(result)).toContain('<verifiedAnswers count="1">');
+        expect(getTextResult(result)).toContain('Revenue by month');
+        expect(result).toMatchObject({
+            structuredContent: {
+                relevantVerifiedAnswers: [relevantVerifiedAnswer],
+            },
         });
     });
 

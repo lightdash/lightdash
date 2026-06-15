@@ -17,6 +17,7 @@ export type SchedulerCsvOptions = {
     limit: 'table' | 'all' | number;
     asAttachment?: boolean;
     exportPivotedData?: boolean;
+    xlsxFileLayout?: 'zip' | 'workbook';
 };
 
 export type SchedulerImageOptions = {
@@ -597,6 +598,7 @@ export type NotificationPayloadBase = {
         csvUrls?: {
             path: string;
             filename: string;
+            chartName?: string;
             localPath: string;
             truncated: boolean;
         }[];
@@ -750,6 +752,31 @@ export type ExportCsvDashboardPayload = TraceTaskBase & {
     dashboardFilters: DashboardFilters;
     selectedTabs: string[] | null;
     dateZoomGranularity?: DateGranularity | string;
+};
+
+export type ExportContentFormat =
+    | SchedulerFormat.IMAGE
+    | SchedulerFormat.CSV
+    | SchedulerFormat.XLSX;
+
+export type ExportContentPayload = TraceTaskBase & {
+    resourceType: SchedulerResourceType.DASHBOARD | SchedulerResourceType.CHART;
+    resourceUuid: string;
+    format: ExportContentFormat;
+    options: SchedulerCsvOptions | SchedulerImageOptions;
+    dashboardFilters?: DashboardFilters;
+    dateZoomGranularity?: DateGranularity | string;
+    customViewportWidth?: number;
+    selectedTabs?: string[] | null;
+};
+
+export type ExportContentRequest = {
+    format: ExportContentFormat;
+    options?: SchedulerCsvOptions | SchedulerImageOptions;
+    dashboardFilters?: DashboardFilters;
+    dateZoomGranularity?: DateGranularity | string;
+    customViewportWidth?: number;
+    selectedTabs?: string[] | null;
 };
 
 export type DownloadAsyncQueryResultsPayload = TraceTaskBase & {

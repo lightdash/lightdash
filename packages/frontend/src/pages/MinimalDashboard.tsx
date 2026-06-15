@@ -1,5 +1,6 @@
 import type {
     Dashboard,
+    DashboardFilters,
     DashboardFilterRule,
     DashboardTab,
     ParametersValuesMap,
@@ -277,6 +278,12 @@ const MinimalDashboard: FC = () => {
         key: SessionStorageKeys.SEND_NOW_SCHEDULER_FILTERS,
     });
 
+    const [sendNowSchedulerDashboardFilters] = useSessionStorage<
+        DashboardFilters | undefined
+    >({
+        key: SessionStorageKeys.SEND_NOW_SCHEDULER_DASHBOARD_FILTERS,
+    });
+
     const [sendNowSchedulerParameters] = useSessionStorage<
         ParametersValuesMap | undefined
     >({
@@ -313,6 +320,10 @@ const MinimalDashboard: FC = () => {
     } = useScheduler(schedulerUuid, {
         enabled: !!schedulerUuid && !sendNowSchedulerFilters,
     });
+
+    const schedulerDashboardFilters = useMemo(() => {
+        return sendNowSchedulerDashboardFilters;
+    }, [sendNowSchedulerDashboardFilters]);
 
     const schedulerFilters = useMemo(() => {
         if (schedulerUuid && scheduler && isDashboardScheduler(scheduler)) {
@@ -513,6 +524,7 @@ const MinimalDashboard: FC = () => {
     return (
         <DashboardProvider
             projectUuid={projectUuid}
+            schedulerDashboardFilters={schedulerDashboardFilters}
             schedulerFilters={schedulerFilters}
             schedulerParameters={schedulerParameters}
             schedulerTabsSelected={schedulerTabsSelected}

@@ -20,7 +20,6 @@ describe('resolveQueryTimezone', () => {
             sessionTimezone: null,
             metricQuery: { timezone: 'project_timezone' },
             projectTimezone: 'Australia/Brisbane',
-            isUserTimezoneEnabled: true,
         };
         expect(
             resolveQueryTimezone({ ...args, userTimezone: 'Asia/Tokyo' }),
@@ -39,7 +38,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: {},
                 projectTimezone: 'Europe/London',
                 userTimezone: 'Asia/Tokyo',
-                isUserTimezoneEnabled: true,
             }),
         ).toBe('Europe/London');
     });
@@ -51,33 +49,19 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: {},
                 projectTimezone: 'UTC',
                 userTimezone: null,
-                isUserTimezoneEnabled: true,
             }),
         ).toBe('UTC');
     });
 
-    it('user_timezone resolves to the viewer profile when EnableUserTimezones is on', () => {
+    it('user_timezone resolves to the viewer profile', () => {
         expect(
             resolveQueryTimezone({
                 sessionTimezone: null,
                 metricQuery: { timezone: 'user_timezone' },
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: 'Asia/Tokyo',
-                isUserTimezoneEnabled: true,
             }),
         ).toBe('Asia/Tokyo');
-    });
-
-    it('user_timezone falls through to project when EnableUserTimezones is off', () => {
-        expect(
-            resolveQueryTimezone({
-                sessionTimezone: null,
-                metricQuery: { timezone: 'user_timezone' },
-                projectTimezone: 'Australia/Brisbane',
-                userTimezone: 'Asia/Tokyo',
-                isUserTimezoneEnabled: false,
-            }),
-        ).toBe('Australia/Brisbane');
     });
 
     it('user_timezone falls through to project when the viewer has no profile', () => {
@@ -87,7 +71,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: { timezone: 'user_timezone' },
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: null,
-                isUserTimezoneEnabled: true,
             }),
         ).toBe('Australia/Brisbane');
     });
@@ -99,19 +82,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: { timezone: 'America/New_York' },
                 projectTimezone: 'Australia/Brisbane',
                 userTimezone: 'Asia/Tokyo',
-                isUserTimezoneEnabled: true,
-            }),
-        ).toBe('America/New_York');
-    });
-
-    it('an override zone applies even when the user-timezone flag is off', () => {
-        expect(
-            resolveQueryTimezone({
-                sessionTimezone: null,
-                metricQuery: { timezone: 'America/New_York' },
-                projectTimezone: 'Australia/Brisbane',
-                userTimezone: 'Asia/Tokyo',
-                isUserTimezoneEnabled: false,
             }),
         ).toBe('America/New_York');
     });
@@ -123,7 +93,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: { timezone: 'Europe/London' },
                 projectTimezone: 'UTC',
                 userTimezone: 'Asia/Tokyo',
-                isUserTimezoneEnabled: true,
             }),
         ).toBe('America/Los_Angeles');
     });
@@ -135,7 +104,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: { timezone: 'Europe/London' },
                 projectTimezone: 'UTC',
                 userTimezone: null,
-                isUserTimezoneEnabled: false,
             }),
         ).toBe('Europe/London');
     });
@@ -147,7 +115,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: {},
                 projectTimezone: 'America/New_York',
                 userTimezone: null,
-                isUserTimezoneEnabled: false,
             }),
         ).toBe('America/New_York');
     });
@@ -159,7 +126,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: { timezone: "'; DROP TABLE users; --" },
                 projectTimezone: 'UTC',
                 userTimezone: null,
-                isUserTimezoneEnabled: true,
             }),
         ).toThrow('Invalid timezone');
     });
@@ -171,7 +137,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: {},
                 projectTimezone: 'Not/A/Timezone',
                 userTimezone: null,
-                isUserTimezoneEnabled: true,
             }),
         ).toThrow('Invalid timezone');
     });
@@ -183,7 +148,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: { timezone: 'user_timezone' },
                 projectTimezone: 'UTC',
                 userTimezone: "UTC'; DROP TABLE users; --",
-                isUserTimezoneEnabled: true,
             }),
         ).toThrow('Invalid timezone');
     });
@@ -195,7 +159,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: { timezone: "UTC' OR '1'='1" },
                 projectTimezone: 'UTC',
                 userTimezone: null,
-                isUserTimezoneEnabled: true,
             }),
         ).toThrow('Invalid timezone');
     });
@@ -207,7 +170,6 @@ describe('resolveQueryTimezone', () => {
                 metricQuery: {},
                 projectTimezone: 'UTC',
                 userTimezone: null,
-                isUserTimezoneEnabled: false,
             }),
         ).toThrow('Invalid timezone');
     });
@@ -228,8 +190,7 @@ describe('getAccountUserTimezone', () => {
         expect(getAccountUserTimezone(anonymousAccount())).toBeNull();
     });
 
-    it('feeds user_timezone resolution: project when the flag is off, profile when on', () => {
-        const account = registeredAccount('Asia/Tokyo');
+    it('feeds user_timezone resolution: viewer profile when set, project otherwise', () => {
         const projectTimezone = 'Australia/Brisbane';
 
         expect(
@@ -237,19 +198,19 @@ describe('getAccountUserTimezone', () => {
                 sessionTimezone: null,
                 metricQuery: { timezone: 'user_timezone' },
                 projectTimezone,
-                userTimezone: getAccountUserTimezone(account),
-                isUserTimezoneEnabled: false,
+                userTimezone: getAccountUserTimezone(
+                    registeredAccount('Asia/Tokyo'),
+                ),
             }),
-        ).toBe('Australia/Brisbane');
+        ).toBe('Asia/Tokyo');
 
         expect(
             resolveQueryTimezone({
                 sessionTimezone: null,
                 metricQuery: { timezone: 'user_timezone' },
                 projectTimezone,
-                userTimezone: getAccountUserTimezone(account),
-                isUserTimezoneEnabled: true,
+                userTimezone: getAccountUserTimezone(anonymousAccount()),
             }),
-        ).toBe('Asia/Tokyo');
+        ).toBe('Australia/Brisbane');
     });
 });

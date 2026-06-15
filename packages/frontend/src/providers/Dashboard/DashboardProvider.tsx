@@ -76,6 +76,7 @@ const emptyFilters: DashboardFilters = {
 };
 
 type DashboardProviderProps = React.PropsWithChildren<{
+    schedulerDashboardFilters?: DashboardFilters | undefined;
     schedulerFilters?: DashboardFilterRule[] | undefined;
     schedulerParameters?: ParametersValuesMap | undefined;
     schedulerTabsSelected?: string[] | undefined;
@@ -88,6 +89,7 @@ type DashboardProviderProps = React.PropsWithChildren<{
 }>;
 
 const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
+    schedulerDashboardFilters,
     schedulerFilters,
     schedulerParameters,
     schedulerTabsSelected,
@@ -139,6 +141,13 @@ const DashboardProviderInner: React.FC<DashboardProviderProps> = ({
         projectUuid,
         useQueryOptions: {
             select: (d) => {
+                if (schedulerDashboardFilters) {
+                    return {
+                        ...d,
+                        filters: schedulerDashboardFilters,
+                    };
+                }
+
                 if (schedulerFilters) {
                     const overriddenDimensions = applyDimensionOverrides(
                         d.filters,

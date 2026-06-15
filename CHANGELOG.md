@@ -1,3 +1,33 @@
+## [0.3162.2](https://github.com/lightdash/lightdash/compare/0.3162.1...0.3162.2) (2026-06-15)
+
+
+### Bug Fixes
+
+* **mcp:** surface verified answers in find explores ([#24281](https://github.com/lightdash/lightdash/issues/24281)) ([25274e6](https://github.com/lightdash/lightdash/commit/25274e6ae4de5b48d631636cc2570cda7c89bf4f))
+
+## [0.3162.1](https://github.com/lightdash/lightdash/compare/0.3162.0...0.3162.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* **echarts:** fix sub-day time-axis DST collisions and tick alignment ([#24151](https://github.com/lightdash/lightdash/issues/24151)) ([5d828b7](https://github.com/lightdash/lightdash/commit/5d828b7aee13924834d4cb6e430a748e87696537))
+
+# [0.3162.0](https://github.com/lightdash/lightdash/compare/0.3161.1...0.3162.0) (2026-06-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** keep web agent streams warm to prevent idle-timeout drops ([#24260](https://github.com/lightdash/lightdash/issues/24260)) ([540570a](https://github.com/lightdash/lightdash/commit/540570a992644ee896b578429b039ee7ab0db9b3))
+* show pivot row totals without index dims ([#24276](https://github.com/lightdash/lightdash/issues/24276)) ([5e5b123](https://github.com/lightdash/lightdash/commit/5e5b1239bfab10ef7371fd6045e2a9d3024bafa7)), closes [#24274](https://github.com/lightdash/lightdash/issues/24274)
+
+
+### Features
+
+* add async dashboard export backend ([#24076](https://github.com/lightdash/lightdash/issues/24076)) ([7cc73dc](https://github.com/lightdash/lightdash/commit/7cc73dc51da8663ff87e14ff375f5fd72c298bd3)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add async dashboard export UI ([#24077](https://github.com/lightdash/lightdash/issues/24077)) ([4259c13](https://github.com/lightdash/lightdash/commit/4259c13014c494462dc3a2583dd80c389e3f2e68)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+* add dashboard xlsx workbook export ([#24117](https://github.com/lightdash/lightdash/issues/24117)) ([584cf82](https://github.com/lightdash/lightdash/commit/584cf821d1c1ce58fa2b64b97079065fd3b87351))
+* **mcp:** add AI router for automatic agent selection ([#24277](https://github.com/lightdash/lightdash/issues/24277)) ([95f11c7](https://github.com/lightdash/lightdash/commit/95f11c7cad6d922f07f334d577d8450975da319b)), closes [#23753](https://github.com/lightdash/lightdash/issues/23753)
+
 ## [0.3161.1](https://github.com/lightdash/lightdash/compare/0.3161.0...0.3161.1) (2026-06-15)
 
 

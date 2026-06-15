@@ -1359,7 +1359,7 @@ export class AsyncQueryService extends ProjectService {
                   (col) => col.reference,
               )
             : [];
-        if (pivotConfig.rowTotals && indexFieldIds.length > 0) {
+        if (pivotConfig.rowTotals) {
             try {
                 const { rows, fields } =
                     await this.executeCalculateTotalAndGetResults({
@@ -2905,16 +2905,11 @@ export class AsyncQueryService extends ProjectService {
             (projectUuid
                 ? await this.getQueryTimezoneForProject(projectUuid)
                 : 'UTC');
-        const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
-            userUuid,
-            organizationUuid,
-        });
         const resolvedTimezone = resolveQueryTimezone({
             sessionTimezone,
             metricQuery,
             projectTimezone,
             userTimezone,
-            isUserTimezoneEnabled,
         });
         const enabled = await this.isTimezoneSupportEnabled({
             userUuid,

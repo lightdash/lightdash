@@ -10,13 +10,16 @@ exports[`MCP tool contracts matches the current MCP tool and prompt contract sna
         "properties": {},
         "type": "object",
       },
-      "description": "Guidelines for querying Lightdash data using MCP tools. Includes explore selection, query building, visualization rules, and active agent context (instructions, verified questions, available explores). Inject this into your system prompt for best results.",
+      "description": "Guidelines for querying Lightdash data using MCP tools. After setting project context, call route_agent at the start of each new user request to activate the best agent automatically. Includes explore selection, query building, visualization rules, and active agent context (instructions, verified questions, available explores). Inject this into your system prompt for best results.",
       "name": "lightdash-analyst",
       "prompt": "# Lightdash MCP Tools — Usage Guidelines
 
 ## Query Building Workflow
 
-1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models
+0. **Route to the right agent first**: After project context is set, call \`route_agent\` at the start of each new user request so subsequent MCP tools inherit the best agent's scope and instructions
+1. **Find explores first**: Use \`find_explores\` with a natural language search query to discover relevant data models and any matching verified answers
+   - If the response includes a verified answer that clearly matches, prefer its returned config over constructing a new query from scratch
+   - Use matching verified answers as the starting point, then adapt only if the user asked for a clear modification
    - Review the \`topMatchingFields\` to understand which explores match
    - If multiple explores match with similar scores, ask the user which data source they mean
 2. **Get fields**: Use \`find_fields\` for the chosen explore to see all available dimensions and metrics
@@ -536,7 +539,7 @@ Usage tips:
     },
     {
       "agentName": null,
-      "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, use list_agents to discover available AI agents and optionally set_agent to activate one.",
+      "description": "Set the active project for all subsequent MCP operations. Most tools (list_explores, find_fields, run_metric_query, etc.) require an active project. Setting a project clears any previously selected agent, since agents are scoped to a project. After setting a project, prefer route_agent to auto-select the best agent for each request; use list_agents and set_agent only for manual override.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -573,7 +576,7 @@ Usage tips:
     },
     {
       "agentName": null,
-      "description": "List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Use this to discover which agents are available before calling set_agent.",
+      "description": "List accessible AI agents for the active project. Optionally filter by project UUID. Each agent is pre-configured with specific explores, tags, verified questions, and instructions that define its domain expertise. Prefer route_agent for automatic selection; use this tool when you need to inspect candidates or choose one manually before calling set_agent.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -589,7 +592,139 @@ Usage tips:
     },
     {
       "agentName": null,
-      "description": "Set the active AI agent for the active project. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
+      "description": "Automatically select and activate the best AI agent for a user request within the active project. Call this at the start of each new user request after setting project context. Returns routing metadata plus the selected agent context; use set_agent only when you want to override the automatic choice manually.",
+      "inputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "projectUuid": {
+            "type": "string",
+          },
+          "prompt": {
+            "type": "string",
+          },
+        },
+        "required": [
+          "prompt",
+        ],
+        "type": "object",
+      },
+      "name": "route_agent",
+      "outputSchema": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "additionalProperties": false,
+        "properties": {
+          "agentDescription": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "agentName": {
+            "type": "string",
+          },
+          "agentProjectUuid": {
+            "type": "string",
+          },
+          "agentSpaceAccess": {
+            "items": {
+              "type": "string",
+            },
+            "type": "array",
+          },
+          "agentTags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                },
+                "type": "array",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "agentUuid": {
+            "type": "string",
+          },
+          "candidates": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "agentUuid": {
+                  "type": "string",
+                },
+                "description": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "name": {
+                  "type": "string",
+                },
+              },
+              "required": [
+                "agentUuid",
+                "name",
+                "description",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "confidence": {
+            "enum": [
+              "high",
+              "medium",
+              "low",
+            ],
+            "type": "string",
+          },
+          "explores": {
+            "items": {
+              "type": "string",
+            },
+            "type": "array",
+          },
+          "instruction": {
+            "type": [
+              "string",
+              "null",
+            ],
+          },
+          "reasoning": {
+            "type": "string",
+          },
+          "verifiedQuestions": {
+            "items": {
+              "type": "string",
+            },
+            "type": "array",
+          },
+        },
+        "required": [
+          "agentUuid",
+          "agentName",
+          "agentDescription",
+          "agentTags",
+          "agentSpaceAccess",
+          "agentProjectUuid",
+          "explores",
+          "verifiedQuestions",
+          "instruction",
+          "confidence",
+          "reasoning",
+          "candidates",
+        ],
+        "type": "object",
+      },
+      "title": "Route agent",
+    },
+    {
+      "agentName": null,
+      "description": "Manually set the active AI agent for the active project. Prefer route_agent for default automatic selection; use this when you need to override that choice explicitly. Returns the agent's full context including: explores it has access to, space restrictions, verified questions (curated example queries that demonstrate correct usage of the data model), and custom instructions. Use this context to guide subsequent tool calls — prefer the agent's explores when calling find_explores/find_fields, reference verified questions as patterns for building queries with run_metric_query, and follow the agent's instructions for domain-specific conventions.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -620,7 +755,7 @@ Usage tips:
     },
     {
       "agentName": null,
-      "description": "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. Use this to retrieve the agent's domain knowledge before making data queries.",
+      "description": "Get the currently active AI agent with its full context: explores it has access to, space restrictions, verified questions (curated example queries), and custom instructions. The active agent is usually established by route_agent; use this to inspect the current automatic or manually overridden selection before making data queries.",
       "inputSchema": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "additionalProperties": false,
@@ -8089,6 +8224,7 @@ exports[`MCP tool contracts matches the shared MCP tool definition names snapsho
   "set_project",
   "get_current_project",
   "list_agents",
+  "route_agent",
   "set_agent",
   "clear_agent",
   "get_current_agent",

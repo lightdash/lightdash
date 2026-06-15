@@ -1,5 +1,4 @@
 import {
-    FeatureFlags,
     getTimezoneLabel,
     isTimeZone,
     PROJECT_TIMEZONE_SETTING,
@@ -20,7 +19,6 @@ import dayjs from 'dayjs';
 import { useMemo, type FC } from 'react';
 import { useProject } from '../../../hooks/useProject';
 import { useProjectUuid } from '../../../hooks/useProjectUuid';
-import { useServerFeatureFlag } from '../../../hooks/useServerOrClientFeatureFlag';
 import MantineIcon from '../MantineIcon';
 import classes from './ChartTimezoneSelect.module.css';
 import { getChartTimezoneSelectData } from './getChartTimezoneSelectData';
@@ -41,21 +39,12 @@ const ChartTimezoneSelect: FC<Props> = ({ value, onChange, ...rest }) => {
     const { data: project } = useProject(projectUuid);
     const projectTimezone = project?.queryTimezone ?? undefined;
 
-    const { data: userTimezonesFlag } = useServerFeatureFlag(
-        FeatureFlags.EnableUserTimezones,
-    );
-
     const normalizedValue = toTimezoneSetting(value);
-    // Only offer the per-viewer option when user timezones are enabled, but keep
-    // it available if a chart is already pinned to it so the value still renders.
-    const includeUserTimezone =
-        (userTimezonesFlag?.enabled ?? false) ||
-        normalizedValue === USER_TIMEZONE_SETTING;
 
     const localTimezone = dayjs.tz.guess();
     const data = useMemo(
-        () => getChartTimezoneSelectData(localTimezone, includeUserTimezone),
-        [localTimezone, includeUserTimezone],
+        () => getChartTimezoneSelectData(localTimezone),
+        [localTimezone],
     );
 
     // The closed control shows the compact label; specific zones gain their UTC

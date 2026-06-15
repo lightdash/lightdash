@@ -3413,6 +3413,9 @@ export class AiAgentModel {
             artifactVersionUuid: string;
             chartConfig: Record<string, unknown>;
             artifactType: 'chart' | 'dashboard';
+            verifiedQuestion: string | null;
+            title: string | null;
+            description: string | null;
             similarity: number;
         }[]
     > {
@@ -3433,6 +3436,9 @@ export class AiAgentModel {
                     .select(
                         `${AiArtifactVersionsTableName}.ai_artifact_version_uuid`,
                         `${AiArtifactVersionsTableName}.chart_config`,
+                        `${AiArtifactVersionsTableName}.verified_question`,
+                        `${AiArtifactVersionsTableName}.title`,
+                        `${AiArtifactVersionsTableName}.description`,
                         `${AiArtifactsTableName}.artifact_type`,
                         this.database.raw(
                             `1 - (${AiArtifactVersionsTableName}.embedding_vector <=> ?::vector) AS similarity`,
@@ -3484,6 +3490,9 @@ export class AiAgentModel {
                     artifactVersionUuid: row.ai_artifact_version_uuid,
                     chartConfig: row.chart_config,
                     artifactType: row.artifact_type,
+                    verifiedQuestion: row.verified_question,
+                    title: row.title,
+                    description: row.description,
                     similarity: row.similarity,
                 }));
             },

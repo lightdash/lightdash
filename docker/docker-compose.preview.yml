@@ -73,9 +73,9 @@ services:
             S3_BUCKET: ${S3_BUCKET}
             MCP_ENABLED: true
             CUSTOM_ROLES_ENABLED: true
+            # Enables the combined timezone feature (incl. user-level timezone
+            # resolution) so the timezone api-tests pass.
             LIGHTDASH_ENABLE_TIMEZONE_SUPPORT: true
-            # Gates user-level timezone resolution; on so the userTimezone api-tests pass.
-            LIGHTDASH_ENABLE_FEATURE_FLAGS: enable-user-timezones
 
             # Force-enable embedding flag in preview envs so e2e tests work.
             # Picked up via LEGACY_ENABLE_ENV_VARS in parseConfig.ts → unified

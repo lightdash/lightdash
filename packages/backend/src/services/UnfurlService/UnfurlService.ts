@@ -28,6 +28,7 @@ import {
     snakeCaseName,
     validateSelectedTabs,
     type DashboardFilterRule,
+    type DashboardFilters,
     type ParametersValuesMap,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
@@ -565,6 +566,7 @@ export class UnfurlService extends BaseService {
         context,
         contextId,
         selectedTabs,
+        sendNowSchedulerDashboardFilters,
         sendNowSchedulerFilters,
         sendNowSchedulerParameters,
     }: {
@@ -579,6 +581,7 @@ export class UnfurlService extends BaseService {
         context: ScreenshotContext;
         contextId?: unknown;
         selectedTabs: string[] | null;
+        sendNowSchedulerDashboardFilters?: DashboardFilters | undefined;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
     }): Promise<{
@@ -606,6 +609,7 @@ export class UnfurlService extends BaseService {
             context,
             contextId,
             selectedTabs,
+            sendNowSchedulerDashboardFilters,
             sendNowSchedulerFilters,
             sendNowSchedulerParameters,
         };
@@ -916,6 +920,7 @@ export class UnfurlService extends BaseService {
         context,
         contextId,
         selectedTabs,
+        sendNowSchedulerDashboardFilters,
         sendNowSchedulerFilters,
         sendNowSchedulerParameters,
         outputFormat = 'image',
@@ -939,6 +944,7 @@ export class UnfurlService extends BaseService {
         context: ScreenshotContext;
         contextId?: unknown;
         selectedTabs: string[] | null;
+        sendNowSchedulerDashboardFilters?: DashboardFilters | undefined;
         sendNowSchedulerFilters?: DashboardFilterRule[] | undefined;
         sendNowSchedulerParameters?: ParametersValuesMap | undefined;
         outputFormat?: 'image' | 'pdf';
@@ -1082,6 +1088,8 @@ export class UnfurlService extends BaseService {
                         {
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_FILTERS]:
                                 sendNowSchedulerFilters,
+                            [SessionStorageKeys.SEND_NOW_SCHEDULER_DASHBOARD_FILTERS]:
+                                sendNowSchedulerDashboardFilters,
                             [SessionStorageKeys.SEND_NOW_SCHEDULER_PARAMETERS]:
                                 sendNowSchedulerParameters,
                         },
