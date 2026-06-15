@@ -4,7 +4,7 @@ import { searchSettingsNavigationItemsWithPath } from '../../../hooks/settings/f
 import { useSettingsContext } from '../../../hooks/settings/useSettingsContext';
 import { useSettingsNavigation } from '../../../hooks/settings/useSettingsNavigation';
 import { type SearchItem } from '../types/searchItem';
-import { OMNIBAR_MIN_QUERY_LENGTH } from './useSearch';
+import { hasMinQueryLength } from './useSearch';
 
 /**
  * Settings pages matching `query`, as omnibar `SearchItem`s. The nav model is
@@ -15,7 +15,7 @@ export const useOmnibarSettingsItems = (query: string): SearchItem[] => {
     const sections = useSettingsNavigation(context);
 
     return useMemo(() => {
-        if (query.trim().length < OMNIBAR_MIN_QUERY_LENGTH) {
+        if (!hasMinQueryLength(query)) {
             return [];
         }
 

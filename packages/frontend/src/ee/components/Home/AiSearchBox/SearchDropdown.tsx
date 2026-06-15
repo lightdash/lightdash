@@ -15,7 +15,7 @@ import MantineIcon from '../../../../components/common/MantineIcon';
 import OmnibarItem from '../../../../features/omnibar/components/OmnibarItem';
 import { getSearchResultsGroupsSorted } from '../../../../features/omnibar/components/utils';
 import useSearch, {
-    OMNIBAR_MIN_QUERY_LENGTH,
+    hasMinQueryLength,
 } from '../../../../features/omnibar/hooks/useSearch';
 import { type SearchItem } from '../../../../features/omnibar/types/searchItem';
 import { getSearchItemLabel } from '../../../../features/omnibar/utils/getSearchItemLabel';
@@ -76,7 +76,7 @@ export const SearchDropdown: FC<Props> = ({
 
     const handleInputChange = (newValue: string) => {
         onChange(newValue);
-        if (newValue.length >= OMNIBAR_MIN_QUERY_LENGTH) {
+        if (hasMinQueryLength(newValue)) {
             combobox.openDropdown();
         } else {
             combobox.closeDropdown();
