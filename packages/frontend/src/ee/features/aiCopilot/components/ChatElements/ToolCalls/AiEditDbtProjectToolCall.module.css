@@ -2,12 +2,7 @@
     container-type: inline-size;
 }
 
-/* Once the writeback PR is merged, wash the whole card in a soft Lightdash
-   purple so the terminal state reads at a glance — matching the managed-agent
-   violet tint. Mantine v8 applies its withBorder rule via :where() (zero
-   specificity), so a plain class override wins without !important. */
 .cardMerged {
-    /* Faint violet edges grading to a white centre = a soft glossy glint. */
     --merged-shimmer: light-dark(
         color-mix(in srgb, var(--mantine-color-violet-3) 9%, transparent),
         color-mix(in srgb, var(--mantine-color-violet-3) 6%, transparent)
@@ -28,9 +23,6 @@
     );
 }
 
-/* A faint, shiny glint glides diagonally up toward the right, then rests — a
-   subtle celebration of the merge. The overlay is non-interactive so the card's
-   buttons stay clickable, and overflow:hidden clips it to the rounded corners. */
 .cardMerged::after {
     content: '';
     position: absolute;
@@ -65,9 +57,6 @@
     }
 }
 
-/* A closed-without-merge PR is a muted terminal state — wash the card in a soft
-   Lightdash red with a matching border. No shimmer, no confetti: closing isn't
-   a celebration. */
 .cardClosed {
     background-color: light-dark(
         var(--mantine-color-red-0),
@@ -87,18 +76,10 @@
     gap: var(--mantine-spacing-xs);
 }
 
-/* Terminal status markers (Merged / Closed) are labels, not actions — kill
-   hover/cursor so they read as status chips. A real `disabled` Button would
-   force Mantine's grey palette over the violet/red colour, so they render as
-   non-interactive divs instead. */
 .statusMarker {
     pointer-events: none;
 }
 
-/* "Closed" stays a real disabled button (cursor + non-interactive), but we
-   override Mantine's grey disabled palette with a darker Lightdash red. The
-   disabled rule is low-specificity (:where()), so a class + state selector wins
-   without !important. */
 .closedStatus:disabled,
 .closedStatus[data-disabled] {
     color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-3));

@@ -15,16 +15,12 @@ import Mantine8Provider from '../providers/Mantine8Provider';
 
 const DEMO_PR_URL = 'https://github.com/charliedowler/jaffle/pull/1';
 
-// Realistic-ish provider latency so the arm → confirm → loading → terminal
-// transition feels like the real flow, without raising a real pull request.
 const MERGE_LATENCY_MS = 1200;
 const CLOSE_LATENCY_MS = 1000;
 
 const makeCiChecks = (overrides: Partial<CiChecks>): CiChecks => ({
     provider: CiProviderType.GITHUB,
     overall: CiCheckState.FAILURE,
-    // UNSTABLE = mergeable but a non-required check is failing (matches the
-    // "1 failing check" the writeback demo repo produces).
     mergeState: CiMergeState.UNSTABLE,
     merged: false,
     state: 'open',
@@ -36,8 +32,6 @@ const makeCiChecks = (overrides: Partial<CiChecks>): CiChecks => ({
     ...overrides,
 });
 
-// Mirrors the card's class logic in AiEditDbtProjectToolCall: merged → violet
-// hue + shimmer, closed → red hue, otherwise plain.
 const cardClassName = (ciChecks: CiChecks) =>
     ciChecks.merged
         ? `${styles.card} ${styles.cardMerged}`
@@ -98,11 +92,6 @@ const CardShell: FC<{
     </Stack>
 );
 
-/**
- * Self-contained, backend-free harness for the merge/close interaction: inline
- * confirm, loading, the terminal hue (+ shimmer + confetti on merge), and the
- * failure path. Stubbed mutations resolve on a timer.
- */
 const InteractiveDemo: FC<{ failMerge?: boolean }> = ({
     failMerge = false,
 }) => {
@@ -163,8 +152,7 @@ const InteractiveDemo: FC<{ failMerge?: boolean }> = ({
                     </Button>
                     {failed && (
                         <Text size="sm" c="red.6">
-                            Merge failed — the button reset, try again. (In the
-                            app a toast surfaces the error.)
+                            Merge failed — the button reset, try again.
                         </Text>
                     )}
                 </Group>
@@ -184,22 +172,14 @@ export default meta;
 
 type Story = StoryObj;
 
-/**
- * Click **Merge PR** → it morphs to **Confirm ✓**, click again → ~1.2s loading
- * → the card flips to the purple merged state (hue + shimmer) and confetti
- * fires from the button. **Close PR** works the same way (red, no celebration).
- * Use **Reset** to replay.
- */
 export const InteractiveMergeFlow: Story = {
     render: () => <InteractiveDemo />,
 };
 
-/** The merge request errors: loading clears and the button resets to "Merge PR" — no merged hue, no confetti. */
 export const MergeFails: Story = {
     render: () => <InteractiveDemo failMerge />,
 };
 
-/** Ready to merge — all checks pass; the roll-up shows just the check summary (the button conveys "mergeable"). */
 export const ReadyToMerge: Story = {
     render: () => (
         <CardShell
@@ -215,12 +195,10 @@ export const ReadyToMerge: Story = {
     ),
 };
 
-/** Mergeable but a non-required check is failing — merge stays enabled; no redundant "Mergeable" title. */
 export const MergeableWithFailingCheck: Story = {
     render: () => <CardShell ciChecks={makeCiChecks({})} />,
 };
 
-/** Checks still running — mergeability not yet known, merge disabled, title kept. */
 export const ChecksRunning: Story = {
     render: () => (
         <CardShell
@@ -236,7 +214,6 @@ export const ChecksRunning: Story = {
     ),
 };
 
-/** Blocked by branch protection — merge disabled, the title explains why. */
 export const MergeBlocked: Story = {
     render: () => (
         <CardShell
@@ -248,7 +225,6 @@ export const MergeBlocked: Story = {
     ),
 };
 
-/** Merge conflicts — disabled, title kept. */
 export const MergeConflicts: Story = {
     render: () => (
         <CardShell
@@ -257,17 +233,14 @@ export const MergeConflicts: Story = {
     ),
 };
 
-/** Terminal merged state — purple hue + shimmer, "Merged" marker. */
 export const Merged: Story = {
     render: () => <CardShell ciChecks={makeCiChecks({ merged: true })} />,
 };
 
-/** Terminal closed-without-merge state — red hue, no shimmer, "Closed" marker. */
 export const Closed: Story = {
     render: () => <CardShell ciChecks={makeCiChecks({ state: 'closed' })} />,
 };
 
-/** No CI configured — the roll-up row is omitted entirely, leaving just the actions. */
 export const NoCiConfigured: Story = {
     render: () => (
         <CardShell

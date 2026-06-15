@@ -181,12 +181,6 @@ const CheckRow: FC<{ check: CiCheck }> = ({ check }) => (
 export const PullRequestCiChecks: FC<{
     prUrl: string;
     ciChecks: CiChecks | null;
-    /**
-     * Whether the surrounding card shows a Merge/Merged button. When it does the
-     * button already conveys the merged/mergeable state, so the roll-up row drops
-     * the redundant title and shows just the check summary. The right-panel
-     * overview has no button, so it leaves this off and keeps the title.
-     */
     hasMergeAction?: boolean;
 }> = ({ prUrl, ciChecks, hasMergeAction = false }) => {
     const [expanded, setExpanded] = useState(false);
@@ -211,10 +205,6 @@ export const PullRequestCiChecks: FC<{
             }
           : null;
     const { color, icon, title } = terminal ?? READINESS[ciChecks.mergeState];
-    // When the card has a Merge/Merged button it already states the merged or
-    // mergeable verdict, so drop the redundant title and show just the check
-    // summary. Non-mergeable verdicts (blocked, conflicts, …) keep their title
-    // since they explain why the disabled button can't be used.
     const showTitle =
         !ciChecks.merged && !(hasMergeAction && isMergeable(ciChecks));
 

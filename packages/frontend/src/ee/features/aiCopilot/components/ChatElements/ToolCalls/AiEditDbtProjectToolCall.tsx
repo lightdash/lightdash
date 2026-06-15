@@ -187,16 +187,6 @@ const PullRequestViewMenu: FC<{
     );
 };
 
-/**
- * Terminal "Close PR" / "Merge PR" actions for the PR card, joined in a button
- * group. Collapses to a single "Merged" or "Closed" marker once the PR reaches
- * that state. While open, both actions show; "Merge PR" is disabled until the PR
- * is actually mergeable (the CI roll-up row explains why). Each action confirms
- * inline — one click morphs the button to "Confirm ✓", a second commits — so
- * neither merge nor a stray close fires from a single click, with no modal.
- * Controlled: the parent owns the mutations and passes their loading state.
- * Exported only for the Storybook story (WritebackPrCard).
- */
 // ts-unused-exports:disable-next-line
 export const PullRequestActionButtons: FC<{
     ciChecks: CiChecks | null;
@@ -208,8 +198,6 @@ export const PullRequestActionButtons: FC<{
     const [armed, setArmed] = useState<'merge' | 'close' | null>(null);
     const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const mergeButtonRef = useRef<HTMLButtonElement>(null);
-    // Captured when the user confirms the merge (button still mounted), so the
-    // burst can fire from that spot once the PR actually flips to merged.
     const confettiOrigin = useRef<{ x: number; y: number } | null>(null);
     const wasMerged = useRef(ciChecks?.merged ?? false);
 
@@ -218,8 +206,6 @@ export const PullRequestActionButtons: FC<{
         armTimer.current = null;
         setArmed(null);
     };
-    // First click arms (the button morphs to "Confirm"); a second click within
-    // the window commits. Auto-disarms after a few seconds or on blur.
     const arm = (which: 'merge' | 'close') => {
         if (armTimer.current) clearTimeout(armTimer.current);
         setArmed(which);
@@ -233,9 +219,6 @@ export const PullRequestActionButtons: FC<{
         [],
     );
 
-    // A small, tasteful purple burst from the merge button to celebrate the
-    // merge. Fires when the PR flips to merged (not on initial load of an
-    // already-merged card), honouring reduced-motion.
     useEffect(() => {
         const merged = ciChecks?.merged ?? false;
         if (merged && !wasMerged.current && confettiOrigin.current) {
@@ -261,9 +244,6 @@ export const PullRequestActionButtons: FC<{
     }
 
     if (ciChecks.merged) {
-        // Terminal status, not an action: render as a static Lightdash-purple
-        // marker. A disabled Button would force Mantine's grey palette, so this
-        // is a non-interactive div that keeps the violet light variant.
         return (
             <Button
                 component="div"
@@ -279,8 +259,6 @@ export const PullRequestActionButtons: FC<{
     }
 
     if (ciChecks.state === 'closed') {
-        // Terminal status: a genuinely disabled button (cursor + non-interactive)
-        // whose grey disabled palette is overridden to a darker Lightdash red.
         return (
             <Button
                 variant="light"
@@ -543,8 +521,6 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const deletions = metadata.deletions ?? null;
     const hasDiffStat = additions !== null || deletions !== null;
     const title = 'Edited semantic layer';
-    // Narrowed to string by the `!metadata.prUrl` guard above, but TS widens the
-    // property back inside the action closures — capture it once here.
     const resolvedPrUrl = metadata.prUrl;
 
     return (
