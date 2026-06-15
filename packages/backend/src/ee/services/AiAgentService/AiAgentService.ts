@@ -48,6 +48,7 @@ import {
     assertUnreachable,
     CommercialFeatureFlags,
     ContentType,
+    DbtProjectType,
     derivePivotConfigurationFromChart,
     Explore,
     FeatureFlags,
@@ -5605,6 +5606,17 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             this.logger.info(
                 `Disabling editDbtProject for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
+            aiWritebackEnabled = false;
+        }
+        // Writeback opens a pull request and only supports GitHub and GitLab
+        // dbt connections (see AiWritebackService.getGitProvider, which throws
+        // for any other type). Without this guard the agent would expose the
+        // writeback section + editDbtProject tool — and offer to open PRs — on
+        // projects where editDbtProject can only fail.
+        const writebackSupportedConnection =
+            promptProject.dbtConnection.type === DbtProjectType.GITHUB ||
+            promptProject.dbtConnection.type === DbtProjectType.GITLAB;
+        if (aiWritebackEnabled && !writebackSupportedConnection) {
             aiWritebackEnabled = false;
         }
         const projectContextEnabled =
