@@ -1510,29 +1510,13 @@ type CategoryDateAxisConfig = {
     boundaryGap?: boolean;
 };
 
-// Sub-day axes pin ticks/labels to the raw UTC bucket instants and relabel them
-// in-zone, so both configs are keyed on the same `customValues` instant list.
+// Sub-day axes relabel ticks in the resolved zone but leave tick placement to
+// ECharts' native time-axis algorithm (GLITCH-502).
 type SubDayTimeAxisConfig = {
-    axisTick?: { customValues: number[] };
     axisLabel?: {
-        customValues: number[];
         rich: undefined;
         formatter: (value: number) => string;
     };
-};
-
-const getAxisInstantMs = (raw: unknown): number | undefined => {
-    if (typeof raw === 'number') {
-        return Number.isFinite(raw) ? raw : undefined;
-    }
-    if (raw instanceof Date) {
-        return Number.isFinite(raw.getTime()) ? raw.getTime() : undefined;
-    }
-    if (typeof raw !== 'string') {
-        return undefined;
-    }
-    const parsed = dayjs.utc(raw).valueOf();
-    return Number.isFinite(parsed) ? parsed : undefined;
 };
 
 // Sub-day axes are positioned by raw UTC instant, so ECharts (useUTC) would
@@ -1552,7 +1536,9 @@ const formatSubDayAxisLabel = (value: number, timezone: string): string => {
 };
 
 // resolveAxisTimezone decides which field qualifies and forwards it as a
-// sub-day-format timeAxisField; here we only build its tick/label config.
+// sub-day-format timeAxisField. Bars are positioned by raw UTC instant, so this
+// is labels-only: render each tick in the resolved zone and let ECharts place
+// the ticks natively (GLITCH-502). DST continuity is untouched.
 export const getSubDayTimeAxisConfig = (
     axisId: string | undefined,
     rows: ResultRow[] | undefined,
@@ -1567,22 +1553,8 @@ export const getSubDayTimeAxisConfig = (
         return {};
     }
 
-    const customValues = Array.from(
-        new Set(
-            rows
-                .map((row) => getAxisInstantMs(row[axisId]?.value.raw))
-                .filter((value): value is number => value !== undefined),
-        ),
-    ).sort((a, b) => a - b);
-
-    if (!customValues.length) {
-        return {};
-    }
-
     return {
-        axisTick: { customValues },
         axisLabel: {
-            customValues,
             // Drop the rich-text style ECharts' leveled formatter leaves behind.
             rich: undefined,
             formatter: (value: number) =>
@@ -2245,7 +2217,6 @@ const getEchartAxes = ({
                     ...getAxisTickStyle(
                         validCartesianConfig?.eChartsConfig?.showAxisTicks,
                     ),
-                    ...bottomAxisSubDayConfig.axisTick,
                 },
                 // Spread last so a category-date axisTick keeps replacing the
                 // tick style (sub-day time axes never set extraConfig.axisTick).
@@ -2347,7 +2318,6 @@ const getEchartAxes = ({
                     ...getAxisTickStyle(
                         validCartesianConfig?.eChartsConfig?.showAxisTicks,
                     ),
-                    ...leftAxisSubDayConfig.axisTick,
                 },
                 // Spread last so a category-date axisTick keeps replacing the
                 // tick style (sub-day time axes never set extraConfig.axisTick).

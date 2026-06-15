@@ -897,7 +897,7 @@ describe('getSubDayTimeAxisConfig', () => {
         expect(result).toEqual({});
     });
 
-    test('uses raw UTC instants as custom tick values across DST fall-back', () => {
+    test('leaves tick placement to ECharts (emits no customValues)', () => {
         const result = getSubDayTimeAxisConfig(
             axisId,
             createRows([
@@ -909,15 +909,32 @@ describe('getSubDayTimeAxisConfig', () => {
             subDayField('Europe/London'),
         );
 
-        expect(result.axisTick?.customValues).toEqual([
-            Date.parse('2024-10-26T23:00:00.000Z'),
-            Date.parse('2024-10-27T00:00:00.000Z'),
-            Date.parse('2024-10-27T01:00:00.000Z'),
-            Date.parse('2024-10-27T02:00:00.000Z'),
+        // No pinned ticks: ECharts runs its native adaptive tick algorithm.
+        expect((result as { axisTick?: unknown }).axisTick).toBeUndefined();
+        expect(
+            (result.axisLabel as { customValues?: unknown } | undefined)
+                ?.customValues,
+        ).toBeUndefined();
+        // We still relabel ticks in-zone via the formatter.
+        expect(typeof result.axisLabel?.formatter).toBe('function');
+    });
+
+    test('stays inert off the flag hot path (no override when not sub-day-format)', () => {
+        const rows = createRows([
+            '2024-10-26T23:00:00.000Z',
+            '2024-10-27T02:00:00.000Z',
         ]);
-        expect(result.axisLabel?.customValues).toEqual(
-            result.axisTick?.customValues,
-        );
+        // Flag off ⇒ resolveAxisTimezone returns timeAxisField undefined.
+        expect(getSubDayTimeAxisConfig(axisId, rows, undefined)).toEqual({});
+        // Non-sub-day grain (shift mode) ⇒ no sub-day override either.
+        expect(
+            getSubDayTimeAxisConfig(axisId, rows, {
+                fieldId: axisId,
+                timezone: 'Europe/London',
+                flipAxes: false,
+                mode: 'shift',
+            }),
+        ).toEqual({});
     });
 
     test('clears the leveled rich-text style left by the default formatter', () => {
@@ -928,24 +945,6 @@ describe('getSubDayTimeAxisConfig', () => {
         );
 
         expect(result.axisLabel?.rich).toBeUndefined();
-    });
-
-    test('preserves fractional-offset bucket boundaries for hourly ticks', () => {
-        const result = getSubDayTimeAxisConfig(
-            axisId,
-            createRows([
-                '2024-01-01T00:15:00.000Z',
-                '2024-01-01T01:15:00.000Z',
-                '2024-01-01T02:15:00.000Z',
-            ]),
-            subDayField('Asia/Kathmandu'),
-        );
-
-        expect(result.axisTick?.customValues).toEqual([
-            Date.parse('2024-01-01T00:15:00.000Z'),
-            Date.parse('2024-01-01T01:15:00.000Z'),
-            Date.parse('2024-01-01T02:15:00.000Z'),
-        ]);
     });
 
     const getFormatter = (timezone: string, raw: string) =>
