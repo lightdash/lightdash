@@ -83,8 +83,9 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                     This example embeds an AI agent with{' '}
                     <code>Lightdash.AiAgent</code>. The configured embed token
                     must use <code>content.type = "aiAgent"</code>, include the
-                    agent UUID, and set <code>writeActions.spaceUuid</code>;
-                    agent tools are limited to that space.
+                    agent UUID, and set a write actor plus{' '}
+                    <code>writeActions.spaceUuid</code>; agent tools are
+                    limited to that space.
                 </>
             }
         >
@@ -125,6 +126,8 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                                                     'agent-for-this-embed',
                                             },
                                             writeActions: {
+                                                serviceAccountUserUuid:
+                                                    'service-account-write-user',
                                                 spaceUuid:
                                                     'space-for-agent-tools',
                                             },
@@ -140,8 +143,8 @@ export function AiAgentExamplePage({ embedConfig }: AiAgentExamplePageProps) {
                     <section>
                         <h3 style={sectionTitleStyle}>AI agent</h3>
                         <p style={sectionDescStyle}>
-                            Prompts sent here use the embed AI endpoints and run
-                            as the embed write user.
+                            Prompts sent here use the normal AI API with the
+                            embed JWT header and run as the embed write user.
                         </p>
                         {hasRequiredConfig ? (
                             <div style={dashboardContainerStyle}>

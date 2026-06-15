@@ -168,6 +168,36 @@ async function main() {
             process.exit(1);
         }
 
+        const serviceAccount = await db('service_accounts')
+            .select('service_account_user_uuid')
+            .join(
+                'organizations',
+                'service_accounts.organization_uuid',
+                'organizations.organization_uuid',
+            )
+            .join(
+                'projects',
+                'projects.organization_id',
+                'organizations.organization_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .whereRaw(
+                "scopes && ARRAY['system:admin', 'system:developer', 'system:editor', 'org:admin', 'org:edit']::text[]",
+            )
+            .orderByRaw(
+                "case when service_accounts.description = 'Embedded customer actions' then 0 else 1 end",
+            )
+            .first();
+
+        const writeActor = serviceAccount
+            ? {
+                  serviceAccountUserUuid:
+                      serviceAccount.service_account_user_uuid,
+              }
+            : {
+                  userUuid: user.user_uuid,
+              };
+
         const dashboardPayload = {
             content: {
                 type: 'dashboard',
@@ -184,7 +214,7 @@ async function main() {
                 canExportPagePdf: false,
             },
             writeActions: {
-                userUuid: user.user_uuid,
+                ...writeActor,
                 spaceUuid,
             },
             user: {
@@ -204,7 +234,7 @@ async function main() {
                       agentUuid: aiAgent.ai_agent_uuid,
                   },
                   writeActions: {
-                      userUuid: user.user_uuid,
+                      ...writeActor,
                       spaceUuid,
                   },
                   user: {

@@ -191,7 +191,15 @@ const AgentPage = () => {
     }
 
     if (!agent) {
-        return <Navigate to={getAiAgentPageBase(projectUuid!)} />;
+        return (
+            <Navigate
+                to={
+                    isEmbed
+                        ? `${getAiAgentPageBase(projectUuid!)}/not-authorized`
+                        : getAiAgentPageBase(projectUuid!)
+                }
+            />
+        );
     }
 
     return (

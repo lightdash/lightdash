@@ -65,6 +65,10 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                 ),
             },
             {
+                path: '/embed/:projectUuid/ai-agents/not-authorized',
+                element: <AiAgentsNotAuthorizedPage />,
+            },
+            {
                 path: '/embed/:projectUuid/ai-agents/:agentUuid',
                 element: <AgentPage />,
                 children: [
