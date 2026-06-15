@@ -24,6 +24,8 @@ const UNDERLYING_DATA_PATH = `/api/v2/projects/${PROJECT_UUID}/query/underlying-
 const POST_ID = '11111111-1111-1111-1111-111111111111';
 const GET_ID = '22222222-2222-2222-2222-222222222222';
 const QUERY_UUID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+const SCHEDULE_DOWNLOAD_PATH = `/api/v2/projects/${PROJECT_UUID}/query/${QUERY_UUID}/schedule-download`;
+const JOB_STATUS_PATH = '/api/v1/schedulers/job/job-uuid/status';
 
 const METRIC_QUERY = {
     exploreName: 'orders',
@@ -301,6 +303,56 @@ describe('useAppSdkBridge', () => {
             expect(fetch).toHaveBeenCalledWith(
                 UNDERLYING_DATA_PATH,
                 expect.objectContaining({ method: 'POST' }),
+            ),
+        );
+    });
+
+    it('allows SDK download scheduling and job polling through the bridge', async () => {
+        renderBridge(() => undefined);
+
+        mockFetchOk({
+            status: 'ok',
+            results: { jobId: 'job-uuid' },
+        });
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: POST_ID,
+            method: 'POST',
+            path: SCHEDULE_DOWNLOAD_PATH,
+            body: {
+                type: 'csv',
+                onlyRaw: false,
+                attachmentDownloadName: 'orders-export',
+            },
+        });
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                SCHEDULE_DOWNLOAD_PATH,
+                expect.objectContaining({ method: 'POST' }),
+            ),
+        );
+
+        mockFetchOk({
+            status: 'ok',
+            results: {
+                status: 'completed',
+                details: { fileUrl: '/api/v1/projects/project-uuid/csv/file' },
+            },
+        });
+
+        dispatchFetchMessage({
+            type: 'lightdash:sdk:fetch',
+            id: GET_ID,
+            method: 'GET',
+            path: JOB_STATUS_PATH,
+        });
+
+        await vi.waitFor(() =>
+            expect(fetch).toHaveBeenCalledWith(
+                JOB_STATUS_PATH,
+                expect.objectContaining({ method: 'GET' }),
             ),
         );
     });
