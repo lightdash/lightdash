@@ -1,3 +1,15 @@
+# [0.3165.0](https://github.com/lightdash/lightdash/compare/0.3164.0...0.3165.0) (2026-06-15)
+
+
+### Bug Fixes
+
+* **echarts:** restore native sub-day time-axis ticks (GLITCH-502) ([#24292](https://github.com/lightdash/lightdash/issues/24292)) ([3d3edb1](https://github.com/lightdash/lightdash/commit/3d3edb19fbfc03ac1bd4137cffdc3750e66941a0))
+
+
+### Features
+
+* **mcp:** add org setting to disable content changes via MCP ([#24291](https://github.com/lightdash/lightdash/issues/24291)) ([10fa5b7](https://github.com/lightdash/lightdash/commit/10fa5b70a4a4ed9609e551992a755c7ee0154b64))
+
 # [0.3164.0](https://github.com/lightdash/lightdash/compare/0.3163.0...0.3164.0) (2026-06-15)
 
 
