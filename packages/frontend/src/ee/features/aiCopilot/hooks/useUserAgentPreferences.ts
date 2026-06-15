@@ -14,6 +14,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { isEmbedAiAgentRoute } from './aiAgentRouting';
 
 export const USER_AGENT_PREFERENCES = 'userAgentPreferences';
 
@@ -35,7 +36,10 @@ export const useGetUserAgentPreferences = (
         queryKey: [USER_AGENT_PREFERENCES, projectUuid],
         queryFn: () => getUserAgentPreferences(projectUuid!),
         ...options,
-        enabled: !!projectUuid && options?.enabled !== false,
+        enabled:
+            !isEmbedAiAgentRoute() &&
+            !!projectUuid &&
+            options?.enabled !== false,
     });
 };
 

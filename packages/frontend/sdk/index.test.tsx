@@ -125,7 +125,7 @@ vi.mock('../src/features/comments', () => ({
 }));
 
 import { FilterOperator } from '@lightdash/common';
-import { Dashboard } from './index';
+import { AiAgent, Dashboard } from './index';
 
 describe('SDK Dashboard - URL Sync Behavior', () => {
     const mockToken =
@@ -321,5 +321,29 @@ describe('SDK Dashboard - URL Sync Behavior', () => {
             // Browser URL should not change
             expect(window.location.pathname).toBe('/test');
         });
+    });
+});
+
+describe('SDK AI agent', () => {
+    const mockToken =
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJjb250ZW50Ijp7InByb2plY3RVdWlkIjoidGVzdC1wcm9qZWN0LXV1aWQifX0.test';
+    const mockInstanceUrl = 'http://localhost:3000';
+
+    it('renders the embed AI agent iframe for the token project', async () => {
+        const { container } = render(
+            <AiAgent
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                agentUuid="test-agent-uuid"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
+            `${mockInstanceUrl}/embed/test-project-uuid/ai-agents/test-agent-uuid/threads#${mockToken}`,
+        );
     });
 });

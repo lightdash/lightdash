@@ -2212,6 +2212,24 @@ describe('ProjectService', () => {
             expect(emailModel.getPrimaryEmailStatus).not.toHaveBeenCalled();
         });
 
+        test('skips email lookup for users without an email and returns empty intrinsic attributes', async () => {
+            emailModel.getPrimaryEmailStatus.mockImplementation(() => {
+                throw new NotFoundError(
+                    "Cannot find matching verification status for user's email",
+                );
+            });
+
+            const result = await service.getUserAttributes({
+                user: {
+                    ...user,
+                    email: undefined,
+                },
+            });
+
+            expect(result.intrinsicUserAttributes).toEqual({});
+            expect(emailModel.getPrimaryEmailStatus).not.toHaveBeenCalled();
+        });
+
         test('still attaches intrinsic email attributes for session users', async () => {
             const result = await service.getUserAttributes({ account });
 

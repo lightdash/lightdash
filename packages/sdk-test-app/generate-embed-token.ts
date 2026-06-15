@@ -11,9 +11,11 @@ const { parse } = pgConnectionString;
 import { config } from 'dotenv';
 import path from 'path';
 
+const originalEnv = { ...process.env };
 const rootDir = path.resolve(import.meta.dirname, '../..');
 config({ path: path.join(rootDir, '.env.development') });
 config({ path: path.join(rootDir, '.env.development.local'), override: true });
+Object.assign(process.env, originalEnv);
 
 const LIGHTDASH_SECRET = process.env.LIGHTDASH_SECRET || 'not very secret';
 const LIGHTDASH_URL = process.env.SITE_URL || 'http://localhost:8080';
@@ -74,6 +76,26 @@ async function main() {
     });
 
     try {
+        const requestedAiAgent =
+            process.env.AI_AGENT_UUID || process.env.AI_AGENT_NAME
+                ? await db('ai_agent')
+                      .select('ai_agent_uuid', 'name', 'project_uuid')
+                      .modify((queryBuilder) => {
+                          if (process.env.AI_AGENT_UUID) {
+                              void queryBuilder.where(
+                                  'ai_agent_uuid',
+                                  process.env.AI_AGENT_UUID,
+                              );
+                          } else if (process.env.AI_AGENT_NAME) {
+                              void queryBuilder.where(
+                                  'name',
+                                  process.env.AI_AGENT_NAME,
+                              );
+                          }
+                      })
+                      .first()
+                : undefined;
+
         const dashboard = await db('dashboards')
             .select(
                 'dashboards.dashboard_uuid',
@@ -90,6 +112,11 @@ async function main() {
                         'dashboards.dashboard_uuid',
                         process.env.DASHBOARD_UUID,
                     );
+                } else if (requestedAiAgent) {
+                    void queryBuilder.where(
+                        'projects.project_uuid',
+                        requestedAiAgent.project_uuid,
+                    );
                 } else {
                     void queryBuilder.where(
                         'dashboards.name',
@@ -105,6 +132,12 @@ async function main() {
         const projectUuid = dashboard.project_uuid;
         const dashboardUuid = dashboard.dashboard_uuid;
         const spaceUuid = dashboard.space_uuid;
+        const aiAgent =
+            requestedAiAgent ??
+            (await db('ai_agent')
+                .select('ai_agent_uuid', 'name')
+                .where('project_uuid', projectUuid)
+                .first());
 
         const existing = await db('embedding')
             .where({ project_uuid: projectUuid })
@@ -149,6 +182,7 @@ async function main() {
                 isPreview: false,
                 canDateZoom: false,
                 canExportPagePdf: false,
+                canUseAiAgent: true,
             },
             writeActions: {
                 userUuid: user.user_uuid,
@@ -168,6 +202,8 @@ async function main() {
                     projectUuid,
                     dashboardUuid,
                     dashboardName: dashboard.name,
+                    aiAgentUuid: aiAgent?.ai_agent_uuid ?? null,
+                    aiAgentName: aiAgent?.name ?? null,
                     embedUrl,
                 },
                 null,
@@ -177,6 +213,9 @@ async function main() {
 
         console.log(`\nAdd to packages/sdk-test-app/.env.local:`);
         console.log(`VITE_EMBED_URL="${embedUrl}"`);
+        if (aiAgent) {
+            console.log(`VITE_AI_AGENT_UUID="${aiAgent.ai_agent_uuid}"`);
+        }
     } finally {
         await db.destroy();
     }

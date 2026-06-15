@@ -175,6 +175,7 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     embedWriteUser?: SessionUser;
     embedWriteContext?: {
         canCreateSavedChart: boolean;
+        canUseAiAgent: boolean;
     };
     /** The access permissions the account has */
     access: EmbedAccess;

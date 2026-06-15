@@ -50,6 +50,7 @@ Once the app is running in your browser:
 
 The examples currently include:
 
+- `AI agent demo`
 - `I18n demo`
 - `Filters demo`
 - `Palette UUID demo`
@@ -80,8 +81,12 @@ The script:
 - loads your local Lightdash environment from the repo root
 - finds the `Jaffle dashboard`
 - reads or creates the project's embedding secret in the `embedding` table
-- signs a 24 hour JWT for dashboard embed content
+- signs a 24 hour JWT for dashboard embed content with AI-agent access enabled
+- prints `VITE_AI_AGENT_UUID` when it finds an agent in the dashboard project
 - prints a `VITE_EMBED_URL="..."` value for `packages/sdk-test-app/.env.local`
+
+To target a specific agent, set `AI_AGENT_UUID` or `AI_AGENT_NAME` before
+running the generator.
 
 ## Available Scripts
 

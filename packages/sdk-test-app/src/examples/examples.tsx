@@ -1,5 +1,6 @@
 import type { ComponentType } from 'react';
 import type { EmbedConfigState } from '../hooks/useEmbedConfig';
+import { AiAgentExamplePage } from './AiAgentExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
@@ -16,6 +17,15 @@ export type ExampleDefinition = {
 };
 
 export const examples: ExampleDefinition[] = [
+    {
+        slug: 'ai-agent',
+        path: '/examples/ai-agent',
+        title: 'AI agent demo',
+        description:
+            'Embed an AI agent using a dashboard embed token with AI access scoped to the configured write space.',
+        sourcePath: 'packages/sdk-test-app/src/examples/AiAgentExamplePage.tsx',
+        component: AiAgentExamplePage,
+    },
     {
         slug: 'dashboard-builder',
         path: '/examples/dashboard-builder',

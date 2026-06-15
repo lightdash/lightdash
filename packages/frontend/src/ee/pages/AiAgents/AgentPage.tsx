@@ -20,6 +20,10 @@ import { AgentSidebar } from '../../features/aiCopilot/components/AiAgentPageLay
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { launcherSession } from '../../features/aiCopilot/components/Launcher/launcherSession';
 import { useLauncherDock } from '../../features/aiCopilot/components/Launcher/useLauncherDock';
+import {
+    getAiAgentPageBase,
+    isEmbedAiAgentRoute,
+} from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import {
     useProjectAiAgent as useAiAgent,
@@ -40,6 +44,7 @@ const AgentPage = () => {
     const { agentUuid, threadUuid, projectUuid } = useParams();
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
+    const isEmbed = isEmbedAiAgentRoute();
     const canManageAgents = useAiAgentPermission({
         action: 'manage',
         projectUuid,
@@ -186,7 +191,7 @@ const AgentPage = () => {
     }
 
     if (!agent) {
-        return <Navigate to={`/projects/${projectUuid}/ai-agents`} />;
+        return <Navigate to={getAiAgentPageBase(projectUuid!)} />;
     }
 
     return (
@@ -194,15 +199,17 @@ const AgentPage = () => {
             setIsAgentSidebarCollapsed={setIsAgentSidebarCollapsed}
             isAgentSidebarCollapsed={isAgentSidebarCollapsed}
             Sidebar={
-                <AgentSidebar
-                    agent={agent}
-                    projectUuid={projectUuid!}
-                    threadUuid={threadUuid}
-                    isAgentSidebarCollapsed={isAgentSidebarCollapsed}
-                />
+                isEmbed ? undefined : (
+                    <AgentSidebar
+                        agent={agent}
+                        projectUuid={projectUuid!}
+                        threadUuid={threadUuid}
+                        isAgentSidebarCollapsed={isAgentSidebarCollapsed}
+                    />
+                )
             }
             Header={
-                agentsList && agentsList.length > 0 ? (
+                !isEmbed && agentsList && agentsList.length > 0 ? (
                     <AgentPageHeader
                         leftSection={
                             <AgentSelector

@@ -2352,32 +2352,46 @@ export class EmbedService extends BaseService {
                 );
 
             if (spaceAccessContext.projectUuid !== projectUuid) {
-                return { canCreateSavedChart: false };
+                return { canCreateSavedChart: false, canUseAiAgent: false };
             }
 
             const auditedAbility = this.createAuditedAbility(embedWriteUser);
-            return {
-                canCreateSavedChart: auditedAbility.can(
-                    'create',
-                    subject('SavedChart', {
+            const canCreateSavedChart = auditedAbility.can(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject:
+                        spaceAccessContext.inheritsFromOrgOrProject,
+                    access: spaceAccessContext.access,
+                    metadata: {
+                        resolvedSpaceUuid: writeActions.spaceUuid,
+                        dashboardUuid: undefined,
+                    },
+                }),
+            );
+            const canUseAiAgent =
+                decodedToken.content.type === 'dashboard' &&
+                decodedToken.content.canUseAiAgent === true &&
+                canCreateSavedChart &&
+                auditedAbility.can(
+                    'view',
+                    subject('Project', {
                         organizationUuid,
                         projectUuid,
-                        inheritsFromOrgOrProject:
-                            spaceAccessContext.inheritsFromOrgOrProject,
-                        access: spaceAccessContext.access,
-                        metadata: {
-                            resolvedSpaceUuid: writeActions.spaceUuid,
-                            dashboardUuid: undefined,
-                        },
                     }),
-                ),
+                );
+
+            return {
+                canCreateSavedChart,
+                canUseAiAgent,
             };
         } catch (error) {
             if (
                 error instanceof ForbiddenError ||
                 error instanceof NotFoundError
             ) {
-                return { canCreateSavedChart: false };
+                return { canCreateSavedChart: false, canUseAiAgent: false };
             }
             throw error;
         }

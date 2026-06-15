@@ -85,6 +85,9 @@ export const InteractivityOptionsSchema = z.object({
     canViewDataApps: z.boolean().optional(),
     // Pins tabs and the filter bar to the top while scrolling. Off by default.
     stickyHeader: z.boolean().optional(),
+    // Authorizes the embedded viewer to use AI agents through embed-specific
+    // endpoints. Requires writeActions and is scoped to writeActions.spaceUuid.
+    canUseAiAgent: z.boolean().optional(),
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
@@ -204,6 +207,7 @@ export type CommonEmbedJwtContent = {
     canViewUnderlyingData?: boolean;
     canViewDataApps?: boolean;
     stickyHeader?: boolean;
+    canUseAiAgent?: boolean;
 };
 
 type CommonChartEmbedJwtContent = {

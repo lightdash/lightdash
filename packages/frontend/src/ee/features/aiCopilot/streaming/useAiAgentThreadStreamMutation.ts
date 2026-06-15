@@ -13,6 +13,7 @@ import {
 } from 'ai';
 import { useCallback } from 'react';
 import { lightdashApiStream } from '../../../../api';
+import { getAiAgentApiBase } from '../hooks/aiAgentRouting';
 import {
     addReasoning,
     addMcpUnavailableNotice,
@@ -91,7 +92,9 @@ const getAgentThreadReadableStream = async (
     { signal }: { signal: AbortSignal },
 ) => {
     const res = await lightdashApiStream({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/stream`,
+        url: `${getAiAgentApiBase(
+            projectUuid,
+        )}/${agentUuid}/threads/${threadUuid}/stream`,
         method: 'POST',
         body: JSON.stringify({ enableSqlMode, toolHints }),
         signal,
