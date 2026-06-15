@@ -332,6 +332,20 @@ type AiAgentServiceDependencies = {
     prometheusMetrics?: PrometheusMetrics;
 };
 
+export type RelevantVerifiedAnswer = {
+    artifactVersionUuid: string;
+    chartConfig: Record<string, unknown>;
+    artifactType: 'chart' | 'dashboard';
+    verifiedQuestion: string | null;
+    title: string | null;
+    description: string | null;
+    similarity: number;
+};
+
+export type RelevantVerifiedAnswerContext = {
+    relevantVerifiedAnswers: RelevantVerifiedAnswer[];
+};
+
 // Cache for OAuth response URLs, keyed by "teamId-channelId-messageTs"
 // Used to update the ephemeral "Redirected to Lightdash..." message after OAuth completes
 // Entries auto-expire after 10 minutes
@@ -4649,12 +4663,97 @@ export class AiAgentService extends BaseService {
             return this.aiAgentModel.getArtifactVersionsByUuids(existingRefs);
         }
 
+        const { relevantVerifiedAnswers } =
+            await this.getRelevantVerifiedAnswerContext({
+                organizationUuid,
+                projectUuid,
+                agentUuid,
+                searchQuery,
+                limit: 3,
+            });
+
+        if (relevantVerifiedAnswers.length > 0) {
+            await this.aiAgentModel.recordArtifactReferences({
+                promptUuid,
+                projectUuid,
+                artifactReferences: relevantVerifiedAnswers.map((answer) => ({
+                    artifactVersionUuid: answer.artifactVersionUuid,
+                    similarityScore: answer.similarity,
+                })),
+            });
+
+            const averageSimilarity =
+                relevantVerifiedAnswers.reduce(
+                    (sum, answer) => sum + answer.similarity,
+                    0,
+                ) / relevantVerifiedAnswers.length;
+
+            this.analytics.track<AiAgentArtifactsRetrievedEvent>({
+                event: 'ai_agent.artifacts_retrieved',
+                anonymousId: LightdashAnalytics.anonymousId,
+                properties: {
+                    organizationId: organizationUuid,
+                    projectId: projectUuid,
+                    agentId: agentUuid,
+                    promptId: promptUuid,
+                    artifactCount: relevantVerifiedAnswers.length,
+                    averageSimilarity,
+                },
+            });
+        }
+
+        return relevantVerifiedAnswers;
+    }
+
+    async getRelevantVerifiedAnswerContextForAgent(
+        user: SessionUser,
+        {
+            projectUuid,
+            agentUuid,
+            searchQuery,
+            limit = 3,
+        }: {
+            projectUuid: string;
+            agentUuid: string;
+            searchQuery: string;
+            limit?: number;
+        },
+    ): Promise<RelevantVerifiedAnswerContext> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        await this.getAgent(user, agentUuid, projectUuid);
+
+        return this.getRelevantVerifiedAnswerContext({
+            organizationUuid,
+            projectUuid,
+            agentUuid,
+            searchQuery,
+            limit,
+        });
+    }
+
+    async getRelevantVerifiedAnswerContext({
+        organizationUuid,
+        projectUuid,
+        agentUuid,
+        searchQuery,
+        limit = 3,
+    }: {
+        organizationUuid: string;
+        projectUuid: string;
+        agentUuid: string;
+        searchQuery: string;
+        limit?: number;
+    }): Promise<RelevantVerifiedAnswerContext> {
         const embeddingResult = await generateEmbedding(
             searchQuery,
             this.lightdashConfig,
         );
         if (!embeddingResult) {
-            return [];
+            return { relevantVerifiedAnswers: [] };
         }
         const {
             embedding: queryEmbedding,
@@ -4670,38 +4769,10 @@ export class AiAgentService extends BaseService {
                 queryEmbedding,
                 embeddingModelProvider: provider,
                 embeddingModel: modelName,
-                limit: 3,
+                limit,
             });
 
-        if (verifiedArtifacts.length > 0) {
-            await this.aiAgentModel.recordArtifactReferences({
-                promptUuid,
-                projectUuid,
-                artifactReferences: verifiedArtifacts.map((a) => ({
-                    artifactVersionUuid: a.artifactVersionUuid,
-                    similarityScore: a.similarity,
-                })),
-            });
-
-            const averageSimilarity =
-                verifiedArtifacts.reduce((sum, a) => sum + a.similarity, 0) /
-                verifiedArtifacts.length;
-
-            this.analytics.track<AiAgentArtifactsRetrievedEvent>({
-                event: 'ai_agent.artifacts_retrieved',
-                anonymousId: LightdashAnalytics.anonymousId,
-                properties: {
-                    organizationId: organizationUuid,
-                    projectId: projectUuid,
-                    agentId: agentUuid,
-                    promptId: promptUuid,
-                    artifactCount: verifiedArtifacts.length,
-                    averageSimilarity,
-                },
-            });
-        }
-
-        return verifiedArtifacts;
+        return { relevantVerifiedAnswers: verifiedArtifacts };
     }
 
     static createRelevantArtifactsMessage(
