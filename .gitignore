@@ -80,7 +80,7 @@ credentials.json
 # dbt
 /target
 packages/backend/target/
-venv/
+venv
 .venv/
 .venvs/
 dbt_modules/
