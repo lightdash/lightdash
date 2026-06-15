@@ -261,6 +261,44 @@ async function stepVerifyToken(client) {
   else { console.error(`FAIL: verify-token -- POST access_tokens for id=${id} -> ${res.status}`); process.exit(1); }
 }
 
+// A shared base snapshot bakes in the *creating* instance's warehouse host/port, so a
+// bootstrapped instance points its local-postgres warehouse at a dead port and every
+// query fails with "Unknown object error". Re-point local warehouse credentials at this
+// instance's PG port (PGPORT) and re-encrypt with the running secret. Only touches
+// postgres credentials whose host is clearly local, so a real external warehouse is left
+// alone.
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', 'host.docker.internal', 'postgres', 'db', 'db-dev']);
+async function stepWarehousePortFix(client) {
+  const secret = need('RUNNING_SECRET');
+  const targetPort = parseInt(process.env.PGPORT || '5432', 10);
+  const rows = await client.query(
+    "SELECT warehouse_credentials_id, warehouse_type, encode(encrypted_credentials,'hex') AS hex FROM warehouse_credentials");
+  if (!rows.rows.length) { console.log('OK: no warehouse_credentials rows'); return; }
+  let fixed = 0;
+  for (const row of rows.rows) {
+    if (row.warehouse_type !== 'postgres') continue;
+    let creds;
+    try { creds = JSON.parse(decrypt(Buffer.from(row.hex, 'hex'), secret)); }
+    catch (_) { console.log(`WARN: warehouse_credentials_id=${row.warehouse_credentials_id} will not decrypt with running secret — skipping`); continue; }
+    if (!LOCAL_HOSTS.has(String(creds.host))) {
+      console.log(`SKIP: warehouse_credentials_id=${row.warehouse_credentials_id} host=${creds.host} is not local — leaving as-is`);
+      continue;
+    }
+    if (creds.host === 'localhost' && creds.port === targetPort) continue;
+    const before = `${creds.host}:${creds.port}`;
+    creds.host = 'localhost';
+    creds.port = targetPort;
+    const enc = encrypt(JSON.stringify(creds), secret);
+    if (decrypt(enc, secret) !== JSON.stringify(creds)) throw new Error('round-trip check failed');
+    await client.query(
+      'UPDATE warehouse_credentials SET encrypted_credentials=$1 WHERE warehouse_credentials_id=$2',
+      [enc, row.warehouse_credentials_id]);
+    console.log(`OK: warehouse_credentials_id=${row.warehouse_credentials_id} repointed ${before} -> localhost:${targetPort}`);
+    fixed += 1;
+  }
+  if (!fixed) console.log(`OK: warehouse credentials already point at localhost:${targetPort}`);
+}
+
 (async () => {
   const step = process.argv[2];
   const kvs = {};
@@ -281,6 +319,7 @@ async function stepVerifyToken(client) {
     else if (step === 'dbt-repo-check') await stepDbtRepoCheck(client);
     else if (step === 'dbt-repo-repoint') await stepDbtRepoRepoint(client, kvs);
     else if (step === 'verify-token') await stepVerifyToken(client);
+    else if (step === 'warehouse-port-fix') await stepWarehousePortFix(client);
     else { console.error(`FAIL: reconcile -- unknown step '${step}'`); process.exit(2); }
   } finally {
     await client.end();

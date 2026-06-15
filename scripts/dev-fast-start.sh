@@ -344,6 +344,20 @@ if [ "$EE_MODE" = true ]; then
 fi
 
 # ---------------------------------------------------------------------------
+# A shared base snapshot bakes in the *creating* instance's warehouse host/port,
+# so a bootstrapped instance points its local-postgres warehouse at a dead port
+# and every query fails with "Unknown object error". Reconcile it to this
+# instance's PG port BEFORE the snapshot so /docker-dev reset stays correct too.
+# Non-fatal: the dev LIGHTDASH_SECRET is stable across instances, but if a row
+# won't decrypt the reconcile skips it rather than blocking startup.
+step "Reconcile warehouse port"
+if ./scripts/dev-reconcile.sh warehouse-port-fix 2>&1; then
+    :
+else
+    echo "WARN: warehouse-port-fix reported an issue (non-fatal) — charts may show 'Unknown object error' until fixed"
+fi
+
+# ---------------------------------------------------------------------------
 step "Ensure instance snapshot"
 if docker volume inspect "${LD_VOLUME_PREFIX}_postgres_data_snapshot" >/dev/null 2>&1; then
     echo "SKIP: snapshot exists"
