@@ -88,7 +88,7 @@ Pull requests you open will be attributed to the shared organization-level Light
 
 The user has **not** linked a personal GitHub account, so any pull request you open will be attributed to the shared organization-level Lightdash GitHub app rather than to them. They can link their own GitHub account so their writeback commits are attributed to them, from their profile settings: [${profileLink}](${profileLink}).
 
-When you open or offer to open a pull request for an unlinked user, you may mention this once — conversationally, in your own words — and share that settings link so they can link their account if they'd like attribution. Keep it brief and optional: mention it at most once per thread, never block or delay the actual change on it, and don't interrupt mid-task to bring it up. If they ignore it or decline, proceed exactly as today (the pull request still opens via the org app).`;
+The moment to surface this is when you **first offer or suggest** opening a pull request — before it exists — because linking now means *this* PR (not just future ones) can be attributed to them. At that point add a brief one-line reminder, in your own words, that they can link their personal GitHub first with that settings link, framed as optional. Keep it to once per thread: if you mention it when offering, don't repeat it when the PR opens (and vice versa). Never block, delay, or gate the change on it — if they ignore or decline, proceed exactly as today and the pull request still opens via the org app. Don't interrupt mid-task to raise it.`;
 };
 
 /**

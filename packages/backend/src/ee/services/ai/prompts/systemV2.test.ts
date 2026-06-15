@@ -68,7 +68,10 @@ describe('getSystemPromptV2 writeback attribution', () => {
         expect(content).toContain(
             'https://app.lightdash.cloud/generalSettings/profile',
         );
-        expect(content).toContain('at most once per thread');
+        // Reminder must fire at offer/suggest time (so the user can link before
+        // the first PR), and stay capped at once per thread.
+        expect(content).toContain('offer or suggest');
+        expect(content).toContain('once per thread');
     });
 
     test('does not duplicate slashes in the settings link when siteUrl has a trailing slash', () => {
