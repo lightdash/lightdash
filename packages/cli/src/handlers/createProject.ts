@@ -136,6 +136,7 @@ type CreateProjectOptions = {
     targetPath?: string;
     assumeYes?: boolean;
     expiresIn?: number;
+    disableTimestampConversion?: boolean;
 };
 
 const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
@@ -379,6 +380,16 @@ export const createProject = async (
         targetName = loaded.targetName;
         isDbtCloudCLI = loaded.isDbtCloudCLI;
         dbtVersionOption = loaded.dbtVersionOption;
+
+        if (
+            options.disableTimestampConversion !== undefined &&
+            credentials.type === WarehouseTypes.SNOWFLAKE
+        ) {
+            credentials = {
+                ...credentials,
+                disableTimestampConversion: options.disableTimestampConversion,
+            };
+        }
     }
 
     const project: CreateProjectOptionalCredentials = {
