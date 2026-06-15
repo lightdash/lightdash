@@ -1,3 +1,16 @@
+# [0.3163.0](https://github.com/lightdash/lightdash/compare/0.3162.3...0.3163.0) (2026-06-15)
+
+
+### Bug Fixes
+
+* viewport animation race in data apps deliveries ([#24284](https://github.com/lightdash/lightdash/issues/24284)) ([e56013f](https://github.com/lightdash/lightdash/commit/e56013f90caa09fc527b97cf4a1784ed87d4ff09))
+
+
+### Features
+
+* add project default to disable column total calculations ([#24164](https://github.com/lightdash/lightdash/issues/24164)) ([ee23c37](https://github.com/lightdash/lightdash/commit/ee23c37a0d655e4a071001f7c3197e1598b802b8)), closes [#19179](https://github.com/lightdash/lightdash/issues/19179)
+* **cli:** read disable-timestamp-conversion from project settings ([#24278](https://github.com/lightdash/lightdash/issues/24278)) ([97fe9b3](https://github.com/lightdash/lightdash/commit/97fe9b3c74b78046a7e53b124ca69896e2ccf15b))
+
 ## [0.3162.3](https://github.com/lightdash/lightdash/compare/0.3162.2...0.3162.3) (2026-06-15)
 
 
