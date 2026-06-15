@@ -214,12 +214,16 @@ const PullRequestActionButtons: FC<{
     }
 
     if (ciChecks.merged) {
+        // Terminal status, not an action: render as a static Lightdash-purple
+        // marker. A disabled Button would force Mantine's grey palette, so this
+        // is a non-interactive div that keeps the violet light variant.
         return (
             <Button
+                component="div"
                 variant="light"
-                color="green"
+                color="violet"
                 size="compact-sm"
-                disabled
+                className={styles.mergedStatus}
                 leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
             >
                 Merged

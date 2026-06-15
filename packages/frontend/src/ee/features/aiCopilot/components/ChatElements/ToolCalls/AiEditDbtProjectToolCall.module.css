@@ -10,6 +10,12 @@
     gap: var(--mantine-spacing-xs);
 }
 
+/* The merged state is a terminal status, not an action — kill hover/cursor so
+   the violet marker reads as a label rather than a clickable button. */
+.mergedStatus {
+    pointer-events: none;
+}
+
 /* In the narrow minimized chat bubble, "View" + the Close/Merge group overflow
    side by side, so stack them and let each fill the column width. */
 @container (max-width: 400px) {
