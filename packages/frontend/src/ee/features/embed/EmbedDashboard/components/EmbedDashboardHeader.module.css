@@ -1,0 +1,79 @@
+/* Header grid: row 1 = tabs (or filter bar) + reserved actions column for the
+   print button, optional row 2 = filter bar when tabs are present */
+.headerBar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    background-color: var(--mantine-color-ldGray-0);
+
+    &[data-sticky='true'] {
+        position: sticky;
+        top: 0;
+        z-index: var(--dashboard-tabs-zindex);
+        isolation: isolate;
+        container-type: scroll-state;
+    }
+}
+
+.primary {
+    min-width: 0;
+}
+
+/* Stretched so its background covers the full row height */
+.actions {
+    display: flex;
+    align-items: center;
+    padding-right: var(--mantine-spacing-lg);
+    padding-left: var(--mantine-spacing-sm);
+}
+
+.secondary {
+    grid-column: 1 / -1;
+}
+
+/* Same background as the tab list (tabs.module.css .list), extended across
+   the actions slot, with a shared hairline under the whole row */
+.headerBar[data-has-tabs='true'] > .primary,
+.headerBar[data-has-tabs='true'] > .actions {
+    border-bottom: 1px solid var(--mantine-color-ldGray-2);
+
+    @mixin dark {
+        background-color: var(--mantine-color-background-0);
+    }
+    @mixin light {
+        background-color: var(--mantine-color-white);
+    }
+}
+
+/* Without a tabs row, align the actions with the filter bar's first line */
+.headerBar[data-has-tabs='false'] > .actions {
+    align-items: flex-start;
+    padding-block: var(--mantine-spacing-xs);
+}
+
+/* Keep tiles from sitting right against the tabs hairline when the filter
+   bar is absent or rendered empty */
+.headerBar[data-has-tabs='true']:not(:has(> .secondary > *)) {
+    margin-bottom: var(--mantine-spacing-xs);
+}
+
+.stuckBorder {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 1px;
+    background-color: transparent;
+    pointer-events: none;
+}
+
+/* CSS-only stuck detection. Browsers without scroll-state queries
+   (Firefox/Safari) keep the sticky bar but never show the border. */
+@container scroll-state(stuck: top) {
+    .stuckBorder {
+        background-color: var(--mantine-color-ldGray-3);
+    }
+}
+
+@media print {
+    .actions {
+        display: none;
+    }
+}

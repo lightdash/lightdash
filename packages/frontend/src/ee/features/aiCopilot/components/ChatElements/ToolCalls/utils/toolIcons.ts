@@ -10,6 +10,7 @@ import {
     IconDatabase,
     IconFileCode,
     IconFileText,
+    IconMessages,
     IconFolders,
     IconLayoutDashboard,
     IconBook2,
@@ -67,6 +68,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             describeWarehouseTable: IconDatabase,
             listKnowledgeDocuments: IconBooks,
             getKnowledgeDocumentContent: IconFileText,
+            readPinnedThread: IconMessages,
         };
 
     return isToolName(toolName) ? iconMap[toolName] : IconPlugConnected;

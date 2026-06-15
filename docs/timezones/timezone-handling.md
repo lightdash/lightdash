@@ -13,14 +13,15 @@ Lightdash has two timezone settings. They look similar but solve different probl
 | **Data timezone**    | Warehouse   | "What timezone are my NTZ timestamps stored in?" | Warehouse connection → Advanced settings |
 | **Project timezone** | Application | "What timezone should my users see data in?"     | Project settings → Timezone              |
 
-In addition, two display-layer overrides sit on top of the project timezone:
+In addition, three overrides sit on top of the project timezone (the session timezone applies only to embedded sessions):
 
 | Override               | Scope              | Wins over project? | Where configured                  |
 | ---------------------- | ------------------ | ------------------ | --------------------------------- |
+| **Session timezone**   | Per embed session  | ✅ (wins over chart, user, project) | Embed page URL `?timezone=<IANA>` |
 | **User timezone**      | Per viewer         | ✅                 | Profile settings → Default timezone |
 | **Chart timezone**     | Per saved chart    | ✅ (also wins over user) | Explorer header → Timezone picker |
 
-Resolution order: `chart → user → project → server default ('UTC')`. A viewer with no profile preference falls through to the project. A viewer with a profile timezone sees their zone on charts that don't pin one. See [User-level timezone](#user-level-timezone) below.
+Resolution order: `session (embed URL) → chart → user → project → server default ('UTC')`. A viewer with no profile preference falls through to the project. A viewer with a profile timezone sees their zone on charts that don't pin one. An embedding host can pin a single session to a zone via the `?timezone=` URL param, which outranks even the chart pin. See [User-level timezone](#user-level-timezone) below.
 
 Two flags gate timezone behavior:
 
@@ -61,7 +62,7 @@ metricQuery.timezone  →  user.timezone  →  project.queryTimezone  →  confi
 - An author can still "pin" a chart to a specific zone via the Explorer timezone picker — that fixed zone then wins for every viewer.
 - Charts without a pinned zone fall through per-viewer, so each reader sees their own zone.
 
-Resolution happens server-side in [`resolveQueryTimezone`](../../packages/common/src/utils/resolveQueryTimezone.ts). Anonymous viewers (embeds / JWT) and service accounts have no profile timezone — the helper `getAccountUserTimezone(account)` returns `null` for them, so they fall through to the project default.
+Resolution happens server-side in [`resolveQueryTimezone`](../../packages/common/src/utils/resolveQueryTimezone.ts). Anonymous viewers (embeds / JWT) and service accounts have no profile timezone — the helper `getAccountUserTimezone(account)` returns `null` for them. Embedded sessions can still set a per-session query timezone via the `?timezone=<IANA>` embed URL param, which is threaded in as the top-priority `sessionTimezone` argument and outranks the chart pin; absent that param they fall through to the project default.
 
 **Worker / retrieval paths** (queued warehouse execution, pre-aggregate workers, results pagination, downloads, ready-results fetch) don't re-resolve the timezone. `executePreparedAsyncQuery` stamps the resolved chart > user > project timezone onto `metricQuery.timezone` before persisting the query history snapshot, so any method that receives a `queryUuid` reads it back directly as `queryHistory.metricQuery.timezone` — no resolver helper, no project lookup, no flag check.
 
@@ -415,7 +416,6 @@ The only remaining hole is NTZ-style columns storing non-UTC data on warehouses 
 | Gap                                                              | Description                                                                                                                                                                                                                                                                           | Impact                                                                                                                                            |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **BigQuery/Athena: no session timezone**                         | These warehouses have no session-timezone plumbing, so the data-timezone setting is inert. NTZ-style columns (BigQuery `DATETIME`, Athena bare `TIMESTAMP`) can't be rebased from their stored zone to UTC                                                                           | Data timezone setting has no effect (UI field is hidden); NTZ columns holding non-UTC data can't be normalized                                    |
-| **Embeds: no per-session timezone**                              | Embedded sessions (signed JWT / iframe) can't carry a per-viewer timezone. The embed path resolves with `userTimezone: null`, and there's no `timezone` field on the embed JWT nor a `?timezone=` URL param, so every embedded session falls back to the project timezone             | Multi-tenant embeds can't render each tenant in its own zone; only the single project timezone applies, short of building separate per-zone charts |
 | **SQL Runner / SQL charts: timestamps serialized as ISO `Z` regardless of actual type** | SQL Runner and SQL-based charts bypass `formatRows` and serialize every timestamp via a JS `Date` → ISO 8601 `Z` string. A TZ-aware timestamp is collapsed to the UTC instant with its offset dropped (verified on Postgres: `timestamptz` `12:00:00+00` shows `12:00:00.000Z` even with the session at Pacific/Pago_Pago, where the warehouse's own `::text` renders `01:00:00-11`; and on Snowflake: a `CONVERT_TIMEZONE` result of `08:00:00 -04:00` shows `12:00:00.000Z`, identical to the unconverted value, so the conversion looks inert). A naive `timestamp` — including a user's own `AT TIME ZONE` result — is stamped `Z` as if UTC (`08:00:00` NY wall-clock shows as `08:00:00.000Z`). Raw-output is by design; the `Z` mislabeling is a faithfulness bug. | Timestamps don't reflect the project/data timezone and misrepresent their own zone; a user's in-SQL conversion is hidden or mislabeled, and casting to text (`::text` / `to_char`) is the only faithful workaround. Tracked as GLITCH-489 (v3); see also GLITCH-462 / GLITCH-466. |
 
 ---

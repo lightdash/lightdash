@@ -80,6 +80,8 @@ export const InteractivityOptionsSchema = z.object({
     // existing canExplore opt-in: an explicit decision to widen the embed's
     // surface beyond pre-built chart queries.
     canViewDataApps: z.boolean().optional(),
+    // Pins tabs and the filter bar to the top while scrolling. Off by default.
+    stickyHeader: z.boolean().optional(),
 });
 
 export type InteractivityOptions = z.infer<typeof InteractivityOptionsSchema>;
@@ -104,6 +106,27 @@ export const ChartInteractivityOptionsSchema = z.object({
 export type ChartInteractivityOptions = z.infer<
     typeof ChartInteractivityOptionsSchema
 >;
+
+export type EmbedWriteActions = {
+    serviceAccountUserUuid?: string;
+    userUuid?: string;
+    spaceUuid: string;
+};
+
+export const EmbedWriteActionsSchema: z.ZodType<EmbedWriteActions> = z
+    .object({
+        serviceAccountUserUuid: z.string().uuid().optional(),
+        userUuid: z.string().uuid().optional(),
+        spaceUuid: z.string().uuid(),
+    })
+    .refine(
+        ({ serviceAccountUserUuid, userUuid }) =>
+            serviceAccountUserUuid !== undefined || userUuid !== undefined,
+        {
+            message:
+                'Either serviceAccountUserUuid or userUuid is required for write actions',
+        },
+    );
 
 export const EmbedJwtSchema = z
     .object({
@@ -140,6 +163,7 @@ export const EmbedJwtSchema = z
                 })
                 .merge(ChartInteractivityOptionsSchema),
         ]),
+        writeActions: EmbedWriteActionsSchema.optional(),
         iat: z.number().optional(),
         exp: z.number(),
     })
@@ -170,6 +194,7 @@ export type CommonEmbedJwtContent = {
     canExplore?: boolean;
     canViewUnderlyingData?: boolean;
     canViewDataApps?: boolean;
+    stickyHeader?: boolean;
 };
 
 type CommonChartEmbedJwtContent = {
@@ -201,6 +226,7 @@ export type CreateEmbedJwt = {
         | EmbedJwtContentDashboardUuid
         | EmbedJwtContentDashboardSlug
         | EmbedJwtContentChart;
+    writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
     user?: {
         email?: string;

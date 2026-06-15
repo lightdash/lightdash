@@ -9,7 +9,7 @@ import useQueryError from '../useQueryError';
 
 const getHealthState = async () =>
     lightdashApi<ApiHealthResults>({
-        url: `/health`,
+        url: `/health?skipMigrationCheck=true`,
         method: 'GET',
         body: undefined,
     });

@@ -505,16 +505,16 @@
                 },
                 "groups": {
                     "type": "array",
-                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 3 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
+                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 5 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
                     "items": {
                         "type": "string",
                         "minLength": 1
                     },
-                    "maxItems": 3
+                    "maxItems": 5
                 },
                 "group_details": {
                     "type": "object",
-                    "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 3 levels",
+                    "description": "Set up group_details so you can group your dimensions and metrics in the sidebar using the groups parameter. You can create nested groups up to 5 levels",
                     "patternProperties": {
                         "^[a-zA-Z0-9_]+$": {
                             "type": "object",
@@ -704,12 +704,12 @@
                                 },
                                 "groups": {
                                     "type": "array",
-                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
+                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 5 levels",
                                     "items": {
                                         "type": "string",
                                         "minLength": 1
                                     },
-                                    "maxItems": 3
+                                    "maxItems": 5
                                 },
                                 "default_time_dimension": {
                                     "type": "object",
@@ -1127,12 +1127,12 @@
                                 },
                                 "groups": {
                                     "type": "array",
-                                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 3 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
+                                    "description": "Groups are used to group tables in the sidebar. You can create nested groups up to 5 levels. Define labels & descriptions for the group keys in lightdash.config.yml under table_groups.",
                                     "items": {
                                         "type": "string",
                                         "minLength": 1
                                     },
-                                    "maxItems": 3
+                                    "maxItems": 5
                                 }
                             }
                         }
@@ -1306,12 +1306,12 @@
                                 },
                                 "groups": {
                                     "type": "array",
-                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
+                                    "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 5 levels",
                                     "items": {
                                         "type": "string",
                                         "minLength": 1
                                     },
-                                    "maxItems": 3
+                                    "maxItems": 5
                                 },
                                 "default_time_dimension": {
                                     "type": "object",
@@ -1498,12 +1498,12 @@
                         },
                         "groups": {
                             "type": "array",
-                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 3 levels",
+                            "description": "Groups are used to group dimensions and metrics in the sidebar. You can create nested groups up to 5 levels",
                             "items": {
                                 "type": "string",
                                 "minLength": 1
                             },
-                            "maxItems": 3
+                            "maxItems": 5
                         },
                         "compact": {
                             "type": "string",

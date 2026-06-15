@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
+    AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiExecuteAsyncSqlQueryResults,
@@ -111,6 +112,7 @@ import {
     type ReadyQueryResultsPage,
     type ResultColumns,
     type RunQueryTags,
+    type SessionUser,
     type SpaceSummaryBase,
     type WarehouseExecuteAsyncQuery,
     type WarehouseResults,
@@ -164,7 +166,7 @@ import { PermissionsService } from '../PermissionsService/PermissionsService';
 import { PersistentDownloadFileService } from '../PersistentDownloadFileService/PersistentDownloadFileService';
 import { PivotTableService } from '../PivotTableService/PivotTableService';
 import { getFieldValuesMetricQuery } from '../ProjectService/fieldValuesQueryBuilder';
-import { getDashboardParametersValuesMap } from '../ProjectService/parameters';
+import { convertDashboardParametersToValuesMap } from '../ProjectService/parameters';
 import {
     ProjectService,
     type ProjectServiceArguments,
@@ -462,6 +464,79 @@ export class AsyncQueryService extends ProjectService {
             )
         ) {
             throw new ForbiddenError("You don't have access to this chart");
+        }
+    }
+
+    private async assertSavedChartViewAccessForUser(
+        user: SessionUser,
+        savedChart: {
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+            savedChartUuid?: string;
+            savedSqlUuid?: string;
+        },
+    ) {
+        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            user.userUuid,
+            savedChart.spaceUuid,
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('SavedChart', {
+                    organizationUuid: savedChart.organizationUuid,
+                    projectUuid: savedChart.projectUuid,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                    access: ctx.access,
+                    metadata: {
+                        spaceUuid: savedChart.spaceUuid,
+                        savedChartUuid: savedChart.savedChartUuid,
+                        savedSqlUuid: savedChart.savedSqlUuid,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError("You don't have access to this chart");
+        }
+    }
+
+    private async assertDashboardViewAccessForUser(
+        user: SessionUser,
+        dashboard: {
+            uuid: string;
+            name: string;
+            organizationUuid: string;
+            projectUuid: string;
+            spaceUuid: string;
+        },
+    ) {
+        const ctx = await this.spacePermissionService.getSpaceAccessContext(
+            user.userUuid,
+            dashboard.spaceUuid,
+        );
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid: dashboard.projectUuid,
+                    inheritsFromOrgOrProject: ctx.inheritsFromOrgOrProject,
+                    access: ctx.access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                "You don't have access to the space this dashboard belongs to",
+            );
         }
     }
 
@@ -2811,6 +2886,7 @@ export class AsyncQueryService extends ProjectService {
         userTimezone,
         sessionTimezone,
         metricQuery,
+        preloadedProjectTimezone,
     }: {
         projectUuid: string | null;
         organizationUuid: string;
@@ -2818,14 +2894,17 @@ export class AsyncQueryService extends ProjectService {
         userTimezone: string | null;
         sessionTimezone: string | null;
         metricQuery: MetricQuery;
+        preloadedProjectTimezone?: string;
     }): Promise<{
         resolvedTimezone: string;
         displayTimezone: string | null;
         enabled: boolean;
     }> {
-        const projectTimezone = projectUuid
-            ? await this.getQueryTimezoneForProject(projectUuid)
-            : 'UTC';
+        const projectTimezone =
+            preloadedProjectTimezone ??
+            (projectUuid
+                ? await this.getQueryTimezoneForProject(projectUuid)
+                : 'UTC');
         const isUserTimezoneEnabled = await this.isUserTimezoneEnabled({
             userUuid,
             organizationUuid,
@@ -3209,6 +3288,7 @@ export class AsyncQueryService extends ProjectService {
         applyDateZoomToFilters,
         preloadedUserAccessControls,
         preloadedProjectParameters,
+        preloadedProjectTimezone,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         | 'account'
@@ -3232,6 +3312,7 @@ export class AsyncQueryService extends ProjectService {
         applyDateZoomToFilters?: boolean;
         preloadedUserAccessControls?: UserAccessControls;
         preloadedProjectParameters?: DbProjectParameter[];
+        preloadedProjectTimezone?: string;
     }) {
         assertIsAccountWithOrg(account);
 
@@ -3269,6 +3350,7 @@ export class AsyncQueryService extends ProjectService {
                     : getAccountUserTimezone(account),
             sessionTimezone: sessionTimezone ?? null,
             metricQuery,
+            preloadedProjectTimezone,
         });
 
         const fullQuery = await ProjectService._compileQuery({
@@ -4557,10 +4639,17 @@ export class AsyncQueryService extends ProjectService {
             throw new ForbiddenError();
         }
 
-        await this.analyticsModel.addChartViewEvent(
-            savedChartUuid,
-            account.isRegisteredUser() ? account.user.id : null,
-        );
+        // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution
+        void this.analyticsModel
+            .addChartViewEvent(
+                savedChartUuid,
+                account.isRegisteredUser() ? account.user.id : null,
+            )
+            .catch((e) =>
+                this.logger.warn('Failed to track chart view event', {
+                    error: e,
+                }),
+            );
 
         const requestParameters: ExecuteAsyncSavedChartRequestParams = {
             context,
@@ -4747,13 +4836,45 @@ export class AsyncQueryService extends ProjectService {
         savedChartUuid: string,
         space: SpaceSummaryBase,
     ) {
-        const auditedAbility = this.createAuditedAbility(account);
         if (isJwtUser(account)) {
+            const embedWriteActions = account.authentication.data.writeActions;
+            if (
+                account.embedWriteUser &&
+                embedWriteActions?.spaceUuid === space.uuid
+            ) {
+                const auditedAbility = this.createAuditedAbility(
+                    account.embedWriteUser,
+                );
+                await this.assertSavedChartViewAccessForUser(
+                    account.embedWriteUser,
+                    {
+                        organizationUuid: space.organizationUuid,
+                        projectUuid,
+                        spaceUuid: space.uuid,
+                        savedChartUuid,
+                    },
+                );
+                if (
+                    auditedAbility.cannot(
+                        'view',
+                        subject('Project', {
+                            organizationUuid: space.organizationUuid,
+                            projectUuid,
+                            metadata: { savedChartUuid },
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError();
+                }
+                return;
+            }
+
             await this.permissionsService.checkEmbedPermissions(
                 account,
                 savedChartUuid,
             );
         } else {
+            const auditedAbility = this.createAuditedAbility(account);
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.id,
                 space.uuid,
@@ -4775,6 +4896,7 @@ export class AsyncQueryService extends ProjectService {
             }
         }
 
+        const auditedAbility = this.createAuditedAbility(account);
         if (
             auditedAbility.cannot(
                 'view',
@@ -4787,6 +4909,50 @@ export class AsyncQueryService extends ProjectService {
         ) {
             throw new ForbiddenError();
         }
+    }
+
+    private async getJwtDashboardQueryContext(
+        account: AnonymousAccount,
+        projectUuid: string,
+        requestDashboardUuid: string | undefined,
+    ): Promise<{
+        dashboardUuid: string | undefined;
+    }> {
+        const { embedWriteUser } = account;
+        const embedWriteActions = account.authentication.data.writeActions;
+        const writeSpaceUuid = embedWriteUser
+            ? embedWriteActions?.spaceUuid
+            : undefined;
+
+        if (writeSpaceUuid && requestDashboardUuid) {
+            try {
+                const dashboard = await this.dashboardModel.getByIdOrSlug(
+                    requestDashboardUuid,
+                    { projectUuid },
+                );
+
+                if (embedWriteUser && dashboard.spaceUuid === writeSpaceUuid) {
+                    await this.assertDashboardViewAccessForUser(
+                        embedWriteUser,
+                        dashboard,
+                    );
+                    return {
+                        dashboardUuid: dashboard.uuid,
+                    };
+                }
+            } catch (error) {
+                if (!(error instanceof NotFoundError)) {
+                    throw error;
+                }
+            }
+        }
+
+        return {
+            dashboardUuid:
+                account.access.content.type === 'dashboard'
+                    ? account.access.content.dashboardUuid
+                    : undefined,
+        };
     }
 
     async executeAsyncDashboardChartQuery({
@@ -4829,6 +4995,24 @@ export class AsyncQueryService extends ProjectService {
             ),
         ]);
 
+        let effectiveDashboardUuid: string | undefined = dashboardUuid;
+
+        if (isJwtUser(account)) {
+            const jwtDashboardContext = await this.getJwtDashboardQueryContext(
+                account,
+                projectUuid,
+                dashboardUuid,
+            );
+            effectiveDashboardUuid = jwtDashboardContext.dashboardUuid;
+        }
+
+        if (!effectiveDashboardUuid) {
+            throw new ForbiddenError(
+                'JWT does not grant access to a dashboard',
+            );
+        }
+        const resolvedDashboardUuid = effectiveDashboardUuid;
+
         await this.checkDashboardChartQueryPermissions(
             account,
             projectUuid,
@@ -4836,10 +5020,17 @@ export class AsyncQueryService extends ProjectService {
             space,
         );
 
-        await this.analyticsModel.addChartViewEvent(
-            savedChart.uuid,
-            account.isRegisteredUser() ? account.user.id : null,
-        );
+        // Fire-and-forget: analytics tracking is non-critical and shouldn't block query execution
+        void this.analyticsModel
+            .addChartViewEvent(
+                savedChart.uuid,
+                account.isRegisteredUser() ? account.user.id : null,
+            )
+            .catch((e) =>
+                this.logger.warn('Failed to track chart view event', {
+                    error: e,
+                }),
+            );
 
         const { metricQuery: metricQueryWithFilters, appliedDashboardFilters } =
             applyDashboardFiltersForTile({
@@ -4904,49 +5095,52 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
-            tileUuid,
-            chartUuid,
-            context,
-            dashboardUuid,
-            dashboardFilters,
-            dashboardSorts,
-            dateZoom,
-            limit,
-        };
-
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
             organization_uuid: organizationUuid,
             project_uuid: projectUuid,
             chart_uuid: chartUuid,
-            dashboard_uuid: dashboardUuid,
+            dashboard_uuid: resolvedDashboardUuid,
             explore_name: explore.name,
             query_context: context,
         };
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
+        // Load project warehouse config once, shared by warehouse credentials and timezone resolution
+        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+        const projectTimezone =
+            queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
+
+        // Run independent data loads in parallel to minimize Postgres round-trips
+        const [
+            warehouseCredentials,
+            rawDashboardParameters,
+            projectParameters,
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                preloadedOrgWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid,
+            }),
+            this.dashboardModel.getDashboardParametersByIdOrSlug(
+                resolvedDashboardUuid,
+                projectUuid,
+            ),
+            this.projectParametersModel.find(projectUuid),
+        ]);
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
             warehouseCredentials.startOfWeek,
         );
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-            { projectUuid },
+        const dashboardParameters = convertDashboardParametersToValuesMap(
+            rawDashboardParameters,
         );
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
-
-        // Load project parameters once and pass to both combineParameters and prepareMetricQueryAsyncQueryArgs
-        const projectParameters =
-            await this.projectParametersModel.find(projectUuid);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(
@@ -4956,6 +5150,18 @@ export class AsyncQueryService extends ProjectService {
             dashboardParameters,
             projectParameters,
         );
+
+        const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
+            tileUuid,
+            chartUuid,
+            context,
+            dashboardUuid: resolvedDashboardUuid,
+            dashboardFilters,
+            dashboardSorts,
+            dateZoom,
+            limit,
+            parameters: combinedParameters,
+        };
 
         const { fields, dateZoomApplied } = await this.getMetricQueryFields({
             metricQuery: metricQueryWithLimit,
@@ -4998,6 +5204,7 @@ export class AsyncQueryService extends ProjectService {
             sessionTimezone,
             preloadedUserAccessControls: userAccessControls,
             preloadedProjectParameters: projectParameters,
+            preloadedProjectTimezone: projectTimezone,
         });
 
         const routingDecision = this.getPreAggregationRoutingDecision({
@@ -5025,7 +5232,7 @@ export class AsyncQueryService extends ProjectService {
                         ? routingDecision.route
                         : undefined,
                 chartId: savedChart.uuid,
-                dashboardId: dashboardUuid,
+                dashboardId: resolvedDashboardUuid,
             });
         }
 
@@ -5034,7 +5241,7 @@ export class AsyncQueryService extends ProjectService {
             exploreName: explore.name,
             routingDecision,
             chartUuid: savedChart.uuid,
-            dashboardUuid,
+            dashboardUuid: resolvedDashboardUuid,
             queryContext: context,
         });
 
@@ -5906,33 +6113,57 @@ export class AsyncQueryService extends ProjectService {
             limit,
         } = args;
 
-        // For JWT users, the dashboard scope is bound to the token, not the
-        // request body. Trusting `args.dashboardUuid` would let a JWT user
-        // merge another dashboard's parameter values into their query.
-        const dashboardUuid = isJwtUser(account)
-            ? account.access.content.dashboardUuid
-            : requestDashboardUuid;
+        let dashboardUuid: string | undefined = requestDashboardUuid;
+
+        // For JWT users without write actions, the dashboard scope is bound to
+        // the token. Write-action embeds may use a dashboard from their write
+        // space so newly added draft tiles can preview with dashboard context.
+        if (isJwtUser(account)) {
+            const jwtDashboardContext = await this.getJwtDashboardQueryContext(
+                account,
+                projectUuid,
+                requestDashboardUuid,
+            );
+            dashboardUuid = jwtDashboardContext.dashboardUuid;
+        }
 
         if (!dashboardUuid) {
             throw new ForbiddenError(
                 'JWT does not grant access to a dashboard',
             );
         }
+        const resolvedDashboardUuid = dashboardUuid;
 
         if (isJwtUser(account)) {
-            await this.permissionsService.checkEmbedSqlChartPermissions(
-                account,
-                savedChart.savedSqlUuid,
-            );
+            const { embedWriteUser } = account;
+            const embedWriteActions = account.authentication.data.writeActions;
+            const canUseWriteDashboard =
+                embedWriteUser &&
+                embedWriteActions?.spaceUuid === savedChart.space.uuid;
+
+            if (canUseWriteDashboard) {
+                await this.assertSavedChartViewAccessForUser(embedWriteUser, {
+                    organizationUuid: savedChart.organization.organizationUuid,
+                    projectUuid: savedChart.project.projectUuid,
+                    spaceUuid: savedChart.space.uuid,
+                    savedSqlUuid: savedChart.savedSqlUuid,
+                });
+            } else {
+                await this.permissionsService.checkEmbedSqlChartPermissions(
+                    account,
+                    savedChart.savedSqlUuid,
+                );
+            }
         } else {
             await this.assertSavedChartAccess(account, 'view', savedChart);
         }
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-            { projectUuid },
+        const dashboardParameters = convertDashboardParametersToValuesMap(
+            await this.dashboardModel.getDashboardParametersByIdOrSlug(
+                resolvedDashboardUuid,
+                projectUuid,
+            ),
         );
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
 
         // Combine default parameter values, dashboard parameters, and request parameters first
         const combinedParameters = await this.combineParameters(

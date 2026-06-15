@@ -11,7 +11,7 @@ import {
 } from '@tanstack/react-table';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useCallback, useMemo, useRef } from 'react';
-import { getValueCell } from '../../../hooks/useColumns';
+import { getJsonValueCell, getValueCell } from '../../../hooks/useColumns';
 import { useResizeObserver } from '../../../hooks/useResizeObserver';
 import { ROW_HEIGHT_PX } from '../../common/Table/constants';
 import { calculateColumnStats } from '../utils/columnStats';
@@ -21,9 +21,11 @@ import { calculateColumnStats } from '../utils/columnStats';
 export const useTableDataModel = ({
     config,
     resultsRunner,
+    enableJsonViewer = false,
 }: {
     config: VizTableColumnsConfig | undefined;
     resultsRunner: IResultsRunner;
+    enableJsonViewer?: boolean;
 }) => {
     const tableModel = useMemo(() => {
         return new TableDataModel({
@@ -32,22 +34,23 @@ export const useTableDataModel = ({
         });
     }, [resultsRunner, config]);
 
+    const columnsConfig = useMemo(() => tableModel.getConfig(), [tableModel]);
     const columns = useMemo(() => tableModel.getVisibleColumns(), [tableModel]);
     const rows = useMemo(() => tableModel.getRows(), [tableModel]);
 
     // Calculate stats for columns with bar display style
     const columnStats = useMemo(() => {
-        if (!config?.columns) return {};
+        if (!columnsConfig) return {};
 
         // Find columns that need bar chart display
         const barColumns = columns.filter(
-            (col) => config?.columns?.[col]?.displayStyle === 'bar',
+            (col) => columnsConfig[col]?.displayStyle === 'bar',
         );
 
         if (barColumns.length === 0) return {};
 
         return calculateColumnStats(rows, barColumns);
-    }, [rows, columns, config?.columns]);
+    }, [rows, columns, columnsConfig]);
 
     const [setResizeRef, containerRect] = useResizeObserver<HTMLDivElement>();
     const scrollElementRef = useRef<HTMLDivElement | null>(null);
@@ -69,10 +72,10 @@ export const useTableDataModel = ({
             // we found the fix here -> https://github.com/TanStack/table/issues/1671
             // do not remove the line below
             accessorFn: TableDataModel.getColumnsAccessorFn(column),
-            header: config?.columns[column].label || column,
-            cell: getValueCell,
+            header: columnsConfig?.[column]?.label || column,
+            cell: enableJsonViewer ? getJsonValueCell : getValueCell,
         }));
-    }, [columns, config?.columns]);
+    }, [columns, columnsConfig, enableJsonViewer]);
 
     const table = useReactTable({
         data: rows,
@@ -80,7 +83,7 @@ export const useTableDataModel = ({
         getCoreRowModel: getCoreRowModel(),
         meta: {
             columnStats,
-            columnsConfig: config?.columns ?? undefined,
+            columnsConfig: columnsConfig ?? undefined,
         },
     });
 

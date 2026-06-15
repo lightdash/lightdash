@@ -36,6 +36,7 @@ import { useAiAgentThread } from '../../hooks/useProjectAiAgents';
 import { AgentNamePill } from '../AgentNamePill';
 import { AgentChatDisplay } from '../ChatElements/AgentChatDisplay';
 import { EvalAssessmentDisplay } from '../Evals/EvalAssessmentDisplay';
+import { RemediationActivityTimeline } from './RemediationActivityTimeline';
 import { ReviewItemActions } from './ReviewItemActions';
 import {
     formatReviewDate,
@@ -462,6 +463,23 @@ export const ThreadPreviewSidebar: FC<ThreadPreviewSidebarProps> = ({
                                                 }
                                             />
                                         </Collapse>
+                                    )}
+
+                                    {selectedReviewItem.remediation && (
+                                        <Stack gap={6} pt="xs">
+                                            <Text
+                                                size="10px"
+                                                fw={700}
+                                                tt="uppercase"
+                                                lts={0.4}
+                                                c="ldGray.7"
+                                            >
+                                                Activity
+                                            </Text>
+                                            <RemediationActivityTimeline
+                                                reviewItem={selectedReviewItem}
+                                            />
+                                        </Stack>
                                     )}
                                 </Stack>
                             </Stack>

@@ -23,6 +23,7 @@ import { ManagedAgentService } from '../services/ManagedAgentService/ManagedAgen
 import { ProjectContextService } from '../services/ProjectContextService/ProjectContextService';
 
 const AI_AGENT_EVAL_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+const AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
 const AI_AGENT_REVIEW_CLASSIFIER_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 const AI_AGENT_REVIEW_WRITEBACK_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 const APP_GENERATE_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes
@@ -102,6 +103,57 @@ export class CommercialSchedulerWorker extends SchedulerWorker {
             ) => {
                 await this.aiAgentAdminService.pollReviewRemediationPreview(
                     payload,
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE]: async (
+                payload,
+                _helpers,
+            ) => {
+                await this.aiAgentAdminService.pollReviewRemediationCompile(
+                    payload,
+                );
+            },
+            [EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN]: async (
+                payload,
+                helpers,
+            ) => {
+                await tryJobOrTimeout(
+                    SchedulerClient.processJob(
+                        EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN,
+                        helpers.job.id,
+                        helpers.job.run_at,
+                        payload,
+                        async () => {
+                            await this.aiAgentService.executeReviewRemediationRun(
+                                payload,
+                            );
+                            await this.aiAgentAdminService.recordReviewRemediationVerified(
+                                payload,
+                            );
+                        },
+                    ),
+                    helpers.job,
+                    AI_AGENT_REVIEW_REMEDIATION_RUN_TIMEOUT_MS,
+                    async (job, e) => {
+                        // The preview stays usable on failure — the admin can
+                        // still retry the question manually from the thread.
+                        await this.schedulerService.logSchedulerJob({
+                            task: EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN,
+                            jobId: job.id,
+                            scheduledTime: job.run_at,
+                            status: SchedulerJobStatus.ERROR,
+                            details: {
+                                error: getErrorMessage(e),
+                                projectUuid: payload.projectUuid,
+                                organizationUuid: payload.organizationUuid,
+                                createdByUserUuid: payload.userUuid,
+                                agentUuid: payload.agentUuid,
+                                threadUuid: payload.threadUuid,
+                                remediationUuid: payload.remediationUuid,
+                                fingerprint: payload.fingerprint,
+                            },
+                        });
+                    },
                 );
             },
             [EE_SCHEDULER_TASKS.EMBED_ARTIFACT_VERSION]: async (

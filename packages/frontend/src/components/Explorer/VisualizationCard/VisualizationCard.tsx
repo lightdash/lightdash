@@ -393,7 +393,7 @@ const VisualizationCard: FC<Props> = memo((props) => {
                                     resolvedTimezone={
                                         query.data?.resolvedTimezone
                                     }
-                                    metricQueryTimezone={
+                                    timezoneSetting={
                                         query.data?.metricQuery?.timezone
                                     }
                                 />

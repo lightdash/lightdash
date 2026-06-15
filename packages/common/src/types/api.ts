@@ -11,12 +11,15 @@ import type {
     ApiAiAgentEvaluationRunSummaryListResponse,
     ApiAiAgentEvaluationSummaryListResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
+    ApiAiAgentReviewItemActivityResponse,
+    ApiAiAgentReviewItemPrDiffResponse,
     ApiAiAgentReviewItemWritebackPreviewResponse,
     ApiAiAgentThreadCreateResponse,
     ApiAiAgentThreadGenerateTitleResponse,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQueryResponse,
     ApiAiAgentThreadMessageVizResponse,
+    ApiAiAgentThreadPullRequestResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentThreadSummaryListResponse,
@@ -86,7 +89,11 @@ import {
     type ApiUpdateMetricsTreeResponse,
 } from './catalog';
 import { type ApiGetChangeResponse } from './changeset';
-import { type CiChecks } from './ci';
+import {
+    type CiChecks,
+    type ClosePullRequestResult,
+    type MergePullRequestResult,
+} from './ci';
 import {
     type ApiChartAsCodeListResponse,
     type ApiChartAsCodeUpsertResponse,
@@ -247,6 +254,7 @@ import {
 import { type ApiSshKeyPairResponse } from './SshKeyPair';
 import { type GroupType, type TableBase } from './table';
 import { type ApiCreateTagResponse } from './tags';
+import { type ApiUpstreamDiffResults } from './upstreamDiff';
 import {
     type LightdashUser,
     type LoginOptions,
@@ -928,6 +936,7 @@ type ApiResults =
     | ApiRefreshResults
     | ApiCreatePreviewResults
     | ApiDataTimezonePreviewResults
+    | ApiUpstreamDiffResults
     | ApiHealthResults
     | OrganizationAccess
     | Organization
@@ -1003,6 +1012,9 @@ type ApiResults =
     | GitIntegrationConfiguration
     | GithubUserCredential
     | CiChecks
+    | MergePullRequestResult
+    | ClosePullRequestResult
+    | { diff: string }
     | GitBranch
     | GitBranch[]
     | GitFileOrDirectory
@@ -1089,6 +1101,9 @@ type ApiResults =
     | Account
     | ApiAiAgentAdminConversationsResponse['results']
     | ApiAiAgentReviewItemWritebackPreviewResponse['results']
+    | ApiAiAgentReviewItemPrDiffResponse['results']
+    | ApiAiAgentReviewItemActivityResponse['results']
+    | ApiAiAgentThreadPullRequestResponse['results']
     | ApiAiAgentEvaluationSummaryListResponse['results']
     | ApiAiAgentEvaluationResponse['results']
     | ApiAiAgentEvaluationRunResponse['results']

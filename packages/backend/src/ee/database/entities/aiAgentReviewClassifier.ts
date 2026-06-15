@@ -15,6 +15,8 @@ import type {
     AiAgentReviewItemPrState,
     AiAgentReviewItemStatus,
     AiAgentReviewItemWritebackStatus,
+    AiAgentReviewRemediationEventDetail,
+    AiAgentReviewRemediationEventType,
     AiAgentReviewRemediationStatus,
     AiAgentRootCause,
     AiAgentRuntimeContextSnapshot,
@@ -171,6 +173,37 @@ export type AiAgentTurnSignalTable = Knex.CompositeTableType<
 
 export const AiAgentReviewItemTableName = 'ai_agent_review_item';
 export const AiAgentReviewRemediationTableName = 'ai_agent_review_remediation';
+export const AiAgentReviewRemediationEventsTableName =
+    'ai_agent_review_remediation_events';
+
+export type DbAiAgentReviewRemediationEvent = {
+    ai_agent_review_remediation_event_uuid: string;
+    ai_agent_review_remediation_uuid: string;
+    organization_uuid: string;
+    event_type: AiAgentReviewRemediationEventType;
+    occurred_at: Date;
+    payload: AiAgentReviewRemediationEventDetail['payload'];
+    created_by_user_uuid: string | null;
+    created_at: Date;
+};
+
+export type AiAgentReviewRemediationEventsTable = Knex.CompositeTableType<
+    DbAiAgentReviewRemediationEvent,
+    Pick<
+        DbAiAgentReviewRemediationEvent,
+        | 'ai_agent_review_remediation_uuid'
+        | 'organization_uuid'
+        | 'event_type'
+        | 'occurred_at'
+    > &
+        Partial<
+            Pick<
+                DbAiAgentReviewRemediationEvent,
+                'payload' | 'created_by_user_uuid'
+            >
+        >,
+    never
+>;
 
 export type DbAiAgentReviewItem = {
     ai_agent_review_item_uuid: string;

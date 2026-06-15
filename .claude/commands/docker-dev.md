@@ -5,8 +5,9 @@ Manage Docker dev environment. Args: (none) = show status & help, `start` = auto
 ## Arguments
 
 - **No arguments**: Show current status, assigned ports, and available commands. Read-only, safe to run anytime.
-- **`start`**: Bring this instance up. Runs the deterministic `scripts/dev-fast-start.sh` first (idempotent, non-interactive — no agentic step-by-step); only falls back to agentic setup + **self-repair** if the script fails. Uses the shared base snapshot to bootstrap new instances fast.
-- **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): Same as `start`, but provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`) and runs the EE migration/seed pass. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`.
+- **`start`**: Bring this instance up. First runs **Step P: Instance profile selection** (capability multi-select → 1Password approval gate → write secrets/flags), then the deterministic `scripts/dev-fast-start.sh` (idempotent, non-interactive); only falls back to agentic setup + **self-repair** if the script fails. Bootstraps new instances fast from a shared base snapshot.
+- **`start <profiles>`**: Provision for named capabilities, comma-separated — e.g. `start ee` (turnkey EE: all AI + GitHub), `start github` (Core + dbt-over-GitHub, no AI), `start ee,slack`. Skips the menu. The AI tier is just **Core vs EE** — all AI features (agents, writeback, reviews classifier) are bundled into `ee`. See `scripts/dev-profiles.json`. `ee` requires `github` so writeback opens PRs out of the box; profiles run their GitHub/dbt-repo + classifier reconcile + verify automatically.
+- **`start ee`** (also `start --ee`, "start with ee enabled", "enterprise"): The EE profile — provisions an Enterprise Edition license (`LIGHTDASH_LICENSE_KEY`), runs the EE migration/seed pass, and **bundles all AI features** (Copilot/agents, AI writeback, reviews classifier) plus the GitHub integration so writeback is turnkey. See **Enterprise Edition (EE) Mode** below. Auto-enabled if `.env.development.local` already contains `LIGHTDASH_LICENSE_KEY`. EE instances bootstrap from a dedicated EE base snapshot (`ld-shared_postgres_base_ee`) so they skip the slow EE migrate pass.
 - **`stop`**: Stop this instance's PM2 processes and PostgreSQL. Shared services stay running. Releases port slot.
 - **`stop-all`**: Stop ALL instances — all PM2 processes, all per-instance PostgreSQL containers, shared services, and release all port slots. Use when shutting down for the day.
 - **`reset`**: Restore database from this instance's volume snapshot (fast, ~3 seconds). Fails if no snapshot exists.
@@ -279,6 +280,87 @@ Expect `Enterprise license for <site> is valid.` and no `no factory or provider`
 
 **ALWAYS try the deterministic fast path first.** Only fall back to the agentic steps when the script fails — this is what keeps worktree iteration fast.
 
+### Step P: Instance profile selection (run BEFORE the fast path)
+
+`start` provisions an instance for a set of *capabilities* (EE, AI agents, AI writeback, GitHub, reviews classifier, Slack). Each capability declares its feature flags, env, 1Password secrets, reconcile steps, and verification in `scripts/dev-profiles.json`. Resolve the selection, get the user's approval to read 1Password, write the env, **then** run the fast path. This is what removes the "re-explain the GitHub/writeback setup every time" friction — it's encoded, not recalled.
+
+**1. Determine requested profiles.**
+- If the user named them (e.g. `/docker-dev start ee`, `start ee,slack`, `start github`), use those. The AI tier is Core vs EE — `ee` bundles all AI features.
+- If the user just ran `start` with no profile, show the menu and ask (multi-select):
+  ```bash
+  ./scripts/dev-profiles.sh list
+  ```
+  Present the labels via **AskUserQuestion** (multiSelect). Selecting nothing = a plain Core instance. Selecting **EE** transitively pulls in GitHub (so writeback is turnkey) and turns on every AI feature.
+
+**2. Resolve the plan** (expands `requires` transitively, unions everything):
+```bash
+PLAN="$(./scripts/dev-profiles.sh resolve <comma,separated,names>)"   # JSON: {ee, secrets[], flags[], env{}, orgSettings{}, reconcile[], verify[]}
+```
+
+**3. Ensure the base env file exists** (ports block) so later writes don't lose the port reconciliation. If `.env.development.local` is absent, create it now from the **Create Environment File** template below (ports only — no secrets yet).
+
+**4. Discover & confirm the 1Password item for each secret, then remember it.** Item names are NOT hardcoded — find the best match in *this engineer's own* vault and confirm:
+```bash
+./scripts/dev-op-pull.sh discover <PLAN.secrets...>   # JSON per secret: {saved, savedItem, confident, top, candidates[]}
+```
+For each secret not already `saved:true`: present `top` (recommended) plus the other `candidates` via **AskUserQuestion**, defaulting to the obvious *dev/development* item.
+> ⚠️ Vaults contain other-org / customer items that fuzzy-match (license keys, API keys for clients). NEVER auto-pick, and never write a customer-named item into the env file, memory, a commit, or a PR — confirm the dev item with the user. (Confidentiality policy.)
+
+On confirmation, persist the choice two ways so it's never asked again:
+```bash
+./scripts/dev-op-pull.sh save <SECRET_KEY> "<confirmed item name>"   # -> ~/.lightdash/dev-secrets.local.json (the scripts read this)
+```
+…and **record it in Claude memory** (the dev-env 1Password-sources memory): `env var → confirmed item name`, so the preference survives a fresh machine / lost local file. On future runs, skip the ask for any secret that's `saved:true` or already in memory. Shared items (license, GitHub App) are usually one unambiguous match — confirm once.
+
+**5. Approval gate (REQUIRED before reading 1Password).** With items confirmed, show the final read+apply summary and get explicit approval:
+```bash
+./scripts/dev-op-pull.sh list <PLAN.secrets...>     # prints the confirmed 1Password items + the env vars they populate
+```
+Present that list plus `PLAN.flags`, `PLAN.env`, and `PLAN.orgSettings` (AskUserQuestion or inline "Read these N items and apply these flags/env? [y/N]"). Do not proceed without a yes.
+
+**6. Apply the plan** (only after approval). Pull ALL secrets in **one** `pull` call — it signs in (Touch ID via desktop integration) and reads in the same invocation, because the `op` session does NOT carry across separate Bash calls. Run it yourself; only fall back to asking the user if it returns `FAIL: could not establish a 1Password session` (integration disabled).
+```bash
+./scripts/dev-op-pull.sh pull <PLAN.secrets...>          # self-signs-in, pulls into .env.development.local, verifies prefixes, never echoes values
+# write PLAN.env (static, non-secret) — e.g. AI_COPILOT_ENABLED=true, AI_DEFAULT_PROVIDER=anthropic
+./scripts/dev-feature-flags.sh enable <PLAN.flags joined by comma>   # merges into LIGHTDASH_ENABLE_FEATURE_FLAGS
+```
+> Do NOT split sign-in and pull across two Bash calls (the session is per-shell — the second call would report "not signed in"). `pull` handles both internally; if you must run `op` manually, chain it in one line: `op signin --account lightdash.1password.com && ./scripts/dev-op-pull.sh pull ...`.
+
+**7. Feature-flag opt-in (scan + pick extras).** Beyond the profile's flags, let the user turn on any other flag that isn't already enabled:
+```bash
+./scripts/dev-feature-flags.sh scan          # TSV: value, ON/off, EnumName, description
+```
+Present the **disabled** flags (`./scripts/dev-feature-flags.sh list-disabled`) with their descriptions via **AskUserQuestion** (multiSelect, "which additional feature flags to enable?"). Then:
+```bash
+./scripts/dev-feature-flags.sh enable <selected,flags>
+```
+("Enabled" here means present in `LIGHTDASH_ENABLE_FEATURE_FLAGS` — that's what `FeatureFlagModel` resolves against. Code-level per-org/PostHog defaults aren't machine-readable, so the scan reports the local env state.)
+
+**8. Run the fast path** (now the env has the license + secrets + flags, so EE auto-detects and the EE base is used):
+```bash
+./scripts/dev-fast-start.sh $( [ "$(echo "$PLAN" | python3 -c 'import sys,json;print(json.load(sys.stdin)["ee"])')" = "True" ] && echo --ee )
+```
+
+**9. Post-start reconcile + verify** (after `READY:`) — **executable**, not hand-run crypto. First, if the GitHub account isn't known yet (first EE+github run), discover and remember it (same pattern as the secrets):
+```bash
+./scripts/dev-reconcile.sh list-accounts            # JSON of [{login, repos}] this App is installed on
+# ask the user which login is theirs (AskUserQuestion), then:
+./scripts/dev-reconcile.sh save-github-account <login>   # -> ~/.lightdash/dev-secrets.local.json
+# and record it in Claude memory alongside the 1Password item prefs.
+```
+Then the reconcile steps:
+```bash
+./scripts/dev-reconcile.sh github-app-installation     # ensure github_app_installations decrypts with the running secret + points at a LIVE install (mints JWT, lists installs, re-encrypts, UPSERTs)
+./scripts/dev-reconcile.sh github-dbt-repo             # check the project dbt_connection is github (repoint is guided if NEED)
+./scripts/dev-reconcile.sh org-settings ai_agent_reviews_enabled=true   # PLAN.orgSettings
+./scripts/dev-reconcile.sh verify-token               # PLAN.verify — mints an installation token (HTTP 201)
+# or in one shot:
+./scripts/dev-reconcile.sh all                        # installation -> dbt-repo-check -> verify-token
+```
+`dev-reconcile.sh` supplies the environment truths itself: the **running pm2 api's `LIGHTDASH_SECRET`** (the one the backend decrypts with — differs from the quote-wrapped env-file value), the PG connection from the claimed slot, and `pg`/crypto from the backend package (pnpm doesn't hoist `pg` to repo root). Map each `PLAN.reconcile` entry / `PLAN.orgSettings` / `PLAN.verify` to the calls above, then print a profile-aware **READY (writeback ✓ github ✓ reviews ✓ …)**. The *GitHub Integration & dbt Repo Setup* section explains each step and is the fallback when one reports `NEED` (e.g. a non-github dbt project to repoint).
+
+> Fast path for a known profile: `/docker-dev start ee` does steps 1–9 with no menu (and skips the discover/ask for any secret already confirmed). The multi-select is only for discovery when no profile is named.
+
 ### Fast path (do this first, every time)
 
 `scripts/dev-fast-start.sh` encodes the entire happy path of this section as one idempotent, non-interactive run. Run it directly instead of executing the steps below one at a time:
@@ -542,11 +624,16 @@ If `sfw pnpm install` fails with canvas errors: https://github.com/Automattic/no
 
 ### Set Up Python/dbt
 
+The dbt venv is identical across worktrees, so `dev-fast-start.sh` builds it **once** in a shared cache (`~/.lightdash/dev-venv`) and symlinks each worktree's `./venv` at it — saving the pip install per worktree. Manual equivalent:
+
 ```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0'
-ln -sf dbt venv/bin/dbt1.7
+SHARED_VENV="$HOME/.lightdash/dev-venv"
+if [ ! -f "$SHARED_VENV/bin/dbt" ]; then
+  python3 -m venv "$SHARED_VENV"
+  "$SHARED_VENV/bin/pip" install dbt-core==1.7.0 dbt-postgres==1.7.0 'protobuf>=4.0.0,<5.0.0'
+  ln -sf dbt "$SHARED_VENV/bin/dbt1.7"
+fi
+ln -s "$SHARED_VENV" venv   # only if ./venv doesn't already exist as a real venv
 ```
 
 ### Run Migrations (skip if bootstrapped)
@@ -679,6 +766,72 @@ If a monitor fires, investigate the error. Common responses:
 - **Demo login**: `demo@lightdash.com` / `demo_password!`
 
 ---
+
+## GitHub Integration & dbt Repo Setup
+
+The common cases are **scripted** — `./scripts/dev-reconcile.sh {github-app-installation|github-dbt-repo|verify-token|all}` (called by Step P9). This section explains what those steps do and is the fallback when one reports `NEED` (e.g. a brand-new repo, or a non-github dbt project to repoint). Goal: a project whose dbt is connected over the dev GitHub App, so the agent can read the repo and writeback can open real PRs. The reconcile targets **your** GitHub account — set `githubAccount` in `~/.lightdash/dev-secrets.local.json` (or `GH_ACCOUNT`); without it the script picks the first `repos=all` installation and warns, which is wrong on the shared multi-install App.
+
+**Environment truths the script encodes (don't relearn them by hand):**
+- The decrypt secret is the **running pm2 api's `LIGHTDASH_SECRET`** (`pm2 jlist` → `pm2_env.LIGHTDASH_SECRET`), NOT the `.env.development` line — the file value is quote-wrapped, so dotenv's dequoted value differs by two `"` chars.
+- `pg` is **not hoisted** to repo root under pnpm — require it from `packages/backend/node_modules` (or set `NODE_PATH`).
+- `projects` is keyed by `organization_id` (int), not `organization_uuid`; `github_app_installations` and `ai_organization_settings` are keyed by `organization_uuid`.
+- The `github/repos/list` and writeback routes need a **browser session cookie**, not the seeded PAT (its bcrypt hash ≠ the env placeholder) — so the script verifies via `verify-token` (mint an installation token) instead of `repos/list`.
+
+**Preconditions.** The `GITHUB_*` env vars are set (Step P pulled them) and `GET /api/v1/health` shows `hasGithub:true` (it gates purely on `GITHUB_PRIVATE_KEY`). If false, the App creds didn't load — re-pull `GITHUB_APP` and restart the API.
+
+**Step G1 — Ensure an installation row that decrypts with the RUNNING secret.**
+`github_app_installations.encrypted_installation_id` is AES-256-GCM (salt[64]|tag[16]|iv[12]|msg; pbkdf2 sha512/2000/32) keyed by `LIGHTDASH_SECRET`. Two failure modes both surface as writeback errors:
+- **Stale id** (decrypts, but the install no longer exists) → minting the token 404s (`Not Found — create-an-installation-access-token-for-an-app`).
+- **Won't decrypt** (`Unsupported state or unable to authenticate data`) → the row was sealed with a *different* instance's secret (common after restoring another worktree's snapshot). Backend throws `Failed to decrypt installation id`.
+
+Reconcile (idempotent):
+1. Read the org uuid and whether a row exists/decrypts. **Use the secret the running API actually uses** — read `LIGHTDASH_SECRET` from `pm2 jlist` (`pm2_env.LIGHTDASH_SECRET`), NOT the raw `.env.development` line (the file value is quote-wrapped; dotenv strips the quotes, so they differ by the two `"` chars).
+2. Mint a GitHub **App JWT** (RS256, `iss`=`GITHUB_APP_ID`, key = `Buffer.from(GITHUB_PRIVATE_KEY,'base64')`) and `GET https://api.github.com/app/installations` (authenticate as the *App*, not a user token). Pick the installation whose `account.login` is **your** GitHub account (`githubAccount`/`GH_ACCOUNT`) and owns the dbt repo you'll use (`repository_selection: all`). The id changes over time — never hardcode; always list.
+3. Re-encrypt that id with the running secret and **UPSERT** the row (`organization_uuid`, `encrypted_installation_id`; on a fresh INSERT also set `created_by_user_uuid`/`updated_by_user_uuid` to the demo user and placeholder `auth_token`/`refresh_token` — they're `NOT NULL` but only affect PR authorship, never the token mint). Verify it decrypts back to the id.
+
+**Step G2 — Point a project's dbt at a GitHub repo.** Writeback requires the project `dbt_connection.type` to be `github`/`gitlab`, pointing at a repo the installation covers. Check `GET /api/v1/projects/{uuid}` → `dbtConnection.{type,repository,branch,project_sub_path}`. If it isn't github (e.g. a `dbt`/local-file project), repoint it: re-encrypt a github dbt_connection (repo `<your-account>/<dbt-repo>`, e.g. a fork of the jaffle-shop dbt project, branch `main`, subpath `dbt`) with the **running** secret and UPDATE `projects.dbt_connection`. For a brand-new repo, first install the dev App (`lightdash-app-dev`) on that GitHub account/repo so an installation exists to find in G1.
+
+**Step G3 — Verify.**
+```bash
+# token mints + repos visible (needs a browser session cookie, not a PAT):
+curl -s -b <cookiejar> "http://localhost:$PORT/api/v1/github/repos/list" -o /dev/null -w "repos/list %{http_code}\n"   # expect 200
+```
+A 200 with the repo present confirms the App key works AND the installation id is correct. Then a writeback run should clone the repo, edit YAML, `lightdash compile`, and open a PR.
+
+## Statusline: live web URL
+
+While managing an instance's lifecycle, the Claude statusline shows this worktree's web app URL — **🟢 http://localhost:&lt;FE&gt;** when the frontend is up, **⚪ localhost:&lt;FE&gt;** when the slot is assigned but down, and nothing outside a Lightdash worktree. So `start`/`stop` are reflected at a glance without re-deriving the port.
+
+How it's wired (composes with claude-hud — does not replace it):
+- `scripts/dev-statusline.sh` (version-controlled) derives the instance from the cwd's git root → reads `~/.lightdash/dev-instances/<instance>.json` for `ports.frontend` → does one 0.3s TCP probe → prints claude-hud's `{"label":"…"}`.
+- A global shim `~/.lightdash/dev-statusline-hud.sh` delegates to that repo script (falling back to a global copy `~/.lightdash/dev-statusline.sh` for worktrees that predate this script), so the logic stays in the repo.
+- claude-hud runs it via `--extra-cmd`, appended to the `statusLine.command` in `~/.claude/settings.json`.
+
+First-time install on a machine (idempotent):
+```bash
+mkdir -p ~/.lightdash
+install -m755 scripts/dev-statusline.sh ~/.lightdash/dev-statusline.sh
+cat > ~/.lightdash/dev-statusline-hud.sh <<'EOF'
+#!/bin/sh
+root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -n "$root" ] && [ -x "$root/scripts/dev-statusline.sh" ]; then exec "$root/scripts/dev-statusline.sh";
+elif [ -x "$HOME/.lightdash/dev-statusline.sh" ]; then exec "$HOME/.lightdash/dev-statusline.sh"; fi
+exit 0
+EOF
+chmod +x ~/.lightdash/dev-statusline-hud.sh
+# append --extra-cmd to the existing statusLine command WITHOUT clobbering it (claude-hud or otherwise):
+python3 - <<'PY'
+import json, os
+p = os.path.expanduser("~/.claude/settings.json")
+d = json.load(open(p)); sl = d.get("statusLine")
+if isinstance(sl, dict) and sl.get("type") == "command" and "--extra-cmd" not in sl["command"]:
+    sl["command"] += ' --extra-cmd "$HOME/.lightdash/dev-statusline-hud.sh"'
+    json.dump(d, open(p, "w"), indent=2); print("wired")
+else:
+    print("already wired or no command statusLine")
+PY
+```
+Restart Claude Code to load the new `statusLine` command. If there's no command-type statusline yet, set `statusLine` to `{"type":"command","command":"$HOME/.lightdash/dev-statusline-hud.sh"}` for a bare URL-only line.
 
 ## `stop`: Stop This Instance
 

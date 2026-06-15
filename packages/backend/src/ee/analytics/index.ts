@@ -15,6 +15,7 @@ export type EmbedDashboardViewed = BaseTrack & {
         canExportImages?: boolean;
         canExportPagePdf: boolean;
         canDateZoom?: boolean;
+        stickyHeader?: boolean;
     };
 };
 

@@ -29,6 +29,7 @@ import {
     NotFoundError,
     ParameterError,
     PossibleAbilities,
+    RegisteredAccount,
     SchedulerAndTargets,
     SchedulerFormat,
     SchedulerRun,
@@ -37,10 +38,12 @@ import {
     TogglePinnedItemInfo,
     UpdateDashboard,
     UpdateMultipleDashboards,
+    type Account,
     type ChartFieldUpdates,
     type ChartVersionDifference,
     type ChartVersionSummary,
     type ContentVerificationInfo,
+    type CreateDashboardSqlChartTile,
     type DashboardBasicDetailsWithTileTypes,
     type DashboardHistory,
     type DashboardTileTarget,
@@ -58,6 +61,7 @@ import {
     LightdashAnalytics,
     SchedulerDashboardUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { getAccountWriteContext, toSessionUser } from '../../auth/account';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
 import { getSchedulerTargetType } from '../../database/entities/scheduler';
@@ -71,6 +75,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import type { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -97,6 +102,7 @@ type DashboardServiceArguments = {
     searchModel: SearchModel;
     schedulerService: SchedulerService;
     savedChartModel: SavedChartModel;
+    savedSqlModel: SavedSqlModel;
     savedChartService: SavedChartService;
     schedulerClient: SchedulerClient;
     slackClient: SlackClient;
@@ -131,6 +137,8 @@ export class DashboardService
 
     savedChartModel: SavedChartModel;
 
+    savedSqlModel: SavedSqlModel;
+
     savedChartService: SavedChartService;
 
     catalogModel: CatalogModel;
@@ -158,6 +166,7 @@ export class DashboardService
         searchModel,
         schedulerService,
         savedChartModel,
+        savedSqlModel,
         savedChartService,
         schedulerClient,
         slackClient,
@@ -178,6 +187,7 @@ export class DashboardService
         this.searchModel = searchModel;
         this.schedulerService = schedulerService;
         this.savedChartModel = savedChartModel;
+        this.savedSqlModel = savedSqlModel;
         this.savedChartService = savedChartService;
         this.projectModel = projectModel;
         this.catalogModel = catalogModel;
@@ -743,6 +753,203 @@ export class DashboardService
         );
     }
 
+    private async assertWriteSpaceBelongsToProject(
+        projectUuid: string,
+        spaceUuid: string,
+    ) {
+        const space = await this.spaceModel.get(spaceUuid);
+
+        if (space.projectUuid !== projectUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow writing to this project space',
+            );
+        }
+
+        return space;
+    }
+
+    private async assertDashboardTilesBelongToWriteSpace(
+        user: SessionUser,
+        tiles: CreateDashboard['tiles'],
+        writeSpaceUuid: string,
+        projectUuid: string,
+    ) {
+        const savedChartUuids = [
+            ...new Set(
+                tiles
+                    .filter(
+                        (tile) => tile.type === DashboardTileTypes.SAVED_CHART,
+                    )
+                    .map((tile) => tile.properties.savedChartUuid)
+                    .filter((uuid): uuid is string => !!uuid),
+            ),
+        ];
+
+        await Promise.all(
+            savedChartUuids.map(async (savedChartUuid) => {
+                const savedChart = await this.savedChartModel.get(
+                    savedChartUuid,
+                    undefined,
+                    { projectUuid },
+                );
+
+                if (savedChart.spaceUuid !== writeSpaceUuid) {
+                    throw new ForbiddenError(
+                        'Embed token does not allow saving charts from outside the write space',
+                    );
+                }
+
+                const spaceAccessContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        savedChart.spaceUuid,
+                    );
+                const auditedAbility = this.createAuditedAbility(user);
+                if (
+                    auditedAbility.cannot(
+                        'view',
+                        subject('SavedChart', {
+                            ...savedChart,
+                            inheritsFromOrgOrProject:
+                                spaceAccessContext.inheritsFromOrgOrProject,
+                            access: spaceAccessContext.access,
+                            metadata: {
+                                savedChartUuid: savedChart.uuid,
+                                savedChartName: savedChart.name,
+                            },
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'Embed token does not allow viewing this chart',
+                    );
+                }
+            }),
+        );
+
+        const savedSqlUuids = [
+            ...new Set(
+                tiles
+                    .filter(
+                        (tile) => tile.type === DashboardTileTypes.SQL_CHART,
+                    )
+                    .map(
+                        (tile) =>
+                            (tile as CreateDashboardSqlChartTile).properties
+                                .savedSqlUuid,
+                    )
+                    .filter((uuid): uuid is string => !!uuid),
+            ),
+        ];
+
+        await Promise.all(
+            savedSqlUuids.map(async (savedSqlUuid) => {
+                const savedSqlChart = await this.savedSqlModel.getByUuid(
+                    savedSqlUuid,
+                    { projectUuid },
+                );
+
+                if (savedSqlChart.space.uuid !== writeSpaceUuid) {
+                    throw new ForbiddenError(
+                        'Embed token does not allow saving SQL charts from outside the write space',
+                    );
+                }
+
+                const spaceAccessContext =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        user.userUuid,
+                        savedSqlChart.space.uuid,
+                    );
+                const auditedAbility = this.createAuditedAbility(user);
+                if (
+                    auditedAbility.cannot(
+                        'view',
+                        subject('SavedChart', {
+                            ...spaceAccessContext,
+                            metadata: {
+                                savedSqlUuid: savedSqlChart.savedSqlUuid,
+                            },
+                        }),
+                    )
+                ) {
+                    throw new ForbiddenError(
+                        'Embed token does not allow viewing this SQL chart',
+                    );
+                }
+            }),
+        );
+    }
+
+    private async getCreateDashboardContext(
+        account: Account,
+        projectUuid: string,
+        dashboard: CreateDashboard,
+    ): Promise<{ user: SessionUser; dashboard: CreateDashboard }> {
+        const { user, embedWriteActions } = getAccountWriteContext(account);
+
+        if (!embedWriteActions) {
+            return { user, dashboard };
+        }
+
+        await this.assertWriteSpaceBelongsToProject(
+            projectUuid,
+            embedWriteActions.spaceUuid,
+        );
+        await this.assertDashboardTilesBelongToWriteSpace(
+            user,
+            dashboard.tiles,
+            embedWriteActions.spaceUuid,
+            projectUuid,
+        );
+
+        return {
+            user,
+            dashboard: {
+                ...dashboard,
+                spaceUuid: embedWriteActions.spaceUuid,
+            },
+        };
+    }
+
+    private async getDashboardWriteContext(
+        account: Account,
+        projectUuid: string | undefined,
+    ): Promise<{
+        user: SessionUser;
+        embedWriteActions?: { spaceUuid: string };
+    }> {
+        const context = getAccountWriteContext(account);
+
+        if (context.embedWriteActions) {
+            if (!projectUuid) {
+                throw new ForbiddenError(
+                    'Project UUID is required for embedded write actions',
+                );
+            }
+
+            await this.assertWriteSpaceBelongsToProject(
+                projectUuid,
+                context.embedWriteActions.spaceUuid,
+            );
+        }
+
+        return context;
+    }
+
+    async createFromAccount(
+        account: Account,
+        projectUuid: string,
+        dashboard: CreateDashboard,
+    ): Promise<Dashboard> {
+        const { user, dashboard: dashboardToCreate } =
+            await this.getCreateDashboardContext(
+                account,
+                projectUuid,
+                dashboard,
+            );
+        return this.create(user, projectUuid, dashboardToCreate);
+    }
+
     async create(
         user: SessionUser,
         projectUuid: string,
@@ -755,6 +962,9 @@ export class DashboardService
                 projectUuid,
             ));
         const space = await this.spaceModel.get(resolvedSpaceUuid);
+        if (space.projectUuid !== projectUuid) {
+            throw new ForbiddenError('Space does not belong to this project');
+        }
 
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
@@ -809,14 +1019,41 @@ export class DashboardService
         };
     }
 
+    async duplicateFromAccount(
+        account: Account,
+        projectUuid: string,
+        dashboardUuid: string,
+        data: DuplicateDashboardParams,
+    ): Promise<Dashboard> {
+        const { user, embedWriteActions } = await this.getDashboardWriteContext(
+            account,
+            projectUuid,
+        );
+        return this.duplicate(user, projectUuid, dashboardUuid, data, {
+            targetSpaceUuid: embedWriteActions?.spaceUuid,
+            sourceSpaceUuid: embedWriteActions?.spaceUuid,
+        });
+    }
+
     async duplicate(
         user: SessionUser,
         projectUuid: string,
         dashboardUuid: string,
         data: DuplicateDashboardParams,
+        options?: { targetSpaceUuid?: string; sourceSpaceUuid?: string },
     ): Promise<Dashboard> {
-        const dashboardDao =
-            await this.dashboardModel.getByIdOrSlug(dashboardUuid);
+        const dashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuid,
+            { projectUuid },
+        );
+        if (
+            options?.sourceSpaceUuid &&
+            dashboardDao.spaceUuid !== options.sourceSpaceUuid
+        ) {
+            throw new ForbiddenError(
+                'Embed token does not allow duplicating dashboards from outside the write space',
+            );
+        }
         const { inheritsFromOrgOrProject, access } =
             await this.spacePermissionService.getSpaceAccessContext(
                 user.userUuid,
@@ -827,16 +1064,52 @@ export class DashboardService
             inheritsFromOrgOrProject,
             access,
         };
+        const targetSpaceUuid = options?.targetSpaceUuid ?? dashboard.spaceUuid;
+        const targetSpaceAccess =
+            await this.spacePermissionService.getSpaceAccessContext(
+                user.userUuid,
+                targetSpaceUuid,
+            );
+        if (targetSpaceAccess.projectUuid !== projectUuid) {
+            throw new ForbiddenError(
+                'Target space does not belong to this project',
+            );
+        }
 
         const auditedAbility = this.createAuditedAbility(user);
+        if (
+            options?.sourceSpaceUuid &&
+            auditedAbility.cannot(
+                'view',
+                subject('Dashboard', {
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject,
+                    access,
+                    metadata: {
+                        dashboardUuid: dashboard.uuid,
+                        dashboardName: dashboard.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError(
+                'Embed token does not allow viewing this dashboard',
+            );
+        }
+
         if (
             auditedAbility.cannot(
                 'create',
                 subject('Dashboard', {
-                    ...dashboard,
+                    organizationUuid: dashboard.organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject:
+                        targetSpaceAccess.inheritsFromOrgOrProject,
+                    access: targetSpaceAccess.access,
                     metadata: {
-                        dashboardUuid: dashboard.uuid,
-                        dashboardName: dashboard.name,
+                        spaceUuid: targetSpaceUuid,
+                        dashboardName: data.dashboardName,
                     },
                 }),
             )
@@ -871,7 +1144,7 @@ export class DashboardService
         };
 
         const newDashboard = await this.dashboardModel.create(
-            dashboard.spaceUuid,
+            targetSpaceUuid,
             duplicatedDashboard,
             user,
             projectUuid,
@@ -976,9 +1249,60 @@ export class DashboardService
 
         return {
             ...updatedNewDashboard,
-            inheritsFromOrgOrProject,
-            access,
+            inheritsFromOrgOrProject:
+                targetSpaceAccess.inheritsFromOrgOrProject,
+            access: targetSpaceAccess.access,
         };
+    }
+
+    async updateFromAccount(
+        account: Account,
+        dashboardUuidOrSlug: string,
+        dashboard: UpdateDashboard,
+        options?: { projectUuid?: string },
+    ): Promise<Dashboard> {
+        const { user, embedWriteActions } = await this.getDashboardWriteContext(
+            account,
+            options?.projectUuid,
+        );
+        const existingDashboardDao = await this.dashboardModel.getByIdOrSlug(
+            dashboardUuidOrSlug,
+            {
+                projectUuid: options?.projectUuid,
+            },
+        );
+
+        if (
+            embedWriteActions &&
+            existingDashboardDao.spaceUuid !== embedWriteActions.spaceUuid
+        ) {
+            throw new ForbiddenError(
+                'Embed token does not allow writing to this dashboard space',
+            );
+        }
+
+        if (embedWriteActions) {
+            if (
+                isDashboardUnversionedFields(dashboard) &&
+                dashboard.spaceUuid &&
+                dashboard.spaceUuid !== embedWriteActions.spaceUuid
+            ) {
+                throw new ForbiddenError(
+                    'Embed token does not allow moving dashboards outside the write space',
+                );
+            }
+
+            if (isDashboardVersionedFields(dashboard)) {
+                await this.assertDashboardTilesBelongToWriteSpace(
+                    user,
+                    dashboard.tiles,
+                    embedWriteActions.spaceUuid,
+                    options?.projectUuid ?? existingDashboardDao.projectUuid,
+                );
+            }
+        }
+
+        return this.update(user, dashboardUuidOrSlug, dashboard, options);
     }
 
     async update(
@@ -2324,10 +2648,11 @@ export class DashboardService
     }
 
     async createDashboardWithCharts(
-        user: SessionUser,
+        account: RegisteredAccount,
         projectUuid: string,
         data: CreateDashboardWithCharts,
     ): Promise<Dashboard> {
+        const user = toSessionUser(account);
         // 1. Create empty dashboard
         const emptyDashboard: CreateDashboard = {
             name: data.name,
@@ -2350,7 +2675,7 @@ export class DashboardService
                     };
 
                     return this.savedChartService.create(
-                        user,
+                        account,
                         projectUuid,
                         chartDataWithDashboard,
                     );

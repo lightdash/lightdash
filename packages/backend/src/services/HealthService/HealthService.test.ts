@@ -108,6 +108,33 @@ describe('health', () => {
         });
     });
 
+    describe('skipMigrationCheck', () => {
+        it('checks migration status by default', async () => {
+            await healthService.getHealthState(undefined);
+            expect(migrationModel.getMigrationStatus).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not check migration status when skipMigrationCheck is true', async () => {
+            const result = await healthService.getHealthState(undefined, {
+                skipMigrationCheck: true,
+            });
+            expect(result).toEqual(BaseResponse);
+            expect(migrationModel.getMigrationStatus).not.toHaveBeenCalled();
+        });
+
+        it('throws when the DB is unmigrated and the check runs', async () => {
+            (
+                migrationModel.getMigrationStatus as jest.Mock
+            ).mockImplementationOnce(() => ({
+                status: -1,
+                currentVersion: 'example',
+            }));
+            await expect(
+                healthService.getHealthState(undefined),
+            ).rejects.toThrow('Database has not been migrated yet');
+        });
+    });
+
     describe('getPylonVerificationHash', () => {
         const testEmail = 'test@example.com';
         // Valid hex string (32 bytes = 64 hex chars)

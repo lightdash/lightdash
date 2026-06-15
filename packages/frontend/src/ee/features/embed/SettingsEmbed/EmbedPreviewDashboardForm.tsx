@@ -11,6 +11,7 @@ import {
 } from '@lightdash/common';
 import {
     ActionIcon,
+    Badge,
     Button,
     Divider,
     Flex,
@@ -30,13 +31,14 @@ import { useMantineColorScheme } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import {
     IconEye,
+    IconFlask2Filled,
     IconInfoCircle,
     IconLink,
     IconPlus,
     IconTrash,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { useCallback, useState, type FC } from 'react';
+import { useCallback, useState, type FC, type ReactNode } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { lightdashApi } from '../../../../api';
 import MantineIcon from '../../../../components/common/MantineIcon';
@@ -86,13 +88,22 @@ type FormValues = {
     canExplore?: boolean;
     canViewUnderlyingData?: boolean;
     canViewDataApps?: boolean;
+    stickyHeader?: boolean;
 } & IntrinsicUserAttributes;
 
 const EmbedPreviewDashboardForm: FC<{
     projectUuid: string;
     siteUrl: string;
     dashboards: DashboardBasicDetails[];
-}> = ({ projectUuid, siteUrl, dashboards }) => {
+    writeActions?: CreateEmbedJwt['writeActions'];
+    writeActionsPanel?: ReactNode;
+}> = ({
+    projectUuid,
+    siteUrl,
+    dashboards,
+    writeActions,
+    writeActionsPanel,
+}) => {
     const { mutateAsync: createEmbedUrl } =
         useEmbedUrlCreateMutation(projectUuid);
     const { colorScheme } = useMantineColorScheme();
@@ -125,6 +136,7 @@ const EmbedPreviewDashboardForm: FC<{
             canExplore: false,
             canViewUnderlyingData: false,
             canViewDataApps: false,
+            stickyHeader: false,
         },
         validate: {
             dashboardUuid: (value: undefined | string) => {
@@ -167,7 +179,9 @@ const EmbedPreviewDashboardForm: FC<{
                     canExplore: values.canExplore,
                     canViewUnderlyingData: values.canViewUnderlyingData,
                     canViewDataApps: values.canViewDataApps,
+                    stickyHeader: values.stickyHeader,
                 },
+                writeActions,
                 userAttributes: values.userAttributes.reduce(
                     (acc, item) => ({
                         ...acc,
@@ -181,7 +195,7 @@ const EmbedPreviewDashboardForm: FC<{
                 },
             };
         },
-        [projectUuid],
+        [writeActions, projectUuid],
     );
 
     const handlePreview = useCallback(async () => {
@@ -454,9 +468,45 @@ const EmbedPreviewDashboardForm: FC<{
                                     />
                                 )}
                             </Stack>
+
+                            <Stack gap="xs">
+                                <Text size="sm" fw={500}>
+                                    Appearance:
+                                </Text>
+                                <Switch
+                                    {...form.getInputProps('stickyHeader', {
+                                        type: 'checkbox',
+                                    })}
+                                    label="Sticky header (keep tabs & filters visible when scrolling)"
+                                />
+                            </Stack>
                         </Stack>
                     </Stack>
                 </Paper>
+
+                {writeActionsPanel && (
+                    <Paper p="md" withBorder>
+                        <Stack gap="xs" mb="md">
+                            <Group gap="sm">
+                                <Title order={6}>Write actions</Title>
+                                <Badge
+                                    variant="light"
+                                    color="violet"
+                                    size="sm"
+                                    leftSection={<IconFlask2Filled size={12} />}
+                                >
+                                    Experimental
+                                </Badge>
+                            </Group>
+                            <Text c="dimmed" fz="sm">
+                                Choose which Lightdash actor should power
+                                embedded actions like creating scheduled
+                                deliveries or saving charts.
+                            </Text>
+                        </Stack>
+                        {writeActionsPanel}
+                    </Paper>
+                )}
 
                 <Flex justify="flex-end" gap="sm">
                     <Button

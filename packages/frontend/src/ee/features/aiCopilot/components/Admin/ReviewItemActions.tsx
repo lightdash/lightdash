@@ -65,7 +65,7 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
         current.remediation?.previewProjectUuid &&
         current.remediation.previewAgentUuid &&
         current.remediation.previewThreadUuid
-            ? `/projects/${current.remediation.previewProjectUuid}/ai-agents/${current.remediation.previewAgentUuid}/threads/${current.remediation.previewThreadUuid}?reviewItem=${encodeURIComponent(current.fingerprint)}`
+            ? `/projects/${current.remediation.previewProjectUuid}/ai-agents/${current.remediation.previewAgentUuid}/threads/${current.remediation.previewThreadUuid}`
             : null;
     const remediationError =
         current.remediation?.status === 'failed'
@@ -79,22 +79,18 @@ export const ReviewItemActions: FC<ReviewItemActionsProps> = ({
     return (
         <>
             {isWritebackInFlight ? (
-                <Tooltip label={phase} withArrow openDelay={300}>
-                    <Group
-                        gap={8}
-                        wrap="nowrap"
-                        maw={mode === 'drawer' ? 320 : 180}
-                    >
-                        <Loader size={12} color="ldGray.5" />
-                        <Text
-                            fz="xs"
-                            c="ldGray.6"
-                            lineClamp={mode === 'drawer' ? 2 : 1}
-                        >
-                            {phase}
-                        </Text>
-                    </Group>
-                </Tooltip>
+                // The drawer's Activity timeline owns the live progress row —
+                // a second spinner in the corner would duplicate it.
+                mode === 'drawer' ? null : (
+                    <Tooltip label={phase} withArrow openDelay={300}>
+                        <Group gap={8} wrap="nowrap" maw={180}>
+                            <Loader size={12} color="ldGray.5" />
+                            <Text fz="xs" c="ldGray.6" lineClamp={1}>
+                                {phase}
+                            </Text>
+                        </Group>
+                    </Tooltip>
+                )
             ) : (
                 <Stack gap={mode === 'drawer' ? 'xs' : 6} align="flex-start">
                     <Group gap={4} wrap="wrap">

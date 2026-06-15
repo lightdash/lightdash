@@ -1,0 +1,35 @@
+{
+  "$comment": "Instance capabilities for /docker-dev. The AI tier is just Core vs EE: all AI features (agents, writeback, reviews classifier) are bundled into the `ee` profile. GitHub and Slack are integrations (extra credentials / a tunnel), kept as their own toggles. EE requires `github` because AI writeback opens PRs through it, so an EE instance is turnkey for writeback. The start-time multi-select composes these; each pulls in its `requires` transitively, then the union of secrets/flags/env/orgSettings is applied, `reconcile` steps run, and `verify` checks confirm it. `secrets` are keys in scripts/dev-secrets.manifest.json. Addressable by name: `/docker-dev start ee` or `/docker-dev start ee,slack`; no profile = a plain Core instance.",
+  "profiles": {
+    "github": {
+      "label": "GitHub integration (dbt-over-GitHub)",
+      "description": "Connect a project's dbt over the dev GitHub App. Usable standalone on Core (dbt-over-GitHub without AI); also required by EE for writeback PRs.",
+      "secrets": ["GITHUB_APP"],
+      "reconcile": ["github-app-installation", "github-dbt-repo"],
+      "verify": ["github-repos-list"]
+    },
+    "ee": {
+      "label": "Enterprise Edition — license + all AI (agents, writeback, reviews)",
+      "description": "EE license plus every AI feature: Copilot/agents, AI writeback (opens PRs via GitHub), and the reviews classifier. Bootstraps from the EE base snapshot. Requires the GitHub integration so writeback is turnkey.",
+      "ee": true,
+      "requires": ["github"],
+      "secrets": ["LIGHTDASH_LICENSE_KEY", "ANTHROPIC_API_KEY", "E2B_API_KEY"],
+      "env": { "AI_COPILOT_ENABLED": "true", "AI_DEFAULT_PROVIDER": "anthropic" },
+      "flags": ["ai-writeback", "github-mcp-one-click", "ai-preview-deploy-setup"],
+      "orgSettings": { "ai_agent_reviews_enabled": true },
+      "verify": ["agents-200", "writeback-token"]
+    },
+    "slack": {
+      "label": "Slack bot (optional add-on)",
+      "description": "Slack app for @mention agent chat. Needs a public tunnel; see the slack-bot-local-setup notes. Not bundled into EE because the tunnel step can't be automated.",
+      "requires": ["ee"],
+      "secrets": ["SLACK_APP"],
+      "notes": "SLACK_APP is not yet in the secrets manifest — confirm the 1Password item name before enabling."
+    }
+  },
+  "snapshots": {
+    "$comment": "Preferred base snapshot per tier, so common instances skip the migrate pass / reconcile. Maintained by dev-fast-start.sh.",
+    "core": "ld-shared_postgres_base",
+    "ee": "ld-shared_postgres_base_ee"
+  }
+}

@@ -108,7 +108,7 @@ const buildSemanticLayerWritebackPrompt = (
         evidenceLines.length > 0
             ? `Evidence from the conversation:\n${evidenceLines.join('\n')}`
             : null,
-        'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing field/metric as appropriate. Do not change SQL logic or unrelated fields. Open a pull request describing the change and referencing this review finding.',
+        'Apply the change by updating field descriptions, ai_hint, or labels, or by adding a missing model, join, dimension, or metric as appropriate. Do not change SQL logic or unrelated fields. If the data needed to answer this is genuinely not present in the warehouse/dbt project and cannot be exposed by a semantic-layer edit, do not fabricate fields or invent data — open no pull request and report that upstream dbt modeling or ingestion is required. Otherwise open a pull request describing the change and referencing this review finding.',
     ].filter((section): section is string => section !== null);
 
     return {

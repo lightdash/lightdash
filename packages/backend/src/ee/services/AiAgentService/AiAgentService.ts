@@ -10,9 +10,11 @@ import {
     AiAgentNotFoundError,
     AiAgentProjectThreadSummary,
     AiAgentReviewClassifierEventType,
+    AiAgentReviewRemediationRunJobPayload,
     AiAgentSummary,
     AiAgentThread,
     AiAgentThreadFilters,
+    AiAgentThreadPullRequest,
     AiAgentThreadSummary,
     AiAgentUser,
     AiAgentUserPreferences,
@@ -71,6 +73,7 @@ import {
     ParameterError,
     parseVizConfig,
     ProjectType,
+    PullRequestProvider,
     QueryExecutionContext,
     ReadinessScore,
     ShareUrl,
@@ -130,7 +133,10 @@ import {
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
-import { getInstallationToken } from '../../../clients/github/Github';
+import {
+    getInstallationToken,
+    getPullRequest,
+} from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
 import Logger from '../../../logging/logger';
@@ -144,6 +150,7 @@ import { GithubAppInstallationsModel } from '../../../models/GithubAppInstallati
 import { GroupsModel } from '../../../models/GroupsModel';
 import { OpenIdIdentityModel } from '../../../models/OpenIdIdentitiesModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { PullRequestsModel } from '../../../models/PullRequestsModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
@@ -173,6 +180,7 @@ import {
     type AiMcpCredential,
     type AiMcpServerWithSensitiveData,
 } from '../../models/AiAgentModel';
+import { AiAgentReviewClassifierModel } from '../../models/AiAgentReviewClassifierModel';
 import { CommercialSlackAuthenticationModel } from '../../models/CommercialSlackAuthenticationModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import { CommercialSchedulerClient } from '../../scheduler/SchedulerClient';
@@ -307,6 +315,11 @@ type AiAgentServiceDependencies = {
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     aiAgentToolsService: AiAgentToolsService;
+    pullRequestsModel: Pick<PullRequestsModel, 'findByAiThreadUuid' | 'find'>;
+    aiAgentReviewClassifierModel: Pick<
+        AiAgentReviewClassifierModel,
+        'findReviewRemediationByPreviewThread'
+    >;
     prometheusMetrics?: PrometheusMetrics;
 };
 
@@ -527,6 +540,16 @@ export class AiAgentService extends BaseService {
 
     private readonly aiAgentToolsService: AiAgentToolsService;
 
+    private readonly pullRequestsModel: Pick<
+        PullRequestsModel,
+        'findByAiThreadUuid' | 'find'
+    >;
+
+    private readonly aiAgentReviewClassifierModel: Pick<
+        AiAgentReviewClassifierModel,
+        'findReviewRemediationByPreviewThread'
+    >;
+
     private readonly aiAgentMcpRuntimeClient: AiAgentMcpRuntimeClient;
 
     private static getPinnedContextAnalyticsProperties(
@@ -542,7 +565,10 @@ export class AiAgentService extends BaseService {
             context?.filter((item) => item.type === 'chart').length ?? 0;
         const pinnedDashboardCount =
             context?.filter((item) => item.type === 'dashboard').length ?? 0;
-        const pinnedContextCount = pinnedChartCount + pinnedDashboardCount;
+        const pinnedThreadCount =
+            context?.filter((item) => item.type === 'thread').length ?? 0;
+        const pinnedContextCount =
+            pinnedChartCount + pinnedDashboardCount + pinnedThreadCount;
 
         return {
             hasPinnedContext: pinnedContextCount > 0,
@@ -561,10 +587,23 @@ export class AiAgentService extends BaseService {
 
         const seen = new Set<string>();
         const deduped = context.filter((item) => {
-            const key =
-                item.type === 'chart'
-                    ? `chart:${item.chartUuid}`
-                    : `dashboard:${item.dashboardUuid}`;
+            let key: string;
+            switch (item.type) {
+                case 'chart':
+                    key = `chart:${item.chartUuid}`;
+                    break;
+                case 'dashboard':
+                    key = `dashboard:${item.dashboardUuid}`;
+                    break;
+                case 'thread':
+                    key = `thread:${item.threadUuid}`;
+                    break;
+                default:
+                    return assertUnreachable(
+                        item,
+                        'Unknown AiPromptContextItemInput type',
+                    );
+            }
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
@@ -586,6 +625,10 @@ export class AiAgentService extends BaseService {
                     );
                 }
 
+                if (item.type === 'thread') {
+                    return this.validateThreadContextAccess(user, item);
+                }
+
                 return this.dashboardService.hasAccess(
                     'view',
                     { user, projectUuid: agent.projectUuid },
@@ -595,6 +638,43 @@ export class AiAgentService extends BaseService {
         );
 
         return deduped;
+    }
+
+    // A pinned thread may live in another project (e.g. verifying a fix in a
+    // preview environment against the original conversation), so access is
+    // checked against the source thread's own agent.
+    private async validateThreadContextAccess(
+        user: SessionUser,
+        item: { threadUuid: string },
+    ): Promise<void> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const ownership = await this.aiAgentModel.findThreadOwnership({
+            organizationUuid,
+            threadUuid: item.threadUuid,
+        });
+        if (!ownership || !ownership.agentUuid) {
+            throw new NotFoundError(`Thread not found: ${item.threadUuid}`);
+        }
+        const threadAgent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid: ownership.agentUuid,
+        });
+        if (!threadAgent) {
+            throw new NotFoundError(`Thread not found: ${item.threadUuid}`);
+        }
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            threadAgent,
+            ownership.ownerUserUuid ?? '',
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to attach this conversation as context',
+            );
+        }
     }
 
     constructor(dependencies: AiAgentServiceDependencies) {
@@ -638,6 +718,9 @@ export class AiAgentService extends BaseService {
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
         this.aiAgentToolsService = dependencies.aiAgentToolsService;
+        this.pullRequestsModel = dependencies.pullRequestsModel;
+        this.aiAgentReviewClassifierModel =
+            dependencies.aiAgentReviewClassifierModel;
         this.aiAgentMcpRuntimeClient = new AiAgentMcpRuntimeClient({
             aiAgentModel: this.aiAgentModel,
             lightdashConfig: this.lightdashConfig,
@@ -787,6 +870,106 @@ export class AiAgentService extends BaseService {
      * 2. The user is the thread owner
      * 3. The user has manage permissions for the agent
      */
+    /**
+     * The writeback PR a thread is associated with — the PR the agent opened
+     * in this thread, or (for remediation verification threads) the PR being
+     * verified. Live fields (title/state/counts) are best-effort from GitHub;
+     * the stored summary renders without them. Null when the thread has no PR.
+     */
+    async getThreadPullRequest(
+        user: SessionUser,
+        agentUuid: string,
+        threadUuid: string,
+    ): Promise<AiAgentThreadPullRequest | null> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+        const agent = await this.aiAgentModel.getAgent({
+            organizationUuid,
+            agentUuid,
+        });
+        if (!agent) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+        const thread = await this.aiAgentModel.getThread({
+            organizationUuid,
+            agentUuid,
+            threadUuid,
+        });
+        if (!thread) {
+            throw new NotFoundError(`Thread not found: ${threadUuid}`);
+        }
+        const hasAccess = await this.checkAgentThreadAccess(
+            user,
+            agent,
+            thread.user.uuid,
+        );
+        if (!hasAccess) {
+            throw new ForbiddenError(
+                'Insufficient permissions to view this thread',
+            );
+        }
+
+        let pullRequest =
+            await this.pullRequestsModel.findByAiThreadUuid(threadUuid);
+        if (!pullRequest) {
+            const remediation =
+                await this.aiAgentReviewClassifierModel.findReviewRemediationByPreviewThread(
+                    { organizationUuid, previewThreadUuid: threadUuid },
+                );
+            if (remediation?.pullRequestUuid) {
+                pullRequest = await this.pullRequestsModel.find(
+                    remediation.pullRequestUuid,
+                );
+            }
+        }
+        if (!pullRequest) {
+            return null;
+        }
+
+        const result: AiAgentThreadPullRequest = {
+            prUrl: pullRequest.prUrl,
+            repo: `${pullRequest.owner}/${pullRequest.repo}`,
+            prNumber: pullRequest.prNumber,
+            title: null,
+            summary: pullRequest.summary,
+            state: null,
+            additions: null,
+            deletions: null,
+            changedFiles: null,
+            commitSha: null,
+        };
+
+        try {
+            if (pullRequest.provider === PullRequestProvider.GITHUB) {
+                const installationId =
+                    await this.githubAppInstallationsModel.findInstallationId(
+                        organizationUuid,
+                    );
+                if (installationId) {
+                    const pr = await getPullRequest({
+                        owner: pullRequest.owner,
+                        repo: pullRequest.repo,
+                        pullNumber: pullRequest.prNumber,
+                        installationId,
+                    });
+                    result.title = pr.title;
+                    result.state = pr.merged ? 'merged' : pr.state;
+                    result.additions = pr.additions;
+                    result.deletions = pr.deletions;
+                    result.changedFiles = pr.changedFiles;
+                }
+            }
+        } catch (error) {
+            this.logger.warn(
+                `Failed to resolve live PR state for thread ${threadUuid}: ${getErrorMessage(error)}`,
+            );
+        }
+
+        return { ...result, summary: result.summary ?? result.title };
+    }
+
     private async checkAgentThreadAccess(
         user: SessionUser,
         agent: AiAgent,
@@ -4572,6 +4755,12 @@ Use them as a reference, but do all the due dilligence and follow the instructio
                 }
                 case 'dashboard':
                     return `- Dashboard "${name}" (dashboardSlug: ${item.dashboardSlug ?? '(slug unavailable)'})`;
+                case 'thread':
+                    return `- Conversation "${name}" (threadUuid: ${item.threadUuid}${
+                        item.promptUuid
+                            ? `, the referenced turn is promptUuid: ${item.promptUuid}`
+                            : ''
+                    }) — a previous conversation attached as reference. Read it with the readPinnedThread tool. It may predate recent project changes, so verify any claims it contains against the current project instead of trusting them.`;
                 default:
                     return assertUnreachable(
                         item,
@@ -5490,6 +5679,28 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             describeWarehouseTable,
             listKnowledgeDocuments,
             getKnowledgeDocumentContent,
+            // Only conversations pinned as context on this thread are
+            // readable — the pin is the capability grant.
+            readPinnedThread: async ({ threadUuid }) => {
+                const pinnedThreadUuids =
+                    await this.aiAgentModel.findPinnedThreadContextUuids(
+                        prompt.threadUuid,
+                    );
+                if (!pinnedThreadUuids.includes(threadUuid)) {
+                    throw new ForbiddenError(
+                        'This conversation is not attached as context on this thread',
+                    );
+                }
+                const messages = await this.aiAgentModel.findThreadMessages({
+                    organizationUuid: user.organizationUuid!,
+                    threadUuid,
+                });
+                return messages.map((message) => ({
+                    role: message.role,
+                    message: message.message ?? '',
+                    createdAt: message.createdAt,
+                }));
+            },
             getSavedChart,
             getPrompt,
             sendFile,
@@ -9338,6 +9549,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             completedAt: new Date(),
         });
         await this.aiAgentModel.checkAndUpdateEvalRunCompletion(evalRunUuid);
+    }
+
+    async executeReviewRemediationRun({
+        userUuid,
+        organizationUuid,
+        agentUuid,
+        threadUuid,
+    }: AiAgentReviewRemediationRunJobPayload): Promise<void> {
+        const sessionUser = await this.userModel.findSessionUserAndOrgByUuid(
+            userUuid,
+            organizationUuid,
+        );
+
+        await this.generateAgentThreadResponse(sessionUser, {
+            agentUuid,
+            threadUuid,
+            autoApproveSql: true,
+        });
     }
 
     async executeEvalResult({

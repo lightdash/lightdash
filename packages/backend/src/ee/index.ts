@@ -194,6 +194,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         lightdashConfig: context.lightdashConfig,
                     }),
                     projectService: repository.getProjectService(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     permissionsService: repository.getPermissionsService(),
                     dashboardModel: models.getDashboardModel(),
@@ -202,6 +204,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     savedChartModel: models.getSavedChartModel(),
                     savedSqlModel: models.getSavedSqlModel(),
                     userAttributesModel: models.getUserAttributesModel(),
+                    userModel: models.getUserModel(),
                     featureFlagModel: models.getFeatureFlagModel(),
                     organizationModel: models.getOrganizationModel(),
                 }),
@@ -304,6 +307,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getGithubAppInstallationsModel(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
+                    pullRequestsModel: models.getPullRequestsModel(),
+                    aiAgentReviewClassifierModel:
+                        models.getAiAgentReviewClassifierModel<AiAgentReviewClassifierModel>(),
                     prometheusMetrics,
                 }),
             aiAgentAdminService: ({ models, repository, context, clients }) =>
@@ -331,6 +337,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
+                    jobModel: models.getJobModel(),
                 }),
             aiRouterService: ({ models, repository, context }) =>
                 new AiRouterService({
@@ -359,6 +366,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiOrganizationSettingsModel:
                         models.getAiOrganizationSettingsModel(),
                     catalogModel: models.getCatalogModel(),
+                    projectModel: models.getProjectModel(),
                     featureFlagService: repository.getFeatureFlagService(),
                     lightdashConfig: context.lightdashConfig,
                 }),
@@ -526,6 +534,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     encryptionUtil: utils.getEncryptionUtil(),
                     userAttributesModel: models.getUserAttributesModel(),
                     groupsModel: models.getGroupsModel(),
+                    rolesModel: models.getRolesModel(),
                 }),
             asyncQueryService: ({
                 models,

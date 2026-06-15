@@ -26,6 +26,7 @@ import {
 } from '../features/explorer/store';
 import { useExplorerQuery } from '../hooks/useExplorerQuery';
 import { useExplorerQueryEffects } from '../hooks/useExplorerQueryEffects';
+import { useProjectUuid } from '../hooks/useProjectUuid';
 import { useResizeObserver } from '../hooks/useResizeObserver';
 import { useSavedQuery } from '../hooks/useSavedQuery';
 import useApp from '../providers/App/useApp';
@@ -197,10 +198,11 @@ const MinimalSavedExplorer: FC<Props> = ({
         projectUuid: string;
     }>();
     const savedQueryUuid = queryUuidProps || params.savedQueryUuid!;
+    const projectUuid = useProjectUuid();
 
     const { data, isInitialLoading, isError, error } = useSavedQuery({
         uuidOrSlug: savedQueryUuid,
-        projectUuid: params.projectUuid,
+        projectUuid,
     });
 
     // Create store once with useState

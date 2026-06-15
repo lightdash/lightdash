@@ -407,6 +407,7 @@ Thanks goes to these wonderful people ([emoji key](https://allcontributors.org/d
       <td align="center" valign="top" width="14.28%"><a href="http://ota2000.com"><img src="https://avatars.githubusercontent.com/u/16278388?v=4?s=100" width="100px;" alt="arakaki"/><br /><sub><b>arakaki</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=ota2000" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/shu22203"><img src="https://avatars.githubusercontent.com/u/9993362?v=4?s=100" width="100px;" alt="Shu Murakami"/><br /><sub><b>Shu Murakami</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=shu22203" title="Code">💻</a></td>
       <td align="center" valign="top" width="14.28%"><a href="https://github.com/manish160993"><img src="https://avatars.githubusercontent.com/u/31579600?v=4?s=100" width="100px;" alt="Manish Biyani"/><br /><sub><b>Manish Biyani</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=manish160993" title="Code">💻</a></td>
+      <td align="center" valign="top" width="14.28%"><a href="https://github.com/back1ply"><img src="https://avatars.githubusercontent.com/u/45536170?v=4?s=100" width="100px;" alt="Shehab Tarek"/><br /><sub><b>Shehab Tarek</b></sub></a><br /><a href="https://github.com/lightdash/lightdash/commits?author=back1ply" title="Code">💻</a></td>
     </tr>
   </tbody>
 </table>

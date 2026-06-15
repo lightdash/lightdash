@@ -14,6 +14,7 @@ const makeRow = (overrides: Partial<PullRequestRow> = {}): PullRequestRow => ({
     repo: 'dbt',
     prNumber: 42,
     prUrl: 'https://github.com/acme/dbt/pull/42',
+    summary: null,
     aiThreadUuid: 'thread-1',
     aiAgentUuid: 'agent-1',
     reviewContext: null,

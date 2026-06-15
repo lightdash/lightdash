@@ -22,6 +22,7 @@ import {
     type ApiChartAndResults,
     type ApiError,
     type Dashboard,
+    type QueryExecutionContext,
     type DashboardFilterRule,
     type EChartsSeries,
     type Field,
@@ -151,6 +152,7 @@ import ExportDataModal from './ExportDataModal';
 import ExportImageModal from './ExportImageModal';
 import TileBase from './TileBase';
 import TileExecutionInfo from './TileExecutionInfo';
+import TileTimezoneInfo from './TileTimezoneInfo';
 import { UnderlyingDataMenuItem } from './UnderlyingDataMenuItem';
 
 interface ExportGoogleSheetProps {
@@ -551,6 +553,7 @@ interface DashboardChartTileMainProps extends Pick<
     canExportImages?: boolean;
     canExportPagePdf?: boolean;
     canDateZoom?: boolean;
+    canViewExplore?: boolean;
     onExplore?: (options: { chart: SavedChart }) => void;
     colorPaletteOverride?: string[];
     darkColorPaletteOverride?: string[] | null;
@@ -590,6 +593,7 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                 appliedDashboardFilters,
                 cacheMetadata,
                 metricQuery,
+                resolvedTimezone,
                 usedParametersValues,
             },
             chart,
@@ -1433,6 +1437,10 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                                         </HoverCard.Target>
                                     </HoverCard>
                                 )}
+                            <TileTimezoneInfo
+                                resolvedTimezone={resolvedTimezone}
+                                timezoneSetting={metricQuery?.timezone}
+                            />
                             <TileExecutionInfo
                                 cacheMetadata={cacheMetadata}
                                 performance={performance}
@@ -1817,6 +1825,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         resultsData,
         canExportCsv,
         canExportImages,
+        canViewExplore: canViewExploreOverride,
         onExplore,
         colorPaletteOverride,
         darkColorPaletteOverride,
@@ -1847,7 +1856,7 @@ const DashboardChartTileMinimal: FC<DashboardChartTileMainProps> = (props) => {
         }
     }, [onExplore, chart]);
 
-    const canExplore = canViewExplore;
+    const canExplore = canViewExploreOverride ?? canViewExplore;
 
     const dateZoomGranularity = useDashboardContext(
         (c) => c.dateZoomGranularity,
@@ -2109,6 +2118,7 @@ type DashboardChartTileProps = Omit<
     dashboardChartReadyQuery?: DashboardChartReadyQuery;
     resultsData?: InfiniteQueryResults;
     onExplore?: (options: { chart: SavedChart }) => void;
+    queryContextOverride?: QueryExecutionContext;
 };
 
 // Abstraction needed for enterprise version
@@ -2128,6 +2138,7 @@ export const GenericDashboardChartTile: FC<
     error,
     canExportCsv = false,
     canExportImages = false,
+    canViewExplore,
     onExplore,
     colorPaletteOverride,
     darkColorPaletteOverride,
@@ -2272,6 +2283,7 @@ export const GenericDashboardChartTile: FC<
                     dashboardChartReadyQuery={dashboardChartReadyQuery}
                     canExportCsv={canExportCsv}
                     canExportImages={canExportImages}
+                    canViewExplore={canViewExplore}
                     onExplore={onExplore}
                     colorPaletteOverride={effectiveColorPaletteOverride}
                     darkColorPaletteOverride={effectiveDarkColorPaletteOverride}
@@ -2311,6 +2323,7 @@ const DashboardChartTile: FC<DashboardChartTileProps> = (props) => {
     const readyQuery = useDashboardChartReadyQuery(
         props.tile.uuid,
         props.tile.properties?.savedChartUuid,
+        props.queryContextOverride,
     );
 
     // Use fresh chart data from useSavedQuery to keep dashboard tiles aligned

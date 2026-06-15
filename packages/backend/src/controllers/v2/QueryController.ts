@@ -321,11 +321,6 @@ export class QueryController extends BaseController {
 
         const context = body.context ?? getContextFromHeader(req);
 
-        if (req.account!.isJwtUser()) {
-            // we need more granular CASTL abilities before enabling this
-            throw new ForbiddenError('Feature not available for JWT users');
-        }
-
         const results = await this.services
             .getAsyncQueryService()
             .executeAsyncDashboardChartQuery({

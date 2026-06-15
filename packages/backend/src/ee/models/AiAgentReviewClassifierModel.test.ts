@@ -1,9 +1,11 @@
+import { ProjectType } from '@lightdash/common';
 import knex, { Knex } from 'knex';
 import { getTracker, MockClient, Tracker } from 'knex-mock-client';
 import { AiPromptTableName } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTableName,
+    AiAgentReviewRemediationEventsTableName,
     AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
 } from '../database/entities/aiAgentReviewClassifier';
@@ -22,6 +24,7 @@ const TURN_SIGNAL_UUID = '00000000-0000-0000-0000-000000000009';
 const REMEDIATION_UUID = '00000000-0000-0000-0000-000000000010';
 const PULL_REQUEST_UUID = '00000000-0000-0000-0000-000000000011';
 const PREVIEW_PROJECT_UUID = '00000000-0000-0000-0000-000000000012';
+const USER_UUID = '00000000-0000-0000-0000-000000000013';
 const PREVIEW_AGENT_UUID = '00000000-0000-0000-0000-000000000013';
 const PREVIEW_THREAD_UUID = '00000000-0000-0000-0000-000000000014';
 const SEEN_AT = new Date('2026-05-26T10:00:00.000Z');
@@ -201,6 +204,162 @@ describe('AiAgentReviewClassifierModel', () => {
 
     afterEach(() => {
         tracker.reset();
+    });
+
+    describe('listTurnReviewCandidates', () => {
+        it('excludes turns from preview projects', async () => {
+            tracker.on.select(AiPromptTableName).responseOnce([]);
+
+            await model.listTurnReviewCandidates({
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain('project_type');
+            expect(query.bindings).toContain(ProjectType.PREVIEW);
+        });
+    });
+
+    describe('remediation events', () => {
+        it('emits a failed event when a remediation is marked failed', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce(1);
+            tracker.on
+                .insert(AiAgentReviewRemediationEventsTableName)
+                .responseOnce([]);
+
+            await model.updateReviewRemediationStatus({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                status: 'failed',
+                errorMessage: 'Preview project failed to compile',
+            });
+
+            const [insert] = tracker.history.insert;
+            expect(insert.sql).toContain(
+                AiAgentReviewRemediationEventsTableName,
+            );
+            expect(insert.bindings).toContain('failed');
+            expect(
+                insert.bindings.some(
+                    (b: unknown) =>
+                        typeof b === 'string' &&
+                        b.includes('Preview project failed to compile'),
+                ),
+            ).toBe(true);
+        });
+
+        it('emits a resolved event with the resolving user as actor', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce(1);
+            tracker.on
+                .insert(AiAgentReviewRemediationEventsTableName)
+                .responseOnce([]);
+
+            await model.updateReviewRemediationStatus({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                status: 'resolved',
+                resolvedByUserUuid: USER_UUID,
+            });
+
+            const [insert] = tracker.history.insert;
+            expect(insert.bindings).toContain('resolved');
+            expect(insert.bindings).toContain(USER_UUID);
+        });
+
+        it('does not emit an event when no remediation row matched', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce(0);
+
+            await model.updateReviewRemediationStatus({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                status: 'failed',
+                errorMessage: 'boom',
+            });
+
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        it('does not emit events for non-terminal status updates', async () => {
+            tracker.on
+                .update(AiAgentReviewRemediationTableName)
+                .responseOnce(1);
+
+            await model.updateReviewRemediationStatus({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                status: 'running',
+            });
+
+            expect(tracker.history.insert).toHaveLength(0);
+        });
+
+        it('creates a moment event with an explicit occurred_at', async () => {
+            tracker.on
+                .insert(AiAgentReviewRemediationEventsTableName)
+                .responseOnce([]);
+            const occurredAt = new Date('2026-06-12T10:40:41.000Z');
+
+            await model.createRemediationEvent({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+                event: {
+                    eventType: 'preview_compiled',
+                    payload: { previewProjectUuid: PROJECT_UUID },
+                },
+                occurredAt,
+            });
+
+            const [insert] = tracker.history.insert;
+            expect(insert.bindings).toContain('preview_compiled');
+            expect(insert.bindings).toContainEqual(occurredAt);
+        });
+
+        it('lists remediation events ordered by occurrence', async () => {
+            tracker.on
+                .select(AiAgentReviewRemediationEventsTableName)
+                .responseOnce([
+                    {
+                        ai_agent_review_remediation_event_uuid: 'event-1',
+                        ai_agent_review_remediation_uuid: REMEDIATION_UUID,
+                        organization_uuid: ORGANIZATION_UUID,
+                        event_type: 'pr_opened',
+                        occurred_at: SEEN_AT,
+                        payload: {
+                            prUrl: 'https://github.com/acme/dbt/pull/42',
+                            prNumber: 42,
+                        },
+                        created_by_user_uuid: null,
+                        created_at: SEEN_AT,
+                    },
+                ]);
+
+            const events = await model.listRemediationEvents({
+                remediationUuid: REMEDIATION_UUID,
+                organizationUuid: ORGANIZATION_UUID,
+            });
+
+            const [query] = tracker.history.select;
+            expect(query.sql).toContain('occurred_at');
+            expect(events).toEqual([
+                {
+                    uuid: 'event-1',
+                    remediationUuid: REMEDIATION_UUID,
+                    eventType: 'pr_opened',
+                    occurredAt: SEEN_AT,
+                    payload: {
+                        prUrl: 'https://github.com/acme/dbt/pull/42',
+                        prNumber: 42,
+                    },
+                    createdByUserUuid: null,
+                },
+            ]);
+        });
     });
 
     describe('createRun', () => {

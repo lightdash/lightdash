@@ -1,4 +1,4 @@
-import { QueryExecutionContext } from '@lightdash/common';
+import { ProjectType, QueryExecutionContext } from '@lightdash/common';
 import type {
     AiAgentConfigSnapshot,
     AiAgentEvidenceExcerpt,
@@ -22,6 +22,8 @@ import type {
     AiAgentReviewItemWritebackEligibility,
     AiAgentReviewItemWritebackStatus,
     AiAgentReviewRemediation,
+    AiAgentReviewRemediationEvent,
+    AiAgentReviewRemediationEventDetail,
     AiAgentReviewRemediationStatus,
     AiAgentReviewSignalSummary,
     AiAgentRootCause,
@@ -29,6 +31,7 @@ import type {
     AiAgentTurnSignal,
 } from '@lightdash/common';
 import { type Knex } from 'knex';
+import { ProjectTableName } from '../../database/entities/projects';
 import { PullRequestsTableName } from '../../database/entities/pullRequests';
 import { QueryHistoryTableName } from '../../database/entities/queryHistory';
 import {
@@ -38,19 +41,23 @@ import {
     AiSlackPromptTableName,
     AiSlackThreadTableName,
     AiThreadTableName,
+    AiWritebackThreadTableName,
 } from '../database/entities/ai';
 import {
     AiAgentReviewClassifierRunTableName,
     AiAgentReviewItemTableName,
+    AiAgentReviewRemediationEventsTableName,
     AiAgentReviewRemediationTableName,
     AiAgentTurnSignalTableName,
     type AiAgentReviewClassifierRunTable,
     type AiAgentReviewItemTable,
+    type AiAgentReviewRemediationEventsTable,
     type AiAgentReviewRemediationTable,
     type AiAgentTurnSignalTable,
     type DbAiAgentReviewClassifierRun,
     type DbAiAgentReviewItem,
     type DbAiAgentReviewRemediation,
+    type DbAiAgentReviewRemediationEvent,
     type DbAiAgentTurnSignal,
 } from '../database/entities/aiAgentReviewClassifier';
 
@@ -717,6 +724,11 @@ export class AiAgentReviewClassifierModel {
                 'slack_thread.ai_thread_uuid',
                 'thread.ai_thread_uuid',
             )
+            .join(
+                `${ProjectTableName} as project`,
+                'project.project_uuid',
+                'thread.project_uuid',
+            )
             .select<BaseCandidateRow[]>({
                 ai_prompt_uuid: 'prompt.ai_prompt_uuid',
                 ai_thread_uuid: 'prompt.ai_thread_uuid',
@@ -739,6 +751,9 @@ export class AiAgentReviewClassifierModel {
             })
             .where('thread.organization_uuid', args.organizationUuid)
             .whereNotNull('thread.agent_uuid')
+            // Preview projects host writeback verification threads — reviewing
+            // them would feed the reviewer's own output back into itself.
+            .whereNot('project.project_type', ProjectType.PREVIEW)
             .whereIn('thread.created_from', ['web_app', 'slack'])
             .where((builder) => {
                 void builder
@@ -1186,6 +1201,53 @@ export class AiAgentReviewClassifierModel {
         return remediations;
     }
 
+    /**
+     * Writeback PRs the agent itself opened in a given set of threads (via the
+     * editDbtProject / runAiWriteback tools). Used to warn the judge and to block
+     * remediation from opening a second PR on a thread that already has one.
+     */
+    async getThreadWritebackPullRequests(
+        threadUuids: string[],
+    ): Promise<Map<string, { prUrl: string | null; createdAt: Date }[]>> {
+        if (threadUuids.length === 0) {
+            return new Map();
+        }
+
+        const rows = await this.database(
+            `${AiWritebackThreadTableName} as writeback`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'writeback.pull_request_uuid',
+            )
+            .whereIn('writeback.ai_thread_uuid', threadUuids)
+            .whereNotNull('writeback.pull_request_uuid')
+            .select<
+                {
+                    ai_thread_uuid: string;
+                    pr_url: string | null;
+                    created_at: Date;
+                }[]
+            >(
+                'writeback.ai_thread_uuid',
+                { pr_url: 'pull_request.pr_url' },
+                { created_at: 'writeback.created_at' },
+            )
+            .orderBy('writeback.created_at', 'desc');
+
+        const byThread = new Map<
+            string,
+            { prUrl: string | null; createdAt: Date }[]
+        >();
+        rows.forEach((row) => {
+            const existing = byThread.get(row.ai_thread_uuid) ?? [];
+            existing.push({ prUrl: row.pr_url, createdAt: row.created_at });
+            byThread.set(row.ai_thread_uuid, existing);
+        });
+        return byThread;
+    }
+
     async getReviewRemediation(args: {
         organizationUuid: string;
         remediationUuid: string;
@@ -1203,6 +1265,35 @@ export class AiAgentReviewClassifierModel {
                 'remediation.ai_agent_review_remediation_uuid',
                 args.remediationUuid,
             )
+            .select<ReviewRemediationRow>(
+                'remediation.*',
+                {
+                    linked_pr_url: 'pull_request.pr_url',
+                },
+                this.database.raw(
+                    '(extract(epoch from (now() - remediation.updated_at)) * 1000)::float8 as updated_at_age_ms',
+                ),
+            )
+            .first()) as ReviewRemediationRow | undefined;
+
+        return row ? mapReviewRemediation(row) : null;
+    }
+
+    async findReviewRemediationByPreviewThread(args: {
+        organizationUuid: string;
+        previewThreadUuid: string;
+    }): Promise<AiAgentReviewRemediation | null> {
+        const row = (await this.database<AiAgentReviewRemediationTable>(
+            `${AiAgentReviewRemediationTableName} as remediation`,
+        )
+            .leftJoin(
+                `${PullRequestsTableName} as pull_request`,
+                'pull_request.pull_request_uuid',
+                'remediation.pull_request_uuid',
+            )
+            .where('remediation.organization_uuid', args.organizationUuid)
+            .where('remediation.preview_thread_uuid', args.previewThreadUuid)
+            .orderBy('remediation.updated_at', 'desc')
             .select<ReviewRemediationRow>(
                 'remediation.*',
                 {
@@ -1246,7 +1337,7 @@ export class AiAgentReviewClassifierModel {
     async updateReviewRemediationStatus(
         args: UpdateReviewRemediationStatusArgs,
     ): Promise<void> {
-        await this.database<AiAgentReviewRemediationTable>(
+        const updatedCount = await this.database<AiAgentReviewRemediationTable>(
             AiAgentReviewRemediationTableName,
         )
             .where('ai_agent_review_remediation_uuid', args.remediationUuid)
@@ -1264,6 +1355,77 @@ export class AiAgentReviewClassifierModel {
                         : null,
                 updated_at: this.database.fn.now() as never,
             });
+
+        // Terminal transitions emit activity events centrally so no call site
+        // can forget; moment events (pr_opened, preview_compiled, …) are
+        // written by the services where the moment happens.
+        if (updatedCount === 0) {
+            return;
+        }
+        if (args.status === 'resolved') {
+            await this.createRemediationEvent({
+                remediationUuid: args.remediationUuid,
+                organizationUuid: args.organizationUuid,
+                event: { eventType: 'resolved', payload: {} },
+                createdByUserUuid: args.resolvedByUserUuid ?? null,
+            });
+        } else if (args.status === 'failed') {
+            await this.createRemediationEvent({
+                remediationUuid: args.remediationUuid,
+                organizationUuid: args.organizationUuid,
+                event: {
+                    eventType: 'failed',
+                    payload: { errorMessage: args.errorMessage ?? null },
+                },
+            });
+        }
+    }
+
+    async createRemediationEvent(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+        event: AiAgentReviewRemediationEventDetail;
+        occurredAt?: Date;
+        createdByUserUuid?: string | null;
+    }): Promise<void> {
+        await this.database<AiAgentReviewRemediationEventsTable>(
+            AiAgentReviewRemediationEventsTableName,
+        ).insert({
+            ai_agent_review_remediation_uuid: args.remediationUuid,
+            organization_uuid: args.organizationUuid,
+            event_type: args.event.eventType,
+            payload: args.event.payload,
+            occurred_at: args.occurredAt ?? (this.database.fn.now() as never),
+            created_by_user_uuid: args.createdByUserUuid ?? null,
+        });
+    }
+
+    async listRemediationEvents(args: {
+        remediationUuid: string;
+        organizationUuid: string;
+    }): Promise<AiAgentReviewRemediationEvent[]> {
+        const rows = await this.database<AiAgentReviewRemediationEventsTable>(
+            AiAgentReviewRemediationEventsTableName,
+        )
+            .where('ai_agent_review_remediation_uuid', args.remediationUuid)
+            .where('organization_uuid', args.organizationUuid)
+            .orderBy('occurred_at', 'asc')
+            .select('*');
+
+        return rows.map(AiAgentReviewClassifierModel.mapRemediationEvent);
+    }
+
+    private static mapRemediationEvent(
+        row: DbAiAgentReviewRemediationEvent,
+    ): AiAgentReviewRemediationEvent {
+        return {
+            uuid: row.ai_agent_review_remediation_event_uuid,
+            remediationUuid: row.ai_agent_review_remediation_uuid,
+            occurredAt: row.occurred_at,
+            createdByUserUuid: row.created_by_user_uuid,
+            eventType: row.event_type,
+            payload: row.payload,
+        } as AiAgentReviewRemediationEvent;
     }
 
     /**

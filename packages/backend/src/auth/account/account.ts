@@ -8,10 +8,12 @@ import {
     AnonymousAccount,
     ApiKeyAccount,
     applyEmbeddedAbility,
+    assertRegisteredAccount,
     buildAccountHelpers,
     CreateEmbedJwt,
     EmbedContent,
     ForbiddenError,
+    isJwtUser,
     MemberAbility,
     OauthAccount,
     Organization,
@@ -80,12 +82,16 @@ export const fromJwt = ({
     source,
     userAttributes,
     content,
+    embedWriteUser,
+    embedWriteContext,
 }: {
     decodedToken: CreateEmbedJwt;
     embed: OssEmbed;
     source: string;
     userAttributes: UserAccessControls;
     content: EmbedContent;
+    embedWriteUser?: SessionUser;
+    embedWriteContext?: AnonymousAccount['embedWriteContext'];
 }): AnonymousAccount => {
     const builder = new AbilityBuilder<MemberAbility>(Ability);
     const externalId = getExternalId(decodedToken, source, embed.organization);
@@ -107,6 +113,8 @@ export const fromJwt = ({
             parameters: decodedToken.content.parameterInteractivity,
             controls: userAttributes,
         },
+        embedWriteUser,
+        embedWriteContext,
         // Create the fields we're able to set from the JWT
         user: {
             id: externalId,
@@ -181,6 +189,36 @@ export const toSessionUser = (account: RegisteredAccount): SessionUser => ({
               }
             : undefined,
 });
+
+export type AccountWriteContext = {
+    user: SessionUser;
+    embedWriteActions?: {
+        spaceUuid: string;
+    };
+};
+
+export const getAccountWriteContext = (
+    account: Account,
+): AccountWriteContext => {
+    if (!isJwtUser(account)) {
+        assertRegisteredAccount(account);
+        return { user: toSessionUser(account) };
+    }
+
+    const { embedWriteUser } = account;
+    const { spaceUuid } = account.authentication.data.writeActions ?? {};
+
+    if (!embedWriteUser || !spaceUuid) {
+        throw new ForbiddenError('Embed token does not allow write actions');
+    }
+
+    return {
+        user: embedWriteUser,
+        embedWriteActions: {
+            spaceUuid,
+        },
+    };
+};
 
 export const fromSession = (
     sessionUser: SessionUser,

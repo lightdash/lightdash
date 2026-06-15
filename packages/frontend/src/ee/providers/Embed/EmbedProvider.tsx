@@ -1,4 +1,8 @@
-import { type LanguageMap, type SavedChart } from '@lightdash/common';
+import {
+    type CreateEmbedJwt,
+    type LanguageMap,
+    type SavedChart,
+} from '@lightdash/common';
 import get from 'lodash/get';
 import { useEffect, useMemo, useState, type FC } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router';
@@ -13,6 +17,7 @@ import { LightdashEventType } from '../../features/embed/events/types';
 import { useEmbedEventEmitter } from '../../features/embed/hooks/useEmbedEventEmitter';
 import EmbedProviderContext from './context';
 import { parseEmbedThemeParams } from './parseEmbedThemeParams';
+import { parseEmbedTimezoneParam } from './parseEmbedTimezoneParam';
 import { EMBED_KEY, type EmbedMode, type InMemoryEmbed } from './types';
 
 type Props = {
@@ -26,6 +31,29 @@ type Props = {
     onBackToDashboard?: () => void;
     savedChart?: SavedChart;
     savedQueryUuid?: string;
+};
+
+const decodeEmbedJwtPayload = (
+    token: string | undefined,
+): Pick<CreateEmbedJwt, 'content' | 'writeActions'> | undefined => {
+    const payload = token?.split('.')[1];
+    if (!payload) {
+        return undefined;
+    }
+
+    try {
+        const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+        const paddedPayload = normalizedPayload.padEnd(
+            Math.ceil(normalizedPayload.length / 4) * 4,
+            '=',
+        );
+        return JSON.parse(window.atob(paddedPayload)) as Pick<
+            CreateEmbedJwt,
+            'content' | 'writeActions'
+        >;
+    } catch {
+        return undefined;
+    }
 };
 
 const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
@@ -45,6 +73,12 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
 
     // Parse theme params from URL once on mount (before hash is stripped)
     const [embedThemeParams] = useState(parseEmbedThemeParams);
+    // Parse the session timezone (?timezone=) once on mount, alongside the theme.
+    // Only the direct/iframe embed owns its URL; in SDK mode window.location is
+    // the host app's URL, so we must not scrape ?timezone= from it.
+    const [embedTimezone] = useState(() =>
+        encodedToken ? null : parseEmbedTimezoneParam(),
+    );
     const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
     const { data: account, isLoading } = useAccount();
     const ability = useAbilityContext();
@@ -54,6 +88,15 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     const location = useLocation();
     const { dispatchEmbedEvent } = useEmbedEventEmitter();
     const mode: EmbedMode = encodedToken ? 'sdk' : 'direct';
+    const tokenFromStorageOrProps = embedToken || embed?.token;
+    const embedWriteContext =
+        account && 'embedWriteContext' in account
+            ? account.embedWriteContext
+            : undefined;
+    const embedJwtPayload = useMemo(
+        () => decodeEmbedJwtPayload(tokenFromStorageOrProps),
+        [tokenFromStorageOrProps],
+    );
 
     // Remove the token from the URL.
     useEffect(() => {
@@ -99,10 +142,13 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
 
     const value = useMemo(() => {
         return {
-            embedToken: embed?.token || embedToken,
+            embedToken: tokenFromStorageOrProps,
             filters,
             t: (input: string) => get(contentOverrides, input),
             projectUuid: embed?.projectUuid || projectUuid,
+            content: embedJwtPayload?.content,
+            writeActions: embedJwtPayload?.writeActions,
+            embedWriteContext,
             paletteUuid,
             languageMap: contentOverrides,
             onExplore,
@@ -112,11 +158,14 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             mode,
             theme: embedThemeParams.theme,
             backgroundColor: embedThemeParams.backgroundColor,
+            timezone: embedTimezone,
         };
     }, [
         embed?.projectUuid,
-        embed?.token,
-        embedToken,
+        tokenFromStorageOrProps,
+        embedJwtPayload?.content,
+        embedJwtPayload?.writeActions,
+        embedWriteContext,
         filters,
         projectUuid,
         paletteUuid,
@@ -128,6 +177,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         mode,
         embedThemeParams.theme,
         embedThemeParams.backgroundColor,
+        embedTimezone,
     ]);
 
     return (

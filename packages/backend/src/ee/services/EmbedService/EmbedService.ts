@@ -65,6 +65,7 @@ import {
     UserAttributeValueMap,
     type ParameterDefinitions,
     type ParametersValuesMap,
+    type SessionUser,
 } from '@lightdash/common';
 import { isArray } from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
@@ -82,6 +83,7 @@ import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SavedSqlModel } from '../../../models/SavedSqlModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
+import { UserModel } from '../../../models/UserModel';
 import { AsyncQueryService } from '../../../services/AsyncQueryService/AsyncQueryService';
 import { BaseService } from '../../../services/BaseService';
 import { PermissionsService } from '../../../services/PermissionsService/PermissionsService';
@@ -90,6 +92,7 @@ import {
     getDashboardParametersValuesMap,
 } from '../../../services/ProjectService/parameters';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
+import { SpacePermissionService } from '../../../services/SpaceService/SpacePermissionService';
 import { getFilteredExplore } from '../../../services/UserAttributesService/UserAttributeUtils';
 import { wrapSentryTransaction } from '../../../utils';
 import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
@@ -107,7 +110,9 @@ type Dependencies = {
     savedSqlModel: SavedSqlModel;
     projectModel: ProjectModel;
     userAttributesModel: UserAttributesModel;
+    userModel: UserModel;
     projectService: ProjectService;
+    spacePermissionService: SpacePermissionService;
     asyncQueryService: AsyncQueryService;
     permissionsService: PermissionsService;
     featureFlagModel: FeatureFlagModel;
@@ -133,7 +138,11 @@ export class EmbedService extends BaseService {
 
     private readonly userAttributesModel: UserAttributesModel;
 
+    private readonly userModel: UserModel;
+
     private readonly projectService: ProjectService;
+
+    private readonly spacePermissionService: SpacePermissionService;
 
     private readonly featureFlagModel: FeatureFlagModel;
 
@@ -156,7 +165,9 @@ export class EmbedService extends BaseService {
         this.lightdashConfig = dependencies.lightdashConfig;
         this.encryptionUtil = dependencies.encryptionUtil;
         this.userAttributesModel = dependencies.userAttributesModel;
+        this.userModel = dependencies.userModel;
         this.projectService = dependencies.projectService;
+        this.spacePermissionService = dependencies.spacePermissionService;
         this.featureFlagModel = dependencies.featureFlagModel;
         this.organizationModel = dependencies.organizationModel;
     }
@@ -535,6 +546,10 @@ export class EmbedService extends BaseService {
             canExportImages,
             canExportPagePdf,
             canDateZoom,
+            canExplore,
+            canViewUnderlyingData,
+            canViewDataApps,
+            stickyHeader,
         } = decodedToken.content;
         // Embed paletteUuid query param overrides everything; otherwise fall back
         // through chart → dashboard → space → project → org via the resolver.
@@ -581,6 +596,7 @@ export class EmbedService extends BaseService {
                 canExportImages,
                 canExportPagePdf: canExportPagePdf ?? true,
                 canDateZoom,
+                stickyHeader,
                 ...(account.access.filtering
                     ? {
                           dashboardFiltersInteractivity: {
@@ -604,6 +620,10 @@ export class EmbedService extends BaseService {
             canExportImages,
             canExportPagePdf: canExportPagePdf ?? true, // enabled by default for backwards compatibility
             canDateZoom,
+            canExplore,
+            canViewUnderlyingData,
+            canViewDataApps,
+            stickyHeader,
             selectedPalette,
         };
     }
@@ -644,23 +664,66 @@ export class EmbedService extends BaseService {
             ({ savedChartUuid }) => savedChartUuid,
         );
 
-        if (checkPermissions) {
-            await Promise.all(
-                savedQueryUuids.map((chartUuid) =>
-                    this._permissionsGetChartAndResults(
-                        { dashboardUuids, allowAllDashboards },
-                        projectUuid,
-                        chartUuid,
-                        dashboardUuid,
-                    ),
-                ),
-            );
-        }
-
         const savedCharts =
             await this.savedChartModel.getInfoForAvailableFilters(
                 savedQueryUuids,
             );
+
+        if (checkPermissions) {
+            const writeSpaceUuid =
+                account.embedWriteUser &&
+                account.authentication.data.writeActions?.spaceUuid;
+            const chartsByUuid = new Map(
+                savedCharts.map((chart) => [chart.uuid, chart]),
+            );
+            await Promise.all(
+                savedQueryUuids.map(async (chartUuid) => {
+                    const chart = chartsByUuid.get(chartUuid);
+                    const { embedWriteUser } = account;
+                    if (
+                        chart &&
+                        embedWriteUser &&
+                        chart.spaceUuid === writeSpaceUuid
+                    ) {
+                        const spaceAccessContext =
+                            await this.spacePermissionService.getSpaceAccessContext(
+                                embedWriteUser.userUuid,
+                                chart.spaceUuid,
+                            );
+                        const auditedAbility =
+                            this.createAuditedAbility(embedWriteUser);
+
+                        if (
+                            auditedAbility.cannot(
+                                'view',
+                                subject('SavedChart', {
+                                    organizationUuid: chart.organizationUuid,
+                                    projectUuid: chart.projectUuid,
+                                    inheritsFromOrgOrProject:
+                                        spaceAccessContext.inheritsFromOrgOrProject,
+                                    access: spaceAccessContext.access,
+                                    metadata: {
+                                        savedChartUuid: chart.uuid,
+                                        savedChartName: chart.name,
+                                    },
+                                }),
+                            )
+                        ) {
+                            throw new ForbiddenError();
+                        }
+
+                        return;
+                    }
+
+                    await this._permissionsGetChartAndResults(
+                        { dashboardUuids, allowAllDashboards },
+                        projectUuid,
+                        chartUuid,
+                        dashboardUuid,
+                    );
+                }),
+            );
+        }
 
         const exploreCacheKeys: Record<string, boolean> = {};
         const exploreCache: Record<string, Explore | ExploreError> = {};
@@ -2164,10 +2227,22 @@ export class EmbedService extends BaseService {
                     decodedToken,
                     projectUuid,
                 );
-                const [content, userAttributes] = await Promise.all([
-                    contentPromise,
-                    userAttributesPromise,
-                ]);
+                const embedWriteUserPromise = this.getEmbedWriteUser(
+                    decodedToken,
+                    embed.organization.organizationUuid,
+                );
+                const [content, userAttributes, embedWriteUser] =
+                    await Promise.all([
+                        contentPromise,
+                        userAttributesPromise,
+                        embedWriteUserPromise,
+                    ]);
+
+                const embedWriteContext = await this.getEmbedWriteContext(
+                    decodedToken,
+                    embedWriteUser,
+                    projectUuid,
+                );
 
                 if (!content) {
                     throw new NotFoundError(
@@ -2181,8 +2256,114 @@ export class EmbedService extends BaseService {
                     embed,
                     content,
                     userAttributes,
+                    embedWriteUser,
+                    embedWriteContext,
                 });
             },
         );
+    }
+
+    private async getEmbedWriteContext(
+        decodedToken: CreateEmbedJwt,
+        embedWriteUser: SessionUser | undefined,
+        projectUuid: string,
+    ): Promise<AnonymousAccount['embedWriteContext']> {
+        const { writeActions } = decodedToken;
+        if (!writeActions || !embedWriteUser) {
+            return undefined;
+        }
+
+        const { organizationUuid } =
+            await this.projectModel.getSummary(projectUuid);
+
+        try {
+            const spaceAccessContext =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    embedWriteUser.userUuid,
+                    writeActions.spaceUuid,
+                );
+
+            if (spaceAccessContext.projectUuid !== projectUuid) {
+                return { canCreateSavedChart: false };
+            }
+
+            const auditedAbility = this.createAuditedAbility(embedWriteUser);
+            return {
+                canCreateSavedChart: auditedAbility.can(
+                    'create',
+                    subject('SavedChart', {
+                        organizationUuid,
+                        projectUuid,
+                        inheritsFromOrgOrProject:
+                            spaceAccessContext.inheritsFromOrgOrProject,
+                        access: spaceAccessContext.access,
+                        metadata: {
+                            resolvedSpaceUuid: writeActions.spaceUuid,
+                            dashboardUuid: undefined,
+                        },
+                    }),
+                ),
+            };
+        } catch (error) {
+            if (
+                error instanceof ForbiddenError ||
+                error instanceof NotFoundError
+            ) {
+                return { canCreateSavedChart: false };
+            }
+            throw error;
+        }
+    }
+
+    private async getEmbedWriteUser(
+        decodedToken: CreateEmbedJwt,
+        organizationUuid: string,
+    ): Promise<SessionUser | undefined> {
+        const { writeActions } = decodedToken;
+        const actorUserUuid =
+            writeActions?.userUuid ?? writeActions?.serviceAccountUserUuid;
+
+        if (!writeActions) {
+            return undefined;
+        }
+
+        if (!writeActions.spaceUuid || !actorUserUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow write actions',
+            );
+        }
+
+        const actor = await this.userModel.findSessionUserAndOrgByUuid(
+            actorUserUuid,
+            organizationUuid,
+        );
+
+        if (writeActions.userUuid !== undefined) {
+            if (!actor.isActive) {
+                throw new ForbiddenError(
+                    'Embed token actor is not active for this organization',
+                );
+            }
+            return actor;
+        }
+
+        const serviceAccount =
+            await this.userModel.findServiceAccountByUserUuid(actorUserUuid);
+        if (
+            serviceAccount === undefined ||
+            serviceAccount.organizationUuid !== organizationUuid
+        ) {
+            throw new ForbiddenError(
+                'Embed token service account is not valid for this organization',
+            );
+        }
+
+        return {
+            ...actor,
+            serviceAccount: {
+                uuid: serviceAccount.uuid,
+                description: serviceAccount.description,
+            },
+        };
     }
 }

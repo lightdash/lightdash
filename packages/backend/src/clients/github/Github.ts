@@ -850,6 +850,10 @@ export const getPullRequest = async ({
      */
     mergeableState: string;
     draft: boolean;
+    title: string;
+    additions: number;
+    deletions: number;
+    changedFiles: number;
 }> => {
     const { octokit, headers } = getOctokit(installationId, token);
 
@@ -869,6 +873,263 @@ export const getPullRequest = async ({
             mergeable: response.data.mergeable,
             mergeableState: response.data.mergeable_state,
             draft: response.data.draft === true,
+            title: response.data.title,
+            additions: response.data.additions,
+            deletions: response.data.deletions,
+            changedFiles: response.data.changed_files,
+        };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+export const mergePullRequest = async ({
+    owner,
+    repo,
+    pullNumber,
+    sha,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    /**
+     * Expected head SHA. When set GitHub rejects the merge (409) if the PR head
+     * has moved on since, so the caller never merges a commit it didn't intend.
+     */
+    sha?: string;
+    installationId?: string;
+    token?: string;
+}): Promise<{ merged: boolean; sha: string | null }> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.merge({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            sha,
+            headers,
+        });
+
+        return {
+            merged: response.data.merged === true,
+            sha: response.data.sha ?? null,
+        };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+// Closes a PR without merging it (sets state to `closed`). Reversible — it can
+// be reopened on the provider.
+export const closePullRequest = async ({
+    owner,
+    repo,
+    pullNumber,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    installationId?: string;
+    token?: string;
+}): Promise<{ state: 'open' | 'closed' }> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.update({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            state: 'closed',
+            headers,
+        });
+        return {
+            state: response.data.state === 'closed' ? 'closed' : 'open',
+        };
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+// Returns the PR's changes as a raw unified diff. The `diff` media type makes
+// GitHub respond with the patch text itself, so the runtime body is a string
+// even though Octokit types it as the PR object.
+export const getPullRequestDiff = async ({
+    owner,
+    repo,
+    pullNumber,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    installationId?: string;
+    token?: string;
+}): Promise<string> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            headers,
+            mediaType: { format: 'diff' },
+        });
+        return response.data as unknown as string;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+// As above, but scoped to a single commit's changes — used to show the diff of
+// the exact commit a write-back card is pinned to, rather than the whole PR.
+export const getCommitDiff = async ({
+    owner,
+    repo,
+    ref,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    ref: string;
+    installationId?: string;
+    token?: string;
+}): Promise<string> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const response = await octokit.rest.repos.getCommit({
+            owner,
+            repo,
+            ref,
+            headers,
+            mediaType: { format: 'diff' },
+        });
+        return response.data as unknown as string;
+    } catch (e) {
+        throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+const PR_DIFF_MAX_FILES = 20;
+const PR_DIFF_MAX_FILE_BYTES = 200_000;
+
+export type PullRequestDiffFile = {
+    path: string;
+    status: string;
+    additions: number;
+    deletions: number;
+    before: string;
+    after: string;
+};
+
+// Structured per-file before/after contents — used for side-by-side diff
+// rendering, unlike getPullRequestDiff which returns the raw unified diff.
+export const getPullRequestDiffFiles = async ({
+    owner,
+    repo,
+    pullNumber,
+    installationId,
+    token,
+}: {
+    owner: string;
+    repo: string;
+    pullNumber: number;
+    installationId?: string;
+    token?: string;
+}): Promise<{
+    files: PullRequestDiffFile[];
+    totalAdditions: number;
+    totalDeletions: number;
+    truncated: boolean;
+}> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+
+    try {
+        const pr = await octokit.rest.pulls.get({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            headers,
+        });
+        const baseSha = pr.data.base.sha;
+        const headSha = pr.data.head.sha;
+
+        const filesResponse = await octokit.rest.pulls.listFiles({
+            owner,
+            repo,
+            pull_number: pullNumber,
+            per_page: 100,
+            headers,
+        });
+
+        const allFiles = filesResponse.data;
+        const includedFiles = allFiles.slice(0, PR_DIFF_MAX_FILES);
+
+        const fetchContents = async (
+            path: string,
+            ref: string,
+        ): Promise<string> => {
+            try {
+                const response = await octokit.rest.repos.getContent({
+                    owner,
+                    repo,
+                    path,
+                    ref,
+                    headers,
+                });
+                if (
+                    !Array.isArray(response.data) &&
+                    response.data.type === 'file' &&
+                    'content' in response.data
+                ) {
+                    const content = Buffer.from(
+                        response.data.content,
+                        'base64',
+                    ).toString('utf-8');
+                    return content.length > PR_DIFF_MAX_FILE_BYTES
+                        ? `${content.slice(0, PR_DIFF_MAX_FILE_BYTES)}\n… (truncated)`
+                        : content;
+                }
+                return '';
+            } catch {
+                // Missing on this ref (added/removed file) — empty side.
+                return '';
+            }
+        };
+
+        const files = await Promise.all(
+            includedFiles.map(async (file) => {
+                const isAdded = file.status === 'added';
+                const isRemoved = file.status === 'removed';
+                const beforePath = file.previous_filename ?? file.filename;
+                const [before, after] = await Promise.all([
+                    isAdded ? '' : fetchContents(beforePath, baseSha),
+                    isRemoved ? '' : fetchContents(file.filename, headSha),
+                ]);
+                return {
+                    path: file.filename,
+                    status: file.status,
+                    additions: file.additions,
+                    deletions: file.deletions,
+                    before,
+                    after,
+                };
+            }),
+        );
+
+        return {
+            files,
+            totalAdditions: allFiles.reduce((acc, f) => acc + f.additions, 0),
+            totalDeletions: allFiles.reduce((acc, f) => acc + f.deletions, 0),
+            truncated: allFiles.length > includedFiles.length,
         };
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));

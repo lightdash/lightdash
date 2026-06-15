@@ -339,6 +339,29 @@ export class GithubProvider implements GitProvider {
         return landed;
     }
 
+    async getPullRequestEditState(args: {
+        prUrl: string;
+        connection: GitConnection;
+        installation: GitInstallation;
+    }): Promise<{ editable: boolean; reason: 'merged' | 'closed' | null }> {
+        const connection = asGithubConnection(args.connection);
+        const installation = asGithubInstallation(args.installation);
+        const parsed = parsePullRequestUrl(args.prUrl);
+        const pr = await getPullRequest({
+            owner: connection.owner,
+            repo: connection.repo,
+            pullNumber: parsed.pullNumber,
+            ...githubAuth(installation),
+        });
+        if (pr.merged) {
+            return { editable: false, reason: 'merged' };
+        }
+        if (pr.state === 'closed') {
+            return { editable: false, reason: 'closed' };
+        }
+        return { editable: true, reason: null };
+    }
+
     async adoptPullRequest(
         args: AdoptPullRequestArgs,
     ): Promise<AdoptedPullRequest> {

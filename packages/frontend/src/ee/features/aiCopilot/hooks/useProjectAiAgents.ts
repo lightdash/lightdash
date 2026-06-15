@@ -10,6 +10,7 @@ import type {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
+    ApiAiAgentThreadPullRequestResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentVerifiedQuestionsResponse,
@@ -28,6 +29,7 @@ import type {
     ApiSuccessEmpty,
     ApiUpdateAiAgent,
 } from '@lightdash/common';
+import { assertUnreachable } from '@lightdash/common';
 import { nanoid } from '@reduxjs/toolkit';
 import {
     useInfiniteQuery,
@@ -338,6 +340,37 @@ const getAgentThread = async (
         body: undefined,
     });
 
+const getAgentThreadPullRequest = async (
+    projectUuid: string,
+    agentUuid: string,
+    threadUuid: string,
+) =>
+    lightdashApi<ApiAiAgentThreadPullRequestResponse['results']>({
+        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/pull-request`,
+        method: 'GET',
+        body: undefined,
+    });
+
+export const useAiAgentThreadPullRequest = (
+    projectUuid: string,
+    agentUuid: string | undefined,
+    threadUuid: string | null | undefined,
+) =>
+    useQuery<ApiAiAgentThreadPullRequestResponse['results'], ApiError>({
+        queryKey: [
+            AI_AGENTS_KEY,
+            projectUuid,
+            agentUuid,
+            'threads',
+            threadUuid,
+            'pull-request',
+        ],
+        queryFn: () =>
+            getAgentThreadPullRequest(projectUuid, agentUuid!, threadUuid!),
+        enabled: !!agentUuid && !!threadUuid,
+        retry: false,
+    });
+
 const createAgentThreadShare = async (
     projectUuid: string,
     agentUuid: string,
@@ -528,23 +561,40 @@ export const useAiAgentThread = (
  */
 const toOptimisticContextItem = (
     item: AiPromptContextItemInput,
-): AiPromptContextItem =>
-    item.type === 'chart'
-        ? {
-              type: 'chart',
-              chartUuid: item.chartUuid,
-              chartSlug: item.chartSlug ?? null,
-              displayName: null,
-              pinnedVersionUuid: null,
-              chartKind: null,
-              runtimeOverrides: item.runtimeOverrides ?? null,
-          }
-        : {
-              ...item,
-              dashboardSlug: item.dashboardSlug ?? null,
-              displayName: null,
-              pinnedVersionUuid: null,
-          };
+): AiPromptContextItem => {
+    switch (item.type) {
+        case 'chart':
+            return {
+                type: 'chart',
+                chartUuid: item.chartUuid,
+                chartSlug: item.chartSlug ?? null,
+                displayName: null,
+                pinnedVersionUuid: null,
+                chartKind: null,
+                runtimeOverrides: item.runtimeOverrides ?? null,
+            };
+        case 'dashboard':
+            return {
+                type: 'dashboard',
+                dashboardUuid: item.dashboardUuid,
+                dashboardSlug: item.dashboardSlug ?? null,
+                displayName: null,
+                pinnedVersionUuid: null,
+            };
+        case 'thread':
+            return {
+                type: 'thread',
+                threadUuid: item.threadUuid,
+                promptUuid: item.promptUuid ?? null,
+                displayName: null,
+            };
+        default:
+            return assertUnreachable(
+                item,
+                'Unknown AiPromptContextItemInput type',
+            );
+    }
+};
 
 const createOptimisticMessages = (
     threadUuid: string,

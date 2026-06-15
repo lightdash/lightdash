@@ -3,9 +3,13 @@ import { Knex } from 'knex';
 import { LightdashAnalytics } from '../analytics/LightdashAnalytics';
 import { ClientRepository } from '../clients/ClientRepository';
 import {
+    closePullRequest,
+    getCommitDiff,
     getInstallationToken,
     getPullRequest,
+    getPullRequestDiff,
     listCheckRunsForRef,
+    mergePullRequest,
 } from '../clients/github/Github';
 import { LightdashConfig } from '../config/parseConfig';
 import { AppGenerateService } from '../ee/services/AppGenerateService/AppGenerateService';
@@ -391,6 +395,7 @@ export class ServiceRepository
                     searchModel: this.models.getSearchModel(),
                     schedulerService: this.getSchedulerService(),
                     savedChartModel: this.models.getSavedChartModel(),
+                    savedSqlModel: this.models.getSavedSqlModel(),
                     savedChartService: this.getSavedChartService(),
                     projectModel: this.models.getProjectModel(),
                     schedulerClient: this.clients.getSchedulerClient(),
@@ -458,6 +463,10 @@ export class ServiceRepository
                         getInstallationToken,
                         getPullRequest,
                         listCheckRunsForRef,
+                        mergePullRequest,
+                        closePullRequest,
+                        getPullRequestDiff,
+                        getCommitDiff,
                     },
                 }),
         );

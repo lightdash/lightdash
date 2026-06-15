@@ -13,6 +13,8 @@ import {
     COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
     PR_DESCRIPTION_OPEN,
+    PR_SUMMARY_CLOSE,
+    PR_SUMMARY_OPEN,
     PR_TITLE_CLOSE,
     PR_TITLE_OPEN,
 } from './constants';
@@ -255,6 +257,7 @@ describe('extractPrMetadata', () => {
         expect(extractPrMetadata(stdout)).toEqual({
             title: 'Add metric',
             description: 'Adds a revenue metric.',
+            summary: null,
             sanitizedStdout: 'Here is the change.',
         });
     });
@@ -263,6 +266,7 @@ describe('extractPrMetadata', () => {
         expect(extractPrMetadata('just a reply')).toEqual({
             title: null,
             description: null,
+            summary: null,
             sanitizedStdout: 'just a reply',
         });
     });
@@ -270,6 +274,16 @@ describe('extractPrMetadata', () => {
     it('collapses the gap left behind into a single blank line', () => {
         const stdout = `Top\n\n${PR_TITLE_OPEN}T${PR_TITLE_CLOSE}\n\n\nBottom`;
         expect(extractPrMetadata(stdout).sanitizedStdout).toBe('Top\n\nBottom');
+    });
+
+    it('parses the user-facing summary block and strips it from stdout', () => {
+        const stdout = `Reply.\n\n${PR_SUMMARY_OPEN}Adds a governed Avg ARR metric.${PR_SUMMARY_CLOSE}`;
+        expect(extractPrMetadata(stdout)).toEqual(
+            expect.objectContaining({
+                summary: 'Adds a governed Avg ARR metric.',
+                sanitizedStdout: 'Reply.',
+            }),
+        );
     });
 });
 

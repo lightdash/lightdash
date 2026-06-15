@@ -24,9 +24,10 @@ import { ChartConfigurationErrorModal } from './ValidatorTable/ChartConfiguratio
 import { FixDashboardFilterModal } from './ValidatorTable/FixDashboardFilterModal';
 import { FixValidationErrorModal } from './ValidatorTable/FixValidationErrorModal';
 
-export const SettingsValidator: FC<{ projectUuid: string }> = ({
-    projectUuid,
-}) => {
+export const SettingsValidator: FC<{
+    projectUuid: string;
+    flush?: boolean;
+}> = ({ projectUuid, flush = false }) => {
     const [isValidating, setIsValidating] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch] = useDebouncedValue(searchQuery, 300);
@@ -120,22 +121,24 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     setSelectedConfigError(undefined);
                 }}
             />
-            <Group gap="md" justify="space-between" mb="md">
-                <Text c="dimmed">
-                    Use the project validator to check what content is broken in
-                    your project.
-                </Text>
-                <Button
-                    size="xs"
-                    onClick={() => {
-                        setIsValidating(true);
-                        validateProject();
-                    }}
-                    loading={isValidating}
-                >
-                    Run validation
-                </Button>
-            </Group>
+            {!flush && (
+                <Group gap="md" justify="space-between" mb="md">
+                    <Text c="dimmed">
+                        Use the project validator to check what content is
+                        broken in your project.
+                    </Text>
+                    <Button
+                        size="xs"
+                        onClick={() => {
+                            setIsValidating(true);
+                            validateProject();
+                        }}
+                        loading={isValidating}
+                    >
+                        Run validation
+                    </Button>
+                </Group>
+            )}
 
             {isLoading ? (
                 <Paper withBorder shadow="sm">
@@ -177,6 +180,7 @@ export const SettingsValidator: FC<{ projectUuid: string }> = ({
                     showConfigWarnings={showConfigWarnings}
                     setShowConfigWarnings={setShowConfigWarnings}
                     lastValidatedAt={lastValidatedAt}
+                    flush={flush}
                 />
             ) : (
                 <Paper withBorder shadow="sm">

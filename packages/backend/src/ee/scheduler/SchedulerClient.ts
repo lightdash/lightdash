@@ -1,7 +1,9 @@
 import {
     AiAgentEvalRunJobPayload,
     AiAgentReviewClassifierJobPayload,
+    AiAgentReviewRemediationCompileJobPayload,
     AiAgentReviewRemediationPreviewJobPayload,
+    AiAgentReviewRemediationRunJobPayload,
     AiAgentReviewWritebackJobPayload,
     AppGeneratePipelineJobPayload,
     EE_SCHEDULER_TASKS,
@@ -101,6 +103,39 @@ export class CommercialSchedulerClient extends SchedulerClient {
                 runAt,
                 maxAttempts: 1,
                 jobKey: `ai-agent-review-remediation-preview:${payload.remediationUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiAgentReviewRemediationCompile(
+        payload: AiAgentReviewRemediationCompileJobPayload,
+        runAt: Date = new Date(),
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_COMPILE,
+            payload,
+            {
+                runAt,
+                maxAttempts: 1,
+                jobKey: `ai-agent-review-remediation-compile:${payload.remediationUuid}`,
+            },
+        );
+        return { jobId };
+    }
+
+    async aiAgentReviewRemediationRun(
+        payload: AiAgentReviewRemediationRunJobPayload,
+    ) {
+        const graphileClient = await this.graphileUtils;
+        const { id: jobId } = await graphileClient.addJob(
+            EE_SCHEDULER_TASKS.AI_AGENT_REVIEW_REMEDIATION_RUN,
+            payload,
+            {
+                runAt: new Date(),
+                maxAttempts: 1,
+                jobKey: `ai-agent-review-remediation-run:${payload.remediationUuid}`,
             },
         );
         return { jobId };

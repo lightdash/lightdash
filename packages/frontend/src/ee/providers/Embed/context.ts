@@ -6,6 +6,9 @@ const EmbedProviderContext = createContext<EmbedContext>({
     embedToken: undefined,
     filters: undefined,
     projectUuid: undefined,
+    content: undefined,
+    writeActions: undefined,
+    embedWriteContext: undefined,
     paletteUuid: undefined,
     languageMap: undefined,
     t: (_input: string) => undefined,
@@ -15,6 +18,7 @@ const EmbedProviderContext = createContext<EmbedContext>({
     mode: 'direct',
     theme: 'light',
     backgroundColor: null,
+    timezone: null,
 });
 
 export default EmbedProviderContext;

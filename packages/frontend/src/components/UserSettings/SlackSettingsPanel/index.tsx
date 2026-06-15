@@ -52,7 +52,11 @@ const SLACK_INSTALL_URL = `/api/v1/slack/install/`;
 
 const formSchema = z.object({
     notificationChannel: z.string().min(1).nullable(),
-    appProfilePhotoUrl: z.string().url().nullable(),
+    appProfilePhotoUrl: z
+        .string()
+        .url({ message: 'Enter a valid URL' })
+        .max(2048, { message: 'URL must be 2048 characters or fewer' })
+        .nullable(),
     slackChannelProjectMappings: z.array(
         z.object({
             projectUuid: z

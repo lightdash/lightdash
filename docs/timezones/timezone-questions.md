@@ -90,13 +90,14 @@ So we *carry* the metadata. But we *re-derive* on top of it in five places (the 
 `packages/common/src/utils/resolveQueryTimezone.ts`:
 
 ```
-metricQuery.timezone   (per-chart pin)
-  → user.timezone     (profile preference, if any)
-    → project.queryTimezone
-      → 'UTC'
+sessionTimezone        (embed ?timezone= URL param, embed sessions only)
+  → metricQuery.timezone   (per-chart pin)
+    → user.timezone     (profile preference, if any)
+      → project.queryTimezone
+        → 'UTC'
 ```
 
-This is the same order documented in [`timezone-handling.md:23`](./timezone-handling.md). Anonymous viewers (embeds, JWT, service accounts) skip the user layer (`getAccountUserTimezone(account)` returns null for them).
+This is the same order documented in [`timezone-handling.md:23`](./timezone-handling.md). Anonymous viewers (embeds, JWT, service accounts) skip the user layer (`getAccountUserTimezone(account)` returns null for them); embedded sessions may set the top-priority `sessionTimezone` via the `?timezone=` URL param.
 
 ### Per-content choice between a pinned TZ and a viewer TZ?
 
@@ -118,7 +119,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 
 1. **`scheduler.timezone`** — when to send. A separate field on the scheduler row (`SchedulerClient.ts:872`). Used purely for cron parsing. Has nothing to do with query semantics.
 2. **Query TZ for the scheduled report** — resolved via the normal chain, but the *user* is the schedule owner (or an impersonated account), so their profile TZ applies.
-3. **Embed TZ** — embed viewers are anonymous; their `getAccountUserTimezone` returns null, so they fall through to the project default. Embed JWTs do not currently surface a user-TZ override.
+3. **Embed TZ** — embed viewers are anonymous; their `getAccountUserTimezone` returns null. An embedded session can carry a per-session query TZ via the `?timezone=<IANA>` embed URL param, threaded in as the top-priority `sessionTimezone` argument (wins over the chart pin); absent that param it falls through to the project default. The signed JWT itself still has no timezone field.
 
 **Why this matters**: an admin in NY sets up a daily 9am Pacific delivery (`scheduler.timezone = America/Los_Angeles`). The report queries fire at 9am PT but compute "last 7 days" in NY because that's the schedule owner's TZ. The recipient in Singapore reads numbers bracketed by NY midnight. This is the kind of cross-tz confusion that warrants explicit documentation. **We don't have a doc for this.**
 
@@ -135,7 +136,7 @@ This is the same order documented in [`timezone-handling.md:23`](./timezone-hand
 **Surface consistency**:
 - **Interactive queries**: Node `moment()` in the resolved query TZ.
 - **Scheduled queries**: same path, but the resolution chain runs with the schedule owner's user.
-- **Embed queries**: same path, but `getAccountUserTimezone` returns null so it falls through to project TZ.
+- **Embed queries**: same path, but `getAccountUserTimezone` returns null, so it falls through to project TZ unless the `?timezone=` embed URL param sets a per-session timezone.
 - **SQL Runner / user-written SQL**: `CURRENT_TIMESTAMP` runs on the warehouse against whatever session TZ we set. **Inconsistent with the rest** — a user who writes `WHERE created_at > NOW()` in SQL Runner does NOT get the same boundary as `IN_THE_CURRENT` in Explore.
 
 The fix is to expose the resolved TZ to user SQL as a template variable. Flagged in [`timezone-review.md` section H](./timezone-review.md#h-no-sql-side-surface-for-the-resolved-tz).

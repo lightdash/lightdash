@@ -62,7 +62,10 @@ import {
     TMP_PROFILES_DIR,
     WAREHOUSE_SKILL_PATH,
 } from './constants';
-import { WritebackGitNotConnectedError } from './errors';
+import {
+    WritebackGitNotConnectedError,
+    WritebackThreadPrClosedError,
+} from './errors';
 import { GithubProvider } from './providers/GithubProvider';
 import { GitlabProvider } from './providers/GitlabProvider';
 import type { GitProvider } from './providers/GitProvider';
@@ -662,6 +665,7 @@ export class AiWritebackService extends BaseService {
             const {
                 title: prTitle,
                 description: prDescription,
+                summary: prSummary,
                 sanitizedStdout,
             } = extractPrMetadata(agent.stdout);
             this.logger.info(
@@ -729,6 +733,7 @@ export class AiWritebackService extends BaseService {
                 setStage,
                 prTitle,
                 prDescription,
+                prSummary,
             });
             pauseOnExit = applied.pauseOnExit;
 
@@ -852,6 +857,26 @@ export class AiWritebackService extends BaseService {
         const existingRow = aiThreadUuid
             ? await this.aiWritebackThreadModel.findByAiThreadUuid(aiThreadUuid)
             : null;
+
+        // A thread is bound to its first PR. If that PR has since been merged or
+        // closed (from the chat card or directly on the host), editing it again
+        // would push onto a dead branch and silently orphan the change. Bail
+        // before spinning up the sandbox and tell the user to start a new
+        // thread. (Pasted-link turns are validated separately in adoptPullRequest.)
+        if (existingRow?.pr_url) {
+            const installation = await provider.resolveInstallation(
+                user.organizationUuid,
+                { user, connection: gitConnection },
+            );
+            const editState = await provider.getPullRequestEditState({
+                prUrl: existingRow.pr_url,
+                connection: gitConnection,
+                installation,
+            });
+            if (!editState.editable && editState.reason) {
+                throw new WritebackThreadPrClosedError(editState.reason);
+            }
+        }
 
         // `get()` returns the (de-sensitised) warehouse credentials with the
         // discriminant `type` intact. Null when the project has no warehouse
@@ -1453,6 +1478,7 @@ export class AiWritebackService extends BaseService {
         setStage,
         prTitle,
         prDescription,
+        prSummary,
     }: {
         sandbox: Sandbox;
         installation: GitInstallation;
@@ -1465,6 +1491,7 @@ export class AiWritebackService extends BaseService {
         setStage: SetStage;
         prTitle: string | null;
         prDescription: string | null;
+        prSummary: string | null;
     }): Promise<AppliedChanges> {
         if (!hasChanges) {
             this.logger.info(
@@ -1519,6 +1546,7 @@ export class AiWritebackService extends BaseService {
                     aiThreadUuid,
                     sandbox,
                     prUrl: targetPrUrl,
+                    summary: prSummary,
                 });
             }
 
@@ -1559,6 +1587,7 @@ export class AiWritebackService extends BaseService {
             aiThreadUuid,
             sandbox,
             prUrl,
+            summary: prSummary,
         });
 
         return {
@@ -1614,6 +1643,7 @@ export class AiWritebackService extends BaseService {
         aiThreadUuid,
         sandbox,
         prUrl,
+        summary,
     }: {
         turn: TurnContext;
         projectUuid: string;
@@ -1621,6 +1651,7 @@ export class AiWritebackService extends BaseService {
         aiThreadUuid: string | undefined;
         sandbox: Sandbox;
         prUrl: string;
+        summary: string | null;
     }): Promise<void> {
         const pullRequest = await this.pullRequestsModel.findOrCreate({
             organizationUuid: turn.organizationUuid,
@@ -1632,6 +1663,7 @@ export class AiWritebackService extends BaseService {
             repo: turn.gitConnection.repo,
             prNumber: parsePullNumber(prUrl),
             prUrl,
+            summary,
         });
 
         if (aiThreadUuid) {

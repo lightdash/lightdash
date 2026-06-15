@@ -238,7 +238,7 @@ const rootCauseHelp: Record<
     { desc: string; opensPr: boolean }
 > = {
     semantic_layer: {
-        desc: 'A metric or field was missing or off',
+        desc: 'A metric, field, or model was missing or off',
         opensPr: true,
     },
     project_context: {
@@ -247,10 +247,6 @@ const rootCauseHelp: Record<
     },
     agent_configuration: {
         desc: 'Its instructions or setup got in the way',
-        opensPr: false,
-    },
-    data_gap: {
-        desc: 'The data to answer this isn’t there yet',
         opensPr: false,
     },
     product_capability: {
@@ -273,7 +269,6 @@ const rootCauseHelpOrder: AiAgentRootCause[] = [
     'semantic_layer',
     'project_context',
     'agent_configuration',
-    'data_gap',
     'product_capability',
     'runtime_reliability',
     'feedback_quality',

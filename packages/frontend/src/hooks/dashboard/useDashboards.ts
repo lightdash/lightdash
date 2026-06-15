@@ -46,7 +46,7 @@ export const useDashboards = (
                 setErrorResponse(result);
                 useQueryOptions?.onError?.(result);
             },
-            enabled: !!projectUuid,
+            enabled: !!projectUuid && (useQueryOptions?.enabled ?? true),
         },
     );
 };

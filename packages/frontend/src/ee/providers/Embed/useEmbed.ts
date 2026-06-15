@@ -32,6 +32,7 @@ function useEmbed(): EmbedContext {
             mode: 'direct',
             theme: 'light',
             backgroundColor: null,
+            timezone: null,
         };
     }
 

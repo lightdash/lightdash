@@ -4,6 +4,7 @@ import {
     IconArrowRight,
     IconChartBar,
     IconLayoutDashboard,
+    IconMessages,
     type Icon,
 } from '@tabler/icons-react';
 import { type AnchorHTMLAttributes, type ReactNode } from 'react';
@@ -12,7 +13,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { getChartIcon } from '../../../../../components/common/ResourceIcon/utils';
 import styles from './ContentLink.module.css';
 
-type ContentReferenceKind = 'artifact' | 'chart' | 'dashboard';
+type ContentReferenceKind = 'artifact' | 'chart' | 'dashboard' | 'thread';
 
 type Props = {
     chartKind?: ChartKind;
@@ -48,6 +49,12 @@ const getIconMeta = ({
                 color: 'indigo.6',
                 fill: 'indigo.1',
                 icon: IconChartBar,
+            };
+        case 'thread':
+            return {
+                color: 'violet.7',
+                fill: 'violet.4',
+                icon: IconMessages,
             };
         case 'chart':
         default:

@@ -29,6 +29,7 @@ import {
     mergeAiPromptContextInput,
     mergeAiPromptContextItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
+import { getPromptContextItemKey } from '../../features/aiCopilot/components/ChatElements/contentReferenceUtils';
 import { ChatElementsUtils } from '../../features/aiCopilot/components/ChatElements/utils';
 import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultAgentButton/DefaultAgentButton';
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
@@ -327,11 +328,7 @@ const AiAgentNewThreadPage: FC = () => {
                             <Group gap="xs" wrap="wrap">
                                 {previewItems.map((item) => (
                                     <PinnedContextCard
-                                        key={`${item.type}-${
-                                            item.type === 'chart'
-                                                ? item.chartUuid
-                                                : item.dashboardUuid
-                                        }`}
+                                        key={getPromptContextItemKey(item)}
                                         item={item}
                                         projectUuid={projectUuid}
                                     />

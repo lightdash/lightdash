@@ -5,6 +5,7 @@ import {
     getTotalFilterRules,
     getVisibleFields,
     isFilterableField,
+    isTimeZone,
     overrideFilterGroupWithFilterRules,
     reduceRequiredDimensionFiltersToFilterRules,
     resetRequiredFilterRules,
@@ -322,7 +323,11 @@ const FiltersCard: FC = memo(() => {
                     }}
                     baseTable={data?.baseTable}
                     parameterValues={parameterValues}
-                    metricQueryTimezone={metricQuery.timezone ?? undefined}
+                    metricQueryTimezone={
+                        metricQuery.timezone && isTimeZone(metricQuery.timezone)
+                            ? metricQuery.timezone
+                            : undefined
+                    }
                 >
                     <FiltersForm
                         isEditMode={isEditMode}

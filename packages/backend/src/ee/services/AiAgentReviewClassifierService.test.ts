@@ -1,6 +1,7 @@
 import {
     FeatureFlags,
     ForbiddenError,
+    ProjectType,
     type AiAgentReviewClassifierJudgeOutput,
     type AiAgentReviewClassifierTurnCandidate,
 } from '@lightdash/common';
@@ -146,7 +147,7 @@ const makeSemanticJudgeOutput = (): AiAgentReviewClassifierJudgeOutput =>
         promotedToFinding: true,
         promotionReason: 'LLM judge found a semantic-layer correction.',
         primaryRootCause: 'semantic_layer',
-        secondaryRootCauses: ['data_gap'],
+        secondaryRootCauses: ['project_context'],
         subcategories: ['missing_dimension'],
         fixTargets: ['semantic_yaml_patch'],
         targetRefs: [
@@ -286,6 +287,7 @@ describe('AiAgentReviewClassifierService', () => {
         createRun: jest.fn(),
         updateRun: jest.fn(),
         createTurnSignal: jest.fn(),
+        getThreadWritebackPullRequests: jest.fn().mockResolvedValue(new Map()),
     } as unknown as jest.Mocked<AiAgentReviewClassifierModel>;
     const aiAgentModel = {
         getAgent: jest.fn(),
@@ -296,6 +298,9 @@ describe('AiAgentReviewClassifierService', () => {
     const catalogModel = {
         getCatalogItemsSummary: jest.fn(),
     };
+    const projectModel = {
+        getSummary: jest.fn(),
+    };
     const judgeTurn = jest.fn();
 
     const service = new AiAgentReviewClassifierService({
@@ -303,6 +308,7 @@ describe('AiAgentReviewClassifierService', () => {
         aiAgentModel: aiAgentModel as never,
         aiOrganizationSettingsModel,
         catalogModel: catalogModel as never,
+        projectModel: projectModel as never,
         featureFlagService,
         lightdashConfig: {} as never,
         judgeTurn,
@@ -322,6 +328,7 @@ describe('AiAgentReviewClassifierService', () => {
         model.createRun.mockResolvedValue(makeRun());
         model.updateRun.mockResolvedValue(makeRun({ status: 'completed' }));
         model.createTurnSignal.mockResolvedValue(SIGNAL_UUID);
+        model.getThreadWritebackPullRequests.mockResolvedValue(new Map());
         aiAgentModel.getAgent.mockResolvedValue({
             uuid: AGENT_UUID,
             organizationUuid: ORGANIZATION_UUID,
@@ -340,6 +347,13 @@ describe('AiAgentReviewClassifierService', () => {
             groupAccess: [],
             userAccess: [],
             spaceAccess: [],
+        });
+        projectModel.getSummary.mockResolvedValue({
+            name: 'Jaffle Shop',
+            projectUuid: PROJECT_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            type: ProjectType.DEFAULT,
+            upstreamProjectUuid: null,
         });
         catalogModel.getCatalogItemsSummary.mockResolvedValue([
             {
@@ -440,7 +454,7 @@ describe('AiAgentReviewClassifierService', () => {
                 runUuid: RUN_UUID,
                 finding: expect.objectContaining({
                     primaryRootCause: 'semantic_layer',
-                    secondaryRootCauses: ['data_gap'],
+                    secondaryRootCauses: ['project_context'],
                     reviewItem: expect.objectContaining({
                         fingerprint: expect.stringContaining(
                             'ai_agent_review_item:',
@@ -643,6 +657,29 @@ describe('AiAgentReviewClassifierService', () => {
                 }),
             }),
         );
+    });
+
+    it('skips live review for preview projects', async () => {
+        projectModel.getSummary.mockResolvedValue({
+            name: 'Preview: fix-branch',
+            projectUuid: PROJECT_UUID,
+            organizationUuid: ORGANIZATION_UUID,
+            type: ProjectType.PREVIEW,
+            upstreamProjectUuid: PROJECT_UUID,
+        });
+
+        const result = await service.runLiveEvent({
+            eventType: 'response_saved',
+            organizationUuid: ORGANIZATION_UUID,
+            projectUuid: PROJECT_UUID,
+            agentUuid: AGENT_UUID,
+            threadUuid: THREAD_UUID,
+            promptUuid: PROMPT_UUID,
+        });
+
+        expect(result).toBeNull();
+        expect(model.listTurnReviewCandidates).not.toHaveBeenCalled();
+        expect(model.createRun).not.toHaveBeenCalled();
     });
 
     it('reviews only the target turn when it has no predecessor (first turn)', async () => {

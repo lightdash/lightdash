@@ -141,7 +141,7 @@ type CreateProjectOptions = {
 const isSnowflakeSsoEnabled = async (): Promise<boolean> => {
     const response = await lightdashApi<HealthState>({
         method: 'GET',
-        url: `/api/v1/health`,
+        url: `/api/v1/health?skipMigrationCheck=true`,
         body: undefined,
     });
 

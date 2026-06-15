@@ -191,6 +191,8 @@ export class Compaction {
                 return `chart ${item.displayName ?? item.chartUuid} (${item.chartUuid})`;
             case 'dashboard':
                 return `dashboard ${item.displayName ?? item.dashboardUuid} (${item.dashboardUuid})`;
+            case 'thread':
+                return `conversation ${item.displayName ?? item.threadUuid} (${item.threadUuid})`;
             default:
                 return assertUnreachable(
                     item,

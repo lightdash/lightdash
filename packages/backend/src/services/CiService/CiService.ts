@@ -4,9 +4,12 @@ import {
     DbtProjectType,
     ForbiddenError,
     getErrorMessage,
+    ParameterError,
     type CiCheck,
     type CiChecks,
+    type ClosePullRequestResult,
     type DbtGithubProjectConfig,
+    type MergePullRequestResult,
     type SessionUser,
 } from '@lightdash/common';
 import type * as GithubClient from '../../clients/github/Github';
@@ -19,7 +22,13 @@ import { GithubCiProvider, mapGithubMergeState } from './GithubCiProvider';
 /** The slice of the GitHub client this service needs, injected for testability. */
 export type CiServiceGithubClient = Pick<
     typeof GithubClient,
-    'getInstallationToken' | 'getPullRequest' | 'listCheckRunsForRef'
+    | 'getInstallationToken'
+    | 'getPullRequest'
+    | 'listCheckRunsForRef'
+    | 'mergePullRequest'
+    | 'closePullRequest'
+    | 'getPullRequestDiff'
+    | 'getCommitDiff'
 >;
 
 type CiServiceDeps = {
@@ -61,9 +70,10 @@ export const rollUpCiState = (checks: CiCheck[]): CiCheckState => {
  * providers. Today only GitHub Actions is supported (via GithubCiProvider);
  * other source-control types resolve to null so consumers render no CI section.
  *
- * Best-effort by design: any failure to resolve auth or call the provider
- * returns null rather than throwing, so the PR view degrades gracefully to "no
- * CI status" instead of erroring.
+ * Reads are best-effort by design: any failure to resolve auth or call the
+ * provider returns null rather than throwing, so the PR view degrades
+ * gracefully to "no CI status" instead of erroring. The merge action is the
+ * exception — being a write, it throws so the caller can explain the failure.
  */
 export class CiService extends BaseService {
     private readonly projectModel: ProjectModel;
@@ -196,6 +206,8 @@ export class CiService extends BaseService {
                     pullRequest.mergeableState,
                     pullRequest.draft,
                 ),
+                merged: pullRequest.merged,
+                state: pullRequest.state,
                 checks,
             };
         } catch (error) {
@@ -206,5 +218,230 @@ export class CiService extends BaseService {
             );
             return null;
         }
+    }
+
+    /**
+     * Resolve the raw unified diff of a write-back PR for the card's diff
+     * viewer. When `commitSha` is set the diff is scoped to that single commit
+     * (matching the per-commit framing of the card); otherwise it's the whole
+     * PR. Best-effort like `getPullRequestChecks`: returns null rather than
+     * throwing so the viewer degrades to an empty state.
+     */
+    async getPullRequestDiff({
+        user,
+        projectUuid,
+        prUrl,
+        commitSha,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        prUrl: string;
+        commitSha?: string;
+    }): Promise<string | null> {
+        const project = await this.projectModel.get(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'view',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const provider = this.getCiProvider(project.dbtConnection.type);
+        if (!provider || !user.organizationUuid) {
+            return null;
+        }
+
+        try {
+            const parsed = parseGithubPullRequestUrl(prUrl);
+            if (!parsed) {
+                return null;
+            }
+
+            // Same guard as getPullRequestChecks: the PR URL is caller-supplied,
+            // so confirm it targets this project's own repository before
+            // querying GitHub with the org installation token.
+            const [configuredOwner, configuredRepo] = (
+                project.dbtConnection as DbtGithubProjectConfig
+            ).repository.split('/');
+            if (
+                !configuredOwner ||
+                !configuredRepo ||
+                configuredOwner.toLowerCase() !== parsed.owner.toLowerCase() ||
+                configuredRepo.toLowerCase() !== parsed.repo.toLowerCase()
+            ) {
+                this.logger.warn(
+                    `Refusing to resolve diff for ${prUrl}: it does not match project ${projectUuid}'s configured repository`,
+                );
+                return null;
+            }
+
+            const installationId =
+                await this.githubAppInstallationsModel.getInstallationId(
+                    user.organizationUuid,
+                );
+            if (!installationId) {
+                return null;
+            }
+            const token =
+                await this.githubClient.getInstallationToken(installationId);
+
+            return commitSha
+                ? await this.githubClient.getCommitDiff({
+                      owner: parsed.owner,
+                      repo: parsed.repo,
+                      ref: commitSha,
+                      token,
+                  })
+                : await this.githubClient.getPullRequestDiff({
+                      owner: parsed.owner,
+                      repo: parsed.repo,
+                      pullNumber: parsed.pullNumber,
+                      token,
+                  });
+        } catch (error) {
+            this.logger.warn(
+                `Failed to resolve diff for ${prUrl}: ${getErrorMessage(
+                    error,
+                )}`,
+            );
+            return null;
+        }
+    }
+
+    /**
+     * Resolve the GitHub context for a write action on a PR: enforce
+     * `manage:SourceCode` (the gate for opening the write-back PR, from a
+     * feature branch — hence isProtectedBranch: false), verify the
+     * caller-supplied URL targets this project's own repo, and mint an
+     * installation token. Throws (not null) so callers can explain the failure.
+     */
+    private async resolveWritePrContext({
+        user,
+        projectUuid,
+        prUrl,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        prUrl: string;
+    }): Promise<{
+        owner: string;
+        repo: string;
+        pullNumber: number;
+        token: string;
+    }> {
+        const project = await this.projectModel.get(projectUuid);
+        if (
+            this.createAuditedAbility(user).cannot(
+                'manage',
+                subject('SourceCode', {
+                    organizationUuid: project.organizationUuid,
+                    projectUuid,
+                    isProtectedBranch: false,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        const provider = this.getCiProvider(project.dbtConnection.type);
+        if (!provider || !user.organizationUuid) {
+            throw new ParameterError(
+                'Only supported for GitHub-connected projects',
+            );
+        }
+
+        const parsed = parseGithubPullRequestUrl(prUrl);
+        if (!parsed) {
+            throw new ParameterError('Could not parse the pull request URL');
+        }
+
+        // The PR URL is caller-supplied, so confirm it targets this project's
+        // own repository before acting on it with the org installation token.
+        const [configuredOwner, configuredRepo] = (
+            project.dbtConnection as DbtGithubProjectConfig
+        ).repository.split('/');
+        if (
+            !configuredOwner ||
+            !configuredRepo ||
+            configuredOwner.toLowerCase() !== parsed.owner.toLowerCase() ||
+            configuredRepo.toLowerCase() !== parsed.repo.toLowerCase()
+        ) {
+            throw new ForbiddenError(
+                'The pull request does not belong to this project',
+            );
+        }
+
+        const installationId =
+            await this.githubAppInstallationsModel.getInstallationId(
+                user.organizationUuid,
+            );
+        if (!installationId) {
+            throw new ParameterError(
+                'No GitHub app installation found for this organization',
+            );
+        }
+        const token =
+            await this.githubClient.getInstallationToken(installationId);
+
+        return { ...parsed, token };
+    }
+
+    /**
+     * Merge a write-back pull request. A write, so it requires
+     * `manage:SourceCode` and surfaces failures (conflicts, blocked branch,
+     * stale head) as thrown errors rather than degrading to null.
+     */
+    async mergePullRequest({
+        user,
+        projectUuid,
+        prUrl,
+        sha,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        prUrl: string;
+        /** Expected head SHA; rejects the merge if the PR head has moved on. */
+        sha?: string;
+    }): Promise<MergePullRequestResult> {
+        const { owner, repo, pullNumber, token } =
+            await this.resolveWritePrContext({ user, projectUuid, prUrl });
+
+        return this.githubClient.mergePullRequest({
+            owner,
+            repo,
+            pullNumber,
+            sha,
+            token,
+        });
+    }
+
+    /**
+     * Close a write-back pull request without merging it. Also a write
+     * (`manage:SourceCode`); reversible since the PR can be reopened on the
+     * provider.
+     */
+    async closePullRequest({
+        user,
+        projectUuid,
+        prUrl,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+        prUrl: string;
+    }): Promise<ClosePullRequestResult> {
+        const { owner, repo, pullNumber, token } =
+            await this.resolveWritePrContext({ user, projectUuid, prUrl });
+
+        return this.githubClient.closePullRequest({
+            owner,
+            repo,
+            pullNumber,
+            token,
+        });
     }
 }

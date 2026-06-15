@@ -100,6 +100,12 @@ export type AiPromptContextItemInput =
           type: 'dashboard';
           dashboardUuid: string;
           dashboardSlug?: string | null;
+      }
+    | {
+          type: 'thread';
+          threadUuid: string;
+          // The turn the reference points at (e.g. a flagged prompt).
+          promptUuid?: string | null;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -119,6 +125,12 @@ export type AiPromptContextItem =
           dashboardUuid: string;
           dashboardSlug: string | null;
           pinnedVersionUuid: string | null;
+          displayName: string | null;
+      }
+    | {
+          type: 'thread';
+          threadUuid: string;
+          promptUuid: string | null;
           displayName: string | null;
       };
 
@@ -193,6 +205,21 @@ export type AiAgentReviewRemediationPreviewJobPayload = TraceTaskBase & {
     remediationUuid: string;
     prUrl: string;
     startedAt: number;
+};
+
+export type AiAgentReviewRemediationCompileJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    remediationUuid: string;
+    previewProjectUuid: string;
+    compileJobUuid: string;
+    startedAt: number;
+};
+
+export type AiAgentReviewRemediationRunJobPayload = TraceTaskBase & {
+    fingerprint: string;
+    remediationUuid: string;
+    agentUuid: string;
+    threadUuid: string;
 };
 
 export type EmbedArtifactVersionJobPayload = TraceTaskBase & {

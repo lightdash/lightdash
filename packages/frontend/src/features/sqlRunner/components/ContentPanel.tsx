@@ -882,6 +882,7 @@ export const ContentPanel: FC = () => {
                                                 resultsTableConfig?.columns ??
                                                 {}
                                             }
+                                            enableJsonViewer
                                             flexProps={{
                                                 mah: '100%',
                                             }}

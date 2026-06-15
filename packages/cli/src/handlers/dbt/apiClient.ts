@@ -222,7 +222,7 @@ export const checkLightdashVersion = async (): Promise<void> => {
     try {
         const health = await lightdashApi<ApiHealthResults>({
             method: 'GET',
-            url: `/api/v1/health`,
+            url: `/api/v1/health?skipMigrationCheck=true`,
             body: undefined,
         });
 

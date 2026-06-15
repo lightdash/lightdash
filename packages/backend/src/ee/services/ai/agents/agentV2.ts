@@ -32,6 +32,7 @@ import { getListWarehouseTables } from '../tools/listWarehouseTables';
 import { getLoadProjectContext } from '../tools/loadProjectContext';
 import { getLoadSkill } from '../tools/loadSkill';
 import { getReadContent } from '../tools/readContent';
+import { getReadPinnedThread } from '../tools/readPinnedThread';
 import { getRepoShell } from '../tools/repoShell';
 import { getRunContentQuery } from '../tools/runContentQuery';
 import { getRunSavedChart } from '../tools/runSavedChart';
@@ -234,6 +235,8 @@ const getAgentTools = (
               waitForSqlApproval: dependencies.waitForSqlApproval,
               recordSqlApproval: dependencies.recordSqlApproval,
               maxQueryLimit: args.runSqlMaxLimit,
+              autoApproveSql: args.autoApproveSql,
+              autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
           })
         : null;
 
@@ -310,6 +313,10 @@ const getAgentTools = (
         getKnowledgeDocumentContent: dependencies.getKnowledgeDocumentContent,
     });
 
+    const readPinnedThread = getReadPinnedThread({
+        readPinnedThread: dependencies.readPinnedThread,
+    });
+
     const loadSkill =
         args.availableSkills.length > 0
             ? getLoadSkill({
@@ -346,6 +353,7 @@ const getAgentTools = (
         getProjectInfo,
         listKnowledgeDocuments,
         getKnowledgeDocumentContent,
+        readPinnedThread,
         ...(enableContentTools
             ? {
                   readContent,

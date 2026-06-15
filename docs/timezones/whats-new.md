@@ -10,6 +10,7 @@ Short summary of how v2 changes user-facing behavior vs. today's published docs 
 - **Day-grain dimensions return real `DATE`** in warehouse output, not `TIMESTAMP` at project-TZ midnight. Cleaner exports, downstream tools see the right type. (GLITCH-452)
 - **Dimension picker shows TZ-sensitivity** — an icon + tooltip naming the anchor zone, so users can tell which dimensions move when the chart TZ changes. (GLITCH-458)
 - **`dataTimezone` gets a connection-setup preview** so misconfiguration is caught before it produces silent wrong numbers. (GLITCH-454)
+- **Embedded sessions can set their own timezone** via a `?timezone=<IANA>` URL param, so multi-tenant embeds render each tenant in its own zone without separate per-zone charts. (GLITCH-488)
 
 ## Bug fixes that may shift numbers
 

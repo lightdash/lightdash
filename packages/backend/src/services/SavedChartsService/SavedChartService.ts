@@ -2,7 +2,6 @@ import { subject } from '@casl/ability';
 import {
     AbilityAction,
     Account,
-    AnonymousAccount,
     assertUnreachable,
     BulkActionable,
     ChartHistory,
@@ -67,6 +66,7 @@ import {
     LightdashAnalytics,
     SchedulerUpsertEvent,
 } from '../../analytics/LightdashAnalytics';
+import { getAccountWriteContext } from '../../auth/account';
 import { GoogleDriveClient } from '../../clients/Google/GoogleDriveClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../config/parseConfig';
@@ -1135,23 +1135,39 @@ export class SavedChartService
     ): Promise<{ access: SpaceAccess[]; inheritsFromOrgOrProject: boolean }> {
         let access;
         let inheritsFromOrgOrProject: boolean;
+        let permissionActor: Account | SessionUser = account;
         if (isJwtUser(account)) {
-            await this.permissionsService.checkEmbedPermissions(
-                account,
-                savedChart.uuid,
-            );
-            // We pass this access everytime, but we only define the ability
-            // rule for this chart only if the JWT is type: 'chart'.
-            // Dashboards won't have `access` defined in their abilityRules,
-            // so this CASL check will pass for them.
-            // TODO: Get all chartUuids for a given dashboard in the middleware.
-            //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
-            access = [{ chartUuid: savedChart.uuid }];
-            const spaceCtx =
-                await this.spacePermissionService.getAllSpaceAccessContext(
-                    space.uuid,
+            const { embedWriteUser } = account;
+            const writeSpaceUuid =
+                account.authentication.data.writeActions?.spaceUuid;
+            if (embedWriteUser && writeSpaceUuid === space.uuid) {
+                permissionActor = embedWriteUser;
+                const spaceCtx =
+                    await this.spacePermissionService.getSpaceAccessContext(
+                        embedWriteUser.userUuid,
+                        space.uuid,
+                    );
+
+                access = spaceCtx.access;
+                inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
+            } else {
+                await this.permissionsService.checkEmbedPermissions(
+                    account,
+                    savedChart.uuid,
                 );
-            inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
+                // We pass this access everytime, but we only define the ability
+                // rule for this chart only if the JWT is type: 'chart'.
+                // Dashboards won't have `access` defined in their abilityRules,
+                // so this CASL check will pass for them.
+                // TODO: Get all chartUuids for a given dashboard in the middleware.
+                //       https://linear.app/lightdash/issue/CENG-110/front-load-available-charts-for-dashboard-requests
+                access = [{ chartUuid: savedChart.uuid }];
+                const spaceCtx =
+                    await this.spacePermissionService.getAllSpaceAccessContext(
+                        space.uuid,
+                    );
+                inheritsFromOrgOrProject = spaceCtx.inheritsFromOrgOrProject;
+            }
         } else {
             const ctx = await this.spacePermissionService.getSpaceAccessContext(
                 account.user.userUuid,
@@ -1161,7 +1177,7 @@ export class SavedChartService
             inheritsFromOrgOrProject = ctx.inheritsFromOrgOrProject;
         }
 
-        const auditedAbility = this.createAuditedAbility(account);
+        const auditedAbility = this.createAuditedAbility(permissionActor);
         if (
             auditedAbility.cannot(
                 'view',
@@ -1317,20 +1333,42 @@ export class SavedChartService
         });
     }
 
+    private static getCreateSavedChartContext(
+        account: Account,
+        savedChart: CreateSavedChart,
+    ): { user: SessionUser; savedChart: CreateSavedChart } {
+        const { user, embedWriteActions } = getAccountWriteContext(account);
+
+        if (!embedWriteActions) {
+            return { user, savedChart };
+        }
+
+        return {
+            user,
+            savedChart: {
+                ...savedChart,
+                dashboardUuid: undefined,
+                spaceUuid: embedWriteActions.spaceUuid,
+            },
+        };
+    }
+
     async create(
-        user: SessionUser,
+        account: Account,
         projectUuid: string,
         savedChart: CreateSavedChart,
     ): Promise<SavedChart> {
+        const { user, savedChart: chartToSave } =
+            SavedChartService.getCreateSavedChartContext(account, savedChart);
         const { organizationUuid } =
             await this.projectModel.getSummary(projectUuid);
 
         // When saving to a dashboard, always check permissions against the
         // dashboard's space — the chart's spaceUuid may refer to a different
         // space where the user has no access.
-        const resolvedSpaceUuid = savedChart.dashboardUuid
+        const resolvedSpaceUuid = chartToSave.dashboardUuid
             ? undefined
-            : (savedChart.spaceUuid ??
+            : (chartToSave.spaceUuid ??
               (await this.spacePermissionService.getFirstViewableSpaceUuid(
                   user,
                   projectUuid,
@@ -1347,9 +1385,9 @@ export class SavedChartService
             inheritsFromOrgOrProject =
                 spaceAccessContext.inheritsFromOrgOrProject;
             access = spaceAccessContext.access;
-        } else if (savedChart.dashboardUuid) {
+        } else if (chartToSave.dashboardUuid) {
             const dashboard = await this.dashboardModel.getByIdOrSlug(
-                savedChart.dashboardUuid,
+                chartToSave.dashboardUuid,
             );
             const dashboardSpaceAccessContext =
                 await this.spacePermissionService.getSpaceAccessContext(
@@ -1372,7 +1410,7 @@ export class SavedChartService
                     access,
                     metadata: {
                         resolvedSpaceUuid,
-                        dashboardUuid: savedChart.dashboardUuid,
+                        dashboardUuid: chartToSave.dashboardUuid,
                     },
                 }),
             )
@@ -1380,7 +1418,7 @@ export class SavedChartService
             throw new ForbiddenError();
         }
 
-        if (!resolvedSpaceUuid && !savedChart.dashboardUuid) {
+        if (!resolvedSpaceUuid && !chartToSave.dashboardUuid) {
             throw new Error(
                 'Unable to save chart; no space or dashboard provided.',
             );
@@ -1388,15 +1426,15 @@ export class SavedChartService
 
         const chartToCreate = resolvedSpaceUuid
             ? {
-                  ...savedChart,
+                  ...chartToSave,
                   spaceUuid: resolvedSpaceUuid,
                   dashboardUuid: null as null,
-                  slug: generateSlug(savedChart.name),
+                  slug: generateSlug(chartToSave.name),
                   updatedByUser: user,
               }
             : {
-                  ...savedChart,
-                  slug: generateSlug(savedChart.name),
+                  ...chartToSave,
+                  slug: generateSlug(chartToSave.name),
                   updatedByUser: user,
               };
         const newSavedChart = await this.savedChartModel.create(
@@ -1407,7 +1445,7 @@ export class SavedChartService
 
         const cachedExplore = await this.projectModel.getExploreFromCache(
             projectUuid,
-            savedChart.tableName,
+            chartToSave.tableName,
         );
 
         this.analytics.track({

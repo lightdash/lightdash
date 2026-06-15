@@ -19,7 +19,7 @@ Don't verify your own output. **After you Write or Edit a file, do not Read it b
 
 ### Approved packages
 
-`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `d3`, `d3-sankey`, `d3-cloud`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `react-resizable-panels`, `date-fns`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
+`react`, `react-dom`, `@lightdash/query-sdk`, `recharts`, `d3`, `d3-sankey`, `d3-cloud`, `@tanstack/react-query`, `@tanstack/react-table`, `@tanstack/react-virtual`, `react-resizable-panels`, `date-fns`, `html-to-image`, `jspdf`, `lodash-es`, `lucide-react`, `clsx`, `tailwind-merge`, `class-variance-authority`
 
 ### Pre-installed shadcn/ui components
 
@@ -432,15 +432,232 @@ Parameters are independent of `.filters()` — a filter restricts which rows are
 | `data` | `Row[]` | Flat objects keyed by short field name. Raw values. Use for charts. |
 | `columns` | `Column[]` | Field metadata (`name`, `label`, `type`). Use for table headers. |
 | `format` | `(row, fieldName) => string` | Server-side formatted value — preserves currency, %, prefix/suffix from the dbt YAML. **Tabular** form (e.g. `2025-03`, `2025-03-17`) — fine in dense table cells, **not** chart-friendly. For dates, chart axes, and human-readable date columns, prefer the `formatField` / `formatDate` / `formatNumber` helpers from `@/lib/format` (see [Formatting](#formatting)). |
+| `totalResults` | `number \| null` | Total rows returned by the loaded source query. Use for export labels/counts. |
 | `loading` | `boolean` | True while query is in flight. |
 | `error` | `Error \| null` | Query error. |
 | `refetch` | `() => void` | Re-run the query on demand. |
 | `queryUuid` | `string \| null` | The async Lightdash query UUID for the loaded source query. Rarely needed directly. |
 | `getUnderlyingData` | `({ row, metric, limit? }) => Promise<{ rows, columns, format, queryUuid }>` | Fetch raw rows behind an aggregated metric value. Call from a user action, never on initial render. |
+| `downloadUnderlyingData` | `({ row, metric, fileType?, values?, limit?, filename? }) => Promise<{ fileUrl, truncated, queryUuid, jobId }>` | Schedule a backend CSV/XLSX export for raw rows behind an aggregated metric value. Call from a user action. |
+| `downloadResults` | `({ fileType?, values?, limit?, filename? }) => Promise<{ fileUrl, truncated, queryUuid, jobId }>` | Schedule a backend CSV/XLSX export. Call from a user action. |
+
+### Backend data downloads
+
+Use `downloadResults()` when the user asks to download or export Lightdash query results. It uses the same backend export pipeline as core charts/tables: real CSV/XLSX files, formatted or raw values, and table/all/custom row limits. It does **not** serialize rows in the iframe.
+
+Default generated export UI should give the user the same important choices they get in core Lightdash charts:
+
+- File type: CSV or XLSX.
+- Row scope: loaded table results or all matching results.
+- Value mode: formatted values or raw values.
+
+Do **not** default to only two bare "CSV" / "XLSX" buttons unless the user explicitly asks for the simplest possible UI. Use a compact export menu, popover, toolbar group, or dialog that exposes row scope and value mode. For dense tables, a single "Export" button that opens a small popover is usually best.
+
+Be precise about row-scope labels:
+
+- `limit: 'table'` exports the rows loaded by the Lightdash SDK query that owns `downloadResults()` — not arbitrary rows after local React filtering, pagination, or sorting.
+- `limit: 'all'` reruns the same Lightdash query for all matching rows allowed by backend export limits.
+- If the table query already loads all or nearly all rows, the two exports may be identical. In that case, either omit the row-scope selector or label it honestly as "Loaded rows" vs. "All matching rows".
+- If you show a row-scope selector, keep the table query's `.limit(...)` intentional and explainable. For example, a table showing `.limit(100)` can label the option "Loaded rows (up to 100)" and the all option "All matching rows".
+- Do not label a limited table "All customers", "All orders", etc. unless the query is intentionally meant to contain all rows. Use "Top 100 customers", "Loaded customers", or "Customer results" for limited queries.
+- Backend downloads export Lightdash query results. If the app transforms, groups, locally filters, or paginates `data` in React and the user asks to export exactly the visible table, use a client-side CSV/copy helper for that visible state instead of `downloadResults()`.
+
+```tsx
+import { Button } from '@/components/ui/button';
+import { Download, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+
+function ExportControls() {
+    const { data, loading, downloadResults } = useLightdash(revenueQuery);
+    const [fileType, setFileType] = useState<'csv' | 'xlsx'>('csv');
+    const [limit, setLimit] = useState<'table' | 'all'>('table');
+    const [values, setValues] = useState<'formatted' | 'raw'>('formatted');
+    const [exporting, setExporting] = useState(false);
+
+    const disabled = loading || exporting || data.length === 0;
+
+    const exportData = async () => {
+        setExporting(true);
+        try {
+            const result = await downloadResults({
+                fileType,
+                values,
+                limit,
+                filename: 'revenue-by-segment',
+            });
+            if (result.truncated) {
+                // Show a toast or inline warning in real app code.
+                console.warn('Export was truncated by backend size limits.');
+            }
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    return (
+        <div className="flex flex-wrap items-center gap-2">
+            <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={fileType}
+                onChange={(e) => setFileType(e.target.value as 'csv' | 'xlsx')}
+                disabled={disabled}
+                aria-label="Export file type"
+            >
+                <option value="csv">CSV</option>
+                <option value="xlsx">XLSX</option>
+            </select>
+            <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={limit}
+                onChange={(e) => setLimit(e.target.value as 'table' | 'all')}
+                disabled={disabled}
+                aria-label="Export row scope"
+            >
+                <option value="table">Loaded rows</option>
+                <option value="all">All matching rows</option>
+            </select>
+            <select
+                className="h-9 rounded-md border bg-background px-2 text-sm"
+                value={values}
+                onChange={(e) => setValues(e.target.value as 'formatted' | 'raw')}
+                disabled={disabled}
+                aria-label="Export value mode"
+            >
+                <option value="formatted">Formatted values</option>
+                <option value="raw">Raw values</option>
+            </select>
+            <Button
+                variant="outline"
+                size="sm"
+                disabled={disabled}
+                onClick={exportData}
+            >
+                {exporting ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                    <Download className="h-4 w-4 mr-1" />
+                )}
+                {exporting ? 'Exporting...' : 'Export'}
+            </Button>
+        </div>
+    );
+}
+```
+
+Options:
+- `fileType`: `'csv'` or `'xlsx'`; default `'csv'`.
+- `values`: `'formatted'` or `'raw'`; default `'formatted'`.
+- `limit`: `'table'`, `'all'`, or a custom positive row count; default `'table'`.
+- `filename`: descriptive filename without extension.
+
+Rules:
+- Only call from explicit user actions such as a button or menu item.
+- Default selected options should be `fileType: 'csv'`, `values: 'formatted'`, and `limit: 'table'`, but the UI should let the user change file type, row scope, and value mode.
+- Offer `limit: 'table'` and `limit: 'all'` in the default export UI. Add a custom row-count input only when the user asks for custom limits or advanced export controls.
+- Make the loaded-row option reflect the query limit when possible, e.g. "Loaded rows (up to 100)" or "Table rows (25)".
+- Disable export buttons while the query is loading or when `data.length === 0`.
+- Track export state (`exporting`, `isExporting`, etc.), disable export controls while awaiting `downloadResults()`, and show a spinner or "Exporting..." label until the promise settles.
+- Show a toast or inline note if the returned result has `truncated: true`.
+
+### Client-side PDF downloads
+
+For PDF Report templates, or whenever the user asks for a PDF download, use the pre-installed `html-to-image` and `jspdf` packages. Do not load PDF libraries from a CDN or ask to install packages.
+
+PDF downloads are image-based: they preserve the visible report exactly, but the exported text is not selectable/searchable. Keep `window.print()` only as a secondary Print action if useful; the Download PDF button should save a file directly.
+
+Rules:
+
+- Render each PDF page or section in a stable DOM container, e.g. `.pdf-page`, with fixed printable dimensions or aspect ratio.
+- Include a Download PDF button in the report toolbar/header.
+- Track `isExportingPdf`, disable the button while report data is loading or PDF generation is running, and show a spinner or "Exporting..." label until the promise settles.
+- Use chart value labels in PDF reports because exported pages cannot be hovered.
+- Avoid capturing scroll containers with hidden content. Capture page-sized elements that already contain the full content intended for export.
+
+```tsx
+import { Button } from '@/components/ui/button';
+import { toPng } from 'html-to-image';
+import { jsPDF } from 'jspdf';
+import { Download, Loader2 } from 'lucide-react';
+import { useRef, useState } from 'react';
+
+async function imageLoaded(src: string) {
+    const image = new Image();
+    image.src = src;
+    await new Promise<void>((resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = reject;
+    });
+    return image;
+}
+
+async function downloadPdfFromPages(
+    pages: HTMLElement[],
+    filename = 'report.pdf',
+) {
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    for (let index = 0; index < pages.length; index += 1) {
+        if (index > 0) pdf.addPage();
+
+        const dataUrl = await toPng(pages[index], {
+            cacheBust: true,
+            pixelRatio: 2,
+            backgroundColor: '#ffffff',
+        });
+        const image = await imageLoaded(dataUrl);
+        const scale = Math.min(pageWidth / image.width, pageHeight / image.height);
+        const width = image.width * scale;
+        const height = image.height * scale;
+
+        pdf.addImage(dataUrl, 'PNG', (pageWidth - width) / 2, 0, width, height);
+    }
+
+    pdf.save(filename.endsWith('.pdf') ? filename : `${filename}.pdf`);
+}
+
+export function PdfReport() {
+    const reportRef = useRef<HTMLDivElement | null>(null);
+    const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+    async function exportPdf() {
+        if (!reportRef.current) return;
+        setIsExportingPdf(true);
+        try {
+            const pages = Array.from(
+                reportRef.current.querySelectorAll<HTMLElement>('.pdf-page'),
+            );
+            await downloadPdfFromPages(
+                pages.length > 0 ? pages : [reportRef.current],
+                'executive-report.pdf',
+            );
+        } finally {
+            setIsExportingPdf(false);
+        }
+    }
+
+    return (
+        <>
+            <Button disabled={isExportingPdf} onClick={exportPdf}>
+                {isExportingPdf ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                )}
+                {isExportingPdf ? 'Exporting...' : 'Download PDF'}
+            </Button>
+            <div ref={reportRef}>{/* .pdf-page report sections */}</div>
+        </>
+    );
+}
+```
 
 ### Underlying data
 
 Use `getUnderlyingData()` when the user asks to inspect the rows behind a metric in a chart, KPI, or table. It runs Lightdash's native "View underlying data" query for the already-loaded result row.
+
+Use `downloadUnderlyingData()` when the user asks to download or export those rows. It uses the backend export pipeline and does **not** fetch rows into the iframe just to create a CSV/XLSX file.
 
 Rules:
 
@@ -448,6 +665,8 @@ Rules:
 - Pass `row` directly from the `data` array returned by `useLightdash()`.
 - Pass `metric` using the same short metric name you used in `.metrics([...])`.
 - Show results in a `Dialog`, `Sheet`, or detail panel with loading/error states.
+- Whenever you show an underlying-data table/dialog, include a Download button in that table/dialog header. It should call `downloadUnderlyingData({ row, metric, fileType, values, limit, filename })`, track export state, and show a spinner or "Exporting..." label until the promise settles.
+- For underlying-data downloads, `limit: 'table'` uses the backend default underlying-data row limit, `limit: 'all'` exports all matching rows allowed by backend export caps, and a number requests that many rows.
 - This works for grouped SDK query rows. If you have heavily transformed or pivoted data client-side, keep the original source row around and pass that original row.
 
 ```tsx
@@ -457,8 +676,15 @@ const revenueQuery = query('orders')
     .limit(25);
 
 function RevenueTable() {
-    const { data, columns, format, loading, error, getUnderlyingData } =
-        useLightdash(revenueQuery);
+    const {
+        data,
+        columns,
+        format,
+        loading,
+        error,
+        getUnderlyingData,
+        downloadUnderlyingData,
+    } = useLightdash(revenueQuery);
     const [detail, setDetail] = useState(null);
     const [detailLoading, setDetailLoading] = useState(false);
 
@@ -479,6 +705,10 @@ function RevenueTable() {
     // Render your main table. In the row action:
     // <Button onClick={() => openUnderlying(row)}>View underlying data</Button>
     // In a Dialog, render detail.columns and detail.rows when detail is set.
+    // Put a Download button in that dialog/table header. It should call
+    // downloadUnderlyingData({ row, metric: 'total_revenue', fileType: 'csv',
+    // values: 'formatted', limit: 'all', filename: `orders-${row.customer_segment}` })
+    // and show an exporting state.
 }
 ```
 
@@ -645,7 +875,15 @@ When `/app/src/design/` does not exist or is empty, behave as if these rules don
 
 ### Loading states
 
-Every component that uses `useLightdash()` **must** show a loading spinner while `loading` is true. Never render an empty chart or table while waiting for data.
+Every component that uses `useLightdash()` **must** show a loading spinner while `loading` is true. Never render an empty chart, table, or KPI while waiting for data.
+
+Every user-triggered async data action must also show a loading state while it is waiting:
+
+- `downloadResults()` and `downloadUnderlyingData()` exports: disable export controls and show a spinner or "Exporting..." label until the promise settles.
+- PDF exports: disable the Download PDF button and show a spinner or "Exporting..." label until the file has been saved.
+- `getUnderlyingData()` requests: show a spinner in the dialog/sheet/table area until rows arrive.
+- Drilldown queries: show a spinner in the drilldown dialog while the drill query loads.
+- `refetch()` flows: show an inline refresh spinner or disabled refreshing state.
 
 **Keep the surrounding UI stable during loading.** Cards, headings, and layout should always render — only the data-driven content (chart, table body, KPI value) should be replaced with a spinner. This prevents the page from flashing or reflowing when data arrives.
 
@@ -789,6 +1027,8 @@ document.documentElement.classList.add('dark');
 
 **Every chart and table powered by Lightdash data must support a "Filter by &lt;value&gt;" interaction by default.** When a user clicks a data point (bar, slice, row, cell), show an action menu that includes — at minimum — a `Filter by <value>` option. Selecting it calls `addFilter({ field, operator: 'equals', value, explore })` from `useGlobalFilters()`, where `explore` is the chart's own explore name. The filter then applies to every other query that targets the same explore (see [Global filters](#global-filters) above).
 
+**When the clicked value represents a metric result, the same default action menu should also include "View underlying data".** Users should not have to explicitly ask for underlying data support. Add it for bars, points, slices, KPI values, pivot value cells, and table metric cells whenever you have the original source `row` and metric name. It should call `getUnderlyingData({ row, metric })` from a user action and show the rows in a dialog/sheet with loading and error states. That underlying-data table/dialog must include a Download button that calls `downloadUnderlyingData({ row, metric, ... })`. If the clicked cell is only a dimension/category value with no metric context, underlying-data actions can be omitted.
+
 Additional contextual options can be added when useful:
 
 - **Drill down** — see this metric broken down by another dimension
@@ -814,9 +1054,11 @@ function RevenueChart() {
         () => baseQuery.filters(filtersFor(EXPLORE)),
         [filtersFor],
     );
-    const { data, format, loading } = useLightdash(chartQuery);
+    const { data, format, loading, getUnderlyingData, downloadUnderlyingData } =
+        useLightdash(chartQuery);
     const [menuState, setMenuState] = useState(null); // { row, x, y }
     const [drillState, setDrillState] = useState(null); // { query, title }
+    const [underlyingState, setUnderlyingState] = useState(null); // { title, row, metric, promise }
     // Capture click position on pointerdown — this fires BEFORE Recharts'
     // onClick, so the coordinates are ready when the chart handler runs.
     // Recharts onClick does NOT expose the native MouseEvent.
@@ -859,6 +1101,22 @@ function RevenueChart() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => {
                             const row = menuState.row;
+                            setUnderlyingState({
+                                title: `Orders behind ${format(row, 'customer_segment')}`,
+                                row,
+                                metric: 'total_revenue',
+                                promise: getUnderlyingData({
+                                    row,
+                                    metric: 'total_revenue',
+                                    limit: 500,
+                                }),
+                            });
+                            setMenuState(null);
+                        }}>
+                            View underlying data
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                            const row = menuState.row;
                             setDrillState({
                                 query: drillDown({
                                     sourceQuery: chartQuery,
@@ -884,12 +1142,35 @@ function RevenueChart() {
                     </DialogContent>
                 </Dialog>
             )}
+
+            {underlyingState && (
+                <Dialog open onOpenChange={() => setUnderlyingState(null)}>
+                    <DialogContent className="max-w-3xl">
+                        <DialogHeader><DialogTitle>{underlyingState.title}</DialogTitle></DialogHeader>
+                        <UnderlyingRows
+                            result={underlyingState.promise}
+                            onDownload={() =>
+                                downloadUnderlyingData({
+                                    row: underlyingState.row,
+                                    metric: underlyingState.metric,
+                                    fileType: 'csv',
+                                    values: 'formatted',
+                                    limit: 'all',
+                                    filename: `orders-${underlyingState.row.customer_segment}`,
+                                })
+                            }
+                        />
+                    </DialogContent>
+                </Dialog>
+            )}
         </>
     );
 }
 ```
 
-**This is the default for every chart and table that renders Lightdash query data.** The "Filter by &lt;value&gt;" option is mandatory; "Drill into …" and other options are encouraged where they make sense.
+`UnderlyingRows` should be a small component that resolves the promise, shows a spinner while pending, handles errors, and renders `result.columns` / `result.rows` in a scrollable table. Its header should include a Download button wired to `onDownload`, disabled while exporting, with a spinner or "Exporting..." label until the promise settles.
+
+**This is the default for every chart and table that renders Lightdash query data.** The "Filter by &lt;value&gt;" option is mandatory. "View underlying data" is also expected for metric values when the source row and metric are unambiguous, and every underlying-data table/dialog should include a Download button. "Drill into …" is encouraged where it makes sense.
 
 If the user explicitly asks for a different interaction (e.g., "clicking should always filter without showing a menu" or "no drill-down needed"), follow their instructions. Otherwise, every data-powered chart and table gets the action menu — at minimum with the "Filter by &lt;value&gt;" option wired into the global filter context.
 
@@ -904,12 +1185,13 @@ Every table component must include these standard interactions:
 1. **Row hover highlight** — highlight the row under the cursor
 2. **Copy cell** — clicking a cell copies its formatted value to the clipboard (show a brief toast confirmation)
 3. **Copy table as CSV** — a button above the table copies all rows as CSV to the clipboard
-4. **Scrollable with max height** — tables should be at most ~600px tall and scroll vertically within that. Use `ScrollArea` for the table body. Unless the user specifies a different height, default to `max-h-[600px]`.
+4. **Export controls** — controls above the table call `downloadResults()` for backend-generated exports and expose file type, row scope, and value mode
+5. **Scrollable with max height** — tables should be at most ~600px tall and scroll vertically within that. Use `ScrollArea` for the table body. Unless the user specifies a different height, default to `max-h-[600px]`.
 
 ```tsx
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Copy } from 'lucide-react';
+import { Copy, Download, Loader2 } from 'lucide-react';
 
 function copyToClipboard(text: string) {
     navigator.clipboard.writeText(text);
@@ -923,12 +1205,31 @@ function tableToCsv(columns: Column[], data: Row[], format: FormatFn): string {
     return [header, ...rows].join('\n');
 }
 
-// Table header area
+// Table header area. Assumes exportFileType, exportLimit, exportValues,
+// isExporting, and exportTableResults are state/handlers from the component.
 <div className="flex justify-between items-center mb-2">
     <h3 className="text-base font-medium">Results</h3>
-    <Button variant="outline" size="sm" onClick={() => copyToClipboard(tableToCsv(columns, data, format))}>
-        <Copy className="h-4 w-4 mr-1" /> Copy CSV
-    </Button>
+    <div className="flex flex-wrap items-center gap-2">
+        <Button variant="outline" size="sm" onClick={() => copyToClipboard(tableToCsv(columns, data, format))}>
+            <Copy className="h-4 w-4 mr-1" /> Copy CSV
+        </Button>
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" value={exportFileType} onChange={(e) => setExportFileType(e.target.value)}>
+            <option value="csv">CSV</option>
+            <option value="xlsx">XLSX</option>
+        </select>
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" value={exportLimit} onChange={(e) => setExportLimit(e.target.value)}>
+            <option value="table">Loaded rows</option>
+            <option value="all">All matching rows</option>
+        </select>
+        <select className="h-9 rounded-md border bg-background px-2 text-sm" value={exportValues} onChange={(e) => setExportValues(e.target.value)}>
+            <option value="formatted">Formatted values</option>
+            <option value="raw">Raw values</option>
+        </select>
+        <Button variant="outline" size="sm" disabled={loading || isExporting || data.length === 0} onClick={exportTableResults}>
+            {isExporting ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+            {isExporting ? 'Exporting...' : 'Export'}
+        </Button>
+    </div>
 </div>
 
 // Scrollable table with sticky header
@@ -1119,6 +1420,8 @@ function DrillResults({ query: q }) {
 | Hard-coding the explore string in two places | Chart and its action menu disagree → filter sets but never applies | Define `const EXPLORE = '...'` at the top of the file and reuse it for both `query(EXPLORE)` and `addFilter({ ..., explore: EXPLORE })` |
 | Building the filtered query inline (not memoized) | New query identity every render → infinite re-fetch | `useMemo(() => baseQuery.filters(filtersFor(EXPLORE)), [filtersFor])` |
 | Action menu missing "Filter by &lt;value&gt;" | Default UX requirement violated — users have no way to drill in | Every data-powered chart/table must include the option, calling `addFilter({ field, operator: 'equals', value, explore: EXPLORE })` |
+| Metric action menu missing "View underlying data" | Users cannot inspect the rows behind a value unless they explicitly ask for it | Add `getUnderlyingData({ row, metric })` to default metric-value menus when the source row and metric are unambiguous |
+| Underlying-data table has no Download button | Users can inspect rows but cannot export them through the backend pipeline | Add a button in the underlying-data table/dialog header that calls `downloadUnderlyingData({ row, metric, fileType, values, limit, filename })` and shows an exporting state |
 | Using a formatted display value in `addFilter` | Filter never matches raw rows (e.g. `"$1,234"` vs `1234`) | Pass the raw row value into `addFilter`; only use `format()` for the menu label |
 | `<XAxis dataKey="order_date_month" />` with no `tickFormatter` | Recharts renders the raw ISO timestamp (e.g. `2025-03-01T00:00:00Z`) as labels | `tickFormatter={(v) => formatDate(v, getColumn(columns, 'order_date_month'), 'axis')}` from `@/lib/format` |
 | Skipping `tickFormatter` on a year axis because "year is just a number" | Year dimensions (`*_year`) are still full ISO timestamps at the data layer, so the axis renders `2025-01-01T00:00:00Z` | Apply the same `formatDate(...)` `tickFormatter` to year axes — `formatDate` will collapse to `2025` for year-grain columns |

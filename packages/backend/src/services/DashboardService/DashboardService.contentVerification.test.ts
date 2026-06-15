@@ -16,6 +16,7 @@ import { OrganizationModel } from '../../models/OrganizationModel';
 import { PinnedListModel } from '../../models/PinnedListModel';
 import { ProjectModel } from '../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../models/SavedChartModel';
+import { SavedSqlModel } from '../../models/SavedSqlModel';
 import { SchedulerModel } from '../../models/SchedulerModel';
 import { SearchModel } from '../../models/SearchModel';
 import { SpaceModel } from '../../models/SpaceModel';
@@ -100,6 +101,7 @@ describe('DashboardService - Content Verification', () => {
         savedChartModel: {
             getInfoForAvailableFilters: jest.fn(async () => []),
         } as unknown as SavedChartModel,
+        savedSqlModel: {} as unknown as SavedSqlModel,
         savedChartService: {} as unknown as SavedChartService,
         projectModel: {
             getCachedExploreNames: jest.fn(async () => []),

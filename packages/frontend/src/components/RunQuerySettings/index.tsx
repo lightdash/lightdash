@@ -1,3 +1,4 @@
+import { type TimezoneSetting } from '@lightdash/common';
 import {
     Button,
     Divider,
@@ -9,6 +10,7 @@ import {
 import { useClickOutside, useDisclosure } from '@mantine-8/hooks';
 import { IconChevronDown } from '@tabler/icons-react';
 import { memo, useCallback, useEffect, useRef, useState, type FC } from 'react';
+import ChartTimezoneSelect from '../common/ChartTimezoneSelect';
 import MantineIcon from '../common/MantineIcon';
 import AutoFetchResultsSwitch from './AutoFetchResultsSwitch';
 import LimitInput from './LimitInput';
@@ -22,6 +24,9 @@ export type Props = {
     onLimitChange: (value: number) => void;
     showAutoFetchSetting?: boolean;
     showPreAggregateSetting?: boolean;
+    showTimezoneSetting?: boolean;
+    timezone?: string;
+    onTimezoneChange?: (value: TimezoneSetting) => void;
     targetProps?: ButtonProps;
 };
 
@@ -34,6 +39,9 @@ const RunQuerySettings: FC<Props> = memo(
         onLimitChange,
         showAutoFetchSetting = false,
         showPreAggregateSetting = false,
+        showTimezoneSetting = false,
+        timezone,
+        onTimezoneChange,
         targetProps,
     }) => {
         const [opened, { open, close }] = useDisclosure(false);
@@ -66,6 +74,9 @@ const RunQuerySettings: FC<Props> = memo(
             }
         };
 
+        const hasToggleSettings =
+            showAutoFetchSetting || showPreAggregateSetting;
+
         return (
             <Popover
                 withinPortal
@@ -92,22 +103,23 @@ const RunQuerySettings: FC<Props> = memo(
                 <Popover.Dropdown>
                     <Stack
                         ref={ref}
+                        gap="sm"
+                        w={232}
                         onMouseDown={() => {
                             mouseDownInsideRef.current = true;
                         }}
                     >
-                        {showPreAggregateSetting && (
-                            <PreAggregateCacheSwitch size={size} />
+                        {hasToggleSettings && (
+                            <Stack gap="xs">
+                                {showPreAggregateSetting && (
+                                    <PreAggregateCacheSwitch size={size} />
+                                )}
+                                {showAutoFetchSetting && (
+                                    <AutoFetchResultsSwitch size={size} />
+                                )}
+                            </Stack>
                         )}
-                        {showPreAggregateSetting && showAutoFetchSetting && (
-                            <Divider />
-                        )}
-                        {showAutoFetchSetting && (
-                            <AutoFetchResultsSwitch size={size} />
-                        )}
-                        {(showAutoFetchSetting || showPreAggregateSetting) && (
-                            <Divider />
-                        )}
+                        {hasToggleSettings && <Divider />}
                         <LimitInput
                             maxLimit={maxLimit}
                             limit={tempLimit}
@@ -123,6 +135,14 @@ const RunQuerySettings: FC<Props> = memo(
                                 },
                             }}
                         />
+                        {showTimezoneSetting && onTimezoneChange && (
+                            <ChartTimezoneSelect
+                                label="Timezone"
+                                value={timezone}
+                                onChange={onTimezoneChange}
+                                w="100%"
+                            />
+                        )}
                     </Stack>
                 </Popover.Dropdown>
             </Popover>

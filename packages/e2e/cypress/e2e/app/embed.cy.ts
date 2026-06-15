@@ -101,6 +101,67 @@ describe('Embedded dashboard', () => {
         });
     });
 
+    it('forwards the ?timezone= session override into embed tile queries', () => {
+        getJaffleDashboard().then((dashboardsResp) => {
+            const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
+
+            updateEmbedConfigDashboards([dashboardUuid]).then((updateResp) => {
+                expect(updateResp.status).to.eq(200);
+
+                getEmbedUrl({
+                    content: { type: 'dashboard', dashboardUuid },
+                }).then((resp) => {
+                    cy.logout();
+
+                    cy.intercept(
+                        'POST',
+                        `${EMBED_API_PREFIX}/query/dashboard-tile*`,
+                    ).as('tileQuery');
+
+                    // The session timezone is set via ?timezone= before the JWT
+                    // hash; the frontend should forward it in the request body.
+                    const embedUrl = new URL(resp.body.results.url);
+                    embedUrl.searchParams.set(
+                        'timezone',
+                        'America/Los_Angeles',
+                    );
+                    cy.visit(embedUrl.toString());
+
+                    cy.wait('@tileQuery')
+                        .its('request.body.timezone')
+                        .should('eq', 'America/Los_Angeles');
+                });
+            });
+        });
+    });
+
+    it('omits the timezone from embed tile queries when ?timezone= is absent', () => {
+        getJaffleDashboard().then((dashboardsResp) => {
+            const dashboardUuid = dashboardsResp.body.results.data[0]?.uuid;
+
+            updateEmbedConfigDashboards([dashboardUuid]).then((updateResp) => {
+                expect(updateResp.status).to.eq(200);
+
+                getEmbedUrl({
+                    content: { type: 'dashboard', dashboardUuid },
+                }).then((resp) => {
+                    cy.logout();
+
+                    cy.intercept(
+                        'POST',
+                        `${EMBED_API_PREFIX}/query/dashboard-tile*`,
+                    ).as('tileQuery');
+
+                    cy.visit(resp.body.results.url);
+
+                    cy.wait('@tileQuery')
+                        .its('request.body')
+                        .should('not.have.property', 'timezone');
+                });
+            });
+        });
+    });
+
     // todo: move to unit test
     it.skip('I can use "Explore from here" in embedded dashboard and view the correct elements', () => {
         getJaffleDashboard().then((dashboardsResp) => {
