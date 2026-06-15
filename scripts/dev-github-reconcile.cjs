@@ -12,7 +12,10 @@
 //                  secret AND points at a live installation (mint App JWT -> GET /app/installations
 //                  -> pick account -> re-encrypt with running secret -> UPSERT -> verify).
 //   org-settings   UPSERT ai_organization_settings (args like ai_agent_reviews_enabled=true).
-//   dbt-repo-check report whether the org's project dbt_connection is github (repoint is guided).
+//   dbt-repo-check report whether the org's project dbt_connection is github.
+//   dbt-repo-repoint repoint the org's project dbt_connection at a GitHub repo so writeback
+//                  can open PRs (args repo=owner/name branch=main subpath=/dbt). Verifies
+//                  dbt_project.yml exists first; updates dbt_connection + dbt_connection_type.
 //   verify-token   mint an installation access token (201) to prove the stored id works.
 //
 // Required env: RUNNING_SECRET (the pm2 api process LIGHTDASH_SECRET), GITHUB_APP_ID,
@@ -142,7 +145,10 @@ async function stepInstallation(client) {
       "SELECT u.user_uuid FROM users u JOIN emails e ON e.user_id=u.user_id WHERE e.email='demo@lightdash.com' LIMIT 1");
     const userUuid = u.rows[0] && u.rows[0].user_uuid;
     if (!userUuid) throw new Error('demo user not found for created_by');
-    const placeholder = encrypt('placeholder', secret);
+    // auth_token/refresh_token are varchar (NOT NULL) and only affect PR authorship,
+    // never the token mint — a plain string placeholder is correct here. Binding an
+    // encrypted Buffer would send binary bytes into a UTF8 text column and fail.
+    const placeholder = 'placeholder';
     await client.query(
       `INSERT INTO github_app_installations
          (organization_uuid, encrypted_installation_id, auth_token, refresh_token,
@@ -181,6 +187,68 @@ async function stepDbtRepoCheck(client) {
   }
 }
 
+async function installationToken(client) {
+  const secret = need('RUNNING_SECRET');
+  const org = await orgUuid(client);
+  const row = await client.query(
+    "SELECT encode(encrypted_installation_id,'hex') AS hex FROM github_app_installations WHERE organization_uuid=$1", [org]);
+  if (!row.rows.length) throw new Error('no installation row — run the installation step first');
+  const id = decrypt(Buffer.from(row.rows[0].hex, 'hex'), secret);
+  const res = await gh(`/app/installations/${id}/access_tokens`, { method: 'POST' });
+  if (res.status !== 201) throw new Error(`mint installation token for id=${id} -> ${res.status}`);
+  return { id, token: (await res.json()).token };
+}
+
+// Repoint the org's first project dbt_connection at a GitHub repo so AI writeback can
+// open PRs. Verifies dbt_project.yml is reachable at repo/branch/subpath with the install
+// token BEFORE writing, and preserves compiler-base fields (target/environment/selector).
+async function stepDbtRepoRepoint(client, kvs) {
+  const secret = need('RUNNING_SECRET');
+  const org = await orgUuid(client);
+  const repo = (kvs.repo || '').trim();
+  const branch = (kvs.branch || 'main').trim();
+  let subpath = (kvs.subpath || '/dbt').trim();
+  if (!subpath.startsWith('/')) subpath = `/${subpath}`;
+  if (!repo || repo.indexOf('/') < 0) throw new Error('repoint requires repo=owner/name');
+
+  const { id, token } = await installationToken(client);
+
+  const clean = subpath.replace(/^\/+|\/+$/g, '');
+  const ymlPath = `${clean ? `${clean}/` : ''}dbt_project.yml`;
+  const check = await fetch(`https://api.github.com/repos/${repo}/contents/${ymlPath}?ref=${encodeURIComponent(branch)}`, {
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' },
+  });
+  if (check.status !== 200) throw new Error(`dbt_project.yml not found at ${repo}:${branch}/${ymlPath} (HTTP ${check.status}) — check repo/branch/subpath and that the App installation covers this repo`);
+
+  const r = await client.query(
+    `SELECT project_uuid, encode(dbt_connection,'hex') AS hex
+       FROM projects WHERE organization_id=(SELECT organization_id FROM organizations WHERE organization_uuid=$1)
+       ORDER BY project_id LIMIT 1`, [org]);
+  if (!r.rows.length) throw new Error('no project to repoint');
+  let cur = {};
+  try { cur = JSON.parse(decrypt(Buffer.from(r.rows[0].hex, 'hex'), secret)); } catch (_) {}
+  const next = {
+    type: 'github',
+    authorization_method: 'installation_id',
+    installation_id: String(id),
+    repository: repo,
+    branch,
+    project_sub_path: subpath,
+  };
+  if (cur.target) next.target = cur.target;
+  if (cur.environment) next.environment = cur.environment;
+  if (cur.selector) next.selector = cur.selector;
+  if (cur.host_domain) next.host_domain = cur.host_domain;
+  const enc = encrypt(JSON.stringify(next), secret);
+  // Two columns hold the type: the encrypted dbt_connection blob AND the plaintext
+  // dbt_connection_type that ProjectModel maintains and the writeback gate reads. Both
+  // must change or proposeWriteback still sees 'dbt' and ParameterErrors.
+  await client.query(
+    'UPDATE projects SET dbt_connection=$1, dbt_connection_type=$2 WHERE project_uuid=$3',
+    [enc, 'github', r.rows[0].project_uuid]);
+  console.log(`OK: repointed project ${r.rows[0].project_uuid} dbt_connection -> github ${repo}@${branch}${subpath} (installation_id=${id})`);
+}
+
 async function stepVerifyToken(client) {
   const secret = need('RUNNING_SECRET');
   const org = await orgUuid(client);
@@ -211,6 +279,7 @@ async function stepVerifyToken(client) {
     else if (step === 'installation') await stepInstallation(client);
     else if (step === 'org-settings') await stepOrgSettings(client, kvs);
     else if (step === 'dbt-repo-check') await stepDbtRepoCheck(client);
+    else if (step === 'dbt-repo-repoint') await stepDbtRepoRepoint(client, kvs);
     else if (step === 'verify-token') await stepVerifyToken(client);
     else { console.error(`FAIL: reconcile -- unknown step '${step}'`); process.exit(2); }
   } finally {
