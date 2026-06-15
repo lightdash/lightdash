@@ -1,3 +1,10 @@
+## [0.3162.1](https://github.com/lightdash/lightdash/compare/0.3162.0...0.3162.1) (2026-06-15)
+
+
+### Bug Fixes
+
+* **echarts:** fix sub-day time-axis DST collisions and tick alignment ([#24151](https://github.com/lightdash/lightdash/issues/24151)) ([5d828b7](https://github.com/lightdash/lightdash/commit/5d828b7aee13924834d4cb6e430a748e87696537))
+
 # [0.3162.0](https://github.com/lightdash/lightdash/compare/0.3161.1...0.3162.0) (2026-06-15)
 
 
