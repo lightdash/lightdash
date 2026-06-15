@@ -45,4 +45,7 @@
 
 .mergedDimCell {
     vertical-align: top;
+    /* nudge the top-aligned value off the border so it lines up with the first
+       row's centered content (cells are 32px tall) */
+    padding-top: var(--mantine-spacing-xs);
 }

@@ -1896,7 +1896,11 @@ const PivotTable: FC<PivotTableProps> = ({
                                                 : undefined
                                         }
                                         className={
-                                            rowSpanMerge
+                                            // Only top-align cells that actually
+                                            // span >1 row; single-row blocks stay
+                                            // centered so they don't shift up.
+                                            rowSpanMerge &&
+                                            rowSpanMerge.rowSpan > 1
                                                 ? `${pivotStyles.mergedDimCell}${
                                                       stickyCellProps.className
                                                           ? ` ${stickyCellProps.className}`
