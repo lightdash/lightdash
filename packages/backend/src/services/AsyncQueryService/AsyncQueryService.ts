@@ -5081,17 +5081,6 @@ export class AsyncQueryService extends ProjectService {
             };
         }
 
-        const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
-            tileUuid,
-            chartUuid,
-            context,
-            dashboardUuid: resolvedDashboardUuid,
-            dashboardFilters,
-            dashboardSorts,
-            dateZoom,
-            limit,
-        };
-
         const queryTags: RunQueryTags = {
             ...this.getUserQueryTags(account),
             ...AsyncQueryService.getSchedulerQueryTags(),
@@ -5147,6 +5136,18 @@ export class AsyncQueryService extends ProjectService {
             dashboardParameters,
             projectParameters,
         );
+
+        const requestParameters: ExecuteAsyncDashboardChartRequestParams = {
+            tileUuid,
+            chartUuid,
+            context,
+            dashboardUuid: resolvedDashboardUuid,
+            dashboardFilters,
+            dashboardSorts,
+            dateZoom,
+            limit,
+            parameters: combinedParameters,
+        };
 
         const { fields, dateZoomApplied } = await this.getMetricQueryFields({
             metricQuery: metricQueryWithLimit,
