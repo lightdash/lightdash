@@ -1939,3 +1939,46 @@ describe('convert_timezone dimension override', () => {
         ).toBeUndefined();
     });
 });
+
+describe('array dimension warehouse support', () => {
+    const MODEL_WITH_ARRAY_COLUMN: DbtModelNode & {
+        relation_name: string;
+    } = {
+        ...model,
+        columns: {
+            tags: {
+                name: 'tags',
+                data_type: DimensionType.ARRAY,
+                meta: {
+                    dimension: {
+                        type: DimensionType.ARRAY,
+                    },
+                },
+            },
+        },
+    };
+
+    it('coerces array dimensions to string with a warning on non-Databricks warehouses', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.POSTGRES,
+            MODEL_WITH_ARRAY_COLUMN,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dimensions.tags.type).toBe(DimensionType.STRING);
+        expect(result.dimensions.tags.unsupportedTypeWarning).toMatch(
+            /array operations aren't supported on Postgres/,
+        );
+    });
+
+    it('keeps array dimensions on Databricks without a warning', () => {
+        const result = convertTable(
+            SupportedDbtAdapter.DATABRICKS,
+            MODEL_WITH_ARRAY_COLUMN,
+            [],
+            DEFAULT_SPOTLIGHT_CONFIG,
+        );
+        expect(result.dimensions.tags.type).toBe(DimensionType.ARRAY);
+        expect(result.dimensions.tags.unsupportedTypeWarning).toBeUndefined();
+    });
+});
