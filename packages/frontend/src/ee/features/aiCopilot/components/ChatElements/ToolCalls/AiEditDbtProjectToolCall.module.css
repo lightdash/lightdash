@@ -76,8 +76,11 @@
     gap: var(--mantine-spacing-xs);
 }
 
-.statusMarker {
-    pointer-events: none;
+.mergedStatus:disabled,
+.mergedStatus[data-disabled] {
+    cursor: default;
+    color: var(--mantine-color-violet-light-color);
+    background-color: var(--mantine-color-violet-light);
 }
 
 .closedStatus:disabled,

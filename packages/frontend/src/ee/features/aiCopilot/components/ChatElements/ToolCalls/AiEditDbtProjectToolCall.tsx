@@ -212,13 +212,6 @@ export const PullRequestActionButtons: FC<{
         armTimer.current = setTimeout(() => setArmed(null), 3500);
     };
 
-    useEffect(
-        () => () => {
-            if (armTimer.current) clearTimeout(armTimer.current);
-        },
-        [],
-    );
-
     useEffect(() => {
         const merged = ciChecks?.merged ?? false;
         if (merged && !wasMerged.current && confettiOrigin.current) {
@@ -246,11 +239,11 @@ export const PullRequestActionButtons: FC<{
     if (ciChecks.merged) {
         return (
             <Button
-                component="div"
                 variant="light"
                 color="violet"
                 size="compact-sm"
-                className={styles.statusMarker}
+                disabled
+                className={styles.mergedStatus}
                 leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
             >
                 Merged
