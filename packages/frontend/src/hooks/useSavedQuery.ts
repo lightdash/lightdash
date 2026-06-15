@@ -30,7 +30,7 @@ const isCustomSqlDimensionForbiddenError = (
     typeof error.message === 'string' &&
     error.message.toLowerCase().includes('custom sql dimensions');
 
-const createSavedQuery = async (
+export const createSavedQuery = async (
     projectUuid: string,
     payload: CreateSavedChart,
 ): Promise<SavedChart> => {
