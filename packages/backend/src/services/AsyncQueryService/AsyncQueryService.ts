@@ -3986,7 +3986,7 @@ export class AsyncQueryService extends ProjectService {
         );
     }
 
-    async executeAsyncQuery(
+    private async executeAsyncQuery(
         // TODO: remove metric query, fields, etc from args once they are no longer needed in the database
         args: ExecuteAsyncMetricQueryArgs & {
             queryTags: RunQueryTags;
@@ -4002,14 +4002,17 @@ export class AsyncQueryService extends ProjectService {
             preAggregationRoute?: PreAggregationRoute;
             userAccessControls?: UserAccessControls;
             availableParameterDefinitions?: ParameterDefinitions;
+            // Preloaded org from the caller (e.g. saved chart) to skip a redundant getSummary
+            organizationUuid?: string;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
     ): Promise<ExecuteAsyncQueryReturn> {
         assertIsAccountWithOrg(args.account);
 
-        const { organizationUuid } = await this.projectModel.getSummary(
-            args.projectUuid,
-        );
+        const organizationUuid =
+            args.organizationUuid ??
+            (await this.projectModel.getSummary(args.projectUuid))
+                .organizationUuid;
         const auditedAbility = this.createAuditedAbility(args.account);
         const isForbidden =
             auditedAbility.cannot(
@@ -4244,6 +4247,7 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 metricQuery,
                 projectUuid,
+                organizationUuid,
                 explore,
                 context,
                 queryTags,
@@ -4488,6 +4492,7 @@ export class AsyncQueryService extends ProjectService {
                 account,
                 metricQuery,
                 projectUuid,
+                organizationUuid,
                 explore,
                 context,
                 queryTags,
@@ -4772,6 +4777,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 account,
                 projectUuid,
+                organizationUuid: savedChartOrganizationUuid,
                 explore,
                 context,
                 queryTags,
@@ -5230,6 +5236,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 account,
                 projectUuid,
+                organizationUuid,
                 explore,
                 metricQuery: metricQueryWithLimit,
                 context,
@@ -5549,6 +5556,7 @@ export class AsyncQueryService extends ProjectService {
                     account,
                     metricQuery: underlyingDataMetricQueryWithLimit,
                     projectUuid,
+                    organizationUuid,
                     explore,
                     context,
                     queryTags,
@@ -5636,6 +5644,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 account,
                 projectUuid,
+                organizationUuid,
                 explore: virtualView,
                 queryTags,
                 metricQuery,
@@ -6042,6 +6051,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 account,
                 projectUuid,
+                organizationUuid: sqlChart.organization.organizationUuid,
                 explore: virtualView,
                 queryTags,
                 metricQuery,
@@ -6189,6 +6199,7 @@ export class AsyncQueryService extends ProjectService {
             {
                 account,
                 projectUuid,
+                organizationUuid: savedChart.organization.organizationUuid,
                 explore: virtualView,
                 queryTags,
                 metricQuery,
