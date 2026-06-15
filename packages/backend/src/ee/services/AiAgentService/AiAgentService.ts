@@ -5645,10 +5645,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     );
                 if (installationId) {
                     writebackAttribution =
-                        await this.githubAppService.getAiWritebackAttribution({
-                            userUuid: user.userUuid,
-                            organizationUuid: user.organizationUuid,
-                        });
+                        await this.githubAppService.getAiWritebackAttribution(
+                            user,
+                        );
                 }
             } catch (error) {
                 this.logger.warn(

@@ -612,10 +612,25 @@ export class GithubAppService extends BaseService {
      * org app, so we report `org`/`canLink: false` without even reading the
      * credential (and never nudge towards a hidden settings panel).
      */
-    async getAiWritebackAttribution(user: {
-        userUuid: string;
-        organizationUuid: string;
-    }): Promise<AiWritebackAttribution> {
+    async getAiWritebackAttribution(
+        user: SessionUser,
+    ): Promise<AiWritebackAttribution> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        // Mirror getInstallationId: a self-scoped read of the caller's own
+        // GitHub link + org installation, gated on viewing their organization.
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
         const canLink = await this.isUserCredentialsFeatureEnabled(user);
         if (!canLink) {
             return { mode: 'org', canLink: false };
