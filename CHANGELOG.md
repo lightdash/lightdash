@@ -1,3 +1,10 @@
+## [0.3165.3](https://github.com/lightdash/lightdash/compare/0.3165.2...0.3165.3) (2026-06-15)
+
+
+### Bug Fixes
+
+* **ai-agents:** show merged writeback PR button in Lightdash purple (PROD-8320) ([#24297](https://github.com/lightdash/lightdash/issues/24297)) ([90483e5](https://github.com/lightdash/lightdash/commit/90483e5c3ca211b113fd4f047cdb5de587fd1c92))
+
 ## [0.3165.2](https://github.com/lightdash/lightdash/compare/0.3165.1...0.3165.2) (2026-06-15)
 
 
