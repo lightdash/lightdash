@@ -10,7 +10,6 @@ import {
     contextItemsToContentMentionSuggestions,
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
-import { ThreadPullRequestCard } from '../../features/aiCopilot/components/ThreadPullRequestCard';
 import {
     useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
@@ -310,7 +309,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     />
                 </AgentChatDisplay>
             </Box>
-            {reviewItem ? (
+            {reviewItem && (
                 <ReviewVerificationPanel
                     reviewItem={reviewItem}
                     canRetry={!!retryPrompt && !inputDisabled}
@@ -319,16 +318,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     onRetry={handleRetryOriginalQuestion}
                     onMarkDone={handleMarkFixed}
                 />
-            ) : (
-                agentUuid &&
-                threadUuid &&
-                projectUuid && (
-                    <ThreadPullRequestCard
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                        threadUuid={threadUuid}
-                    />
-                )
             )}
         </Flex>
     );

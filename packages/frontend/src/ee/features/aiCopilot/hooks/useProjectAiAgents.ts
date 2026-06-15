@@ -10,7 +10,6 @@ import type {
     ApiAiAgentThreadMessageCreateRequest,
     ApiAiAgentThreadMessageCreateResponse,
     ApiAiAgentThreadMessageVizQuery,
-    ApiAiAgentThreadPullRequestResponse,
     ApiAiAgentThreadResponse,
     ApiAiAgentThreadShareResponse,
     ApiAiAgentVerifiedQuestionsResponse,
@@ -338,37 +337,6 @@ const getAgentThread = async (
         url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}`,
         method: 'GET',
         body: undefined,
-    });
-
-const getAgentThreadPullRequest = async (
-    projectUuid: string,
-    agentUuid: string,
-    threadUuid: string,
-) =>
-    lightdashApi<ApiAiAgentThreadPullRequestResponse['results']>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/pull-request`,
-        method: 'GET',
-        body: undefined,
-    });
-
-export const useAiAgentThreadPullRequest = (
-    projectUuid: string,
-    agentUuid: string | undefined,
-    threadUuid: string | null | undefined,
-) =>
-    useQuery<ApiAiAgentThreadPullRequestResponse['results'], ApiError>({
-        queryKey: [
-            AI_AGENTS_KEY,
-            projectUuid,
-            agentUuid,
-            'threads',
-            threadUuid,
-            'pull-request',
-        ],
-        queryFn: () =>
-            getAgentThreadPullRequest(projectUuid, agentUuid!, threadUuid!),
-        enabled: !!agentUuid && !!threadUuid,
-        retry: false,
     });
 
 const createAgentThreadShare = async (
