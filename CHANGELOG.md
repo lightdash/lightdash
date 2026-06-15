@@ -1,3 +1,10 @@
+# [0.3160.0](https://github.com/lightdash/lightdash/compare/0.3159.0...0.3160.0) (2026-06-15)
+
+
+### Features
+
+* **docker-dev:** profile-based setup, executable reconcile, 1Password discovery ([#24270](https://github.com/lightdash/lightdash/issues/24270)) ([7a7b504](https://github.com/lightdash/lightdash/commit/7a7b50405166c7250f9ea10b6ee2da4b984ea46e))
+
 # [0.3159.0](https://github.com/lightdash/lightdash/compare/0.3158.1...0.3159.0) (2026-06-15)
 
 
