@@ -1,3 +1,10 @@
+## [0.3162.3](https://github.com/lightdash/lightdash/compare/0.3162.2...0.3162.3) (2026-06-15)
+
+
+### Bug Fixes
+
+* use textarea for OAuth redirect URIs in edit modal ([#24279](https://github.com/lightdash/lightdash/issues/24279)) ([b986cf0](https://github.com/lightdash/lightdash/commit/b986cf0ba5d5142c57e97a69209c8b730ef414aa))
+
 ## [0.3162.2](https://github.com/lightdash/lightdash/compare/0.3162.1...0.3162.2) (2026-06-15)
 
 
