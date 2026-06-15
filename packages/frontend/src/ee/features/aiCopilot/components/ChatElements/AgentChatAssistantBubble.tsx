@@ -69,6 +69,7 @@ import styles from './AgentChatAssistantBubble.module.css';
 import AgentChatDebugDrawer from './AgentChatDebugDrawer';
 import { AiArtifactInline } from './AiArtifactInline';
 import { AiArtifactButton } from './ArtifactButton/AiArtifactButton';
+import { ConnectCodebaseNudge } from './ConnectCodebaseNudge';
 import { ContentLink, type SqlRunnerLinkState } from './ContentLink';
 import { MessageModelIndicator } from './MessageModelIndicator';
 import { rehypeAiAgentContentLinks } from './rehypeContentLinks';
@@ -179,6 +180,18 @@ const getPendingPersistedSqlApprovals = (
             !resolvedToolCallIds.has(toolCall.toolCallId),
     );
 };
+
+// Tools through which the agent writes back changes to the user's project.
+const CHANGE_TOOL_NAMES = new Set<AiAgentToolName>([
+    'editDbtProject',
+    'proposeChange',
+    'setupPreviewDeploy',
+]);
+
+const didAgentMakeChanges = (message: AiAgentMessageAssistant): boolean =>
+    message.toolCalls.some((toolCall) =>
+        CHANGE_TOOL_NAMES.has(toolCall.toolName),
+    );
 
 const getToolOutputStatus = (toolOutput: unknown) => {
     const metadata = (toolOutput as { metadata?: unknown } | undefined)
@@ -1112,6 +1125,12 @@ export const AssistantBubble: FC<Props> = memo(
                             </Text>
                         </Stack>
                     </Paper>
+                )}
+                {!popoverOpened && downVoted && didAgentMakeChanges(message) && (
+                    <ConnectCodebaseNudge
+                        projectUuid={projectUuid}
+                        agentUuid={agentUuid}
+                    />
                 )}
                 {isLoading ? null : (
                     <Group gap={0}>
