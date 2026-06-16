@@ -13,6 +13,7 @@ import {
     CreateEmbedJwt,
     EmbedContent,
     ForbiddenError,
+    isDashboardContent,
     isJwtUser,
     MemberAbility,
     OauthAccount,
@@ -109,8 +110,12 @@ export const fromJwt = ({
         embed,
         access: {
             content,
-            filtering: decodedToken.content.dashboardFiltersInteractivity,
-            parameters: decodedToken.content.parameterInteractivity,
+            filtering: isDashboardContent(decodedToken.content)
+                ? decodedToken.content.dashboardFiltersInteractivity
+                : undefined,
+            parameters: isDashboardContent(decodedToken.content)
+                ? decodedToken.content.parameterInteractivity
+                : undefined,
             controls: userAttributes,
         },
         embedWriteUser,

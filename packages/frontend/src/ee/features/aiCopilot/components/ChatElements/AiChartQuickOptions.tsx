@@ -25,12 +25,14 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
 import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
@@ -67,6 +69,8 @@ export const AiChartQuickOptions = ({
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
+    const { writeActions } = useEmbed();
+    const isEmbed = isEmbedAiAgentRoute();
     const { showToastSuccess, showToastApiError } = useToaster();
 
     const dispatch = useAiAgentStoreDispatch();
@@ -462,6 +466,9 @@ export const AiChartQuickOptions = ({
                         name: saveChartOptions.name ?? '',
                         description: saveChartOptions.description ?? '',
                     }}
+                    forcedSpaceUuid={
+                        isEmbed ? writeActions?.spaceUuid : undefined
+                    }
                     redirectOnSuccess={false}
                 />
             </MantineModal>

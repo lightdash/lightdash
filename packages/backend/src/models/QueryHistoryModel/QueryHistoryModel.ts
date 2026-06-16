@@ -2,7 +2,9 @@ import {
     Account,
     assertUnreachable,
     ForbiddenError,
+    isJwtUser,
     NotFoundError,
+    QueryExecutionContext,
     QueryHistory,
     QueryHistoryStatus,
     sleep,
@@ -269,11 +271,31 @@ export class QueryHistoryModel {
             .where('query_uuid', queryUuid)
             .andWhere('project_uuid', projectUuid);
 
-        const createdByColumn = account.isRegisteredUser()
-            ? 'created_by_user_uuid'
-            : 'created_by_account';
+        const canReadEmbedAiQuery =
+            isJwtUser(account) &&
+            account.embedWriteContext?.canUseAiAgent === true &&
+            !!account.embedWriteUser;
 
-        void query.andWhere(createdByColumn, account.user.id);
+        if (canReadEmbedAiQuery) {
+            void query.andWhere((builder) => {
+                void builder
+                    .where('created_by_account', account.user.id)
+                    .orWhere((embedAiBuilder) => {
+                        void embedAiBuilder
+                            .where(
+                                'created_by_user_uuid',
+                                account.embedWriteUser!.userUuid,
+                            )
+                            .andWhere('context', QueryExecutionContext.AI);
+                    });
+            });
+        } else {
+            const createdByColumn = account.isRegisteredUser()
+                ? 'created_by_user_uuid'
+                : 'created_by_account';
+
+            void query.andWhere(createdByColumn, account.user.id);
+        }
 
         const result = await query.first();
 
@@ -285,7 +307,13 @@ export class QueryHistoryModel {
 
         const queryHistory = convertDbQueryHistoryToQueryHistory(result);
 
-        if (queryHistory.createdBy !== account.user.id) {
+        const isOwnedByAccount = queryHistory.createdBy === account.user.id;
+        const isOwnedByEmbedAiWriteUser =
+            canReadEmbedAiQuery &&
+            queryHistory.context === QueryExecutionContext.AI &&
+            queryHistory.createdByUserUuid === account.embedWriteUser!.userUuid;
+
+        if (!isOwnedByAccount && !isOwnedByEmbedAiWriteUser) {
             throw new ForbiddenError(
                 'User is not authorized to access this query',
             );

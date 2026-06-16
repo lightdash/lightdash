@@ -64,6 +64,41 @@ const COMMERCIAL_EMBED_ROUTES: RouteObject[] = [
                     </TrackPage>
                 ),
             },
+            {
+                path: '/embed/:projectUuid/ai-agents/not-authorized',
+                element: <AiAgentsNotAuthorizedPage />,
+            },
+            {
+                path: '/embed/:projectUuid/ai-agents/:agentUuid',
+                element: <AgentPage />,
+                children: [
+                    {
+                        index: true,
+                        element: <Navigate to="threads" replace />,
+                    },
+                    {
+                        path: 'threads',
+                        children: [
+                            {
+                                index: true,
+                                element: <AiAgentNewThreadPage />,
+                            },
+                            {
+                                path: ':threadUuid/messages/:promptUuid/debug',
+                                element: <AiAgentThreadPage debug />,
+                            },
+                            {
+                                path: ':threadUuid/messages/:promptUuid',
+                                element: <AiAgentThreadPage />,
+                            },
+                            {
+                                path: ':threadUuid',
+                                element: <AiAgentThreadPage />,
+                            },
+                        ],
+                    },
+                ],
+            },
         ],
     },
 ];

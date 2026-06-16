@@ -31,6 +31,7 @@ import {
     AiWebAppPrompt,
     AiWritebackAttribution,
     AlreadyExistsError,
+    AnonymousAccount,
     AnyType,
     ApiAiAgentThreadCreateRequest,
     ApiAiAgentThreadMessageCreateRequest,
@@ -86,6 +87,7 @@ import {
     toolDashboardV2ArgsSchema,
     UpdateSlackResponse,
     UpdateWebAppResponse,
+    UserAttributeValueMap,
     validateAgentSuggestion,
     type AgentSuggestionTool,
     type AiPromptContextInput,
@@ -300,6 +302,12 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 // wrong" even though the backend job completes and opens the PR. 15s sits
 // comfortably under the usual 30-60s idle timeouts.
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
+
+type EmbedAiAgentRuntimeOptions = {
+    embedSpaceUuid: string;
+    spaceAccess: string[];
+    userAttributeOverrides: UserAttributeValueMap;
+};
 
 type AiAgentServiceDependencies = {
     aiAgentModel: AiAgentModel;
@@ -628,6 +636,7 @@ export class AiAgentService extends BaseService {
         user: SessionUser,
         agent: AiAgent,
         context: AiPromptContextInput | undefined,
+        allowedSpaceUuids?: string[],
     ): Promise<AiPromptContextInput | undefined> {
         if (!context || context.length === 0) return undefined;
 
@@ -661,25 +670,61 @@ export class AiAgentService extends BaseService {
             );
         }
 
+        const allowedSpaces =
+            allowedSpaceUuids && allowedSpaceUuids.length > 0
+                ? new Set(allowedSpaceUuids)
+                : null;
+
         await Promise.all(
-            deduped.map((item) => {
+            deduped.map(async (item) => {
                 if (item.type === 'chart') {
-                    return this.savedChartService.hasAccess(
+                    await this.savedChartService.hasAccess(
                         'view',
                         { user, projectUuid: agent.projectUuid },
                         { savedChartUuid: item.chartUuid },
                     );
+                    if (allowedSpaces) {
+                        const chart = await this.savedChartService.get(
+                            item.chartUuid,
+                            fromSession(user),
+                            { projectUuid: agent.projectUuid },
+                        );
+                        if (!allowedSpaces.has(chart.spaceUuid)) {
+                            throw new ForbiddenError(
+                                'Pinned chart is outside the embedded space',
+                            );
+                        }
+                    }
+                    return;
                 }
 
                 if (item.type === 'thread') {
-                    return this.validateThreadContextAccess(user, item);
+                    if (allowedSpaces) {
+                        throw new ForbiddenError(
+                            'Pinned conversations are not available in embedded AI',
+                        );
+                    }
+                    await this.validateThreadContextAccess(user, item);
+                    return;
                 }
 
-                return this.dashboardService.hasAccess(
+                await this.dashboardService.hasAccess(
                     'view',
                     { user, projectUuid: agent.projectUuid },
                     { dashboardUuid: item.dashboardUuid },
                 );
+                if (allowedSpaces) {
+                    const dashboard = await this.dashboardService.getByIdOrSlug(
+                        user,
+                        item.dashboardUuid,
+                        { projectUuid: agent.projectUuid },
+                    );
+                    if (!allowedSpaces.has(dashboard.spaceUuid)) {
+                        throw new ForbiddenError(
+                            'Pinned dashboard is outside the embedded space',
+                        );
+                    }
+                }
             }),
         );
 
@@ -1052,6 +1097,116 @@ export class AiAgentService extends BaseService {
         }
 
         return false;
+    }
+
+    private static getEmbedAiAgentContext(
+        account: AnonymousAccount,
+        projectUuid: string,
+    ): {
+        user: SessionUser;
+        spaceUuid: string;
+        tokenAgentUuid: string;
+        runtimeOptions: EmbedAiAgentRuntimeOptions;
+    } {
+        const { writeActions, content } = account.authentication.data;
+        const spaceUuid = writeActions?.spaceUuid;
+
+        if (
+            content.type !== 'aiAgent' ||
+            !spaceUuid ||
+            !account.embedWriteUser ||
+            account.embedWriteContext?.canUseAiAgent !== true ||
+            account.embed.projectUuid !== projectUuid
+        ) {
+            throw new ForbiddenError(
+                account.embedWriteContext?.aiAgentErrorMessage ??
+                    'Embed token does not allow AI agent actions',
+            );
+        }
+
+        return {
+            user: account.embedWriteUser,
+            spaceUuid,
+            tokenAgentUuid: content.agentUuid,
+            runtimeOptions: {
+                embedSpaceUuid: spaceUuid,
+                spaceAccess: [spaceUuid],
+                userAttributeOverrides:
+                    account.access.controls?.userAttributes ?? {},
+            },
+        };
+    }
+
+    private static assertAgentAvailableInEmbedSpace(
+        agent: AiAgent,
+        spaceUuid: string,
+    ) {
+        if (
+            agent.spaceAccess.length > 0 &&
+            !agent.spaceAccess.includes(spaceUuid)
+        ) {
+            throw new ForbiddenError(
+                'AI agent is not available in the embedded space',
+            );
+        }
+    }
+
+    private async getEmbedAgent(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+    ) {
+        const { user, spaceUuid, tokenAgentUuid, runtimeOptions } =
+            AiAgentService.getEmbedAiAgentContext(account, projectUuid);
+        if (tokenAgentUuid !== agentUuid) {
+            throw new ForbiddenError(
+                'Embed token does not allow access to this AI agent',
+            );
+        }
+
+        const agent = await this.getAgent(user, agentUuid, projectUuid);
+        AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
+        return { user, agent, runtimeOptions };
+    }
+
+    private async assertEmbedThreadInSpace(
+        threadUuid: string,
+        runtimeOptions?: EmbedAiAgentRuntimeOptions,
+    ) {
+        if (!runtimeOptions) return;
+
+        const embedSpaceUuid =
+            await this.aiAgentModel.getWebAppThreadEmbedSpace(threadUuid);
+        if (embedSpaceUuid !== runtimeOptions.embedSpaceUuid) {
+            throw new ForbiddenError(
+                'AI agent thread is outside the embedded space',
+            );
+        }
+    }
+
+    async listEmbedAgents(account: AnonymousAccount, projectUuid: string) {
+        const { user, spaceUuid, tokenAgentUuid } =
+            AiAgentService.getEmbedAiAgentContext(account, projectUuid);
+        const agents = await this.listAgents(user, projectUuid);
+        return agents.filter(
+            (agent) =>
+                agent.uuid === tokenAgentUuid &&
+                (agent.spaceAccess.length === 0 ||
+                    agent.spaceAccess.includes(spaceUuid)),
+        );
+    }
+
+    async getEmbedAgentDetails(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+    ) {
+        const { agent } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        return agent;
     }
 
     async getAvailableExplores(
@@ -2134,6 +2289,7 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         body: ApiAiAgentThreadCreateRequest,
         createdFrom: 'web_app' | 'evals' = 'web_app',
+        runtimeOptions?: EmbedAiAgentRuntimeOptions,
     ) {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -2162,7 +2318,12 @@ export class AiAgentService extends BaseService {
         }
 
         const context = body.prompt
-            ? await this.validatePromptContextAccess(user, agent, body.context)
+            ? await this.validatePromptContextAccess(
+                  user,
+                  agent,
+                  body.context,
+                  runtimeOptions?.spaceAccess,
+              )
             : undefined;
 
         const threadUuid = await this.aiAgentModel.createWebAppThread({
@@ -2171,6 +2332,7 @@ export class AiAgentService extends BaseService {
             userUuid: user.userUuid,
             createdFrom,
             agentUuid,
+            embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
         });
 
         if (body.prompt) {
@@ -2210,6 +2372,7 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         threadUuid: string,
         body: ApiAiAgentThreadMessageCreateRequest,
+        runtimeOptions?: EmbedAiAgentRuntimeOptions,
     ): Promise<ApiAiAgentThreadMessageCreateResponse['results']> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
@@ -2256,6 +2419,7 @@ export class AiAgentService extends BaseService {
             user,
             agent,
             body.context,
+            runtimeOptions?.spaceAccess,
         );
 
         const messageUuid = await this.aiAgentModel.createWebAppPrompt({
@@ -3698,11 +3862,13 @@ export class AiAgentService extends BaseService {
             threadUuid,
             enableSqlMode,
             toolHints,
+            runtimeOptions,
         }: {
             agentUuid: string;
             threadUuid: string;
             enableSqlMode: boolean;
             toolHints: string[];
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<AgentResponseStream> {
         try {
@@ -3753,12 +3919,223 @@ export class AiAgentService extends BaseService {
                     canManageAgent,
                     enableSqlMode,
                     toolHints,
+                    runtimeOptions,
                 },
             );
         } catch (e) {
             Logger.error('Failed to generate agent thread response:', e);
             throw new ParameterError(getUserFacingErrorMessage(e));
         }
+    }
+
+    async getEmbedAgentModelOptions(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+    ) {
+        const { user } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        return this.getModelOptions(user, projectUuid, agentUuid);
+    }
+
+    async getEmbedVerifiedQuestions(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+    ) {
+        const { user } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        return this.getVerifiedQuestions(user, agentUuid);
+    }
+
+    async getEmbedArtifact(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+        artifactUuid: string,
+        versionUuid?: string,
+    ) {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        const artifact = await this.getArtifact(
+            user,
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+        );
+        await this.assertEmbedThreadInSpace(
+            artifact.threadUuid,
+            runtimeOptions,
+        );
+        return artifact;
+    }
+
+    async getEmbedArtifactVizQuery(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+        artifactUuid: string,
+        versionUuid: string,
+    ) {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        return this.getArtifactVizQuery(user, {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            runtimeOptions,
+        });
+    }
+
+    async getEmbedDashboardArtifactChartVizQuery(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+        artifactUuid: string,
+        versionUuid: string,
+        chartIndex: number,
+    ) {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        return this.getDashboardArtifactChartVizQuery(user, {
+            projectUuid,
+            agentUuid,
+            artifactUuid,
+            versionUuid,
+            chartIndex,
+            runtimeOptions,
+        });
+    }
+
+    async getEmbedAgentThread(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+        threadUuid: string,
+    ) {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
+        return this.getAgentThread(user, agentUuid, threadUuid);
+    }
+
+    async createEmbedAgentThread(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+        body: ApiAiAgentThreadCreateRequest,
+    ) {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        return this.createAgentThread(
+            user,
+            agentUuid,
+            body,
+            'web_app',
+            runtimeOptions,
+        );
+    }
+
+    async createEmbedAgentThreadMessage(
+        account: AnonymousAccount,
+        projectUuid: string,
+        agentUuid: string,
+        threadUuid: string,
+        body: ApiAiAgentThreadMessageCreateRequest,
+    ) {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
+        return this.createAgentThreadMessage(
+            user,
+            agentUuid,
+            threadUuid,
+            body,
+            runtimeOptions,
+        );
+    }
+
+    async updateEmbedMessageSavedQuery(
+        account: AnonymousAccount,
+        projectUuid: string,
+        {
+            agentUuid,
+            messageUuid,
+            threadUuid,
+            savedQueryUuid,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            messageUuid: string;
+            savedQueryUuid: string | null;
+        },
+    ): Promise<void> {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
+        return this.updateMessageSavedQuery(user, {
+            agentUuid,
+            threadUuid,
+            messageUuid,
+            savedQueryUuid,
+        });
+    }
+
+    async streamEmbedAgentThreadResponse(
+        account: AnonymousAccount,
+        projectUuid: string,
+        {
+            agentUuid,
+            threadUuid,
+            toolHints,
+        }: {
+            agentUuid: string;
+            threadUuid: string;
+            toolHints: string[];
+        },
+    ) {
+        const { user, runtimeOptions } = await this.getEmbedAgent(
+            account,
+            projectUuid,
+            agentUuid,
+        );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
+        return this.streamAgentThreadResponse(user, {
+            agentUuid,
+            threadUuid,
+            enableSqlMode: false,
+            toolHints,
+            runtimeOptions,
+        });
     }
 
     async generateAgentThreadResponse(
@@ -3909,11 +4286,13 @@ export class AiAgentService extends BaseService {
             agentUuid,
             artifactUuid,
             versionUuid,
+            runtimeOptions,
         }: {
             projectUuid: string;
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<ApiAiAgentThreadMessageVizQuery> {
         const { organizationUuid } = user;
@@ -3937,16 +4316,17 @@ export class AiAgentService extends BaseService {
         // Check if user has access to this agent
         await this.getAgent(user, agentUuid, agent.projectUuid);
 
-        // Get the specific artifact version
-        const artifact = await this.aiAgentModel.getArtifact(
+        const artifact = await this.getArtifact(
+            user,
+            projectUuid,
+            agentUuid,
             artifactUuid,
             versionUuid,
         );
-        if (!artifact) {
-            throw new NotFoundError(
-                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
-            );
-        }
+        await this.assertEmbedThreadInSpace(
+            artifact.threadUuid,
+            runtimeOptions,
+        );
 
         if (!artifact.chartConfig) {
             throw new ParameterError(
@@ -4006,12 +4386,14 @@ export class AiAgentService extends BaseService {
             artifactUuid,
             versionUuid,
             chartIndex,
+            runtimeOptions,
         }: {
             projectUuid: string;
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
             chartIndex: number;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<ApiAiAgentThreadMessageVizQuery> {
         const { organizationUuid } = user;
@@ -4035,16 +4417,17 @@ export class AiAgentService extends BaseService {
         // Check if user has access to this agent
         await this.getAgent(user, agentUuid, agent.projectUuid);
 
-        // Get the specific artifact version
-        const artifact = await this.aiAgentModel.getArtifact(
+        const artifact = await this.getArtifact(
+            user,
+            projectUuid,
+            agentUuid,
             artifactUuid,
             versionUuid,
         );
-        if (!artifact) {
-            throw new NotFoundError(
-                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
-            );
-        }
+        await this.assertEmbedThreadInSpace(
+            artifact.threadUuid,
+            runtimeOptions,
+        );
 
         if (
             artifact.artifactType !== 'dashboard' ||
@@ -5180,6 +5563,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             // tool. Only invoked for web prompts; Slack prompts route through
             // updateSlackResponseWithProgress instead.
             onStepProgress?: (progress: string, toolName?: string) => void;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ) {
         const { projectUuid, organizationUuid } = prompt;
@@ -5193,7 +5577,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             catalogSearchContext: CatalogSearchContext.AI_AGENT,
             defaultQueryExecutionContext: QueryExecutionContext.AI,
             tags: runtimeAgentSettings.tags,
-            spaceAccess: runtimeAgentSettings.spaceAccess,
+            spaceAccess:
+                options?.runtimeOptions?.spaceAccess ??
+                runtimeAgentSettings.spaceAccess,
+            userAttributeOverrides:
+                options?.runtimeOptions?.userAttributeOverrides,
             agentUuid: runtimeAgentSettings.uuid,
         });
 
@@ -5529,6 +5917,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<AgentResponseStream>;
     async generateOrStreamAgentResponse(
@@ -5541,6 +5930,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -5553,6 +5943,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<string>;
     async generateOrStreamAgentResponse(
@@ -5564,6 +5955,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSqlMode?: boolean;
             autoApproveSql?: boolean;
             toolHints?: string[];
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         } & (
             | {
                   prompt: AiWebAppPrompt;
@@ -5644,6 +6036,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                           toolName,
                       })
                 : undefined,
+            runtimeOptions: options.runtimeOptions,
         });
 
         const enableSqlMode = options.enableSqlMode ?? false;
@@ -10083,6 +10476,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             artifactUuid,
             versionUuid,
         );
+        if (!artifact) {
+            throw new NotFoundError(
+                `Artifact version not found: ${artifactUuid}/${versionUuid}`,
+            );
+        }
         const artifactThread = await this.aiAgentModel.findThread(
             artifact.threadUuid,
         );

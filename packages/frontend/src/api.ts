@@ -250,13 +250,10 @@ export const lightdashApiStream = ({
         },
     );
 
-    return fetch(`${apiPrefix}${url}`, {
+    const embed = getFromInMemoryStorage<InMemoryEmbed>(EMBED_KEY);
+    return fetch(finalizeUrl(`${apiPrefix}${url}`, embed), {
         method,
-        headers: {
-            ...getDefaultHeaders(),
-            ...headers,
-            ...(sentryTrace ? { 'sentry-trace': sentryTrace } : {}),
-        },
+        headers: finalizeHeaders(headers, embed, sentryTrace),
         body,
         signal,
     }).then(async (r) => {

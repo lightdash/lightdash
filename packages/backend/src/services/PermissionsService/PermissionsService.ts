@@ -95,6 +95,10 @@ export class PermissionsService extends BaseService {
                 throw new ForbiddenError(
                     'Data app embeds cannot access charts',
                 );
+            case 'aiAgent':
+                throw new ForbiddenError(
+                    'AI agent embeds cannot access charts',
+                );
             default:
                 return assertUnreachable(
                     content.type,

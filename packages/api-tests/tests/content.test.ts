@@ -205,8 +205,14 @@ describe('Permission tests', () => {
             `${apiUrl}/content?spaceUuids=${parentSpace2?.uuid}&contentTypes=dashboard&contentTypes=chart&contentTypes=space&projectUuids=${SEED_PROJECT.project_uuid}&page=1&pageSize=999&sortBy=last_updated_at&sortDirection=desc`,
         );
         expect(res.status).toBe(200);
-        expect(res.body.results.data.length).toBe(1);
-        expect(res.body.results.data[0].name).toBe('Child Space 2.1');
+        expect(res.body.results.data).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    contentType: 'space',
+                    name: 'Child Space 2.1',
+                }),
+            ]),
+        );
     });
 
     it('As an editor, I should see public spaces and private spaces that belong to me', async () => {

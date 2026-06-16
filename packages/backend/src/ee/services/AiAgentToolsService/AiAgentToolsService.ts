@@ -935,6 +935,56 @@ export class AiAgentToolsService extends BaseService {
         }
     }
 
+    private async assertDashboardSpaceInScope(
+        context: AiAgentToolsRuntimeContext,
+        dashboardUuidOrSlug: string,
+        notFoundMessage: string,
+    ) {
+        if (!context.spaceAccess || context.spaceAccess.length === 0) {
+            return;
+        }
+
+        const dashboard = await this.dashboardService.getByIdOrSlug(
+            context.user,
+            dashboardUuidOrSlug,
+            { projectUuid: context.projectUuid },
+        );
+
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                dashboard.spaceUuid,
+            )
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
+    }
+
+    private async assertSavedChartSpaceInScope(
+        context: AiAgentToolsRuntimeContext,
+        chartUuid: string,
+        notFoundMessage: string,
+    ) {
+        if (!context.spaceAccess || context.spaceAccess.length === 0) {
+            return;
+        }
+
+        const savedChart = await this.savedChartService.get(
+            chartUuid,
+            context.account,
+            { projectUuid: context.projectUuid },
+        );
+
+        if (
+            !AiAgentToolsService.hasAgentSpaceAccess(
+                context.spaceAccess,
+                savedChart.spaceUuid,
+            )
+        ) {
+            throw new NotFoundError(notFoundMessage);
+        }
+    }
+
     private readContent(
         context: AiAgentToolsRuntimeContext,
         { slug, type }: Parameters<ReadContentFn>[0],
@@ -1289,6 +1339,12 @@ export class AiAgentToolsService extends BaseService {
                 );
 
                 if (!args.dashboardSlug) {
+                    await this.assertSavedChartSpaceInScope(
+                        context,
+                        args.chartUuid,
+                        `Chart not found: ${args.chartUuid}`,
+                    );
+
                     return this.asyncQueryService.executeSavedChartQueryAndGetResults(
                         {
                             account: context.account,
@@ -1305,6 +1361,16 @@ export class AiAgentToolsService extends BaseService {
                     args.dashboardSlug,
                     { projectUuid: context.projectUuid },
                 );
+                if (
+                    !AiAgentToolsService.hasAgentSpaceAccess(
+                        context.spaceAccess,
+                        dashboard.spaceUuid,
+                    )
+                ) {
+                    throw new NotFoundError(
+                        `Dashboard not found: ${args.dashboardSlug}`,
+                    );
+                }
                 const tile = dashboard.tiles.find(
                     (dashboardTile) =>
                         isDashboardChartTileType(dashboardTile) &&
@@ -1480,14 +1546,21 @@ export class AiAgentToolsService extends BaseService {
         return wrapSentryTransaction(
             `${AiAgentToolsService.transactionPrefix(context)}.getDashboardCharts`,
             args,
-            () =>
-                this.dashboardService.getDashboardCharts(
+            async () => {
+                await this.assertDashboardSpaceInScope(
+                    context,
+                    args.dashboardUuid,
+                    `Dashboard not found: ${args.dashboardUuid}`,
+                );
+
+                return this.dashboardService.getDashboardCharts(
                     context.user,
                     context.projectUuid,
                     args.dashboardUuid,
                     args.page,
                     args.pageSize,
-                ),
+                );
+            },
         );
     }
 
@@ -1589,9 +1662,30 @@ export class AiAgentToolsService extends BaseService {
         context: AiAgentToolsRuntimeContext,
         chartUuid: Parameters<GetSavedChartFn>[0],
     ): ReturnType<GetSavedChartFn> {
-        return this.savedChartService.get(chartUuid, context.account, {
-            projectUuid: context.projectUuid,
-        });
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.getSavedChart`,
+            { chartUuid },
+            async () => {
+                const savedChart = await this.savedChartService.get(
+                    chartUuid,
+                    context.account,
+                    {
+                        projectUuid: context.projectUuid,
+                    },
+                );
+
+                if (
+                    !AiAgentToolsService.hasAgentSpaceAccess(
+                        context.spaceAccess,
+                        savedChart.spaceUuid,
+                    )
+                ) {
+                    throw new NotFoundError(`Chart not found: ${chartUuid}`);
+                }
+
+                return savedChart;
+            },
+        );
     }
 
     private setupPreviewDeploy(

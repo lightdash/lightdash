@@ -1564,6 +1564,111 @@ describe('AsyncQueryService', () => {
             jest.clearAllMocks();
         });
 
+        const buildEmbedAiAccount = (embedWriteUserUuid: string) =>
+            ({
+                ...buildAccount({
+                    accountType: 'jwt',
+                    userType: 'anonymous',
+                }),
+                user: {
+                    ...buildAccount({
+                        accountType: 'jwt',
+                        userType: 'anonymous',
+                    }).user,
+                    ability: new Ability<PossibleAbilities>([]),
+                },
+                embedWriteContext: {
+                    canCreateSavedChart: true,
+                    canUseAiAgent: true,
+                },
+                embedWriteUser: {
+                    ...sessionAccount.user,
+                    userUuid: embedWriteUserUuid,
+                },
+            }) as unknown as Account;
+
+        const buildPendingAiQueryHistory = (
+            createdByUserUuid: string,
+        ): QueryHistory => ({
+            createdAt: new Date(),
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            createdByUserUuid,
+            createdBy: createdByUserUuid,
+            createdByAccount: null,
+            createdByActorType: 'session',
+            queryUuid: 'test-query-uuid',
+            projectUuid,
+            status: QueryHistoryStatus.PENDING,
+            error: null,
+            erroredAt: null,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.AI,
+            fields: validExplore.tables.a.dimensions,
+            compiledSql: 'SELECT * FROM test.table',
+            warehouseQueryId: 'test-warehouse-query-id',
+            warehouseQueryMetadata: null,
+            requestParameters: {} as ExecuteAsyncQueryRequestParams,
+            totalRowCount: null,
+            warehouseExecutionTimeMs: null,
+            defaultPageSize: 10,
+            cacheKey: 'test-query-key',
+            pivotConfiguration: null,
+            pivotTotalColumnCount: null,
+            pivotValuesColumns: null,
+            resultsFileName: null,
+            resultsCreatedAt: null,
+            resultsUpdatedAt: null,
+            resultsExpiresAt: null,
+            columns: null,
+            originalColumns: null,
+            preAggregateCompiledSql: null,
+            processingStartedAt: null,
+        });
+
+        test('allows embedded AI agent JWTs to poll AI queries created by the embed write user', async () => {
+            const embedWriteUserUuid = 'embed-write-user-uuid';
+            const embedAiAccount = buildEmbedAiAccount(embedWriteUserUuid);
+
+            serviceWithCache.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(
+                    buildPendingAiQueryHistory(embedWriteUserUuid),
+                );
+
+            await expect(
+                serviceWithCache.getAsyncQueryResults({
+                    account: embedAiAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                }),
+            ).resolves.toEqual({
+                status: QueryHistoryStatus.PENDING,
+                queryUuid: 'test-query-uuid',
+            });
+        });
+
+        test('rejects embedded AI agent JWTs polling AI queries from another user', async () => {
+            const embedAiAccount = buildEmbedAiAccount('embed-write-user-uuid');
+
+            serviceWithCache.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(
+                    buildPendingAiQueryHistory('other-user-uuid'),
+                );
+
+            await expect(
+                serviceWithCache.getAsyncQueryResults({
+                    account: embedAiAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                }),
+            ).rejects.toThrow(ForbiddenError);
+        });
+
         test('Error and Status Scenarios - Combined', async () => {
             // Helper function to create mock query history
             const createMockQueryHistory = (

@@ -18,6 +18,7 @@ import {
 } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { isEmbedAiAgentRoute } from './aiAgentRouting';
 
 export const PROJECT_AI_MCP_SERVERS_KEY = 'projectAiMcpServers';
 export const AGENT_AI_MCP_SERVERS_KEY = 'agentAiMcpServers';
@@ -244,8 +245,11 @@ export const useProjectAiMcpServers = (
     return useQuery<ApiAiMcpServerListResponse['results'], ApiError>({
         queryKey: [PROJECT_AI_MCP_SERVERS_KEY, projectUuid],
         queryFn: () => listProjectAiMcpServers(projectUuid!),
-        enabled: !!projectUuid && options?.enabled !== false,
         ...options,
+        enabled:
+            !isEmbedAiAgentRoute() &&
+            !!projectUuid &&
+            options?.enabled !== false,
         onError: (error) => {
             showToastApiError({
                 title: 'Failed to fetch MCP servers',
@@ -266,8 +270,12 @@ export const useAgentAiMcpServers = (
     return useQuery<ApiAiMcpServerListResponse['results'], ApiError>({
         queryKey: [AGENT_AI_MCP_SERVERS_KEY, projectUuid, agentUuid],
         queryFn: () => listAgentAiMcpServers(projectUuid!, agentUuid!),
-        enabled: !!projectUuid && !!agentUuid && options?.enabled !== false,
         ...options,
+        enabled:
+            !isEmbedAiAgentRoute() &&
+            !!projectUuid &&
+            !!agentUuid &&
+            options?.enabled !== false,
         onError: (error) => {
             showToastApiError({
                 title: 'Failed to fetch agent MCP servers',
@@ -370,8 +378,11 @@ export const useGithubMcpAvailability = (
     useQuery<ApiAiMcpGithubAvailabilityResponse['results'], ApiError>({
         queryKey: [GITHUB_MCP_AVAILABILITY_KEY, projectUuid],
         queryFn: () => getGithubMcpAvailability(projectUuid!),
-        enabled: !!projectUuid && options?.enabled !== false,
         ...options,
+        enabled:
+            !isEmbedAiAgentRoute() &&
+            !!projectUuid &&
+            options?.enabled !== false,
     });
 
 export const useConnectGithubMcpServerMutation = (projectUuid: string) => {

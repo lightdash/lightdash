@@ -795,11 +795,12 @@ export class ProjectService extends BaseService {
             ? user.organizationUuid
             : account.organization.organizationUuid;
         const email = user ? user.email : account.user.email;
+        const isServiceAccountPrincipal =
+            account?.isServiceAccount() || !!user?.serviceAccount;
 
-        // Service accounts have no email and no row in the `emails` table —
-        // `getPrimaryEmailStatus` would 404. They also have no intrinsic
-        // email attributes to attach.
-        if (account?.isServiceAccount()) {
+        // Service-account principals have no email row, so they have no
+        // intrinsic email attributes to attach.
+        if (isServiceAccountPrincipal || !email) {
             const userAttributes =
                 await this.userAttributesModel.getAttributeValuesForOrgMember({
                     organizationUuid: organizationUuid || '',

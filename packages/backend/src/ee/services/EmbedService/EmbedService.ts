@@ -40,6 +40,7 @@ import {
     getItemId,
     InteractivityOptions,
     IntrinsicUserAttributes,
+    isAiAgentContent,
     isChartContent,
     isDashboardChartTileType,
     isDashboardContent,
@@ -214,6 +215,8 @@ export class EmbedService extends BaseService {
             urlPath = `/embed/${projectUuid}/chart/${jwtData.content.contentId}#${jwtToken}`;
         } else if (jwtData.content.type === 'dataApp') {
             urlPath = `/embed/${projectUuid}/app/${jwtData.content.appUuid}#${jwtToken}`;
+        } else if (jwtData.content.type === 'aiAgent') {
+            urlPath = `/embed/${projectUuid}/ai-agents/${jwtData.content.agentUuid}/threads#${jwtToken}`;
         } else {
             urlPath = `/embed/${projectUuid}#${jwtToken}`;
         }
@@ -508,6 +511,16 @@ export class EmbedService extends BaseService {
                 chartUuids: [],
                 type: 'dataApp',
                 explores: [],
+            };
+        }
+
+        if (isAiAgentContent(decodedToken.content)) {
+            return {
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'aiAgent',
+                explores: [],
+                agentUuid: decodedToken.content.agentUuid,
             };
         }
 
@@ -1671,6 +1684,10 @@ export class EmbedService extends BaseService {
                 throw new ForbiddenError(
                     'Data app embeds cannot access saved charts',
                 );
+            case 'aiAgent':
+                throw new ForbiddenError(
+                    'AI agent embeds cannot access saved charts',
+                );
             case 'dashboard':
                 break;
             default:
@@ -2352,35 +2369,91 @@ export class EmbedService extends BaseService {
                 );
 
             if (spaceAccessContext.projectUuid !== projectUuid) {
-                return { canCreateSavedChart: false };
+                return {
+                    canCreateSavedChart: false,
+                    canUseAiAgent: false,
+                    aiAgentErrorMessage:
+                        'Embed token write actions must use a space in the embedded project',
+                };
             }
 
             const auditedAbility = this.createAuditedAbility(embedWriteUser);
+            const canCreateSavedChart = auditedAbility.can(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject:
+                        spaceAccessContext.inheritsFromOrgOrProject,
+                    access: spaceAccessContext.access,
+                    metadata: {
+                        resolvedSpaceUuid: writeActions.spaceUuid,
+                        dashboardUuid: undefined,
+                    },
+                }),
+            );
+            const canViewProject = auditedAbility.can(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            );
+            const canUseAiAgent =
+                decodedToken.content.type === 'aiAgent' &&
+                canCreateSavedChart &&
+                canViewProject;
+
             return {
-                canCreateSavedChart: auditedAbility.can(
-                    'create',
-                    subject('SavedChart', {
-                        organizationUuid,
-                        projectUuid,
-                        inheritsFromOrgOrProject:
-                            spaceAccessContext.inheritsFromOrgOrProject,
-                        access: spaceAccessContext.access,
-                        metadata: {
-                            resolvedSpaceUuid: writeActions.spaceUuid,
-                            dashboardUuid: undefined,
-                        },
-                    }),
-                ),
+                canCreateSavedChart,
+                canUseAiAgent,
+                aiAgentErrorMessage: canUseAiAgent
+                    ? undefined
+                    : EmbedService.getEmbedAiAgentErrorMessage({
+                          isAiAgentToken:
+                              decodedToken.content.type === 'aiAgent',
+                          canCreateSavedChart,
+                          canViewProject,
+                      }),
             };
         } catch (error) {
             if (
                 error instanceof ForbiddenError ||
                 error instanceof NotFoundError
             ) {
-                return { canCreateSavedChart: false };
+                return {
+                    canCreateSavedChart: false,
+                    canUseAiAgent: false,
+                    aiAgentErrorMessage:
+                        'Embed token write actions must use a space the write actor can access',
+                };
             }
             throw error;
         }
+    }
+
+    private static getEmbedAiAgentErrorMessage({
+        isAiAgentToken,
+        canCreateSavedChart,
+        canViewProject,
+    }: {
+        isAiAgentToken: boolean;
+        canCreateSavedChart: boolean;
+        canViewProject: boolean;
+    }) {
+        if (!isAiAgentToken) {
+            return 'Embed token content must be an AI agent';
+        }
+
+        if (!canCreateSavedChart) {
+            return 'Embed token write actor cannot create charts in the configured space';
+        }
+
+        if (!canViewProject) {
+            return 'Embed token write actor cannot view the embedded project';
+        }
+
+        return 'Embed token does not allow AI agent actions';
     }
 
     private async getEmbedWriteUser(

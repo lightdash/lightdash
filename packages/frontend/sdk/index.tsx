@@ -62,6 +62,14 @@ type DashboardBuilderProps = DashboardProps & {
     onDashboardReady?: (dashboard: EmbedDashboardType) => void;
 };
 
+type AiAgentProps = Omit<
+    BaseProps,
+    'contentOverrides' | 'filters' | 'onExplore'
+> & {
+    agentUuid: string;
+    threadUuid?: string;
+};
+
 const decodeJWT = (token: string) => {
     const splits = token.split('.');
     if (splits.length !== 3) {
@@ -161,6 +169,37 @@ const getDashboardContainerStyles = (
         styles?.backgroundColor ??
         (theme ? 'var(--mantine-color-body)' : undefined),
 });
+
+const getAiAgentEmbedUrl = ({
+    agentUuid,
+    instanceUrl,
+    projectUuid,
+    theme,
+    threadUuid,
+    token,
+}: {
+    agentUuid: string;
+    instanceUrl: string;
+    projectUuid: string;
+    theme: AiAgentProps['theme'];
+    threadUuid?: string;
+    token: string;
+}) => {
+    const normalizedInstanceUrl = instanceUrl.endsWith('/')
+        ? instanceUrl
+        : `${instanceUrl}/`;
+    const path = threadUuid
+        ? `embed/${projectUuid}/ai-agents/${agentUuid}/threads/${threadUuid}`
+        : `embed/${projectUuid}/ai-agents/${agentUuid}/threads`;
+    const url = new URL(path, normalizedInstanceUrl);
+
+    if (theme) {
+        url.searchParams.set('theme', theme);
+    }
+
+    url.hash = token;
+    return url.toString();
+};
 
 const SdkProviders: FC<
     PropsWithChildren<{
@@ -548,7 +587,45 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
     );
 };
 
+const AiAgent: FC<AiAgentProps> = ({
+    agentUuid,
+    instanceUrl,
+    styles,
+    theme,
+    threadUuid,
+    token: tokenOrTokenPromise,
+}) => {
+    const tokenContext = useEmbedTokenContext(instanceUrl, tokenOrTokenPromise);
+
+    if (!tokenContext) {
+        return null;
+    }
+
+    return (
+        <iframe
+            title="Lightdash AI agent"
+            src={getAiAgentEmbedUrl({
+                agentUuid,
+                instanceUrl,
+                projectUuid: tokenContext.projectUuid,
+                theme,
+                threadUuid,
+                token: tokenContext.token,
+            })}
+            style={{
+                width: '100%',
+                height: '100%',
+                border: 0,
+                backgroundColor:
+                    styles?.backgroundColor ??
+                    (theme ? 'var(--mantine-color-body)' : undefined),
+            }}
+        />
+    );
+};
+
 const Lightdash = {
+    AiAgent,
     Dashboard,
     DashboardBuilder,
     Explore,
@@ -557,6 +634,6 @@ const Lightdash = {
 };
 
 // ts-unused-exports:disable-next-line
-export { Chart, Dashboard, DashboardBuilder, Explore, FilterOperator };
+export { AiAgent, Chart, Dashboard, DashboardBuilder, Explore, FilterOperator };
 // ts-unused-exports:disable-next-line
 export default Lightdash;
