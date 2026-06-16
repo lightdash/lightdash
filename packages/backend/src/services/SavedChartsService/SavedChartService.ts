@@ -1220,10 +1220,16 @@ export class SavedChartService
         const { access, inheritsFromOrgOrProject } =
             await this.checkPermissions(account, space, savedChart);
 
-        await this.analyticsModel.addChartViewEvent(
-            savedChart.uuid,
-            account.isRegisteredUser() ? account.user.id : null,
-        );
+        void this.analyticsModel
+            .addChartViewEvent(
+                savedChart.uuid,
+                account.isRegisteredUser() ? account.user.id : null,
+            )
+            .catch((e) =>
+                this.logger.warn('Failed to track chart view event', {
+                    error: e,
+                }),
+            );
 
         this.analytics.trackAccount(account, {
             event: 'saved_chart.view',
