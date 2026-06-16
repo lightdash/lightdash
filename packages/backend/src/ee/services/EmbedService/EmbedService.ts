@@ -2225,6 +2225,7 @@ export class EmbedService extends BaseService {
                 search,
                 limit,
                 filters,
+                organizationUuid: dashboard.organizationUuid,
             });
 
         const useTimezoneAwareDateTrunc =

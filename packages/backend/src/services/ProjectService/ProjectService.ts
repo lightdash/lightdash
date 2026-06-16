@@ -5475,6 +5475,7 @@ export class ProjectService extends BaseService {
         search,
         limit,
         filters,
+        organizationUuid: organizationUuidArg,
     }: {
         projectUuid: string;
         table: string;
@@ -5482,9 +5483,11 @@ export class ProjectService extends BaseService {
         search: string;
         limit: unknown;
         filters: AndFilterGroup | undefined;
+        organizationUuid?: string;
     }) {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = organizationUuidArg
+            ? { organizationUuid: organizationUuidArg }
+            : await this.projectModel.getSummary(projectUuid);
         const { maxLimit } = await resolveOrganizationExportLimits(
             this.organizationSettingsModel,
             this.lightdashConfig.query,
@@ -5536,6 +5539,7 @@ export class ProjectService extends BaseService {
                 search,
                 limit,
                 filters,
+                organizationUuid,
             });
 
         const [
