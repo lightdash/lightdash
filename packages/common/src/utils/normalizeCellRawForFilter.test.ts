@@ -33,30 +33,31 @@ const stringDim: Field = {
 // Paris Nov 2024 — UTC instant emitted by the DATE_TRUNC round-trip on a
 // TIMESTAMP-base interval.
 const parisNovInstant = '2024-10-31T23:00:00Z';
-// NY Nov 2024.
-const nyNovInstant = '2024-11-01T05:00:00Z';
-// DATE-base interval value (calendar date encoded at UTC midnight).
+// DATE interval value (calendar date encoded at UTC midnight).
 const dateBaseNov = '2024-11-01T00:00:00Z';
 
 describe('normalizeCellRawForFilter', () => {
-    test('TIMESTAMP-base: positive offset shifts UTC instant into project TZ', () => {
+    // GLITCH-452: a day-or-coarser TIMESTAMP-base trunc now compiles to a real
+    // DATE, so the drilled value is already a calendar date — returned as-is
+    // regardless of the project timezone, exactly like a DATE-base interval.
+    test('TIMESTAMP-base (GLITCH-452): real DATE returned as-is (positive offset)', () => {
         expect(
             normalizeCellRawForFilter(
-                parisNovInstant,
+                dateBaseNov,
                 buildTimeIntervalDim(DimensionType.TIMESTAMP),
                 'Europe/Paris',
             ),
-        ).toBe('2024-11-01');
+        ).toBe(dateBaseNov);
     });
 
-    test('TIMESTAMP-base: negative offset preserves the displayed bucket', () => {
+    test('TIMESTAMP-base (GLITCH-452): real DATE returned as-is (negative offset)', () => {
         expect(
             normalizeCellRawForFilter(
-                nyNovInstant,
+                dateBaseNov,
                 buildTimeIntervalDim(DimensionType.TIMESTAMP),
                 'America/New_York',
             ),
-        ).toBe('2024-11-01');
+        ).toBe(dateBaseNov);
     });
 
     test('DATE-base: negative offset must NOT shift the calendar date back', () => {

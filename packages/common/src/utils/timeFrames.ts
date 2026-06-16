@@ -719,15 +719,20 @@ export const getSqlForTruncatedDate = (
     startOfWeek?: WeekDay | null,
     timezone?: string,
     sourceTimezone?: string,
+    castDayGrainToDate: boolean = false,
 ): string => {
     const wrap = resolveTimezoneWrap(type, timezone, sourceTimezone);
+    // GLITCH-452: day-or-coarser grains emit a real DATE so the warehouse type
+    // matches the metadata; sub-day grains stay TIMESTAMP.
+    const castToDate = castDayGrainToDate && !isSubDayTimeFrame(timeFrame);
     if (!wrap) {
-        return warehouseConfigs[adapterType].getSqlForTruncatedDate(
+        const bare = warehouseConfigs[adapterType].getSqlForTruncatedDate(
             timeFrame,
             originalSql,
             type,
             startOfWeek,
         );
+        return castToDate ? `CAST(${bare} AS DATE)` : bare;
     }
 
     const { toProjectTz, toUTC } = dateTruncTimezoneConversions[adapterType];
@@ -739,7 +744,17 @@ export const getSqlForTruncatedDate = (
         startOfWeek,
         wrap.timezone,
     );
-    return toUTC(truncated, wrap.timezone);
+    // Day-or-coarser grains return a real DATE (drop the toUTC round-trip).
+    // Most adapters truncate to a wall-clock value, so CAST(... AS DATE) yields
+    // the right calendar date. BigQuery's TIMESTAMP_TRUNC returns the tz-midnight
+    // UTC instant, so CAST(... AS DATE) would read its UTC date — off by one in
+    // positive offsets; DATE(expr, tz) reads the calendar date in the project tz.
+    if (!castToDate) {
+        return toUTC(truncated, wrap.timezone);
+    }
+    return adapterType === SupportedDbtAdapter.BIGQUERY
+        ? `DATE(${truncated}, '${wrap.timezone}')`
+        : `CAST(${truncated} AS DATE)`;
 };
 
 // DATE base dimensions short-circuit: no time component to shift.

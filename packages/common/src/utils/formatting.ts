@@ -227,8 +227,9 @@ export const toIsoWithProjectOffset = (
     return m.tz(timezone).toISOString(true);
 };
 
-// TIMESTAMPs and TIMESTAMP-base DATE intervals shift; calendar DATEs and dims
-// with `skipTimezoneConversion` stay put. Keyed off getItemType so it classifies
+// Only TIMESTAMP instants shift; calendar DATEs (incl. day-or-coarser truncs,
+// which now compile to a real DATE — GLITCH-452) and dims with
+// `skipTimezoneConversion` stay put. Keyed off getItemType so it classifies
 // non-field items (table calcs, custom dims) by their resolved type too. Used by
 // spreadsheet exports.
 export const shouldShiftItemTimezone = (
@@ -236,26 +237,20 @@ export const shouldShiftItemTimezone = (
 ): boolean => {
     if (!item) return false;
     if (isDimension(item) && item.skipTimezoneConversion) return false;
-    const type = getItemType(item);
-    if (type === DimensionType.TIMESTAMP) return true;
-    return (
-        type === DimensionType.DATE &&
-        isDimension(item) &&
-        item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
-    );
+    return getItemType(item) === DimensionType.TIMESTAMP;
 };
 
-// A bare wall-clock DATE that must never be shifted. Keyed off getItemType so it
-// also covers DATE metrics and table calcs; a DATE-base-TIMESTAMP dim still shifts.
+// A calendar value is a bare wall-clock date (year/month/day, no instant) that
+// must never be timezone-shifted. GLITCH-452: every DATE-typed item is now a
+// calendar value — plain DATE columns, DATE-base truncs, DATE metrics, and
+// day-or-coarser truncs of a TIMESTAMP base (which now compile to a real DATE).
+// Only TIMESTAMP-typed items are instants. Keyed off getItemType so it also
+// covers DATE metrics and table calcs.
 export const isCalendarValueItem = (
     item: Item | AdditionalMetric | undefined,
 ): boolean => {
     if (!item) return false;
-    if (getItemType(item) !== DimensionType.DATE) return false;
-    return !(
-        isDimension(item) &&
-        item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
-    );
+    return getItemType(item) === DimensionType.DATE;
 };
 
 // A Date or a datetime string (not a date-only string).
@@ -288,8 +283,8 @@ export const getFormatterTimezone = (
 // Renders a temporal cell as the wall-clock string Excel and Google Sheets
 // auto-detect as a date. TIMESTAMP → `YYYY-MM-DD HH:mm:ss.SSS`, DATE →
 // `YYYY-MM-DD`. Shifts into the project tz when the item is timezone-
-// shiftable (TIMESTAMP / DATE-base-TS) and a timezone is supplied; calendar
-// DATEs are formatted as-is. Returns undefined for non-temporal fields or
+// shiftable (TIMESTAMP only — GLITCH-452 makes day-grain DATEs calendar values)
+// and a timezone is supplied; calendar DATEs are formatted as-is. Returns undefined for non-temporal fields or
 // unparseable values so callers can fall through to their existing
 // formatting path.
 export const formatTemporalCellForSpreadsheet = (
