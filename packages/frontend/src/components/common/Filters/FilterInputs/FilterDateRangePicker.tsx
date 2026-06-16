@@ -9,20 +9,26 @@ interface Props extends Omit<
     DateInputProps,
     'firstDayOfWeek' | 'getDayProps' | 'value' | 'onChange'
 > {
-    value: [Date, Date] | null;
+    startValue: Date | null;
+    endValue: Date | null;
     onChange: (value: [Date, Date] | null) => void;
     firstDayOfWeek: DayOfWeek;
+    invalidStartValue?: string;
+    invalidEndValue?: string;
 }
 
 const FilterDateRangePicker: FC<Props> = ({
-    value,
+    startValue,
+    endValue,
     disabled,
     firstDayOfWeek,
     onChange,
+    invalidStartValue,
+    invalidEndValue,
     ...rest
 }) => {
-    const [date1, setDate1] = useState(value?.[0] ?? null);
-    const [date2, setDate2] = useState(value?.[1] ?? null);
+    const [date1, setDate1] = useState(startValue);
+    const [date2, setDate2] = useState(endValue);
 
     return (
         <Flex align="center" w="100%" gap="xxs">
@@ -34,6 +40,7 @@ const FilterDateRangePicker: FC<Props> = ({
                     date2 ? dayjs(date2).subtract(1, 'day').toDate() : undefined
                 }
                 firstDayOfWeek={firstDayOfWeek}
+                invalidValue={invalidStartValue}
                 {...rest}
                 value={date1}
                 onChange={(newDate) => {
@@ -55,6 +62,7 @@ const FilterDateRangePicker: FC<Props> = ({
                 placeholder="End date"
                 minDate={dayjs(date1).add(1, 'day').toDate()}
                 firstDayOfWeek={firstDayOfWeek}
+                invalidValue={invalidEndValue}
                 {...rest}
                 value={date2}
                 onChange={(newDate) => {

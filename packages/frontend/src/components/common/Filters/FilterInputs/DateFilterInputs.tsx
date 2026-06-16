@@ -5,7 +5,6 @@ import {
     isCustomSqlDimension,
     isDimension,
     isFilterRule,
-    parseDate,
     TimeFrames,
     timeframeToUnitOfTime,
     type BaseFilterRule,
@@ -17,6 +16,10 @@ import { type FilterInputsProps } from '.';
 import useFiltersContext from '../useFiltersContext';
 import { getFirstDayOfWeek } from '../utils/filterDateUtils';
 import { getPlaceholderByFilterTypeAndOperator } from '../utils/getPlaceholderByFilterTypeAndOperator';
+import {
+    getInvalidDateFilterValue,
+    parseFilterDateValue,
+} from './DateFilterInputs.utils';
 import DefaultFilterInputs from './DefaultFilterInputs';
 import FilterDatePicker from './FilterDatePicker';
 import FilterDateRangePicker from './FilterDateRangePicker';
@@ -49,6 +52,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
         operator: rule.operator,
         disabled: rule.disabled && !rule.values,
     });
+    const invalidDateFilterValue = getInvalidDateFilterValue(rule.values);
 
     switch (rule.operator) {
         case FilterOperator.EQUALS:
@@ -74,13 +78,11 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                     placeholder={placeholder}
                                     disabled={disabled}
                                     data-autofocus
+                                    invalidValue={invalidDateFilterValue}
                                     value={
                                         rule.values && rule.values[0]
-                                            ? parseDate(
-                                                  formatDate(
-                                                      rule.values[0],
-                                                      TimeFrames.WEEK,
-                                                  ),
+                                            ? parseFilterDateValue(
+                                                  rule.values[0],
                                                   TimeFrames.WEEK,
                                               )
                                             : null
@@ -117,13 +119,11 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 placeholder={placeholder}
                                 data-autofocus
                                 popoverProps={popoverProps}
+                                invalidValue={invalidDateFilterValue}
                                 value={
                                     rule.values && rule.values[0]
-                                        ? parseDate(
-                                              formatDate(
-                                                  rule.values[0],
-                                                  TimeFrames.MONTH,
-                                              ),
+                                        ? parseFilterDateValue(
+                                              rule.values[0],
                                               TimeFrames.MONTH,
                                           )
                                         : null
@@ -141,7 +141,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     case TimeFrames.QUARTER:
                         const ruleValue = rule.values?.[0];
                         const parsedValue = ruleValue
-                            ? parseDate(ruleValue, TimeFrames.DAY)
+                            ? parseFilterDateValue(ruleValue, TimeFrames.DAY)
                             : null;
                         return (
                             <FilterQuarterPicker
@@ -149,6 +149,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 placeholder={placeholder}
                                 data-autofocus
                                 popoverProps={popoverProps}
+                                invalidValue={invalidDateFilterValue}
                                 value={parsedValue}
                                 onChange={(newDate: Date) => {
                                     onChange({
@@ -169,13 +170,11 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                                 placeholder={placeholder}
                                 data-autofocus
                                 popoverProps={popoverProps}
+                                invalidValue={invalidDateFilterValue}
                                 value={
                                     rule.values && rule.values[0]
-                                        ? parseDate(
-                                              formatDate(
-                                                  rule.values[0],
-                                                  TimeFrames.YEAR,
-                                              ),
+                                        ? parseFilterDateValue(
+                                              rule.values[0],
                                               TimeFrames.YEAR,
                                           )
                                         : null
@@ -199,12 +198,10 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
             }
 
             if (isTimestamp) {
-                // For display only
-
-                let value =
-                    rule.values && rule.values[0]
+                const value =
+                    rule.values && rule.values[0] && !invalidDateFilterValue
                         ? dayjs(rule?.values?.[0]).toDate()
-                        : dayjs().toDate(); // Create
+                        : dayjs().toDate();
 
                 return (
                     <FilterDateTimePicker
@@ -219,6 +216,7 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                         // so we need to do it manually and always pass it as a prop
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                         popoverProps={popoverProps}
+                        invalidValue={invalidDateFilterValue}
                         value={value}
                         onChange={(v: Date | null) => {
                             onChange({
@@ -241,10 +239,11 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
                     popoverProps={popoverProps}
                     data-autofocus
+                    invalidValue={invalidDateFilterValue}
                     value={
                         rule.values
-                            ? parseDate(
-                                  formatDate(rule.values[0], TimeFrames.DAY),
+                            ? parseFilterDateValue(
+                                  rule.values[0],
                                   TimeFrames.DAY,
                               )
                             : null
@@ -343,20 +342,32 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 />
             );
         case FilterOperator.IN_BETWEEN:
+            const invalidStartValue = getInvalidDateFilterValue(
+                rule.values?.[0] ? [rule.values[0]] : undefined,
+            );
+            const invalidEndValue = getInvalidDateFilterValue(
+                rule.values?.[1] ? [rule.values[1]] : undefined,
+            );
+
             if (isTimestamp) {
+                const startDate =
+                    rule.values?.[0] && !invalidStartValue
+                        ? dayjs(rule.values[0]).toDate()
+                        : null;
+                const endDate =
+                    rule.values?.[1] && !invalidEndValue
+                        ? dayjs(rule.values[1]).toDate()
+                        : null;
+
                 return (
                     <FilterDateTimeRangePicker
                         disabled={disabled}
                         data-autofocus
                         firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
-                        value={
-                            rule.values && rule.values[0] && rule.values[1]
-                                ? [
-                                      dayjs(rule.values[0]).toDate(),
-                                      dayjs(rule.values[1]).toDate(),
-                                  ]
-                                : null
-                        }
+                        startValue={startDate}
+                        endValue={endDate}
+                        invalidStartValue={invalidStartValue}
+                        invalidEndValue={invalidEndValue}
                         popoverProps={popoverProps}
                         onChange={(value: [Date, Date] | null) => {
                             onChange({
@@ -373,31 +384,24 @@ const DateFilterInputs = <T extends BaseFilterRule = DateFilterRule>(
                 );
             }
 
+            const startDate = parseFilterDateValue(
+                rule.values?.[0],
+                TimeFrames.DAY,
+            );
+            const endDate = parseFilterDateValue(
+                rule.values?.[1],
+                TimeFrames.DAY,
+            );
+
             return (
                 <FilterDateRangePicker
                     disabled={disabled}
                     data-autofocus
                     firstDayOfWeek={getFirstDayOfWeek(startOfWeek)}
-                    value={
-                        rule.values && rule.values[0] && rule.values[1]
-                            ? [
-                                  parseDate(
-                                      formatDate(
-                                          rule.values[0],
-                                          TimeFrames.DAY,
-                                      ),
-                                      TimeFrames.DAY,
-                                  ),
-                                  parseDate(
-                                      formatDate(
-                                          rule.values[1],
-                                          TimeFrames.DAY,
-                                      ),
-                                      TimeFrames.DAY,
-                                  ),
-                              ]
-                            : null
-                    }
+                    startValue={startDate}
+                    endValue={endDate}
+                    invalidStartValue={invalidStartValue}
+                    invalidEndValue={invalidEndValue}
                     popoverProps={popoverProps}
                     onChange={(value: [Date, Date] | null) => {
                         onChange({

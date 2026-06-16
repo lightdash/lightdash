@@ -20,6 +20,7 @@ type Props = Pick<MonthPickerProps, 'value' | 'onChange'> & {
     disabled?: boolean;
     popoverProps?: any;
     autoFocus?: boolean;
+    invalidValue?: string;
 };
 
 const QUARTERS = [
@@ -36,6 +37,7 @@ const FilterQuarterPicker: FC<Props> = ({
     disabled,
     popoverProps,
     autoFocus,
+    invalidValue,
 }) => {
     const [opened, { open, close }] = useDisclosure(false);
 
@@ -154,10 +156,12 @@ const FilterQuarterPicker: FC<Props> = ({
                     onClick={disabled ? undefined : open}
                     placeholder={placeholder}
                     value={
-                        value
+                        invalidValue ??
+                        (value
                             ? formatDate(value, TimeFrames.QUARTER)
-                            : undefined
+                            : undefined)
                     }
+                    error={invalidValue ? 'Invalid date' : undefined}
                     readOnly
                     styles={{
                         input: {
