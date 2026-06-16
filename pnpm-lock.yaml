@@ -1132,8 +1132,8 @@ importers:
         specifier: 1.4.14
         version: 1.4.14
       ai:
-        specifier: 6.0.198
-        version: 6.0.198(zod@3.25.55)
+        specifier: 6.0.205
+        version: 6.0.205(zod@3.25.55)
       canvas-confetti:
         specifier: 1.6.0
         version: 1.6.0
@@ -1806,12 +1806,6 @@ packages:
 
   '@ai-sdk/azure@3.0.26':
     resolution: {integrity: sha512-R9v2kuzeu80qErIcXyqM1dpr6/w/iEPdxNAgFPJOFUhk5Zi4XSEBGz+eLYdw1cuzVPfqgMWyFvze9LR7vqz0Gg==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/gateway@3.0.126':
-    resolution: {integrity: sha512-OHwcwdVkzLo7Rx4eeFyyH3e/vlsYg11HIgKPf5yH6jkptI1Kzq8BX9xZPIBq4BrLBTF2p6pgvWqRfy6AvARGkQ==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -7602,12 +7596,6 @@ packages:
   aggregate-error@3.1.0:
     resolution: {integrity: sha512-4I7Td01quW/RpocfNayFdFVk1qSuoh0E7JrbRJ16nH01HhKFQ88INq9Sd+nd72zqRySlr9BmDA8xlEJ6vJMrYA==}
     engines: {node: '>=8'}
-
-  ai@6.0.198:
-    resolution: {integrity: sha512-NEXlYGu3n7VTG6cn3SAeimfy60FLH/R5uRpl7zqDu0BLtIuoY1lALBGoJzltoVqd/iFQH1asIy/VqZqLPDWv0w==}
-    engines: {node: '>=18'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
 
   ai@6.0.205:
     resolution: {integrity: sha512-F4akEGF41UdgJO3L4v+D5noVD1/czhJy6x0k9R/i1EXfxqrkBh/PdYSgRSLPiGFvrw76dzI8h4w3NYmLrTb8dw==}
@@ -16833,13 +16821,6 @@ snapshots:
       '@ai-sdk/provider-utils': 4.0.13(zod@3.25.55)
       zod: 3.25.55
 
-  '@ai-sdk/gateway@3.0.126(zod@3.25.55)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.10
-      '@ai-sdk/provider-utils': 4.0.27(zod@3.25.55)
-      '@vercel/oidc': 3.2.0
-      zod: 3.25.55
-
   '@ai-sdk/gateway@3.0.131(zod@3.25.55)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
@@ -24255,14 +24236,6 @@ snapshots:
     dependencies:
       clean-stack: 2.2.0
       indent-string: 4.0.0
-
-  ai@6.0.198(zod@3.25.55):
-    dependencies:
-      '@ai-sdk/gateway': 3.0.126(zod@3.25.55)
-      '@ai-sdk/provider': 3.0.10
-      '@ai-sdk/provider-utils': 4.0.27(zod@3.25.55)
-      '@opentelemetry/api': 1.9.0
-      zod: 3.25.55
 
   ai@6.0.205(zod@3.25.55):
     dependencies:
