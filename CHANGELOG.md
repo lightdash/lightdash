@@ -1,3 +1,10 @@
+# [0.3171.0](https://github.com/lightdash/lightdash/compare/0.3170.2...0.3171.0) (2026-06-16)
+
+
+### Features
+
+* track project connection form compiles ([#24343](https://github.com/lightdash/lightdash/issues/24343)) ([08be7db](https://github.com/lightdash/lightdash/commit/08be7dbb76160af2ddb967253f2ef63e64548c82)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
 ## [0.3170.2](https://github.com/lightdash/lightdash/compare/0.3170.1...0.3170.2) (2026-06-16)
 
 
