@@ -1,3 +1,10 @@
+# [0.3175.0](https://github.com/lightdash/lightdash/compare/0.3174.0...0.3175.0) (2026-06-16)
+
+
+### Features
+
+* **ai:** admin-only access control for AI agents ([#24369](https://github.com/lightdash/lightdash/issues/24369)) ([a59e9c2](https://github.com/lightdash/lightdash/commit/a59e9c272712583f1e8c66c726483890a613a630))
+
 # [0.3174.0](https://github.com/lightdash/lightdash/compare/0.3173.0...0.3174.0) (2026-06-16)
 
 
