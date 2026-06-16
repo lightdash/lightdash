@@ -8,9 +8,11 @@ import {
     Format,
     MetricType,
     NumberSeparator,
+    TableCalculationType,
     type CustomFormat,
     type Dimension,
     type Metric,
+    type TableCalculation,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
 import {
@@ -26,7 +28,8 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
-    isCalendarValueDimension,
+    getFormatterTimezone,
+    isCalendarValueItem,
     isMomentInput,
     isTimestampString,
     shouldShiftItemTimezone,
@@ -40,6 +43,130 @@ import {
 } from './formatting.mock';
 
 describe('Formatting', () => {
+    describe('getFormatterTimezone (unified shift decision)', () => {
+        const tz = 'America/Anchorage';
+        const tsString = '2025-01-15T17:00:00.000Z';
+        const dateOnly = '2025-01-15';
+
+        test('returns undefined when no project timezone is supplied', () => {
+            expect(
+                getFormatterTimezone(
+                    { ...dimension, type: DimensionType.TIMESTAMP },
+                    tsString,
+                    undefined,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('TIMESTAMP dimension shifts by shape (value-independent)', () => {
+            const item = { ...dimension, type: DimensionType.TIMESTAMP };
+            expect(getFormatterTimezone(item, tsString, tz)).toEqual(tz);
+            // shape says shift even for a value the by-value gate would reject
+            expect(getFormatterTimezone(item, 12345, tz)).toEqual(tz);
+        });
+
+        test('bare DATE dimension never shifts (calendar guard)', () => {
+            expect(
+                getFormatterTimezone(
+                    { ...dimension, type: DimensionType.DATE },
+                    dateOnly,
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('DATE dimension truncated from a TIMESTAMP base shifts', () => {
+            const dateBaseTs: Dimension = {
+                ...dimension,
+                type: DimensionType.DATE,
+                timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+            };
+            expect(getFormatterTimezone(dateBaseTs, tsString, tz)).toEqual(tz);
+        });
+
+        test('skipTimezoneConversion opts out even for a TIMESTAMP', () => {
+            const skipTzDim: Dimension = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+                skipTimezoneConversion: true,
+            };
+            expect(
+                getFormatterTimezone(skipTzDim, tsString, tz),
+            ).toBeUndefined();
+        });
+
+        test('MIN/MAX over a timestamp shifts via the by-value fallback', () => {
+            const maxMetric = { ...additionalMetric, type: MetricType.MAX };
+            expect(getFormatterTimezone(maxMetric, tsString, tz)).toEqual(tz);
+            expect(
+                getFormatterTimezone(maxMetric, new Date(tsString), tz),
+            ).toEqual(tz);
+        });
+
+        test('MIN/MAX over a calendar date does NOT shift (date-only value)', () => {
+            expect(
+                getFormatterTimezone(
+                    { ...additionalMetric, type: MetricType.MAX },
+                    dateOnly,
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('MIN/MAX over a number does NOT shift', () => {
+            expect(
+                getFormatterTimezone(
+                    { ...additionalMetric, type: MetricType.MAX },
+                    42,
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('STRING item carrying a timestamp value does NOT shift', () => {
+            // The by-value fallback is scoped to MIN/MAX; a known non-temporal
+            // type is trusted even when the value looks like an instant.
+            expect(
+                getFormatterTimezone(
+                    { ...dimension, type: DimensionType.STRING },
+                    tsString,
+                    tz,
+                ),
+            ).toBeUndefined();
+            expect(
+                getFormatterTimezone(
+                    { ...dimension, type: DimensionType.STRING },
+                    new Date(tsString),
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('DATE table calc does NOT shift even with a midnight-ISO value', () => {
+            // The bug: a date-typed table calc whose value arrives as a full
+            // timestamp must stay a calendar day (no off-by-one under -ve UTC).
+            const dateTableCalc = {
+                name: 'date_tc',
+                displayName: 'date_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.DATE,
+            } as TableCalculation;
+            expect(
+                getFormatterTimezone(dateTableCalc, tsString, tz),
+            ).toBeUndefined();
+        });
+
+        test('TIMESTAMP table calc shifts', () => {
+            const tsTableCalc = {
+                name: 'ts_tc',
+                displayName: 'ts_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.TIMESTAMP,
+            } as TableCalculation;
+            expect(getFormatterTimezone(tsTableCalc, tsString, tz)).toEqual(tz);
+        });
+    });
+
     describe('convert legacy Format type', () => {
         [Format.KM, Format.MI].forEach((format) => {
             test(`when it is ${format.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
@@ -81,6 +208,85 @@ describe('Formatting', () => {
     });
 
     describe('applying CustomFormat to value', () => {
+        describe('timezone threading (GLITCH-498)', () => {
+            const utcInstant = new Date('2025-01-15T17:00:00.000Z'); // 06:00 in Pago_Pago (UTC-11)
+            const tz = 'Pacific/Pago_Pago';
+
+            test('TIMESTAMP format shifts a Date value into the timezone', () => {
+                expect(
+                    applyCustomFormat(
+                        utcInstant,
+                        { type: CustomFormatType.TIMESTAMP },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15, 06:00:00:000 (-11:00)');
+            });
+
+            test('TIMESTAMP format shifts a timestamp string into the timezone', () => {
+                expect(
+                    applyCustomFormat(
+                        '2025-01-15 17:00:00',
+                        { type: CustomFormatType.TIMESTAMP },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15, 06:00:00:000 (-11:00)');
+            });
+
+            test('early Date branch (non-temporal format type) shifts via formatTimestamp', () => {
+                // value is a Date and format.type is PERCENT -> hits the early
+                // `value instanceof Date` branch (formatting.ts:708-715)
+                expect(
+                    applyCustomFormat(
+                        utcInstant,
+                        { type: CustomFormatType.PERCENT },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15, 06:00:00:000 (-11:00)');
+            });
+
+            test('CUSTOM expression on a timestamp string shifts into the timezone', () => {
+                expect(
+                    applyCustomFormat(
+                        '2025-01-15 17:00:00',
+                        {
+                            type: CustomFormatType.CUSTOM,
+                            custom: 'yyyy-mm-dd hh:mm:ss',
+                        },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15 06:00:00');
+            });
+
+            test('DATE format on a date-only string does NOT shift (by-value gate)', () => {
+                // isTimestampString('2025-01-15') === false -> no time component ->
+                // effectiveTimezone is undefined -> calendar day is preserved
+                expect(
+                    applyCustomFormat(
+                        '2025-01-15',
+                        { type: CustomFormatType.DATE },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15');
+            });
+
+            test('numeric formats ignore timezone (no-op)', () => {
+                expect(
+                    applyCustomFormat(
+                        5000,
+                        { type: CustomFormatType.NUMBER },
+                        tz,
+                    ),
+                ).toEqual('5,000');
+                expect(
+                    applyCustomFormat(
+                        0.05,
+                        { type: CustomFormatType.PERCENT },
+                        tz,
+                    ),
+                ).toEqual('5%');
+            });
+        });
+
         describe('when using legacy format', () => {
             test('if Format is legacy distance unit it should return the right format', () => {
                 expect(
@@ -755,7 +961,7 @@ describe('Formatting', () => {
         });
     });
 
-    describe('isCalendarValueDimension', () => {
+    describe('isCalendarValueItem', () => {
         const dateBaseColumn: Dimension = {
             ...dimension,
             type: DimensionType.DATE,
@@ -795,20 +1001,20 @@ describe('Formatting', () => {
 
         test('treats wall-clock DATE values as calendar values', () => {
             // plain DATE column (no interval, base undefined)
-            expect(isCalendarValueDimension(dateBaseColumn)).toBe(true);
+            expect(isCalendarValueItem(dateBaseColumn)).toBe(true);
             // DATE truncated from a DATE base — any grain
-            expect(isCalendarValueDimension(dateOverDateDay)).toBe(true);
-            expect(isCalendarValueDimension(dateOverDateWeek)).toBe(true);
+            expect(isCalendarValueItem(dateOverDateDay)).toBe(true);
+            expect(isCalendarValueItem(dateOverDateWeek)).toBe(true);
             // A date-typed metric (MetricType.DATE) — not a Dimension, still calendar
-            expect(isCalendarValueDimension(dateMetric)).toBe(true);
+            expect(isCalendarValueItem(dateMetric)).toBe(true);
         });
 
         test('treats real instants as non-calendar values', () => {
             // DATE truncated from a TIMESTAMP base is a bucketed instant
-            expect(isCalendarValueDimension(dateOverTimestampDay)).toBe(false);
+            expect(isCalendarValueItem(dateOverTimestampDay)).toBe(false);
             // plain + sub-day TIMESTAMP
-            expect(isCalendarValueDimension(timestampRaw)).toBe(false);
-            expect(isCalendarValueDimension(timestampHour)).toBe(false);
+            expect(isCalendarValueItem(timestampRaw)).toBe(false);
+            expect(isCalendarValueItem(timestampHour)).toBe(false);
         });
 
         test('skipTimezoneConversion does not make a TIMESTAMP a calendar value', () => {
@@ -822,14 +1028,34 @@ describe('Formatting', () => {
                 ...dateOverDateDay,
                 skipTimezoneConversion: true,
             };
-            expect(isCalendarValueDimension(timestampRawOptOut)).toBe(false);
-            expect(isCalendarValueDimension(dateOptOut)).toBe(true);
+            expect(isCalendarValueItem(timestampRawOptOut)).toBe(false);
+            expect(isCalendarValueItem(dateOptOut)).toBe(true);
         });
 
         test('non-temporal items and undefined are not calendar values', () => {
-            expect(isCalendarValueDimension(undefined)).toBe(false);
-            expect(isCalendarValueDimension(dimension)).toBe(false); // STRING
-            expect(isCalendarValueDimension(metric)).toBe(false); // COUNT
+            expect(isCalendarValueItem(undefined)).toBe(false);
+            expect(isCalendarValueItem(dimension)).toBe(false); // STRING
+            expect(isCalendarValueItem(metric)).toBe(false); // COUNT
+        });
+
+        test('classifies table calculations by their declared type', () => {
+            // Table calcs are not fields, but their `type` is reliable, so a
+            // DATE table calc is a calendar value (must not shift) while a
+            // TIMESTAMP one is a real instant.
+            const dateTableCalc = {
+                name: 'date_tc',
+                displayName: 'date_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.DATE,
+            } as TableCalculation;
+            const timestampTableCalc = {
+                name: 'ts_tc',
+                displayName: 'ts_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.TIMESTAMP,
+            } as TableCalculation;
+            expect(isCalendarValueItem(dateTableCalc)).toBe(true);
+            expect(isCalendarValueItem(timestampTableCalc)).toBe(false);
         });
     });
 
@@ -1029,6 +1255,25 @@ describe('Formatting', () => {
             };
             expect(shouldShiftItemTimezone(dateOverTs)).toBe(true);
             expect(shouldShiftItemTimezone(dateOverTsOptOut)).toBe(false);
+        });
+
+        test('shouldShiftItemTimezone classifies table calcs by type', () => {
+            // Non-field items are keyed off getItemType: a TIMESTAMP table calc
+            // is a real instant (shift), a DATE one is a calendar value (stay).
+            const tsTableCalc = {
+                name: 'ts_tc',
+                displayName: 'ts_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.TIMESTAMP,
+            } as TableCalculation;
+            const dateTableCalc = {
+                name: 'date_tc',
+                displayName: 'date_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.DATE,
+            } as TableCalculation;
+            expect(shouldShiftItemTimezone(tsTableCalc)).toBe(true);
+            expect(shouldShiftItemTimezone(dateTableCalc)).toBe(false);
         });
 
         test('formatItemValue should return the right format when field is Metric', () => {
@@ -1307,6 +1552,102 @@ describe('Formatting', () => {
         });
     });
     describe('additional metric formatting', () => {
+        describe('timezone shifting for MIN/MAX (GLITCH-498)', () => {
+            // MIN/MAX values arrive from query results as ISO datetime
+            // STRINGS (not Date objects), which is the case the explore table
+            // renders. Each must shift into the project timezone like the
+            // underlying dimension does.
+            test('TIMESTAMP format shifts a string value into the timezone', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MAX,
+                            formatOptions: {
+                                type: CustomFormatType.TIMESTAMP,
+                                timeInterval: TimeFrames.RAW,
+                            },
+                        },
+                        '2025-01-15T17:00:00.000Z',
+                        false,
+                        undefined,
+                        'America/Anchorage', // -09:00 in January
+                    ),
+                ).toEqual('2025-01-15, 08:00:00:000 (-09:00)');
+            });
+
+            test('TIMESTAMP format shifts a Date value into the timezone', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MIN,
+                            formatOptions: { type: CustomFormatType.TIMESTAMP },
+                        },
+                        new Date('2025-01-15T17:00:00.000Z'),
+                        false,
+                        undefined,
+                        'Asia/Tokyo', // +09:00, no DST
+                    ),
+                ).toEqual('2025-01-16, 02:00:00:000 (+09:00)');
+            });
+
+            test('CUSTOM expression shifts a string value into the timezone', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MAX,
+                            formatOptions: {
+                                type: CustomFormatType.CUSTOM,
+                                custom: 'yyyy-mm-dd hh:mm:ss',
+                            },
+                        },
+                        '2025-01-15T17:00:00.000Z',
+                        false,
+                        undefined,
+                        'America/Anchorage',
+                    ),
+                ).toEqual('2025-01-15 08:00:00');
+            });
+
+            test('no timezone is bit-identical to pre-fix behaviour (flag-off parity)', () => {
+                // With no timezone the string still hits the valueIsNaN guard
+                // and renders raw, exactly as before this change.
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MAX,
+                            formatOptions: {
+                                type: CustomFormatType.TIMESTAMP,
+                                timeInterval: TimeFrames.RAW,
+                            },
+                        },
+                        '2025-01-15T17:00:00.000Z',
+                    ),
+                ).toEqual('2025-01-15T17:00:00.000Z');
+            });
+
+            test('DATE format over a date-only string is not shifted', () => {
+                // The by-value gate leaves a date-only string alone, so a
+                // MIN/MAX over a real DATE column keeps its calendar day.
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MAX,
+                            formatOptions: { type: CustomFormatType.DATE },
+                        },
+                        '2021-03-10',
+                        false,
+                        undefined,
+                        'Pacific/Pago_Pago', // -11:00, would roll the day back
+                    ),
+                ).toEqual('2021-03-10');
+            });
+        });
+
         test('format additional metric with custom format DATE', () => {
             expect(
                 formatItemValue(

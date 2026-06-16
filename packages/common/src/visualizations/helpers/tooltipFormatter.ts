@@ -1192,6 +1192,8 @@ export const buildCartesianTooltipFormatter =
                     undefined,
                     pivotValuesColumnsMap,
                     parameters,
+                    timezone,
+                    displayTimezone,
                 );
 
                 // For period-over-period series, compute and display the actual previous date
