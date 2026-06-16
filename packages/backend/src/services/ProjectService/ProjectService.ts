@@ -6575,21 +6575,20 @@ export class ProjectService extends BaseService {
                 if (isForbidden) {
                     throw new ForbiddenError();
                 }
-                const explores = await this.projectModel.findExploresFromCache(
-                    projectUuid,
-                    'name',
-                    exploreNames,
-                );
+                const [explores, userAccessControls] = await Promise.all([
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                        exploreNames,
+                    ),
+                    this.getUserAttributes({ account }),
+                ]);
                 const canViewPreAggregateExplores =
                     this.canViewPreAggregateExplores(
                         account,
                         project.organizationUuid,
                         projectUuid,
                     );
-
-                const userAccessControls = await this.getUserAttributes({
-                    account,
-                });
 
                 const filteredExplores = Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>
