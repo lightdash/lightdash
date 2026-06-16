@@ -409,9 +409,7 @@ function detectRefusal(text: string): boolean {
     return REFUSAL_RE.test(text);
 }
 
-// Matches the agent stating it cannot change EXISTING saved content. Requires
-// an inability cue AND an edit-verb-on-content cue so generic refusals (data
-// access, out of scope) don't fire. Deterministic sibling to detectRefusal.
+// Requires inability cue + edit-verb-on-content cue; sibling to detectRefusal.
 const CONTENT_EDIT_INABILITY_RE =
     /\b(can'?t|cannot|can not|unable to|not able to|don'?t have (?:the )?(?:ability|capability)|isn'?t (?:enabled|available|supported)|not (?:enabled|available|supported))\b/i;
 const CONTENT_EDIT_TARGET_RE =
