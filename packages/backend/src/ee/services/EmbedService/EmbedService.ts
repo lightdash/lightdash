@@ -1270,6 +1270,7 @@ export class EmbedService extends BaseService {
             account,
             projectUuid,
             chartUuid: chart.uuid,
+            preloadedSavedChart: chart,
             tileUuid,
             dashboardSorts: dashboardSorts ?? [],
             dashboardUuid,
