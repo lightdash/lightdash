@@ -133,7 +133,11 @@ export const getSystemPromptV2 = (args: {
         .replace(
             '{{ai_writeback_section}}',
             enableAiWriteback
-                ? getAiWritebackSection(writebackAttribution, siteUrl)
+                ? getAiWritebackSection(
+                      writebackAttribution,
+                      siteUrl,
+                      enableContentTools,
+                  )
                 : '',
         )
         .replace(

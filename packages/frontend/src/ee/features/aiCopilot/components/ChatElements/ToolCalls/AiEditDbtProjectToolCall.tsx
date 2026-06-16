@@ -32,7 +32,10 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
-import { useCreateAgentThreadMessageMutation } from '../../../hooks/useProjectAiAgents';
+import {
+    useCreateAgentThreadMessageMutation,
+    useProjectAiAgent,
+} from '../../../hooks/useProjectAiAgents';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
 import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import styles from './AiEditDbtProjectToolCall.module.css';
@@ -379,6 +382,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         agentUuid,
         threadUuid,
     );
+    // Only trigger the post-merge migration when the agent can actually edit
+    // saved content — otherwise it would promise a repoint it can't perform.
+    const { data: agent } = useProjectAiAgent(projectUuid, agentUuid);
+    const canMigrateContent =
+        !!agentUuid && !!threadUuid && agent?.enableContentTools === true;
 
     if (metadata.status === 'error') {
         // When the project just needs its git app installed, the agent's reply
@@ -644,8 +652,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                                     // repoint affected saved content. Injected as
                                     // a hidden turn (filtered from the chat by
                                     // AgentChatDisplay) so only the agent's
-                                    // proactive reply shows.
-                                    agentUuid && threadUuid
+                                    // proactive reply shows. Only when the agent
+                                    // can edit content — otherwise it can't act
+                                    // on the request.
+                                    canMigrateContent
                                         ? {
                                               onSuccess: () =>
                                                   sendThreadMessage({
