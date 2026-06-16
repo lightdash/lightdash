@@ -5774,6 +5774,11 @@
                         "type": "string",
                         "description": "Offset from minimum value"
                     },
+                    "minInterval": {
+                        "type": "number",
+                        "format": "double",
+                        "description": "Minimum interval between ticks (e.g. 1 to force integer ticks)"
+                    },
                     "max": {
                         "type": "string",
                         "description": "Maximum value (or 'dataMax' for auto)"

@@ -342,6 +342,25 @@ const useCartesianChartConfig = ({
         [],
     );
 
+    const setYMinInterval = useCallback(
+        (index: number, value: number | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    yAxis: [
+                        prevState?.yAxis?.[0] || {},
+                        prevState?.yAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index
+                            ? { ...axis, minInterval: value }
+                            : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
     const setXMinValue = useCallback(
         (index: number, value: string | undefined) => {
             setDirtyEchartsConfig((prevState) => {
@@ -352,6 +371,25 @@ const useCartesianChartConfig = ({
                         prevState?.xAxis?.[1] || {},
                     ].map((axis, axisIndex) =>
                         axisIndex === index ? { ...axis, min: value } : axis,
+                    ),
+                };
+            });
+        },
+        [],
+    );
+
+    const setXMinInterval = useCallback(
+        (index: number, value: number | undefined) => {
+            setDirtyEchartsConfig((prevState) => {
+                return {
+                    ...prevState,
+                    xAxis: [
+                        prevState?.xAxis?.[0] || {},
+                        prevState?.xAxis?.[1] || {},
+                    ].map((axis, axisIndex) =>
+                        axisIndex === index
+                            ? { ...axis, minInterval: value }
+                            : axis,
                     ),
                 };
             });
@@ -1320,7 +1358,9 @@ const useCartesianChartConfig = ({
         setFlipAxis,
         setYMinValue,
         setYMaxValue,
+        setYMinInterval,
         setXMinValue,
+        setXMinInterval,
         setXMinOffsetValue,
         setXMaxValue,
         setXMaxOffsetValue,

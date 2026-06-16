@@ -1999,9 +1999,23 @@ const getEchartAxes = ({
                     ((bottomAxisOffset.maxOffset ?? 0) / 100) * logRange +
                     baselineOffset;
 
+                const offsetMin = minX - minOffset;
+                const offsetMax = maxX + maxOffset;
+
+                // When a min tick interval is set, snap the truncated bounds to
+                // multiples of it so the edge ticks stay clean (e.g. integers)
+                // instead of fractional offsets like 0.45 / 3.55
+                const minInterval = xAxisConfiguration?.[0]?.minInterval;
+                if (minInterval) {
+                    return {
+                        min: Math.floor(offsetMin / minInterval) * minInterval,
+                        max: Math.ceil(offsetMax / minInterval) * minInterval,
+                    };
+                }
+
                 return {
-                    min: minX - minOffset,
-                    max: maxX + maxOffset,
+                    min: offsetMin,
+                    max: offsetMax,
                 };
             }
             return {
@@ -2137,6 +2151,10 @@ const getEchartAxes = ({
                 ...bottomAxisExtraConfig,
                 min: bottomAxisBounds.min,
                 max: maxXAxisValue,
+                ...(bottomAxisType === 'value' &&
+                xAxisConfiguration?.[0]?.minInterval !== undefined
+                    ? { minInterval: xAxisConfiguration[0].minInterval }
+                    : {}),
             },
             {
                 type: topAxisType,
@@ -2173,6 +2191,10 @@ const getEchartAxes = ({
                               allowSecondAxisDefaultRange,
                           )
                         : undefined,
+                ...(topAxisType === 'value' &&
+                xAxisConfiguration?.[1]?.minInterval !== undefined
+                    ? { minInterval: xAxisConfiguration[1].minInterval }
+                    : {}),
                 ...topAxisConfigWithStyle,
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
@@ -2215,6 +2237,10 @@ const getEchartAxes = ({
                     : {}),
                 min: minYAxisValue,
                 max: maxYAxisValue,
+                ...(leftAxisType === 'value' &&
+                yAxisConfiguration?.[0]?.minInterval !== undefined
+                    ? { minInterval: yAxisConfiguration[0].minInterval }
+                    : {}),
                 ...leftAxisConfigWithStyle,
                 // Override formatter for 100% stacking without flipped axes
                 ...(shouldStack100 &&
@@ -2293,6 +2319,10 @@ const getEchartAxes = ({
                               allowSecondAxisDefaultRange,
                           )
                         : undefined,
+                ...(rightAxisType === 'value' &&
+                yAxisConfiguration?.[1]?.minInterval !== undefined
+                    ? { minInterval: yAxisConfiguration[1].minInterval }
+                    : {}),
                 ...rightAxisConfigWithStyle,
                 splitLine: isAxisTheSameForAllSeries
                     ? gridStyle
@@ -2630,6 +2660,17 @@ const useEchartsCartesianConfig = (
         if (!itemsMap) return;
 
         const isHorizontal = Boolean(validCartesianConfig?.layout.flipAxes);
+        // Value-type dimension axes don't reserve band space for bars, so the
+        // end bar gets clipped at the grid edge. clip:false lets it overflow
+        // into the margin. Category/date axes band-space bars and are left as-is.
+        // Excluded when dataZoom is on: clip:false would also let bars outside
+        // the scroll window render past the grid over the slider/labels.
+        const dimensionAxis = isHorizontal ? axes.yAxis[0] : axes.xAxis[0];
+        const enableDataZoom = Boolean(
+            validCartesianConfig?.eChartsConfig?.xAxis?.[0]?.enableDataZoom,
+        );
+        const shouldDisableBarClip =
+            dimensionAxis?.type === 'value' && !enableDataZoom;
         const conditionalFormattings =
             validCartesianConfig?.conditionalFormattings;
         const categoryColorOverrides =
@@ -2699,6 +2740,7 @@ const useEchartsCartesianConfig = (
                     const barConfig = {
                         ...baseConfig,
                         ...getBarStyle(),
+                        ...(shouldDisableBarClip ? { clip: false } : {}),
                         // Non-stacked bars get border radius on all bars
                         ...((!serie.stack ||
                             getValidStack(serie) === undefined) && {
@@ -2785,12 +2827,15 @@ const useEchartsCartesianConfig = (
         validCartesianConfig?.layout?.categoryColorOverrides,
         validCartesianConfig?.layout?.xField,
         validCartesianConfig?.conditionalFormattings,
+        validCartesianConfig?.eChartsConfig?.xAxis,
         series,
         dynamicRadius,
         pivotDimensions,
         getSeriesColor,
         colorPalette,
         theme.colors.background,
+        axes.xAxis,
+        axes.yAxis,
     ]);
     const sortedResults = useMemo(() => {
         const results =
