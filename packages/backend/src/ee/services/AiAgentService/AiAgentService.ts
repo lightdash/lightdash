@@ -218,11 +218,16 @@ import {
     getModel,
 } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
-import { parseRepoTarget, runRepoShellCommand } from '../ai/repoFs/bashShell';
+import { parseRepoTarget, runShellCommandOnFs } from '../ai/repoFs/bashShell';
 import {
     createGithubRepoSource,
     type RepoFsTimingEvent,
 } from '../ai/repoFs/githubRepoSource';
+import {
+    DBT_MOUNT,
+    DEFAULT_MAX_MATERIALISED_REPOS,
+    MountingRepoFileSystem,
+} from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
@@ -5850,11 +5855,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return { ...result, previewDeployConfigured, previewUrl };
         };
 
-        // Read-only repo virtual filesystem for the exploreRepo tool. A RepoFs is
-        // memoised per target for the run (keyed by the raw target string) so the
-        // file tree is fetched at most once per repo. No target => the dbt
-        // project repo, subPath-scoped, as before. An "owner/repo" target => the
-        // whole repo on its default branch, via the org's installation token.
+        // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
+        // filesystem (a MountingRepoFileSystem): the dbt project mounted
+        // subPath-scoped at /dbt, and every installation-accessible repo mounted
+        // whole at /<owner>/<repo>. Repo trees are fetched lazily on first
+        // descent and a per-run budget bounds an unscoped recursive walk. The
+        // tool's `target` just picks the starting directory, so a repo target
+        // reads exactly as before while absolute paths can cross repos.
         const onRepoFsTiming = (event: RepoFsTimingEvent) => {
             if (event.kind === 'tree') {
                 this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
@@ -5867,12 +5874,21 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 );
             }
         };
-        const repoFsByKey = new Map<string, Promise<RepoFs>>();
         let installationAccessPromise: ReturnType<
             typeof this.aiWritebackService.getInstallationRepoReadAccess
         > | null = null;
+        const getInstallationAccess = () => {
+            if (!installationAccessPromise) {
+                installationAccessPromise =
+                    this.aiWritebackService.getInstallationRepoReadAccess({
+                        user,
+                        projectUuid,
+                    });
+            }
+            return installationAccessPromise;
+        };
 
-        const buildDefaultRepoFs = async (): Promise<RepoFs> => {
+        const buildDbtRepoFs = async (): Promise<RepoFs> => {
             const access = await this.aiWritebackService.getRepoReadAccess({
                 user,
                 projectUuid,
@@ -5881,18 +5897,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 createGithubRepoSource({ ...access, onTiming: onRepoFsTiming }),
             );
         };
-        const buildTargetRepoFs = async (
+        const buildRepoFs = async (
             owner: string,
             repo: string,
         ): Promise<RepoFs> => {
-            if (!installationAccessPromise) {
-                installationAccessPromise =
-                    this.aiWritebackService.getInstallationRepoReadAccess({
-                        user,
-                        projectUuid,
-                    });
-            }
-            const access = await installationAccessPromise;
+            const access = await getInstallationAccess();
             const branch = await access.resolveBranch(owner, repo);
             return new RepoFs(
                 createGithubRepoSource({
@@ -5906,31 +5915,50 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         };
 
-        const exploreRepo: ExploreRepoFn = async ({ command, target }) => {
-            const trimmedTarget = target?.trim();
-            const key = trimmedTarget ? `target:${trimmedTarget}` : '__default__';
-            let repoFsPromise = repoFsByKey.get(key);
-            if (!repoFsPromise) {
-                if (trimmedTarget) {
-                    const parsed = parseRepoTarget(trimmedTarget);
-                    repoFsPromise = buildTargetRepoFs(parsed.owner, parsed.repo);
-                } else {
-                    repoFsPromise = buildDefaultRepoFs();
-                }
-                repoFsByKey.set(key, repoFsPromise);
+        let mountFsPromise: Promise<MountingRepoFileSystem> | null = null;
+        const getMountFs = () => {
+            if (!mountFsPromise) {
+                mountFsPromise = (async () => {
+                    // /dbt is only mountable when the project's dbt repo is on
+                    // GitHub (getRepoReadAccess is GitHub-only).
+                    const project = await this.projectModel.get(projectUuid);
+                    const hasDbtMount =
+                        project.dbtConnection.type === DbtProjectType.GITHUB;
+                    return MountingRepoFileSystem.create({
+                        listRepos: async () =>
+                            (await getInstallationAccess()).listRepos(),
+                        hasDbtMount,
+                        buildDbtRepoFs,
+                        buildRepoFs,
+                        maxRepos: DEFAULT_MAX_MATERIALISED_REPOS,
+                    });
+                })();
             }
-            const repoFs = await repoFsPromise;
-            return runRepoShellCommand(repoFs, command);
+            return mountFsPromise;
         };
 
-        const discoverRepos: DiscoverReposFn = async () => {
-            const access =
-                await this.aiWritebackService.getInstallationRepoReadAccess({
-                    user,
-                    projectUuid,
-                });
-            return access.listRepos();
+        const exploreRepo: ExploreRepoFn = async ({ command, target }) => {
+            const fs = await getMountFs();
+            const trimmedTarget = target?.trim();
+            // `target` selects the starting directory in the unified tree: an
+            // "owner/repo" target => /owner/repo; no target => the dbt project at
+            // /dbt (or the root when the project has no GitHub dbt repo).
+            // Absolute paths in `command` still reach any other mount.
+            let cwd = '/';
+            if (trimmedTarget) {
+                const { owner, repo } = parseRepoTarget(trimmedTarget);
+                cwd = `/${owner}/${repo}`;
+            } else if (fs.hasDbtMount) {
+                cwd = `/${DBT_MOUNT}`;
+            }
+            return runShellCommandOnFs(fs, command, {
+                cwd,
+                isTruncated: () => Promise.resolve(fs.isTruncated()),
+            });
         };
+
+        const discoverRepos: DiscoverReposFn = async () =>
+            (await getInstallationAccess()).listRepos();
 
         return {
             listExplores: toolsRuntime.listExplores,

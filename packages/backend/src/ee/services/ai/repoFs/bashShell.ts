@@ -16,7 +16,7 @@
  * construct.
  */
 import { getErrorMessage } from '@lightdash/common';
-import { Bash, type CommandName } from 'just-bash';
+import { Bash, type CommandName, type IFileSystem } from 'just-bash';
 import { RepoFileSystem } from './repoFileSystem';
 import type { RepoFs } from './RepoFs';
 
@@ -148,19 +148,28 @@ const leadingCommand = (command: string): string =>
     command.trim().split(/\s+/)[0] ?? '';
 
 /**
- * Execute one read-only shell command line against the repo and return combined
- * output. Throws {@link ShellError} for an expected failure (the caller surfaces
- * it to the agent without Sentry); lets anything unexpected propagate so it is
- * captured as a real fault.
+ * Execute one read-only shell command line against an arbitrary just-bash
+ * {@link IFileSystem} and return combined output. The single-repo
+ * {@link runRepoShellCommand} and the multi-repo mounting filesystem both go
+ * through here. Throws {@link ShellError} for an expected failure (the caller
+ * surfaces it to the agent without Sentry); lets anything unexpected propagate
+ * so it is captured as a real fault.
+ *
+ * `cwd` sets the working directory (default `/`). `isTruncated` is an optional
+ * probe used only to append the "listing may be incomplete" note after
+ * find/grep/ls on a GitHub-truncated tree.
  */
-export const runRepoShellCommand = async (
-    repoFs: RepoFs,
+export const runShellCommandOnFs = async (
+    fs: IFileSystem,
     command: string,
+    {
+        cwd = '/',
+        isTruncated,
+    }: { cwd?: string; isTruncated?: () => Promise<boolean> } = {},
 ): Promise<string> => {
-    const fs = await getAdapter(repoFs);
     const bash = new Bash({
         fs,
-        cwd: '/',
+        cwd,
         commands: READ_ONLY_COMMANDS,
         executionLimits: { maxOutputSize: MAX_INTERNAL_OUTPUT },
         // Defense-in-depth wraps ALL command execution and monkey-patches Node
@@ -190,7 +199,12 @@ export const runRepoShellCommand = async (
         // unguarded path, or readlinks a non-symlink. Those are expected agent
         // mistakes, not faults, so surface them as ShellError (no Sentry).
         const code = (error as { code?: string } | null)?.code;
-        if (code && ['EROFS', 'ENOENT', 'ENOTDIR', 'EINVAL'].includes(code)) {
+        // EACCES is the mounting VFS's materialisation-budget guard (too many
+        // repos opened in one command) — an agent-recoverable limit, not a fault.
+        if (
+            code &&
+            ['EROFS', 'ENOENT', 'ENOTDIR', 'EINVAL', 'EACCES'].includes(code)
+        ) {
             throw new ShellError(getErrorMessage(error));
         }
         throw error;
@@ -206,7 +220,8 @@ export const runRepoShellCommand = async (
     if (stdout.length > 0) {
         const truncationNote =
             ['find', 'grep', 'rg', 'ls'].includes(leadingCommand(command)) &&
-            (await repoFs.isTruncated())
+            isTruncated &&
+            (await isTruncated())
                 ? '\n… note: this repository is large and GitHub truncated its file listing, so find/grep/ls results may be incomplete — narrow to a subdirectory.'
                 : '';
         // A non-zero exit alongside real output is a partial failure — e.g.
@@ -227,4 +242,20 @@ export const runRepoShellCommand = async (
     // Exit 0 with only stderr (a warning) → still useful to the agent.
     if (stderr.length > 0) return clamp(stderr);
     return '(no output)';
+};
+
+/**
+ * Execute one read-only shell command line against a single {@link RepoFs} (the
+ * default `exploreRepo` path). Thin wrapper over {@link runShellCommandOnFs}
+ * that builds/reuses the repo's {@link RepoFileSystem} adapter and wires its
+ * truncation probe.
+ */
+export const runRepoShellCommand = async (
+    repoFs: RepoFs,
+    command: string,
+): Promise<string> => {
+    const fs = await getAdapter(repoFs);
+    return runShellCommandOnFs(fs, command, {
+        isTruncated: () => repoFs.isTruncated(),
+    });
 };

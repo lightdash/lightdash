@@ -252,10 +252,13 @@ export enum FeatureFlags {
     /**
      * Let the AI agent discover and read any repository the org's GitHub App
      * installation can see, through a read-only shell (ls/cat/find/grep/head)
-     * backed by the GitHub API — no E2B sandbox/clone. The `discoverRepos` tool
-     * lists accessible repos and `exploreRepo` reads one (the dbt project repo by
-     * default, or any `owner/repo` target). Lets the agent inspect source before
-     * diagnosing, instead of guessing or spinning up a writeback sandbox.
+     * backed by the GitHub API — no E2B sandbox/clone. `discoverRepos` lists
+     * accessible repos and `exploreRepo` reads them through a single virtual
+     * filesystem: the dbt project is mounted (subPath-scoped) at `/dbt` and every
+     * accessible repo whole at `/<owner>/<repo>`, with per-repo trees fetched
+     * lazily and a per-run materialization budget bounding recursive walks. Lets
+     * the agent inspect source before diagnosing, instead of guessing or spinning
+     * up a writeback sandbox.
      *
      * Value kept as `repo-fs` for backwards compatibility with existing flag
      * configuration; the symbol was renamed from `RepoFs`.
