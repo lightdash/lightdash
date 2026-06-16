@@ -18,6 +18,7 @@ Short summary of how v2 changes user-facing behavior vs. today's published docs 
 - DST boundaries render correctly in ECharts. (GLITCH-449)
 - Sub-day time-axis ticks are adaptive again — density responds to the data span and to zoom instead of one tick per bar — while keeping the DST-correct positioning. (GLITCH-502)
 - Half- and 45-minute offset zones (India, Nepal, Eucla) work on BigQuery + ClickHouse. (GLITCH-453)
+- Timestamp metrics (a MIN or MAX over a timestamp column) render in the project timezone instead of raw UTC, matching the same column shown as a dimension — across the explore table, Big Number tiles, and cartesian tooltips. (GLITCH-498)
 
 ## Internal-only
 

@@ -282,6 +282,18 @@ The DATE_TRUNC round-trip produces real UTC instants whose wall-clock alignment 
 
 `formatDate` takes a single `timezone` parameter and is bypassed entirely for truncated intervals on a DATE base dimension (see callout below).
 
+**One decision point — `getFormatterTimezone(item, value, timezone)`.** Whether a formatter shifts a value into the project zone is decided in a single place. It composes the value-less shape predicates with a by-value fallback:
+
+1. No resolved timezone → `undefined` (bit-identical to pre-feature behavior).
+2. `skipTimezoneConversion` dim → `undefined` (display opt-out).
+3. `isCalendarValueItem` (bare DATE, DATE metric, DATE table calc, DATE-base truncation) → `undefined` (calendar values never shift).
+4. `shouldShiftItemTimezone` (TIMESTAMP / TIMESTAMP-base DATE interval, by declared type) → shift.
+5. **By-value fallback for type-opaque MIN/MAX:** a MIN/MAX metric declares its `type` as the aggregation (`MetricType.MIN`/`MAX`), not the underlying temporal type, so the shape predicates can't see it is over a timestamp. Only for MIN/MAX do we inspect the value: if it is a `Date` or a datetime string (`isTemporalValue` — date-only strings are excluded), shift. Numeric MIN/MAX and STRING items carrying a timestamp do not shift.
+
+`formatItemValue` resolves this once and threads it through every temporal branch; the shape predicates stay exported as primitives for the value-less callers (exports, filters, pivots, sidebar, axis config).
+
+**Timestamp metrics shift like dimensions.** A MIN or MAX over a timestamp column (e.g. "last seen") now renders in the project zone everywhere a dimension does — the explore table, Big Number tiles, and cartesian tooltips/labels — whether the value arrives as a fresh `Date` or as an ISO string rehydrated from cached results, and whether or not the user applied a display format. `applyCustomFormat` takes a `timezone` and routes timestamp **strings** (which are `Number()`-NaN and would otherwise return raw) through the temporal formatters before its numeric guard. With the flag off no timezone is resolved, so the string still renders raw — unchanged.
+
 The resolved timezone rides on the API response (`resolvedTimezone` on `ApiExecuteAsyncQueryResultsCommon`) and is threaded into every downstream formatter:
 
 - Backend row transformation (`formatRows`) converts each row's UTC value into the resolved zone before serializing
@@ -305,7 +317,9 @@ flowchart LR
 ```
 
 > **Callout — truncated intervals on a DATE base dimension skip the timezone shift.**
-> A truncated interval whose base column is a DATE (e.g. `order_date_month`) is a pure calendar value with no time component. The DATE_TRUNC round-trip doesn't apply, and neither does display formatting: `formatItemValue` drops the `timezone` argument in the DATE branch when `timeIntervalBaseDimensionType === DATE`. Applying a TZ shift would anchor "March 1" at UTC midnight and then move it to Feb 28 in any negative-offset zone. These dimensions always render as the raw calendar date they represent.
+> A truncated interval whose base column is a DATE (e.g. `order_date_month`) is a pure calendar value with no time component. The DATE_TRUNC round-trip doesn't apply, and neither does display formatting: `getFormatterTimezone` returns `undefined` for it via `isCalendarValueItem`, so `formatItemValue` drops the `timezone` argument in the DATE branch. Applying a TZ shift would anchor "March 1" at UTC midnight and then move it to Feb 28 in any negative-offset zone. These dimensions always render as the raw calendar date they represent.
+
+> **Known limitation — MIN/MAX with an explicit DATE format and a raw `Date` value.** Because `applyCustomFormat` has no `item` (so no `isCalendarValueItem` access), its by-value gate only protects date-only **strings**. A MIN/MAX with an explicit DATE display format whose value arrives as a midnight `Date` object shifts back a day under a negative offset. This is an accepted trade-off; the safe cached-results string shape is pinned in tests.
 
 **Files:** `packages/common/src/utils/formatting.ts`, `packages/common/src/visualizations/helpers/getCartesianAxisFormatterConfig.ts`, `packages/common/src/visualizations/helpers/tooltipFormatter.ts`, `packages/common/src/types/api.ts`
 
@@ -443,7 +457,7 @@ flowchart TD
 
 1. **Filters:** all relative operators compute boundaries in project TZ, literals are unambiguously UTC (with the known BigQuery/ClickHouse bare-literal caveat), and comparisons work for both TZ and NTZ columns on every warehouse with session-TZ plumbing.
 2. **Time dimensions:** groups at project-TZ boundaries on every warehouse. Truncated intervals (DATE_TRUNC) round-trip through project wall-clock; EXTRACT-based intervals (numeric and Name variants) shift their input into the project zone before extracting. Both paths bypass the wrap when the base dimension is a DATE.
-3. **Display:** formatted timestamps reflect the project timezone across Explorer, chart axes, tooltips, CSV exports, and Excel exports, with the resolved zone labelled in the UI. Truncated intervals on a DATE base dimension skip the shift so calendar dates render as-is.
+3. **Display:** formatted timestamps reflect the project timezone across Explorer, chart axes, tooltips, CSV exports, and Excel exports, with the resolved zone labelled in the UI. Timestamp metrics (MIN/MAX over a timestamp) shift like dimensions via the by-value fallback. Truncated intervals on a DATE base dimension skip the shift so calendar dates render as-is.
 4. **NTZ normalization:** NTZ columns are interpreted via the data timezone at query time. Today this relies on warehouse session-TZ plumbing — every supported warehouse has it except BigQuery and Athena, where NTZ-style columns with non-UTC data are stuck.
 
 ---
