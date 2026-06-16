@@ -915,6 +915,8 @@ const AssistantBubbleContent: FC<{
                     isPreviewDeploySetup={
                         editDbtProjectResult.isPreviewDeploySetup
                     }
+                    agentUuid={agentUuid}
+                    threadUuid={message.threadUuid}
                 />
             )}
         </>

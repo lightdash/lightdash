@@ -32,7 +32,9 @@ import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
+import { useCreateAgentThreadMessageMutation } from '../../../hooks/useProjectAiAgents';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
+import { POST_MERGE_MIGRATION_PROMPT } from '../../../postMergeMigrationPrompt';
 import styles from './AiEditDbtProjectToolCall.module.css';
 import { isMergeable } from './pullRequestActions';
 import { PullRequestCiChecks } from './PullRequestCiChecks';
@@ -48,6 +50,14 @@ type Props = {
      * affordance is suppressed for it.
      */
     isPreviewDeploySetup: boolean;
+    /**
+     * The agent + thread this card belongs to. When present, merging the PR
+     * also injects the (hidden) post-merge migration prompt so the agent
+     * proactively assesses and repoints affected saved content. Absent in
+     * contexts without a live thread (e.g. shared/read-only views).
+     */
+    agentUuid?: string;
+    threadUuid?: string;
 };
 
 // Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle"
@@ -347,6 +357,8 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     metadata,
     projectUuid,
     isPreviewDeploySetup,
+    agentUuid,
+    threadUuid,
 }) => {
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
@@ -362,6 +374,11 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         useMergePullRequest(projectUuid);
     const { mutate: close, isLoading: isClosing } =
         useClosePullRequest(projectUuid);
+    const { mutate: sendThreadMessage } = useCreateAgentThreadMessageMutation(
+        projectUuid,
+        agentUuid,
+        threadUuid,
+    );
 
     if (metadata.status === 'error') {
         // When the project just needs its git app installed, the agent's reply
@@ -618,10 +635,26 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             isMerging={isMerging}
                             isClosing={isClosing}
                             onMerge={() =>
-                                merge({
-                                    prUrl: resolvedPrUrl,
-                                    sha: metadata.commitSha ?? null,
-                                })
+                                merge(
+                                    {
+                                        prUrl: resolvedPrUrl,
+                                        sha: metadata.commitSha ?? null,
+                                    },
+                                    // Once merged, ask the agent to assess and
+                                    // repoint affected saved content. Injected as
+                                    // a hidden turn (filtered from the chat by
+                                    // AgentChatDisplay) so only the agent's
+                                    // proactive reply shows.
+                                    agentUuid && threadUuid
+                                        ? {
+                                              onSuccess: () =>
+                                                  sendThreadMessage({
+                                                      prompt: POST_MERGE_MIGRATION_PROMPT,
+                                                      hidden: true,
+                                                  }),
+                                          }
+                                        : undefined,
+                                )
                             }
                             onClose={() => close({ prUrl: resolvedPrUrl })}
                         />

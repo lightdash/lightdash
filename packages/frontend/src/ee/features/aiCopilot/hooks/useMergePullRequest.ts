@@ -1,4 +1,8 @@
-import { type ApiError, type MergePullRequestResult } from '@lightdash/common';
+import {
+    type ApiError,
+    type CiChecks,
+    type MergePullRequestResult,
+} from '@lightdash/common';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
@@ -28,13 +32,24 @@ const mergePullRequest = (
  */
 export const useMergePullRequest = (projectUuid: string) => {
     const queryClient = useQueryClient();
-    const { showToastSuccess, showToastApiError } = useToaster();
+    const { showToastApiError } = useToaster();
 
     return useMutation<MergePullRequestResult, ApiError, MergeArgs>({
         mutationFn: (args) => mergePullRequest(projectUuid, args),
-        onSuccess: (_result, { prUrl }) => {
-            showToastSuccess({ title: 'Pull request merged' });
-            // Prefix match invalidates every pinned-commit variant of the key.
+        onSuccess: (result, { prUrl }) => {
+            // No success toast — the PR card flips to its "Merged" state with
+            // confetti, which is feedback enough.
+            // Optimistically flip the card to its merged state. Without this the
+            // button briefly reverts to the clickable green "Merge PR" until the
+            // CI-checks query refetches the merged verdict from GitHub (a few
+            // seconds), and the "Merged" purple state + confetti only fire then.
+            // Prefix match covers every pinned-commit variant of the key.
+            if (result.merged) {
+                queryClient.setQueriesData<CiChecks | null>(
+                    { queryKey: ['pullRequestCiChecks', projectUuid, prUrl] },
+                    (old) => (old ? { ...old, merged: true } : old),
+                );
+            }
             void queryClient.invalidateQueries({
                 queryKey: ['pullRequestCiChecks', projectUuid, prUrl],
             });
