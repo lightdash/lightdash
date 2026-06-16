@@ -452,6 +452,15 @@ const ExistingThreadPanel: FC<{
                                       )
                                 : undefined
                         }
+                        onRouteToAgent={(targetAgentUuid, prompt) =>
+                            dispatchToStore(
+                                openPanel({
+                                    threadId: null,
+                                    agentUuid: targetAgentUuid,
+                                    pendingPrompt: prompt,
+                                }),
+                            )
+                        }
                     />
                 </AgentChatDisplay>
             </div>

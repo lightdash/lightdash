@@ -89,6 +89,8 @@ interface AgentChatInputProps {
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
     contentMentionPriorityItems?: ContentMentionSuggestionItem[];
+    // Enables launcher-specific routing to a capable sibling agent.
+    onRouteToAgent?: (agentUuid: string, prompt: string) => void;
 }
 
 const extractToolHints = (editor: Editor | null): string[] => {
@@ -131,6 +133,7 @@ export const AgentChatInput = ({
     clearOnSubmit = true,
     showSuggestions = true,
     contentMentionPriorityItems = [],
+    onRouteToAgent,
 }: AgentChatInputProps) => {
     const user = useUser(true);
     const [value, setValueState] = useState(defaultValue ?? '');
@@ -460,6 +463,7 @@ export const AgentChatInput = ({
                 onResend={(message) =>
                     onSubmitRef.current({ message, toolHints: [] })
                 }
+                onRouteToAgent={onRouteToAgent}
             />
         ) : null;
 

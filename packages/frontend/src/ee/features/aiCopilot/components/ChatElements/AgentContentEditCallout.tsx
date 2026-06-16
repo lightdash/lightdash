@@ -8,18 +8,21 @@ import { AGENT_SUGGESTIONS_KEY } from '../../hooks/useAgentSuggestions';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
     useAiAgentThread,
+    useProjectAiAgents,
     useProjectUpdateAiAgentMutation,
 } from '../../hooks/useProjectAiAgents';
 import {
     getContentEditCalloutActions,
     hasContentEditCalloutActions,
 } from './contentEditCallout';
+import { pickCapableAgent } from './pickCapableAgent';
 
 type Props = {
     projectUuid: string;
     agentUuid: string;
     threadUuid: string;
     onResend: (message: string) => void;
+    onRouteToAgent?: (agentUuid: string, prompt: string) => void;
 };
 
 export const AgentContentEditCallout: FC<Props> = ({
@@ -27,6 +30,7 @@ export const AgentContentEditCallout: FC<Props> = ({
     agentUuid,
     threadUuid,
     onResend,
+    onRouteToAgent,
 }) => {
     const canManageAgent = useAiAgentPermission({
         action: 'manage',
@@ -75,10 +79,21 @@ export const AgentContentEditCallout: FC<Props> = ({
         onResend,
     ]);
 
-    // Route action (capableAgent) is added in a later task.
+    const { data: agents } = useProjectAiAgents({
+        projectUuid,
+        redirectOnUnauthorized: false,
+    });
+    const capableAgent = useMemo(
+        () =>
+            onRouteToAgent && agents
+                ? pickCapableAgent({ agents, currentAgentUuid: agentUuid })
+                : null,
+        [onRouteToAgent, agents, agentUuid],
+    );
+
     const actions = getContentEditCalloutActions({
         canManageAgent: canManageAgent ?? false,
-        capableAgent: null,
+        capableAgent,
     });
 
     if (!hasContentEditCalloutActions(actions)) return null;
@@ -144,6 +159,22 @@ export const AgentContentEditCallout: FC<Props> = ({
                             </Popover.Dropdown>
                         </Popover>
                     )}
+                    {actions.routeAgent &&
+                        onRouteToAgent &&
+                        lastUserMessage && (
+                            <Button
+                                size="xs"
+                                variant="default"
+                                onClick={() =>
+                                    onRouteToAgent(
+                                        actions.routeAgent!.uuid,
+                                        lastUserMessage,
+                                    )
+                                }
+                            >
+                                Continue with {actions.routeAgent.name}
+                            </Button>
+                        )}
                 </Group>
             </Stack>
         </Callout>
