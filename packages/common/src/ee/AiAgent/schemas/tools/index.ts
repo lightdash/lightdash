@@ -11,7 +11,6 @@ export * from './toolMcpQueryResultDescription';
 export * from './toolEditDbtProjectArgs';
 export * from './toolExploreRepoArgs';
 export * from './toolDiscoverReposArgs';
-export * from './toolSetupPreviewDeployArgs';
 export * from './toolReadContentArgs';
 export * from './mcpToolListExploresArgs';
 export * from './toolDashboardArgs';

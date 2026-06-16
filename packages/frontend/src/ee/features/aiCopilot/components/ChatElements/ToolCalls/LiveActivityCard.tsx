@@ -107,14 +107,8 @@ const TOOLS_WITHOUT_LATEST_DESCRIPTION = new Set<string>([
     'loadProjectContext',
     'proposeChange',
     'editDbtProject',
-    'setupPreviewDeploy',
     'runSavedChart',
 ]);
-
-// Tools that stream coarse step progress rendered as a single replacing row.
-// editDbtProject is intentionally absent: its actions are surfaced as grouped
-// step rows (AgentStepGroups) under the tool call instead of a transient line.
-const TOOLS_WITH_STEP_PROGRESS = new Set<string>(['setupPreviewDeploy']);
 
 const MCP_SUMMARY_ICON_LIMIT = 4;
 
@@ -493,72 +487,6 @@ const getDiscoverFieldsTraceFromCall = (
 };
 
 /**
- * Render the latest tool's progress as a single inline row under the
- * card header — the label gets replaced (rather than stacked) as the tool
- * advances. Matches the Slack experience where one pinned line is
- * overwritten with each new stage, without losing the visual anchor of a
- * pulsing dot.
- *
- * Returns null when there's nothing to render (the tool hasn't fired any
- * progress events, an SQL approval is pending, or we're not actively
- * streaming). Today only editDbtProject emits progress strings that
- * warrant this treatment; other tools either run instantly or share the
- * single "Running your query…" string that the parent bubble shows via
- * TypingDots instead.
- *
- * Crucially, the row shows only the latest event belonging to the active
- * tool (`toolName === latest.toolName`). A writeback often runs alongside
- * other tools (e.g. a `findFields` query the agent fired in the same turn),
- * and all of their progress lands in one flat list — without this scoping a
- * concurrent tool's "Searching for fields…" would briefly surface under the
- * "Opening a pull request" header.
- */
-const renderInlineLiveStepProgress = (params: {
-    latest: LiveActivityToolGroup | null;
-    isLive: boolean;
-    hasPending: boolean;
-    stepProgressMessages: StepProgressMessage[];
-}): React.ReactNode => {
-    const { latest, isLive, hasPending, stepProgressMessages } = params;
-    if (!isLive || !latest || hasPending) return null;
-    if (!TOOLS_WITH_STEP_PROGRESS.has(latest.toolName)) return null;
-
-    const currentMessage = stepProgressMessages
-        .filter((m) => m.toolName === latest.toolName)
-        .at(-1)?.message;
-    if (!currentMessage) return null;
-
-    return (
-        <Box className={styles.liveStepProgress}>
-            <Group
-                gap={6}
-                align="center"
-                wrap="nowrap"
-                className={styles.liveStepProgressRow}
-                // Key on the message so React swaps the node (replays the
-                // fade-in animation) each time a new progress event lands,
-                // rather than just rewriting the text in place. Reads as a
-                // deliberate "next step" rather than a silent label change.
-                key={currentMessage}
-                data-active="true"
-            >
-                <Box
-                    className={styles.liveStepProgressDot}
-                    data-active="true"
-                />
-                <Text
-                    size="xs"
-                    className={styles.liveStepProgressLabel}
-                    data-active="true"
-                >
-                    {currentMessage}
-                </Text>
-            </Group>
-        </Box>
-    );
-};
-
-/**
  * Render the subagent's live trace outside the activity card's collapse
  * so users see findExplores / findFields rows appear under the
  * "Discovering fields" header without having to expand the card.
@@ -747,12 +675,6 @@ export const LiveActivityCard: FC<Props> = ({
                 </Group>
             </UnstyledButton>
             {renderInlineLiveTrace({ latest, isLive, hasPending })}
-            {renderInlineLiveStepProgress({
-                latest,
-                isLive,
-                hasPending,
-                stepProgressMessages,
-            })}
             {isLive &&
                 !hasPending &&
                 latest?.toolName === 'editDbtProject' &&

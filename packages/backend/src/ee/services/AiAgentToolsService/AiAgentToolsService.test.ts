@@ -150,7 +150,6 @@ const makeService = ({
         aiAgentDocumentModel: {},
         changesetModel: {},
         featureFlagService: {},
-        previewDeploySetupService: {},
         shareService: {},
         asyncQueryService,
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);

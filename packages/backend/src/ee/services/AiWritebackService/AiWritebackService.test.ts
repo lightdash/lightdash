@@ -91,7 +91,6 @@ const buildService = (overrides: Record<string, AnyType> = {}) =>
 // tests — the host-specific behaviour is covered by the provider unit tests.
 const fakeProvider = (overrides: AnyType = {}): AnyType => ({
     provider: PullRequestProvider.GITHUB,
-    supportsPreviewDeploy: true,
     resolveConnection: jest.fn(),
     resolveInstallation: jest.fn(),
     getCloneTarget: jest.fn(),

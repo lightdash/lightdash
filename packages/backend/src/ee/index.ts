@@ -2,15 +2,9 @@ import { FeatureFlags, ForbiddenError } from '@lightdash/common';
 import express, { Express } from 'express';
 import { AppArguments } from '../App';
 import {
-    createBranch,
-    createPullRequest,
     createPullRequestComment,
-    createSignedCommitOnBranch,
-    getBranchHeadSha,
     getInstallationToken,
     getPullRequest,
-    getRepoDefaultBranch,
-    getRepoWorkflowFiles,
 } from '../clients/github/Github';
 import { lightdashConfig } from '../config/lightdashConfig';
 import Logger from '../logging/logger';
@@ -37,7 +31,6 @@ import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuth
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
-import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
 import { ServiceAccountModel } from './models/ServiceAccountModel';
 import { enhanceExploresForPreAggregates } from './preAggregates/enhanceExploresForPreAggregates';
@@ -65,7 +58,6 @@ import { EmbedService } from './services/EmbedService/EmbedService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
-import { PreviewDeploySetupService } from './services/PreviewDeploySetupService/PreviewDeploySetupService';
 import { ProjectContextService } from './services/ProjectContextService/ProjectContextService';
 import { ScimService } from './services/ScimService/ScimService';
 import { ServiceAccountService } from './services/ServiceAccountService/ServiceAccountService';
@@ -132,24 +124,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiWritebackThreadModel<AiWritebackThreadModel>(),
                     pullRequestsModel: models.getPullRequestsModel(),
                     prometheusMetrics,
-                }),
-            previewDeploySetupService: ({ context, models }) =>
-                new PreviewDeploySetupService({
-                    lightdashConfig: context.lightdashConfig,
-                    projectModel: models.getProjectModel(),
-                    githubAppInstallationsModel:
-                        models.getGithubAppInstallationsModel(),
-                    pullRequestsModel: models.getPullRequestsModel(),
-                    projectCiStatusModel:
-                        models.getProjectCiStatusModel<ProjectCiStatusModel>(),
-                    githubClient: {
-                        createBranch,
-                        createPullRequest,
-                        createSignedCommitOnBranch,
-                        getBranchHeadSha,
-                        getRepoDefaultBranch,
-                        getRepoWorkflowFiles,
-                    },
                 }),
             writebackPreviewService: ({ context, models, repository }) =>
                 new WritebackPreviewService({
@@ -248,8 +222,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getAiAgentDocumentModel<AiAgentDocumentModel>(),
                     changesetModel: models.getChangesetModel(),
                     featureFlagService: repository.getFeatureFlagService(),
-                    previewDeploySetupService:
-                        repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     shareService: repository.getShareService(),
                 }),
             aiAgentService: ({
@@ -304,8 +276,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiWritebackService<AiWritebackService>(),
                     writebackPreviewService:
                         repository.getWritebackPreviewService<WritebackPreviewService>(),
-                    previewDeploySetupService:
-                        repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
                     githubAppService: repository.getGithubAppService(),
@@ -715,8 +685,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new AiAgentDocumentModel({ database }),
             aiWritebackThreadModel: ({ database }) =>
                 new AiWritebackThreadModel({ database }),
-            projectCiStatusModel: ({ database }) =>
-                new ProjectCiStatusModel({ database }),
             aiAgentReviewClassifierModel: ({ database }) =>
                 new AiAgentReviewClassifierModel({ database }),
             projectContextModel: ({ database }) =>

@@ -46,7 +46,6 @@ import {
     SearchSemanticLayerFn,
     SendFileFn,
     SendSlackBlocksFn,
-    SetupPreviewDeployFn,
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
@@ -96,7 +95,6 @@ export type AiAgentArgs = AnyAiModel & {
     // Which GitHub identity a writeback PR would be attributed to (advisory,
     // resolved at prompt-assembly time). null when not applicable/unresolved.
     writebackAttribution: AiWritebackAttribution | null;
-    enablePreviewDeploySetup: boolean;
     enableRepoDiscovery: boolean;
     // dbt project root within the repo (from project_sub_path); '.' = repo root,
     // null when repo discovery is off or the project is not git-backed.
@@ -167,7 +165,6 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     editDbtProject: EditDbtProjectFn;
-    setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
     listProjects: ListProjectsFn;

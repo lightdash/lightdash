@@ -41,13 +41,6 @@ import { WritebackDiffModal } from './WritebackDiffModal';
 type Props = {
     metadata: ToolEditDbtProjectOutput['metadata'];
     projectUuid: string;
-    /**
-     * True when this card belongs to a `setupPreviewDeploy` PR (one that adds
-     * the preview-deploy workflow) rather than a data-change `editDbtProject`
-     * PR. A setup PR never produces a preview of itself, so the preview
-     * affordance is suppressed for it.
-     */
-    isPreviewDeploySetup: boolean;
 };
 
 // Parses "https://github.com/lightdash/jaffle/pull/29" into "lightdash/jaffle"
@@ -346,7 +339,6 @@ export const PullRequestActionButtons: FC<{
 export const AiEditDbtProjectToolCall: FC<Props> = ({
     metadata,
     projectUuid,
-    isPreviewDeploySetup,
 }) => {
     // Hooks must run before the early returns below; the query is disabled until
     // there's a PR URL, so the error/no-PR branches don't fetch anything.
@@ -599,17 +591,13 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                         {/* View (preview / PR / diff) stands alone; the Close and
                             Merge terminal actions are joined in their own group.
                             Preview URL is generated server-side during the run
-                            and carried in the tool metadata — a setup PR never
-                            previews itself. Stacks vertically in the narrow
-                            minimized chat bubble (see the module's container query). */}
+                            and carried in the tool metadata. Stacks vertically in
+                            the narrow minimized chat bubble (see the module's
+                            container query). */}
                         <PullRequestViewMenu
                             projectUuid={projectUuid}
                             prUrl={metadata.prUrl}
-                            previewUrl={
-                                isPreviewDeploySetup
-                                    ? null
-                                    : (metadata.previewUrl ?? null)
-                            }
+                            previewUrl={metadata.previewUrl ?? null}
                             commitSha={metadata.commitSha ?? null}
                             ciChecks={ciChecks ?? null}
                         />

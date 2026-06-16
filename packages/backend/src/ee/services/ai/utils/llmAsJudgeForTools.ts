@@ -50,7 +50,6 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     editDbtProject: 'edit_dbt_project',
     exploreRepo: 'explore_repo',
     discoverRepos: 'discover_repos',
-    setupPreviewDeploy: 'setup_preview_deploy',
 } satisfies Record<ToolName, string>;
 
 const getToolInfo = (toolName: string) => {

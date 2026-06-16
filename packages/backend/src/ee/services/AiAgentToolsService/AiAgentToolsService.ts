@@ -28,7 +28,6 @@ import {
     type DashboardAsCode,
 } from '@lightdash/common';
 import * as JsonPatch from 'fast-json-patch';
-import Logger from '../../../logging/logger';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
@@ -83,7 +82,6 @@ import {
     RunSqlJobFn,
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
-    SetupPreviewDeployFn,
     ValidateContentFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -91,7 +89,6 @@ import {
     expandMetricsWithPopAdditionalMetrics,
     populateCustomMetricsSQL,
 } from '../ai/utils/populateCustomMetricsSQL';
-import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 
 type AgentListContentResult = Awaited<ReturnType<ListContentFn>>;
 type AgentListContentItem = AgentListContentResult['items'][number];
@@ -145,7 +142,6 @@ export type AiAgentToolsRuntime = {
         import('../ai/types/aiAgentDependencies').GetKnowledgeDocumentContentFn
     >;
     getSavedChart: GetSavedChartFn;
-    setupPreviewDeploy: SetupPreviewDeployFn;
     listProjects: ListProjectsFn;
     getProjectInfo: GetProjectInfoFn;
     loadSkill: LoadAgentSkillFn;
@@ -183,7 +179,6 @@ type AiAgentToolsServiceDependencies = {
     aiAgentDocumentModel: AiAgentDocumentModel;
     changesetModel: ChangesetModel;
     featureFlagService: FeatureFlagService;
-    previewDeploySetupService: PreviewDeploySetupService;
     shareService: ShareService;
     lightdashConfig: {
         siteUrl: string;
@@ -225,8 +220,6 @@ export class AiAgentToolsService extends BaseService {
     private readonly aiAgentDocumentModel: AiAgentDocumentModel;
 
     private readonly featureFlagService: FeatureFlagService;
-
-    private readonly previewDeploySetupService: PreviewDeploySetupService;
 
     private readonly lightdashConfig: AiAgentToolsServiceDependencies['lightdashConfig'];
 
@@ -282,7 +275,6 @@ export class AiAgentToolsService extends BaseService {
         aiAgentContentValidation,
         aiAgentDocumentModel,
         featureFlagService,
-        previewDeploySetupService,
         lightdashConfig,
     }: AiAgentToolsServiceDependencies) {
         super();
@@ -304,7 +296,6 @@ export class AiAgentToolsService extends BaseService {
         this.aiAgentContentValidation = aiAgentContentValidation;
         this.aiAgentDocumentModel = aiAgentDocumentModel;
         this.featureFlagService = featureFlagService;
-        this.previewDeploySetupService = previewDeploySetupService;
         this.lightdashConfig = lightdashConfig;
     }
 
@@ -435,7 +426,6 @@ export class AiAgentToolsService extends BaseService {
                 this.getKnowledgeDocumentContent(context, args),
             getSavedChart: (chartUuid) =>
                 this.getSavedChartForRuntime(context, chartUuid),
-            setupPreviewDeploy: () => this.setupPreviewDeploy(context),
             listProjects: () => this.listProjects(context),
             getProjectInfo: () => this.getProjectInfo(context),
             loadSkill: (name) => this.loadAgentSkill(name),
@@ -1688,20 +1678,6 @@ export class AiAgentToolsService extends BaseService {
         );
     }
 
-    private setupPreviewDeploy(
-        context: AiAgentToolsRuntimeContext,
-    ): ReturnType<SetupPreviewDeployFn> {
-        return wrapSentryTransaction(
-            `${AiAgentToolsService.transactionPrefix(context)}.setupPreviewDeploy`,
-            {},
-            () =>
-                this.previewDeploySetupService.setupPreviewDeploy({
-                    user: context.user,
-                    projectUuid: context.projectUuid,
-                }),
-        );
-    }
-
     private listProjects(
         context: AiAgentToolsRuntimeContext,
     ): ReturnType<ListProjectsFn> {
@@ -1746,40 +1722,6 @@ export class AiAgentToolsService extends BaseService {
                     context.projectUuid,
                 );
                 const { dbtConnection } = project;
-                let previewDeployCi: Awaited<
-                    ReturnType<GetProjectInfoFn>
-                >['previewDeployCi'] = null;
-
-                const canViewSourceCode = this.createAuditedAbility(
-                    context.user,
-                ).can(
-                    'view',
-                    subject('SourceCode', {
-                        organizationUuid: context.organizationUuid,
-                        projectUuid: context.projectUuid,
-                    }),
-                );
-                if (isGitProjectType(dbtConnection) && canViewSourceCode) {
-                    try {
-                        const ciStatus =
-                            await this.previewDeploySetupService.getOrScanProjectCiStatus(
-                                context.user,
-                                context.projectUuid,
-                            );
-                        previewDeployCi = ciStatus
-                            ? {
-                                  hasPreviewDeployWorkflow:
-                                      ciStatus.hasPreviewDeployWorkflow,
-                                  workflowPath: ciStatus.workflowPath,
-                              }
-                            : null;
-                    } catch (err) {
-                        Logger.warn(
-                            'getProjectInfo: preview-deploy CI lookup failed',
-                            err,
-                        );
-                    }
-                }
 
                 return {
                     projectName: project.name,
@@ -1795,7 +1737,6 @@ export class AiAgentToolsService extends BaseService {
                               hostDomain: dbtConnection.host_domain ?? null,
                           }
                         : null,
-                    previewDeployCi,
                 };
             },
         );

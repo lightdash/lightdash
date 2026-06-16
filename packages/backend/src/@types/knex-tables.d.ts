@@ -440,10 +440,6 @@ import {
     PreAggregateMaterializationsTableName,
 } from '../ee/database/entities/preAggregates';
 import {
-    ProjectCiStatusTable,
-    ProjectCiStatusTableName,
-} from '../ee/database/entities/projectCiStatus';
-import {
     ServiceAccountsTableName,
     ServiceAccountTable,
 } from '../ee/database/entities/serviceAccounts';
@@ -550,7 +546,6 @@ declare module 'knex/types/tables' {
         [AiSlackPromptTableName]: AiSlackPromptTable;
         [AiWebAppPromptTableName]: AiWebAppPromptTable;
         [AiWritebackThreadTableName]: AiWritebackThreadTable;
-        [ProjectCiStatusTableName]: ProjectCiStatusTable;
         [AiAgentTableName]: AiAgentTable;
         [AiAgentDocumentTableName]: AiAgentDocumentTable;
         [AiAgentDocumentAccessTableName]: AiAgentDocumentAccessTable;

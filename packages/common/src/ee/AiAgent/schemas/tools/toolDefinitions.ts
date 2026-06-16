@@ -222,11 +222,6 @@ import {
     toolSearchSemanticLayerOutputSchema,
 } from './toolSearchSemanticLayerArgs';
 import {
-    TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
-    toolSetupPreviewDeployArgsSchema,
-    toolSetupPreviewDeployOutputSchema,
-} from './toolSetupPreviewDeployArgs';
-import {
     TOOL_TABLE_VIZ_DESCRIPTION,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
@@ -614,15 +609,6 @@ export const discoverReposToolDefinition = defineTool({
     agent: { outputSchema: toolDiscoverReposOutputSchema },
 });
 
-export const setupPreviewDeployToolDefinition = defineTool({
-    name: 'setupPreviewDeploy',
-    title: 'Set up preview deploys',
-    description: TOOL_SETUP_PREVIEW_DEPLOY_DESCRIPTION,
-    availability: ['agent'],
-    inputSchema: toolSetupPreviewDeployArgsSchema,
-    agent: { outputSchema: toolSetupPreviewDeployOutputSchema },
-});
-
 export const runSavedChartToolDefinition = defineTool({
     name: 'runSavedChart',
     title: 'Run saved chart',
@@ -922,7 +908,6 @@ type AgentToolDefinitionsByName = {
     editDbtProject: typeof editDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
-    setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
     runSavedChart: typeof runSavedChartToolDefinition;
     listWarehouseTables: typeof listWarehouseTablesToolDefinition;
     describeWarehouseTable: typeof describeWarehouseTableToolDefinition;
@@ -964,7 +949,6 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     editDbtProject: editDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
-    setupPreviewDeploy: setupPreviewDeployToolDefinition,
     runSavedChart: runSavedChartToolDefinition,
     listWarehouseTables: listWarehouseTablesToolDefinition,
     describeWarehouseTable: describeWarehouseTableToolDefinition,
@@ -1008,7 +992,6 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     editDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,
-    setupPreviewDeployToolDefinition,
     runSavedChartToolDefinition,
     listWarehouseTablesToolDefinition,
     describeWarehouseTableToolDefinition,

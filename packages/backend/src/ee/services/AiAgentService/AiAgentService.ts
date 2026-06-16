@@ -275,7 +275,6 @@ import { AiWritebackService } from '../AiWritebackService/AiWritebackService';
 import { buildChangesetWritebackPrompt } from '../AiWritebackService/changesetPrompt';
 import type { AiWritebackSource } from '../AiWritebackService/types';
 import { type WritebackPreviewService } from '../AiWritebackService/WritebackPreviewService';
-import { PreviewDeploySetupService } from '../PreviewDeploySetupService/PreviewDeploySetupService';
 import { canGeneratePostResponseSuggestions } from './suggestionAccess';
 
 type ThreadMessageContext = Array<
@@ -355,7 +354,6 @@ type AiAgentServiceDependencies = {
     persistentDownloadFileService: PersistentDownloadFileService;
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
-    previewDeploySetupService: PreviewDeploySetupService;
     writebackPreviewService: WritebackPreviewService;
     githubAppInstallationsModel: GithubAppInstallationsModel;
     githubAppService: GithubAppService;
@@ -428,8 +426,6 @@ const SYSTEM_AGENT_INSTRUCTION = `You are Lightdash's built-in assistant. Help t
 If the user asks about the current project or its underlying dbt project — for example which dbt project this is, which git repository or branch it connects to, or what dbt version or warehouse it uses — call the getProjectInfo tool and answer from its result. Do not guess these details.
 
 If the user asks you to change the dbt project or semantic layer — for example renaming or adding a metric or dimension, editing a model's YAML, or otherwise modifying definitions — use the editDbtProject tool, passing along the user's request. It opens a pull request against the project's dbt repository. Do not attempt to make such changes any other way. If the user asks to write back or open a pull request from their changeset(s), call editDbtProject with fromActiveChangeset set to true and prompt set to null — the server builds the change instructions from the project's active changeset.
-
-If the user asks to set up Lightdash preview deploys / preview projects for pull requests (or they accept the offer surfaced after a writeback), use the setupPreviewDeploy tool. It opens a separate pull request adding the Lightdash preview GitHub Actions workflow; a prior writeback is not required.
 
 After a writeback, tell the user which Lightdash project and which GitHub repository the change was made against (the tool result includes both), so they can confirm it went to the right place.`;
 
@@ -598,8 +594,6 @@ export class AiAgentService extends BaseService {
     private readonly aiAgentContentValidation: AiAgentContentValidation;
 
     private readonly aiWritebackService: AiWritebackService;
-
-    private readonly previewDeploySetupService: PreviewDeploySetupService;
 
     private readonly writebackPreviewService: WritebackPreviewService;
 
@@ -818,7 +812,6 @@ export class AiAgentService extends BaseService {
             dependencies.persistentDownloadFileService;
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
-        this.previewDeploySetupService = dependencies.previewDeploySetupService;
         this.writebackPreviewService = dependencies.writebackPreviewService;
         this.githubAppInstallationsModel =
             dependencies.githubAppInstallationsModel;
@@ -5807,36 +5800,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         );
                     });
             }
-            // Resolve the repo's preview-deploy CI status once (best-effort,
-            // gated by the ai-preview-deploy-setup flag). It drives the
-            // deterministic "offer to set it up" instruction the editDbtProject
-            // tool relays when no server-side preview could be built. Owned by
-            // the sibling PreviewDeploySetupService — writeback no longer
-            // detects this itself. Never fails the writeback result.
-            let previewDeployConfigured: boolean | null = null;
-            try {
-                const { enabled: previewDeploySetupEnabled } =
-                    await this.featureFlagService.get({
-                        user,
-                        featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-                    });
-                if (previewDeploySetupEnabled) {
-                    const ciStatus =
-                        await this.previewDeploySetupService.getOrScanProjectCiStatus(
-                            user,
-                            projectUuid,
-                        );
-                    previewDeployConfigured = ciStatus
-                        ? ciStatus.hasPreviewDeployWorkflow
-                        : null;
-                }
-            } catch (err) {
-                Logger.debug(
-                    'Failed to resolve preview-deploy CI status after writeback:',
-                    err,
-                );
-            }
-
             // Server-side preview: for GitHub-connected projects, build the
             // preview ourselves from the PR's head branch and post its URL on
             // the PR — no CI in the customer repo required. The URL is returned
@@ -5854,7 +5817,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 previewUrl = preview?.previewUrl ?? null;
             }
 
-            return { ...result, previewDeployConfigured, previewUrl };
+            return { ...result, previewUrl };
         };
 
         // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
@@ -6048,7 +6011,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
-            setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
             listProjects: toolsRuntime.listProjects,
@@ -6174,7 +6136,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues,
             editDbtProject,
-            setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
             listProjects,
@@ -6362,17 +6323,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ? await this.projectContextModel.getDocument(prompt.projectUuid)
             : [];
 
-        // Preview-deploy setup rides the writeback infra, so it requires both
-        // the writeback flag (and trusted identity, applied above) and its own
-        // ai-preview-deploy-setup flag.
-        const { enabled: aiPreviewDeploySetupFlag } =
-            await this.featureFlagService.get({
-                user,
-                featureFlagId: FeatureFlags.AiPreviewDeploySetup,
-            });
-        const aiPreviewDeploySetupEnabled =
-            aiWritebackEnabled && aiPreviewDeploySetupFlag;
-
         let { enabled: repoDiscoveryEnabled } =
             await this.featureFlagService.get({
                 user,
@@ -6455,7 +6405,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableSearchSemanticLayer: searchSemanticLayerEnabled,
             enableAiWriteback: aiWritebackEnabled,
             writebackAttribution,
-            enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
             enableRepoDiscovery: repoDiscoveryEnabled,
             repoFsRoot,
             canRunSql,
@@ -6539,7 +6488,6 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             storeReasoning,
             searchFieldValues,
             editDbtProject,
-            setupPreviewDeploy,
             exploreRepo,
             discoverRepos,
             listProjects,

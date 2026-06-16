@@ -29,7 +29,6 @@ import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
-import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 
 const schemaToJson = (schema: ZodTypeAny | undefined): unknown => {
     if (!schema) {
@@ -142,9 +141,6 @@ const makeAgentTools = () => {
         loadSkill: getLoadSkill({ loadSkill: noop }),
         editDbtProject: getEditDbtProject({
             editDbtProject: noop,
-        }),
-        setupPreviewDeploy: getSetupPreviewDeploy({
-            setupPreviewDeploy: noop,
         }),
         exploreRepo: getExploreRepo({ exploreRepo: noop }),
         discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
