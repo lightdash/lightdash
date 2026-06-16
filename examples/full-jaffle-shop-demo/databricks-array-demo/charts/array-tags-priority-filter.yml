@@ -1,0 +1,50 @@
+name: High-priority Customers (number array filter)
+description: >-
+  Customers whose `priorities` array includes the number 5. Because the
+  dimension declares array_element_type: number, the value is emitted as an
+  unquoted literal: array_contains(priorities, 5) (not '5').
+tableName: array_tags
+metricQuery:
+  exploreName: array_tags
+  dimensions:
+    - array_tags_customer_name
+  metrics:
+    - array_tags_total_amount
+  filters:
+    dimensions:
+      id: "22222222-2222-2222-2222-222222222221"
+      and:
+        - id: "22222222-2222-2222-2222-222222222222"
+          target:
+            fieldId: array_tags_priorities
+          operator: include
+          values:
+            - 5
+  sorts:
+    - fieldId: array_tags_customer_name
+      descending: false
+  limit: 500
+  metricOverrides: {}
+  dimensionOverrides: {}
+  tableCalculations: []
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: false
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: false
+    conditionalFormattings: []
+slug: array-tags-priority-filter
+tableConfig:
+  columnOrder:
+    - array_tags_customer_name
+    - array_tags_total_amount
+spaceSlug: jaffle-shop
+version: 1

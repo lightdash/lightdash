@@ -1,0 +1,40 @@
+name: Tag Breakdown (unnested)
+description: >-
+  Customer count per tag. Selecting the ARRAY<STRING> dimension `tags` unnests it
+  (LATERAL VIEW explode) so each tag becomes its own row.
+tableName: array_tags
+metricQuery:
+  exploreName: array_tags
+  dimensions:
+    - array_tags_tags
+  metrics:
+    - array_tags_customer_count
+  filters: {}
+  sorts:
+    - fieldId: array_tags_customer_count
+      descending: true
+  limit: 500
+  metricOverrides: {}
+  dimensionOverrides: {}
+  tableCalculations: []
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: false
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: false
+    conditionalFormattings: []
+slug: array-tags-tag-breakdown
+tableConfig:
+  columnOrder:
+    - array_tags_tags
+    - array_tags_customer_count
+spaceSlug: jaffle-shop
+version: 1

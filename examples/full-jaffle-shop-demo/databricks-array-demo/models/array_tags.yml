@@ -1,0 +1,54 @@
+type: model
+name: array_tags
+label: Array Tags
+description: |
+  Demo model for native ARRAY dimensions (Databricks only).
+  Requires the `array-dimensions` feature flag to be enabled on the instance
+  (LIGHTDASH_ENABLE_FEATURE_FLAGS=array-dimensions). See ../README.md.
+sql_from: SELECT * FROM lightdash_staging.jaffle.array_tags
+
+dimensions:
+  - name: id
+    type: number
+    sql: ${TABLE}.id
+    description: Unique row id
+
+  - name: customer_name
+    type: string
+    sql: ${TABLE}.customer_name
+    description: Customer name
+    metrics:
+      customer_count:
+        type: count_distinct
+        label: Customer count
+
+  - name: amount
+    type: number
+    sql: ${TABLE}.amount
+    description: Order amount (USD)
+    metrics:
+      total_amount:
+        type: sum
+        format: usd
+        round: 2
+        label: Total amount
+
+  # ARRAY<STRING> — filterable (includes / doesn't include) and unnests on select
+  - name: tags
+    type: array
+    array_element_type: string
+    sql: ${TABLE}.tags
+    description: Free-text tags. Selecting this dimension unnests it (one row per tag).
+
+  # ARRAY<INT> — element type drives unquoted numeric filter literals
+  - name: priorities
+    type: array
+    array_element_type: number
+    sql: ${TABLE}.priorities
+    description: Numeric priority codes. Filter values are emitted as numbers, not strings.
+
+  # ARRAY<STRUCT<...>> — object array; no scalar element type
+  - name: line_items
+    type: array
+    sql: ${TABLE}.line_items
+    description: Order line items (array of structs). Unnests to one row per line item.

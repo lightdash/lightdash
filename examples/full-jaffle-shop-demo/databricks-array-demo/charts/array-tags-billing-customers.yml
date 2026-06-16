@@ -1,0 +1,49 @@
+name: Billing Customers (string array filter)
+description: >-
+  Customers whose `tags` array includes "billing". Compiles to
+  array_contains(tags, 'billing') on Databricks.
+tableName: array_tags
+metricQuery:
+  exploreName: array_tags
+  dimensions:
+    - array_tags_customer_name
+  metrics:
+    - array_tags_total_amount
+  filters:
+    dimensions:
+      id: "11111111-1111-1111-1111-111111111111"
+      and:
+        - id: "11111111-1111-1111-1111-111111111112"
+          target:
+            fieldId: array_tags_tags
+          operator: include
+          values:
+            - billing
+  sorts:
+    - fieldId: array_tags_total_amount
+      descending: true
+  limit: 500
+  metricOverrides: {}
+  dimensionOverrides: {}
+  tableCalculations: []
+  additionalMetrics: []
+  customDimensions: []
+chartConfig:
+  type: table
+  config:
+    columns: {}
+    metricsAsRows: false
+    showSubtotals: false
+    hideRowNumbers: false
+    showTableNames: false
+    showResultsTotal: false
+    showRowCalculation: false
+    showColumnCalculation: false
+    conditionalFormattings: []
+slug: array-tags-billing-customers
+tableConfig:
+  columnOrder:
+    - array_tags_customer_name
+    - array_tags_total_amount
+spaceSlug: jaffle-shop
+version: 1
