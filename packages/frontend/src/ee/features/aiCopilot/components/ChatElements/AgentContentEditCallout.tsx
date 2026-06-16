@@ -95,6 +95,7 @@ export const AgentContentEditCallout: FC<Props> = ({
         canManageAgent: canManageAgent ?? false,
         capableAgent,
     });
+    const routeAgent = actions.routeAgent;
 
     if (!hasContentEditCalloutActions(actions)) return null;
 
@@ -159,22 +160,17 @@ export const AgentContentEditCallout: FC<Props> = ({
                             </Popover.Dropdown>
                         </Popover>
                     )}
-                    {actions.routeAgent &&
-                        onRouteToAgent &&
-                        lastUserMessage && (
-                            <Button
-                                size="xs"
-                                variant="default"
-                                onClick={() =>
-                                    onRouteToAgent(
-                                        actions.routeAgent!.uuid,
-                                        lastUserMessage,
-                                    )
-                                }
-                            >
-                                Continue with {actions.routeAgent.name}
-                            </Button>
-                        )}
+                    {routeAgent && onRouteToAgent && lastUserMessage && (
+                        <Button
+                            size="xs"
+                            variant="default"
+                            onClick={() =>
+                                onRouteToAgent(routeAgent.uuid, lastUserMessage)
+                            }
+                        >
+                            Continue with {routeAgent.name}
+                        </Button>
+                    )}
                 </Group>
             </Stack>
         </Callout>

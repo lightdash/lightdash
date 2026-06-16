@@ -89,7 +89,6 @@ interface AgentChatInputProps {
     clearOnSubmit?: boolean;
     showSuggestions?: boolean;
     contentMentionPriorityItems?: ContentMentionSuggestionItem[];
-    // Enables launcher-specific routing to a capable sibling agent.
     onRouteToAgent?: (agentUuid: string, prompt: string) => void;
 }
 
