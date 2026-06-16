@@ -13,6 +13,7 @@ import {
     LoadingOverlay,
     MultiSelect,
     Paper,
+    Radio,
     Stack,
     Switch,
     TagsInput,
@@ -35,6 +36,7 @@ import {
     IconSparkles,
     IconTrash,
     IconUpload,
+    IconUsers,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { z } from 'zod';
@@ -74,6 +76,7 @@ const formSchema = z.object({
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
+    adminOnly: z.boolean(),
     version: z.number(),
 });
 
@@ -200,6 +203,38 @@ export const AiAgentFormSetup = ({
                 label: group.name,
             })) ?? [],
         [groups],
+    );
+
+    // UI-only: keeps "Specific users & groups" selected after the user picks it
+    // but before they add anyone (otherwise empty lists would read as "Everyone").
+    const [showSpecificAccess, setShowSpecificAccess] = useState(false);
+
+    const accessMode: 'everyone' | 'admins' | 'specific' = form.values.adminOnly
+        ? 'admins'
+        : showSpecificAccess ||
+            form.values.userAccess.length > 0 ||
+            form.values.groupAccess.length > 0
+          ? 'specific'
+          : 'everyone';
+
+    const handleAccessModeChange = useCallback(
+        (mode: string) => {
+            if (mode === 'admins') {
+                setShowSpecificAccess(false);
+                form.setFieldValue('adminOnly', true);
+                form.setFieldValue('userAccess', []);
+                form.setFieldValue('groupAccess', []);
+            } else if (mode === 'specific') {
+                setShowSpecificAccess(true);
+                form.setFieldValue('adminOnly', false);
+            } else {
+                setShowSpecificAccess(false);
+                form.setFieldValue('adminOnly', false);
+                form.setFieldValue('userAccess', []);
+                form.setFieldValue('groupAccess', []);
+            }
+        },
+        [form],
     );
 
     return (
@@ -352,6 +387,120 @@ export const AiAgentFormSetup = ({
                                     )}
                                 </Group>
                             </Box>
+                        </Stack>
+                    </Paper>
+
+                    <Paper p="xl">
+                        <Group align="center" gap="xs" mb="md">
+                            <Paper p="xxs" withBorder radius="sm">
+                                <MantineIcon icon={IconUsers} size="md" />
+                            </Paper>
+                            <Title order={5} c="ldGray.9" fw={700}>
+                                Access control
+                            </Title>
+                        </Group>
+                        <Stack>
+                            <Radio.Group
+                                value={accessMode}
+                                onChange={handleAccessModeChange}
+                            >
+                                <Stack gap="sm">
+                                    <Radio
+                                        value="everyone"
+                                        label="Everyone in the project"
+                                        description="All project members can see and use this agent."
+                                    />
+                                    <Radio
+                                        value="admins"
+                                        label="Admins & developers only"
+                                        description="Hidden from everyone else — useful while setting up or testing the agent."
+                                    />
+                                    <Radio
+                                        value="specific"
+                                        label={`Specific users ${isGroupsEnabled ? ' & groups' : ''}`}
+                                        description={`Only the users${isGroupsEnabled ? ' and groups ' : ' '}you choose. Admins and developers always have access.`}
+                                    />
+                                </Stack>
+                            </Radio.Group>
+
+                            {accessMode === 'specific' && (
+                                <Stack pl="xl">
+                                    <UserAccessMultiSelect
+                                        projectUuid={projectUuid!}
+                                        isGroupsEnabled={isGroupsEnabled}
+                                        value={form.values.userAccess}
+                                        onChange={(value) => {
+                                            form.setFieldValue(
+                                                'userAccess',
+                                                value,
+                                            );
+                                        }}
+                                    />
+
+                                    {isGroupsEnabled && (
+                                        <MultiSelect
+                                            variant="subtle"
+                                            label={
+                                                <Group gap="xs">
+                                                    <Text fz="sm" fw={500}>
+                                                        Group Access
+                                                    </Text>
+                                                    <Tooltip
+                                                        label="Admins and developers will always have access to this agent."
+                                                        withArrow
+                                                        withinPortal
+                                                        multiline
+                                                        position="right"
+                                                        maw="250px"
+                                                    >
+                                                        <MantineIcon
+                                                            icon={
+                                                                IconInfoCircle
+                                                            }
+                                                        />
+                                                    </Tooltip>
+                                                </Group>
+                                            }
+                                            description="Select groups that can access this agent."
+                                            placeholder={
+                                                isLoadingGroups
+                                                    ? 'Loading groups...'
+                                                    : groupOptions.length === 0
+                                                      ? 'No groups available'
+                                                      : 'Select groups or leave empty for all users'
+                                            }
+                                            data={groupOptions}
+                                            disabled={
+                                                isLoadingGroups ||
+                                                groupOptions.length === 0
+                                            }
+                                            comboboxProps={{
+                                                transitionProps: {
+                                                    transition: 'pop',
+                                                    duration: 200,
+                                                },
+                                            }}
+                                            clearable
+                                            {...form.getInputProps(
+                                                'groupAccess',
+                                            )}
+                                            value={
+                                                form.getInputProps(
+                                                    'groupAccess',
+                                                ).value ?? []
+                                            }
+                                            onChange={(value) => {
+                                                form.setFieldValue(
+                                                    'groupAccess',
+                                                    value.length > 0
+                                                        ? value
+                                                        : [],
+                                                );
+                                            }}
+                                        />
+                                    )}
+                                </Stack>
+                            )}
                         </Stack>
                     </Paper>
 
@@ -556,77 +705,10 @@ export const AiAgentFormSetup = ({
                                 <MantineIcon icon={IconLock} size="md" />
                             </Paper>
                             <Title order={5} c="ldGray.9" fw={700}>
-                                Access control
+                                Data access
                             </Title>
                         </Group>
                         <Stack>
-                            <UserAccessMultiSelect
-                                projectUuid={projectUuid!}
-                                isGroupsEnabled={isGroupsEnabled}
-                                value={form.values.userAccess}
-                                onChange={(value) => {
-                                    form.setFieldValue('userAccess', value);
-                                }}
-                            />
-
-                            {isGroupsEnabled && (
-                                <Stack gap="xs">
-                                    <MultiSelect
-                                        variant="subtle"
-                                        label={
-                                            <Group gap="xs">
-                                                <Text fz="sm" fw={500}>
-                                                    Group Access
-                                                </Text>
-                                                <Tooltip
-                                                    label="Admins and developers will always have access to this agent."
-                                                    withArrow
-                                                    withinPortal
-                                                    multiline
-                                                    position="right"
-                                                    maw="250px"
-                                                >
-                                                    <MantineIcon
-                                                        icon={IconInfoCircle}
-                                                    />
-                                                </Tooltip>
-                                            </Group>
-                                        }
-                                        description="Select groups that can access this agent."
-                                        placeholder={
-                                            isLoadingGroups
-                                                ? 'Loading groups...'
-                                                : groupOptions.length === 0
-                                                  ? 'No groups available'
-                                                  : 'Select groups or leave empty for all users'
-                                        }
-                                        data={groupOptions}
-                                        disabled={
-                                            isLoadingGroups ||
-                                            groupOptions.length === 0
-                                        }
-                                        comboboxProps={{
-                                            transitionProps: {
-                                                transition: 'pop',
-                                                duration: 200,
-                                            },
-                                        }}
-                                        clearable
-                                        {...form.getInputProps('groupAccess')}
-                                        value={
-                                            form.getInputProps('groupAccess')
-                                                .value ?? []
-                                        }
-                                        onChange={(value) => {
-                                            form.setFieldValue(
-                                                'groupAccess',
-                                                value.length > 0 ? value : [],
-                                            );
-                                        }}
-                                    />
-                                </Stack>
-                            )}
-
                             <SpaceAccessSelect
                                 projectUuid={projectUuid}
                                 value={form.values.spaceAccess}

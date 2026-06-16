@@ -12319,7 +12319,7 @@
                 "required": ["content", "mimeType", "originalFilename", "name"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -12409,6 +12409,9 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
+                    "adminOnly": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -12433,13 +12436,14 @@
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
+                    "adminOnly",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -12928,7 +12932,7 @@
             "ApiAiAgentProjectThreadSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -13018,6 +13022,9 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
+                    "adminOnly": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -13042,13 +13049,14 @@
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
+                    "adminOnly",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -13641,6 +13649,9 @@
                                 },
                                 "type": "array"
                             },
+                            "adminOnly": {
+                                "type": "boolean"
+                            },
                             "enableContentTools": {
                                 "type": "boolean"
                             }
@@ -13649,7 +13660,7 @@
                     }
                 ]
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -13720,6 +13731,9 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
+                    "adminOnly": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -13731,7 +13745,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version__"
                     },
                     {
                         "properties": {
@@ -14284,6 +14298,19 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
+                                                    }
+                                                },
+                                                "required": ["status"],
+                                                "type": "object"
+                                            },
+                                            {
+                                                "properties": {
+                                                    "status": {
+                                                        "type": "string",
+                                                        "enum": [
+                                                            "success",
+                                                            "error"
+                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -39589,7 +39616,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3170.1",
+        "version": "0.3173.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
