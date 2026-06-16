@@ -5956,6 +5956,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             } else if (fs.hasDbtMount) {
                 cwd = `/${DBT_MOUNT}`;
             }
+            // Reset the per-command repo budget so the cap bounds THIS command
+            // (e.g. a repo-spanning grep), not the whole run; the tree cache
+            // persists, so repos opened by earlier commands stay free.
+            fs.beginCommand();
             return runShellCommandOnFs(fs, command, {
                 cwd,
                 isTruncated: () => Promise.resolve(fs.isTruncated()),

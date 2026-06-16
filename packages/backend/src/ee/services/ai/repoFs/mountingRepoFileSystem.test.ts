@@ -70,8 +70,12 @@ describe('MountingRepoFileSystem', () => {
             maxRepos: opts.maxRepos ?? 10,
         });
 
-    const run = (fs: MountingRepoFileSystem, command: string) =>
-        runShellCommandOnFs(fs, command);
+    // Mirror production: the exploreRepo closure resets the per-command budget
+    // before each command.
+    const run = (fs: MountingRepoFileSystem, command: string) => {
+        fs.beginCommand();
+        return runShellCommandOnFs(fs, command);
+    };
 
     describe('construction is lazy', () => {
         it('fetches the repo list once and no trees', async () => {
@@ -159,6 +163,35 @@ describe('MountingRepoFileSystem', () => {
             await expect(
                 run(await make({ maxRepos: 1 }), 'find / -name "*.json"'),
             ).rejects.toThrow(/limit 1/);
+        });
+
+        it('resets the budget per command so a run can cover more repos than the cap', async () => {
+            // The budget bounds a single command, not the whole run. With the
+            // cache persisting, a second command can open a different repo even
+            // though the per-run total now exceeds maxRepos.
+            const fs = await make({ maxRepos: 1 });
+            expect(await run(fs, 'cat /acme/web/package.json')).toBe(
+                '{"name":"web"}',
+            );
+            expect(await run(fs, 'cat /globex/infra/README.md')).toContain(
+                '# infra',
+            );
+            expect(materialised.sort()).toEqual(['acme/web', 'globex/infra']);
+        });
+
+        it('a cached repo does not charge the budget on re-read', async () => {
+            const fs = await make({ maxRepos: 1 });
+            // First command opens acme/web (1, at the cap).
+            await run(fs, 'cat /acme/web/package.json');
+            // Second command re-reads the cached repo AND opens a new one — the
+            // cached read is free, so the single new repo stays within budget.
+            expect(
+                await run(
+                    fs,
+                    'cat /acme/web/src/index.ts /acme/api/package.json',
+                ),
+            ).toContain('{"name":"api"}');
+            expect(materialised.sort()).toEqual(['acme/api', 'acme/web']);
         });
     });
 

@@ -46,10 +46,12 @@ export type MountableRepo = {
  *  system prompt documents `/dbt` as the dbt project. */
 export const DBT_MOUNT = 'dbt';
 
-/** Default cap on how many repository trees a single run may materialise — the
- *  guard that bounds an unscoped recursive walk (`grep -r /`) across a large
- *  installation. Generous for deliberate multi-repo reads, far below "all". */
-export const DEFAULT_MAX_MATERIALISED_REPOS = 3;
+/** Default cap on how many repository trees a single *command* may newly
+ *  materialise — the guard that bounds an unscoped recursive walk (`grep -r /`)
+ *  across a large installation. Per-command (reset by {@link
+ *  MountingRepoFileSystem.beginCommand}), so a run can still cover many repos
+ *  across several commands; cached repos are free. */
+export const DEFAULT_MAX_MATERIALISED_REPOS = 10;
 
 const FILE_MODE = 0o100644;
 const DIR_MODE = 0o040755;
@@ -147,8 +149,15 @@ export class MountingRepoFileSystem implements IFileSystem {
     private readonly repoKeys: Set<string>;
 
     /** Lazily-materialised per-mount adapters, keyed by mount key
-     *  (`dbt` or `owner/repo`). The map size is the materialisation budget. */
+     *  (`dbt` or `owner/repo`). Persists for the whole run as a tree cache;
+     *  re-reading a cached repo never re-fetches and never charges the budget. */
     private readonly mounts = new Map<string, Promise<RepoFileSystem>>();
+
+    /** Repos newly materialised in the CURRENT command, reset by
+     *  {@link beginCommand}. The budget is per-command (it bounds a single
+     *  `grep -r /`), not per-run — so a run can still cover many repos across
+     *  several commands, with the cache above making repeat reads free. */
+    private materialisedThisCommand = 0;
 
     /** Mounts whose adapter has finished building, for the synchronous
      *  {@link getAllPaths} (populated when each `mounts` promise resolves). */
@@ -233,12 +242,25 @@ export class MountingRepoFileSystem implements IFileSystem {
         return { type: 'missing' };
     }
 
-    /** Materialise (or reuse) a mount's adapter, enforcing the budget on the
-     *  first materialisation of each new mount. */
+    /**
+     * Reset the per-command materialisation budget. Call once before each shell
+     * command so the cap bounds a single command (e.g. a repo-spanning
+     * `grep -r /`) rather than the whole run. Already-cached repos stay cached,
+     * so a run can read many repos across several commands without re-fetching.
+     */
+    beginCommand(): void {
+        this.materialisedThisCommand = 0;
+    }
+
+    /** Materialise (or reuse) a mount's adapter. A cached repo is free; only a
+     *  NEW materialisation charges the per-command budget. */
     private getMount(key: string): Promise<RepoFileSystem> {
         const existing = this.mounts.get(key);
         if (existing) return existing;
-        if (this.mounts.size >= this.maxRepos) ebudget(this.maxRepos);
+        if (this.materialisedThisCommand >= this.maxRepos) {
+            ebudget(this.maxRepos);
+        }
+        this.materialisedThisCommand += 1;
 
         const promise = (async () => {
             const repoFs =
