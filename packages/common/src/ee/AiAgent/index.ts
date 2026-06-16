@@ -219,6 +219,12 @@ export type AiAgentMessageUser<TUser extends AiAgentUser = AiAgentUser> = {
 
     user: TUser;
     context: AiPromptContext;
+    /**
+     * Hidden turn: the agent received and responded to this prompt, but the UI
+     * should not render its user bubble (e.g. the post-merge migration prompt
+     * injected from the writeback PR card).
+     */
+    hidden: boolean;
 };
 
 export type AiAgentMessageAssistantArtifact = Pick<
@@ -482,6 +488,12 @@ export type ApiAiAgentThreadMessageCreateRequest = {
         modelProvider: string;
         reasoning?: boolean;
     };
+    /**
+     * Inject the prompt as a hidden turn — the agent responds to it, but the UI
+     * does not render the user bubble. Used by the post-merge content-migration
+     * prompt sent from the writeback PR card.
+     */
+    hidden?: boolean;
 };
 
 export type ApiAiAgentSqlApprovalRequest = {

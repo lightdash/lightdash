@@ -17,6 +17,8 @@ import {
     DeletedContentFilters,
     DeletedDbtChartContentSummary,
     DimensionOverrides,
+    FieldImpactReport,
+    FieldImpactSeverity,
     Filters,
     getChartKind,
     getChartType,
@@ -52,6 +54,10 @@ import { Knex } from 'knex';
 import { validate as isValidUuid } from 'uuid';
 import { LightdashConfig } from '../config/parseConfig';
 import {
+    CatalogTableName,
+    MetricsTreeEdgesTableName,
+} from '../database/entities/catalog';
+import {
     DashboardsTableName,
     DashboardTileChartTableName,
     DashboardVersionsTableName,
@@ -80,6 +86,7 @@ import {
     SavedChartVersionFieldsTableName,
     SavedChartVersionsTableName,
 } from '../database/entities/savedCharts';
+import { SchedulerTableName } from '../database/entities/scheduler';
 import { SpaceTableName } from '../database/entities/spaces';
 import { UserTableName } from '../database/entities/users';
 import KnexPaginate from '../database/pagination';
@@ -943,6 +950,264 @@ export class SavedChartModel {
             fieldId,
             count: Number(count), // Count returns by default as BigInt, so we need to cast to number
         }));
+    }
+
+    /**
+     * Exact blast-radius for a semantic-layer field before it is removed/renamed.
+     * Deterministic joins over the field-reference tables (no fuzzy search):
+     * direct charts, dashboards embedding them, dashboard filters targeting the
+     * field, metric-on-metric dependents, and scheduled deliveries/alerts.
+     *
+     * Mirrors getChartSummariesForFieldId's latest-version rule so counts match
+     * the live app. Does NOT detect silent value-drift (same id, changed SQL).
+     */
+    async analyzeFieldImpact(
+        projectUuid: string,
+        fieldId: string,
+    ): Promise<FieldImpactReport> {
+        return wrapSentryTransaction(
+            'SavedChartModel.analyzeFieldImpact',
+            { project_uuid: projectUuid, field_id: fieldId },
+            async () => {
+                const charts = await this.database
+                    .with('latest_chart_versions', (qb) =>
+                        qb
+                            .from(SavedChartVersionsTableName)
+                            .select('saved_query_id')
+                            .max('saved_queries_version_id as vid')
+                            .groupBy('saved_query_id'),
+                    )
+                    .from(`${SavedChartVersionFieldsTableName} as f`)
+                    .innerJoin(
+                        'latest_chart_versions as lcv',
+                        'lcv.vid',
+                        'f.saved_queries_version_id',
+                    )
+                    .innerJoin(
+                        `${SavedChartsTableName} as sq`,
+                        'sq.saved_query_id',
+                        'lcv.saved_query_id',
+                    )
+                    .leftJoin(
+                        `${DashboardsTableName} as owner_dash`,
+                        function ownerDashJoin() {
+                            this.on(
+                                'owner_dash.dashboard_uuid',
+                                '=',
+                                'sq.dashboard_uuid',
+                            ).andOnNull('owner_dash.deleted_at');
+                        },
+                    )
+                    .joinRaw(
+                        `INNER JOIN ${SpaceTableName} AS s ON s.space_id = COALESCE(sq.space_id, owner_dash.space_id) AND s.deleted_at IS NULL`,
+                    )
+                    .innerJoin(
+                        `${ProjectTableName} as p`,
+                        'p.project_id',
+                        's.project_id',
+                    )
+                    .where('p.project_uuid', projectUuid)
+                    .where('f.name', fieldId)
+                    .whereNull('sq.deleted_at')
+                    .select<FieldImpactReport['charts']>({
+                        uuid: 'sq.saved_query_uuid',
+                        name: 'sq.name',
+                        fieldType: 'f.field_type',
+                        viewsCount: 'sq.views_count',
+                        spaceUuid: 's.space_uuid',
+                        spaceName: 's.name',
+                        dashboardUuid: 'sq.dashboard_uuid',
+                        dashboardName: 'owner_dash.name',
+                    })
+                    .orderBy('sq.views_count', 'desc');
+
+                const chartUuids = charts.map((c) => c.uuid);
+
+                const dashboardsEmbedding = chartUuids.length
+                    ? this.database
+                          .with('latest_dash_versions', (qb) =>
+                              qb
+                                  .from(DashboardVersionsTableName)
+                                  .select('dashboard_id')
+                                  .max('dashboard_version_id as vid')
+                                  .groupBy('dashboard_id'),
+                          )
+                          .from(`${DashboardTileChartTableName} as dtc`)
+                          .innerJoin(
+                              'latest_dash_versions as ldv',
+                              'ldv.vid',
+                              'dtc.dashboard_version_id',
+                          )
+                          .innerJoin(
+                              `${DashboardsTableName} as d`,
+                              function nonDeletedDashboard() {
+                                  this.on(
+                                      'd.dashboard_id',
+                                      '=',
+                                      'ldv.dashboard_id',
+                                  ).andOnNull('d.deleted_at');
+                              },
+                          )
+                          .innerJoin(
+                              `${SavedChartsTableName} as sq`,
+                              function nonDeletedChart() {
+                                  this.on(
+                                      'sq.saved_query_id',
+                                      '=',
+                                      'dtc.saved_chart_id',
+                                  ).andOnNull('sq.deleted_at');
+                              },
+                          )
+                          .whereIn('sq.saved_query_uuid', chartUuids)
+                          .distinct<FieldImpactReport['dashboards']>({
+                              uuid: 'd.dashboard_uuid',
+                              name: 'd.name',
+                              viaChartName: 'sq.name',
+                          })
+                          .orderBy('d.name')
+                    : Promise.resolve([]);
+
+                // Dashboard filters can target the field even with no chart using it;
+                // filter targets live in dashboard_versions.config (scanned by text).
+                const dashboardFilterTargets = this.database
+                    .with('latest_dash_versions', (qb) =>
+                        qb
+                            .from(DashboardVersionsTableName)
+                            .select('dashboard_id')
+                            .max('dashboard_version_id as vid')
+                            .groupBy('dashboard_id'),
+                    )
+                    .from(`${DashboardVersionsTableName} as dv`)
+                    .innerJoin(
+                        'latest_dash_versions as ldv',
+                        'ldv.vid',
+                        'dv.dashboard_version_id',
+                    )
+                    .innerJoin(
+                        `${DashboardsTableName} as d`,
+                        function nonDeletedDashboard() {
+                            this.on(
+                                'd.dashboard_id',
+                                '=',
+                                'dv.dashboard_id',
+                            ).andOnNull('d.deleted_at');
+                        },
+                    )
+                    .joinRaw(
+                        `INNER JOIN ${SpaceTableName} AS s ON s.space_id = d.space_id AND s.deleted_at IS NULL`,
+                    )
+                    .innerJoin(
+                        `${ProjectTableName} as p`,
+                        'p.project_id',
+                        's.project_id',
+                    )
+                    .where('p.project_uuid', projectUuid)
+                    .whereNotNull('dv.config')
+                    .whereRaw(`dv.config::text LIKE '%' || ? || '%'`, [fieldId])
+                    .distinct<FieldImpactReport['dashboardFilterTargets']>({
+                        uuid: 'd.dashboard_uuid',
+                        name: 'd.name',
+                    });
+
+                // Metrics built on this metric break too, with no chart between them.
+                const metricTreeDependents = this.database
+                    .from(`${CatalogTableName} as cs_src`)
+                    .innerJoin(
+                        `${MetricsTreeEdgesTableName} as e`,
+                        'e.source_metric_catalog_search_uuid',
+                        'cs_src.catalog_search_uuid',
+                    )
+                    .innerJoin(
+                        `${CatalogTableName} as cs_dep`,
+                        'cs_dep.catalog_search_uuid',
+                        'e.target_metric_catalog_search_uuid',
+                    )
+                    .where('cs_src.project_uuid', projectUuid)
+                    .whereRaw(`(cs_src.table_name || '_' || cs_src.name) = ?`, [
+                        fieldId,
+                    ])
+                    .select<{ tableName: string; name: string }[]>({
+                        tableName: 'cs_dep.table_name',
+                        name: 'cs_dep.name',
+                    });
+
+                const [dashboards, filterTargets, dependentsRaw] =
+                    await Promise.all([
+                        dashboardsEmbedding,
+                        dashboardFilterTargets,
+                        metricTreeDependents,
+                    ]);
+
+                // fieldId reconstructed in JS to keep the select typed (no raw concat).
+                const dependents: FieldImpactReport['metricTreeDependents'] =
+                    dependentsRaw.map((d) => ({
+                        fieldId: `${d.tableName}_${d.name}`,
+                        tableName: d.tableName,
+                        name: d.name,
+                    }));
+
+                const dashboardUuids = [
+                    ...new Set([
+                        ...dashboards.map((d) => d.uuid),
+                        ...filterTargets.map((d) => d.uuid),
+                    ]),
+                ];
+
+                const scheduledDeliveries =
+                    chartUuids.length || dashboardUuids.length
+                        ? await this.database
+                              .from(SchedulerTableName)
+                              .where((qb) => {
+                                  if (chartUuids.length) {
+                                      void qb.orWhereIn(
+                                          'saved_chart_uuid',
+                                          chartUuids,
+                                      );
+                                  }
+                                  if (dashboardUuids.length) {
+                                      void qb.orWhereIn(
+                                          'dashboard_uuid',
+                                          dashboardUuids,
+                                      );
+                                  }
+                              })
+                              .select<FieldImpactReport['scheduledDeliveries']>(
+                                  {
+                                      name: 'name',
+                                      savedChartUuid: 'saved_chart_uuid',
+                                      dashboardUuid: 'dashboard_uuid',
+                                  },
+                              )
+                        : [];
+
+                const summary: FieldImpactReport['summary'] = {
+                    charts: charts.length,
+                    dashboards: dashboardUuids.length,
+                    dashboardFilterTargets: filterTargets.length,
+                    metricTreeDependents: dependents.length,
+                    scheduledDeliveries: scheduledDeliveries.length,
+                };
+
+                const isBreaking =
+                    charts.length + dependents.length + filterTargets.length >
+                    0;
+
+                return {
+                    projectUuid,
+                    fieldId,
+                    fieldType: charts[0]?.fieldType ?? null,
+                    severity: isBreaking
+                        ? FieldImpactSeverity.Breaking
+                        : FieldImpactSeverity.Safe,
+                    summary,
+                    charts,
+                    dashboards,
+                    dashboardFilterTargets: filterTargets,
+                    metricTreeDependents: dependents,
+                    scheduledDeliveries,
+                };
+            },
+        );
     }
 
     /**

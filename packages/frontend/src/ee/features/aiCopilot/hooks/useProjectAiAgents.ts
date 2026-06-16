@@ -653,6 +653,7 @@ const createOptimisticMessages = (
     user: UserWithAbility | undefined,
     agent: AiAgent,
     context: AiPromptContext = [],
+    hidden = false,
 ) => {
     return [
         {
@@ -666,6 +667,7 @@ const createOptimisticMessages = (
                 uuid: user?.userUuid ?? 'unknown',
             },
             context,
+            hidden,
         },
         {
             role: 'assistant' as const,
@@ -1044,6 +1046,7 @@ export const useCreateAgentThreadMessageMutation = (
                                 agent!,
                                 data.optimisticContext ??
                                     data.context?.map(toOptimisticContextItem),
+                                data.hidden,
                             ),
                         ],
                     };

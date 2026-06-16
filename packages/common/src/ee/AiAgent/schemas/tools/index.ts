@@ -1,4 +1,5 @@
 export * from './toolDefinitions';
+export * from './toolAnalyzeFieldImpactArgs';
 export * from './toolBuiltInSkillArgs';
 export * from './toolQueryResultSchemas';
 export * from './toolDiscoverFieldsArgs';

@@ -139,6 +139,9 @@ export type DbAiPrompt = {
     saved_query_uuid: string | null;
     model_config: { modelName: string; modelProvider: string } | null;
     token_usage: { totalTokens: number } | null;
+    // Hidden turn: the agent receives and responds to the prompt, but the UI
+    // doesn't render the user bubble (e.g. the post-merge migration prompt).
+    hidden: boolean;
 };
 
 export type AiPromptTable = Knex.CompositeTableType<
@@ -146,7 +149,7 @@ export type AiPromptTable = Knex.CompositeTableType<
     DbAiPrompt,
     // insert
     Pick<DbAiPrompt, 'ai_thread_uuid' | 'created_by_user_uuid' | 'prompt'> &
-        Partial<Pick<DbAiPrompt, 'model_config'>>,
+        Partial<Pick<DbAiPrompt, 'model_config' | 'hidden'>>,
     // update
     Partial<
         Pick<

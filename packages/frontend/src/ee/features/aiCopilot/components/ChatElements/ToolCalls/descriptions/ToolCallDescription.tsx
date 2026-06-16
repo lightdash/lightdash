@@ -9,6 +9,7 @@ import {
     isRunQueryArgsV1,
     migrateRunQueryArgsV1ToV2,
     type AiAgentToolResult,
+    type ToolAnalyzeFieldImpactArgs,
     type ToolDashboardArgs,
     type ToolDescribeWarehouseTableArgs,
     type ToolFindChartsArgs,
@@ -41,6 +42,7 @@ import { DashboardToolCallDescription } from './DashboardToolCallDescription';
 import { DescribeWarehouseTableToolCallDescription } from './DescribeWarehouseTableToolCallDescription';
 import { DiscoverFieldsToolCallDescription } from './DiscoverFieldsToolCallDescription';
 import { ExploreToolCallDescription } from './ExploreToolCallDescription';
+import { FieldImpactToolCallDescription } from './FieldImpactToolCallDescription';
 import { FieldSearchToolCallDescription } from './FieldSearchToolCallDescription';
 import { FieldValuesSearchToolCallDescription } from './FieldValuesSearchToolCallDescription';
 import { KnowledgeDocumentToolCallDescription } from './KnowledgeDocumentToolCallDescription';
@@ -297,6 +299,14 @@ export const ToolCallDescription: FC<{
                     page={searchSemanticLayerArgs.page}
                     searchQuery={searchSemanticLayerArgs.searchQuery}
                     type={searchSemanticLayerArgs.type}
+                />
+            );
+        case 'analyzeFieldImpact':
+            const analyzeFieldImpactArgs =
+                toolCall.toolArgs as ToolAnalyzeFieldImpactArgs;
+            return (
+                <FieldImpactToolCallDescription
+                    fieldId={analyzeFieldImpactArgs.fieldId}
                 />
             );
         case 'listKnowledgeDocuments':
