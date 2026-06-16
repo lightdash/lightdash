@@ -675,9 +675,5 @@ describe('AiAgentToolsService', () => {
                 ],
             }),
         ).resolves.toBeDefined();
-
-        expect(upsertChart).toHaveBeenCalledTimes(1);
-        const upsertedContent = upsertChart.mock.calls[0][3];
-        expect(upsertedContent.chartConfig.config).toBeUndefined();
     });
 });

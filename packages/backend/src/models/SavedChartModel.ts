@@ -35,6 +35,7 @@ import {
     MetricOverrides,
     NotFoundError,
     Organization,
+    ParameterError,
     Project,
     ResolvedProjectColorPalette,
     SavedChartDAO,
@@ -970,6 +971,16 @@ export class SavedChartModel {
             'SavedChartModel.analyzeFieldImpact',
             { project_uuid: projectUuid, field_id: fieldId },
             async () => {
+                // fieldId comes from the AI agent's tool args; constrain it to
+                // the expected `<table>_<field>` shape (alphanumeric + underscore)
+                // before it reaches the raw query predicates below. Those are
+                // already parameterized, so this is defense-in-depth.
+                if (!/^[a-z0-9_]+$/i.test(fieldId)) {
+                    throw new ParameterError(
+                        `Invalid fieldId "${fieldId}": expected alphanumeric characters and underscores only.`,
+                    );
+                }
+
                 const charts = await this.database
                     .with('latest_chart_versions', (qb) =>
                         qb
