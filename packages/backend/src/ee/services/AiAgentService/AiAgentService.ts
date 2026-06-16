@@ -7180,37 +7180,30 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   )
                 : [];
 
-        const sqlRunnerBlocks = await this.getSqlRunnerLinkBlocks(
-            user,
-            slackPrompt,
-        );
-
         return [
             ...exploreBlocks,
             ...proposeChangeBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
-            ...sqlRunnerBlocks,
             ...feedbackBlocks,
             ...historyBlocks,
         ];
     }
 
-    // "Open in SQL Runner" link for the latest successful runSql. The SQL only
-    // lives in the browser's nav state on web; persisting it as a share URL lets
-    // the link work from Slack too (task cards can't carry links).
-    private async getSqlRunnerLinkBlocks(
+    // Share URL for the latest successful runSql, used to resolve the model's
+    // [..](#sql-runner-link) anchor into a real link for Slack.
+    private async getSqlRunnerShareUrl(
         user: SessionUser,
         slackPrompt: SlackPrompt,
-    ): Promise<(Block | KnownBlock)[]> {
+    ): Promise<string | undefined> {
         const toolCalls = await this.aiAgentModel.getToolCallsForPrompt(
             slackPrompt.promptUuid,
         );
         const runSqlCalls = toolCalls.filter(
             (call) => call.tool_name === 'runSql',
         );
-        if (runSqlCalls.length === 0) return [];
+        if (runSqlCalls.length === 0) return undefined;
 
         const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
             slackPrompt.promptUuid,
@@ -7232,14 +7225,13 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const sql = (
             latestSuccessful?.tool_args as { sql?: string } | undefined
         )?.sql;
-        if (!latestSuccessful || !sql) return [];
+        if (!latestSuccessful || !sql) return undefined;
         const limit = (
             latestSuccessful.tool_args as { limit?: number } | undefined
         )?.limit;
 
-        let shareUrl: string | undefined;
         try {
-            shareUrl = await this.createSqlRunnerShareUrl(
+            return await this.createSqlRunnerShareUrl(
                 user,
                 slackPrompt.projectUuid,
                 sql,
@@ -7247,24 +7239,24 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             );
         } catch (error) {
             this.logger.warn('Failed to build SQL runner share url', error);
-            return [];
+            return undefined;
         }
+    }
 
-        return [
-            {
-                type: 'actions',
-                elements: [
-                    {
-                        type: 'button',
-                        text: {
-                            type: 'plain_text',
-                            text: 'Open in SQL Runner',
-                        },
-                        url: shareUrl,
-                    },
-                ],
-            },
-        ];
+    // Resolves the model's web-only [..](#sql-runner-link) anchor: swaps in the
+    // real share URL when we have one, otherwise drops the dead anchor.
+    private static applySqlRunnerLinkForSlack(
+        text: string,
+        shareUrl: string | undefined,
+    ): string {
+        const anchor = /(\[[^\]]*\])\(#sql-runner-link\)/g;
+        if (shareUrl) {
+            return text.replace(anchor, `$1(${shareUrl})`);
+        }
+        return text
+            .replace(anchor, '')
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
     }
 
     private async createSqlRunnerShareUrl(
@@ -7797,7 +7789,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enqueueTaskUpdate(() =>
                 updatePlanTitle('Preparing the final answer...'),
             );
-            const slackifiedMarkdown = slackifyMarkdown(response).replace(
+            const sqlRunnerUrl = await this.getSqlRunnerShareUrl(
+                user,
+                slackPrompt,
+            );
+            const slackResponse = AiAgentService.applySqlRunnerLinkForSlack(
+                response,
+                sqlRunnerUrl,
+            );
+            const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
                 /\\\n/g,
                 '\n',
             );
@@ -7813,7 +7813,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 messageTs: streamTs,
                 text: slackifiedMarkdown,
                 chunks: [
-                    ...getMarkdownBlocks(response).map((block) => ({
+                    ...getMarkdownBlocks(slackResponse).map((block) => ({
                         type: 'blocks' as const,
                         blocks: [block],
                     })),
@@ -8140,24 +8140,23 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // into pipe-text. We pass the agent's raw response straight through
         // for the rich rendering, and keep slackifyMarkdown for the message-
         // level `text` field that drives notifications + older client fallback.
-        const slackifiedMarkdown = slackifyMarkdown(response).replace(
+        const sqlRunnerUrl = await this.getSqlRunnerShareUrl(user, slackPrompt);
+        const slackResponse = AiAgentService.applySqlRunnerLinkForSlack(
+            response,
+            sqlRunnerUrl,
+        );
+        const slackifiedMarkdown = slackifyMarkdown(slackResponse).replace(
             /\\\n/g,
             '\n',
         );
 
-        const sqlRunnerBlocks = await this.getSqlRunnerLinkBlocks(
-            user,
-            slackPrompt,
-        );
-
         const blocks = [
-            ...getMarkdownBlocks(response),
+            ...getMarkdownBlocks(slackResponse),
             ...exploreBlocks,
             ...proposeChangeBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
-            ...sqlRunnerBlocks,
             ...feedbackBlocks,
             ...(historyBlocks || []),
         ];
