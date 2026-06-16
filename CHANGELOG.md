@@ -1,3 +1,11 @@
+## [0.3170.1](https://github.com/lightdash/lightdash/compare/0.3170.0...0.3170.1) (2026-06-16)
+
+
+### Performance Improvements
+
+* **backend:** parallelize queryHistory get and getSummary in calculate-total ([#24346](https://github.com/lightdash/lightdash/issues/24346)) ([a180c87](https://github.com/lightdash/lightdash/commit/a180c8763aad47db84b29d4063a93bf3f28bee51))
+* **backend:** parallelize setup loads in searchFieldUniqueValues ([#24347](https://github.com/lightdash/lightdash/issues/24347)) ([4783d0c](https://github.com/lightdash/lightdash/commit/4783d0ce4ac078415c6b80d4c8869b0e68a45a44))
+
 # [0.3170.0](https://github.com/lightdash/lightdash/compare/0.3169.0...0.3170.0) (2026-06-16)
 
 
