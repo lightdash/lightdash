@@ -26,6 +26,8 @@ Ships behind `EnableTimezoneSupport` (default OFF) — no behavior change for an
 - *Raw exports ISO-midnight (§4)* — XLSX/CSV "raw" mode still emits ISO-midnight (correct calendar date, not bare `YYYY-MM-DD`); tracked as **GLITCH-503**.
 - *Pre-aggregate column type (scope)* — left as-is; still a follow-up (no ticket yet).
 
+**Downstream blast-radius audit** (post-implementation, all flag-gated). Verified **inert**: custom dimensions (SQL + bin — `isField()` is false for them, so none of the three changes reach them), conditional formatting (restricted to numeric / string-dimension fields; a DATE dim can't be a target), result caching (cache key includes the compiled SQL → flag flip changes the hash → no stale-format serve), saved filters with persisted ISO values (`formatDate` → bare date, still matches the DATE LHS), view-underlying-data / drill, sorting & totals (DATE dim is always group-by, never an aggregation target). One **genuine breaking** case: raw-`sql` table calcs doing TIMESTAMP-specific math on a truncated date dim (now error on BigQuery/Snowflake, promote on Postgres/Redshift) — **GLITCH-506**. Latent/pre-existing (not introduced here): MIN/MAX-on-date in CF (`Number(date)` → NaN, GLITCH-499 territory) and the period-over-period range pre-filter's DATE-vs-TIMESTAMP coercion (same un-cast `getDimensionFromId` path as GLITCH-505, superset filter → won't drop rows).
+
 ## Intuition (why this matters)
 
 - **DATE** = a square on a calendar (`2026-03-03`), no clock, never shifts between zones.
