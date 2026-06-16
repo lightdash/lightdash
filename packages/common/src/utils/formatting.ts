@@ -229,29 +229,62 @@ export const toIsoWithProjectOffset = (
 
 // Only TIMESTAMP instants shift; calendar DATEs (incl. day-or-coarser truncs,
 // which now compile to a real DATE — GLITCH-452) and dims with
-// `skipTimezoneConversion` stay put. Used by spreadsheet exports.
+// `skipTimezoneConversion` stay put. Keyed off getItemType so it classifies
+// non-field items (table calcs, custom dims) by their resolved type too. Used by
+// spreadsheet exports.
 export const shouldShiftItemTimezone = (
     item: Item | AdditionalMetric | undefined,
 ): boolean => {
-    if (!isField(item)) return false;
+    if (!item) return false;
     if (isDimension(item) && item.skipTimezoneConversion) return false;
-    return item.type === DimensionType.TIMESTAMP;
+    return getItemType(item) === DimensionType.TIMESTAMP;
 };
 
 // A calendar value is a bare wall-clock date (year/month/day, no instant) that
-// must never be timezone-shifted or anchored. GLITCH-452: every DATE-typed
-// field is now a calendar value — plain DATE columns, DATE-base truncs, DATE
-// metrics, and day-or-coarser truncs of a TIMESTAMP base (which now compile to
-// a real DATE). Only TIMESTAMP-typed fields are instants.
-export const isCalendarValueDimension = (
+// must never be timezone-shifted. GLITCH-452: every DATE-typed item is now a
+// calendar value — plain DATE columns, DATE-base truncs, DATE metrics, and
+// day-or-coarser truncs of a TIMESTAMP base (which now compile to a real DATE).
+// Only TIMESTAMP-typed items are instants. Keyed off getItemType so it also
+// covers DATE metrics and table calcs.
+export const isCalendarValueItem = (
     item: Item | AdditionalMetric | undefined,
-): boolean => isField(item) && item.type === DimensionType.DATE;
+): boolean => {
+    if (!item) return false;
+    return getItemType(item) === DimensionType.DATE;
+};
+
+// A Date or a datetime string (not a date-only string).
+export const isTemporalValue = (value: unknown): boolean =>
+    value instanceof Date || isTimestampString(value);
+
+// Which timezone a formatter applies to a value. The shape predicate decides
+// every type-known item (dims, metrics, table calcs, custom dims). MIN/MAX are
+// the one opaque case — their aggregation type hides the temporal base — so only
+// there do we fall back to the value shape.
+export const getFormatterTimezone = (
+    item: Item | AdditionalMetric | undefined,
+    value: unknown,
+    timezone: string | undefined,
+): string | undefined => {
+    if (!timezone) return undefined;
+    if (isDimension(item) && item.skipTimezoneConversion) return undefined;
+    if (isCalendarValueItem(item)) return undefined;
+    if (shouldShiftItemTimezone(item)) return timezone;
+    const type = item ? getItemType(item) : undefined;
+    if (
+        (type === MetricType.MIN || type === MetricType.MAX) &&
+        isTemporalValue(value)
+    ) {
+        return timezone;
+    }
+    return undefined;
+};
 
 // Renders a temporal cell as the wall-clock string Excel and Google Sheets
 // auto-detect as a date. TIMESTAMP → `YYYY-MM-DD HH:mm:ss.SSS`, DATE →
 // `YYYY-MM-DD`. Shifts into the project tz when the item is timezone-
-// shiftable (TIMESTAMP / DATE-base-TS) and a timezone is supplied; calendar
-// DATEs are formatted as-is. Returns undefined for non-temporal fields or
+// shiftable (TIMESTAMP only — GLITCH-452 makes day-grain DATEs calendar values)
+// and a timezone is supplied; calendar DATEs are formatted as-is. Returns undefined for non-temporal fields or
 // unparseable values so callers can fall through to their existing
 // formatting path.
 export const formatTemporalCellForSpreadsheet = (
@@ -688,10 +721,15 @@ export function formatValueWithExpression(
 export function applyCustomFormat(
     value: unknown,
     format?: CustomFormat | undefined,
+    timezone?: string,
 ): string {
     if (format?.type === undefined) return applyDefaultFormat(value);
 
     if (value === '') return '';
+
+    // No `item` here, so gate the timezone by value; item-aware callers resolve
+    // it via getFormatterTimezone first.
+    const effectiveTimezone = isTemporalValue(value) ? timezone : undefined;
 
     if (
         value instanceof Date &&
@@ -699,7 +737,37 @@ export function applyCustomFormat(
             format.type,
         )
     ) {
-        return formatTimestamp(value, undefined, false);
+        return formatTimestamp(value, undefined, false, effectiveTimezone);
+    }
+
+    // Timestamp strings are `valueIsNaN`, so the guard below would return them
+    // raw. When a timezone is supplied, format them first so they render shifted.
+    if (effectiveTimezone && isTimestampString(value)) {
+        switch (format.type) {
+            case CustomFormatType.DATE:
+                return formatDate(
+                    value,
+                    format?.timeInterval,
+                    false,
+                    effectiveTimezone,
+                );
+            case CustomFormatType.TIMESTAMP:
+                return formatTimestamp(
+                    value,
+                    format?.timeInterval,
+                    false,
+                    effectiveTimezone,
+                );
+            case CustomFormatType.CUSTOM:
+                return formatValueWithExpression(
+                    format.custom || '',
+                    value,
+                    separatorToNumfmtLocale(format.separator),
+                    effectiveTimezone,
+                );
+            default:
+                break;
+        }
     }
 
     if (valueIsNaN(value) || value === null) {
@@ -725,9 +793,19 @@ export function applyCustomFormat(
 
             return `${currencyFormatted}${compactSuffix}`;
         case CustomFormatType.DATE:
-            return formatDate(value, format?.timeInterval, false);
+            return formatDate(
+                value,
+                format?.timeInterval,
+                false,
+                effectiveTimezone,
+            );
         case CustomFormatType.TIMESTAMP:
-            return formatTimestamp(value, format?.timeInterval, false);
+            return formatTimestamp(
+                value,
+                format?.timeInterval,
+                false,
+                effectiveTimezone,
+            );
         case CustomFormatType.NUMBER:
             const prefix = format.prefix || '';
             const suffix = format.suffix || '';
@@ -755,6 +833,7 @@ export function applyCustomFormat(
                 format.custom || '',
                 value,
                 separatorToNumfmtLocale(format.separator),
+                effectiveTimezone,
             );
         default:
             return assertUnreachable(
@@ -1011,18 +1090,15 @@ export function formatItemValue(
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (item) {
+        // One timezone decision for every temporal branch below.
+        const effectiveTimezone = getFormatterTimezone(item, value, timezone);
+
         if (hasValidFormatExpression(item)) {
             // A field-level separator localises the ECMA-376 expression, which
             // numfmt otherwise renders with US separators regardless of locale.
             const separatorLocale = separatorToNumfmtLocale(
                 getEffectiveSeparator(item),
             );
-
-            // Only shift genuinely timezone-shiftable temporal fields, so
-            // calendar DATEs and skipTimezoneConversion fields stay put.
-            const expressionTimezone = shouldShiftItemTimezone(item)
-                ? timezone
-                : undefined;
 
             // Check if format uses parameter placeholders
             const hasParameterPlaceholders =
@@ -1044,7 +1120,7 @@ export function formatItemValue(
                             formatExpression,
                             value,
                             separatorLocale,
-                            expressionTimezone,
+                            effectiveTimezone,
                         );
                         return result;
                     } catch (error) {
@@ -1063,7 +1139,7 @@ export function formatItemValue(
                     item.format,
                     value,
                     separatorLocale,
-                    expressionTimezone,
+                    effectiveTimezone,
                 );
                 return result;
             } catch (error) {
@@ -1075,10 +1151,6 @@ export function formatItemValue(
 
         if (isCustomSqlDimension(item) || 'type' in item) {
             const type = getItemType(item);
-            const effectiveTimezone =
-                isDimension(item) && item.skipTimezoneConversion
-                    ? undefined
-                    : timezone;
 
             // Date/Timestamp table calculations may carry a CUSTOM format
             // expression (e.g. "mmmm d, yyyy"). The default switch path
@@ -1091,18 +1163,12 @@ export function formatItemValue(
                 customFormat.custom &&
                 isMomentInput(value)
             ) {
-                // Mirror the default DATE branch: calendar days never shift,
-                // only real instants do. (isCalendarValueDimension is false for
-                // any TIMESTAMP, so this is a no-op there.)
-                const customExpressionTimezone = isCalendarValueDimension(item)
-                    ? undefined
-                    : effectiveTimezone;
                 try {
                     return formatValueWithExpression(
                         customFormat.custom,
                         value,
                         separatorToNumfmtLocale(customFormat.separator),
-                        customExpressionTimezone,
+                        effectiveTimezone,
                     );
                 } catch {
                     // Fall through to the default date/timestamp render.
@@ -1121,18 +1187,14 @@ export function formatItemValue(
                 case DimensionType.DATE:
                 case MetricType.DATE:
                 case TableCalculationType.DATE: {
-                    // Calendar values (wall-clock dates) have no time component
-                    // — applying a display timezone would shift the calendar
-                    // day (off-by-one in negative offsets).
-                    const dateTimezone = isCalendarValueDimension(item)
-                        ? undefined
-                        : effectiveTimezone;
+                    // getFormatterTimezone returns undefined for calendar dates,
+                    // so effectiveTimezone is safe to pass here.
                     return isMomentInput(value)
                         ? formatDate(
                               value,
                               isDimension(item) ? item.timeInterval : undefined,
                               convertToUTC,
-                              dateTimezone,
+                              effectiveTimezone,
                           )
                         : 'NaT';
                 }
@@ -1150,20 +1212,14 @@ export function formatItemValue(
                         : 'NaT';
                 case MetricType.MAX:
                 case MetricType.MIN: {
-                    // MIN/MAX inherit the aggregated column's type. A temporal
-                    // result must render in the resolved project timezone like
-                    // a dimension does — whether it arrives as a Date (fresh
-                    // query) or an ISO datetime string (rehydrated from cached
-                    // results). The auto-derived numeric format must not
-                    // suppress this; a user-chosen display format still wins.
+                    // A temporal MIN/MAX shifts like a dimension; a user-chosen
+                    // display format wins and falls through to applyCustomFormat.
                     const formatType = customFormat?.type;
                     const userChoseDisplayFormat =
                         formatType === CustomFormatType.DATE ||
                         formatType === CustomFormatType.TIMESTAMP ||
                         formatType === CustomFormatType.CUSTOM;
-                    const isTimestampValue =
-                        value instanceof Date || isTimestampString(value);
-                    if (isTimestampValue && !userChoseDisplayFormat) {
+                    if (isTemporalValue(value) && !userChoseDisplayFormat) {
                         return formatTimestamp(
                             value,
                             undefined,
@@ -1187,7 +1243,7 @@ export function formatItemValue(
             }
         }
 
-        return applyCustomFormat(value, customFormat);
+        return applyCustomFormat(value, customFormat, effectiveTimezone);
     }
 
     return applyDefaultFormat(value);
