@@ -86,4 +86,7 @@ export type AgentSuggestionsModelObject = z.infer<
 
 export type ApiAgentSuggestionsResponse = ApiSuccess<{
     chips: AgentSuggestion[];
+    // True when the latest assistant turn declined a content edit and the
+    // agent has content tools disabled. Drives the in-chat capability callout.
+    contentEditBlocked: boolean;
 }>;

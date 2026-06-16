@@ -1124,7 +1124,7 @@ export class AiAgentService extends BaseService {
             afterMessageUuid?: string;
             enableSqlMode?: boolean;
         },
-    ): Promise<{ chips: AgentSuggestion[] }> {
+    ): Promise<{ chips: AgentSuggestion[]; contentEditBlocked: boolean }> {
         const { organizationUuid } = user;
         if (!organizationUuid) {
             throw new ForbiddenError('Organization not found');
@@ -1135,7 +1135,7 @@ export class AiAgentService extends BaseService {
             featureFlagId: FeatureFlags.AiAgentSuggestions,
         });
         if (!featureEnabled.enabled) {
-            return { chips: [] };
+            return { chips: [], contentEditBlocked: false };
         }
 
         const agent = await this.getAgent(user, agentUuid, projectUuid);
@@ -1152,7 +1152,7 @@ export class AiAgentService extends BaseService {
             }
 
             if (!canGeneratePostResponseSuggestions(user.userUuid, thread)) {
-                return { chips: [] };
+                return { chips: [], contentEditBlocked: false };
             }
         }
 
@@ -1345,7 +1345,13 @@ export class AiAgentService extends BaseService {
             },
         });
 
-        return { chips };
+        const contentEditBlocked = Boolean(
+            !agent.enableContentTools &&
+                threadContext?.latestAssistantTurn?.text != null &&
+                detectContentEditBlock(threadContext.latestAssistantTurn.text),
+        );
+
+        return { chips, contentEditBlocked };
     }
 
     private async buildSuggestionsThreadContext({
