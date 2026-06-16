@@ -1,3 +1,10 @@
+# [0.3168.0](https://github.com/lightdash/lightdash/compare/0.3167.3...0.3168.0) (2026-06-16)
+
+
+### Features
+
+* **ai-agents:** support uploaded agent avatars ([#24321](https://github.com/lightdash/lightdash/issues/24321)) ([d96f6b0](https://github.com/lightdash/lightdash/commit/d96f6b000bbe714355bf00c22d73fbbaba285e36))
+
 ## [0.3167.3](https://github.com/lightdash/lightdash/compare/0.3167.2...0.3167.3) (2026-06-16)
 
 
