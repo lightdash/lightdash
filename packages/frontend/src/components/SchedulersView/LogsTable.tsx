@@ -723,6 +723,7 @@ const LogsTable: FC<LogsTableProps> = ({
                 opened={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
                 schedulerName={selectedScheduler?.name || ''}
+                deliveryType="scheduled"
                 loading={sendNowMutation.isLoading}
                 onConfirm={() => {
                     sendNowMutation.mutate();

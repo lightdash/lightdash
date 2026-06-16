@@ -1,4 +1,5 @@
 import {
+    isChartScheduler,
     isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
     isDashboardScheduler,
@@ -12,6 +13,7 @@ import {
     type CreateSchedulerTarget,
     type Dashboard,
     type DashboardFilterRule,
+    type Filters,
     type ParametersValuesMap,
     type SchedulerAndTargets,
     type SchedulerCsvOptions,
@@ -40,7 +42,8 @@ export interface SchedulerFormValues {
     slackTargets: string[];
     msTeamsTargets: string[];
     googleChatTargets: string[];
-    filters?: DashboardFilterRule[];
+    dashboardFilters?: DashboardFilterRule[];
+    chartFilters?: Filters;
     parameters?: ParametersValuesMap;
     customViewportWidth?: number;
     selectedTabs?: string[] | null;
@@ -77,7 +80,8 @@ export const DEFAULT_VALUES: SchedulerFormValues = {
     slackTargets: [],
     msTeamsTargets: [],
     googleChatTargets: [],
-    filters: [],
+    dashboardFilters: [],
+    chartFilters: undefined,
     parameters: undefined,
     customViewportWidth: undefined,
     selectedTabs: null,
@@ -175,10 +179,14 @@ export const getFormValuesFromScheduler = (
         msTeamsTargets: msTeamsTargets,
         googleChatTargets: googleChatTargets,
         ...(isDashboardScheduler(schedulerData) && {
-            filters: schedulerData.filters,
+            dashboardFilters: schedulerData.filters,
             parameters: schedulerData.parameters,
             customViewportWidth: schedulerData.customViewportWidth,
             selectedTabs: schedulerData.selectedTabs,
+        }),
+        ...(isChartScheduler(schedulerData) && {
+            chartFilters: schedulerData.filters,
+            parameters: schedulerData.parameters,
         }),
         thresholds: schedulerData.thresholds,
         notificationFrequency: schedulerData.notificationFrequency,
@@ -256,10 +264,14 @@ export const transformFormValues = (
         appUuid: null,
         appName: null,
         ...(resourceType === 'dashboard' && {
-            filters: values.filters,
+            filters: values.dashboardFilters,
             parameters: values.parameters,
             customViewportWidth: values.customViewportWidth,
             selectedTabs: values.selectedTabs,
+        }),
+        ...(resourceType === 'chart' && {
+            filters: values.chartFilters,
+            parameters: values.parameters,
         }),
         thresholds: values.thresholds,
         enabled: true,

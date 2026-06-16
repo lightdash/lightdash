@@ -12,6 +12,7 @@ import React, { type FC } from 'react';
 import { Link } from 'react-router';
 import { SchedulerDeleteModal } from '../../features/scheduler';
 import ConfirmSendNowModal from '../../features/scheduler/components/ConfirmSendNowModal';
+import { getSchedulerDeliveryType } from '../../features/scheduler/components/types';
 import { useSendNowSchedulerByUuid } from '../../features/scheduler/hooks/useScheduler';
 import MantineIcon from '../common/MantineIcon';
 import {
@@ -135,6 +136,7 @@ const SchedulersViewActionMenu: FC<SchedulersViewActionMenuProps> = ({
                 opened={isConfirmOpen}
                 onClose={() => setIsConfirmOpen(false)}
                 schedulerName={item.name}
+                deliveryType={getSchedulerDeliveryType(item)}
                 loading={sendNowMutation.isLoading}
                 onConfirm={() => {
                     sendNowMutation.mutate();

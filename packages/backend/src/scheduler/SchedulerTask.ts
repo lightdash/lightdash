@@ -36,6 +36,7 @@ import {
     getSchedulerResourceTypeAndId,
     getSchedulerUuid,
     GsheetsNotificationPayload,
+    isChartScheduler,
     isChartValidationError,
     isCreateScheduler,
     isCreateSchedulerGoogleChatTarget,
@@ -3745,6 +3746,13 @@ export default class SchedulerTask {
             userUuid: schedulerPayload.userUuid,
         };
 
+        const chartFilterOverrides = isChartScheduler(scheduler)
+            ? scheduler.filters
+            : undefined;
+        const chartParameterOverrides = isChartScheduler(scheduler)
+            ? scheduler.parameters
+            : undefined;
+
         try {
             if (thresholds !== undefined && thresholds.length > 0) {
                 // TODO add multiple AND conditions
@@ -3757,6 +3765,8 @@ export default class SchedulerTask {
                                 projectUuid: schedulerPayload.projectUuid,
                                 chartUuid: savedChartUuid,
                                 context: QueryExecutionContext.SCHEDULED_CHART,
+                                filterOverrides: chartFilterOverrides,
+                                parameters: chartParameterOverrides,
                             },
                             SCHEDULER_POLLING_OPTIONS,
                         );

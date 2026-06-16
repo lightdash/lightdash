@@ -136,6 +136,9 @@ const ParameterItem: FC<SchedulerParameterItemProps> = ({
 
 type SchedulerParametersProps = {
     dashboard?: Dashboard;
+    // Charts (threshold alerts) pass projectUuid directly since they have no
+    // dashboard to source it from.
+    projectUuid?: string;
     currentParameterValues?: ParametersValuesMap;
     onChange: (schedulerParameters: ParametersValuesMap) => void;
     schedulerParameterValues: ParametersValuesMap | undefined;
@@ -145,6 +148,7 @@ type SchedulerParametersProps = {
 
 export const SchedulerFormParametersTab: FC<SchedulerParametersProps> = ({
     dashboard,
+    projectUuid,
     currentParameterValues = {},
     schedulerParameterValues,
     availableParameters,
@@ -233,7 +237,9 @@ export const SchedulerFormParametersTab: FC<SchedulerParametersProps> = ({
                             onChange={handleParameterChange}
                             onRevert={() => handleRevertParameter(paramKey)}
                             hasChanged={hasParameterChanged(paramKey)}
-                            projectUuid={dashboard?.projectUuid || ''}
+                            projectUuid={
+                                projectUuid || dashboard?.projectUuid || ''
+                            }
                             parameterValues={{
                                 ...currentParameterValues,
                                 ...schedulerParameterValues,

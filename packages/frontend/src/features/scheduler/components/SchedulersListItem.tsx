@@ -33,6 +33,7 @@ import { useSendNowSchedulerByUuid } from '../hooks/useScheduler';
 import { useSchedulersEnabledUpdateMutation } from '../hooks/useSchedulersUpdateMutation';
 import ConfirmPauseSchedulerModal from './ConfirmPauseSchedulerModal';
 import ConfirmSendNowModal from './ConfirmSendNowModal';
+import { getSchedulerDeliveryType } from './types';
 
 dayjs.extend(relativeTime);
 
@@ -279,6 +280,7 @@ const SchedulersListItem: FC<SchedulersListItemProps> = ({
                 opened={isConfirmSendNowOpen}
                 onClose={() => setIsConfirmSendNowOpen(false)}
                 schedulerName={scheduler.name}
+                deliveryType={getSchedulerDeliveryType(scheduler)}
                 loading={sendNowMutation.isLoading}
                 onConfirm={() => {
                     sendNowMutation.mutate();
