@@ -3233,6 +3233,7 @@ export class AsyncQueryService extends ProjectService {
         explore,
         warehouseSqlBuilder,
         projectUuid,
+        preloadedProjectParameters,
     }: Pick<
         ExecuteAsyncMetricQueryArgs,
         'metricQuery' | 'dateZoom' | 'projectUuid'
@@ -3240,10 +3241,12 @@ export class AsyncQueryService extends ProjectService {
         warehouseSqlBuilder: WarehouseSqlBuilder;
         explore: Explore;
         pivotConfiguration?: PivotConfiguration;
+        preloadedProjectParameters?: DbProjectParameter[];
     }) {
         const availableParameterDefinitions = await this.getAvailableParameters(
             projectUuid,
             explore,
+            preloadedProjectParameters,
         );
         const availableParameters = Object.keys(availableParameterDefinitions);
 
@@ -5157,6 +5160,7 @@ export class AsyncQueryService extends ProjectService {
             warehouseSqlBuilder,
             projectUuid,
             dateZoom,
+            preloadedProjectParameters: projectParameters,
         });
 
         const pivotConfiguration = pivotResults
