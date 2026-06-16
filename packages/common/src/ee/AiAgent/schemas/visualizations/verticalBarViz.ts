@@ -98,6 +98,7 @@ export const metricQueryVerticalBarViz = ({
         exploreName: vizConfig.exploreName,
         filters,
         additionalMetrics: filterAggregationCustomMetrics(customMetrics),
+        customMetrics: customMetrics ?? null,
         // TODO: add tableCalculations
         tableCalculations,
     };

@@ -1,7 +1,7 @@
 import { JWT_HEADER_NAME } from '@lightdash/common';
 import nock from 'nock';
 import { describe, expect, it } from 'vitest';
-import { BASE_API_URL, lightdashApi } from './api';
+import { BASE_API_URL, lightdashApi, lightdashApiStream } from './api';
 import { EMBED_KEY } from './ee/providers/Embed/types';
 import {
     clearInMemoryStorage,
@@ -88,6 +88,34 @@ describe('api', () => {
 
         expect(scope.isDone()).toBe(true);
         expect(result).toEqual('token headers');
+
+        clearInMemoryStorage();
+    });
+
+    it('adds embed token headers to stream requests', async () => {
+        setToInMemoryStorage(EMBED_KEY, {
+            token: 'system token',
+            projectUuid: 'project-uuid',
+        });
+        const scope = nock(BASE_API_URL)
+            .matchHeader(JWT_HEADER_NAME, 'system token')
+            .post(
+                '/api/v1/projects/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/stream',
+            )
+            .query({ projectUuid: 'project-uuid' })
+            .reply(200, 'stream response');
+
+        const result = await lightdashApiStream({
+            method: 'POST',
+            url: '/projects/project-uuid/aiAgents/agent-uuid/threads/thread-uuid/stream',
+            body: JSON.stringify({}),
+            headers: undefined,
+        });
+
+        scope.done();
+
+        expect(result.ok).toEqual(true);
+        expect(scope.isDone()).toBe(true);
 
         clearInMemoryStorage();
     });

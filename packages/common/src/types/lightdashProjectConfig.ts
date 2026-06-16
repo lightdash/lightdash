@@ -49,6 +49,14 @@ export type ProjectDefaults = {
      * Defaults to true if not specified.
      */
     case_sensitive?: boolean;
+    /**
+     * Default behavior for column totals in results tables.
+     * When false, the extra warehouse query that calculates column totals
+     * is not run by default for new queries. Charts that explicitly enable
+     * "Show column totals" still calculate them.
+     * Defaults to true if not specified.
+     */
+    column_totals?: boolean;
     // Room for future project-wide defaults like:
     // date_format?: string;
     // number_format?: string;

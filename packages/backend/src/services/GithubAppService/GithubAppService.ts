@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AiWritebackAttribution,
     AuthorizationError,
     FeatureFlags,
     ForbiddenError,
@@ -597,6 +598,52 @@ export class GithubAppService extends BaseService {
             githubLogin: credential.providerLogin,
             createdAt: credential.createdAt,
         };
+    }
+
+    /**
+     * Cheap, advisory three-state signal of which GitHub identity an AI
+     * writeback PR would be attributed to, for the AI agent's system prompt. A
+     * single indexed credential lookup — no token refresh and no GitHub API
+     * call — so it never blocks a chat turn. The authoritative resolution still
+     * happens later in the writeback run (GithubProvider.resolveInstallation).
+     *
+     * Mirrors that resolution's gating: when the feature is disabled the
+     * writeback-time path ignores any stored credential and falls back to the
+     * org app, so we report `org`/`canLink: false` without even reading the
+     * credential (and never nudge towards a hidden settings panel).
+     */
+    async getAiWritebackAttribution(
+        user: SessionUser,
+    ): Promise<AiWritebackAttribution> {
+        if (!isUserWithOrg(user)) {
+            throw new ForbiddenError('User is not part of an organization');
+        }
+        // Mirror getInstallationId: a self-scoped read of the caller's own
+        // GitHub link + org installation, gated on viewing their organization.
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'view',
+                subject('Organization', {
+                    organizationUuid: user.organizationUuid,
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+        const canLink = await this.isUserCredentialsFeatureEnabled(user);
+        if (!canLink) {
+            return { mode: 'org', canLink: false };
+        }
+        const credential = await this.gitUserCredentialsModel.findCredential(
+            user.userUuid,
+            user.organizationUuid,
+            PullRequestProvider.GITHUB,
+        );
+        if (credential) {
+            return { mode: 'personal', githubLogin: credential.providerLogin };
+        }
+        return { mode: 'org', canLink: true };
     }
 
     // Intentionally NOT gated on the GithubUserCredentials feature flag: if an

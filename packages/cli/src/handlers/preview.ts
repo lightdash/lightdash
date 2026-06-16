@@ -22,6 +22,10 @@ import { createProject } from './createProject';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { deploy } from './deploy';
+import {
+    getDisableTimestampConversionFromProject,
+    getProjectDisableTimestampConversion,
+} from './timestampConversion';
 
 type PreviewHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -41,6 +45,7 @@ type PreviewHandlerOptions = DbtCompileOptions & {
     batchSize?: string;
     parallelBatches?: string;
     expiresIn?: string;
+    disableTimestampConversion?: boolean;
 };
 
 type StopPreviewHandlerOptions = {
@@ -124,8 +129,9 @@ const getPreviewProject = async (name: string) => {
     );
 };
 export const previewHandler = async (
-    options: PreviewHandlerOptions,
+    originalOptions: PreviewHandlerOptions,
 ): Promise<void> => {
+    const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
     const executionId = uuidv4();
     await checkLightdashVersion();
@@ -274,6 +280,18 @@ export const previewHandler = async (
         return;
     }
 
+    if (options.disableTimestampConversion === undefined) {
+        options.disableTimestampConversion =
+            getDisableTimestampConversionFromProject(
+                project.warehouseConnection,
+            );
+        GlobalState.debug(
+            `> Using disable-timestamp-conversion=${String(
+                options.disableTimestampConversion ?? false,
+            )} from preview project settings`,
+        );
+    }
+
     const previewStartTime = Date.now();
     await LightdashAnalytics.track({
         event: 'preview.started',
@@ -406,8 +424,9 @@ export const previewHandler = async (
 };
 
 export const startPreviewHandler = async (
-    options: PreviewHandlerOptions,
+    originalOptions: PreviewHandlerOptions,
 ): Promise<void> => {
+    const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
     const executionId = uuidv4();
@@ -454,6 +473,11 @@ export const startPreviewHandler = async (
         });
 
         // Update
+        options.disableTimestampConversion =
+            await getProjectDisableTimestampConversion(
+                options.disableTimestampConversion,
+                previewProject.projectUuid,
+            );
         const explores = await compile(options);
         await deploy(explores, {
             ...options,
@@ -533,6 +557,19 @@ export const startPreviewHandler = async (
                 name: options.name,
             },
         });
+
+        if (options.disableTimestampConversion === undefined) {
+            options.disableTimestampConversion =
+                getDisableTimestampConversionFromProject(
+                    project.warehouseConnection,
+                );
+            GlobalState.debug(
+                `> Using disable-timestamp-conversion=${String(
+                    options.disableTimestampConversion ?? false,
+                )} from preview project settings`,
+            );
+        }
+
         const explores = await compile(options);
         await deploy(explores, {
             ...options,

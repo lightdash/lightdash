@@ -1,7 +1,7 @@
 import {
     ForbiddenError,
-    ParameterError,
     type AnonymousAccount,
+    type CreateEmbedJwt,
 } from '@lightdash/common';
 import { EmbedService } from './EmbedService';
 import {
@@ -235,6 +235,104 @@ describe('EmbedService', () => {
                     mockProjectUuid,
                     updateWithUndefinedAllowAllCharts,
                 );
+            });
+        });
+    });
+
+    describe('getContentUuidFromJwt', () => {
+        test('resolves standalone dataApp content carrying the appUuid', async () => {
+            const content = await service.getContentUuidFromJwt(
+                {
+                    content: { type: 'dataApp', appUuid: 'app-123' },
+                    exp: Date.now() / 1000 + 3600,
+                },
+                mockProjectUuid,
+            );
+            expect(content).toEqual({
+                appUuid: 'app-123',
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'dataApp',
+                explores: [],
+            });
+        });
+    });
+
+    describe('getEmbedUserAttributes', () => {
+        const embedJwt = {
+            content: { type: 'dashboard', dashboardUuid: 'dashboard-1' },
+            exp: Date.now() / 1000 + 3600,
+        } as CreateEmbedJwt;
+
+        const getServiceWithUserAttributes = (
+            orgUserAttributes: Array<{
+                name: string;
+                attributeDefault: string | null;
+            }> = [],
+        ) =>
+            new EmbedService({
+                ...EmbedServiceArgumentsMock,
+                userAttributesModel: {
+                    find: jest.fn().mockResolvedValue(orgUserAttributes),
+                },
+            } as unknown as ConstructorParameters<typeof EmbedService>[0]);
+
+        test('returns safe JWT user attributes and intrinsic email', async () => {
+            const scopedService = getServiceWithUserAttributes([
+                { name: 'region', attributeDefault: 'default-region' },
+                { name: 'tier', attributeDefault: 'enterprise' },
+            ]);
+
+            await expect(
+                scopedService.getEmbedUserAttributes(mockOrganizationUuid, {
+                    ...embedJwt,
+                    user: { email: 'viewer@example.com' },
+                    userAttributes: {
+                        region: 'EMEA',
+                    },
+                }),
+            ).resolves.toEqual({
+                intrinsicUserAttributes: {
+                    email: 'viewer@example.com',
+                },
+                userAttributes: {
+                    region: ['EMEA'],
+                    tier: ['enterprise'],
+                },
+            });
+        });
+
+        test('escapes JWT user attribute values', async () => {
+            const scopedService = getServiceWithUserAttributes();
+
+            await expect(
+                scopedService.getEmbedUserAttributes(mockOrganizationUuid, {
+                    ...embedJwt,
+                    userAttributes: {
+                        region: "EU' UNION SELECT email FROM users --",
+                    },
+                }),
+            ).resolves.toMatchObject({
+                userAttributes: {
+                    region: ["EU'' UNION SELECT email FROM users --"],
+                },
+            });
+        });
+
+        test('escapes JWT intrinsic email values', async () => {
+            const scopedService = getServiceWithUserAttributes();
+
+            await expect(
+                scopedService.getEmbedUserAttributes(mockOrganizationUuid, {
+                    ...embedJwt,
+                    user: {
+                        email: "x'/**/OR/**/1=1/**/--@example.com",
+                    },
+                }),
+            ).resolves.toMatchObject({
+                intrinsicUserAttributes: {
+                    email: "x''/**/OR/**/1=1/**/--@example.com",
+                },
             });
         });
     });

@@ -1021,14 +1021,26 @@ export class UnfurlService extends BaseService {
                         },
                     );
 
+                    // APP renders inside a cross-origin iframe sized 100vh.
+                    // Starting tall avoids a mid-flight resize race where the
+                    // child paints into the new area after the screenshot fires.
+                    let initialViewport: { width: number; height: number };
+                    if (chartType === ChartType.BIG_NUMBER) {
+                        initialViewport = bigNumberViewport;
+                    } else if (lightdashPage === LightdashPage.APP) {
+                        initialViewport = {
+                            width: gridWidth ?? viewport.width,
+                            height: 4000,
+                        };
+                    } else {
+                        initialViewport = {
+                            ...viewport,
+                            width: gridWidth ?? viewport.width,
+                        };
+                    }
+
                     page = await browser.newPage({
-                        viewport:
-                            chartType === ChartType.BIG_NUMBER
-                                ? bigNumberViewport
-                                : {
-                                      ...viewport,
-                                      width: gridWidth ?? viewport.width,
-                                  },
+                        viewport: initialViewport,
                         extraHTTPHeaders: {
                             [LightdashRequestMethodHeader]:
                                 RequestMethod.HEADLESS_BROWSER,

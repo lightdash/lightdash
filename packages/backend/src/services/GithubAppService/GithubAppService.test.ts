@@ -1,4 +1,9 @@
-import { PullRequestProvider } from '@lightdash/common';
+import {
+    defineUserAbility,
+    ForbiddenError,
+    OrganizationMemberRole,
+    PullRequestProvider,
+} from '@lightdash/common';
 import type { SessionUser } from '@lightdash/common';
 import { analyticsMock } from '../../analytics/LightdashAnalytics.mock';
 import { getOrRefreshToken } from '../../clients/github/Github';
@@ -17,12 +22,16 @@ jest.mock('../../clients/github/Github', () => ({
 }));
 
 const organizationUuid = 'org-uuid';
-const user = {
+const userFields = {
     userUuid: 'user-uuid',
     organizationUuid,
     organizationName: 'org',
     organizationCreatedAt: new Date(),
-    role: 'admin',
+    role: OrganizationMemberRole.ADMIN,
+};
+const user = {
+    ...userFields,
+    ability: defineUserAbility(userFields, []),
 } as SessionUser;
 
 const buildService = ({
@@ -88,6 +97,71 @@ describe('GithubAppService', () => {
             expect(returnToUrl).toBe(
                 `${lightdashConfigMock.siteUrl}/projects/abc/settings?tab=git`,
             );
+        });
+    });
+
+    describe('getAiWritebackAttribution', () => {
+        it('reports org/canLink:false without reading the credential when the feature is disabled', async () => {
+            const findCredential = jest.fn();
+            const service = buildService({
+                featureEnabled: false,
+                findCredential,
+            });
+
+            const attribution = await service.getAiWritebackAttribution(user);
+
+            expect(attribution).toEqual({ mode: 'org', canLink: false });
+            expect(findCredential).not.toHaveBeenCalled();
+        });
+
+        it('reports personal attribution with the linked login when a credential exists', async () => {
+            const service = buildService({
+                featureEnabled: true,
+                findCredential: jest.fn().mockResolvedValue({
+                    providerLogin: 'octocat',
+                    token: 't',
+                    refreshToken: 'r',
+                }),
+            });
+
+            const attribution = await service.getAiWritebackAttribution(user);
+
+            expect(attribution).toEqual({
+                mode: 'personal',
+                githubLogin: 'octocat',
+            });
+        });
+
+        it('reports org/canLink:true when the feature is on but no credential is linked', async () => {
+            const service = buildService({
+                featureEnabled: true,
+                findCredential: jest.fn().mockResolvedValue(undefined),
+            });
+
+            const attribution = await service.getAiWritebackAttribution(user);
+
+            expect(attribution).toEqual({ mode: 'org', canLink: true });
+        });
+
+        it('throws ForbiddenError when the caller cannot view their organization', async () => {
+            const findCredential = jest.fn();
+            const service = buildService({
+                featureEnabled: true,
+                findCredential,
+            });
+            // Ability scoped to a different org → cannot view this org.
+            const otherOrgUser = {
+                ...userFields,
+                ability: defineUserAbility(
+                    { ...userFields, organizationUuid: 'another-org-uuid' },
+                    [],
+                ),
+            } as SessionUser;
+
+            await expect(
+                service.getAiWritebackAttribution(otherOrgUser),
+            ).rejects.toThrow(ForbiddenError);
+            expect(findCredential).not.toHaveBeenCalled();
         });
     });
 

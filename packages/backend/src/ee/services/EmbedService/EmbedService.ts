@@ -6,6 +6,7 @@ import {
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
     ApiSqlChart,
+    assertUnreachable,
     CalculateSubtotalsFromQuery,
     CalculateTotalFromQuery,
     CommercialFeatureFlags,
@@ -39,6 +40,7 @@ import {
     getItemId,
     InteractivityOptions,
     IntrinsicUserAttributes,
+    isAiAgentContent,
     isChartContent,
     isDashboardChartTileType,
     isDashboardContent,
@@ -99,6 +101,9 @@ import { EncryptionUtil } from '../../../utils/EncryptionUtil/EncryptionUtil';
 import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
+
+const escapeEmbedJwtUserAttributeValue = (value: string): string =>
+    value.replaceAll("'", "''");
 
 type Dependencies = {
     lightdashConfig: LightdashConfig;
@@ -208,6 +213,10 @@ export class EmbedService extends BaseService {
         let urlPath: string;
         if (jwtData.content.type === 'chart') {
             urlPath = `/embed/${projectUuid}/chart/${jwtData.content.contentId}#${jwtToken}`;
+        } else if (jwtData.content.type === 'dataApp') {
+            urlPath = `/embed/${projectUuid}/app/${jwtData.content.appUuid}#${jwtToken}`;
+        } else if (jwtData.content.type === 'aiAgent') {
+            urlPath = `/embed/${projectUuid}/ai-agents/${jwtData.content.agentUuid}/threads#${jwtToken}`;
         } else {
             urlPath = `/embed/${projectUuid}#${jwtToken}`;
         }
@@ -286,6 +295,8 @@ export class EmbedService extends BaseService {
             this.lightdashConfig.embedding.allowAll.dashboards,
             data.chartUuids,
             this.lightdashConfig.embedding.allowAll.charts,
+            data.appUuids,
+            this.lightdashConfig.embedding.allowAll.apps,
         );
 
         return this.getConfig(account, projectUuid);
@@ -332,6 +343,8 @@ export class EmbedService extends BaseService {
             allowAllDashboards,
             chartUuids,
             allowAllCharts,
+            allowAllApps,
+            appUuids,
         }: UpdateEmbed,
     ) {
         const auditedAbility = this.createAuditedAbility(account);
@@ -361,6 +374,8 @@ export class EmbedService extends BaseService {
             allowAllDashboards,
             chartUuids,
             allowAllCharts,
+            allowAllApps,
+            appUuids,
         });
     }
 
@@ -455,7 +470,8 @@ export class EmbedService extends BaseService {
     }
 
     /**
-     * Extract content UUID (dashboard or chart) from JWT based on content type
+     * Extract content (dashboard, chart, or data app) from the JWT based on
+     * its content type.
      */
     async getContentUuidFromJwt(
         decodedToken: CreateEmbedJwt,
@@ -481,6 +497,30 @@ export class EmbedService extends BaseService {
                 chartUuids: [chart.uuid],
                 type: 'chart',
                 explores: [chart.tableName],
+            };
+        }
+
+        if (decodedToken.content.type === 'dataApp') {
+            // Standalone data app embed: the JWT names the app directly and
+            // self-authorizes it. The app's existence + project + ready version
+            // are validated downstream in getEmbedAppPreviewToken (which has the
+            // app model); here we only carry the appUuid through.
+            return {
+                appUuid: decodedToken.content.appUuid,
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'dataApp',
+                explores: [],
+            };
+        }
+
+        if (isAiAgentContent(decodedToken.content)) {
+            return {
+                dashboardUuid: undefined,
+                chartUuids: [],
+                type: 'aiAgent',
+                explores: [],
+                agentUuid: decodedToken.content.agentUuid,
             };
         }
 
@@ -828,13 +868,21 @@ export class EmbedService extends BaseService {
                   if (value !== null && value !== undefined) {
                       let sanitizedValue: string[];
                       if (typeof value === 'string') {
-                          sanitizedValue = [value];
+                          sanitizedValue = [
+                              escapeEmbedJwtUserAttributeValue(value),
+                          ];
                       } else if (isArray(value)) {
                           sanitizedValue = (value as unknown[]).map((v) =>
-                              typeof v === 'string' ? v : JSON.stringify(v),
+                              escapeEmbedJwtUserAttributeValue(
+                                  typeof v === 'string' ? v : JSON.stringify(v),
+                              ),
                           );
                       } else {
-                          sanitizedValue = [JSON.stringify(value)];
+                          sanitizedValue = [
+                              escapeEmbedJwtUserAttributeValue(
+                                  JSON.stringify(value),
+                              ),
+                          ];
                       }
                       acc[key] = sanitizedValue;
                   }
@@ -848,7 +896,9 @@ export class EmbedService extends BaseService {
         };
 
         const intrinsicUserAttributes: IntrinsicUserAttributes = {
-            email: embedJwt.user?.email,
+            email: embedJwt.user?.email
+                ? escapeEmbedJwtUserAttributeValue(embedJwt.user.email)
+                : undefined,
         };
 
         return { userAttributes, intrinsicUserAttributes };
@@ -1592,40 +1642,59 @@ export class EmbedService extends BaseService {
     ) {
         const { type, dashboardUuid, chartUuids } = account.access.content;
 
-        // Handle chart embeds (direct chart access)
-        if (type === 'chart') {
-            // Validate that the requested chart matches the embedded chart
-            if (!chartUuids.includes(savedChartUuid)) {
+        switch (type) {
+            // Handle chart embeds (direct chart access)
+            case 'chart': {
+                // Validate that the requested chart matches the embedded chart
+                if (!chartUuids.includes(savedChartUuid)) {
+                    throw new ForbiddenError(
+                        `Not authorized to access chart ${savedChartUuid}`,
+                    );
+                }
+
+                const chart = await this.savedChartModel.get(savedChartUuid);
+
+                if (chart.projectUuid !== projectUuid) {
+                    throw new NotFoundError(
+                        `Chart ${savedChartUuid} not found in project ${projectUuid}`,
+                    );
+                }
+
+                const explore = await this.projectModel.getExploreFromCache(
+                    projectUuid,
+                    chart.tableName,
+                );
+
+                if (isExploreError(explore)) {
+                    throw new ForbiddenError(
+                        `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
+                    );
+                }
+
+                return {
+                    dashboardUuid: undefined,
+                    chart,
+                    explore,
+                    metricQuery: chart.metricQuery,
+                };
+            }
+            case 'dataApp':
+                // Data app JWTs have no saved-chart grants; reject explicitly
+                // rather than falling into the dashboard-tile path.
                 throw new ForbiddenError(
-                    `Not authorized to access chart ${savedChartUuid}`,
+                    'Data app embeds cannot access saved charts',
                 );
-            }
-
-            const chart = await this.savedChartModel.get(savedChartUuid);
-
-            if (chart.projectUuid !== projectUuid) {
-                throw new NotFoundError(
-                    `Chart ${savedChartUuid} not found in project ${projectUuid}`,
-                );
-            }
-
-            const explore = await this.projectModel.getExploreFromCache(
-                projectUuid,
-                chart.tableName,
-            );
-
-            if (isExploreError(explore)) {
+            case 'aiAgent':
                 throw new ForbiddenError(
-                    `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
+                    'AI agent embeds cannot access saved charts',
                 );
-            }
-
-            return {
-                dashboardUuid: undefined,
-                chart,
-                explore,
-                metricQuery: chart.metricQuery,
-            };
+            case 'dashboard':
+                break;
+            default:
+                return assertUnreachable(
+                    type,
+                    `Unknown embed content type: ${type}`,
+                );
         }
 
         // Handle dashboard embeds (chart via tile)
@@ -2248,6 +2317,24 @@ export class EmbedService extends BaseService {
                     );
                 }
 
+                // Secure-by-default: a standalone data app embed is honoured
+                // only when the project opted the app in — via the broad
+                // `allow_all_apps` toggle or the per-app `app_uuids` allowlist.
+                // Enforced here (fail-closed) so it blocks BOTH the app's metric
+                // queries and the preview-token mint — enabling dashboard/chart
+                // embeds does not silently enable arbitrary-query app embeds.
+                if (content.type === 'dataApp') {
+                    const appAuthorized =
+                        embed.allowAllApps ||
+                        (content.appUuid !== undefined &&
+                            embed.appUuids.includes(content.appUuid));
+                    if (!appAuthorized) {
+                        throw new ForbiddenError(
+                            'This data app is not authorized for standalone embedding',
+                        );
+                    }
+                }
+
                 return fromJwt({
                     decodedToken,
                     source: encodedJwt,
@@ -2282,35 +2369,91 @@ export class EmbedService extends BaseService {
                 );
 
             if (spaceAccessContext.projectUuid !== projectUuid) {
-                return { canCreateSavedChart: false };
+                return {
+                    canCreateSavedChart: false,
+                    canUseAiAgent: false,
+                    aiAgentErrorMessage:
+                        'Embed token write actions must use a space in the embedded project',
+                };
             }
 
             const auditedAbility = this.createAuditedAbility(embedWriteUser);
+            const canCreateSavedChart = auditedAbility.can(
+                'create',
+                subject('SavedChart', {
+                    organizationUuid,
+                    projectUuid,
+                    inheritsFromOrgOrProject:
+                        spaceAccessContext.inheritsFromOrgOrProject,
+                    access: spaceAccessContext.access,
+                    metadata: {
+                        resolvedSpaceUuid: writeActions.spaceUuid,
+                        dashboardUuid: undefined,
+                    },
+                }),
+            );
+            const canViewProject = auditedAbility.can(
+                'view',
+                subject('Project', {
+                    organizationUuid,
+                    projectUuid,
+                }),
+            );
+            const canUseAiAgent =
+                decodedToken.content.type === 'aiAgent' &&
+                canCreateSavedChart &&
+                canViewProject;
+
             return {
-                canCreateSavedChart: auditedAbility.can(
-                    'create',
-                    subject('SavedChart', {
-                        organizationUuid,
-                        projectUuid,
-                        inheritsFromOrgOrProject:
-                            spaceAccessContext.inheritsFromOrgOrProject,
-                        access: spaceAccessContext.access,
-                        metadata: {
-                            resolvedSpaceUuid: writeActions.spaceUuid,
-                            dashboardUuid: undefined,
-                        },
-                    }),
-                ),
+                canCreateSavedChart,
+                canUseAiAgent,
+                aiAgentErrorMessage: canUseAiAgent
+                    ? undefined
+                    : EmbedService.getEmbedAiAgentErrorMessage({
+                          isAiAgentToken:
+                              decodedToken.content.type === 'aiAgent',
+                          canCreateSavedChart,
+                          canViewProject,
+                      }),
             };
         } catch (error) {
             if (
                 error instanceof ForbiddenError ||
                 error instanceof NotFoundError
             ) {
-                return { canCreateSavedChart: false };
+                return {
+                    canCreateSavedChart: false,
+                    canUseAiAgent: false,
+                    aiAgentErrorMessage:
+                        'Embed token write actions must use a space the write actor can access',
+                };
             }
             throw error;
         }
+    }
+
+    private static getEmbedAiAgentErrorMessage({
+        isAiAgentToken,
+        canCreateSavedChart,
+        canViewProject,
+    }: {
+        isAiAgentToken: boolean;
+        canCreateSavedChart: boolean;
+        canViewProject: boolean;
+    }) {
+        if (!isAiAgentToken) {
+            return 'Embed token content must be an AI agent';
+        }
+
+        if (!canCreateSavedChart) {
+            return 'Embed token write actor cannot create charts in the configured space';
+        }
+
+        if (!canViewProject) {
+            return 'Embed token write actor cannot view the embedded project';
+        }
+
+        return 'Embed token does not allow AI agent actions';
     }
 
     private async getEmbedWriteUser(

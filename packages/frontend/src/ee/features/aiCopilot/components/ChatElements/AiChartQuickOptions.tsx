@@ -1,6 +1,7 @@
 import {
     type AiAgentMessageAssistant,
     type AiArtifact,
+    type ApiError,
     type SavedChart,
 } from '@lightdash/common';
 import { ActionIcon, Button, HoverCard, Menu, Tooltip } from '@mantine-8/core';
@@ -14,23 +15,36 @@ import {
     IconDots,
     IconExternalLink,
     IconEye,
+    IconLayoutDashboard,
     IconTableShortcut,
     IconTerminal2,
 } from '@tabler/icons-react';
-import { Fragment, useCallback, useMemo } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../components/common/MantineIcon';
 import MantineModal from '../../../../../components/common/MantineModal';
 import { SaveToSpaceOrDashboard } from '../../../../../components/common/modal/ChartCreateModal/SaveToSpaceOrDashboard';
 import { useVisualizationContext } from '../../../../../components/LightdashVisualization/useVisualizationContext';
+import useEmbed from '../../../../../ee/providers/Embed/useEmbed';
+import useToaster from '../../../../../hooks/toaster/useToaster';
 import { useCreateShareMutation } from '../../../../../hooks/useShare';
 import useApp from '../../../../../providers/App/useApp';
 import useTracking from '../../../../../providers/Tracking/useTracking';
 import { EventName } from '../../../../../types/Events';
 import { getOpenInExploreUrl } from '../../../../../utils/getOpenInExploreUrl';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
+import { useAddChartToDashboard } from '../../hooks/useAddChartToDashboard';
 import { useSetArtifactVersionVerified } from '../../hooks/useAiAgentArtifacts';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import { useSavePromptQuery } from '../../hooks/useProjectAiAgents';
+import {
+    requestDashboardRefresh,
+    type LauncherCurrentDashboard,
+} from '../../store/aiAgentLauncherSlice';
+import {
+    useAiAgentStoreDispatch,
+    useAiAgentStoreSelector,
+} from '../../store/hooks';
 
 type Props = {
     projectUuid: string;
@@ -55,6 +69,16 @@ export const AiChartQuickOptions = ({
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
+    const { writeActions } = useEmbed();
+    const isEmbed = isEmbedAiAgentRoute();
+    const { showToastSuccess, showToastApiError } = useToaster();
+
+    const dispatch = useAiAgentStoreDispatch();
+    const currentDashboard = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.currentDashboard,
+    );
+    const addChartToDashboard = useAddChartToDashboard(projectUuid);
+    const [isSavingToDashboard, setIsSavingToDashboard] = useState(false);
 
     const [opened, { open, close }] = useDisclosure(false);
     const [
@@ -88,12 +112,21 @@ export const AiChartQuickOptions = ({
     const isVerified = artifactData?.verifiedByUserUuid !== null;
 
     const isDisabled = !metricQuery || !type || !visualizationConfig;
-    const onSaveChart = (savedData: SavedChart) => {
-        if (!saveChartOptions.linkToMessage) {
-            close();
-            return;
-        }
-        savePromptQuery({ savedQueryUuid: savedData.uuid });
+
+    const savedData = useMemo(() => {
+        if (!metricQuery) return undefined;
+        return {
+            metricQuery,
+            tableName: metricQuery.exploreName,
+            chartConfig,
+            tableConfig: { columnOrder },
+            pivotConfig: pivotDimensions?.length
+                ? { columns: pivotDimensions }
+                : undefined,
+        };
+    }, [metricQuery, chartConfig, columnOrder, pivotDimensions]);
+
+    const trackChartCreated = useCallback(() => {
         if (
             user?.data?.userUuid &&
             user?.data?.organizationUuid &&
@@ -114,8 +147,75 @@ export const AiChartQuickOptions = ({
                 },
             });
         }
+    }, [
+        user?.data?.userUuid,
+        user?.data?.organizationUuid,
+        projectUuid,
+        agentUuid,
+        metricQuery?.exploreName,
+        track,
+        message.threadUuid,
+        message.uuid,
+    ]);
+
+    const onSaveChart = (chart: SavedChart) => {
+        if (!saveChartOptions.linkToMessage) {
+            close();
+            return;
+        }
+        savePromptQuery({ savedQueryUuid: chart.uuid });
+        trackChartCreated();
         close();
     };
+
+    const quickSaveDashboard: LauncherCurrentDashboard | null =
+        currentDashboard?.projectUuid === projectUuid ? currentDashboard : null;
+
+    const handleSaveToCurrentDashboard = useCallback(async () => {
+        if (!savedData || !quickSaveDashboard) return;
+        setIsSavingToDashboard(true);
+        try {
+            const chart = await addChartToDashboard({
+                savedData,
+                name: saveChartOptions.name ?? 'Untitled chart',
+                description: saveChartOptions.description,
+                dashboardUuid: quickSaveDashboard.uuid,
+                activeTabUuid: quickSaveDashboard.activeTabUuid,
+            });
+            if (saveChartOptions.linkToMessage) {
+                savePromptQuery({ savedQueryUuid: chart.uuid });
+            }
+            trackChartCreated();
+            dispatch(
+                requestDashboardRefresh({
+                    dashboardUuid: quickSaveDashboard.uuid,
+                    focusChartSlug: chart.slug,
+                }),
+            );
+            showToastSuccess({
+                title: `Chart added to "${quickSaveDashboard.name}"`,
+            });
+        } catch (e) {
+            showToastApiError({
+                title: 'Failed to add chart to dashboard',
+                apiError: (e as ApiError).error,
+            });
+        } finally {
+            setIsSavingToDashboard(false);
+        }
+    }, [
+        savedData,
+        quickSaveDashboard,
+        addChartToDashboard,
+        saveChartOptions.name,
+        saveChartOptions.description,
+        saveChartOptions.linkToMessage,
+        savePromptQuery,
+        trackChartCreated,
+        dispatch,
+        showToastSuccess,
+        showToastApiError,
+    ]);
 
     const openInExploreUrl = useMemo(() => {
         if (isDisabled) return undefined;
@@ -253,14 +353,31 @@ export const AiChartQuickOptions = ({
                             View saved chart
                         </Menu.Item>
                     ) : (
-                        <Menu.Item
-                            onClick={() => open()}
-                            leftSection={
-                                <MantineIcon icon={IconDeviceFloppy} />
-                            }
-                        >
-                            Save
-                        </Menu.Item>
+                        <>
+                            {quickSaveDashboard && (
+                                <Menu.Item
+                                    onClick={() =>
+                                        void handleSaveToCurrentDashboard()
+                                    }
+                                    disabled={isDisabled || isSavingToDashboard}
+                                    leftSection={
+                                        <MantineIcon
+                                            icon={IconLayoutDashboard}
+                                        />
+                                    }
+                                >
+                                    Save to current dashboard
+                                </Menu.Item>
+                            )}
+                            <Menu.Item
+                                onClick={() => open()}
+                                leftSection={
+                                    <MantineIcon icon={IconDeviceFloppy} />
+                                }
+                            >
+                                {quickSaveDashboard ? 'Save to…' : 'Save'}
+                            </Menu.Item>
+                        </>
                     )}
 
                     <Menu.Item
@@ -349,6 +466,9 @@ export const AiChartQuickOptions = ({
                         name: saveChartOptions.name ?? '',
                         description: saveChartOptions.description ?? '',
                     }}
+                    forcedSpaceUuid={
+                        isEmbed ? writeActions?.spaceUuid : undefined
+                    }
                     redirectOnSuccess={false}
                 />
             </MantineModal>

@@ -23,6 +23,7 @@ import GlobalState from '../globalState';
 import * as styles from '../styles';
 import { compile, CompileHandlerOptions } from './compile';
 import { checkLightdashVersion, lightdashApi } from './dbt/apiClient';
+import { getProjectDisableTimestampConversion } from './timestampConversion';
 
 export const requestValidation = async (
     projectUuid: string,
@@ -86,7 +87,10 @@ export const waitUntilFinished = async (jobUuid: string): Promise<string> => {
     return delay(REFETCH_JOB_INTERVAL).then(() => waitUntilFinished(jobUuid));
 };
 
-export const validateHandler = async (options: ValidateHandlerOptions) => {
+export const validateHandler = async (
+    originalOptions: ValidateHandlerOptions,
+) => {
+    const options = { ...originalOptions };
     GlobalState.setVerbose(options.verbose);
     await checkLightdashVersion();
 
@@ -132,6 +136,12 @@ export const validateHandler = async (options: ValidateHandlerOptions) => {
     } else {
         console.error(`Validating project ${projectUuid}\n`);
     }
+
+    options.disableTimestampConversion =
+        await getProjectDisableTimestampConversion(
+            options.disableTimestampConversion,
+            projectUuid,
+        );
 
     const validationTargets = options.only ? options.only : [];
 

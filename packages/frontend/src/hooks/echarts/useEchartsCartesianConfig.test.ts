@@ -20,6 +20,7 @@ import {
     getAxisDefaultMinValue,
     getCategoryDateAxisConfig,
     getMinAndMaxValues,
+    getSubDayTimeAxisConfig,
     getStackTotalSeries,
     mergeLegendSettings,
     padDatasetForContinuousAxis,
@@ -832,6 +833,173 @@ describe('getCategoryDateAxisConfig', () => {
                 expect(result.data).toEqual(expectedMonthlyRange(tz, years));
             });
         });
+    });
+});
+
+describe('getSubDayTimeAxisConfig', () => {
+    const axisId = 'hour_axis';
+
+    const createRows = (dates: string[]): ResultRow[] =>
+        dates.map((d) => ({
+            [axisId]: { value: { raw: d, formatted: d } },
+        }));
+
+    const subDayField = (timezone: string) =>
+        ({
+            fieldId: axisId,
+            timezone,
+            flipAxes: false,
+            mode: 'sub-day-format',
+        }) as const;
+
+    test('returns empty object when timeAxisField is undefined', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createRows([
+                '2024-10-26T23:00:00.000Z',
+                '2024-10-27T02:00:00.000Z',
+            ]),
+            undefined,
+        );
+
+        expect(result).toEqual({});
+    });
+
+    test('returns empty object when timeAxisField targets another axis', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createRows([
+                '2024-10-26T23:00:00.000Z',
+                '2024-10-27T02:00:00.000Z',
+            ]),
+            {
+                fieldId: 'a_different_axis',
+                timezone: 'Europe/London',
+                flipAxes: false,
+                mode: 'sub-day-format',
+            },
+        );
+
+        expect(result).toEqual({});
+    });
+
+    test('returns empty object when timeAxisField is in shift mode', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createRows([
+                '2024-10-26T23:00:00.000Z',
+                '2024-10-27T02:00:00.000Z',
+            ]),
+            {
+                fieldId: axisId,
+                timezone: 'Europe/London',
+                flipAxes: false,
+                mode: 'shift',
+            },
+        );
+
+        expect(result).toEqual({});
+    });
+
+    test('leaves tick placement to ECharts (emits no customValues)', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createRows([
+                '2024-10-26T23:00:00.000Z',
+                '2024-10-27T00:00:00.000Z',
+                '2024-10-27T01:00:00.000Z',
+                '2024-10-27T02:00:00.000Z',
+            ]),
+            subDayField('Europe/London'),
+        );
+
+        // No pinned ticks: ECharts runs its native adaptive tick algorithm.
+        expect((result as { axisTick?: unknown }).axisTick).toBeUndefined();
+        expect(
+            (result.axisLabel as { customValues?: unknown } | undefined)
+                ?.customValues,
+        ).toBeUndefined();
+        // We still relabel ticks in-zone via the formatter.
+        expect(typeof result.axisLabel?.formatter).toBe('function');
+    });
+
+    test('stays inert off the flag hot path (no override when not sub-day-format)', () => {
+        const rows = createRows([
+            '2024-10-26T23:00:00.000Z',
+            '2024-10-27T02:00:00.000Z',
+        ]);
+        // Flag off ⇒ resolveAxisTimezone returns timeAxisField undefined.
+        expect(getSubDayTimeAxisConfig(axisId, rows, undefined)).toEqual({});
+        // Non-sub-day grain (shift mode) ⇒ no sub-day override either.
+        expect(
+            getSubDayTimeAxisConfig(axisId, rows, {
+                fieldId: axisId,
+                timezone: 'Europe/London',
+                flipAxes: false,
+                mode: 'shift',
+            }),
+        ).toEqual({});
+    });
+
+    test('clears the leveled rich-text style left by the default formatter', () => {
+        const result = getSubDayTimeAxisConfig(
+            axisId,
+            createRows(['2024-01-01T00:15:00.000Z']),
+            subDayField('Asia/Kathmandu'),
+        );
+
+        expect(result.axisLabel?.rich).toBeUndefined();
+    });
+
+    const getFormatter = (timezone: string, raw: string) =>
+        getSubDayTimeAxisConfig(
+            axisId,
+            createRows([raw]),
+            subDayField(timezone),
+        ).axisLabel?.formatter as ((value: number) => string) | undefined;
+
+    test('labels ticks in the resolved zone across the fall-back boundary', () => {
+        const format = getFormatter(
+            'Europe/London',
+            '2024-10-27T00:00:00.000Z',
+        )!;
+        // 23:00Z is 00:00 BST — a day boundary, so ECharts shows the date (day-of-month).
+        expect(format(Date.parse('2024-10-26T23:00:00.000Z'))).toBe('27');
+        // Both folded 01:00 wall-clock hours (00:00Z BST and 01:00Z GMT) read 01:00.
+        expect(format(Date.parse('2024-10-27T00:00:00.000Z'))).toBe('01:00');
+        expect(format(Date.parse('2024-10-27T01:00:00.000Z'))).toBe('01:00');
+        expect(format(Date.parse('2024-10-27T02:00:00.000Z'))).toBe('02:00');
+    });
+
+    test('labels ticks in the resolved zone across the spring-forward boundary', () => {
+        const format = getFormatter(
+            'Europe/London',
+            '2024-03-31T00:00:00.000Z',
+        )!;
+        expect(format(Date.parse('2024-03-31T00:00:00.000Z'))).toBe('31');
+        // 01:00Z springs forward to 02:00 BST — the 01:00 wall-clock hour is skipped.
+        expect(format(Date.parse('2024-03-31T01:00:00.000Z'))).toBe('02:00');
+        expect(format(Date.parse('2024-03-31T02:00:00.000Z'))).toBe('03:00');
+    });
+
+    test('labels fractional-offset zones at their real wall-clock minute', () => {
+        const format = getFormatter(
+            'Asia/Kathmandu',
+            '2024-01-01T00:15:00.000Z',
+        )!;
+        // +05:45 → 00:15Z is 06:00 NPT.
+        expect(format(Date.parse('2024-01-01T00:15:00.000Z'))).toBe('06:00');
+    });
+
+    // Precision follows the value's finest non-zero unit (ECharts' getUnitFromValue
+    // rule), not the dimension grain. Asia/Tokyo is UTC+9 with no DST.
+    test.each([
+        ['2024-01-01T10:30:00.000Z', '19:30'],
+        ['2024-01-01T10:30:45.000Z', '19:30:45'],
+        ['2024-01-01T10:30:45.500Z', '19:30:45 500'],
+    ])('renders %s at the finest non-zero unit', (raw, expected) => {
+        const format = getFormatter('Asia/Tokyo', raw)!;
+        expect(format(Date.parse(raw))).toBe(expected);
     });
 });
 

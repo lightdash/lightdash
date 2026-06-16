@@ -33,7 +33,7 @@ export class ProjectCompileLogController extends BaseController {
      * @param sortBy column to sort by
      * @param sortDirection sort direction (asc or desc)
      * @param triggeredByUserUuids filter by triggered user UUIDs (comma-separated)
-     * @param source filter by source ("cli_deploy", "refresh_dbt")
+     * @param source filter by source ("cli_deploy", "refresh_dbt", "create_project", "project_connection_form")
      */
     @Middlewares([allowApiKeyAuthentication, isAuthenticated])
     @SuccessResponse('200', 'Success')
@@ -47,7 +47,11 @@ export class ProjectCompileLogController extends BaseController {
         @Query() sortBy?: 'created_at' | 'compilation_source',
         @Query() sortDirection?: 'asc' | 'desc',
         @Query() triggeredByUserUuids?: string,
-        @Query() source?: 'cli_deploy' | 'refresh_dbt' | 'create_project',
+        @Query() source?:
+            | 'cli_deploy'
+            | 'refresh_dbt'
+            | 'create_project'
+            | 'project_connection_form',
     ): Promise<ApiProjectCompileLogsResponse> {
         this.setStatus(200);
 

@@ -16,6 +16,9 @@ describe('buildMcpExploreConfigState', () => {
                 metrics: ['enrollments_count'],
                 sorts: [],
                 limit: 500,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: null,
             },
             chartConfig: {
                 defaultVizType: 'bar',
@@ -31,7 +34,6 @@ describe('buildMcpExploreConfigState', () => {
                 secondaryYAxisMetric: null,
                 secondaryYAxisLabel: null,
             },
-            filters: null,
         });
 
         const configState = buildMcpExploreConfigState({
@@ -42,7 +44,7 @@ describe('buildMcpExploreConfigState', () => {
                 metrics: ['enrollments_count'],
                 sorts: [],
                 limit: 500,
-                filters: queryTool.filters,
+                filters: queryTool.queryConfig.filters,
                 additionalMetrics: [],
                 tableCalculations: [],
             },
@@ -82,8 +84,11 @@ describe('buildMcpExploreConfigState', () => {
                 metrics: ['enrollments_count'],
                 sorts: [],
                 limit: 500,
+                customMetrics: null,
+                tableCalculations: null,
+                filters: null,
             },
-            filters: null,
+            chartConfig: null,
         });
 
         const configState = buildMcpExploreConfigState({
@@ -94,7 +99,7 @@ describe('buildMcpExploreConfigState', () => {
                 metrics: ['enrollments_count'],
                 sorts: [],
                 limit: 500,
-                filters: queryTool.filters,
+                filters: queryTool.queryConfig.filters,
                 additionalMetrics: [],
                 tableCalculations: [],
             },

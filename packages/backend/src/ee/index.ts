@@ -296,6 +296,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     shareService: repository.getShareService(),
+                    fileStorageClient: clients.getFileStorageClient(),
+                    persistentDownloadFileService:
+                        repository.getPersistentDownloadFileService(),
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),
@@ -305,6 +308,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getPreviewDeploySetupService<PreviewDeploySetupService>(),
                     githubAppInstallationsModel:
                         models.getGithubAppInstallationsModel(),
+                    githubAppService: repository.getGithubAppService(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
                     pullRequestsModel: models.getPullRequestsModel(),
@@ -653,6 +657,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiAgentService: repository.getAiAgentService(),
                     aiAgentToolsService:
                         repository.getAiAgentToolsService<AiAgentToolsService>(),
+                    aiRouterService:
+                        repository.getAiRouterService<AiRouterService>(),
                     aiWritebackService: repository.getAiWritebackService(),
                 }),
             slackService: ({ repository, clients }) =>

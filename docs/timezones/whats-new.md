@@ -16,6 +16,7 @@ Short summary of how v2 changes user-facing behavior vs. today's published docs 
 
 - Disabling the user-TZ feature flag actually stops honoring stored `users.timezone`. (GLITCH-451)
 - DST boundaries render correctly in ECharts. (GLITCH-449)
+- Sub-day time-axis ticks are adaptive again — density responds to the data span and to zoom instead of one tick per bar — while keeping the DST-correct positioning. (GLITCH-502)
 - Half- and 45-minute offset zones (India, Nepal, Eucla) work on BigQuery + ClickHouse. (GLITCH-453)
 
 ## Internal-only

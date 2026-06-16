@@ -1,5 +1,4 @@
 import {
-    CiMergeState,
     type CiChecks,
     type ToolEditDbtProjectOutput,
 } from '@lightdash/common';
@@ -17,6 +16,7 @@ import {
     IconAlertTriangle,
     IconBrandGithub,
     IconBrandGitlab,
+    IconCheck,
     IconChevronDown,
     IconEye,
     IconFileDiff,
@@ -26,10 +26,10 @@ import {
     IconSettings,
     type Icon as TablerIcon,
 } from '@tabler/icons-react';
-import { useState, type FC } from 'react';
+import confetti from 'canvas-confetti';
+import { useEffect, useRef, useState, type FC } from 'react';
 import { Link } from 'react-router';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
-import MantineModal from '../../../../../../components/common/MantineModal';
 import { useClosePullRequest } from '../../../hooks/useClosePullRequest';
 import { useMergePullRequest } from '../../../hooks/useMergePullRequest';
 import { usePullRequestCiChecks } from '../../../hooks/usePullRequestCiChecks';
@@ -187,27 +187,50 @@ const PullRequestViewMenu: FC<{
     );
 };
 
-/**
- * Terminal "Close PR" / "Merge PR" actions for the PR card, joined in a button
- * group. Collapses to a single disabled "Merged" or "Closed" marker once the PR
- * reaches that state. While open, both actions show; "Merge PR" is disabled
- * until the PR is actually mergeable (the CI roll-up row explains why). Each
- * action confirms first — merging can't be undone from here, and closing,
- * while reopenable, shouldn't be a stray click.
- */
-const PullRequestActionButtons: FC<{
-    projectUuid: string;
-    prUrl: string;
-    /** Pinned commit merged as the expected head, so a stale card can't merge a newer commit. */
-    commitSha: string | null;
+// ts-unused-exports:disable-next-line
+export const PullRequestActionButtons: FC<{
     ciChecks: CiChecks | null;
-}> = ({ projectUuid, prUrl, commitSha, ciChecks }) => {
-    const { mutate: merge, isLoading: isMerging } =
-        useMergePullRequest(projectUuid);
-    const { mutate: close, isLoading: isClosing } =
-        useClosePullRequest(projectUuid);
-    const [mergeConfirmOpened, setMergeConfirmOpened] = useState(false);
-    const [closeConfirmOpened, setCloseConfirmOpened] = useState(false);
+    isMerging: boolean;
+    isClosing: boolean;
+    onMerge: () => void;
+    onClose: () => void;
+}> = ({ ciChecks, isMerging, isClosing, onMerge, onClose }) => {
+    const [armed, setArmed] = useState<'merge' | 'close' | null>(null);
+    const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const mergeButtonRef = useRef<HTMLButtonElement>(null);
+    const confettiOrigin = useRef<{ x: number; y: number } | null>(null);
+    const wasMerged = useRef(ciChecks?.merged ?? false);
+
+    const disarm = () => {
+        if (armTimer.current) clearTimeout(armTimer.current);
+        armTimer.current = null;
+        setArmed(null);
+    };
+    const arm = (which: 'merge' | 'close') => {
+        if (armTimer.current) clearTimeout(armTimer.current);
+        setArmed(which);
+        armTimer.current = setTimeout(() => setArmed(null), 3500);
+    };
+
+    useEffect(() => {
+        const merged = ciChecks?.merged ?? false;
+        if (merged && !wasMerged.current && confettiOrigin.current) {
+            void confetti({
+                disableForReducedMotion: true,
+                particleCount: 70,
+                startVelocity: 26,
+                spread: 75,
+                gravity: 0.9,
+                scalar: 0.85,
+                ticks: 120,
+                zIndex: 400,
+                colors: ['#7048e8', '#9775fa', '#b197fc', '#d0bfff', '#e5dbff'],
+                origin: confettiOrigin.current,
+            });
+            confettiOrigin.current = null;
+        }
+        wasMerged.current = merged;
+    }, [ciChecks?.merged]);
 
     if (!ciChecks) {
         return null;
@@ -217,9 +240,10 @@ const PullRequestActionButtons: FC<{
         return (
             <Button
                 variant="light"
-                color="green"
+                color="violet"
                 size="compact-sm"
                 disabled
+                className={styles.mergedStatus}
                 leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
             >
                 Merged
@@ -231,9 +255,10 @@ const PullRequestActionButtons: FC<{
         return (
             <Button
                 variant="light"
-                color="ldGray"
+                color="red"
                 size="compact-sm"
                 disabled
+                className={styles.closedStatus}
                 leftSection={
                     <MantineIcon icon={IconGitPullRequestClosed} size={14} />
                 }
@@ -243,73 +268,71 @@ const PullRequestActionButtons: FC<{
         );
     }
 
-    return (
-        <>
-            <Button.Group>
-                <Button
-                    variant="default"
-                    size="compact-sm"
-                    leftSection={
-                        <MantineIcon
-                            icon={IconGitPullRequestClosed}
-                            size={14}
-                        />
-                    }
-                    onClick={() => setCloseConfirmOpened(true)}
-                >
-                    Close PR
-                </Button>
-                <Button
-                    variant="filled"
-                    color="green"
-                    size="compact-sm"
-                    disabled={!isMergeable(ciChecks)}
-                    leftSection={<MantineIcon icon={IconGitMerge} size={14} />}
-                    onClick={() => setMergeConfirmOpened(true)}
-                >
-                    Merge PR
-                </Button>
-            </Button.Group>
+    const mergeArmed = armed === 'merge';
+    const closeArmed = armed === 'close';
 
-            <MantineModal
-                opened={mergeConfirmOpened}
-                onClose={() => setMergeConfirmOpened(false)}
-                title="Merge pull request"
-                icon={IconGitMerge}
-                size="md"
-                description={
-                    ciChecks.mergeState === CiMergeState.UNSTABLE
-                        ? "This pull request is mergeable but some non-required checks are failing or still running. Merge it into the project's base branch anyway? This can't be undone from here."
-                        : "This merges the pull request into the project's base branch. This can't be undone from here."
+    const handleMergeClick = () => {
+        if (!mergeArmed) {
+            arm('merge');
+            return;
+        }
+        const el = mergeButtonRef.current;
+        if (el) {
+            const rect = el.getBoundingClientRect();
+            confettiOrigin.current = {
+                x: (rect.left + rect.width / 2) / window.innerWidth,
+                y: (rect.top + rect.height / 2) / window.innerHeight,
+            };
+        }
+        disarm();
+        onMerge();
+    };
+
+    const handleCloseClick = () => {
+        if (!closeArmed) {
+            arm('close');
+            return;
+        }
+        disarm();
+        onClose();
+    };
+
+    return (
+        <Button.Group>
+            <Button
+                variant="default"
+                size="compact-sm"
+                loading={isClosing}
+                onBlur={disarm}
+                leftSection={
+                    <MantineIcon
+                        icon={closeArmed ? IconCheck : IconGitPullRequestClosed}
+                        size={14}
+                    />
                 }
-                confirmLabel="Merge PR"
-                confirmLoading={isMerging}
-                cancelDisabled={isMerging}
-                onConfirm={() =>
-                    merge(
-                        { prUrl, sha: commitSha },
-                        { onSuccess: () => setMergeConfirmOpened(false) },
-                    )
+                onClick={handleCloseClick}
+            >
+                {closeArmed ? 'Confirm' : 'Close PR'}
+            </Button>
+            <Button
+                ref={mergeButtonRef}
+                variant="filled"
+                color="green"
+                size="compact-sm"
+                loading={isMerging}
+                disabled={!isMergeable(ciChecks)}
+                onBlur={disarm}
+                leftSection={
+                    <MantineIcon
+                        icon={mergeArmed ? IconCheck : IconGitMerge}
+                        size={14}
+                    />
                 }
-            />
-            <MantineModal
-                opened={closeConfirmOpened}
-                onClose={() => setCloseConfirmOpened(false)}
-                title="Close pull request"
-                icon={IconGitPullRequestClosed}
-                size="md"
-                description="Close this pull request without merging? You can reopen it on GitHub later."
-                confirmLabel="Close PR"
-                confirmLoading={isClosing}
-                cancelDisabled={isClosing}
-                onConfirm={() =>
-                    close(
-                        { prUrl },
-                        { onSuccess: () => setCloseConfirmOpened(false) },
-                    )
-                }
-            />
-        </>
+                onClick={handleMergeClick}
+            >
+                {mergeArmed ? 'Confirm' : 'Merge PR'}
+            </Button>
+        </Button.Group>
     );
 };
 
@@ -335,6 +358,10 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
         prUrl,
         ciCommitSha,
     );
+    const { mutate: merge, isLoading: isMerging } =
+        useMergePullRequest(projectUuid);
+    const { mutate: close, isLoading: isClosing } =
+        useClosePullRequest(projectUuid);
 
     if (metadata.status === 'error') {
         // When the project just needs its git app installed, the agent's reply
@@ -487,9 +514,21 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
     const deletions = metadata.deletions ?? null;
     const hasDiffStat = additions !== null || deletions !== null;
     const title = 'Edited semantic layer';
+    const resolvedPrUrl = metadata.prUrl;
 
     return (
-        <Paper withBorder p="sm" radius="md" className={styles.card}>
+        <Paper
+            withBorder
+            p="sm"
+            radius="md"
+            className={
+                ciChecks?.merged
+                    ? `${styles.card} ${styles.cardMerged}`
+                    : ciChecks?.state === 'closed'
+                      ? `${styles.card} ${styles.cardClosed}`
+                      : styles.card
+            }
+        >
             <Stack gap="xs">
                 <Group
                     gap="sm"
@@ -575,16 +614,23 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                             ciChecks={ciChecks ?? null}
                         />
                         <PullRequestActionButtons
-                            projectUuid={projectUuid}
-                            prUrl={metadata.prUrl}
-                            commitSha={metadata.commitSha ?? null}
                             ciChecks={ciChecks ?? null}
+                            isMerging={isMerging}
+                            isClosing={isClosing}
+                            onMerge={() =>
+                                merge({
+                                    prUrl: resolvedPrUrl,
+                                    sha: metadata.commitSha ?? null,
+                                })
+                            }
+                            onClose={() => close({ prUrl: resolvedPrUrl })}
                         />
                     </Box>
                 </Group>
                 <PullRequestCiChecks
                     prUrl={metadata.prUrl}
                     ciChecks={ciChecks ?? null}
+                    hasMergeAction
                 />
             </Stack>
         </Paper>

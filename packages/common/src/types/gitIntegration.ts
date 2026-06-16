@@ -110,6 +110,24 @@ export type ApiGithubUserCredentialResponse = {
     results: GithubUserCredential | null;
 };
 
+/**
+ * Advisory signal, resolved at AI prompt-assembly time, of which GitHub
+ * identity an AI writeback PR would most likely be attributed to. This is a
+ * cheap projection (one indexed DB read, no token refresh or GitHub API call) —
+ * the authoritative resolution still happens later in the writeback run. Used to
+ * give the agent context and, when unlinked, nudge the user to link a personal
+ * GitHub account.
+ *
+ * - `personal`: the user has a linked personal GitHub account; the PR will be
+ *   attributed to `githubLogin`.
+ * - `org`: the PR will fall back to the shared org-level GitHub App. `canLink`
+ *   is whether the user can link a personal account (the github-user-credentials
+ *   feature is enabled), i.e. whether nudging to settings is worthwhile.
+ */
+export type AiWritebackAttribution =
+    | { mode: 'personal'; githubLogin: string }
+    | { mode: 'org'; canLink: boolean };
+
 export type ApiGitFileContent = {
     content: string;
     sha: string;

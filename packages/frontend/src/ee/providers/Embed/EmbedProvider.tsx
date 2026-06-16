@@ -31,6 +31,7 @@ type Props = {
     onBackToDashboard?: () => void;
     savedChart?: SavedChart;
     savedQueryUuid?: string;
+    appUuid?: string;
 };
 
 const decodeEmbedJwtPayload = (
@@ -67,6 +68,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     onBackToDashboard,
     savedChart,
     savedQueryUuid,
+    appUuid,
 }) => {
     const embedToken = encodedToken || window.location.hash.replace('#', '');
     const [isInitialized, setIsInitialized] = useState(false);
@@ -154,6 +156,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             onExplore,
             savedChart,
             savedQueryUuid,
+            appUuid,
             onBackToDashboard,
             mode,
             theme: embedThemeParams.theme,
@@ -173,6 +176,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         onExplore,
         savedChart,
         savedQueryUuid,
+        appUuid,
         onBackToDashboard,
         mode,
         embedThemeParams.theme,

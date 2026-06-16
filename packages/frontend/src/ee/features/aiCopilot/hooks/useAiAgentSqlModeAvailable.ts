@@ -5,11 +5,14 @@
 
 import { subject } from '@casl/ability';
 import useApp from '../../../../providers/App/useApp';
+import { isEmbedAiAgentRoute } from './aiAgentRouting';
 
 export const useAiAgentSqlModeAvailable = (
     projectUuid: string | undefined,
 ): boolean => {
     const { user } = useApp();
+
+    if (isEmbedAiAgentRoute()) return false;
 
     if (!projectUuid || !user.data) return false;
 

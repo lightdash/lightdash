@@ -13,9 +13,11 @@ import { type FC } from 'react';
 import { Link, useParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
+import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 
 const AiAgentsNotAuthorizedPage: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
+    const isEmbed = isEmbedAiAgentRoute();
 
     return (
         <AiAgentPageLayout>
@@ -58,17 +60,19 @@ const AiAgentsNotAuthorizedPage: FC = () => {
                                 To gain access, please contact your organization
                                 administrator.
                             </Text>
-                            <Button
-                                variant="subtle"
-                                color="gray"
-                                leftSection={
-                                    <MantineIcon icon={IconArrowLeft} />
-                                }
-                                component={Link}
-                                to={`/projects/${projectUuid}/home`}
-                            >
-                                Go back to project home
-                            </Button>
+                            {!isEmbed && (
+                                <Button
+                                    variant="subtle"
+                                    color="gray"
+                                    leftSection={
+                                        <MantineIcon icon={IconArrowLeft} />
+                                    }
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/home`}
+                                >
+                                    Go back to project home
+                                </Button>
+                            )}
                         </Stack>
                     </Paper>
                 </Stack>

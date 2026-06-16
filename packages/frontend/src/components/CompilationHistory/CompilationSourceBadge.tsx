@@ -5,6 +5,7 @@ const SOURCE_COLORS: Record<string, DefaultMantineColor> = {
     refresh_dbt: 'indigo',
     cli_deploy: 'pink',
     create_project: 'cyan',
+    project_connection_form: 'teal',
 } as const;
 
 type CompilationSourceBadgeProps = {

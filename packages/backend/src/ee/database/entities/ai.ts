@@ -79,6 +79,7 @@ type DbWebAppThread = {
     ai_web_app_thread_uuid: string;
     ai_thread_uuid: string;
     user_uuid: string;
+    embed_space_uuid: string | null;
 };
 
 export type AiSlackThreadTable = Knex.CompositeTableType<
@@ -95,7 +96,8 @@ export type AiSlackThreadTable = Knex.CompositeTableType<
 
 export type AiWebAppThreadTable = Knex.CompositeTableType<
     DbWebAppThread,
-    Pick<DbWebAppThread, 'ai_thread_uuid' | 'user_uuid'>,
+    Pick<DbWebAppThread, 'ai_thread_uuid' | 'user_uuid'> &
+        Partial<Pick<DbWebAppThread, 'embed_space_uuid'>>,
     never
 >;
 
@@ -309,6 +311,7 @@ export type DbAiOrganizationSettings = {
     organization_uuid: string;
     ai_agents_visible: boolean;
     ai_agent_reviews_enabled: boolean;
+    mcp_content_writes_enabled: boolean;
     created_at: Date;
     updated_at: Date;
 };
@@ -316,11 +319,18 @@ export type DbAiOrganizationSettings = {
 export type AiOrganizationSettingsTable = Knex.CompositeTableType<
     DbAiOrganizationSettings,
     Pick<DbAiOrganizationSettings, 'organization_uuid' | 'ai_agents_visible'> &
-        Partial<Pick<DbAiOrganizationSettings, 'ai_agent_reviews_enabled'>>,
+        Partial<
+            Pick<
+                DbAiOrganizationSettings,
+                'ai_agent_reviews_enabled' | 'mcp_content_writes_enabled'
+            >
+        >,
     Partial<
         Pick<
             DbAiOrganizationSettings,
-            'ai_agents_visible' | 'ai_agent_reviews_enabled'
+            | 'ai_agents_visible'
+            | 'ai_agent_reviews_enabled'
+            | 'mcp_content_writes_enabled'
         >
     >
 >;

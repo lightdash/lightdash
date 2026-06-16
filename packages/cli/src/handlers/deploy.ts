@@ -38,7 +38,12 @@ import {
 } from './dbt/apiClient';
 import { DbtCompileOptions } from './dbt/compile';
 import { tryGetDbtVersion } from './dbt/getDbtVersion';
-import { logSelectedProject, selectProject } from './selectProject';
+import {
+    logSelectedProject,
+    selectProject,
+    type ProjectSelection,
+} from './selectProject';
+import { getProjectDisableTimestampConversion } from './timestampConversion';
 
 type DeployHandlerOptions = DbtCompileOptions & {
     projectDir: string;
@@ -57,6 +62,7 @@ type DeployHandlerOptions = DbtCompileOptions & {
     batchSize?: string;
     parallelBatches?: string;
     gzip?: boolean;
+    disableTimestampConversion?: boolean;
 };
 
 type DeployArgs = DeployHandlerOptions & {
@@ -657,9 +663,34 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
     }
     await checkLightdashVersion();
     const executionId = uuidv4();
+    const config = await getConfig();
+
+    let existingProjectSelection: ProjectSelection | undefined;
+    if (options.create === undefined) {
+        if (!config.context?.serverUrl) {
+            throw new AuthorizationError(
+                `No active Lightdash project. Run 'lightdash login --help'`,
+            );
+        }
+        existingProjectSelection = await selectProject(config, options.project);
+        if (!existingProjectSelection) {
+            throw new AuthorizationError(
+                `No active Lightdash project. Run 'lightdash login --help'`,
+            );
+        }
+
+        // Log current project info
+        logSelectedProject(existingProjectSelection, config, 'Deploying to');
+
+        options.disableTimestampConversion =
+            await getProjectDisableTimestampConversion(
+                options.disableTimestampConversion,
+                existingProjectSelection.projectUuid,
+            );
+    }
+
     const explores = await compile(options);
 
-    const config = await getConfig();
     let projectUuid: string;
 
     if (options.create !== undefined) {
@@ -680,22 +711,12 @@ export const deployHandler = async (originalOptions: DeployHandlerOptions) => {
         }
         projectUuid = project.projectUuid;
         await setProject(projectUuid, project.name);
+    } else if (existingProjectSelection) {
+        projectUuid = existingProjectSelection.projectUuid;
     } else {
-        if (!config.context?.serverUrl) {
-            throw new AuthorizationError(
-                `No active Lightdash project. Run 'lightdash login --help'`,
-            );
-        }
-        const projectSelection = await selectProject(config, options.project);
-        if (!projectSelection) {
-            throw new AuthorizationError(
-                `No active Lightdash project. Run 'lightdash login --help'`,
-            );
-        }
-        projectUuid = projectSelection.projectUuid;
-
-        // Log current project info
-        logSelectedProject(projectSelection, config, 'Deploying to');
+        throw new AuthorizationError(
+            `No active Lightdash project. Run 'lightdash login --help'`,
+        );
     }
 
     await deploy(explores, { ...options, projectUuid });

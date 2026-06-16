@@ -31,6 +31,7 @@ import {
 import { useState, type FC } from 'react';
 import MantineIcon from '../../../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../../../components/common/PolymorphicGroupButton';
+import { isMergeable } from './pullRequestActions';
 import styles from './PullRequestCiChecks.module.css';
 
 type StateStyle = {
@@ -180,7 +181,8 @@ const CheckRow: FC<{ check: CiCheck }> = ({ check }) => (
 export const PullRequestCiChecks: FC<{
     prUrl: string;
     ciChecks: CiChecks | null;
-}> = ({ prUrl, ciChecks }) => {
+    hasMergeAction?: boolean;
+}> = ({ prUrl, ciChecks, hasMergeAction = false }) => {
     const [expanded, setExpanded] = useState(false);
 
     if (!ciChecks || ciChecks.checks.length === 0) {
@@ -203,6 +205,8 @@ export const PullRequestCiChecks: FC<{
             }
           : null;
     const { color, icon, title } = terminal ?? READINESS[ciChecks.mergeState];
+    const showTitle =
+        !ciChecks.merged && !(hasMergeAction && isMergeable(ciChecks));
 
     return (
         <Stack gap={4}>
@@ -225,11 +229,15 @@ export const PullRequestCiChecks: FC<{
                         ) : (
                             <MantineIcon icon={icon} size={14} color={color} />
                         )}
-                        <Text size="xs" c="foreground">
-                            {title}
-                        </Text>
+                        {showTitle && (
+                            <Text size="xs" c="foreground">
+                                {title}
+                            </Text>
+                        )}
                         <Text size="xs" c="dimmed">
-                            · {summariseChecks(ciChecks.checks)}
+                            {showTitle
+                                ? `· ${summariseChecks(ciChecks.checks)}`
+                                : summariseChecks(ciChecks.checks)}
                         </Text>
                     </Group>
                 </UnstyledButton>

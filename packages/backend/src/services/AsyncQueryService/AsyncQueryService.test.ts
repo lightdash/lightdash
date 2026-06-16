@@ -130,6 +130,11 @@ jest.mock('@lightdash/warehouses', () => ({
     SshTunnel: jest.fn(() => mockSshTunnel),
 }));
 
+const warehouseCredentialsMock = {
+    ...warehouseClientMock.credentials,
+    userWarehouseCredentialsUuid: undefined,
+};
+
 const projectModel = {
     getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
     get: jest.fn(async () => projectWithSensitiveFields),
@@ -523,7 +528,7 @@ describe('AsyncQueryService', () => {
             );
 
             // WHEN: executeAsyncQuery is called
-            const result = await serviceWithCache.executeAsyncQuery(
+            const result = await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -540,6 +545,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -616,7 +622,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called
-            const result = await serviceWithCache.executeAsyncQuery(
+            const result = await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -633,6 +639,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -716,7 +723,7 @@ describe('AsyncQueryService', () => {
                 'runAsyncWarehouseQuery',
             ).mockResolvedValue(undefined);
 
-            await serviceWithCache.executeAsyncQuery(
+            await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -738,6 +745,7 @@ describe('AsyncQueryService', () => {
                     timezone: 'Asia/Tokyo',
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -772,7 +780,7 @@ describe('AsyncQueryService', () => {
                 'runAsyncWarehouseQuery',
             ).mockResolvedValue(undefined);
 
-            await serviceWithCache.executeAsyncQuery(
+            await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -790,6 +798,7 @@ describe('AsyncQueryService', () => {
                     timezone: 'Asia/Tokyo',
                     displayTimezone: 'Asia/Tokyo',
                     useTimezoneAwareDateTrunc: true,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -830,7 +839,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called with invalidateCache: true
-            const result = await serviceWithCache.executeAsyncQuery(
+            const result = await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -847,6 +856,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -918,7 +928,7 @@ describe('AsyncQueryService', () => {
                 'runAsyncWarehouseQuery',
             ).mockResolvedValue(undefined);
 
-            await serviceWithCache.executeAsyncQuery(
+            await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -935,6 +945,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock, invalidateCache: true },
             );
@@ -980,7 +991,7 @@ describe('AsyncQueryService', () => {
                 .mockResolvedValue(undefined);
 
             // WHEN: executeAsyncQuery is called
-            const result = await serviceWithoutCache.executeAsyncQuery(
+            const result = await serviceWithoutCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -997,6 +1008,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -1071,7 +1083,7 @@ describe('AsyncQueryService', () => {
             );
 
             // WHEN: executeAsyncQuery is called with missing parameter references
-            const result = await serviceWithCache.executeAsyncQuery(
+            const result = await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1091,6 +1103,7 @@ describe('AsyncQueryService', () => {
                     ],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -1143,7 +1156,7 @@ describe('AsyncQueryService', () => {
                 .spyOn(service, 'runAsyncPreAggregateQuery')
                 .mockResolvedValue(undefined);
 
-            await service.executeAsyncQuery(
+            await service['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1170,6 +1183,7 @@ describe('AsyncQueryService', () => {
                     availableParameterDefinitions: {},
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -1212,7 +1226,7 @@ describe('AsyncQueryService', () => {
                 'runAsyncPreAggregateQuery',
             );
 
-            await service.executeAsyncQuery(
+            await service['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1241,6 +1255,7 @@ describe('AsyncQueryService', () => {
                     availableParameterDefinitions: {},
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 {
                     query: {
@@ -1293,7 +1308,7 @@ describe('AsyncQueryService', () => {
                 'enqueuePreAggregateQuery',
             );
 
-            await service.executeAsyncQuery(
+            await service['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1322,6 +1337,7 @@ describe('AsyncQueryService', () => {
                     availableParameterDefinitions: {},
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 {
                     query: {
@@ -1377,7 +1393,7 @@ describe('AsyncQueryService', () => {
                 'enqueueWarehouseQuery',
             );
 
-            await service.executeAsyncQuery(
+            await service['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -1404,6 +1420,7 @@ describe('AsyncQueryService', () => {
                     availableParameterDefinitions: {},
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -1489,7 +1506,7 @@ describe('AsyncQueryService', () => {
                     },
                     availableParameterDefinitions: {},
                 });
-            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+            service['executeAsyncQuery'] = jest.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
                     cacheHit: false,
@@ -1510,7 +1527,7 @@ describe('AsyncQueryService', () => {
                 pivotConfiguration: undefined,
             });
 
-            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
                 expect.objectContaining({
                     preAggregationRoute: {
                         sourceExploreName: 'valid_explore',
@@ -1545,6 +1562,111 @@ describe('AsyncQueryService', () => {
             } as unknown as ICacheService;
 
             jest.clearAllMocks();
+        });
+
+        const buildEmbedAiAccount = (embedWriteUserUuid: string) =>
+            ({
+                ...buildAccount({
+                    accountType: 'jwt',
+                    userType: 'anonymous',
+                }),
+                user: {
+                    ...buildAccount({
+                        accountType: 'jwt',
+                        userType: 'anonymous',
+                    }).user,
+                    ability: new Ability<PossibleAbilities>([]),
+                },
+                embedWriteContext: {
+                    canCreateSavedChart: true,
+                    canUseAiAgent: true,
+                },
+                embedWriteUser: {
+                    ...sessionAccount.user,
+                    userUuid: embedWriteUserUuid,
+                },
+            }) as unknown as Account;
+
+        const buildPendingAiQueryHistory = (
+            createdByUserUuid: string,
+        ): QueryHistory => ({
+            createdAt: new Date(),
+            organizationUuid: sessionAccount.organization.organizationUuid!,
+            createdByUserUuid,
+            createdBy: createdByUserUuid,
+            createdByAccount: null,
+            createdByActorType: 'session',
+            queryUuid: 'test-query-uuid',
+            projectUuid,
+            status: QueryHistoryStatus.PENDING,
+            error: null,
+            erroredAt: null,
+            metricQuery: metricQueryMock,
+            context: QueryExecutionContext.AI,
+            fields: validExplore.tables.a.dimensions,
+            compiledSql: 'SELECT * FROM test.table',
+            warehouseQueryId: 'test-warehouse-query-id',
+            warehouseQueryMetadata: null,
+            requestParameters: {} as ExecuteAsyncQueryRequestParams,
+            totalRowCount: null,
+            warehouseExecutionTimeMs: null,
+            defaultPageSize: 10,
+            cacheKey: 'test-query-key',
+            pivotConfiguration: null,
+            pivotTotalColumnCount: null,
+            pivotValuesColumns: null,
+            resultsFileName: null,
+            resultsCreatedAt: null,
+            resultsUpdatedAt: null,
+            resultsExpiresAt: null,
+            columns: null,
+            originalColumns: null,
+            preAggregateCompiledSql: null,
+            processingStartedAt: null,
+        });
+
+        test('allows embedded AI agent JWTs to poll AI queries created by the embed write user', async () => {
+            const embedWriteUserUuid = 'embed-write-user-uuid';
+            const embedAiAccount = buildEmbedAiAccount(embedWriteUserUuid);
+
+            serviceWithCache.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(
+                    buildPendingAiQueryHistory(embedWriteUserUuid),
+                );
+
+            await expect(
+                serviceWithCache.getAsyncQueryResults({
+                    account: embedAiAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                }),
+            ).resolves.toEqual({
+                status: QueryHistoryStatus.PENDING,
+                queryUuid: 'test-query-uuid',
+            });
+        });
+
+        test('rejects embedded AI agent JWTs polling AI queries from another user', async () => {
+            const embedAiAccount = buildEmbedAiAccount('embed-write-user-uuid');
+
+            serviceWithCache.queryHistoryModel.get = jest
+                .fn()
+                .mockResolvedValue(
+                    buildPendingAiQueryHistory('other-user-uuid'),
+                );
+
+            await expect(
+                serviceWithCache.getAsyncQueryResults({
+                    account: embedAiAccount,
+                    projectUuid,
+                    queryUuid: 'test-query-uuid',
+                    page: 1,
+                    pageSize: 10,
+                }),
+            ).rejects.toThrow(ForbiddenError);
         });
 
         test('Error and Status Scenarios - Combined', async () => {
@@ -2533,7 +2655,7 @@ describe('AsyncQueryService', () => {
                 .spyOn(serviceWithCache, 'runAsyncWarehouseQuery')
                 .mockResolvedValue(undefined);
 
-            await serviceWithCache.executeAsyncQuery(
+            await serviceWithCache['executeAsyncQuery'](
                 {
                     account: sessionAccount,
                     projectUuid,
@@ -2551,6 +2673,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -2817,7 +2940,7 @@ describe('AsyncQueryService', () => {
             jest.spyOn(projectModel, 'getExploreFromCache').mockResolvedValue(
                 materializationExplore,
             );
-            service.executeAsyncQuery = jest.fn().mockResolvedValue({
+            service['executeAsyncQuery'] = jest.fn().mockResolvedValue({
                 queryUuid: 'queryUuid',
                 cacheMetadata: {
                     cacheHit: false,
@@ -2840,19 +2963,19 @@ describe('AsyncQueryService', () => {
             });
 
             expect(service.getUserAttributes).not.toHaveBeenCalled();
-            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
                 expect.objectContaining({
                     sql: expect.stringContaining("'EMEA', 'APAC'"),
                 }),
                 expect.any(Object),
             );
-            expect(service.executeAsyncQuery).toHaveBeenCalledWith(
+            expect(service['executeAsyncQuery']).toHaveBeenCalledWith(
                 expect.objectContaining({
                     sql: expect.stringContaining('materialize@acme.com'),
                 }),
                 expect.any(Object),
             );
-            expect(service.executeAsyncQuery).not.toHaveBeenCalledWith(
+            expect(service['executeAsyncQuery']).not.toHaveBeenCalledWith(
                 expect.objectContaining({
                     sql: expect.stringContaining('viewer-region'),
                 }),

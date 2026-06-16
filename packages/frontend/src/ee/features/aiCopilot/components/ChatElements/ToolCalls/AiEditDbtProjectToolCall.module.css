@@ -2,12 +2,94 @@
     container-type: inline-size;
 }
 
+.cardMerged {
+    --merged-shimmer: light-dark(
+        color-mix(in srgb, var(--mantine-color-violet-3) 9%, transparent),
+        color-mix(in srgb, var(--mantine-color-violet-3) 6%, transparent)
+    );
+    --merged-shimmer-core: light-dark(
+        color-mix(in srgb, white 22%, transparent),
+        color-mix(in srgb, white 11%, transparent)
+    );
+    position: relative;
+    overflow: hidden;
+    background-color: light-dark(
+        var(--mantine-color-violet-0),
+        var(--mantine-color-violet-9)
+    );
+    border-color: light-dark(
+        var(--mantine-color-violet-1),
+        var(--mantine-color-violet-7)
+    );
+}
+
+.cardMerged::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: linear-gradient(
+        120deg,
+        transparent 46%,
+        var(--merged-shimmer) 49%,
+        var(--merged-shimmer-core) 50%,
+        var(--merged-shimmer) 51%,
+        transparent 54%
+    );
+    background-size: 250% 250%;
+    background-repeat: no-repeat;
+    animation: mergedShimmer 5s ease-in-out infinite;
+}
+
+@keyframes mergedShimmer {
+    0% {
+        background-position: 100% 0%;
+    }
+    50%,
+    100% {
+        background-position: 0% 100%;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cardMerged::after {
+        animation: none;
+    }
+}
+
+.cardClosed {
+    background-color: light-dark(
+        var(--mantine-color-red-0),
+        var(--mantine-color-red-9)
+    );
+    border-color: light-dark(
+        var(--mantine-color-red-1),
+        var(--mantine-color-red-7)
+    );
+}
+
 .actions {
     display: flex;
     flex-direction: row;
     flex-wrap: nowrap;
     align-items: center;
     gap: var(--mantine-spacing-xs);
+}
+
+.mergedStatus:disabled,
+.mergedStatus[data-disabled] {
+    cursor: default;
+    color: var(--mantine-color-violet-light-color);
+    background-color: var(--mantine-color-violet-light);
+}
+
+.closedStatus:disabled,
+.closedStatus[data-disabled] {
+    color: light-dark(var(--mantine-color-red-8), var(--mantine-color-red-3));
+    background-color: light-dark(
+        var(--mantine-color-red-1),
+        var(--mantine-color-red-9)
+    );
 }
 
 /* In the narrow minimized chat bubble, "View" + the Close/Merge group overflow

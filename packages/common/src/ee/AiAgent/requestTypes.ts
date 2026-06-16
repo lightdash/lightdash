@@ -44,6 +44,7 @@ export type CreateWebAppThread = {
     userUuid: string;
     createdFrom: 'web_app' | 'evals';
     agentUuid: string | null;
+    embedSpaceUuid?: string | null;
 };
 
 export type AiPrompt = {

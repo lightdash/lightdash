@@ -69,6 +69,8 @@ export type OssEmbed = {
     allowAllDashboards: boolean;
     chartUuids: string[];
     allowAllCharts: boolean;
+    allowAllApps: boolean;
+    appUuids: string[];
     createdAt: string;
     user: Pick<LightdashUser, 'userUuid' | 'firstName' | 'lastName'> | null;
 };
@@ -95,8 +97,12 @@ export type EmbedContent = {
     chartUuids: string[];
     /** Explores available to the embedded dashboard */
     explores: string[];
+    /** The data app UUID the JWT may have access to (standalone app embed) */
+    appUuid?: string;
+    /** The AI agent UUID the JWT may have access to */
+    agentUuid?: string;
     /** The type of content */
-    type: 'dashboard' | 'chart';
+    type: 'dashboard' | 'chart' | 'dataApp' | 'aiAgent';
 };
 
 export type EmbedAccess = {
@@ -171,6 +177,8 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     embedWriteUser?: SessionUser;
     embedWriteContext?: {
         canCreateSavedChart: boolean;
+        canUseAiAgent: boolean;
+        aiAgentErrorMessage?: string;
     };
     /** The access permissions the account has */
     access: EmbedAccess;

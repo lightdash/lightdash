@@ -11,9 +11,11 @@ const { parse } = pgConnectionString;
 import { config } from 'dotenv';
 import path from 'path';
 
+const originalEnv = { ...process.env };
 const rootDir = path.resolve(import.meta.dirname, '../..');
 config({ path: path.join(rootDir, '.env.development') });
 config({ path: path.join(rootDir, '.env.development.local'), override: true });
+Object.assign(process.env, originalEnv);
 
 const LIGHTDASH_SECRET = process.env.LIGHTDASH_SECRET || 'not very secret';
 const LIGHTDASH_URL = process.env.SITE_URL || 'http://localhost:8080';
@@ -74,6 +76,26 @@ async function main() {
     });
 
     try {
+        const requestedAiAgent =
+            process.env.AI_AGENT_UUID || process.env.AI_AGENT_NAME
+                ? await db('ai_agent')
+                      .select('ai_agent_uuid', 'name', 'project_uuid')
+                      .modify((queryBuilder) => {
+                          if (process.env.AI_AGENT_UUID) {
+                              void queryBuilder.where(
+                                  'ai_agent_uuid',
+                                  process.env.AI_AGENT_UUID,
+                              );
+                          } else if (process.env.AI_AGENT_NAME) {
+                              void queryBuilder.where(
+                                  'name',
+                                  process.env.AI_AGENT_NAME,
+                              );
+                          }
+                      })
+                      .first()
+                : undefined;
+
         const dashboard = await db('dashboards')
             .select(
                 'dashboards.dashboard_uuid',
@@ -90,6 +112,11 @@ async function main() {
                         'dashboards.dashboard_uuid',
                         process.env.DASHBOARD_UUID,
                     );
+                } else if (requestedAiAgent) {
+                    void queryBuilder.where(
+                        'projects.project_uuid',
+                        requestedAiAgent.project_uuid,
+                    );
                 } else {
                     void queryBuilder.where(
                         'dashboards.name',
@@ -105,6 +132,12 @@ async function main() {
         const projectUuid = dashboard.project_uuid;
         const dashboardUuid = dashboard.dashboard_uuid;
         const spaceUuid = dashboard.space_uuid;
+        const aiAgent =
+            requestedAiAgent ??
+            (await db('ai_agent')
+                .select('ai_agent_uuid', 'name')
+                .where('project_uuid', projectUuid)
+                .first());
 
         const existing = await db('embedding')
             .where({ project_uuid: projectUuid })
@@ -135,7 +168,37 @@ async function main() {
             process.exit(1);
         }
 
-        const payload = {
+        const serviceAccount = await db('service_accounts')
+            .select('service_account_user_uuid')
+            .join(
+                'organizations',
+                'service_accounts.organization_uuid',
+                'organizations.organization_uuid',
+            )
+            .join(
+                'projects',
+                'projects.organization_id',
+                'organizations.organization_id',
+            )
+            .where('projects.project_uuid', projectUuid)
+            .whereRaw(
+                "scopes && ARRAY['system:admin', 'system:developer', 'system:editor', 'org:admin', 'org:edit']::text[]",
+            )
+            .orderByRaw(
+                "case when service_accounts.description = 'Embedded customer actions' then 0 else 1 end",
+            )
+            .first();
+
+        const writeActor = serviceAccount
+            ? {
+                  serviceAccountUserUuid:
+                      serviceAccount.service_account_user_uuid,
+              }
+            : {
+                  userUuid: user.user_uuid,
+              };
+
+        const dashboardPayload = {
             content: {
                 type: 'dashboard',
                 projectUuid,
@@ -151,7 +214,7 @@ async function main() {
                 canExportPagePdf: false,
             },
             writeActions: {
-                userUuid: user.user_uuid,
+                ...writeActor,
                 spaceUuid,
             },
             user: {
@@ -159,8 +222,34 @@ async function main() {
             },
         };
 
-        const token = jwt.sign(payload, rawSecret, { expiresIn: '24h' });
-        const embedUrl = `${LIGHTDASH_URL}/embed#${token}`;
+        const dashboardToken = jwt.sign(dashboardPayload, rawSecret, {
+            expiresIn: '24h',
+        });
+        const embedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}#${dashboardToken}`;
+        const aiAgentPayload = aiAgent
+            ? {
+                  content: {
+                      type: 'aiAgent',
+                      projectUuid,
+                      agentUuid: aiAgent.ai_agent_uuid,
+                  },
+                  writeActions: {
+                      ...writeActor,
+                      spaceUuid,
+                  },
+                  user: {
+                      email: 'demo@lightdash.com',
+                  },
+              }
+            : null;
+        const aiAgentToken = aiAgentPayload
+            ? jwt.sign(aiAgentPayload, rawSecret, { expiresIn: '24h' })
+            : null;
+        const aiAgentEmbedUrl = aiAgent
+            ? `${LIGHTDASH_URL}/embed/${projectUuid}/ai-agents/${
+                  aiAgent.ai_agent_uuid
+              }/threads#${aiAgentToken}`
+            : null;
 
         console.log(
             JSON.stringify(
@@ -168,7 +257,10 @@ async function main() {
                     projectUuid,
                     dashboardUuid,
                     dashboardName: dashboard.name,
+                    aiAgentUuid: aiAgent?.ai_agent_uuid ?? null,
+                    aiAgentName: aiAgent?.name ?? null,
                     embedUrl,
+                    aiAgentEmbedUrl,
                 },
                 null,
                 2,
@@ -177,6 +269,9 @@ async function main() {
 
         console.log(`\nAdd to packages/sdk-test-app/.env.local:`);
         console.log(`VITE_EMBED_URL="${embedUrl}"`);
+        if (aiAgent) {
+            console.log(`VITE_AI_AGENT_EMBED_URL="${aiAgentEmbedUrl}"`);
+        }
     } finally {
         await db.destroy();
     }

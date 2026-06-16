@@ -446,7 +446,6 @@ program
         '--disable-timestamp-conversion [true|false]',
         'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
         parseDisableTimestampConversionOption,
-        false,
     )
     .action(compileHandler);
 
@@ -547,9 +546,8 @@ program
     )
     .option(
         '--disable-timestamp-conversion [true|false]',
-        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Applied when creating the preview project; ignored when updating an existing preview (read from project settings).',
         parseDisableTimestampConversionOption,
-        false,
     )
     .option(
         '--no-warehouse-credentials',
@@ -677,9 +675,8 @@ program
     )
     .option(
         '--disable-timestamp-conversion [true|false]',
-        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Applied when creating the preview project; ignored when updating an existing preview (read from project settings).',
         parseDisableTimestampConversionOption,
-        false,
     )
     .option(
         '--no-warehouse-credentials',
@@ -910,9 +907,8 @@ program
     )
     .option(
         '--disable-timestamp-conversion [true|false]',
-        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
+        'Disable timestamp conversion to UTC for Snowflake warehouses. Only used when creating a new project with --create; otherwise the setting is read from the project settings.',
         parseDisableTimestampConversionOption,
-        false,
     )
     .option('-y, --assume-yes', 'assume yes to prompts', false)
     .option(
@@ -1003,11 +999,13 @@ program
         parseUseDbtListOption,
         true,
     )
-    .option(
-        '--disable-timestamp-conversion [true|false]',
-        'Disable timestamp conversion to UTC for Snowflake warehouses. Only use this if your timestamp values are already in UTC.',
-        parseDisableTimestampConversionOption,
-        false,
+    .addOption(
+        new Option(
+            '--disable-timestamp-conversion [true|false]',
+            '(deprecated) Ignored: the setting is read from the project settings.',
+        )
+            .argParser(parseDisableTimestampConversionOption)
+            .hideHelp(),
     )
     .option(
         '--show-chart-configuration-warnings',

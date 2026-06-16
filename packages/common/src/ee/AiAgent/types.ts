@@ -1,5 +1,6 @@
 import type { Filters } from '../../types/filter';
 import type { AdditionalMetric, MetricQuery } from '../../types/metricQuery';
+import type { TransformedCustomMetric } from './schemas/customMetrics';
 import type {
     ToolRunQueryArgs,
     ToolTableVizArgs,
@@ -27,7 +28,11 @@ export type AiMetricQuery = Pick<
     | 'exploreName'
     | 'tableCalculations'
 > & {
+    // Aggregation custom metrics as additional-metric definitions, used for
+    // field-existence validation.
     additionalMetrics: Omit<AdditionalMetric, 'sql'>[];
+    // Full custom-metric set (incl. periodComparison) used to populate SQL.
+    customMetrics: TransformedCustomMetric[] | null;
 };
 
 export type AiMetricQueryWithFilters = AiMetricQuery & {

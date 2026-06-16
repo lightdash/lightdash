@@ -1,6 +1,7 @@
 import {
     AiAgentDocumentStructuredSummary,
     AiAgentDocumentSummary,
+    AiWritebackAttribution,
     Explore,
     WarehouseTypes,
 } from '@lightdash/common';
@@ -9,7 +10,7 @@ import moment from 'moment';
 import { AiAgentSkillReference } from '../skills/types';
 import { xmlBuilder } from '../xmlBuilder';
 import { renderAvailableExplores } from './availableExplores';
-import { AI_WRITEBACK_SECTION } from './systemV2AiWriteback';
+import { getAiWritebackSection } from './systemV2AiWriteback';
 import { CONTENT_TOOLS_SECTION } from './systemV2ContentTools';
 import { DATA_ACCESS_DISABLED_SECTION } from './systemV2DataAccessDisabled';
 import { DATA_ACCESS_ENABLED_SECTION } from './systemV2DataAccessEnabled';
@@ -30,6 +31,8 @@ export const getSystemPromptV2 = (args: {
     enableDataAccess?: boolean;
     enableSearchSemanticLayer?: boolean;
     enableAiWriteback?: boolean;
+    writebackAttribution?: AiWritebackAttribution | null;
+    siteUrl?: string;
     enableRepoFs?: boolean;
     repoFsRoot?: string | null;
     enableContentTools?: boolean;
@@ -44,6 +47,8 @@ export const getSystemPromptV2 = (args: {
         enableDataAccess = false,
         enableSearchSemanticLayer = false,
         enableAiWriteback = false,
+        writebackAttribution = null,
+        siteUrl = '',
         enableRepoFs = false,
         repoFsRoot = null,
         enableContentTools = false,
@@ -127,7 +132,9 @@ export const getSystemPromptV2 = (args: {
     )
         .replace(
             '{{ai_writeback_section}}',
-            enableAiWriteback ? AI_WRITEBACK_SECTION : '',
+            enableAiWriteback
+                ? getAiWritebackSection(writebackAttribution, siteUrl)
+                : '',
         )
         .replace(
             '{{repo_fs_section}}',

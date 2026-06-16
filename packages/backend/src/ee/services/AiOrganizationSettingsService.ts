@@ -130,6 +130,7 @@ export class AiOrganizationSettingsService extends BaseService {
                 isCopilotEnabled,
                 aiAgentsVisible: true,
                 aiAgentReviewsEnabled: false,
+                mcpContentWritesEnabled: true,
                 isTrial: isTrialEligible,
             };
         }
@@ -170,5 +171,20 @@ export class AiOrganizationSettingsService extends BaseService {
             );
 
         return settings?.aiAgentReviewsEnabled ?? false;
+    }
+
+    async isMcpContentWritesEnabled(
+        user: Pick<LightdashUser, 'organizationUuid'>,
+    ): Promise<boolean> {
+        if (!user.organizationUuid) {
+            return false;
+        }
+
+        const settings =
+            await this.aiOrganizationSettingsModel.findByOrganizationUuid(
+                user.organizationUuid,
+            );
+
+        return settings?.mcpContentWritesEnabled ?? true;
     }
 }

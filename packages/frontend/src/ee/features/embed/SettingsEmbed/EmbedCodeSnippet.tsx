@@ -297,6 +297,124 @@ func main() {
 `,
 };
 
+const dataAppIframeCodeTemplates: Record<SnippetLanguage, string> = {
+    [SnippetLanguage.NODE]: `import jwt from 'jsonwebtoken';
+const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
+const projectUuid = '{{projectUuid}}';
+const appUuid = '{{appUuid}}';
+const data = {
+    content: {
+        type: 'dataApp',
+        projectUuid: projectUuid,
+        appUuid: appUuid,
+    },
+    user: {
+        externalId: {{externalId}},
+        email: {{email}}
+    },
+    userAttributes: {{userAttributes}},
+};
+const token = jwt.sign(data, LIGHTDASH_EMBED_SECRET, { expiresIn: '{{expiresIn}}' });
+const url = \`{{siteUrl}}/embed/\${projectUuid}/app/\${appUuid}#\${token}\`;
+`,
+    [SnippetLanguage.PYTHON]: `import datetime
+import jwt # pip install pyjwt
+
+key = "secret" # replace with your secret
+projectUuid = '{{projectUuid}}'
+appUuid = '{{appUuid}}'
+
+data = {
+    "exp": datetime.datetime.now(tz=datetime.timezone.utc) + datetime.timedelta(hours=1), # replace with your expiration time,
+    "iat": datetime.datetime.now(tz=datetime.timezone.utc),
+    "content": {
+        "type": "dataApp",
+        "projectUuid": projectUuid,
+        "appUuid": appUuid,
+    },
+    "user": {
+        "externalId": {{externalId}},
+        "email": {{email}}
+    },
+    "userAttributes": {{userAttributes}},
+};
+token = jwt.encode(data, key, algorithm="HS256")
+url = f"{{siteUrl}}/embed/{projectUuid}/app/{appUuid}#{token}"
+`,
+    [SnippetLanguage.GO]: `
+package main
+
+import (
+    "fmt"
+    "time"
+
+    jwt "github.com/dgrijalva/jwt-go"
+)
+
+const LIGHTDASH_EMBED_SECRET = "secret" // replace with your secret
+const projectUuid = "{{projectUuid}}"
+const appUuid = "{{appUuid}}"
+
+func main() {
+    {{externalIdDef}}
+    {{emailDef}}
+
+    // Define the custom claims structure
+    type CustomClaims struct {
+        Content struct {
+            Type        string \`json:"type"\`
+            ProjectUuid string \`json:"projectUuid"\`
+            AppUuid     string \`json:"appUuid"\`
+        } \`json:"content"\`
+        UserAttributes map[string]string \`json:"userAttributes"\`
+        jwt.StandardClaims
+        User *struct {
+            ExternalId *string \`json:"externalId,omitempty"\`
+            Email      *string \`json:"email,omitempty"\`
+        } \`json:"user,omitempty"\`
+    }
+
+    // Create the claims
+    claims := CustomClaims{
+        Content: struct {
+            Type        string \`json:"type"\`
+            ProjectUuid string \`json:"projectUuid"\`
+            AppUuid     string \`json:"appUuid"\`
+        }{
+            Type:        "dataApp",
+            ProjectUuid: projectUuid,
+            AppUuid:     appUuid,
+        },
+        User: &struct {
+            ExternalId *string \`json:"externalId,omitempty"\`
+            Email      *string \`json:"email,omitempty"\`
+        }{
+            ExternalId: {{externalIdUsage}},
+            Email:      {{emailUsage}},
+        },
+        UserAttributes: map[string]string{{userAttributes}},
+        StandardClaims: jwt.StandardClaims{
+            ExpiresAt: time.Now().Add(time.Hour).Unix(), // replace with your expiration
+        },
+    }
+
+    // Create the token
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+    // Sign the token with the secret
+    signedToken, err := token.SignedString([]byte(LIGHTDASH_EMBED_SECRET))
+    if err != nil {
+        panic(err)
+    }
+
+    // Construct the URL
+    url := fmt.Sprintf("{{siteUrl}}/embed/%s/app/%s#%s", projectUuid, appUuid, signedToken)
+    fmt.Println("URL:", url)
+
+}
+`,
+};
+
 const dashboardIframeCodeTemplates: Record<SnippetLanguage, string> = {
     [SnippetLanguage.NODE]: `import jwt from 'jsonwebtoken';
 const LIGHTDASH_EMBED_SECRET = 'secret'; // replace with your secret
@@ -852,12 +970,20 @@ const getBackendCodeSnippet = (
     },
     mode: EmbedMethod,
 ): string => {
+    if (data.content.type === 'aiAgent') {
+        return '';
+    }
+
     let codeTemplate;
     if (isDashboardContent(data.content)) {
         codeTemplate =
             mode === 'iframe'
                 ? dashboardIframeCodeTemplates[language]
                 : dashboardSdkCodeTemplates[language];
+    } else if (data.content.type === 'dataApp') {
+        // Standalone data apps are iframe-only — there is no React SDK
+        // component for them yet.
+        codeTemplate = dataAppIframeCodeTemplates[language];
     } else {
         codeTemplate =
             mode === 'iframe'
@@ -897,15 +1023,30 @@ const getBackendCodeSnippet = (
         .replace('{{emailUsage}}', emailForGo.usage)
         .replace(
             '{{canViewUnderlyingData}}',
-            languageBoolean(language, data.content.canViewUnderlyingData),
+            languageBoolean(
+                language,
+                'canViewUnderlyingData' in data.content
+                    ? data.content.canViewUnderlyingData
+                    : undefined,
+            ),
         )
         .replace(
             '{{canExportCsv}}',
-            languageBoolean(language, data.content.canExportCsv),
+            languageBoolean(
+                language,
+                'canExportCsv' in data.content
+                    ? data.content.canExportCsv
+                    : undefined,
+            ),
         )
         .replace(
             '{{canExportImages}}',
-            languageBoolean(language, data.content.canExportImages),
+            languageBoolean(
+                language,
+                'canExportImages' in data.content
+                    ? data.content.canExportImages
+                    : undefined,
+            ),
         );
 
     const contentType = data.content.type;
@@ -980,6 +1121,15 @@ const getBackendCodeSnippet = (
                     data.content.contentId || '<CHART_UUID>',
                 );
             }
+            break;
+        case 'dataApp':
+            // Replace data app specific variables
+            codeTemplate = codeTemplate.replace(
+                '{{appUuid}}',
+                'appUuid' in data.content
+                    ? data.content.appUuid || '<APP_UUID>'
+                    : '<APP_UUID>',
+            );
             break;
         default:
             assertUnreachable(
@@ -1074,6 +1224,9 @@ export const EmbeddedChart = ({ embedJwt }: EmbeddedChartProps) => (
     />
 );
 `;
+        case 'dataApp':
+        case 'aiAgent':
+            return '';
         default:
             return assertUnreachable(
                 contentType,

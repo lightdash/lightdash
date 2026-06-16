@@ -26,6 +26,7 @@ import {
     calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
+    CompilationSource,
     CompiledDimension,
     ContentType,
     convertCustomMetricToDbt,
@@ -795,11 +796,12 @@ export class ProjectService extends BaseService {
             ? user.organizationUuid
             : account.organization.organizationUuid;
         const email = user ? user.email : account.user.email;
+        const isServiceAccountPrincipal =
+            account?.isServiceAccount() || !!user?.serviceAccount;
 
-        // Service accounts have no email and no row in the `emails` table —
-        // `getPrimaryEmailStatus` would 404. They also have no intrinsic
-        // email attributes to attach.
-        if (account?.isServiceAccount()) {
+        // Service-account principals have no email row, so they have no
+        // intrinsic email attributes to attach.
+        if (isServiceAccountPrincipal || !email) {
             const userAttributes =
                 await this.userAttributesModel.getAttributeValuesForOrgMember({
                     organizationUuid: organizationUuid || '',
@@ -1928,7 +1930,7 @@ export class ProjectService extends BaseService {
         userUuid: string;
         projectUuid: string;
         explores: (Explore | ExploreError)[];
-        compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project';
+        compilationSource: CompilationSource;
         jobUuid?: string | null;
         requestMethod?: string | null;
         projectConfigDefaults?: ProjectDefaults;
@@ -2625,6 +2627,14 @@ export class ProjectService extends BaseService {
                         newProjectUuid,
                         lightdashProjectConfig.table_groups,
                     );
+                    // Mirrors CLI deploy semantics: only overwrite stored
+                    // defaults when the config file defines them
+                    if (lightdashProjectConfig.defaults) {
+                        await this.projectModel.updateProjectDefaults(
+                            newProjectUuid,
+                            lightdashProjectConfig.defaults,
+                        );
+                    }
                     await this.replaceProjectContext(
                         newProjectUuid,
                         projectContext,
@@ -2926,6 +2936,7 @@ export class ProjectService extends BaseService {
                 jobUuid: job.jobUuid,
                 isPreview: savedProject.type === ProjectType.PREVIEW,
                 userUuid: account.user.id,
+                compilationSource: 'project_connection_form',
             });
         } else {
             // Nothing to test and compile, just update the job status
@@ -3036,6 +3047,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         method: RequestMethod,
         jobUuid: string,
+        compilationSource: CompilationSource = 'refresh_dbt',
     ) {
         const totalStartTime = performance.now();
 
@@ -3156,6 +3168,14 @@ export class ProjectService extends BaseService {
                                 projectUuid,
                                 lightdashProjectConfig.table_groups,
                             );
+                            // Mirrors CLI deploy semantics: only overwrite
+                            // stored defaults when the config file defines them
+                            if (lightdashProjectConfig.defaults) {
+                                await this.projectModel.updateProjectDefaults(
+                                    projectUuid,
+                                    lightdashProjectConfig.defaults,
+                                );
+                            }
                             await this.replaceProjectContext(
                                 projectUuid,
                                 projectContext,
@@ -3166,7 +3186,7 @@ export class ProjectService extends BaseService {
                                 userUuid: user.userUuid,
                                 projectUuid,
                                 explores,
-                                compilationSource: 'refresh_dbt',
+                                compilationSource,
                                 jobUuid: job.jobUuid,
                                 requestMethod: method,
                                 projectConfigDefaults:
@@ -5521,11 +5541,26 @@ export class ProjectService extends BaseService {
                 filters,
             });
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: user.userUuid,
-            isRegisteredUser: true,
-        });
+        const [
+            warehouseCredentials,
+            { userAttributes, intrinsicUserAttributes },
+            availableParameterDefinitions,
+            combinedParameters,
+            projectTimezone,
+            useTimezoneAwareDateTrunc,
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: user.userUuid,
+                isRegisteredUser: true,
+            }),
+            this.getUserAttributes({ user }),
+            this.getAvailableParameters(projectUuid, explore),
+            this.combineParameters(projectUuid, explore, parameters),
+            this.getQueryTimezoneForProject(projectUuid),
+            this.isTimezoneSupportEnabled(user),
+        ]);
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
@@ -5534,8 +5569,6 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ user });
 
         const mergedUserAttributes = userAttributeOverrides
             ? {
@@ -5544,28 +5577,12 @@ export class ProjectService extends BaseService {
               }
             : userAttributes;
 
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        // Combine request parameters with defaults from parameter definitions
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            parameters,
-        );
-
-        const projectTimezone =
-            await this.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone({
             sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: user.timezone,
         });
-        const useTimezoneAwareDateTrunc =
-            await this.isTimezoneSupportEnabled(user);
 
         const { query } = await ProjectService._compileQuery({
             metricQuery,
@@ -6228,6 +6245,14 @@ export class ProjectService extends BaseService {
                             projectUuid,
                             lightdashProjectConfig.table_groups,
                         );
+                        // Mirrors CLI deploy semantics: only overwrite stored
+                        // defaults when the config file defines them
+                        if (lightdashProjectConfig.defaults) {
+                            await this.projectModel.updateProjectDefaults(
+                                projectUuid,
+                                lightdashProjectConfig.defaults,
+                            );
+                        }
                         await this.replaceProjectContext(
                             projectUuid,
                             projectContext,
@@ -6551,21 +6576,20 @@ export class ProjectService extends BaseService {
                 if (isForbidden) {
                     throw new ForbiddenError();
                 }
-                const explores = await this.projectModel.findExploresFromCache(
-                    projectUuid,
-                    'name',
-                    exploreNames,
-                );
+                const [explores, userAccessControls] = await Promise.all([
+                    this.projectModel.findExploresFromCache(
+                        projectUuid,
+                        'name',
+                        exploreNames,
+                    ),
+                    this.getUserAttributes({ account }),
+                ]);
                 const canViewPreAggregateExplores =
                     this.canViewPreAggregateExplores(
                         account,
                         project.organizationUuid,
                         projectUuid,
                     );
-
-                const userAccessControls = await this.getUserAttributes({
-                    account,
-                });
 
                 const filteredExplores = Object.values(explores).reduce<
                     Record<string, Explore | ExploreError>

@@ -65,5 +65,6 @@ export const metricQueryTableViz = ({
     limit: getValidAiQueryLimit(vizConfig.limit, maxLimit),
     filters,
     additionalMetrics: filterAggregationCustomMetrics(customMetrics),
+    customMetrics: customMetrics ?? null,
     tableCalculations,
 });

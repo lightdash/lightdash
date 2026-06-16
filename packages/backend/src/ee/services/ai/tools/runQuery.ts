@@ -62,13 +62,11 @@ export const validateRunQueryTool = (
     queryTool: ToolRunQueryArgsTransformed,
     explore: Explore,
 ) => {
-    const filterRules = getTotalFilterRules(queryTool.filters);
-
     const {
-        queryConfig: { dimensions, metrics },
-        customMetrics,
-        tableCalculations,
+        queryConfig: { dimensions, metrics, customMetrics, tableCalculations },
     } = queryTool;
+
+    const filterRules = getTotalFilterRules(queryTool.queryConfig.filters);
 
     const aggregations = filterAggregationCustomMetrics(customMetrics);
 
@@ -105,13 +103,13 @@ export const validateRunQueryTool = (
         explore,
         filterRules,
         aggregations,
-        queryTool.tableCalculations,
+        queryTool.queryConfig.tableCalculations,
     );
     validateMetricDimensionFilterPlacement(
         explore,
         aggregations,
-        queryTool.tableCalculations,
-        queryTool.filters,
+        queryTool.queryConfig.tableCalculations,
+        queryTool.queryConfig.filters,
     );
 
     // Validate groupBy fields
@@ -126,7 +124,7 @@ export const validateRunQueryTool = (
         queryTool.chartConfig,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
-        queryTool.tableCalculations,
+        queryTool.queryConfig.tableCalculations,
     );
 
     // Validate sort fields exist
@@ -134,7 +132,7 @@ export const validateRunQueryTool = (
         explore,
         queryTool.queryConfig.sorts.map((sort) => sort.fieldId),
         aggregations,
-        queryTool.tableCalculations,
+        queryTool.queryConfig.tableCalculations,
     );
 
     validateSortFieldsAreSelected(
@@ -142,13 +140,13 @@ export const validateRunQueryTool = (
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
         aggregations,
-        queryTool.tableCalculations,
+        queryTool.queryConfig.tableCalculations,
     );
 
     // Validate table calculations
     validateTableCalculations(
         explore,
-        queryTool.tableCalculations,
+        queryTool.queryConfig.tableCalculations,
         queryTool.queryConfig.dimensions,
         queryTool.queryConfig.metrics,
         aggregations,
@@ -191,7 +189,7 @@ export const getRunQuery = ({
                 const prompt = await getPrompt();
 
                 const populatedCustomMetrics = populateCustomMetricsSQL(
-                    queryTool.customMetrics,
+                    queryTool.queryConfig.customMetrics,
                     explore,
                 );
 
@@ -253,10 +251,11 @@ export const getRunQuery = ({
                         queryTool.queryConfig.limit,
                         maxLimit,
                     ),
-                    filters: queryTool.filters,
+                    filters: queryTool.queryConfig.filters,
                     additionalMetrics: populatedCustomMetrics,
+                    customMetrics: queryTool.queryConfig.customMetrics,
                     tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
-                        queryTool.tableCalculations,
+                        queryTool.queryConfig.tableCalculations,
                     ),
                 };
 

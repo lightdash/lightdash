@@ -114,6 +114,7 @@ export const baseAgentSchema = z.object({
     name: z.string(),
     description: z.string().nullable(),
     imageUrl: z.string().url().nullable(),
+    imageUrlSource: z.enum(['upload', 'url']).nullable(),
 
     tags: z.array(z.string()).nullable(),
 
@@ -160,6 +161,7 @@ export type AiAgent = Pick<
     | 'updatedAt'
     | 'instruction'
     | 'imageUrl'
+    | 'imageUrlSource'
     | 'groupAccess'
     | 'userAccess'
     | 'spaceAccess'
@@ -182,6 +184,7 @@ export type AiAgentSummary = Pick<
     | 'updatedAt'
     | 'instruction'
     | 'imageUrl'
+    | 'imageUrlSource'
     | 'groupAccess'
     | 'userAccess'
     | 'spaceAccess'
@@ -299,6 +302,8 @@ export type ApiAiAgentResponse = {
     status: 'ok';
     results: AiAgent;
 };
+
+export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
 
 export type ApiAiAgentSummaryResponse = {
     status: 'ok';

@@ -5,6 +5,7 @@ import type {
 } from '@lightdash/common';
 import { useQuery, type UseQueryOptions } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
+import { getAiAgentApiBase } from './aiAgentRouting';
 
 const MODEL_OPTIONS_KEY = 'modelOptions';
 
@@ -14,7 +15,7 @@ const getModelOptions = async (
 ): Promise<ApiAiAgentModelOptionsResponse['results']> =>
     lightdashApi<ApiAiAgentModelOptionsResponse['results']>({
         version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/models`,
+        url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/models`,
         method: 'GET',
         body: undefined,
     });

@@ -170,6 +170,7 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
     } = useDashboards(
         projectUuid,
         {
+            enabled: !forcedSpaceUuid,
             staleTime: 0,
         },
         !forcedSpaceUuid,

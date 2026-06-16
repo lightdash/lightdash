@@ -35,6 +35,7 @@ import { DefaultAgentButton } from '../../features/aiCopilot/components/DefaultA
 import { usePendingPrompt } from '../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { PinnedContextCard } from '../../features/aiCopilot/components/PinnedContextCard/PinnedContextCard';
 import { SuggestedQuestions } from '../../features/aiCopilot/components/SuggestedQuestions/SuggestedQuestions';
+import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import { useAiAgentSqlModeAvailable } from '../../features/aiCopilot/hooks/useAiAgentSqlModeAvailable';
 import { useModelOptions } from '../../features/aiCopilot/hooks/useModelOptions';
 import { usePinnedContext } from '../../features/aiCopilot/hooks/usePinnedContext';
@@ -51,6 +52,7 @@ import styles from './AiAgentNewThreadPage.module.css';
 
 const AiAgentNewThreadPage: FC = () => {
     const { agentUuid, projectUuid } = useParams();
+    const isEmbed = isEmbedAiAgentRoute();
     const [searchParams] = useSearchParams();
     const chartUuid = searchParams.get('chartUuid');
     const dashboardUuid = searchParams.get('dashboardUuid');
@@ -84,14 +86,14 @@ const AiAgentNewThreadPage: FC = () => {
                 projectUuid,
                 toolResult,
             );
-            if (!dashboardUrl) return;
+            if (!dashboardUrl || isEmbed) return;
 
             navigateFromAgentChat(dashboardUrl, {
                 threadUuid: createdThreadRef.current?.uuid,
                 title: createdThreadRef.current?.title,
             });
         },
-        [navigateFromAgentChat, projectUuid],
+        [isEmbed, navigateFromAgentChat, projectUuid],
     );
 
     const { mutateAsync: createAgentThread, isLoading: isCreatingThread } =
