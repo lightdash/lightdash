@@ -204,6 +204,7 @@ export class PromoteService extends BaseService {
         upstreamProjectUuid: string,
         chartUuid: string,
         includeOrphanChartsWithinDashboard?: boolean,
+        cachedUpstreamChart?: UpstreamChart['chart'],
     ): Promise<{
         promotedChart: PromotedChart;
         upstreamChart: UpstreamChart;
@@ -227,18 +228,23 @@ export class PromoteService extends BaseService {
                   })
                 : [];
 
-        const upstreamCharts = await this.savedChartModel.find({
-            projectUuid: upstreamProjectUuid,
-            slug: savedChart.slug,
-            includeOrphanChartsWithinDashboard,
-        });
-        if (upstreamCharts.length > 1) {
-            throw new AlreadyExistsError(
-                `There are multiple charts with the same identifier ${savedChart.slug}`,
-            );
+        let upstreamChart: UpstreamChart['chart'];
+        if (cachedUpstreamChart !== undefined) {
+            upstreamChart = cachedUpstreamChart;
+        } else {
+            const upstreamCharts = await this.savedChartModel.find({
+                projectUuid: upstreamProjectUuid,
+                slug: savedChart.slug,
+                includeOrphanChartsWithinDashboard,
+            });
+            if (upstreamCharts.length > 1) {
+                throw new AlreadyExistsError(
+                    `There are multiple charts with the same identifier ${savedChart.slug}`,
+                );
+            }
+            upstreamChart =
+                upstreamCharts.length === 1 ? upstreamCharts[0] : undefined;
         }
-        const upstreamChart =
-            upstreamCharts.length === 1 ? upstreamCharts[0] : undefined;
 
         const upstreamSpaces = await this.spaceModel.find({
             projectUuid: upstreamProjectUuid,
@@ -257,12 +263,20 @@ export class PromoteService extends BaseService {
                 user.userUuid,
                 promotedSpace.uuid,
             );
-        const upstreamCtx = upstreamSpace
-            ? await this.spacePermissionService.getSpaceAccessContext(
-                  user.userUuid,
-                  upstreamSpace.uuid,
-              )
-            : undefined;
+        let upstreamCtx: SpaceAccessContextForCasl | undefined;
+        if (upstreamSpace === undefined) {
+            upstreamCtx = undefined;
+        } else if (upstreamSpace.uuid === promotedSpace.uuid) {
+            // Same project upsert resolves promoted and upstream to the same
+            // space, so the access context is identical — skip the re-query.
+            upstreamCtx = promotedCtx;
+        } else {
+            upstreamCtx =
+                await this.spacePermissionService.getSpaceAccessContext(
+                    user.userUuid,
+                    upstreamSpace.uuid,
+                );
+        }
 
         return {
             promotedChart: {
