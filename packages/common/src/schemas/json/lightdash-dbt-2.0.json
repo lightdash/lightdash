@@ -1422,6 +1422,16 @@
                                 "array"
                             ]
                         },
+                        "array_element_type": {
+                            "type": "string",
+                            "enum": [
+                                "string",
+                                "number",
+                                "timestamp",
+                                "date",
+                                "boolean"
+                            ]
+                        },
                         "label": {
                             "type": "string",
                             "minLength": 1
@@ -1656,6 +1666,16 @@
                                         "date",
                                         "boolean",
                                         "array"
+                                    ]
+                                },
+                                "array_element_type": {
+                                    "type": "string",
+                                    "enum": [
+                                        "string",
+                                        "number",
+                                        "timestamp",
+                                        "date",
+                                        "boolean"
                                     ]
                                 },
                                 "label": {

@@ -221,6 +221,9 @@ export type DbtColumnLightdashDimension = {
     name?: string;
     label?: string;
     type?: DimensionType;
+    /** For `type: array` dimensions, the scalar type of the array's elements
+     * (e.g. string, number). Controls how filter values are quoted/cast. */
+    array_element_type?: DimensionType;
     description?: string;
     sql?: string;
     time_intervals?: boolean | 'default' | 'OFF' | (TimeFrames | string)[];

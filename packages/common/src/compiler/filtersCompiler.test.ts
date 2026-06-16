@@ -3169,5 +3169,105 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
                 ),
             ).toThrow();
         });
+
+        describe('element type quoting', () => {
+            test('NUMBER element type emits unquoted numeric literals', () => {
+                const result = renderArrayFilterSql(
+                    '"t".ids',
+                    {
+                        ...baseFilter,
+                        operator: FilterOperator.INCLUDE,
+                        values: ['5'],
+                    },
+                    SupportedDbtAdapter.DATABRICKS,
+                    "'",
+                    DimensionType.NUMBER,
+                );
+                expect(result).toStrictEqual('(array_contains("t".ids, 5))');
+            });
+
+            test('NUMBER element type with multiple values is unquoted in arrays_overlap', () => {
+                const result = renderArrayFilterSql(
+                    '"t".ids',
+                    {
+                        ...baseFilter,
+                        operator: FilterOperator.INCLUDE,
+                        values: ['5', '7'],
+                    },
+                    SupportedDbtAdapter.DATABRICKS,
+                    "'",
+                    DimensionType.NUMBER,
+                );
+                expect(result).toStrictEqual(
+                    '(arrays_overlap("t".ids, array(5, 7)))',
+                );
+            });
+
+            test('NUMBER element type rejects non-numeric values', () => {
+                expect(() =>
+                    renderArrayFilterSql(
+                        '"t".ids',
+                        {
+                            ...baseFilter,
+                            operator: FilterOperator.INCLUDE,
+                            values: ['not-a-number'],
+                        },
+                        SupportedDbtAdapter.DATABRICKS,
+                        "'",
+                        DimensionType.NUMBER,
+                    ),
+                ).toThrow(/number/i);
+            });
+
+            test('BOOLEAN element type emits unquoted boolean literals', () => {
+                const result = renderArrayFilterSql(
+                    '"t".flags',
+                    {
+                        ...baseFilter,
+                        operator: FilterOperator.INCLUDE,
+                        values: ['true'],
+                    },
+                    SupportedDbtAdapter.DATABRICKS,
+                    "'",
+                    DimensionType.BOOLEAN,
+                );
+                expect(result).toStrictEqual(
+                    '(array_contains("t".flags, true))',
+                );
+            });
+
+            test('STRING element type quotes values', () => {
+                const result = renderArrayFilterSql(
+                    arrayDimensionSql,
+                    {
+                        ...baseFilter,
+                        operator: FilterOperator.INCLUDE,
+                        values: ['billing'],
+                    },
+                    SupportedDbtAdapter.DATABRICKS,
+                    "'",
+                    DimensionType.STRING,
+                );
+                expect(result).toStrictEqual(
+                    '(array_contains("t".tags, \'billing\'))',
+                );
+            });
+
+            test('undefined element type falls back to string quoting', () => {
+                const result = renderArrayFilterSql(
+                    arrayDimensionSql,
+                    {
+                        ...baseFilter,
+                        operator: FilterOperator.INCLUDE,
+                        values: ['billing'],
+                    },
+                    SupportedDbtAdapter.DATABRICKS,
+                    "'",
+                );
+                expect(result).toStrictEqual(
+                    '(array_contains("t".tags, \'billing\'))',
+                );
+            });
+        });
     });
 });

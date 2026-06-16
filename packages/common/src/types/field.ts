@@ -691,6 +691,7 @@ export interface Dimension extends Field {
     formatOptions?: CustomFormat;
     caseSensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
     unsupportedTypeWarning?: string; // Set when the resolved type isn't supported on the warehouse and was coerced (e.g. array -> string). Surfaced as a warning in the UI.
+    arrayElementType?: DimensionType; // For ARRAY dimensions: the scalar type of the array's elements. Controls how filter values are quoted/cast. Undefined => treat elements as strings.
     image?: {
         url: string;
         width?: number;

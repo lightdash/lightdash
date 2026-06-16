@@ -194,44 +194,6 @@ export const renderStringFilterSql = (
     }
 };
 
-// Phase 1: only Databricks exposes ARRAY-typed columns; other warehouses map
-// array columns to STRING and never reach this function.
-export const renderArrayFilterSql = (
-    dimensionSql: string,
-    filter: FilterRule<FilterOperator, unknown>,
-    adapterType: SupportedDbtAdapter,
-    stringQuoteChar: string,
-): string => {
-    if (adapterType !== SupportedDbtAdapter.DATABRICKS) {
-        throw new CompileError(
-            `Array filters are only supported on Databricks (adapter: ${adapterType})`,
-        );
-    }
-    const values = (filter.values ?? []).filter((v) => v !== '');
-    const quoted = values.map(
-        (v) => `${stringQuoteChar}${v}${stringQuoteChar}`,
-    );
-    const buildContains = () =>
-        quoted.length === 1
-            ? `array_contains(${dimensionSql}, ${quoted[0]})`
-            : `arrays_overlap(${dimensionSql}, array(${quoted.join(', ')}))`;
-
-    switch (filter.operator) {
-        case FilterOperator.INCLUDE:
-            return quoted.length > 0 ? `(${buildContains()})` : 'true';
-        case FilterOperator.NOT_INCLUDE:
-            return quoted.length > 0
-                ? `(NOT ${buildContains()} OR (${dimensionSql}) IS NULL)`
-                : 'true';
-        case FilterOperator.NULL:
-            return `(${dimensionSql}) IS NULL`;
-        case FilterOperator.NOT_NULL:
-            return `(${dimensionSql}) IS NOT NULL`;
-        default:
-            return raiseInvalidFilterError('array', filter);
-    }
-};
-
 // Validate that all values are valid numbers
 const validateAndSanitizeNumber = (value: unknown): number => {
     const num = Number(value);
@@ -241,6 +203,57 @@ const validateAndSanitizeNumber = (value: unknown): number => {
         );
     }
     return num;
+};
+
+// Phase 1: only Databricks exposes ARRAY-typed columns; other warehouses map
+// array columns to STRING and never reach this function.
+export const renderArrayFilterSql = (
+    dimensionSql: string,
+    filter: FilterRule<FilterOperator, unknown>,
+    adapterType: SupportedDbtAdapter,
+    stringQuoteChar: string,
+    arrayElementType?: DimensionType,
+): string => {
+    if (adapterType !== SupportedDbtAdapter.DATABRICKS) {
+        throw new CompileError(
+            `Array filters are only supported on Databricks (adapter: ${adapterType})`,
+        );
+    }
+    // Format each value as an array-element literal according to the declared
+    // element type, so e.g. ARRAY<int> filters emit unquoted numeric literals
+    // instead of string-quoted ones. Unknown/undefined element types fall back
+    // to string quoting (backwards-compatible default).
+    const formatElement = (value: unknown): string => {
+        switch (arrayElementType) {
+            case DimensionType.NUMBER:
+                return `${validateAndSanitizeNumber(value)}`;
+            case DimensionType.BOOLEAN:
+                return `${value}`.toLowerCase() === 'true' ? 'true' : 'false';
+            default:
+                return `${stringQuoteChar}${value}${stringQuoteChar}`;
+        }
+    };
+    const values = (filter.values ?? []).filter((v) => v !== '');
+    const literals = values.map(formatElement);
+    const buildContains = () =>
+        literals.length === 1
+            ? `array_contains(${dimensionSql}, ${literals[0]})`
+            : `arrays_overlap(${dimensionSql}, array(${literals.join(', ')}))`;
+
+    switch (filter.operator) {
+        case FilterOperator.INCLUDE:
+            return literals.length > 0 ? `(${buildContains()})` : 'true';
+        case FilterOperator.NOT_INCLUDE:
+            return literals.length > 0
+                ? `(NOT ${buildContains()} OR (${dimensionSql}) IS NULL)`
+                : 'true';
+        case FilterOperator.NULL:
+            return `(${dimensionSql}) IS NULL`;
+        case FilterOperator.NOT_NULL:
+            return `(${dimensionSql}) IS NOT NULL`;
+        default:
+            return raiseInvalidFilterError('array', filter);
+    }
 };
 
 const isValidNumberFilterValue = <FilterType>(
@@ -841,6 +854,7 @@ export const renderFilterRuleSql = (
     useTimezoneAwareDateTrunc?: boolean,
     baseTimeIntervalDimensionType?: DimensionType,
     sourceTimezone?: string,
+    arrayElementType?: DimensionType,
 ): string => {
     if (filterRule.disabled) {
         return `1=1`; // When filter is disabled, we want to return all rows
@@ -925,6 +939,7 @@ export const renderFilterRuleSql = (
                 escapedFilterRule,
                 adapterType,
                 stringQuoteChar,
+                arrayElementType,
             );
         }
         default: {
@@ -976,6 +991,11 @@ export const renderFilterRuleSqlFromField = (
             ? field.timeIntervalBaseDimensionType
             : undefined;
 
+    const arrayElementType =
+        !isCompiledCustomSqlDimension(field) && !isMetric(field)
+            ? field.arrayElementType
+            : undefined;
+
     return renderFilterRuleSql(
         filterRule,
         fieldType,
@@ -990,5 +1010,6 @@ export const renderFilterRuleSqlFromField = (
         useTimezoneAwareDateTrunc,
         baseTimeIntervalDimensionType,
         sourceTimezone,
+        arrayElementType,
     );
 };

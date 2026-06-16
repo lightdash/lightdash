@@ -165,6 +165,10 @@
                         "array"
                     ]
                 },
+                "array_element_type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "date", "timestamp"]
+                },
                 "description": {
                     "type": "string"
                 },
@@ -248,6 +252,10 @@
                         "timestamp",
                         "array"
                     ]
+                },
+                "array_element_type": {
+                    "type": "string",
+                    "enum": ["string", "number", "boolean", "date", "timestamp"]
                 },
                 "description": {
                     "type": "string"

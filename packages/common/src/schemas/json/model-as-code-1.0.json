@@ -340,6 +340,16 @@
                     ],
                     "description": "Data type of the dimension"
                 },
+                "array_element_type": {
+                    "enum": [
+                        "string",
+                        "number",
+                        "timestamp",
+                        "date",
+                        "boolean"
+                    ],
+                    "description": "For array dimensions, the scalar type of the array's elements. Controls how filter values are quoted/cast."
+                },
                 "label": {
                     "type": "string",
                     "description": "Human-readable label"
@@ -771,6 +781,16 @@
                         "array"
                     ],
                     "description": "Data type of the additional dimension"
+                },
+                "array_element_type": {
+                    "enum": [
+                        "string",
+                        "number",
+                        "timestamp",
+                        "date",
+                        "boolean"
+                    ],
+                    "description": "For array dimensions, the scalar type of the array's elements. Controls how filter values are quoted/cast."
                 },
                 "sql": {
                     "type": "string",

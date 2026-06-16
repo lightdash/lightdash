@@ -161,6 +161,12 @@ const convertDimension = (
             targetWarehouse.charAt(0).toUpperCase() + targetWarehouse.slice(1);
         unsupportedTypeWarning = `Defined as an array, but array operations aren't supported on ${warehouseLabel} — shown as text.`;
     }
+    // The scalar element type only applies while the dimension is still an array
+    // (it is dropped when coerced to text above).
+    const arrayElementType =
+        type === DimensionType.ARRAY
+            ? meta.dimension?.array_element_type
+            : undefined;
 
     let name = meta.dimension?.name || column.name;
     let sql = meta.dimension?.sql || defaultSql(column.name);
@@ -212,6 +218,7 @@ const convertDimension = (
         type,
         description: meta.dimension?.description || column.description,
         ...(unsupportedTypeWarning ? { unsupportedTypeWarning } : {}),
+        ...(arrayElementType ? { arrayElementType } : {}),
         source,
         timeInterval,
         timeIntervalBaseDimensionName,
