@@ -1236,6 +1236,7 @@ export class AiAgentService extends BaseService {
                 {
                     agentName: agent.name,
                     agentInstruction: agent.instruction,
+                    canManageContent: agent.enableContentTools,
                     enabledTools,
                     explores,
                     verifiedQuestions,
