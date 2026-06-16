@@ -14186,7 +14186,8 @@
                     "loadSkill",
                     "loadProjectContext",
                     "editDbtProject",
-                    "repoShell",
+                    "exploreRepo",
+                    "discoverRepos",
                     "setupPreviewDeploy",
                     "runQuery",
                     "runSavedChart",
@@ -14298,19 +14299,6 @@
                                                         "type": "string",
                                                         "enum": ["error"],
                                                         "nullable": false
-                                                    }
-                                                },
-                                                "required": ["status"],
-                                                "type": "object"
-                                            },
-                                            {
-                                                "properties": {
-                                                    "status": {
-                                                        "type": "string",
-                                                        "enum": [
-                                                            "success",
-                                                            "error"
-                                                        ]
                                                     }
                                                 },
                                                 "required": ["status"],
@@ -20493,7 +20481,7 @@
                 },
                 "required": ["truncated", "files"],
                 "type": "object",
-                "description": "The project's source files, read from the read-only repo virtual file system\n(the same VFS the agent's repoShell sees). Used by the chat input's\n`@`-mention file picker. Paths are relative to the project's dbt sub-folder,\nso an"
+                "description": "The project's source files, read from the read-only repo virtual file system\n(the same VFS the agent's exploreRepo tool sees). Used by the chat input's\n`@`-mention file picker. Paths are relative to the project's dbt sub-folder,\nso an"
             },
             "ApiProjectFilesResponse": {
                 "properties": {
@@ -20508,6 +20496,42 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "GitRepo": {
+                "properties": {
+                    "defaultBranch": {
+                        "type": "string"
+                    },
+                    "ownerLogin": {
+                        "type": "string"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["defaultBranch", "ownerLogin", "fullName", "name"],
+                "type": "object"
+            },
+            "ApiProjectRepositoriesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/GitRepo"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -33951,24 +33975,6 @@
                 ],
                 "type": "object"
             },
-            "GitRepo": {
-                "properties": {
-                    "defaultBranch": {
-                        "type": "string"
-                    },
-                    "ownerLogin": {
-                        "type": "string"
-                    },
-                    "fullName": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["defaultBranch", "ownerLogin", "fullName", "name"],
-                "type": "object"
-            },
             "GithubUserCredential": {
                 "properties": {
                     "createdAt": {
@@ -39616,7 +39622,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3173.0",
+        "version": "0.3175.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"

@@ -33,7 +33,7 @@ export const getSystemPromptV2 = (args: {
     enableAiWriteback?: boolean;
     writebackAttribution?: AiWritebackAttribution | null;
     siteUrl?: string;
-    enableRepoFs?: boolean;
+    enableRepoDiscovery?: boolean;
     repoFsRoot?: string | null;
     enableContentTools?: boolean;
     canRunSql?: boolean;
@@ -49,7 +49,7 @@ export const getSystemPromptV2 = (args: {
         enableAiWriteback = false,
         writebackAttribution = null,
         siteUrl = '',
-        enableRepoFs = false,
+        enableRepoDiscovery = false,
         repoFsRoot = null,
         enableContentTools = false,
         canRunSql = false,
@@ -138,7 +138,9 @@ export const getSystemPromptV2 = (args: {
         )
         .replace(
             '{{repo_fs_section}}',
-            enableRepoFs ? REPO_FS_SECTION + repoFsRootHint(repoFsRoot) : '',
+            enableRepoDiscovery
+                ? REPO_FS_SECTION + repoFsRootHint(repoFsRoot)
+                : '',
         )
         .replace(
             '{{search_semantic_layer_section}}',

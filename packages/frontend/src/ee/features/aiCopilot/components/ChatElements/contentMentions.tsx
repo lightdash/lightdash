@@ -6,11 +6,14 @@ import {
     type AiPromptContextItem,
     type ApiContentResponse,
     type ApiProjectFilesResponse,
+    type ApiProjectRepositoriesResponse,
     type ChartKind,
+    type GitRepo,
     type SummaryContent,
 } from '@lightdash/common';
 import { Group, Text } from '@mantine-8/core';
 import {
+    IconBrandGithub,
     IconCircleCheck,
     IconFile,
     IconLayoutDashboard,
@@ -81,20 +84,44 @@ const MAX_FILE_SUGGESTIONS = 8;
 
 // A dbt source file the user can `@`-mention. Unlike content mentions it carries
 // no context payload — picking it inserts the path as plain text so the agent
-// reads the file itself via its repoShell tool (the "path reference" approach).
+// reads the file itself via its exploreRepo tool (the "path reference" approach).
 export type FileMentionSuggestionItem = SuggestionItem & {
     kind: 'file';
     path: string;
     group: typeof FILE_MENTION_GROUP;
 };
 
+const REPOSITORY_MENTION_GROUP = 'repository';
+// `contentType` value marking a content-mention node as a repository (vs chart /
+// dashboard / file). The node carries `owner/repo` in `label`; no context
+// payload — the agent reads the repo via its exploreRepo tool.
+const REPOSITORY_MENTION_CONTENT_TYPE = 'repository';
+const MAX_REPOSITORY_SUGGESTIONS = 8;
+
+// A GitHub repository the org's installation can access. Like file mentions it
+// carries no context payload — picking it inserts `owner/repo` as plain text so
+// the agent reads that repository's mount directly (it's the user pre-selecting
+// which repo to focus on, so the agent doesn't have to ask).
+export type RepositoryMentionSuggestionItem = SuggestionItem & {
+    kind: 'repository';
+    fullName: string;
+    ownerLogin: string;
+    group: typeof REPOSITORY_MENTION_GROUP;
+};
+
 export type AnyMentionSuggestionItem =
     | ContentMentionSuggestionItem
-    | FileMentionSuggestionItem;
+    | FileMentionSuggestionItem
+    | RepositoryMentionSuggestionItem;
 
 const isFileMentionItem = (
     item: AnyMentionSuggestionItem,
 ): item is FileMentionSuggestionItem => 'kind' in item && item.kind === 'file';
+
+const isRepositoryMentionItem = (
+    item: AnyMentionSuggestionItem,
+): item is RepositoryMentionSuggestionItem =>
+    'kind' in item && item.kind === 'repository';
 
 // Keyed by group string (content groups + the file group) so the suggestion
 // list can label every section it renders.
@@ -104,6 +131,7 @@ const groupLabels: Record<string, string> = {
     dashboardTile: 'Dashboard tiles',
     search: 'Search results',
     [FILE_MENTION_GROUP]: 'Files',
+    [REPOSITORY_MENTION_GROUP]: 'Repositories',
 };
 
 // The project's file list is the same for every keystroke in a thread, so fetch
@@ -151,6 +179,54 @@ const getProjectFileSuggestions = async (
     }));
 };
 
+// The repositories the agent can read are the same for every keystroke in a
+// thread, so fetch once per project and filter client-side — mirroring the
+// project-files cache. Uses the project-scoped endpoint (gated by
+// view:SourceCode) rather than the org-wide /github/repos/list, so repo names
+// are never exposed to users without source-code access. Errors (no GitHub App,
+// no source-code access) resolve to an empty list, so the Repositories group
+// simply doesn't appear.
+const repositoriesCache = new Map<string, Promise<GitRepo[]>>();
+
+const fetchRepositories = (projectUuid: string): Promise<GitRepo[]> => {
+    const cached = repositoriesCache.get(projectUuid);
+    if (cached) return cached;
+    const request = lightdashApi<ApiProjectRepositoriesResponse['results']>({
+        version: 'v1',
+        url: `/ee/projects/${projectUuid}/ai-writeback/repositories`,
+        method: 'GET',
+        body: undefined,
+    }).catch((error: unknown) => {
+        // An empty list (no Repositories group) is the intended fallback when
+        // GitHub isn't connected — but log so a genuine failure stays traceable.
+        console.error('Failed to load repositories for @-mentions', error);
+        return [] as GitRepo[];
+    });
+    repositoriesCache.set(projectUuid, request);
+    return request;
+};
+
+const getRepositorySuggestions = async (
+    projectUuid: string | undefined,
+    query: string,
+): Promise<RepositoryMentionSuggestionItem[]> => {
+    if (!projectUuid) return [];
+    const repos = await fetchRepositories(projectUuid);
+    const matched = query.trim()
+        ? repos.filter((repo) =>
+              fuzzyContentMentionLabelMatch(repo.fullName, query),
+          )
+        : repos;
+    return matched.slice(0, MAX_REPOSITORY_SUGGESTIONS).map((repo) => ({
+        id: `repository:${repo.fullName}`,
+        label: repo.fullName,
+        kind: 'repository',
+        fullName: repo.fullName,
+        ownerLogin: repo.ownerLogin,
+        group: REPOSITORY_MENTION_GROUP,
+    }));
+};
+
 export const isContentMentionSuggestionActive = (editor: Editor | null) => {
     if (!editor) return false;
     const state = contentMentionPluginKey.getState(editor.state) as
@@ -161,6 +237,8 @@ export const isContentMentionSuggestionActive = (editor: Editor | null) => {
 
 const getContentMentionContentType = (value: unknown) => {
     if (value === FILE_MENTION_CONTENT_TYPE) return FILE_MENTION_CONTENT_TYPE;
+    if (value === REPOSITORY_MENTION_CONTENT_TYPE)
+        return REPOSITORY_MENTION_CONTENT_TYPE;
     return value === ContentType.DASHBOARD
         ? ContentType.DASHBOARD
         : ContentType.CHART;
@@ -422,6 +500,41 @@ const renderFileMentionItem = (
     );
 };
 
+const renderRepositoryMentionItem = (
+    item: RepositoryMentionSuggestionItem,
+    isSelected: boolean,
+    onClick: () => void,
+) => {
+    // Show repo name prominently and the owner as detail, so two repos with the
+    // same name under different owners stay distinguishable.
+    const slash = item.fullName.indexOf('/');
+    const name = slash >= 0 ? item.fullName.slice(slash + 1) : item.fullName;
+
+    return (
+        <PolymorphicGroupButton
+            onClick={onClick}
+            className={`${suggestionStyles.suggestionItem} ${styles.contentMentionSuggestionItem}`}
+            data-selected={isSelected}
+        >
+            <Group wrap="nowrap" gap="xs" w="100%">
+                <MantineIcon
+                    icon={IconBrandGithub}
+                    size="sm"
+                    color="ldGray.6"
+                />
+                <div className={styles.contentMentionSuggestionText}>
+                    <TruncatedText maxWidth="100%" fz="xs" fw={500} inline>
+                        {name}
+                    </TruncatedText>
+                    <Text size="xs" c="dimmed" truncate>
+                        {item.ownerLogin}
+                    </Text>
+                </div>
+            </Group>
+        </PolymorphicGroupButton>
+    );
+};
+
 const renderContentMentionItem = (
     item: AnyMentionSuggestionItem,
     isSelected: boolean,
@@ -429,6 +542,9 @@ const renderContentMentionItem = (
 ) => {
     if (isFileMentionItem(item)) {
         return renderFileMentionItem(item, isSelected, onClick);
+    }
+    if (isRepositoryMentionItem(item)) {
+        return renderRepositoryMentionItem(item, isSelected, onClick);
     }
     const Icon =
         item.contentType === ContentType.DASHBOARD
@@ -490,15 +606,16 @@ const generateContentMentionSuggestion = ({
     pluginKey: contentMentionPluginKey,
     items: async ({ query }) => {
         const projectUuid = getProjectUuid();
-        const [contentItems, fileItems] = await Promise.all([
+        const [contentItems, fileItems, repositoryItems] = await Promise.all([
             buildContentMentionSuggestionItems({
                 projectUuid,
                 query,
                 priorityItems: getPriorityItems(),
             }),
             getProjectFileSuggestions(projectUuid, query),
+            getRepositorySuggestions(projectUuid, query),
         ]);
-        return [...contentItems, ...fileItems];
+        return [...contentItems, ...fileItems, ...repositoryItems];
     },
     command: ({ editor, range, props }) => {
         const item = props as AnyMentionSuggestionItem;
@@ -506,28 +623,45 @@ const generateContentMentionSuggestion = ({
         // same pill, distinguished by a `file` contentType with the path stored
         // in `label`. The node's `renderText` returns the label, so the path
         // still lands in the prompt text verbatim — the agent reads the file via
-        // repoShell (no context payload, unlike chart/dashboard mentions).
-        const attrs = isFileMentionItem(item)
-            ? {
-                  contentType: FILE_MENTION_CONTENT_TYPE,
-                  uuid: null,
-                  slug: null,
-                  label: item.path,
-                  chartKind: null,
-                  dashboardUuid: null,
-                  dashboardSlug: null,
-                  dashboardName: null,
-              }
-            : {
-                  contentType: item.contentType,
-                  uuid: item.uuid,
-                  slug: item.slug,
-                  label: item.label,
-                  chartKind: item.chartKind ?? null,
-                  dashboardUuid: item.dashboardUuid ?? null,
-                  dashboardSlug: item.dashboardSlug ?? null,
-                  dashboardName: item.dashboardName ?? null,
-              };
+        // exploreRepo (no context payload, unlike chart/dashboard mentions).
+        const baseAttrs = {
+            uuid: null,
+            slug: null,
+            chartKind: null,
+            dashboardUuid: null,
+            dashboardSlug: null,
+            dashboardName: null,
+        };
+        let attrs;
+        if (isFileMentionItem(item)) {
+            // The node's `renderText` returns the label, so the path lands in
+            // the prompt text verbatim — the agent reads the file via exploreRepo
+            // (no context payload, unlike chart/dashboard mentions).
+            attrs = {
+                ...baseAttrs,
+                contentType: FILE_MENTION_CONTENT_TYPE,
+                label: item.path,
+            };
+        } else if (isRepositoryMentionItem(item)) {
+            // Same path-reference approach: `owner/repo` lands in the prompt text
+            // so the agent reads that repository's mount directly.
+            attrs = {
+                ...baseAttrs,
+                contentType: REPOSITORY_MENTION_CONTENT_TYPE,
+                label: item.fullName,
+            };
+        } else {
+            attrs = {
+                contentType: item.contentType,
+                uuid: item.uuid,
+                slug: item.slug,
+                label: item.label,
+                chartKind: item.chartKind ?? null,
+                dashboardUuid: item.dashboardUuid ?? null,
+                dashboardSlug: item.dashboardSlug ?? null,
+                dashboardName: item.dashboardName ?? null,
+            };
+        }
         editor
             .chain()
             .focus()

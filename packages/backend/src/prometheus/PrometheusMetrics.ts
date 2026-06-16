@@ -99,6 +99,23 @@ export default class PrometheusMetrics {
     public repoFsGithubFileDurationHistogram: prometheus.Histogram<'outcome'> | null =
         null;
 
+    // repoShell GitHub API request count by kind (tree | file | search | list),
+    // so a runaway crawl that drains the installation's rate limit is visible.
+    public repoFsGithubRequestCounter: prometheus.Counter<'kind'> | null = null;
+
+    // GitHub rate limit by resource (core | search | code_search | graphql),
+    // read from x-ratelimit-* response headers on every call. The limit is
+    // installation-wide (shared across writeback, PR ops, the repo shell, …), so
+    // these are the authoritative numbers for a usage/limit ratio — divide
+    // `used` by `limit`, or chart `remaining`.
+    public githubRateLimitLimitGauge: prometheus.Gauge<'resource'> | null =
+        null;
+
+    public githubRateLimitRemainingGauge: prometheus.Gauge<'resource'> | null =
+        null;
+
+    public githubRateLimitUsedGauge: prometheus.Gauge<'resource'> | null = null;
+
     // AI writeback (E2B sandbox) latency
     public aiWritebackSandboxCreateDurationHistogram: prometheus.Histogram | null =
         null;
@@ -416,6 +433,32 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
+                this.repoFsGithubRequestCounter = new prometheus.Counter({
+                    name: 'ai_repofs_github_requests_total',
+                    help: 'repoShell GitHub API requests by kind (tree | file | search | list)',
+                    labelNames: ['kind'],
+                    ...rest,
+                });
+
+                this.githubRateLimitLimitGauge = new prometheus.Gauge({
+                    name: 'github_ratelimit_limit',
+                    help: 'GitHub App installation rate limit (max) by resource, from x-ratelimit-limit',
+                    labelNames: ['resource'],
+                    ...rest,
+                });
+                this.githubRateLimitRemainingGauge = new prometheus.Gauge({
+                    name: 'github_ratelimit_remaining',
+                    help: 'GitHub App installation rate limit remaining by resource, from x-ratelimit-remaining',
+                    labelNames: ['resource'],
+                    ...rest,
+                });
+                this.githubRateLimitUsedGauge = new prometheus.Gauge({
+                    name: 'github_ratelimit_used',
+                    help: 'GitHub App installation rate limit used by resource, from x-ratelimit-used',
+                    labelNames: ['resource'],
+                    ...rest,
+                });
+
                 // AI writeback (E2B sandbox) latency
                 this.aiWritebackSandboxCreateDurationHistogram =
                     new prometheus.Histogram({
@@ -477,6 +520,11 @@ export default class PrometheusMetrics {
                 (['found', 'missing', 'error'] as const).forEach((outcome) => {
                     this.repoFsGithubFileDurationHistogram?.zero({ outcome });
                 });
+                (['tree', 'file', 'search', 'list'] as const).forEach(
+                    (kind) => {
+                        this.repoFsGithubRequestCounter?.inc({ kind }, 0);
+                    },
+                );
                 (['success', 'error'] as const).forEach((status) => {
                     this.aiWritebackCompileDurationHistogram?.zero({ status });
                     this.aiWritebackRunDurationHistogram?.zero({ status });
@@ -1139,6 +1187,38 @@ export default class PrometheusMetrics {
             { outcome },
             durationMs,
         );
+    }
+
+    public incrementRepoFsGithubRequest(
+        kind: 'tree' | 'file' | 'search' | 'list',
+    ) {
+        this.repoFsGithubRequestCounter?.inc({ kind });
+    }
+
+    public observeGithubRateLimit(rl: {
+        resource: string;
+        limit: number;
+        remaining: number;
+        used: number;
+    }) {
+        if (Number.isFinite(rl.limit)) {
+            this.githubRateLimitLimitGauge?.set(
+                { resource: rl.resource },
+                rl.limit,
+            );
+        }
+        if (Number.isFinite(rl.remaining)) {
+            this.githubRateLimitRemainingGauge?.set(
+                { resource: rl.resource },
+                rl.remaining,
+            );
+        }
+        if (Number.isFinite(rl.used)) {
+            this.githubRateLimitUsedGauge?.set(
+                { resource: rl.resource },
+                rl.used,
+            );
+        }
     }
 
     public observeAiWritebackSandboxCreateDuration(durationMs: number) {

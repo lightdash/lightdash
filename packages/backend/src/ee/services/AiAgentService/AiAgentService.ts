@@ -142,6 +142,7 @@ import { type FileStorageClient } from '../../../clients/FileStorage/FileStorage
 import {
     getInstallationToken,
     getPullRequest,
+    searchRepoCode,
 } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -218,15 +219,25 @@ import {
     getModel,
 } from '../ai/models';
 import { matchesPreset } from '../ai/models/presets';
-import { runRepoShellCommand } from '../ai/repoFs/bashShell';
-import { createGithubRepoSource } from '../ai/repoFs/githubRepoSource';
+import { parseRepoTarget, runShellCommandOnFs } from '../ai/repoFs/bashShell';
+import {
+    createGithubRepoSource,
+    isDeniedRepoPath,
+    rethrowAsRecoverable,
+    type RepoFsTimingEvent,
+} from '../ai/repoFs/githubRepoSource';
+import {
+    DBT_MOUNT,
+    MountingRepoFileSystem,
+} from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
 import { markSlackThreadAutoApproved } from '../ai/tools/sqlApprovals';
 import { AiAgentArgs, AiAgentDependencies } from '../ai/types/aiAgent';
 import {
+    DiscoverReposFn,
     EditDbtProjectFn,
+    ExploreRepoFn,
     GetPromptFn,
-    RepoShellFn,
     SendFileFn,
     SendSlackBlocksFn,
     StoreReasoningFn,
@@ -5846,37 +5857,162 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             return { ...result, previewDeployConfigured, previewUrl };
         };
 
-        // Read-only repo virtual filesystem for the repoShell tool. Resolve the
-        // GitHub access + fetch the file tree at most once per request, then
-        // reuse the cached RepoFs across every repoShell call in the run.
-        let repoFsPromise: Promise<RepoFs> | null = null;
-        const repoShell: RepoShellFn = async ({ command }) => {
-            if (!repoFsPromise) {
-                repoFsPromise = this.aiWritebackService
-                    .getRepoReadAccess({ user, projectUuid })
-                    .then(
-                        (access) =>
-                            new RepoFs(
-                                createGithubRepoSource({
-                                    ...access,
-                                    onTiming: (event) => {
-                                        if (event.kind === 'tree') {
-                                            this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
-                                                event.durationMs,
-                                            );
-                                        } else {
-                                            this.prometheusMetrics?.observeRepoFsGithubFileDuration(
-                                                event.durationMs,
-                                                event.outcome,
-                                            );
-                                        }
-                                    },
-                                }),
-                            ),
-                    );
+        // Read-only repo access for the exploreRepo tool, exposed as ONE virtual
+        // filesystem (a MountingRepoFileSystem): the dbt project mounted
+        // subPath-scoped at /dbt, and every installation-accessible repo mounted
+        // whole at /<owner>/<repo>. Repo trees are fetched lazily on first
+        // descent and a per-run budget bounds an unscoped recursive walk. The
+        // tool's `target` just picks the starting directory, so a repo target
+        // reads exactly as before while absolute paths can cross repos.
+        const onRepoFsTiming = (event: RepoFsTimingEvent) => {
+            this.prometheusMetrics?.incrementRepoFsGithubRequest(event.kind);
+            if (event.kind === 'tree') {
+                this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
+                    event.durationMs,
+                );
+            } else if (event.kind === 'file') {
+                this.prometheusMetrics?.observeRepoFsGithubFileDuration(
+                    event.durationMs,
+                    event.outcome,
+                );
             }
-            const repoFs = await repoFsPromise;
-            return runRepoShellCommand(repoFs, command);
+        };
+        let installationAccessPromise: ReturnType<
+            typeof this.aiWritebackService.getInstallationRepoReadAccess
+        > | null = null;
+        const getInstallationAccess = () => {
+            if (!installationAccessPromise) {
+                installationAccessPromise =
+                    this.aiWritebackService.getInstallationRepoReadAccess({
+                        user,
+                        projectUuid,
+                    });
+            }
+            return installationAccessPromise;
+        };
+
+        const buildDbtRepoFs = async (): Promise<RepoFs> => {
+            const access = await this.aiWritebackService.getRepoReadAccess({
+                user,
+                projectUuid,
+            });
+            return new RepoFs(
+                createGithubRepoSource({ ...access, onTiming: onRepoFsTiming }),
+            );
+        };
+        const buildRepoFs = async (
+            owner: string,
+            repo: string,
+        ): Promise<RepoFs> => {
+            const access = await getInstallationAccess();
+            // The token is per-repo: org-installation repos read with the
+            // installation token, the user's own repos with their user token.
+            const { branch, token } = await access.resolveRepoAccess(
+                owner,
+                repo,
+            );
+            return new RepoFs(
+                createGithubRepoSource({
+                    owner,
+                    repo,
+                    branch,
+                    token,
+                    // No subPath => the whole repo is readable, root-relative.
+                    onTiming: onRepoFsTiming,
+                }),
+            );
+        };
+
+        let mountFsPromise: Promise<MountingRepoFileSystem> | null = null;
+        const getMountFs = () => {
+            if (!mountFsPromise) {
+                mountFsPromise = (async () => {
+                    // /dbt is only mountable when the project's dbt repo is on
+                    // GitHub (getRepoReadAccess is GitHub-only).
+                    const project = await this.projectModel.get(projectUuid);
+                    const hasDbtMount =
+                        project.dbtConnection.type === DbtProjectType.GITHUB;
+                    return MountingRepoFileSystem.create({
+                        listRepos: async () => {
+                            this.prometheusMetrics?.incrementRepoFsGithubRequest(
+                                'list',
+                            );
+                            return (await getInstallationAccess()).listRepos();
+                        },
+                        hasDbtMount,
+                        buildDbtRepoFs,
+                        buildRepoFs,
+                        searchOwner: async (owner, query) => {
+                            const { installationToken, userToken } =
+                                await getInstallationAccess();
+                            // Code search is token-scoped: the installation
+                            // token only sees the org's repos, the user token
+                            // only the user's own. The VFS mounts the union, so
+                            // search both and merge — otherwise `/owner/repo`
+                            // reads work but `search /owner` silently omits the
+                            // same user-only repo.
+                            const tokens = [
+                                installationToken,
+                                ...(userToken ? [userToken] : []),
+                            ];
+                            const hitsPerToken = await Promise.all(
+                                tokens.map((token) => {
+                                    this.prometheusMetrics?.incrementRepoFsGithubRequest(
+                                        'search',
+                                    );
+                                    return searchRepoCode({
+                                        owner,
+                                        query,
+                                        token,
+                                    }).catch(rethrowAsRecoverable);
+                                }),
+                            );
+                            const seen = new Set<string>();
+                            return hitsPerToken
+                                .flat()
+                                .filter((hit) => !isDeniedRepoPath(hit.path))
+                                .filter((hit) => {
+                                    const key = `${hit.owner}/${hit.repo}/${hit.path}`;
+                                    if (seen.has(key)) return false;
+                                    seen.add(key);
+                                    return true;
+                                });
+                        },
+                    });
+                })();
+            }
+            return mountFsPromise;
+        };
+
+        const exploreRepo: ExploreRepoFn = async ({ command, target }) => {
+            const fs = await getMountFs();
+            const trimmedTarget = target?.trim();
+            // `target` selects the starting directory in the unified tree: an
+            // "owner/repo" target => /owner/repo; no target => the dbt project at
+            // /dbt (or the root when the project has no GitHub dbt repo).
+            // Absolute paths in `command` still reach any other mount.
+            let cwd = '/';
+            if (trimmedTarget) {
+                const { owner, repo } = parseRepoTarget(trimmedTarget);
+                cwd = `/${owner}/${repo}`;
+            } else if (fs.hasDbtMount) {
+                cwd = `/${DBT_MOUNT}`;
+            }
+            // Reset the per-command file budget so a single command (e.g. an
+            // unscoped `grep -r`) can't crawl thousands of files and drain the
+            // GitHub rate limit before being steered to `search`.
+            fs.beginCommand();
+            return runShellCommandOnFs(fs, command, {
+                cwd,
+                isTruncated: () => Promise.resolve(fs.isTruncated()),
+                budgetHit: () => Promise.resolve(fs.wasBudgetHit()),
+                search: (absPath, query) => fs.search(absPath, query),
+            });
+        };
+
+        const discoverRepos: DiscoverReposFn = async () => {
+            this.prometheusMetrics?.incrementRepoFsGithubRequest('list');
+            return (await getInstallationAccess()).listRepos();
         };
 
         return {
@@ -5913,7 +6049,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues: toolsRuntime.searchFieldValues,
             editDbtProject,
             setupPreviewDeploy: toolsRuntime.setupPreviewDeploy,
-            repoShell,
+            exploreRepo,
+            discoverRepos,
             listProjects: toolsRuntime.listProjects,
             getProjectInfo: toolsRuntime.getProjectInfo,
             loadSkill: toolsRuntime.loadSkill,
@@ -6038,7 +6175,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             editDbtProject,
             setupPreviewDeploy,
-            repoShell,
+            exploreRepo,
+            discoverRepos,
             listProjects,
             getProjectInfo,
         } = await this.getAiAgentDependencies(user, prompt, {
@@ -6235,28 +6373,29 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         const aiPreviewDeploySetupEnabled =
             aiWritebackEnabled && aiPreviewDeploySetupFlag;
 
-        let { enabled: repoFsEnabled } = await this.featureFlagService.get({
-            user,
-            featureFlagId: FeatureFlags.RepoFs,
-        });
-        // repoShell reads repo source and its view:SourceCode check evaluates
-        // against the resolved user. On Slack without aiRequireOAuth that user
-        // is the app installer, not the requester — so disable it, exactly as
-        // runSql and writeback do above.
-        if (repoFsEnabled && !hasTrustedPromptUserIdentity) {
+        let { enabled: repoDiscoveryEnabled } =
+            await this.featureFlagService.get({
+                user,
+                featureFlagId: FeatureFlags.RepoDiscovery,
+            });
+        // exploreRepo/discoverRepos read repo source and the view:SourceCode
+        // check evaluates against the resolved user. On Slack without
+        // aiRequireOAuth that user is the app installer, not the requester — so
+        // disable it, exactly as runSql and writeback do above.
+        if (repoDiscoveryEnabled && !hasTrustedPromptUserIdentity) {
             this.logger.info(
-                `Disabling repoShell for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
+                `Disabling repo discovery for Slack prompt ${prompt.promptUuid} because aiRequireOAuth is off.`,
             );
-            repoFsEnabled = false;
+            repoDiscoveryEnabled = false;
         }
 
         // The dbt project's root within the repo, so the prompt can point the
-        // repoShell agent at it (instead of hardcoding "dbt/"). Derived from the
-        // connection's project_sub_path: '.' = repo root, else a subdirectory.
-        // null when repoFs is off or the project isn't git-backed.
+        // exploreRepo agent at it (instead of hardcoding "dbt/"). Derived from
+        // the connection's project_sub_path: '.' = repo root, else a
+        // subdirectory. null when repo discovery is off or not git-backed.
         let repoFsRoot: string | null = null;
         if (
-            repoFsEnabled &&
+            repoDiscoveryEnabled &&
             'project_sub_path' in promptProject.dbtConnection
         ) {
             const raw = (promptProject.dbtConnection.project_sub_path ?? '')
@@ -6317,7 +6456,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             enableAiWriteback: aiWritebackEnabled,
             writebackAttribution,
             enablePreviewDeploySetup: aiPreviewDeploySetupEnabled,
-            enableRepoFs: repoFsEnabled,
+            enableRepoDiscovery: repoDiscoveryEnabled,
             repoFsRoot,
             canRunSql,
             autoApproveSql: options.autoApproveSql ?? false,
@@ -6401,7 +6540,8 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             searchFieldValues,
             editDbtProject,
             setupPreviewDeploy,
-            repoShell,
+            exploreRepo,
+            discoverRepos,
             listProjects,
             getProjectInfo,
             updateProgress: (progress: string) => updateProgress(progress),

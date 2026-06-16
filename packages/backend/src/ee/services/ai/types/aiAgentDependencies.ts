@@ -441,10 +441,28 @@ export type EditDbtProjectFn = (args: {
 export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
 
 /**
- * Run one read-only shell command against the project's dbt repo virtual
- * filesystem (ls/cat/find/grep/head/wc) and return combined stdout.
+ * Run one read-only shell command (ls/cat/find/grep/head/wc) against a repo
+ * virtual filesystem and return combined stdout. With no `target` this reads the
+ * project's dbt repo (subPath-scoped, as before); with an `"owner/repo"` target
+ * it reads that whole repository on its default branch.
  */
-export type RepoShellFn = (args: { command: string }) => Promise<string>;
+export type ExploreRepoFn = (args: {
+    command: string;
+    target?: string | null;
+}) => Promise<string>;
+
+/**
+ * List every repository the org's GitHub App installation can read, so the agent
+ * can pick one to inspect with {@link ExploreRepoFn}.
+ */
+export type DiscoverReposFn = () => Promise<
+    {
+        owner: string;
+        repo: string;
+        defaultBranch: string;
+        private: boolean;
+    }[]
+>;
 
 export type ListProjectsFn = () => Promise<
     {

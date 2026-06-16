@@ -32,6 +32,7 @@ import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import { setGithubRateLimitObserver } from './clients/github/Github';
 import { SlackClient } from './clients/Slack/SlackClient';
 import { LightdashConfig } from './config/parseConfig';
 import {
@@ -241,6 +242,9 @@ export default class App {
 
     async start() {
         this.prometheusMetrics.start();
+        setGithubRateLimitObserver((rl) =>
+            this.prometheusMetrics.observeGithubRateLimit(rl),
+        );
         this.prometheusMetrics.monitorDatabase(this.database);
         this.prometheusMetrics.monitorPreAggregates(this.database);
         this.prometheusMetrics.monitorEventMetrics(this.analyticsEventEmitter);

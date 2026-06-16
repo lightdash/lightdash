@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/node';
 import { ShellError } from '../repoFs/bashShell';
-import { getRepoShell } from './repoShell';
+import { getExploreRepo } from './exploreRepo';
 
 jest.mock('@sentry/node', () => ({
     captureException: jest.fn(),
@@ -18,27 +18,27 @@ const captureException = Sentry.captureException as jest.Mock;
 
 type ExecuteResult = { result: string; metadata: { status: string } };
 
-const execute = async (repoShell: jest.Mock): Promise<ExecuteResult> => {
-    const repoShellTool = getRepoShell({ repoShell });
+const execute = async (exploreRepo: jest.Mock): Promise<ExecuteResult> => {
+    const exploreRepoTool = getExploreRepo({ exploreRepo });
     // `tool()` always defines execute for our definition, and it resolves to an
     // object (not a stream); the casts keep TS happy without changing behaviour.
-    const result = await repoShellTool.execute!(
-        { command: 'ls models' },
+    const result = await exploreRepoTool.execute!(
+        { command: 'ls models', target: null },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {} as any,
     );
     return result as ExecuteResult;
 };
 
-describe('repoShell tool error handling', () => {
+describe('exploreRepo tool error handling', () => {
     beforeEach(() => {
         captureException.mockClear();
         Logger.error.mockClear();
     });
 
     it('returns a successful result unchanged', async () => {
-        const repoShell = jest.fn().mockResolvedValue('models/orders.sql');
-        const result = await execute(repoShell);
+        const exploreRepo = jest.fn().mockResolvedValue('models/orders.sql');
+        const result = await execute(exploreRepo);
         expect(result).toEqual({
             result: 'models/orders.sql',
             metadata: { status: 'success' },
@@ -48,8 +48,8 @@ describe('repoShell tool error handling', () => {
 
     it('does not page Sentry for an expected ShellError, but logs it', async () => {
         const error = new ShellError('ls: unsupported flag -name');
-        const repoShell = jest.fn().mockRejectedValue(error);
-        const result = await execute(repoShell);
+        const exploreRepo = jest.fn().mockRejectedValue(error);
+        const result = await execute(exploreRepo);
 
         expect(result.metadata).toEqual({ status: 'error' });
         expect(result.result).toContain('ls: unsupported flag -name');
@@ -59,8 +59,8 @@ describe('repoShell tool error handling', () => {
 
     it('captures an unexpected error (e.g. GitHub access failure) to Sentry', async () => {
         const error = new Error('GitHub API 403');
-        const repoShell = jest.fn().mockRejectedValue(error);
-        const result = await execute(repoShell);
+        const exploreRepo = jest.fn().mockRejectedValue(error);
+        const result = await execute(exploreRepo);
 
         expect(result.metadata).toEqual({ status: 'error' });
         expect(captureException).toHaveBeenCalledWith(error);

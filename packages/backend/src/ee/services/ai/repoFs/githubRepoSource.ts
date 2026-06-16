@@ -1,7 +1,32 @@
 import { getErrorMessage, NotFoundError } from '@lightdash/common';
-import { getFileContent, getRepoTree } from '../../../../clients/github/Github';
+import {
+    getFileContent,
+    getRepoTree,
+    isGithubRateLimitError,
+    searchRepoCode,
+} from '../../../../clients/github/Github';
 import Logger from '../../../../logging/logger';
 import { RepoSource } from './RepoFs';
+
+/** Message + sentinel code for a GitHub rate-limit hit. The `ERATELIMIT` code is
+ *  mapped to an agent-recoverable ShellError in {@link ./bashShell} so a 403 from
+ *  GitHub (a transient, external limit — easy to hit when a command reads many
+ *  files across large repos) degrades to a clear "back off / narrow the search"
+ *  message instead of crashing the agent run or paging Sentry. */
+const RATE_LIMIT_MESSAGE =
+    "GitHub API rate limit reached for this organization's installation. " +
+    'Narrow the search to fewer files or a single repository, or try again in a few minutes.';
+
+/** Re-throw a GitHub error: a rate-limit becomes the recoverable ERATELIMIT
+ *  error; anything else propagates unchanged. */
+export const rethrowAsRecoverable = (error: unknown): never => {
+    if (isGithubRateLimitError(error)) {
+        throw Object.assign(new Error(RATE_LIMIT_MESSAGE), {
+            code: 'ERATELIMIT',
+        });
+    }
+    throw error;
+};
 
 /**
  * Latency signal for each backing GitHub call, so a caller (e.g. the agent
@@ -13,9 +38,34 @@ export type RepoFsTimingEvent =
           kind: 'file';
           durationMs: number;
           outcome: 'found' | 'missing' | 'error';
-      };
+      }
+    | { kind: 'search'; durationMs: number };
 
 export type RepoFsTimingCallback = (event: RepoFsTimingEvent) => void;
+
+/**
+ * Paths that must never be exposed through the read-only shell. Removing the
+ * `subPath` confinement (so the whole repo is readable for an explicit
+ * `exploreRepo` target) widens the blast radius to secrets that previously lived
+ * outside the dbt subdirectory, so deny common credential/secret files at the
+ * source layer — they're filtered from listings and read back as absent.
+ */
+const DENIED_PATH_PATTERNS: RegExp[] = [
+    /(^|\/)\.env(\..*)?$/i, // .env, .env.local, .env.production, ...
+    /\.pem$/i,
+    /\.key$/i,
+    /\.p12$/i,
+    /\.pfx$/i,
+    /(^|\/)id_rsa(\.pub)?$/i,
+    /(^|\/)id_ed25519(\.pub)?$/i,
+    /(^|\/)\.npmrc$/i,
+    /(^|\/)\.pypirc$/i,
+    /(^|\/)credentials$/i,
+    /\.keyfile(\.json)?$/i,
+];
+
+export const isDeniedRepoPath = (path: string): boolean =>
+    DENIED_PATH_PATTERNS.some((re) => re.test(path));
 
 /**
  * A read-only {@link RepoSource} backed by the GitHub API (Git Trees + Contents)
@@ -57,7 +107,7 @@ export const createGithubRepoSource = ({
                 repo,
                 branch,
                 token,
-            });
+            }).catch(rethrowAsRecoverable);
             const durationMs = Date.now() - start;
             Logger.info(
                 `[repoShell] github tree fetched in ${durationMs}ms (${
@@ -73,16 +123,52 @@ export const createGithubRepoSource = ({
                 },
             );
             onTiming?.({ kind: 'tree', durationMs });
-            if (!root) return { files, truncated };
+            if (!root) {
+                return {
+                    files: files.filter((f) => !isDeniedRepoPath(f.path)),
+                    truncated,
+                };
+            }
             const scoped = files
                 .filter((f) => f.path.startsWith(prefix))
                 .map((f) => ({
                     path: f.path.slice(prefix.length),
                     size: f.size,
-                }));
+                }))
+                .filter((f) => !isDeniedRepoPath(f.path));
             return { files: scoped, truncated };
         },
+        searchCode: async (query) => {
+            const start = Date.now();
+            const items = await searchRepoCode({
+                owner,
+                repo,
+                query,
+                token,
+            }).catch(rethrowAsRecoverable);
+            const durationMs = Date.now() - start;
+            Logger.info(
+                `[repoShell] github code search in ${durationMs}ms (${items.length} matches): ${query}`,
+                {
+                    event: 'ai.repofs.github.search',
+                    repo: `${owner}/${repo}`,
+                    matches: items.length,
+                    durationMs,
+                },
+            );
+            onTiming?.({ kind: 'search', durationMs });
+            return items
+                .filter((item) => !root || item.path.startsWith(prefix))
+                .map((item) => ({
+                    path: root ? item.path.slice(prefix.length) : item.path,
+                    fragments: item.fragments,
+                }))
+                .filter((item) => !isDeniedRepoPath(item.path));
+        },
         readFile: async (path) => {
+            // Never read a denied secret file, even if a truncated tree means it
+            // wasn't filtered from the listing above.
+            if (isDeniedRepoPath(path)) return null;
             const start = Date.now();
             try {
                 const { content } = await getFileContent({
@@ -143,7 +229,9 @@ export const createGithubRepoSource = ({
                     },
                 );
                 onTiming?.({ kind: 'file', durationMs, outcome: 'error' });
-                throw error;
+                // A rate-limit becomes a recoverable ERATELIMIT error (clear
+                // "back off" message, no Sentry); other faults propagate as-is.
+                return rethrowAsRecoverable(error);
             }
         },
     };
