@@ -409,6 +409,22 @@ function detectRefusal(text: string): boolean {
     return REFUSAL_RE.test(text);
 }
 
+// Matches the agent stating it cannot change EXISTING saved content. Requires
+// an inability cue AND an edit-verb-on-content cue so generic refusals (data
+// access, out of scope) don't fire. Deterministic sibling to detectRefusal.
+const CONTENT_EDIT_INABILITY_RE =
+    /\b(can'?t|cannot|can not|unable to|not able to|don'?t have (?:the )?(?:ability|capability)|isn'?t (?:enabled|available|supported)|not (?:enabled|available|supported))\b/i;
+const CONTENT_EDIT_TARGET_RE =
+    /\b(edit|editing|update|updating|overwrite|overwriting|modify|modifying|change|changing|replace|replacing)\b[^.?!]*\b(chart|dashboard|tile|saved|content|filter)\b/i;
+
+export function detectContentEditBlock(text: string): boolean {
+    if (!text) return false;
+    return (
+        CONTENT_EDIT_INABILITY_RE.test(text) &&
+        CONTENT_EDIT_TARGET_RE.test(text)
+    );
+}
+
 // Find the explore the agent's most recent query-producing tool call hit.
 // Returns a compact slice of its fields (labels) so the suggestion prompt can
 // stay grounded in fields the agent JUST used instead of the full catalogue.
