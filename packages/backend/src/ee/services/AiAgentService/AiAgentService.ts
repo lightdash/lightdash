@@ -91,7 +91,6 @@ import {
     type AiPromptContextInput,
     type SessionUser,
     type SuggestionValidationCatalog,
-    type TransformedCustomMetric,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
@@ -1477,7 +1476,6 @@ export class AiAgentService extends BaseService {
         projectUuid: string,
         metricQuery: AiMetricQueryWithFilters,
         vizConfig: AiAgentVizConfig['config'],
-        customMetrics?: TransformedCustomMetric[] | null,
     ) {
         const explore = await this.getExplore(
             user,
@@ -1498,7 +1496,7 @@ export class AiAgentService extends BaseService {
         );
 
         const populatedCustomMetrics = populateCustomMetricsSQL(
-            customMetrics ?? metricQuery.additionalMetrics,
+            metricQuery.customMetrics,
             explore,
         );
         const metricQueryWithCustomMetrics = {
@@ -3816,7 +3814,6 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             artifact.chartConfig,
-            parsedVizConfig.customMetrics,
         );
 
         const metadata = {
@@ -3952,7 +3949,6 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             chartConfig,
-            parsedVizConfig.customMetrics,
         );
 
         const metadata = {

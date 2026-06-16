@@ -39,7 +39,6 @@ export const parseVizConfig = (
             type: AiResultType.VERTICAL_BAR_RESULT,
             vizTool,
             metricQuery,
-            customMetrics: vizTool.customMetrics ?? null,
         } as const;
     }
 
@@ -60,7 +59,6 @@ export const parseVizConfig = (
             type: AiResultType.TIME_SERIES_RESULT,
             vizTool,
             metricQuery,
-            customMetrics: vizTool.customMetrics ?? null,
         } as const;
     }
 
@@ -81,7 +79,6 @@ export const parseVizConfig = (
             type: AiResultType.TABLE_RESULT,
             vizTool,
             metricQuery,
-            customMetrics: vizTool.customMetrics ?? null,
         } as const;
     }
 
@@ -102,9 +99,13 @@ export const parseVizConfig = (
                 maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
             ),
             filters: vizTool.queryConfig.filters,
+            // additionalMetrics is filtered to aggregations (for field
+            // validation); customMetrics keeps the full set incl.
+            // periodComparison for SQL population.
             additionalMetrics: filterAggregationCustomMetrics(
                 vizTool.queryConfig.customMetrics,
             ),
+            customMetrics: vizTool.queryConfig.customMetrics,
             tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
                 vizTool.queryConfig.tableCalculations,
             ),
@@ -114,10 +115,6 @@ export const parseVizConfig = (
             type: AiResultType.QUERY_RESULT,
             vizTool,
             metricQuery,
-            // Full custom-metric set (incl. periodComparison) for SQL
-            // population; metricQuery.additionalMetrics is filtered to
-            // aggregations only via filterAggregationCustomMetrics.
-            customMetrics: vizTool.queryConfig.customMetrics,
         } as const;
     }
 

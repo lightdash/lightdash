@@ -253,6 +253,7 @@ export const getRunQuery = ({
                     ),
                     filters: queryTool.queryConfig.filters,
                     additionalMetrics: populatedCustomMetrics,
+                    customMetrics: queryTool.queryConfig.customMetrics,
                     tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
                         queryTool.queryConfig.tableCalculations,
                     ),
