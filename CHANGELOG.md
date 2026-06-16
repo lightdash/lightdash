@@ -1,3 +1,10 @@
+# [0.3176.0](https://github.com/lightdash/lightdash/compare/0.3175.0...0.3176.0) (2026-06-16)
+
+
+### Features
+
+* **ai:** generalize repo discovery so the agent can read any connect… ([#24324](https://github.com/lightdash/lightdash/issues/24324)) ([ce95b0f](https://github.com/lightdash/lightdash/commit/ce95b0f21c9fa055955d7dc529538104e1dc3d11))
+
 # [0.3175.0](https://github.com/lightdash/lightdash/compare/0.3174.0...0.3175.0) (2026-06-16)
 
 
