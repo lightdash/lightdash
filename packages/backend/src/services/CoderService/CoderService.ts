@@ -1,5 +1,6 @@
 import { subject } from '@casl/ability';
 import {
+    AlreadyExistsError,
     ApiChartAsCodeListResponse,
     ApiDashboardAsCodeListResponse,
     assertUnreachable,
@@ -1256,14 +1257,20 @@ export class CoderService extends BaseService {
 
         // Create mode treats the requested slug as a base for a new unique
         // slug instead of updating content that already owns it.
-        const [chart] = shouldUpdateExistingContent
+        const existingCharts = shouldUpdateExistingContent
             ? await this.savedChartModel.find({
                   slug,
                   projectUuid,
                   excludeChartsSavedInDashboard: false,
                   includeOrphanChartsWithinDashboard: true,
               })
-            : [undefined];
+            : [];
+        if (existingCharts.length > 1) {
+            throw new AlreadyExistsError(
+                `There are multiple charts with the same identifier ${slug}`,
+            );
+        }
+        const [chart] = existingCharts;
 
         // If chart does not exist, we can't use promoteService,
         // since it relies on information that's not available in ChartAsCode, and other uuids
@@ -1395,6 +1402,7 @@ export class CoderService extends BaseService {
                 projectUuid, // We use the same projectUuid for both promoted and upstream
                 chart.uuid,
                 true, // includeOrphanChartsWithinDashboard
+                chart, // upstream === promoted project, reuse the chart we already loaded
             );
         const updatedChart = {
             ...promotedChart,
