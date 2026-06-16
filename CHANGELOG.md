@@ -1,3 +1,10 @@
+# [0.3170.0](https://github.com/lightdash/lightdash/compare/0.3169.0...0.3170.0) (2026-06-16)
+
+
+### Features
+
+* **data-apps:** capture Claude generation token/turn/cost usage in analytics ([#24348](https://github.com/lightdash/lightdash/issues/24348)) ([3222e35](https://github.com/lightdash/lightdash/commit/3222e357e1a77e79d02be1d0791603ab5fd6cbe8))
+
 # [0.3169.0](https://github.com/lightdash/lightdash/compare/0.3168.0...0.3169.0) (2026-06-16)
 
 
