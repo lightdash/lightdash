@@ -49,7 +49,11 @@ describe('MountingRepoFileSystem', () => {
     });
 
     const make = (
-        opts: { hasDbtMount?: boolean; maxFilesPerCommand?: number } = {},
+        opts: {
+            hasDbtMount?: boolean;
+            maxFilesPerCommand?: number;
+            maxMountsPerCommand?: number;
+        } = {},
     ): Promise<MountingRepoFileSystem> =>
         MountingRepoFileSystem.create({
             listRepos: async () => {
@@ -68,6 +72,7 @@ describe('MountingRepoFileSystem', () => {
                 return new RepoFs(fakeSource(files));
             },
             maxFilesPerCommand: opts.maxFilesPerCommand,
+            maxMountsPerCommand: opts.maxMountsPerCommand,
         });
 
     // Mirror production: reset the per-command file budget and wire its probe.
@@ -191,6 +196,43 @@ describe('MountingRepoFileSystem', () => {
             );
             expect(out).toContain('{"name":"web"}');
             expect(out).toContain('{"name":"api"}');
+        });
+    });
+
+    describe('per-command mount budget', () => {
+        it('bounds a tree walk that opens too many repos and steers to search', async () => {
+            // `find /` materialises a tree per repo without reading a file, so
+            // it never trips the file budget — the mount budget must stop it.
+            const fs = await make({ maxMountsPerCommand: 1 });
+            const outcome = await run(fs, 'find / -type f').catch(
+                (e: Error) => e.message,
+            );
+            expect(outcome).toMatch(/repositor/i);
+            expect(materialised.length).toBeLessThanOrEqual(1);
+        });
+
+        it('resets the mount budget each command', async () => {
+            const fs = await make({ maxMountsPerCommand: 1 });
+            expect(await run(fs, 'cat /acme/web/package.json')).toBe(
+                '{"name":"web"}',
+            );
+            // A different repo in the next command is allowed again.
+            expect(await run(fs, 'cat /globex/infra/README.md')).toContain(
+                '# infra',
+            );
+        });
+
+        it('does not charge the budget for a cached repo', async () => {
+            const fs = await make({ maxMountsPerCommand: 1 });
+            // Two reads of the same repo in one command: only the first fetches
+            // the tree, so the single-mount budget is not exceeded.
+            const out = await run(
+                fs,
+                'cat /acme/web/package.json /acme/web/src/index.ts',
+            );
+            expect(out).toContain('{"name":"web"}');
+            expect(out).toContain('export const x = 1;');
+            expect(materialised).toEqual(['acme/web']);
         });
     });
 

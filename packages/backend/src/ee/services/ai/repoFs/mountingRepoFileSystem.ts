@@ -61,6 +61,15 @@ export const DBT_MOUNT = 'dbt';
  *  content, so navigating the tree is free and doesn't count toward this.) */
 export const DEFAULT_MAX_FILES_PER_COMMAND = 100;
 
+/** Max repository trees a single command may newly materialise. The file cap
+ *  above only counts `readFile`s, but `readdir`/`stat` (a recursive `find /` or
+ *  `ls -R /`) materialise a mount — one GitHub tree round-trip per repo —
+ *  without reading any file, so a tree walk could otherwise fan out across the
+ *  whole installation uncounted. This bounds that fan-out. Per-command (reset by
+ *  {@link MountingRepoFileSystem.beginCommand}) and cached repos are free, so a
+ *  run still covers many repos across several commands. */
+export const DEFAULT_MAX_MOUNTS_PER_COMMAND = 10;
+
 const FILE_MODE = 0o100644;
 const DIR_MODE = 0o040755;
 const EPOCH = new Date(0);
@@ -95,6 +104,19 @@ const efilebudget = (max: number): never => {
         new Error(
             `EACCES: this command tried to read more than ${max} files. ` +
                 "That's a repo-spanning or whole-repo crawl — use `search <term>` to find which files/repositories mention a string in one call, then read only those. Keep `grep`/`cat` within a single file or directory.",
+        ),
+        { code: 'EACCES' },
+    );
+};
+
+/** Mount-budget exhaustion: a single command tried to open too many repository
+ *  trees (e.g. `find /`). Same recoverable `EACCES` shape as
+ *  {@link efilebudget}, steering the agent to a scoped path or `search`. */
+const emountbudget = (max: number): never => {
+    throw Object.assign(
+        new Error(
+            `EACCES: this command tried to open more than ${max} repositories. ` +
+                "That's a tree walk spanning many repos — target a single repository path (e.g. /owner/repo/...) or use `search <term>` to find which repositories mention a string in one call.",
         ),
         { code: 'EACCES' },
     );
@@ -173,9 +195,16 @@ export class MountingRepoFileSystem implements IFileSystem {
 
     private readonly maxFilesPerCommand: number;
 
+    private readonly maxMountsPerCommand: number;
+
     /** Files read in the CURRENT command (reset by {@link beginCommand}). Each
      *  read is a GitHub round-trip, so this bounds the cost of one command. */
     private filesReadThisCommand = 0;
+
+    /** Repo trees newly materialised in the CURRENT command (reset by
+     *  {@link beginCommand}). Bounds a tree walk (`find /`) that fetches a tree
+     *  per repo without reading any file. Cached repos don't count. */
+    private mountsFetchedThisCommand = 0;
 
     /** Whether the current command hit the file budget — `find` aborts on the
      *  thrown error, but `grep -r` swallows the per-file error and returns
@@ -190,6 +219,7 @@ export class MountingRepoFileSystem implements IFileSystem {
         buildRepoFs: (owner: string, repo: string) => Promise<RepoFs>;
         searchOwner: RepoOwnerSearchFn | null;
         maxFilesPerCommand: number;
+        maxMountsPerCommand: number;
     }) {
         this.repos = opts.repos;
         this.hasDbtMount = opts.hasDbtMount;
@@ -197,6 +227,7 @@ export class MountingRepoFileSystem implements IFileSystem {
         this.buildRepoFs = opts.buildRepoFs;
         this.searchOwnerFn = opts.searchOwner;
         this.maxFilesPerCommand = opts.maxFilesPerCommand;
+        this.maxMountsPerCommand = opts.maxMountsPerCommand;
 
         this.reposByOwner = new Map();
         this.repoKeys = new Set();
@@ -224,6 +255,7 @@ export class MountingRepoFileSystem implements IFileSystem {
         buildRepoFs: (owner: string, repo: string) => Promise<RepoFs>;
         searchOwner?: RepoOwnerSearchFn;
         maxFilesPerCommand?: number;
+        maxMountsPerCommand?: number;
     }): Promise<MountingRepoFileSystem> {
         const repos = await opts.listRepos();
         return new MountingRepoFileSystem({
@@ -232,6 +264,8 @@ export class MountingRepoFileSystem implements IFileSystem {
             searchOwner: opts.searchOwner ?? null,
             maxFilesPerCommand:
                 opts.maxFilesPerCommand ?? DEFAULT_MAX_FILES_PER_COMMAND,
+            maxMountsPerCommand:
+                opts.maxMountsPerCommand ?? DEFAULT_MAX_MOUNTS_PER_COMMAND,
         });
     }
 
@@ -242,6 +276,7 @@ export class MountingRepoFileSystem implements IFileSystem {
      *  across several commands. */
     beginCommand(): void {
         this.filesReadThisCommand = 0;
+        this.mountsFetchedThisCommand = 0;
         this.budgetHitThisCommand = false;
     }
 
@@ -299,6 +334,16 @@ export class MountingRepoFileSystem implements IFileSystem {
     private getMount(key: string): Promise<RepoFileSystem> {
         const existing = this.mounts.get(key);
         if (existing) return existing;
+
+        // A new mount fetches the repo's whole tree (one GitHub round-trip).
+        // Bound how many a single command may open so a tree walk (`find /`)
+        // can't fan out across the whole installation — even though it reads no
+        // files and so never trips the file budget.
+        this.mountsFetchedThisCommand += 1;
+        if (this.mountsFetchedThisCommand > this.maxMountsPerCommand) {
+            this.budgetHitThisCommand = true;
+            emountbudget(this.maxMountsPerCommand);
+        }
 
         const promise = (async () => {
             const repoFs = await this.getRepoFs(key);
