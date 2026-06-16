@@ -200,10 +200,19 @@ export const runShellCommandOnFs = async (
         // mistakes, not faults, so surface them as ShellError (no Sentry).
         const code = (error as { code?: string } | null)?.code;
         // EACCES is the mounting VFS's materialisation-budget guard (too many
-        // repos opened in one command) — an agent-recoverable limit, not a fault.
+        // repos opened in one command); ERATELIMIT is a GitHub rate-limit hit —
+        // both are agent-recoverable limits, not faults, so surface a clean
+        // message (no Sentry) the agent can back off on.
         if (
             code &&
-            ['EROFS', 'ENOENT', 'ENOTDIR', 'EINVAL', 'EACCES'].includes(code)
+            [
+                'EROFS',
+                'ENOENT',
+                'ENOTDIR',
+                'EINVAL',
+                'EACCES',
+                'ERATELIMIT',
+            ].includes(code)
         ) {
             throw new ShellError(getErrorMessage(error));
         }

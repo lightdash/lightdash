@@ -1,7 +1,31 @@
 import { getErrorMessage, NotFoundError } from '@lightdash/common';
-import { getFileContent, getRepoTree } from '../../../../clients/github/Github';
+import {
+    getFileContent,
+    getRepoTree,
+    isGithubRateLimitError,
+} from '../../../../clients/github/Github';
 import Logger from '../../../../logging/logger';
 import { RepoSource } from './RepoFs';
+
+/** Message + sentinel code for a GitHub rate-limit hit. The `ERATELIMIT` code is
+ *  mapped to an agent-recoverable ShellError in {@link ./bashShell} so a 403 from
+ *  GitHub (a transient, external limit — easy to hit when a command reads many
+ *  files across large repos) degrades to a clear "back off / narrow the search"
+ *  message instead of crashing the agent run or paging Sentry. */
+const RATE_LIMIT_MESSAGE =
+    "GitHub API rate limit reached for this organization's installation. " +
+    'Narrow the search to fewer files or a single repository, or try again in a few minutes.';
+
+/** Re-throw a GitHub error: a rate-limit becomes the recoverable ERATELIMIT
+ *  error; anything else propagates unchanged. */
+const rethrowAsRecoverable = (error: unknown): never => {
+    if (isGithubRateLimitError(error)) {
+        throw Object.assign(new Error(RATE_LIMIT_MESSAGE), {
+            code: 'ERATELIMIT',
+        });
+    }
+    throw error;
+};
 
 /**
  * Latency signal for each backing GitHub call, so a caller (e.g. the agent
@@ -81,7 +105,7 @@ export const createGithubRepoSource = ({
                 repo,
                 branch,
                 token,
-            });
+            }).catch(rethrowAsRecoverable);
             const durationMs = Date.now() - start;
             Logger.info(
                 `[repoShell] github tree fetched in ${durationMs}ms (${
@@ -176,7 +200,9 @@ export const createGithubRepoSource = ({
                     },
                 );
                 onTiming?.({ kind: 'file', durationMs, outcome: 'error' });
-                throw error;
+                // A rate-limit becomes a recoverable ERATELIMIT error (clear
+                // "back off" message, no Sentry); other faults propagate as-is.
+                return rethrowAsRecoverable(error);
             }
         },
     };
