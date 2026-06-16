@@ -7,12 +7,14 @@ import {
     followUpToolsText,
     isToolEditDbtProjectResult,
     isToolProposeChangeResult,
+    isToolSetupPreviewDeployResult,
     parseVizConfig,
     SlackPrompt,
     type Explore,
 } from '@lightdash/common';
 import { Block, KnownBlock } from '@slack/bolt';
 import { partition } from 'lodash';
+import type { SlackStreamChunk } from '../../../../clients/Slack/SlackClient';
 import { populateCustomMetricsSQL } from './populateCustomMetricsSQL';
 
 const SLACK_SECTION_TEXT_LIMIT = 3000;
@@ -94,6 +96,137 @@ export const getMarkdownBlocks = (text: string): (Block | KnownBlock)[] =>
                 text: chunk,
             }) as unknown as Block,
     );
+
+const TOOL_TASK_TITLES: Record<string, string> = {
+    loadProjectContext: 'Reading project context',
+    findExplores: 'Finding data model',
+    findFields: 'Choosing fields',
+    searchSemanticLayer: 'Searching metrics',
+    listWarehouseTables: 'Checking warehouse tables',
+    describeWarehouseTable: 'Inspecting table',
+    findContent: 'Searching saved content',
+    readContent: 'Reading saved content',
+    getDashboardCharts: 'Reading dashboard',
+    runContentQuery: 'Running saved-content query',
+    runSavedChart: 'Running saved chart',
+    runQuery: 'Running query',
+    runSql: 'Reviewing SQL',
+    discoverFields: 'Choosing fields',
+    generateVisualization: 'Building chart',
+    generateDashboard: 'Creating dashboard',
+    createContent: 'Saving content',
+    editContent: 'Updating content',
+    proposeChange: 'Drafting semantic-layer change',
+    editDbtProject: 'Opening dbt project PR',
+    setupPreviewDeploy: 'Preparing preview deploy',
+    listKnowledgeDocuments: 'Checking project knowledge',
+    getKnowledgeDocumentContent: 'Reading project knowledge',
+    readPinnedThread: 'Reading pinned conversation',
+    repoShell: 'Reading repository',
+    listProjects: 'Checking projects',
+    getProjectInfo: 'Reading project',
+};
+
+const truncateTaskText = (text: string, maxLength = 256) =>
+    text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+
+const truncateCardText = (text: string, maxLength: number) =>
+    text.length > maxLength ? `${text.slice(0, maxLength - 3)}...` : text;
+
+const getSlackTaskId = (toolName: string) =>
+    toolName.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
+
+const normalizeTaskCopy = (text: string) =>
+    text
+        .trim()
+        .replace(/[.!?]+$/g, '')
+        .toLowerCase();
+
+export const getSlackToolTitle = (toolName: string): string => {
+    if (toolName.startsWith('editDbtProject:')) {
+        return toolName.replace('editDbtProject:', '');
+    }
+    return (
+        TOOL_TASK_TITLES[toolName] ??
+        toolName
+            .replace(/^mcp_?/, '')
+            .replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/[_-]+/g, ' ')
+            .replace(/^./, (char) => char.toUpperCase())
+    );
+};
+
+export const buildSlackTaskUpdate = ({
+    toolName,
+    taskId,
+    status,
+    details,
+    output,
+}: {
+    toolName: string;
+    taskId?: string;
+    status: 'pending' | 'in_progress' | 'complete' | 'error';
+    details?: string;
+    output?: string;
+}): SlackStreamChunk => {
+    const title = getSlackToolTitle(toolName);
+    const resolvedDetails =
+        details && normalizeTaskCopy(details) !== normalizeTaskCopy(title)
+            ? details
+            : undefined;
+    const resolvedOutput =
+        output && normalizeTaskCopy(output) !== normalizeTaskCopy(title)
+            ? output
+            : undefined;
+
+    return {
+        type: 'task_update',
+        id: getSlackTaskId(taskId ?? toolName),
+        title,
+        status,
+        ...(resolvedDetails
+            ? { details: truncateTaskText(resolvedDetails) }
+            : {}),
+        ...(resolvedOutput ? { output: truncateTaskText(resolvedOutput) } : {}),
+    };
+};
+
+export const buildFeedbackContextActions = (
+    promptUuid: string,
+): (Block | KnownBlock)[] => [
+    {
+        block_id: 'prompt_human_score',
+        type: 'context_actions',
+        elements: [
+            {
+                type: 'feedback_buttons',
+                action_id: 'prompt_human_score.feedback',
+                positive_button: {
+                    text: {
+                        type: 'plain_text',
+                        text: 'Good',
+                    },
+                    accessibility_label: 'Submit positive feedback',
+                    value: JSON.stringify({
+                        promptUuid,
+                        score: 1,
+                    }),
+                },
+                negative_button: {
+                    text: {
+                        type: 'plain_text',
+                        text: 'Bad',
+                    },
+                    accessibility_label: 'Submit negative feedback',
+                    value: JSON.stringify({
+                        promptUuid,
+                        score: -1,
+                    }),
+                },
+            },
+        ],
+    } as unknown as Block,
+];
 
 /**
  * Returns compact Slack blocks showing a "thinking" animation with a GIF.
@@ -228,6 +361,281 @@ export function getFollowUpToolBlocks(
             })),
         },
     ];
+}
+
+const parseGithubPrUrl = (prUrl: string) => {
+    try {
+        const url = new URL(prUrl);
+        const [, owner, repo, kind, number] = url.pathname.split('/');
+        if (url.hostname !== 'github.com' || kind !== 'pull') {
+            return undefined;
+        }
+        return { owner, repo, number, repository: `${owner}/${repo}` };
+    } catch {
+        return undefined;
+    }
+};
+
+const buildSlackCardBlock = ({
+    blockId,
+    title,
+    subtitle,
+    body,
+    subtext,
+    heroImageUrl,
+    actions,
+}: {
+    blockId: string;
+    title: string;
+    subtitle?: string;
+    body?: string;
+    subtext?: string;
+    heroImageUrl?: string;
+    actions?: Array<{
+        type: 'button';
+        url?: string;
+        style?: 'primary' | 'danger';
+        action_id: string;
+        text: {
+            type: 'plain_text';
+            text: string;
+            emoji?: boolean;
+        };
+    }>;
+}): Block =>
+    ({
+        type: 'card',
+        block_id: blockId,
+        title: {
+            type: 'mrkdwn',
+            text: truncateCardText(title, 150),
+            verbatim: false,
+        },
+        ...(subtitle
+            ? {
+                  subtitle: {
+                      type: 'mrkdwn',
+                      text: truncateCardText(subtitle, 150),
+                      verbatim: false,
+                  },
+              }
+            : {}),
+        ...(body
+            ? {
+                  body: {
+                      type: 'mrkdwn',
+                      text: truncateCardText(body, 200),
+                      verbatim: false,
+                  },
+              }
+            : {}),
+        ...(subtext
+            ? {
+                  subtext: {
+                      type: 'mrkdwn',
+                      text: truncateCardText(subtext, 200),
+                      verbatim: false,
+                  },
+              }
+            : {}),
+        ...(heroImageUrl
+            ? {
+                  hero_image: {
+                      type: 'image',
+                      image_url: heroImageUrl,
+                      alt_text: title,
+                  },
+              }
+            : {}),
+        ...(actions?.length ? { actions: actions.slice(0, 3) } : {}),
+    }) as unknown as Block;
+
+const getArtifactTitle = (artifact: AiArtifact) =>
+    artifact.title ||
+    (artifact.artifactType === 'dashboard'
+        ? 'Lightdash dashboard'
+        : 'Lightdash chart');
+
+export async function getModernArtifactCardBlocks(
+    slackPrompt: SlackPrompt,
+    siteUrl: string,
+    maxQueryLimit: number,
+    createShareUrl: (path: string, params: string) => Promise<string>,
+    getExplore: (exploreName: string) => Promise<Explore>,
+    agentUuid?: string,
+    artifacts?: AiArtifact[],
+    toolResults?: AiAgentToolResult[],
+): Promise<(Block | KnownBlock)[]> {
+    if (!artifacts || artifacts.length === 0) {
+        return [];
+    }
+
+    const chartImageUrls = (toolResults ?? [])
+        .filter(
+            (result) =>
+                result.toolType === 'built-in' &&
+                ['runQuery', 'generateVisualization'].includes(
+                    result.toolName,
+                ) &&
+                result.metadata?.status === 'success',
+        )
+        .map(
+            (result) =>
+                (result.metadata as { chartImageUrl?: string | null })
+                    .chartImageUrl,
+        )
+        .filter((url): url is string => Boolean(url));
+    const chartArtifacts = artifacts
+        .slice(0, 3)
+        .filter((artifact) => Boolean(artifact.chartConfig));
+
+    const blocks = await Promise.all(
+        artifacts.slice(0, 3).map(async (artifact, index) => {
+            if (artifact.chartConfig) {
+                const vizConfig = parseVizConfig(
+                    artifact.chartConfig,
+                    maxQueryLimit,
+                );
+                if (!vizConfig) {
+                    return undefined;
+                }
+
+                const explore = await getExplore(
+                    vizConfig.metricQuery.exploreName,
+                );
+                const additionalMetricsWithSql = populateCustomMetricsSQL(
+                    vizConfig.metricQuery.additionalMetrics,
+                    explore,
+                );
+                const additionalMetricFieldIds = additionalMetricsWithSql.map(
+                    (m) => `${m.table}_${m.name}`,
+                );
+                const tableCalculationNames =
+                    vizConfig.metricQuery.tableCalculations.map(
+                        (tc) => tc.name,
+                    );
+                const columnOrder = [
+                    ...vizConfig.metricQuery.dimensions,
+                    ...vizConfig.metricQuery.metrics,
+                    ...additionalMetricFieldIds,
+                    ...tableCalculationNames,
+                ];
+
+                const path = `/projects/${slackPrompt.projectUuid}/tables/${vizConfig.metricQuery.exploreName}`;
+                const params = `?create_saved_chart_version=${encodeURIComponent(
+                    JSON.stringify({
+                        tableName: vizConfig.metricQuery.exploreName,
+                        metricQuery: {
+                            ...vizConfig.metricQuery,
+                            additionalMetrics: additionalMetricsWithSql,
+                        },
+                        tableConfig: {
+                            columnOrder,
+                        },
+                        chartConfig: {
+                            type: 'table',
+                            config: {
+                                showColumnCalculation: false,
+                                showRowCalculation: false,
+                                showTableNames: true,
+                                showResultsTotal: false,
+                                showSubtotals: false,
+                                columns: {},
+                                hideRowNumbers: false,
+                                conditionalFormattings: [],
+                                metricsAsRows: false,
+                            },
+                        },
+                    }),
+                )}`;
+
+                const exploreUrl = await createShareUrl(path, params).catch(
+                    () => `${siteUrl}${path}${params}`,
+                );
+
+                const metricCount =
+                    vizConfig.metricQuery.metrics.length +
+                    additionalMetricsWithSql.length;
+                const dimensionCount = vizConfig.metricQuery.dimensions.length;
+                const chartImageUrl =
+                    chartImageUrls[
+                        chartArtifacts.findIndex(
+                            (chartArtifact) =>
+                                chartArtifact.artifactUuid ===
+                                artifact.artifactUuid,
+                        )
+                    ];
+
+                return buildSlackCardBlock({
+                    blockId: `ai_agent_chart_card_${artifact.artifactUuid}`,
+                    title: getArtifactTitle(artifact),
+                    subtitle: `${vizConfig.metricQuery.exploreName} chart`,
+                    heroImageUrl: chartImageUrl,
+                    body:
+                        artifact.description ||
+                        `${metricCount} metric${
+                            metricCount === 1 ? '' : 's'
+                        } by ${dimensionCount} dimension${
+                            dimensionCount === 1 ? '' : 's'
+                        }.`,
+                    subtext: 'Open in Lightdash to inspect, save, or refine.',
+                    actions: [
+                        ...(chartImageUrl
+                            ? [
+                                  {
+                                      type: 'button' as const,
+                                      url: chartImageUrl,
+                                      action_id: `actions.open_chart_image_button_click.${index}`,
+                                      text: {
+                                          type: 'plain_text' as const,
+                                          text: 'Open image',
+                                      },
+                                  },
+                              ]
+                            : []),
+                        {
+                            type: 'button',
+                            url: exploreUrl,
+                            style: 'primary',
+                            action_id: `actions.explore_card_button_click.${index}`,
+                            text: {
+                                type: 'plain_text',
+                                text: 'Explore in Lightdash',
+                            },
+                        },
+                    ],
+                });
+            }
+
+            if (artifact.dashboardConfig && agentUuid) {
+                return buildSlackCardBlock({
+                    blockId: `ai_agent_dashboard_card_${artifact.artifactUuid}`,
+                    title: getArtifactTitle(artifact),
+                    subtitle: 'Lightdash dashboard',
+                    body:
+                        artifact.description ||
+                        'Generated dashboard artifact from this conversation.',
+                    subtext: 'Open in Lightdash to inspect and continue.',
+                    actions: [
+                        {
+                            type: 'button',
+                            url: `${siteUrl}/projects/${slackPrompt.projectUuid}/ai-agents/${agentUuid}/threads/${slackPrompt.threadUuid}`,
+                            style: 'primary',
+                            action_id: `actions.view_dashboard_card_button_click.${index}`,
+                            text: {
+                                type: 'plain_text',
+                                text: 'View dashboard',
+                            },
+                        },
+                    ],
+                });
+            }
+
+            return undefined;
+        }),
+    );
+
+    return blocks.filter((block): block is Block => Boolean(block));
 }
 
 // Tool names whose successful results count as "an answer the user can score".
@@ -508,6 +916,115 @@ export function getEditDbtProjectBlocks(
     ];
 }
 
+export function getModernPullRequestCardBlocks(
+    toolResults?: AiAgentToolResult[],
+): (Block | KnownBlock)[] {
+    if (!toolResults || toolResults.length === 0) {
+        return [];
+    }
+
+    const cards: (Block | KnownBlock)[] = [];
+
+    toolResults.forEach((result, index) => {
+        if (
+            isToolEditDbtProjectResult(result) &&
+            result.metadata.status === 'success' &&
+            result.metadata.prUrl
+        ) {
+            const pr = parseGithubPrUrl(result.metadata.prUrl);
+            const action =
+                result.metadata.prAction === 'updated' ? 'Updated' : 'Opened';
+            const diffParts = [
+                typeof result.metadata.additions === 'number'
+                    ? `+${result.metadata.additions}`
+                    : undefined,
+                typeof result.metadata.deletions === 'number'
+                    ? `-${result.metadata.deletions}`
+                    : undefined,
+            ].filter(Boolean);
+            const commit = result.metadata.commitSha?.slice(0, 7);
+            const body = [
+                diffParts.length ? diffParts.join(' ') : undefined,
+                commit ? `commit \`${commit}\`` : undefined,
+            ]
+                .filter(Boolean)
+                .join(' · ');
+            const actions = [
+                {
+                    type: 'button' as const,
+                    url: result.metadata.prUrl,
+                    action_id: `actions.view_pull_request_card_button_click.${index}`,
+                    text: {
+                        type: 'plain_text' as const,
+                        text: 'PR',
+                    },
+                },
+                ...(result.metadata.previewUrl
+                    ? [
+                          {
+                              type: 'button' as const,
+                              url: result.metadata.previewUrl,
+                              style: 'primary' as const,
+                              action_id: `actions.view_preview_card_button_click.${index}`,
+                              text: {
+                                  type: 'plain_text' as const,
+                                  text: 'Preview',
+                              },
+                          },
+                      ]
+                    : []),
+            ];
+
+            cards.push(
+                buildSlackCardBlock({
+                    blockId: `ai_agent_pr_card_${result.uuid}`,
+                    title: `${action} pull request${
+                        pr?.number ? ` #${pr.number}` : ''
+                    }`,
+                    subtitle: pr?.repository,
+                    body: body || 'Semantic-layer changes are ready to review.',
+                    subtext: 'Review the diff before merging.',
+                    actions,
+                }),
+            );
+            return;
+        }
+
+        if (
+            isToolSetupPreviewDeployResult(result) &&
+            result.metadata.status === 'success' &&
+            result.metadata.prUrl
+        ) {
+            const pr = parseGithubPrUrl(result.metadata.prUrl);
+            cards.push(
+                buildSlackCardBlock({
+                    blockId: `ai_agent_preview_pr_card_${result.uuid}`,
+                    title: `Opened preview deploy PR${
+                        pr?.number ? ` #${pr.number}` : ''
+                    }`,
+                    subtitle: pr?.repository,
+                    body: 'Adds the Lightdash preview-project GitHub Actions workflow.',
+                    subtext: 'Add the required GitHub secrets before merging.',
+                    actions: [
+                        {
+                            type: 'button',
+                            url: result.metadata.prUrl,
+                            style: 'primary',
+                            action_id: `actions.view_preview_deploy_pr_card_button_click.${index}`,
+                            text: {
+                                type: 'plain_text',
+                                text: 'PR',
+                            },
+                        },
+                    ],
+                }),
+            );
+        }
+    });
+
+    return cards;
+}
+
 export function getAgentSelectionBlocks(
     agents: AiAgent[],
     channelId: string,
@@ -657,18 +1174,15 @@ export function getProjectSelectionBlocks(
         },
     };
 
-    // The project name is round-tripped through the action value so the
-    // handler can name the project in its confirmation message without an
-    // extra DB lookup. Truncated to match the visible label, and well within
-    // Slack's ~2000-char limit for `value`.
+    // Slack caps static_select option values at 150 chars.
     const buildSelectionValue = (project: {
         projectUuid: string;
         name: string;
     }): string =>
         JSON.stringify({
-            projectUuid: project.projectUuid,
-            channelId,
-            projectName: truncateText(project.name, 75),
+            p: project.projectUuid,
+            c: channelId,
+            n: truncateText(project.name, 50),
         });
 
     // Few projects: one button each for a single tap.
