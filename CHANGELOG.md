@@ -1,3 +1,10 @@
+# [0.3179.0](https://github.com/lightdash/lightdash/compare/0.3178.0...0.3179.0) (2026-06-16)
+
+
+### Features
+
+* **ai:** semantic-layer change impact analysis + post-merge content migration ([#24372](https://github.com/lightdash/lightdash/issues/24372)) ([32e0f9d](https://github.com/lightdash/lightdash/commit/32e0f9dec6f5060b40a5d081ee86305b552567b7)), closes [#24377](https://github.com/lightdash/lightdash/issues/24377)
+
 # [0.3178.0](https://github.com/lightdash/lightdash/compare/0.3177.0...0.3178.0) (2026-06-16)
 
 
