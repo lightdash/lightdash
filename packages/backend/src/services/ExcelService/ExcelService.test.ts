@@ -742,25 +742,20 @@ describe('ExcelService', () => {
                 expect(result[0]).toEqual(moment('2024-01-16').toDate());
             });
 
-            it('shifts DATE cells whose base is TIMESTAMP (DATE_TRUNC round-trip)', () => {
-                // 2024-01-16T05:00:00Z is midnight Jan 16 in NY (EST, -5)
-                // after the DATE_TRUNC round-trip — should land on the
-                // project-tz day boundary, not the UTC instant.
+            it('does not shift DATE cells whose base is TIMESTAMP (now a real DATE post-cast)', () => {
+                // GLITCH-452: a day-or-coarser TIMESTAMP-base trunc compiles to
+                // a real DATE, so the cell is a bare calendar value and must not
+                // be shifted — same as a native DATE column, even under a
+                // non-UTC project tz.
                 const result = ExcelService.convertRowToExcel(
-                    { date_base_ts_column: '2024-01-16T05:00:00.000Z' },
+                    { date_base_ts_column: '2024-01-16' },
                     mockItemMapWithFormats,
                     false,
                     ['date_base_ts_column'],
                     'America/New_York',
                 );
 
-                const cell = result[0] as Date;
-                expect(cell).toBeInstanceOf(Date);
-                expect(cell.getUTCFullYear()).toBe(2024);
-                expect(cell.getUTCMonth()).toBe(0);
-                expect(cell.getUTCDate()).toBe(16);
-                expect(cell.getUTCHours()).toBe(0);
-                expect(cell.getUTCMinutes()).toBe(0);
+                expect(result[0]).toEqual(moment('2024-01-16').toDate());
             });
         });
 
