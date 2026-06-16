@@ -254,14 +254,24 @@ export class ClaudeStreamProcessor {
 
     private lastUsageValue: ClaudeGenerationUsage | null = null;
 
+    private firstMessageStartAt: number | null = null;
+
+    private lastTurnStartAt: number | null = null;
+
+    private readonly turnDurations: number[] = [];
+
     private readonly now: () => number;
 
+    private readonly createdAt: number;
+
     /**
-     * `now` is injectable purely for future testability — defaults to
-     * `Date.now`. Not used in production code paths.
+     * `now` is injectable for testing the time-based outputs (snippet
+     * throttling, time-to-first-token, per-turn durations) — defaults to
+     * `Date.now`.
      */
     constructor(now: () => number = () => Date.now()) {
         this.now = now;
+        this.createdAt = now();
     }
 
     /**
@@ -279,6 +289,26 @@ export class ClaudeStreamProcessor {
      */
     get lastUsage(): ClaudeGenerationUsage | null {
         return this.lastUsageValue;
+    }
+
+    /**
+     * Wall-clock ms from processor creation to the first assistant turn — a
+     * proxy for time-to-first-token (how long Claude took to start
+     * responding). `null` if the model never produced a turn.
+     */
+    get timeToFirstTokenMs(): number | null {
+        return this.firstMessageStartAt === null
+            ? null
+            : this.firstMessageStartAt - this.createdAt;
+    }
+
+    /**
+     * Per-turn wall-clock durations in ms, in turn order. A turn spans from
+     * its `message_start` to the next turn's start (or to the final `result`
+     * event for the last turn).
+     */
+    get turnDurationsMs(): number[] {
+        return [...this.turnDurations];
     }
 
     /**
@@ -301,6 +331,14 @@ export class ClaudeStreamProcessor {
     private consumeLine(line: string, events: ClaudeStreamEvent[]): void {
         const partialKind = parsePartialStreamEventKind(line);
         if (partialKind === 'message_start') {
+            const turnStart = this.now();
+            if (this.firstMessageStartAt === null) {
+                this.firstMessageStartAt = turnStart;
+            }
+            if (this.lastTurnStartAt !== null) {
+                this.turnDurations.push(turnStart - this.lastTurnStartAt);
+            }
+            this.lastTurnStartAt = turnStart;
             this.turnCount += 1;
             this.thinkingStartedThisTurn = false;
             this.thinkingTextBuffer = '';
@@ -348,6 +386,10 @@ export class ClaudeStreamProcessor {
 
         const result = parseResult(line);
         if (result) {
+            if (this.lastTurnStartAt !== null) {
+                this.turnDurations.push(this.now() - this.lastTurnStartAt);
+                this.lastTurnStartAt = null;
+            }
             this.lastUsageValue = result.usage;
             events.push({ kind: 'result', text: result.text ?? '' });
         }

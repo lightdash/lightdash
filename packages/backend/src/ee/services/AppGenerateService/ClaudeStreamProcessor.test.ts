@@ -91,6 +91,35 @@ describe('ClaudeStreamProcessor result parsing', () => {
     });
 });
 
+describe('ClaudeStreamProcessor turn timeline', () => {
+    const messageStart = () =>
+        line({ type: 'stream_event', event: { type: 'message_start' } });
+
+    test('measures time-to-first-token and per-turn durations with an injected clock', () => {
+        const clock = { t: 0 };
+        // createdAt = 0
+        const processor = new ClaudeStreamProcessor(() => clock.t);
+
+        clock.t = 100;
+        processor.feedChunk(messageStart()); // turn 1 starts at 100 → ttft 100
+        clock.t = 250;
+        processor.feedChunk(messageStart()); // turn 2 starts → turn 1 = 150ms
+        clock.t = 400;
+        processor.feedChunk(resultLine()); // result → turn 2 = 150ms
+
+        expect(processor.timeToFirstTokenMs).toBe(100);
+        expect(processor.turnDurationsMs).toEqual([150, 150]);
+    });
+
+    test('reports null ttft and no turns when the model never started', () => {
+        const processor = new ClaudeStreamProcessor(() => 0);
+        processor.feedChunk(line({ type: 'system', subtype: 'init' }));
+
+        expect(processor.timeToFirstTokenMs).toBeNull();
+        expect(processor.turnDurationsMs).toEqual([]);
+    });
+});
+
 describe('addClaudeUsage', () => {
     const usage = (n: number): ClaudeGenerationUsage => ({
         inputTokens: n,

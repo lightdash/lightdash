@@ -1293,6 +1293,11 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         numTurns: number;
         durationApiMs: number;
         totalCostUsd: number;
+        // Latency shape of the main generation call: time-to-first-token and
+        // the slowest single turn. Captured from the main generation only
+        // (per-call metrics, not summed across build-fix / metadata).
+        timeToFirstTokenMs: number;
+        slowestTurnMs: number;
         catalogTableCount: number;
         catalogDimensionCount: number;
         catalogMetricCount: number;
