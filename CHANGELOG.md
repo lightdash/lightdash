@@ -1,3 +1,10 @@
+## [0.3167.1](https://github.com/lightdash/lightdash/compare/0.3167.0...0.3167.1) (2026-06-16)
+
+
+### Bug Fixes
+
+* escape embed JWT user attribute values ([#24317](https://github.com/lightdash/lightdash/issues/24317)) ([bc04a90](https://github.com/lightdash/lightdash/commit/bc04a90c68d6c16b9613b36b98ae13af569f15e5))
+
 # [0.3167.0](https://github.com/lightdash/lightdash/compare/0.3166.0...0.3167.0) (2026-06-15)
 
 
