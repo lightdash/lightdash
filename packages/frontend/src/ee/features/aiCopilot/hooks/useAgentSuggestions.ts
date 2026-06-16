@@ -1,6 +1,7 @@
 import type { ApiAgentSuggestionsResponse, ApiError } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
+import { getAiAgentApiBase } from './aiAgentRouting';
 
 const AGENT_SUGGESTIONS_KEY = 'agentSuggestions';
 
@@ -18,7 +19,7 @@ const getAgentSuggestions = (
     const qs = search.toString();
     return lightdashApi<ApiAgentSuggestionsResponse['results']>({
         version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/suggestions${
+        url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/suggestions${
             qs ? `?${qs}` : ''
         }`,
         method: 'GET',

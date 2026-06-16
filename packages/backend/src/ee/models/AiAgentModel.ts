@@ -405,6 +405,7 @@ export class AiAgentModel {
                      WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                imageUrlSource: `${AiAgentTableName}.image_url_source`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
@@ -539,6 +540,7 @@ export class AiAgentModel {
                      WHERE ai_agent_uuid = ${AiAgentTableName}.ai_agent_uuid AND rn = 1)
                 `),
                 imageUrl: `${AiAgentTableName}.image_url`,
+                imageUrlSource: `${AiAgentTableName}.image_url_source`,
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
@@ -1723,6 +1725,7 @@ export class AiAgentModel {
                     tags: args.tags,
                     description: args.description ?? null,
                     image_url: null,
+                    image_url_source: null,
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
                     enable_content_tools: args.enableContentTools ?? false,
@@ -1820,6 +1823,7 @@ export class AiAgentModel {
                 updatedAt: agent.updated_at,
                 instruction: args.instruction,
                 imageUrl: agent.image_url,
+                imageUrlSource: agent.image_url_source,
                 groupAccess,
                 userAccess,
                 spaceAccess,
@@ -1901,6 +1905,7 @@ export class AiAgentModel {
         args: Omit<ApiUpdateAiAgent, 'uuid'> & {
             agentUuid: string;
             organizationUuid: string;
+            imageUrlSource?: 'upload' | 'url' | null;
         },
     ): Promise<AiAgent> {
         return this.database.transaction(async (trx) => {
@@ -1918,6 +1923,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.imageUrl !== undefined
                         ? { image_url: args.imageUrl }
+                        : {}),
+                    ...(args.imageUrlSource !== undefined
+                        ? { image_url_source: args.imageUrlSource }
                         : {}),
                     ...(args.projectUuid !== undefined
                         ? { project_uuid: args.projectUuid }
@@ -2094,6 +2102,7 @@ export class AiAgentModel {
                 updatedAt: agent.updated_at,
                 instruction,
                 imageUrl: agent.image_url,
+                imageUrlSource: agent.image_url_source,
                 groupAccess,
                 userAccess,
                 spaceAccess,
@@ -4545,10 +4554,20 @@ export class AiAgentModel {
             await trx(AiWebAppThreadTableName).insert({
                 ai_thread_uuid: row.ai_thread_uuid,
                 user_uuid: data.userUuid,
+                embed_space_uuid: data.embedSpaceUuid ?? null,
             });
 
             return row.ai_thread_uuid;
         });
+    }
+
+    async getWebAppThreadEmbedSpace(threadUuid: string) {
+        const row = await this.database(AiWebAppThreadTableName)
+            .select('embed_space_uuid')
+            .where('ai_thread_uuid', threadUuid)
+            .first();
+
+        return row?.embed_space_uuid ?? null;
     }
 
     async createWebAppPrompt(

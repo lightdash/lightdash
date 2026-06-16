@@ -20,12 +20,22 @@ type Props = {
     isActive?: boolean;
 };
 
+const getVisibleUserName = (name: string) => {
+    const trimmedName = name.trim();
+    if (!trimmedName || trimmedName.toLowerCase() === 'undefined undefined') {
+        return null;
+    }
+
+    return trimmedName;
+};
+
 export const UserBubble: FC<Props> = ({ message, isActive = false }) => {
     const { projectUuid, agentUuid } = useParams();
     const timeAgo = useTimeAgo(message.createdAt);
-    const name = message.user.name;
+    const name = getVisibleUserName(message.user.name);
     const app = useApp();
-    const showUserName = app.user?.data?.userUuid !== message.user.uuid;
+    const showUserName =
+        !!name && app.user?.data?.userUuid !== message.user.uuid;
     const { matchedKeys, segments } = buildContentReferenceSegments(
         message.message,
         message.context,

@@ -881,7 +881,14 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
+        const canReadEmbedAiQuery =
+            isJwtUser(account) &&
+            account.embedWriteContext?.canUseAiAgent === true &&
+            queryHistory.context === QueryExecutionContext.AI &&
+            queryHistory.createdByUserUuid === account.embedWriteUser?.userUuid;
+
         const isForbidden =
+            !canReadEmbedAiQuery &&
             !canViewProject &&
             auditedAbility.cannot(
                 'view',
@@ -4311,14 +4318,10 @@ export class AsyncQueryService extends ProjectService {
         // `get` enforces the query belongs to this project and was created by
         // this account — that ownership authorizes the totals query, so we skip
         // the explore-level CASL gate (which embed JWT callers can't pass).
-        const source = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const [source, { organizationUuid }] = await Promise.all([
+            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.projectModel.getSummary(projectUuid),
+        ]);
 
         const sourceInputs = {
             metricQuery: source.metricQuery,

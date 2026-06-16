@@ -2212,11 +2212,47 @@ describe('ProjectService', () => {
             expect(emailModel.getPrimaryEmailStatus).not.toHaveBeenCalled();
         });
 
+        test('skips email lookup for embedded service-account write users and returns empty intrinsic attributes', async () => {
+            emailModel.getPrimaryEmailStatus.mockImplementation(() => {
+                throw new NotFoundError(
+                    "Cannot find matching verification status for user's email",
+                );
+            });
+
+            const result = await service.getUserAttributes({
+                user: {
+                    ...user,
+                    email: undefined,
+                    serviceAccount: {
+                        uuid: 'service-account-uuid',
+                        description: 'Embed write actor',
+                    },
+                },
+            });
+
+            expect(result.intrinsicUserAttributes).toEqual({});
+            expect(emailModel.getPrimaryEmailStatus).not.toHaveBeenCalled();
+        });
+
         test('still attaches intrinsic email attributes for session users', async () => {
             const result = await service.getUserAttributes({ account });
 
             expect(emailModel.getPrimaryEmailStatus).toHaveBeenCalledWith(
                 account.user.id,
+            );
+            expect(result.intrinsicUserAttributes).not.toEqual({});
+        });
+
+        test('still attaches intrinsic email attributes when session user has no service account identity', async () => {
+            const result = await service.getUserAttributes({
+                user: {
+                    ...user,
+                    serviceAccount: undefined,
+                },
+            });
+
+            expect(emailModel.getPrimaryEmailStatus).toHaveBeenCalledWith(
+                user.userUuid,
             );
             expect(result.intrinsicUserAttributes).not.toEqual({});
         });

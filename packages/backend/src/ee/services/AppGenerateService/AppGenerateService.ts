@@ -86,7 +86,12 @@ import {
     claudeCodeAllowedHosts,
     describeClaudeCodeEnv,
 } from './claudeCodeEnv';
-import { ClaudeStreamProcessor } from './ClaudeStreamProcessor';
+import {
+    addClaudeUsage,
+    ClaudeStreamProcessor,
+    ZERO_CLAUDE_USAGE,
+    type ClaudeGenerationUsage,
+} from './ClaudeStreamProcessor';
 import {
     copyDesignIntoSandbox,
     type DesignSandboxCopyResult,
@@ -1402,6 +1407,7 @@ export class AppGenerateService extends BaseService {
         durationMs: number;
         responseText: string | null;
         toolCallCount: number;
+        usage: ClaudeGenerationUsage | null;
     }> {
         const start = performance.now();
 
@@ -1421,6 +1427,7 @@ export class AppGenerateService extends BaseService {
             durationMs: number;
             responseText: string | null;
             toolCallCount: number;
+            usage: ClaudeGenerationUsage | null;
         }> => {
             const sessionFlags =
                 continueSession || forceContinue ? '--continue -p' : '-p';
@@ -1478,8 +1485,10 @@ export class AppGenerateService extends BaseService {
                                         );
                                         break;
                                     }
-                                    case 'result_text':
-                                        responseText = event.text;
+                                    case 'result':
+                                        if (event.text) {
+                                            responseText = event.text;
+                                        }
                                         break;
                                     default:
                                         assertUnreachable(
@@ -1512,9 +1521,10 @@ export class AppGenerateService extends BaseService {
                     };
                 });
             const toolCallCount = processor.totalToolCalls;
+            const usage = processor.lastUsage;
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
-                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, exit=${result.exitCode}, toolCalls=${toolCallCount}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+                `App ${appUuid}: Claude code generation completed (model=${claudeModel}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
             );
 
             if (result.exitCode === 0) {
@@ -1523,7 +1533,7 @@ export class AppGenerateService extends BaseService {
                         `App ${appUuid}: Claude generation recovered after ${attempt - 1} retry(ies)`,
                     );
                 }
-                return { durationMs, responseText, toolCallCount };
+                return { durationMs, responseText, toolCallCount, usage };
             }
 
             const stderrTail = AppGenerateService.truncateEnd(
@@ -1620,6 +1630,7 @@ export class AppGenerateService extends BaseService {
         name: string;
         description: string;
         durationMs: number;
+        usage: ClaudeGenerationUsage | null;
     } | null> {
         const start = performance.now();
         const metadataPrompt =
@@ -1677,7 +1688,12 @@ export class AppGenerateService extends BaseService {
                 );
                 return null;
             }
-            return { name, description: description ?? '', durationMs };
+            return {
+                name,
+                description: description ?? '',
+                durationMs,
+                usage: generation.usage,
+            };
         } catch {
             const safeLog = generation.responseText
                 .replace(/[\n\r]/g, ' ')
@@ -1765,10 +1781,12 @@ export class AppGenerateService extends BaseService {
         buildMs: number;
         fixAttempts: number;
         fixGenerationMs: number;
+        fixUsage: ClaudeGenerationUsage;
     }> {
         let buildMs = 0;
         let fixGenerationMs = 0;
         let fixAttempts = 0;
+        let fixUsage: ClaudeGenerationUsage = ZERO_CLAUDE_USAGE;
 
         let lastResult = await this.runBuild(sandbox, appUuid);
         buildMs += lastResult.durationMs;
@@ -1850,6 +1868,7 @@ export class AppGenerateService extends BaseService {
                 claudeModel,
             );
             fixGenerationMs += generation.durationMs;
+            fixUsage = addClaudeUsage(fixUsage, generation.usage);
 
             try {
                 await this.appModel.updateStatusMessage(
@@ -1890,7 +1909,7 @@ export class AppGenerateService extends BaseService {
             );
         }
 
-        return { buildMs, fixAttempts, fixGenerationMs };
+        return { buildMs, fixAttempts, fixGenerationMs, fixUsage };
     }
 
     // Heading text rendered by the shipped src/App.jsx stub. The blank-app
@@ -2318,6 +2337,10 @@ export class AppGenerateService extends BaseService {
         let buildFixGenerationMs = 0;
         let distBytes = 0;
         let sourceBytes = 0;
+        // Token/turn/cost usage summed across every `claude` invocation in the
+        // build (main generation + build-fix re-runs + metadata). Reported on
+        // the completion analytics event to decompose `generateMs`.
+        let generationUsage: ClaudeGenerationUsage = ZERO_CLAUDE_USAGE;
 
         // --- Stage: catalog ---
         if (shouldRun('catalog')) {
@@ -2403,6 +2426,10 @@ export class AppGenerateService extends BaseService {
                 durations.generateMs = generation.durationMs;
                 responseText = generation.responseText;
                 toolCallCount = generation.toolCallCount;
+                generationUsage = addClaudeUsage(
+                    generationUsage,
+                    generation.usage,
+                );
             } catch (error) {
                 const totalMs = AppGenerateService.elapsed(overallStart);
                 this.logger.error(
@@ -2465,6 +2492,10 @@ export class AppGenerateService extends BaseService {
                 durations.buildMs = buildResult.buildMs;
                 buildFixAttempts = buildResult.fixAttempts;
                 buildFixGenerationMs = buildResult.fixGenerationMs;
+                generationUsage = addClaudeUsage(
+                    generationUsage,
+                    buildResult.fixUsage,
+                );
                 if (buildResult.fixAttempts > 0) {
                     durations.buildFixMs = buildResult.fixGenerationMs;
                     durations.buildFixAttempts = buildResult.fixAttempts;
@@ -2520,6 +2551,10 @@ export class AppGenerateService extends BaseService {
                         `App ${appUuid}: auto-named "${metadata.name}"`,
                     );
                     durations.metadataMs = metadata.durationMs;
+                    generationUsage = addClaudeUsage(
+                        generationUsage,
+                        metadata.usage,
+                    );
                 }
             } catch (error) {
                 // Non-fatal — the app works fine without a name
@@ -2624,7 +2659,9 @@ export class AppGenerateService extends BaseService {
                 durations,
             )
                 .map(([k, v]) => `${k}=${v}ms`)
-                .join(', ')})`,
+                .join(
+                    ', ',
+                )}, numTurns=${generationUsage.numTurns}, inputTokens=${generationUsage.inputTokens}, outputTokens=${generationUsage.outputTokens}, cacheReadTokens=${generationUsage.cacheReadInputTokens}, cacheCreationTokens=${generationUsage.cacheCreationInputTokens}, costUsd=${generationUsage.costUsd})`,
         );
 
         this.analytics.track({
@@ -2650,6 +2687,14 @@ export class AppGenerateService extends BaseService {
                 buildFixAttempts,
                 buildFixGenerationMs,
                 toolCallCount,
+                inputTokens: generationUsage.inputTokens,
+                outputTokens: generationUsage.outputTokens,
+                cacheReadInputTokens: generationUsage.cacheReadInputTokens,
+                cacheCreationInputTokens:
+                    generationUsage.cacheCreationInputTokens,
+                numTurns: generationUsage.numTurns,
+                durationApiMs: generationUsage.durationApiMs,
+                totalCostUsd: generationUsage.costUsd,
                 catalogTableCount: catalogStats.tableCount,
                 catalogDimensionCount: catalogStats.dimensionCount,
                 catalogMetricCount: catalogStats.metricCount,

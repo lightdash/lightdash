@@ -1,3 +1,29 @@
+# [0.3170.0](https://github.com/lightdash/lightdash/compare/0.3169.0...0.3170.0) (2026-06-16)
+
+
+### Features
+
+* **data-apps:** capture Claude generation token/turn/cost usage in analytics ([#24348](https://github.com/lightdash/lightdash/issues/24348)) ([3222e35](https://github.com/lightdash/lightdash/commit/3222e357e1a77e79d02be1d0791603ab5fd6cbe8))
+
+# [0.3169.0](https://github.com/lightdash/lightdash/compare/0.3168.0...0.3169.0) (2026-06-16)
+
+
+### Features
+
+* embed AI agent support ([#24282](https://github.com/lightdash/lightdash/issues/24282)) ([998824b](https://github.com/lightdash/lightdash/commit/998824bc88c68a0079408bcacf317008b93ad2f6)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Performance Improvements
+
+* **backend:** fire-and-forget chart-view event in SavedChartService.get ([#24331](https://github.com/lightdash/lightdash/issues/24331)) ([fda1695](https://github.com/lightdash/lightdash/commit/fda1695d570cc2bdae776afcbd0e0bb546dbbce9))
+
+# [0.3168.0](https://github.com/lightdash/lightdash/compare/0.3167.3...0.3168.0) (2026-06-16)
+
+
+### Features
+
+* **ai-agents:** support uploaded agent avatars ([#24321](https://github.com/lightdash/lightdash/issues/24321)) ([d96f6b0](https://github.com/lightdash/lightdash/commit/d96f6b000bbe714355bf00c22d73fbbaba285e36))
+
 ## [0.3167.3](https://github.com/lightdash/lightdash/compare/0.3167.2...0.3167.3) (2026-06-16)
 
 

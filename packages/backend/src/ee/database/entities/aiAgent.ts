@@ -10,6 +10,7 @@ export type DbAiAgent = {
     slug: string;
     description: string | null;
     image_url: string | null;
+    image_url_source: 'upload' | 'url' | null;
     tags: string[] | null;
     enable_data_access: boolean;
     enable_self_improvement: boolean;

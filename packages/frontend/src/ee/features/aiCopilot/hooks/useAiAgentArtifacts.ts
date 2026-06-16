@@ -9,6 +9,7 @@ import {
 import { useNavigate } from 'react-router';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { getAiAgentApiBase, getAiAgentPageBase } from './aiAgentRouting';
 
 const AI_AGENT_ARTIFACT_KEY = 'aiAgentArtifact';
 
@@ -19,7 +20,9 @@ const getAiAgentArtifact = async (
 ): Promise<AiArtifact> => {
     return lightdashApi<AiArtifact>({
         version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}`,
+        url: `${getAiAgentApiBase(
+            projectUuid,
+        )}/${agentUuid}/artifacts/${artifactUuid}`,
         method: 'GET',
         body: undefined,
     });
@@ -33,7 +36,9 @@ const getAiAgentArtifactVersion = async (
 ): Promise<AiArtifact> => {
     return lightdashApi<AiArtifact>({
         version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}`,
+        url: `${getAiAgentApiBase(
+            projectUuid,
+        )}/${agentUuid}/artifacts/${artifactUuid}/versions/${versionUuid}`,
         method: 'GET',
         body: undefined,
     });
@@ -85,7 +90,7 @@ export const useAiAgentArtifact = ({
         onError: (error) => {
             if (error.error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
             } else {
                 showToastApiError({
@@ -194,7 +199,7 @@ export const useSetArtifactVersionVerified = (
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
             } else {
                 showToastApiError({

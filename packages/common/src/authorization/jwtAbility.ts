@@ -1,6 +1,6 @@
 import { type AbilityBuilder } from '@casl/ability';
 import flow from 'lodash/flow';
-import { isDashboardContent, type CreateEmbedJwt } from '../ee';
+import { isChartContent, isDashboardContent, type CreateEmbedJwt } from '../ee';
 import type { EmbedContent, OssEmbed } from '../types/auth';
 import assertUnreachable from '../utils/assertUnreachable';
 import type { MemberAbility } from './types';
@@ -194,18 +194,22 @@ const exportAbilities: EmbeddedAbilityBuilder = ({
     const { organization } = embed;
     const { can } = builder;
 
+    if (!isDashboardContent(permissions) && !isChartContent(permissions)) {
+        return { embedUser, content, embed, externalId, builder };
+    }
+
     const subjectType: 'Dashboard' | 'SavedChart' =
         content.type === 'dashboard' ? 'Dashboard' : 'SavedChart';
 
     // Common abilities for both dashboard and chart
-    if ('canExportImages' in permissions && permissions.canExportImages) {
+    if (permissions.canExportImages) {
         can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'images',
         });
     }
 
-    if ('canExportCsv' in permissions && permissions.canExportCsv) {
+    if (permissions.canExportCsv) {
         can('export', subjectType, {
             organizationUuid: organization.organizationUuid,
             type: 'csv',
@@ -247,6 +251,8 @@ const getEmbeddedAbilitiesForType = (
             return chartTypeAbilities;
         case 'dataApp':
             return dataAppTypeAbilities;
+        case 'aiAgent':
+            return [];
         case 'dashboard':
             return dashboardTypeAbilities;
         default:

@@ -99,8 +99,10 @@ export type EmbedContent = {
     explores: string[];
     /** The data app UUID the JWT may have access to (standalone app embed) */
     appUuid?: string;
+    /** The AI agent UUID the JWT may have access to */
+    agentUuid?: string;
     /** The type of content */
-    type: 'dashboard' | 'chart' | 'dataApp';
+    type: 'dashboard' | 'chart' | 'dataApp' | 'aiAgent';
 };
 
 export type EmbedAccess = {
@@ -175,6 +177,8 @@ export type AnonymousAccount = BaseAccountWithHelpers & {
     embedWriteUser?: SessionUser;
     embedWriteContext?: {
         canCreateSavedChart: boolean;
+        canUseAiAgent: boolean;
+        aiAgentErrorMessage?: string;
     };
     /** The access permissions the account has */
     access: EmbedAccess;

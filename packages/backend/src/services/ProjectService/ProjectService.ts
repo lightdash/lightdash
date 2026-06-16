@@ -795,11 +795,12 @@ export class ProjectService extends BaseService {
             ? user.organizationUuid
             : account.organization.organizationUuid;
         const email = user ? user.email : account.user.email;
+        const isServiceAccountPrincipal =
+            account?.isServiceAccount() || !!user?.serviceAccount;
 
-        // Service accounts have no email and no row in the `emails` table —
-        // `getPrimaryEmailStatus` would 404. They also have no intrinsic
-        // email attributes to attach.
-        if (account?.isServiceAccount()) {
+        // Service-account principals have no email row, so they have no
+        // intrinsic email attributes to attach.
+        if (isServiceAccountPrincipal || !email) {
             const userAttributes =
                 await this.userAttributesModel.getAttributeValuesForOrgMember({
                     organizationUuid: organizationUuid || '',
@@ -5537,11 +5538,26 @@ export class ProjectService extends BaseService {
                 filters,
             });
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: user.userUuid,
-            isRegisteredUser: true,
-        });
+        const [
+            warehouseCredentials,
+            { userAttributes, intrinsicUserAttributes },
+            availableParameterDefinitions,
+            combinedParameters,
+            projectTimezone,
+            useTimezoneAwareDateTrunc,
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: user.userUuid,
+                isRegisteredUser: true,
+            }),
+            this.getUserAttributes({ user }),
+            this.getAvailableParameters(projectUuid, explore),
+            this.combineParameters(projectUuid, explore, parameters),
+            this.getQueryTimezoneForProject(projectUuid),
+            this.isTimezoneSupportEnabled(user),
+        ]);
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
@@ -5550,8 +5566,6 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ user });
 
         const mergedUserAttributes = userAttributeOverrides
             ? {
@@ -5560,28 +5574,12 @@ export class ProjectService extends BaseService {
               }
             : userAttributes;
 
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        // Combine request parameters with defaults from parameter definitions
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            parameters,
-        );
-
-        const projectTimezone =
-            await this.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone({
             sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: user.timezone,
         });
-        const useTimezoneAwareDateTrunc =
-            await this.isTimezoneSupportEnabled(user);
 
         const { query } = await ProjectService._compileQuery({
             metricQuery,

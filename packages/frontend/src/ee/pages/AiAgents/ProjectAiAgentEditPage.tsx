@@ -18,7 +18,7 @@ import {
     IconCircleCheck,
     IconMessageCircleShare,
 } from '@tabler/icons-react';
-import { useEffect, type FC } from 'react';
+import { useEffect, useState, type FC } from 'react';
 import {
     Link,
     useBlocker,
@@ -45,10 +45,37 @@ import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentP
 import {
     useProjectAiAgent,
     useProjectCreateAiAgentMutation,
+    useProjectUploadAiAgentAvatarMutation,
     useProjectUpdateAiAgentMutation,
 } from '../../features/aiCopilot/hooks/useProjectAiAgents';
 import { useAgentAiMcpServers } from '../../features/aiCopilot/hooks/useProjectAiMcpServers';
 import { EvalsSetup } from './EvalsSetup';
+
+// Uploaded avatars open in upload mode (never expose the persistent file URL);
+// user-provided URLs open in link mode.
+const getAvatarModeForAgent = (
+    agent:
+        | { imageUrl: string | null; imageUrlSource: 'upload' | 'url' | null }
+        | undefined,
+): 'upload' | 'link' =>
+    agent?.imageUrl && agent.imageUrlSource !== 'upload' ? 'link' : 'upload';
+
+// Object URL lifecycle for a staged file: create on change, revoke on cleanup.
+const useObjectUrl = (file: File | null): string | null => {
+    const [url, setUrl] = useState<string | null>(null);
+    useEffect(() => {
+        if (!file) {
+            setUrl(null);
+            return;
+        }
+        const objectUrl = URL.createObjectURL(file);
+        setUrl(objectUrl);
+        return () => {
+            URL.revokeObjectURL(objectUrl);
+        };
+    }, [file]);
+    return url;
+};
 
 const formSchema = z.object({
     name: z.string().min(1),
@@ -127,6 +154,10 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
         validate: zodResolver(formSchema),
     });
 
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [avatarMode, setAvatarMode] = useState<'upload' | 'link'>('upload');
+    const avatarPreviewUrl = useObjectUrl(avatarFile);
+
     useEffect(() => {
         if (isCreateMode || !agent || !isAgentMcpServersFetched) {
             return;
@@ -153,6 +184,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             };
             form.setValues(values);
             form.resetDirty(values);
+            setAvatarMode(getAvatarModeForAgent(agent));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [agent, agentMcpServers, isAgentMcpServersFetched, isCreateMode]);
@@ -165,33 +197,82 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
           : 'setup';
 
     const { mutateAsync: createAgent, isLoading: isCreatingAgent } =
-        useProjectCreateAiAgentMutation(projectUuid!);
+        useProjectCreateAiAgentMutation(projectUuid!, {
+            skipNavigation: true,
+        });
     const { mutateAsync: updateAgent, isLoading: isUpdatingAgent } =
         useProjectUpdateAiAgentMutation(projectUuid!);
+    const { mutateAsync: uploadAgentAvatar, isLoading: isUploadingAvatar } =
+        useProjectUploadAiAgentAvatarMutation(projectUuid!);
     const handleSubmit = form.onSubmit(async (values) => {
         if (!projectUuid || !user?.data) {
             return;
         }
 
         if (isCreateMode) {
-            await createAgent({
+            const createdAgent = await createAgent({
                 ...values,
                 projectUuid,
             });
+            let finalAgent = createdAgent;
+
+            if (avatarFile) {
+                try {
+                    finalAgent = await uploadAgentAvatar({
+                        agentUuid: createdAgent.uuid,
+                        file: avatarFile,
+                    });
+                } catch {
+                    finalAgent = createdAgent;
+                }
+            }
+
+            setAvatarFile(null);
+            const nextValues = {
+                ...values,
+                imageUrl: finalAgent.imageUrl,
+            };
+            form.setValues(nextValues);
+            form.resetDirty(nextValues);
+            void navigate(
+                `/projects/${projectUuid}/ai-agents/${createdAgent.uuid}`,
+            );
+            return;
         }
 
         if (actualAgentUuid) {
-            await updateAgent({
+            let finalAgent = await updateAgent({
                 uuid: actualAgentUuid,
                 projectUuid,
                 ...values,
             });
-            form.resetDirty(values);
+
+            if (avatarFile) {
+                try {
+                    finalAgent = await uploadAgentAvatar({
+                        agentUuid: actualAgentUuid,
+                        file: avatarFile,
+                    });
+                } catch {
+                    // upload mutation already shows an error toast
+                }
+            }
+
+            setAvatarFile(null);
+            const nextValues = {
+                ...values,
+                imageUrl: finalAgent.imageUrl,
+            };
+            form.setValues(nextValues);
+            form.resetDirty(nextValues);
         }
     });
 
     const hasUnsavedChanges =
-        form.isDirty() && !isCreatingAgent && !isUpdatingAgent;
+        (form.isDirty() || !!avatarFile) &&
+        !isCreatingAgent &&
+        !isUpdatingAgent &&
+        !isUploadingAvatar;
 
     useBlocker(({ currentLocation, nextLocation }) => {
         if (
@@ -285,15 +366,20 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                             >
                                 Back
                             </Button>
-                            {form.isDirty() && (
+                            {(form.isDirty() || !!avatarFile) && (
                                 <Button
                                     size="xs"
                                     disabled={
-                                        !form.isDirty() ||
+                                        (!form.isDirty() && !avatarFile) ||
                                         isCreatingAgent ||
-                                        isUpdatingAgent
+                                        isUpdatingAgent ||
+                                        isUploadingAvatar
                                     }
-                                    loading={isCreatingAgent || isUpdatingAgent}
+                                    loading={
+                                        isCreatingAgent ||
+                                        isUpdatingAgent ||
+                                        isUploadingAvatar
+                                    }
                                     onClick={() => handleSubmit()}
                                 >
                                     Save changes
@@ -303,7 +389,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                         <LightdashUserAvatar
                             name={isCreateMode ? '+' : form.values.name}
                             src={
-                                !isCreateMode ? form.values.imageUrl : undefined
+                                !isCreateMode
+                                    ? (avatarPreviewUrl ??
+                                      form.values.imageUrl ??
+                                      undefined)
+                                    : (avatarPreviewUrl ?? undefined)
                             }
                             size={80}
                         />
@@ -408,10 +498,48 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 agentUuid={actualAgentUuid}
                                 form={form}
                                 projectUuid={projectUuid!}
-                                isSavingAgent={isUpdatingAgent}
+                                isSavingAgent={
+                                    isCreatingAgent ||
+                                    isUpdatingAgent ||
+                                    isUploadingAvatar
+                                }
                                 persistedMcpServerUuids={agentMcpServers?.map(
                                     (mcpServer) => mcpServer.uuid,
                                 )}
+                                avatarMode={avatarMode}
+                                avatarFileName={avatarFile?.name ?? null}
+                                onAvatarFileChange={(file) => {
+                                    setAvatarFile(file);
+                                    setAvatarMode('upload');
+                                }}
+                                onAvatarModeChange={(nextMode) => {
+                                    if (nextMode === 'link') {
+                                        setAvatarFile(null);
+                                    }
+                                    setAvatarMode(nextMode);
+                                }}
+                                onAvatarRemove={() => {
+                                    setAvatarFile(null);
+                                    form.setFieldValue('imageUrl', null);
+                                    setAvatarMode('upload');
+                                }}
+                                onAvatarRevert={
+                                    !isCreateMode &&
+                                    (!!avatarFile ||
+                                        (form.values.imageUrl ?? null) !==
+                                            (agent?.imageUrl ?? null))
+                                        ? () => {
+                                              setAvatarFile(null);
+                                              form.setFieldValue(
+                                                  'imageUrl',
+                                                  agent?.imageUrl ?? null,
+                                              );
+                                              setAvatarMode(
+                                                  getAvatarModeForAgent(agent),
+                                              );
+                                          }
+                                        : null
+                                }
                             />
                         </Box>
                     )}
