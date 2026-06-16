@@ -6,6 +6,7 @@ import {
     type AiPromptContextItem,
     type ApiContentResponse,
     type ApiProjectFilesResponse,
+    type ApiProjectRepositoriesResponse,
     type ChartKind,
     type GitRepo,
     type SummaryContent,
@@ -178,18 +179,21 @@ const getProjectFileSuggestions = async (
     }));
 };
 
-// The installation's accessible repositories are org-level (the same for every
-// keystroke), so fetch once per project and filter client-side — mirroring the
-// project-files cache. Errors (no GitHub App, no source-code access) resolve to
-// an empty list, so the Repositories group simply doesn't appear.
+// The repositories the agent can read are the same for every keystroke in a
+// thread, so fetch once per project and filter client-side — mirroring the
+// project-files cache. Uses the project-scoped endpoint (gated by
+// view:SourceCode) rather than the org-wide /github/repos/list, so repo names
+// are never exposed to users without source-code access. Errors (no GitHub App,
+// no source-code access) resolve to an empty list, so the Repositories group
+// simply doesn't appear.
 const repositoriesCache = new Map<string, Promise<GitRepo[]>>();
 
 const fetchRepositories = (projectUuid: string): Promise<GitRepo[]> => {
     const cached = repositoriesCache.get(projectUuid);
     if (cached) return cached;
-    const request = lightdashApi<GitRepo[]>({
+    const request = lightdashApi<ApiProjectRepositoriesResponse['results']>({
         version: 'v1',
-        url: `/github/repos/list`,
+        url: `/ee/projects/${projectUuid}/ai-writeback/repositories`,
         method: 'GET',
         body: undefined,
     }).catch((error: unknown) => {

@@ -13,6 +13,7 @@ import {
     WarehouseTypes,
     type AiWritebackRunResult,
     type AiWritebackStep,
+    type GitRepo,
     type PullRequestWritebackAction,
     type SessionUser,
 } from '@lightdash/common';
@@ -516,6 +517,34 @@ export class AiWritebackService extends BaseService {
             files: sorted.slice(0, MAX_FILES),
             truncated: truncated || sorted.length > MAX_FILES,
         };
+    }
+
+    /**
+     * List the repositories the agent can read, for the chat input's
+     * `@`-mention repository picker. Returns the same union the agent's repo VFS
+     * mounts — gated by the project's `view:SourceCode` ability via
+     * {@link getInstallationRepoReadAccess} — so a user without source-code
+     * access can't enumerate repo names (unlike the org-wide
+     * `/github/repos/list` endpoint).
+     */
+    async listProjectRepositories({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<GitRepo[]> {
+        const access = await this.getInstallationRepoReadAccess({
+            user,
+            projectUuid,
+        });
+        const repos = await access.listRepos();
+        return repos.map(({ owner, repo, defaultBranch }) => ({
+            name: repo,
+            ownerLogin: owner,
+            fullName: `${owner}/${repo}`,
+            defaultBranch,
+        }));
     }
 
     private async assertEnabled(

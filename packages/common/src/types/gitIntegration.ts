@@ -237,6 +237,18 @@ export type ApiProjectFilesResponse = {
     results: ProjectFiles;
 };
 
+/**
+ * The repositories the agent can read for a project, used by the chat input's
+ * `@`-mention repository picker. This is the same union the agent's repo VFS
+ * mounts (the org installation's repos plus the linked user's own), gated by the
+ * project's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`
+ * endpoint, it never exposes repo names to users without source-code access.
+ */
+export type ApiProjectRepositoriesResponse = {
+    status: 'ok';
+    results: GitRepo[];
+};
+
 const PREVIEW_PROJECT_UUID =
     '[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}';
 
