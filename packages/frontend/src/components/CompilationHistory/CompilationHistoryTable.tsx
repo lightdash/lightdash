@@ -91,12 +91,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         return sorting[0].desc ? 'desc' : 'asc';
     }, [sorting]);
 
-    const hasActiveFilters = selectedSource !== null;
-
-    const resetFilters = useCallback(() => {
-        setSelectedSource(null);
-    }, []);
-
     const { data, fetchNextPage, isError, isFetching, isLoading } =
         useProjectCompileLogs({
             projectUuid,
@@ -292,10 +286,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             <CompilationHistoryTopToolbar
                 selectedSource={selectedSource}
                 setSelectedSource={setSelectedSource}
-                isFetching={isFetching || isLoading}
-                currentResultsCount={totalFetched}
-                hasActiveFilters={hasActiveFilters}
-                resetFilters={resetFilters}
             />
         ),
         mantinePaperProps: {
