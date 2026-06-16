@@ -81,6 +81,85 @@ describe('Formatting', () => {
     });
 
     describe('applying CustomFormat to value', () => {
+        describe('timezone threading (GLITCH-498)', () => {
+            const utcInstant = new Date('2025-01-15T17:00:00.000Z'); // 06:00 in Pago_Pago (UTC-11)
+            const tz = 'Pacific/Pago_Pago';
+
+            test('TIMESTAMP format shifts a Date value into the timezone', () => {
+                expect(
+                    applyCustomFormat(
+                        utcInstant,
+                        { type: CustomFormatType.TIMESTAMP },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15, 06:00:00:000 (-11:00)');
+            });
+
+            test('TIMESTAMP format shifts a timestamp string into the timezone', () => {
+                expect(
+                    applyCustomFormat(
+                        '2025-01-15 17:00:00',
+                        { type: CustomFormatType.TIMESTAMP },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15, 06:00:00:000 (-11:00)');
+            });
+
+            test('early Date branch (non-temporal format type) shifts via formatTimestamp', () => {
+                // value is a Date and format.type is PERCENT -> hits the early
+                // `value instanceof Date` branch (formatting.ts:708-715)
+                expect(
+                    applyCustomFormat(
+                        utcInstant,
+                        { type: CustomFormatType.PERCENT },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15, 06:00:00:000 (-11:00)');
+            });
+
+            test('CUSTOM expression on a timestamp string shifts into the timezone', () => {
+                expect(
+                    applyCustomFormat(
+                        '2025-01-15 17:00:00',
+                        {
+                            type: CustomFormatType.CUSTOM,
+                            custom: 'yyyy-mm-dd hh:mm:ss',
+                        },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15 06:00:00');
+            });
+
+            test('DATE format on a date-only string does NOT shift (by-value gate)', () => {
+                // isTimestampString('2025-01-15') === false -> no time component ->
+                // effectiveTimezone is undefined -> calendar day is preserved
+                expect(
+                    applyCustomFormat(
+                        '2025-01-15',
+                        { type: CustomFormatType.DATE },
+                        tz,
+                    ),
+                ).toEqual('2025-01-15');
+            });
+
+            test('numeric formats ignore timezone (no-op)', () => {
+                expect(
+                    applyCustomFormat(
+                        5000,
+                        { type: CustomFormatType.NUMBER },
+                        tz,
+                    ),
+                ).toEqual('5,000');
+                expect(
+                    applyCustomFormat(
+                        0.05,
+                        { type: CustomFormatType.PERCENT },
+                        tz,
+                    ),
+                ).toEqual('5%');
+            });
+        });
+
         describe('when using legacy format', () => {
             test('if Format is legacy distance unit it should return the right format', () => {
                 expect(
@@ -1307,6 +1386,102 @@ describe('Formatting', () => {
         });
     });
     describe('additional metric formatting', () => {
+        describe('timezone shifting for MIN/MAX (GLITCH-498)', () => {
+            // MIN/MAX values arrive from query results as ISO datetime
+            // STRINGS (not Date objects), which is the case the explore table
+            // renders. Each must shift into the project timezone like the
+            // underlying dimension does.
+            test('TIMESTAMP format shifts a string value into the timezone', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MAX,
+                            formatOptions: {
+                                type: CustomFormatType.TIMESTAMP,
+                                timeInterval: TimeFrames.RAW,
+                            },
+                        },
+                        '2025-01-15T17:00:00.000Z',
+                        false,
+                        undefined,
+                        'America/Anchorage', // -09:00 in January
+                    ),
+                ).toEqual('2025-01-15, 08:00:00:000 (-09:00)');
+            });
+
+            test('TIMESTAMP format shifts a Date value into the timezone', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MIN,
+                            formatOptions: { type: CustomFormatType.TIMESTAMP },
+                        },
+                        new Date('2025-01-15T17:00:00.000Z'),
+                        false,
+                        undefined,
+                        'Asia/Tokyo', // +09:00, no DST
+                    ),
+                ).toEqual('2025-01-16, 02:00:00:000 (+09:00)');
+            });
+
+            test('CUSTOM expression shifts a string value into the timezone', () => {
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MAX,
+                            formatOptions: {
+                                type: CustomFormatType.CUSTOM,
+                                custom: 'yyyy-mm-dd hh:mm:ss',
+                            },
+                        },
+                        '2025-01-15T17:00:00.000Z',
+                        false,
+                        undefined,
+                        'America/Anchorage',
+                    ),
+                ).toEqual('2025-01-15 08:00:00');
+            });
+
+            test('no timezone is bit-identical to pre-fix behaviour (flag-off parity)', () => {
+                // With no timezone the string still hits the valueIsNaN guard
+                // and renders raw, exactly as before this change.
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MAX,
+                            formatOptions: {
+                                type: CustomFormatType.TIMESTAMP,
+                                timeInterval: TimeFrames.RAW,
+                            },
+                        },
+                        '2025-01-15T17:00:00.000Z',
+                    ),
+                ).toEqual('2025-01-15T17:00:00.000Z');
+            });
+
+            test('DATE format over a date-only string is not shifted', () => {
+                // The by-value gate leaves a date-only string alone, so a
+                // MIN/MAX over a real DATE column keeps its calendar day.
+                expect(
+                    formatItemValue(
+                        {
+                            ...additionalMetric,
+                            type: MetricType.MAX,
+                            formatOptions: { type: CustomFormatType.DATE },
+                        },
+                        '2021-03-10',
+                        false,
+                        undefined,
+                        'Pacific/Pago_Pago', // -11:00, would roll the day back
+                    ),
+                ).toEqual('2021-03-10');
+            });
+        });
+
         test('format additional metric with custom format DATE', () => {
             expect(
                 formatItemValue(

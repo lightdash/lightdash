@@ -92,6 +92,7 @@ const formatComparisonValue = (
                           round: metricRoundRaw ?? 2,
                           compact: bigNumberComparisonStyle,
                       }),
+                      timezone,
                   )
                 : formatItemValue(item, value, false, parameters, timezone);
 
@@ -115,6 +116,7 @@ const formatComparisonValue = (
                           round: metricRoundDefault ?? 2,
                           compact: bigNumberComparisonStyle,
                       }),
+                      timezone,
                   )
                 : formatItemValue(item, value, false, parameters, timezone);
     }
@@ -351,11 +353,15 @@ const useBigNumberConfig = (
                         : CustomFormatType.DEFAULT
                     : item.formatOptions?.type;
 
-            return applyCustomFormat(firstRowValueRaw, {
-                ...item.formatOptions,
-                type,
-                compact: bigNumberStyle ?? item.formatOptions?.compact,
-            });
+            return applyCustomFormat(
+                firstRowValueRaw,
+                {
+                    ...item.formatOptions,
+                    type,
+                    compact: bigNumberStyle ?? item.formatOptions?.compact,
+                },
+                resultsData?.resolvedTimezone,
+            );
         } else {
             const metricRound = isField(item) ? item.round : undefined;
             const compactStyleDefault = bigNumberStyle ? 2 : undefined;
@@ -366,6 +372,7 @@ const useBigNumberConfig = (
                     round: metricRound ?? compactStyleDefault,
                     compact: bigNumberStyle,
                 }),
+                resultsData?.resolvedTimezone,
             );
         }
     }, [

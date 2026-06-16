@@ -48,6 +48,7 @@ import {
     isTableCalculation,
     LightdashParameters,
     MetricType,
+    shouldShiftItemTimezone,
     StackType,
     TableCalculationType,
     TimeFrames,
@@ -751,6 +752,7 @@ const seriesValueFormatter = (
     item: Item,
     value: unknown,
     parameters?: ParametersValuesMap,
+    resolvedTimezone?: string,
 ) => {
     if (hasValidFormatExpression(item)) {
         // Check if format uses parameter placeholders
@@ -764,14 +766,30 @@ const seriesValueFormatter = (
                 ? evaluateConditionalFormatExpression(item.format, parameters)
                 : item.format;
 
-        return formatValueWithExpression(formatExpression, value);
+        // Only shift genuinely timezone-shiftable temporal fields, matching
+        // formatItemValue's own format-expression branch.
+        const expressionTimezone = shouldShiftItemTimezone(item)
+            ? resolvedTimezone
+            : undefined;
+        return formatValueWithExpression(
+            formatExpression,
+            value,
+            undefined,
+            expressionTimezone,
+        );
     }
 
     if (isCustomDimension(item)) {
         return value;
     }
     if (isTableCalculation(item)) {
-        return formatItemValue(item, value, false, parameters);
+        return formatItemValue(
+            item,
+            value,
+            false,
+            parameters,
+            resolvedTimezone,
+        );
     } else {
         const defaultFormatOptions = getCustomFormatFromLegacy({
             format: item.format,
@@ -784,7 +802,11 @@ const seriesValueFormatter = (
             isMetric(item) || isDimension(item)
                 ? item.formatOptions
                 : undefined;
-        return applyCustomFormat(value, formatOptions || defaultFormatOptions);
+        return applyCustomFormat(
+            value,
+            formatOptions || defaultFormatOptions,
+            resolvedTimezone,
+        );
     }
 };
 
@@ -1051,6 +1073,7 @@ const getPivotSeries = ({
                                               field,
                                               raw,
                                               parameters,
+                                              resolvedTimezone,
                                           ) ?? '',
                                       );
 
@@ -1240,6 +1263,7 @@ const getSimpleSeries = ({
                                           field,
                                           rawValue,
                                           parameters,
+                                          resolvedTimezone,
                                       ) ?? '',
                                   );
 

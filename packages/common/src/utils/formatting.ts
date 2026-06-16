@@ -700,10 +700,18 @@ export function formatValueWithExpression(
 export function applyCustomFormat(
     value: unknown,
     format?: CustomFormat | undefined,
+    timezone?: string,
 ): string {
     if (format?.type === undefined) return applyDefaultFormat(value);
 
     if (value === '') return '';
+
+    // Decide temporality by VALUE, not by format type: a MIN/MAX metric's type
+    // is its aggregation (MAX/MIN), not the underlying TIMESTAMP, so the only
+    // reliable signal is the value itself. isTimestampString excludes date-only
+    // strings so calendar days are never shifted (off-by-one under -ve offsets).
+    const isTemporal = value instanceof Date || isTimestampString(value);
+    const effectiveTimezone = isTemporal ? timezone : undefined;
 
     if (
         value instanceof Date &&
@@ -711,7 +719,40 @@ export function applyCustomFormat(
             format.type,
         )
     ) {
-        return formatTimestamp(value, undefined, false);
+        return formatTimestamp(value, undefined, false, effectiveTimezone);
+    }
+
+    // A timestamp STRING (e.g. a MIN/MAX metric rehydrated from query results)
+    // is `valueIsNaN`, so the guard below would return it raw and drop both the
+    // display format and the timezone. When a timezone is supplied, route the
+    // string through the temporal formatters first so it renders shifted. With
+    // no timezone (flag off) this is skipped and behaviour is unchanged.
+    if (effectiveTimezone && isTimestampString(value)) {
+        switch (format.type) {
+            case CustomFormatType.DATE:
+                return formatDate(
+                    value,
+                    format?.timeInterval,
+                    false,
+                    effectiveTimezone,
+                );
+            case CustomFormatType.TIMESTAMP:
+                return formatTimestamp(
+                    value,
+                    format?.timeInterval,
+                    false,
+                    effectiveTimezone,
+                );
+            case CustomFormatType.CUSTOM:
+                return formatValueWithExpression(
+                    format.custom || '',
+                    value,
+                    separatorToNumfmtLocale(format.separator),
+                    effectiveTimezone,
+                );
+            default:
+                break;
+        }
     }
 
     if (valueIsNaN(value) || value === null) {
@@ -737,9 +778,19 @@ export function applyCustomFormat(
 
             return `${currencyFormatted}${compactSuffix}`;
         case CustomFormatType.DATE:
-            return formatDate(value, format?.timeInterval, false);
+            return formatDate(
+                value,
+                format?.timeInterval,
+                false,
+                effectiveTimezone,
+            );
         case CustomFormatType.TIMESTAMP:
-            return formatTimestamp(value, format?.timeInterval, false);
+            return formatTimestamp(
+                value,
+                format?.timeInterval,
+                false,
+                effectiveTimezone,
+            );
         case CustomFormatType.NUMBER:
             const prefix = format.prefix || '';
             const suffix = format.suffix || '';
@@ -767,6 +818,7 @@ export function applyCustomFormat(
                 format.custom || '',
                 value,
                 separatorToNumfmtLocale(format.separator),
+                effectiveTimezone,
             );
         default:
             return assertUnreachable(
@@ -1199,7 +1251,13 @@ export function formatItemValue(
             }
         }
 
-        return applyCustomFormat(value, customFormat);
+        return applyCustomFormat(
+            value,
+            customFormat,
+            isDimension(item) && item.skipTimezoneConversion
+                ? undefined
+                : timezone,
+        );
     }
 
     return applyDefaultFormat(value);
