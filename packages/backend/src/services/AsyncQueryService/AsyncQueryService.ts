@@ -276,6 +276,10 @@ type AsyncQueryServiceArguments = ProjectServiceArguments & {
     preAggregateStrategy?: PreAggregateStrategy;
 };
 
+type ResolvedWarehouseCredentials = CreateWarehouseCredentials & {
+    userWarehouseCredentialsUuid: string | undefined;
+};
+
 export class AsyncQueryService extends ProjectService {
     private static sleep(ms: number, signal?: AbortSignal) {
         if (signal?.aborted) {
@@ -3436,6 +3440,7 @@ export class AsyncQueryService extends ProjectService {
             preAggregationRoute?: PreAggregationRoute;
             userAccessControls?: UserAccessControls;
             availableParameterDefinitions?: ParameterDefinitions;
+            warehouseCredentials: ResolvedWarehouseCredentials;
         },
         requestParameters: ExecuteAsyncQueryRequestParams,
         organizationUuid: string,
@@ -3465,19 +3470,11 @@ export class AsyncQueryService extends ProjectService {
                     preAggregationRoute,
                     userAccessControls,
                     availableParameterDefinitions,
+                    warehouseCredentials,
                 } = args;
 
                 try {
                     assertIsAccountWithOrg(account);
-
-                    // Once we remove the feature flag we won't need to fetch the credentials here, they will only be fetched in the scheduler task
-                    const warehouseCredentials =
-                        await this.getWarehouseCredentials({
-                            projectUuid,
-                            userId: account.user.id,
-                            isRegisteredUser: account.isRegisteredUser(),
-                            isServiceAccount: account.isServiceAccount(),
-                        });
 
                     const warehouseCredentialsType = warehouseCredentials.type;
                     const warehouseCredentialsOverrides: RunAsyncWarehouseQueryArgs['warehouseCredentialsOverrides'] =
@@ -4002,6 +3999,7 @@ export class AsyncQueryService extends ProjectService {
             preAggregationRoute?: PreAggregationRoute;
             userAccessControls?: UserAccessControls;
             availableParameterDefinitions?: ParameterDefinitions;
+            warehouseCredentials: ResolvedWarehouseCredentials;
             // Preloaded org from the caller (e.g. saved chart) to skip a redundant getSummary
             organizationUuid?: string;
         },
@@ -4262,6 +4260,7 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone,
                 useTimezoneAwareDateTrunc,
                 pivotConfiguration,
+                warehouseCredentials,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -4505,6 +4504,7 @@ export class AsyncQueryService extends ProjectService {
                 timezone: resolvedTimezone,
                 displayTimezone,
                 useTimezoneAwareDateTrunc,
+                warehouseCredentials,
                 routingTarget: 'warehouse',
             },
             requestParameters,
@@ -4792,6 +4792,7 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone,
                 useTimezoneAwareDateTrunc,
                 pivotConfiguration,
+                warehouseCredentials,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -5252,6 +5253,7 @@ export class AsyncQueryService extends ProjectService {
                 displayTimezone,
                 useTimezoneAwareDateTrunc,
                 pivotConfiguration,
+                warehouseCredentials,
                 routingTarget: routingDecision.target,
                 ...(routingDecision.target === 'pre_aggregate' && {
                     preAggregationRoute: routingDecision.route,
@@ -5569,6 +5571,7 @@ export class AsyncQueryService extends ProjectService {
                     timezone: resolvedTimezone,
                     displayTimezone,
                     useTimezoneAwareDateTrunc,
+                    warehouseCredentials,
                 },
                 requestParameters,
             );
@@ -5619,6 +5622,7 @@ export class AsyncQueryService extends ProjectService {
 
         const {
             warehouseConnection,
+            warehouseCredentials,
             queryTags,
             metricQuery,
             virtualView,
@@ -5656,6 +5660,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration,
                 displayTimezone: null,
                 useTimezoneAwareDateTrunc: false,
+                warehouseCredentials,
             },
             {
                 sql,
@@ -5709,14 +5714,15 @@ export class AsyncQueryService extends ProjectService {
 
         // 1. Warehouse Client & Credentials
         const sectionStartWarehouse = performance.now();
+        const warehouseCredentials = await this.getWarehouseCredentials({
+            projectUuid,
+            userId: account.user.id,
+            isRegisteredUser: account.isRegisteredUser(),
+            isServiceAccount: account.isServiceAccount(),
+        });
         const warehouseConnection = await this._getWarehouseClient(
             projectUuid,
-            await this.getWarehouseCredentials({
-                projectUuid,
-                userId: account.user.id,
-                isRegisteredUser: account.isRegisteredUser(),
-                isServiceAccount: account.isServiceAccount(),
-            }),
+            warehouseCredentials,
         );
 
         const queryTags: RunQueryTags = {
@@ -5988,6 +5994,7 @@ export class AsyncQueryService extends ProjectService {
             virtualView,
             queryTags,
             warehouseConnection,
+            warehouseCredentials,
             sql: replacedSql,
             parameterReferences: Array.from(parameterReferences),
             missingParameterReferences: Array.from(missingParameterReferences),
@@ -6023,6 +6030,7 @@ export class AsyncQueryService extends ProjectService {
 
         const {
             warehouseConnection,
+            warehouseCredentials,
             queryTags,
             metricQuery,
             virtualView,
@@ -6063,6 +6071,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration,
                 displayTimezone: null,
                 useTimezoneAwareDateTrunc: false,
+                warehouseCredentials,
             },
             {
                 query: metricQuery,
@@ -6166,6 +6175,7 @@ export class AsyncQueryService extends ProjectService {
 
         const {
             warehouseConnection,
+            warehouseCredentials,
             queryTags,
             metricQuery,
             virtualView,
@@ -6211,6 +6221,7 @@ export class AsyncQueryService extends ProjectService {
                 pivotConfiguration,
                 displayTimezone: null,
                 useTimezoneAwareDateTrunc: false,
+                warehouseCredentials,
             },
             {
                 query: metricQuery,
@@ -6604,6 +6615,7 @@ export class AsyncQueryService extends ProjectService {
                     timezone: resolvedTimezone,
                     displayTimezone,
                     useTimezoneAwareDateTrunc,
+                    warehouseCredentials,
                     routingTarget: routingDecision.target,
                     ...(routingDecision.target === 'pre_aggregate' && {
                         preAggregationRoute: routingDecision.route,

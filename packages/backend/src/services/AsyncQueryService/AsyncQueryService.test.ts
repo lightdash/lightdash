@@ -130,6 +130,11 @@ jest.mock('@lightdash/warehouses', () => ({
     SshTunnel: jest.fn(() => mockSshTunnel),
 }));
 
+const warehouseCredentialsMock = {
+    ...warehouseClientMock.credentials,
+    userWarehouseCredentialsUuid: undefined,
+};
+
 const projectModel = {
     getWithSensitiveFields: jest.fn(async () => projectWithSensitiveFields),
     get: jest.fn(async () => projectWithSensitiveFields),
@@ -540,6 +545,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -633,6 +639,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -738,6 +745,7 @@ describe('AsyncQueryService', () => {
                     timezone: 'Asia/Tokyo',
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -790,6 +798,7 @@ describe('AsyncQueryService', () => {
                     timezone: 'Asia/Tokyo',
                     displayTimezone: 'Asia/Tokyo',
                     useTimezoneAwareDateTrunc: true,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -847,6 +856,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -935,6 +945,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock, invalidateCache: true },
             );
@@ -997,6 +1008,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -1091,6 +1103,7 @@ describe('AsyncQueryService', () => {
                     ],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -1170,6 +1183,7 @@ describe('AsyncQueryService', () => {
                     availableParameterDefinitions: {},
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -1241,6 +1255,7 @@ describe('AsyncQueryService', () => {
                     availableParameterDefinitions: {},
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 {
                     query: {
@@ -1322,6 +1337,7 @@ describe('AsyncQueryService', () => {
                     availableParameterDefinitions: {},
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 {
                     query: {
@@ -1404,6 +1420,7 @@ describe('AsyncQueryService', () => {
                     availableParameterDefinitions: {},
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
@@ -2551,6 +2568,7 @@ describe('AsyncQueryService', () => {
                     missingParameterReferences: [],
                     displayTimezone: null,
                     useTimezoneAwareDateTrunc: false,
+                    warehouseCredentials: warehouseCredentialsMock,
                 },
                 { query: metricQueryMock },
             );
