@@ -130,6 +130,11 @@ export const warehouseClientMock: WarehouseClient = {
         orderBy
             ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
             : `ARRAY_AGG(${expression})`,
+    unnestDimension: (_arrayColumnSql: string, _elementAlias: string) => {
+        throw new Error(
+            'Unnesting array dimensions is not supported for this warehouse type',
+        );
+    },
 };
 
 export const bigqueryClientMock: WarehouseClient = {
@@ -210,6 +215,91 @@ export const bigqueryClientMock: WarehouseClient = {
         orderBy
             ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
             : `ARRAY_AGG(${expression})`,
+    unnestDimension: (_arrayColumnSql: string, _elementAlias: string) => {
+        throw new Error(
+            'Unnesting array dimensions is not supported for this warehouse type',
+        );
+    },
+};
+
+export const databricksClientMock: WarehouseClient = {
+    ...warehouseClientMock,
+    credentials: {
+        type: WarehouseTypes.DATABRICKS,
+    } as CreateWarehouseCredentials,
+    getFieldQuoteChar: () => '`',
+    getAdapterType: () => SupportedDbtAdapter.DATABRICKS,
+    getMetricSql: (sql, metric) => {
+        switch (metric.type) {
+            case MetricType.COUNT:
+                return `COUNT(${sql})`;
+            case MetricType.SUM:
+                return `SUM(${sql})`;
+            default:
+                return sql;
+        }
+    },
+    unnestDimension: (arrayColumnSql: string, elementAlias: string) =>
+        `LATERAL VIEW explode(${arrayColumnSql}) ${elementAlias}_view AS ${elementAlias}`,
+};
+
+export const EXPLORE_WITH_ARRAY_DIM: Explore = {
+    targetDatabase: SupportedDbtAdapter.DATABRICKS,
+    name: 'array_tags',
+    label: 'array_tags',
+    baseTable: 'array_tags',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        array_tags: {
+            name: 'array_tags',
+            label: 'array_tags',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '`db`.`schema`.`array_tags`',
+            dimensions: {
+                tags: {
+                    type: DimensionType.ARRAY,
+                    name: 'tags',
+                    label: 'tags',
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.tags',
+                    compiledSql: '`array_tags`.tags',
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+                customer_name: {
+                    type: DimensionType.STRING,
+                    name: 'customer_name',
+                    label: 'customer_name',
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.customer_name',
+                    compiledSql: '`array_tags`.customer_name',
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                count: {
+                    type: MetricType.COUNT,
+                    fieldType: FieldType.METRIC,
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    name: 'count',
+                    label: 'count',
+                    sql: '${TABLE}.id',
+                    compiledSql: 'COUNT(`array_tags`.id)',
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
 };
 
 export const emptyTable = (name: string): CompiledTable => ({
@@ -3889,4 +3979,107 @@ export const METRIC_QUERY_FANOUT_AND_DD_REFERENCE: CompiledMetricQuery = {
     compiledTableCalculations: [],
     compiledAdditionalMetrics: [],
     compiledCustomDimensions: [],
+};
+
+// Explore that combines an ARRAY dimension (requires unnesting on Databricks)
+// with a SUM_DISTINCT metric — used to test that NotSupportedError is raised.
+export const EXPLORE_WITH_ARRAY_DIM_AND_SUM_DISTINCT: Explore = {
+    targetDatabase: SupportedDbtAdapter.DATABRICKS,
+    name: 'array_tags',
+    label: 'array_tags',
+    baseTable: 'array_tags',
+    tags: [],
+    joinedTables: [],
+    tables: {
+        array_tags: {
+            name: 'array_tags',
+            label: 'array_tags',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '`db`.`schema`.`array_tags`',
+            primaryKey: ['id'],
+            dimensions: {
+                tags: {
+                    type: DimensionType.ARRAY,
+                    name: 'tags',
+                    label: 'tags',
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.tags',
+                    compiledSql: '`array_tags`.tags',
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+            },
+            metrics: {
+                total_revenue: {
+                    type: MetricType.SUM_DISTINCT,
+                    fieldType: FieldType.METRIC,
+                    table: 'array_tags',
+                    tableLabel: 'array_tags',
+                    name: 'total_revenue',
+                    label: 'Total Revenue',
+                    sql: '${TABLE}.amount',
+                    compiledSql: 'SUM(`array_tags`.amount)',
+                    compiledValueSql: '`array_tags`.amount',
+                    compiledDistinctKeys: ['`array_tags`.id'],
+                    tablesReferences: ['array_tags'],
+                    hidden: false,
+                },
+            },
+            lineageGraph: {},
+        },
+    },
+};
+
+export const METRIC_QUERY_ARRAY_DIM_WITH_SUM_DISTINCT: CompiledMetricQuery = {
+    exploreName: 'array_tags',
+    dimensions: ['array_tags_tags'],
+    metrics: ['array_tags_total_revenue'],
+    filters: {},
+    sorts: [],
+    limit: 10,
+    tableCalculations: [],
+    compiledTableCalculations: [],
+    compiledAdditionalMetrics: [],
+    compiledCustomDimensions: [],
+};
+
+export const EXPLORE_WITH_ARRAY_DIM_AND_JOIN: Explore = {
+    ...EXPLORE_WITH_ARRAY_DIM,
+    tables: {
+        ...EXPLORE_WITH_ARRAY_DIM.tables,
+        tags_info: {
+            name: 'tags_info',
+            label: 'tags_info',
+            database: 'database',
+            schema: 'schema',
+            sqlTable: '`db`.`schema`.`tags_info`',
+            dimensions: {
+                label: {
+                    type: DimensionType.STRING,
+                    name: 'label',
+                    label: 'label',
+                    table: 'tags_info',
+                    tableLabel: 'tags_info',
+                    fieldType: FieldType.DIMENSION,
+                    sql: '${TABLE}.label',
+                    compiledSql: '`tags_info`.label',
+                    tablesReferences: ['tags_info'],
+                    hidden: false,
+                },
+            },
+            metrics: {},
+            lineageGraph: {},
+        },
+    },
+    joinedTables: [
+        {
+            table: 'tags_info',
+            sqlOn: '${tags_info.id} = ${array_tags.id}',
+            compiledSqlOn: '(`tags_info`.id) = (`array_tags`.id)',
+            type: undefined,
+        },
+    ],
 };

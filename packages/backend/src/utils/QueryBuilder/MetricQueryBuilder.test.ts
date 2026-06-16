@@ -10,6 +10,7 @@ import {
     ForbiddenError,
     JoinRelationship,
     MetricType,
+    NotSupportedError,
     SortByDirection,
     SupportedDbtAdapter,
     TimeFrames,
@@ -25,8 +26,12 @@ import {
 } from './MetricQueryBuilder';
 import {
     bigqueryClientMock,
+    databricksClientMock,
     EXPLORE,
     EXPLORE_NESTED_AGG_NAME_COLLISION,
+    EXPLORE_WITH_ARRAY_DIM,
+    EXPLORE_WITH_ARRAY_DIM_AND_JOIN,
+    EXPLORE_WITH_ARRAY_DIM_AND_SUM_DISTINCT,
     EXPLORE_WITH_AVERAGE_DISTINCT,
     EXPLORE_WITH_CROSS_MODEL_SUM_DISTINCT,
     EXPLORE_WITH_CROSS_TABLE_METRICS,
@@ -41,6 +46,7 @@ import {
     EXPLORE_WITHOUT_PRIMARY_KEYS,
     INTRINSIC_USER_ATTRIBUTES,
     METRIC_QUERY,
+    METRIC_QUERY_ARRAY_DIM_WITH_SUM_DISTINCT,
     METRIC_QUERY_AVERAGE_DISTINCT_NO_DIMS,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT,
     METRIC_QUERY_CROSS_MODEL_SUM_DISTINCT_NO_DIMS,
@@ -5380,5 +5386,114 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
         expect(selectClause).toContain(bare);
         expect(selectClause).not.toContain(wrapped);
         expect(whereClause).toContain(wrapped);
+    });
+});
+
+describe('ARRAY dimension unnesting (Databricks)', () => {
+    it('selected array dim rewrites select and emits LATERAL VIEW', () => {
+        const { query } = buildQuery({
+            explore: EXPLORE_WITH_ARRAY_DIM,
+            compiledMetricQuery: {
+                exploreName: 'array_tags',
+                dimensions: ['array_tags_tags'],
+                metrics: ['array_tags_count'],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: databricksClientMock,
+            intrinsicUserAttributes: {},
+            timezone: 'UTC',
+        });
+
+        expect(replaceWhitespace(query)).toContain(
+            'LATERAL VIEW explode(`array_tags`.tags) array_tags_tags__unnested_view AS array_tags_tags__unnested',
+        );
+        expect(replaceWhitespace(query)).toContain(
+            'array_tags_tags__unnested AS `array_tags_tags`',
+        );
+        expect(replaceWhitespace(query)).not.toContain(
+            '`array_tags`.tags AS `array_tags_tags`',
+        );
+    });
+
+    it('filter-only array dim does not emit LATERAL VIEW', () => {
+        const { query } = buildQuery({
+            explore: EXPLORE_WITH_ARRAY_DIM,
+            compiledMetricQuery: {
+                exploreName: 'array_tags',
+                dimensions: ['array_tags_customer_name'],
+                metrics: ['array_tags_count'],
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: '1',
+                                target: { fieldId: 'array_tags_tags' },
+                                operator: FilterOperator.INCLUDE,
+                                values: ['billing'],
+                            },
+                        ],
+                    },
+                },
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: databricksClientMock,
+            intrinsicUserAttributes: {},
+            timezone: 'UTC',
+        });
+
+        expect(query).not.toContain('LATERAL VIEW');
+        expect(query).toContain('array_contains');
+    });
+
+    it('throws NotSupportedError when array dim is combined with a distinct metric', () => {
+        expect(() =>
+            buildQuery({
+                explore: EXPLORE_WITH_ARRAY_DIM_AND_SUM_DISTINCT,
+                compiledMetricQuery: METRIC_QUERY_ARRAY_DIM_WITH_SUM_DISTINCT,
+                warehouseSqlBuilder: databricksClientMock,
+                intrinsicUserAttributes: {},
+                timezone: 'UTC',
+            }),
+        ).toThrow(NotSupportedError);
+    });
+
+    it('LATERAL VIEW comes after JOIN when explore has a plain join', () => {
+        const { query } = buildQuery({
+            explore: EXPLORE_WITH_ARRAY_DIM_AND_JOIN,
+            compiledMetricQuery: {
+                exploreName: 'array_tags',
+                dimensions: ['array_tags_tags', 'tags_info_label'],
+                metrics: ['array_tags_count'],
+                filters: {},
+                sorts: [],
+                limit: 10,
+                tableCalculations: [],
+                compiledTableCalculations: [],
+                compiledAdditionalMetrics: [],
+                compiledCustomDimensions: [],
+            },
+            warehouseSqlBuilder: databricksClientMock,
+            intrinsicUserAttributes: {},
+            timezone: 'UTC',
+        });
+
+        const joinIndex = query.indexOf('JOIN');
+        const lateralViewIndex = query.indexOf('LATERAL VIEW');
+
+        expect(joinIndex).toBeGreaterThan(-1);
+        expect(lateralViewIndex).toBeGreaterThan(-1);
+        expect(lateralViewIndex).toBeGreaterThan(joinIndex);
     });
 });

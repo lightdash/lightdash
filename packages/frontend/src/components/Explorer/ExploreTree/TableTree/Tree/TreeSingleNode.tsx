@@ -486,6 +486,20 @@ const TreeSingleNodeComponent: FC<Props> = ({ node }) => {
                         </HoverCard.Dropdown>
                     </HoverCard>
                     {renderAlerts}
+                    {isDimension(item) && item.type === DimensionType.ARRAY && (
+                        <Tooltip
+                            withinPortal
+                            maw={300}
+                            multiline
+                            label="Grouping by this array unnests it — one row per value."
+                        >
+                            <MantineIcon
+                                icon={IconInfoCircle}
+                                color="blue.5"
+                                style={{ flexShrink: 0 }}
+                            />
+                        </Tooltip>
+                    )}
                     {isTruncated && (
                         <Tooltip
                             withinPortal

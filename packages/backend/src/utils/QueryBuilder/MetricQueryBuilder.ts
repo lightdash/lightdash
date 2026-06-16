@@ -49,6 +49,7 @@ import {
     lightdashVariablePattern,
     MetricFilterRule,
     MetricType,
+    NotSupportedError,
     parseAllReferences,
     parseTableCalculationFunctions,
     PivotConfiguration,
@@ -744,6 +745,7 @@ export class MetricQueryBuilder {
     private getDimensionsSQL(): {
         ctes: string[];
         joins: string[];
+        unnests: string[];
         tables: string[];
         selects: Record<string, string>;
         groupBySQL: string | undefined;
@@ -828,6 +830,9 @@ export class MetricQueryBuilder {
             joins.push(customBinDimensionSql.join);
         }
 
+        // Lateral view unnests (for ARRAY dimensions on supported warehouses)
+        const unnests: string[] = [];
+
         // Tables
         const tables = dimensionsObjects.reduce<string[]>(
             (acc, dim) => [...acc, ...(dim.tablesReferences || [dim.table])],
@@ -877,6 +882,32 @@ export class MetricQueryBuilder {
         dimensionsObjects.forEach((dimension) => {
             const id = getItemId(dimension);
             const quotedAlias = `${fieldQuoteChar}${id}${fieldQuoteChar}`;
+
+            if (dimension.type === DimensionType.ARRAY) {
+                const arrayColumnSql = this.getTimezoneAwareDimensionSql(
+                    dimension,
+                    adapterType,
+                    startOfWeek,
+                );
+                const arrayColumnSqlWithUserAttributes =
+                    replaceUserAttributesAsStrings(
+                        arrayColumnSql,
+                        intrinsicUserAttributes,
+                        userAttributes,
+                        warehouseSqlBuilder,
+                        { noWrap: true },
+                    );
+                const elementAlias = `${id}__unnested`;
+                unnests.push(
+                    warehouseSqlBuilder.unnestDimension(
+                        arrayColumnSqlWithUserAttributes,
+                        elementAlias,
+                    ),
+                );
+                selects[id] = `  ${elementAlias} AS ${quotedAlias}`;
+                return;
+            }
+
             const sql = this.getTimezoneAwareDimensionSql(
                 dimension,
                 adapterType,
@@ -911,6 +942,7 @@ export class MetricQueryBuilder {
         return {
             ctes,
             joins,
+            unnests,
             tables,
             selects,
             groupBySQL,
@@ -4156,6 +4188,7 @@ export class MetricQueryBuilder {
         }
 
         const dimensionsSQL = this.getDimensionsSQL();
+        const hasUnnest = dimensionsSQL.unnests.length > 0;
         const metricsSQL = this.getMetricsSQL();
 
         const joins = this.getJoinsSQL({
@@ -4177,6 +4210,7 @@ export class MetricQueryBuilder {
             sqlFrom,
             joins.joinSQL,
             ...dimensionsSQL.joins,
+            ...dimensionsSQL.unnests,
             dimensionsSQL.filtersSQL,
             dimensionsSQL.groupBySQL,
         ];
@@ -4190,6 +4224,16 @@ export class MetricQueryBuilder {
             sqlFrom,
             joins: [joins.joinSQL, ...dimensionsSQL.joins],
         });
+        if (hasUnnest && experimentalMetricsCteSQL.finalSelectParts) {
+            throw new NotSupportedError(
+                'Unnesting an array dimension is not supported together with metric fanout protection (queries with joins). Remove the array dimension or the join.',
+            );
+        }
+        if (hasUnnest && this.popComparisonConfigs.length > 0) {
+            throw new NotSupportedError(
+                'Unnesting an array dimension is not supported together with period-over-period comparisons. Remove the array dimension to use period-over-period comparisons.',
+            );
+        }
         if (experimentalMetricsCteSQL.finalSelectParts) {
             finalSelectParts = experimentalMetricsCteSQL.finalSelectParts;
             ctes.push(...experimentalMetricsCteSQL.ctes);
@@ -4361,6 +4405,11 @@ export class MetricQueryBuilder {
             },
         );
 
+        if (hasUnnest && ddMetricIds.length > 0) {
+            throw new NotSupportedError(
+                'Unnesting an array dimension is not supported together with distinct metrics. Remove the array dimension to use distinct metrics.',
+            );
+        }
         if (ddMetricIds.length > 0) {
             const ddBaseCteName = 'dd_base';
 
@@ -4467,6 +4516,11 @@ export class MetricQueryBuilder {
         // aggregate metric references (e.g., sum(${max_metric})) to avoid
         // invalid nested SQL like SUM(MAX(...))
         const nestedAggMetrics = this.getMetricsWithNestedAggregates();
+        if (hasUnnest && nestedAggMetrics.length > 0) {
+            throw new NotSupportedError(
+                'Unnesting an array dimension is not supported together with nested aggregations. Remove the array dimension to use metrics with nested aggregations.',
+            );
+        }
         if (nestedAggMetrics.length > 0) {
             const naBaseCteName = 'na_base';
 
@@ -4538,6 +4592,11 @@ export class MetricQueryBuilder {
         const needsTotalsCtes =
             totalFields.length > 0 || (rowTotalFields.length > 0 && hasPivot);
 
+        if (hasUnnest && needsPostAgg) {
+            throw new NotSupportedError(
+                'Unnesting an array dimension is not supported together with in-query totals. Remove the array dimension to use in-query totals.',
+            );
+        }
         if (needsPostAgg) {
             const fieldQuoteChar =
                 this.args.warehouseSqlBuilder.getFieldQuoteChar();

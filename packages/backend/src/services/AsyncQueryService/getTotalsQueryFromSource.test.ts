@@ -465,6 +465,66 @@ describe('getColumnTotalQueryFromSource', () => {
             expect(result.pivotConfiguration).toBeUndefined();
         });
     });
+
+    describe('array dimension guard', () => {
+        it('rejects a column total over a groupBy column that is an array dimension', () => {
+            expect(() =>
+                getColumnTotalQueryFromSource({
+                    metricQuery: {
+                        exploreName: 'array_tags',
+                        dimensions: [
+                            'array_tags_tags',
+                            'array_tags_customer_name',
+                        ],
+                        metrics: ['array_tags_total_amount'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    pivotConfiguration: {
+                        ...pivotConfiguration,
+                        groupByColumns: [{ reference: 'array_tags_tags' }],
+                        indexColumn: {
+                            reference: 'array_tags_customer_name',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    },
+                    arrayDimensionIds: new Set(['array_tags_tags']),
+                }),
+            ).toThrow(/array/i);
+        });
+
+        it('allows a column total when no groupBy column is an array dimension', () => {
+            expect(() =>
+                getColumnTotalQueryFromSource({
+                    metricQuery: {
+                        exploreName: 'array_tags',
+                        dimensions: [
+                            'array_tags_tags',
+                            'array_tags_customer_name',
+                        ],
+                        metrics: ['array_tags_total_amount'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    pivotConfiguration: {
+                        ...pivotConfiguration,
+                        groupByColumns: [
+                            { reference: 'array_tags_customer_name' },
+                        ],
+                        indexColumn: {
+                            reference: 'array_tags_tags',
+                            type: VizIndexType.CATEGORY,
+                        },
+                    },
+                    arrayDimensionIds: new Set(['array_tags_tags']),
+                }),
+            ).not.toThrow();
+        });
+    });
 });
 
 describe('getRowTotalQueryFromSource', () => {
@@ -761,6 +821,66 @@ describe('getRowTotalQueryFromSource', () => {
             ).toThrow(NotSupportedError);
         });
     });
+
+    describe('array dimension guard', () => {
+        it('rejects a row total when the index column is an array dimension', () => {
+            expect(() =>
+                getRowTotalQueryFromSource({
+                    metricQuery: {
+                        exploreName: 'array_tags',
+                        dimensions: [
+                            'array_tags_tags',
+                            'array_tags_customer_name',
+                        ],
+                        metrics: ['array_tags_total_amount'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    pivotConfiguration: {
+                        ...pivotConfiguration,
+                        indexColumn: {
+                            reference: 'array_tags_tags',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        groupByColumns: [
+                            { reference: 'array_tags_customer_name' },
+                        ],
+                    },
+                    arrayDimensionIds: new Set(['array_tags_tags']),
+                }),
+            ).toThrow(/array/i);
+        });
+
+        it('allows a row total when the index column is not an array dimension', () => {
+            expect(() =>
+                getRowTotalQueryFromSource({
+                    metricQuery: {
+                        exploreName: 'array_tags',
+                        dimensions: [
+                            'array_tags_tags',
+                            'array_tags_customer_name',
+                        ],
+                        metrics: ['array_tags_total_amount'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    pivotConfiguration: {
+                        ...pivotConfiguration,
+                        indexColumn: {
+                            reference: 'array_tags_customer_name',
+                            type: VizIndexType.CATEGORY,
+                        },
+                        groupByColumns: [{ reference: 'array_tags_tags' }],
+                    },
+                    arrayDimensionIds: new Set(['array_tags_tags']),
+                }),
+            ).not.toThrow();
+        });
+    });
 });
 
 describe('getColumnSubtotalQueryFromSource', () => {
@@ -923,6 +1043,49 @@ describe('getColumnSubtotalQueryFromSource', () => {
                 'orders_status',
             ]);
             expect(result.pivotConfiguration).toBeUndefined();
+        });
+    });
+
+    describe('array dimension guard', () => {
+        it('rejects a subtotal over an unnested (array) dimension', () => {
+            expect(() =>
+                getColumnSubtotalQueryFromSource({
+                    metricQuery: {
+                        exploreName: 'array_tags',
+                        dimensions: [
+                            'array_tags_tags',
+                            'array_tags_customer_name',
+                        ],
+                        metrics: ['array_tags_total_amount'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    pivotConfiguration: null,
+                    subtotalDimensions: ['array_tags_tags'],
+                    arrayDimensionIds: new Set(['array_tags_tags']),
+                }),
+            ).toThrow(/unnested|not supported/i);
+        });
+
+        it('allows a subtotal over a non-array dimension', () => {
+            expect(() =>
+                getColumnSubtotalQueryFromSource({
+                    metricQuery: {
+                        exploreName: 'array_tags',
+                        dimensions: ['array_tags_customer_name'],
+                        metrics: ['array_tags_total_amount'],
+                        filters: {},
+                        sorts: [],
+                        tableCalculations: [],
+                        limit: 500,
+                    } as never,
+                    pivotConfiguration: null,
+                    subtotalDimensions: ['array_tags_customer_name'],
+                    arrayDimensionIds: new Set(['array_tags_tags']),
+                }),
+            ).not.toThrow();
         });
     });
 });

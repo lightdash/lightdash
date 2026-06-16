@@ -62,6 +62,8 @@ const fakeWarehouseClient: WarehouseClient = {
         orderBy
             ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
             : `ARRAY_AGG(${expression})`,
+    unnestDimension: (arrayColumnSql: string, elementAlias: string) =>
+        `LATERAL VIEW explode(${arrayColumnSql}) ${elementAlias}_view AS ${elementAlias}`,
 };
 
 const columns: VizColumn[] = [

@@ -161,6 +161,9 @@ const warehouseClientMock: WarehouseClient = {
             ? `ARRAY_AGG(${expression} ORDER BY ${orderBy})`
             : `ARRAY_AGG(${expression})`;
     },
+    unnestDimension(arrayColumnSql, elementAlias) {
+        return `LATERAL VIEW explode(${arrayColumnSql}) ${elementAlias}_view AS ${elementAlias}`;
+    },
 };
 
 export const previewConvertCustomDimensionToDbt = (

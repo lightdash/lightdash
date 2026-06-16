@@ -63,6 +63,10 @@ export default abstract class WarehouseBaseClient<
         return this.sqlBuilder.buildArray(elements);
     }
 
+    unnestDimension(arrayColumnSql: string, elementAlias: string): string {
+        return this.sqlBuilder.unnestDimension(arrayColumnSql, elementAlias);
+    }
+
     abstract getCatalog(
         config: { database: string; schema: string; table: string }[],
     ): Promise<WarehouseCatalog>;

@@ -1,6 +1,7 @@
 import {
     defaultNullSafeEqualSql,
     Metric,
+    NotSupportedError,
     SupportedDbtAdapter,
     TimeIntervalUnit,
     WarehouseSqlBuilder,
@@ -122,5 +123,11 @@ export default abstract class WarehouseBaseSqlBuilder implements WarehouseSqlBui
             return `ARRAY_AGG(${expression} ORDER BY ${orderBy})`;
         }
         return `ARRAY_AGG(${expression})`;
+    }
+
+    unnestDimension(_arrayColumnSql: string, _elementAlias: string): string {
+        throw new NotSupportedError(
+            'Unnesting array dimensions is not supported for this warehouse type',
+        );
     }
 }

@@ -100,6 +100,7 @@ export interface WarehouseSqlBuilder {
     // Array construction methods for table calculations
     buildArray: (elements: string[]) => string;
     buildArrayAgg: (expression: string, orderBy?: string) => string;
+    unnestDimension: (arrayColumnSql: string, elementAlias: string) => string;
 }
 
 export interface WarehouseClient extends WarehouseSqlBuilder {

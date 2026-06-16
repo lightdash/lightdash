@@ -1,3 +1,4 @@
+import { NotSupportedError } from '@lightdash/common';
 import * as pg from 'pg';
 import { PassThrough } from 'stream';
 import {
@@ -248,5 +249,18 @@ describe('PostgresSqlBuilder escaping', () => {
             anotherMaliciousInput,
         );
         expect(anotherEscaped).toBe("'' OR ''1''=''1");
+    });
+});
+
+describe('PostgresSqlBuilder array unnesting (unsupported)', () => {
+    const postgresSqlBuilder = new PostgresSqlBuilder();
+
+    test('unnestDimension throws a clear NotSupportedError', () => {
+        expect(() =>
+            postgresSqlBuilder.unnestDimension('"t".tags', 'tags__unnested'),
+        ).toThrow(NotSupportedError);
+        expect(() =>
+            postgresSqlBuilder.unnestDimension('"t".tags', 'tags__unnested'),
+        ).toThrow(/not supported for this warehouse/i);
     });
 });
