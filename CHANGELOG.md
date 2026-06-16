@@ -1,3 +1,11 @@
+## [0.3167.3](https://github.com/lightdash/lightdash/compare/0.3167.2...0.3167.3) (2026-06-16)
+
+
+### Bug Fixes
+
+* **ai:** ai agents struggling/generating incorrect filters ([#24261](https://github.com/lightdash/lightdash/issues/24261)) ([e4a8ae1](https://github.com/lightdash/lightdash/commit/e4a8ae1c68b6d5db9c02d593a1a1c4bbc1f48aa3)), closes [#24237](https://github.com/lightdash/lightdash/issues/24237)
+* **ai:** upgrade AI SDK and tune OpenAI model presets ([#24263](https://github.com/lightdash/lightdash/issues/24263)) ([89d14a6](https://github.com/lightdash/lightdash/commit/89d14a69a2530d499380a0dfe995247311c871e3)), closes [#24238](https://github.com/lightdash/lightdash/issues/24238)
+
 ## [0.3167.2](https://github.com/lightdash/lightdash/compare/0.3167.1...0.3167.2) (2026-06-16)
 
 
