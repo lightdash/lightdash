@@ -1517,7 +1517,10 @@ export class AiAgentService extends BaseService {
         );
 
         const populatedCustomMetrics = populateCustomMetricsSQL(
-            metricQuery.customMetrics,
+            [
+                ...metricQuery.additionalMetrics,
+                ...metricQuery.periodComparisonMetrics,
+            ],
             explore,
         );
         const metricQueryWithCustomMetrics = {

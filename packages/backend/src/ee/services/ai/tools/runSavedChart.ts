@@ -125,7 +125,7 @@ export const getRunSavedChart = ({
                     limit: getValidAiQueryLimit(metricQuery.limit, maxLimit),
                     tableCalculations: metricQuery.tableCalculations,
                     additionalMetrics: metricQuery.additionalMetrics ?? [],
-                    customMetrics: null,
+                    periodComparisonMetrics: [],
                     filters: metricQuery.filters,
                 };
 

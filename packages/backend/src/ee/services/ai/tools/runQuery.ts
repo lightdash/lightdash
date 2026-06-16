@@ -252,8 +252,9 @@ export const getRunQuery = ({
                         maxLimit,
                     ),
                     filters: queryTool.queryConfig.filters,
+                    // PoP already expanded into additionalMetrics above
                     additionalMetrics: populatedCustomMetrics,
-                    customMetrics: queryTool.queryConfig.customMetrics,
+                    periodComparisonMetrics: [],
                     tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
                         queryTool.queryConfig.tableCalculations,
                     ),

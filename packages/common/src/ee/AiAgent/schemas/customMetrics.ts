@@ -227,6 +227,11 @@ export const filterAggregationCustomMetrics = (
             !isPeriodComparisonCustomMetric(cm),
     );
 
+export const filterPeriodComparisonCustomMetrics = (
+    cms: TransformedCustomMetric[] | null | undefined,
+): PeriodComparisonCustomMetric[] =>
+    (cms ?? []).filter(isPeriodComparisonCustomMetric);
+
 export const customMetricsSchema = z
     .array(customMetricBaseSchema)
     .nullable()

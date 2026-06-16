@@ -65,6 +65,7 @@ export const metricQueryTableViz = ({
     limit: getValidAiQueryLimit(vizConfig.limit, maxLimit),
     filters,
     additionalMetrics: filterAggregationCustomMetrics(customMetrics),
-    customMetrics: customMetrics ?? null,
+    // viz tools predate period comparisons — never any to carry
+    periodComparisonMetrics: [],
     tableCalculations,
 });

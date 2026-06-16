@@ -98,7 +98,8 @@ export const metricQueryVerticalBarViz = ({
         exploreName: vizConfig.exploreName,
         filters,
         additionalMetrics: filterAggregationCustomMetrics(customMetrics),
-        customMetrics: customMetrics ?? null,
+        // viz tools predate period comparisons — never any to carry
+        periodComparisonMetrics: [],
         // TODO: add tableCalculations
         tableCalculations,
     };

@@ -108,7 +108,7 @@ export const getRunContentQuery = ({
                     sorts: [],
                     tableCalculations: [],
                     additionalMetrics: [],
-                    customMetrics: null,
+                    periodComparisonMetrics: [],
                     ...rawMetricQuery,
                     exploreName: rawMetricQuery.exploreName ?? source.tableName,
                     filters: (rawMetricQuery.filters ?? {}) as Filters,

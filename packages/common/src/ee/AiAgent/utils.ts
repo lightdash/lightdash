@@ -2,6 +2,7 @@ import { AI_DEFAULT_MAX_QUERY_LIMIT } from './constants';
 import {
     convertAiTableCalcsSchemaToTableCalcs,
     filterAggregationCustomMetrics,
+    filterPeriodComparisonCustomMetrics,
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
@@ -99,13 +100,15 @@ export const parseVizConfig = (
                 maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
             ),
             filters: vizTool.queryConfig.filters,
-            // additionalMetrics is filtered to aggregations (for field
-            // validation); customMetrics keeps the full set incl.
-            // periodComparison for SQL population.
+            // Aggregations and period comparisons live in separate fields:
+            // additionalMetrics is id-addressable (validation/FE),
+            // periodComparisonMetrics holds the specs to expand into SQL.
             additionalMetrics: filterAggregationCustomMetrics(
                 vizTool.queryConfig.customMetrics,
             ),
-            customMetrics: vizTool.queryConfig.customMetrics,
+            periodComparisonMetrics: filterPeriodComparisonCustomMetrics(
+                vizTool.queryConfig.customMetrics,
+            ),
             tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
                 vizTool.queryConfig.tableCalculations,
             ),

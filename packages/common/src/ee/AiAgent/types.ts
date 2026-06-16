@@ -1,6 +1,6 @@
 import type { Filters } from '../../types/filter';
 import type { AdditionalMetric, MetricQuery } from '../../types/metricQuery';
-import type { TransformedCustomMetric } from './schemas/customMetrics';
+import type { PeriodComparisonCustomMetric } from './schemas/customMetrics';
 import type {
     ToolRunQueryArgs,
     ToolTableVizArgs,
@@ -28,11 +28,13 @@ export type AiMetricQuery = Pick<
     | 'exploreName'
     | 'tableCalculations'
 > & {
-    // Aggregation custom metrics as additional-metric definitions, used for
-    // field-existence validation.
+    // Aggregation / real metrics — id-addressable (table+name), so they're
+    // safe for field-existence validation, getItemId and FE rendering.
     additionalMetrics: Omit<AdditionalMetric, 'sql'>[];
-    // Full custom-metric set (incl. periodComparison) used to populate SQL.
-    customMetrics: TransformedCustomMetric[] | null;
+    // Period-over-period specs ONLY. They have no table/name until
+    // populateCustomMetricsSQL expands them, so they're kept out of
+    // additionalMetrics (which getItemId would choke on).
+    periodComparisonMetrics: PeriodComparisonCustomMetric[];
 };
 
 export type AiMetricQueryWithFilters = AiMetricQuery & {
