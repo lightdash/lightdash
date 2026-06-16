@@ -10,7 +10,20 @@ import { describe, expect, it } from 'vitest';
 import {
     getConditionalRuleLabel,
     getConditionalRuleLabelFromItem,
+    getFilterOperatorOptions,
 } from './utils';
+
+describe('getFilterOperatorOptions', () => {
+    it('returns exactly [NULL, NOT_NULL, INCLUDE, NOT_INCLUDE] for FilterType.ARRAY', () => {
+        const options = getFilterOperatorOptions(FilterType.ARRAY);
+        expect(options.map((o) => o.value)).toEqual([
+            FilterOperator.NULL,
+            FilterOperator.NOT_NULL,
+            FilterOperator.INCLUDE,
+            FilterOperator.NOT_INCLUDE,
+        ]);
+    });
+});
 
 describe('getConditionalRuleLabel', () => {
     it('should return correct labels for a string filter', () => {

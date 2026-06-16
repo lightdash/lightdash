@@ -6,6 +6,7 @@ import { FilterOperator, UnitOfTime, type FilterRule } from '../types/filter';
 import { WeekDay } from '../utils/timeFrames';
 import {
     createBoundaryDateFormatter,
+    renderArrayFilterSql,
     renderBooleanFilterSql,
     renderDateFilterSql,
     renderFilterRuleSql,
@@ -3013,6 +3014,160 @@ describe('useTimezoneAwareDateTrunc parameter — filter literal wrapping', () =
             expect(sql).toContain(
                 "toDateTime('2024-01-15', 'America/New_York')",
             );
+        });
+    });
+
+    describe('renderArrayFilterSql', () => {
+        const arrayDimensionSql = '"t".tags';
+        const baseFilter = {
+            id: 'id',
+            target: { fieldId: 'fieldId' },
+            operator: FilterOperator.INCLUDE,
+            values: ['billing'],
+        };
+
+        test('INCLUDE single value produces array_contains and no unnest/explode', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.INCLUDE,
+                    values: ['billing'],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual(
+                '(array_contains("t".tags, \'billing\'))',
+            );
+            expect(result).not.toMatch(/unnest|explode/i);
+        });
+
+        test('INCLUDE multiple values produces arrays_overlap', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.INCLUDE,
+                    values: ['billing', 'open'],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual(
+                "(arrays_overlap(\"t\".tags, array('billing', 'open')))",
+            );
+        });
+
+        test('NOT_INCLUDE single value produces NOT array_contains OR IS NULL', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_INCLUDE,
+                    values: ['billing'],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual(
+                '(NOT array_contains("t".tags, \'billing\') OR ("t".tags) IS NULL)',
+            );
+        });
+
+        test('NULL produces IS NULL', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                { ...baseFilter, operator: FilterOperator.NULL, values: [] },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual('("t".tags) IS NULL');
+        });
+
+        test('non-Databricks adapter throws', () => {
+            expect(() =>
+                renderArrayFilterSql(
+                    arrayDimensionSql,
+                    {
+                        ...baseFilter,
+                        operator: FilterOperator.INCLUDE,
+                        values: ['billing'],
+                    },
+                    SupportedDbtAdapter.SNOWFLAKE,
+                    "'",
+                ),
+            ).toThrow(/Databricks/);
+        });
+
+        test('NOT_NULL produces IS NOT NULL', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_NULL,
+                    values: [],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual('("t".tags) IS NOT NULL');
+        });
+
+        test('NOT_INCLUDE multiple values produces arrays_overlap with IS NULL guard and no unnest/explode', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_INCLUDE,
+                    values: ['billing', 'open'],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual(
+                '(NOT arrays_overlap("t".tags, array(\'billing\', \'open\')) OR ("t".tags) IS NULL)',
+            );
+            expect(result).not.toMatch(/unnest|explode/i);
+        });
+
+        test('INCLUDE with empty values returns true', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                { ...baseFilter, operator: FilterOperator.INCLUDE, values: [] },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual('true');
+        });
+
+        test('NOT_INCLUDE with empty values returns true', () => {
+            const result = renderArrayFilterSql(
+                arrayDimensionSql,
+                {
+                    ...baseFilter,
+                    operator: FilterOperator.NOT_INCLUDE,
+                    values: [],
+                },
+                SupportedDbtAdapter.DATABRICKS,
+                "'",
+            );
+            expect(result).toStrictEqual('true');
+        });
+
+        test('unsupported operator on Databricks throws', () => {
+            expect(() =>
+                renderArrayFilterSql(
+                    arrayDimensionSql,
+                    {
+                        ...baseFilter,
+                        operator: FilterOperator.EQUALS,
+                        values: ['billing'],
+                    },
+                    SupportedDbtAdapter.DATABRICKS,
+                    "'",
+                ),
+            ).toThrow();
         });
     });
 });

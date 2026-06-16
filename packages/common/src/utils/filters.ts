@@ -152,11 +152,8 @@ export const getFilterTypeFromItemType = (
         case MetricType.BOOLEAN:
         case TableCalculationType.BOOLEAN:
             return FilterType.BOOLEAN;
-        // Array dimensions exist only on warehouses with native array support
-        // (currently Databricks); container-aware filtering arrives in a later
-        // slice, so for now they behave as text.
         case DimensionType.ARRAY:
-            return FilterType.STRING;
+            return FilterType.ARRAY;
         default: {
             return assertUnreachable(
                 type,
@@ -385,6 +382,12 @@ export const getFilterRuleFromFieldWithDefaultValue = <T extends FilterRule>(
         timezone,
     );
 
+// Array fields only support containment operators, so EQUALS is invalid for them
+const getDefaultFilterOperator = (filterType: FilterType): FilterOperator =>
+    filterType === FilterType.ARRAY
+        ? FilterOperator.INCLUDE
+        : FilterOperator.EQUALS;
+
 export const createFilterRuleFromField = (
     field: FilterableField,
     value?: AnyType,
@@ -398,7 +401,9 @@ export const createFilterRuleFromField = (
                 fieldId: getItemId(field),
             },
             operator:
-                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+                value === null
+                    ? FilterOperator.NULL
+                    : getDefaultFilterOperator(getFilterTypeFromItem(field)),
         },
         value ? [value] : [],
         timezone,
@@ -486,7 +491,9 @@ export const createDashboardFilterRuleFromField = ({
         {
             id: uuidv4(),
             operator:
-                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+                value === null
+                    ? FilterOperator.NULL
+                    : getDefaultFilterOperator(getFilterTypeFromItem(field)),
             target: {
                 fieldId: getItemId(field),
                 tableName: field.table,
@@ -541,7 +548,11 @@ export const createDashboardFilterRuleFromSqlColumn = ({
         {
             id: uuidv4(),
             operator:
-                value === null ? FilterOperator.NULL : FilterOperator.EQUALS,
+                value === null
+                    ? FilterOperator.NULL
+                    : getDefaultFilterOperator(
+                          getFilterTypeFromItemType(column.type),
+                      ),
             target: {
                 fieldId: column.reference,
                 tableName: 'sql_chart',

@@ -6,6 +6,7 @@ export enum FilterType {
     NUMBER = 'number',
     DATE = 'date',
     BOOLEAN = 'boolean',
+    ARRAY = 'array',
 }
 
 export enum FilterOperator {
