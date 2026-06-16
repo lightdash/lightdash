@@ -2,6 +2,7 @@ import { type AiAgentSummary } from '@lightdash/common';
 import { Center, Group, Loader, Stack, Text } from '@mantine-8/core';
 import {
     useCallback,
+    useEffect,
     useMemo,
     useState,
     type CSSProperties,
@@ -18,7 +19,10 @@ import {
     useCreateAgentThreadMessageMutation,
     useCreateAgentThreadMutation,
 } from '../../hooks/useProjectAiAgents';
-import { openPanel } from '../../store/aiAgentLauncherSlice';
+import {
+    clearPendingPrompt,
+    openPanel,
+} from '../../store/aiAgentLauncherSlice';
 import {
     selectThreadSqlMode,
     setThreadSqlMode,
@@ -125,7 +129,17 @@ const NewThreadPanel: FC<{
     // New threads have no uuid yet — keep the toggle in local state and seed
     // the per-thread slice entry once the thread is created.
     const [sqlMode, setSqlMode] = useState(false);
-    const [composerSeed, setComposerSeed] = useState<string | null>(null);
+    const pendingPrompt = useAiAgentStoreSelector(
+        (state) => state.aiAgentLauncher.pendingPrompt,
+    );
+    const [composerSeed, setComposerSeed] = useState<string | null>(
+        pendingPrompt ?? null,
+    );
+    useEffect(() => {
+        if (pendingPrompt) dispatch(clearPendingPrompt());
+        // Consume the one-shot seed on mount only.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const dispatchToStore = useAiAgentStoreDispatch();
     const handleToolResult = useCallback(
         (toolResult: AiAgentToolResult) => {
