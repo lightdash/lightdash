@@ -1,9 +1,11 @@
 import {
     Account,
+    FeatureFlags,
     ForbiddenError,
     SessionUser,
     SlackSettings,
 } from '@lightdash/common';
+import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import {
     SlackIntegrationService,
     SlackIntegrationServiceArguments,
@@ -14,15 +16,48 @@ import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAut
 export class CommercialSlackIntegrationService extends SlackIntegrationService<CommercialSlackAuthenticationModel> {
     private readonly aiAgentModel: AiAgentModel;
 
+    private readonly featureFlagModel: FeatureFlagModel;
+
     constructor({
         aiAgentModel,
+        featureFlagModel,
         ...rest
     }: SlackIntegrationServiceArguments<CommercialSlackAuthenticationModel> & {
         aiAgentModel: AiAgentModel;
+        featureFlagModel: FeatureFlagModel;
     }) {
         super(rest);
 
         this.aiAgentModel = aiAgentModel;
+        this.featureFlagModel = featureFlagModel;
+    }
+
+    private async isModernSlackAiAgentEnabled(user: SessionUser) {
+        const flag = await this.featureFlagModel.get({
+            user,
+            featureFlagId: FeatureFlags.AiAgentSlackModernBlocks,
+        });
+
+        return flag.enabled;
+    }
+
+    async getSlackInstallOptions(user: SessionUser) {
+        const includeAiAgentSlackModernScopes =
+            await this.isModernSlackAiAgentEnabled(user);
+
+        const { slackOptions, metadata } = await super.getSlackInstallOptions(
+            user,
+        );
+
+        return {
+            slackOptions: {
+                ...slackOptions,
+                scopes: this.slackClient.getRequiredScopes({
+                    includeAiAgentSlackModernScopes,
+                }),
+            },
+            metadata,
+        };
     }
 
     async getInstallationFromOrganizationUuid(user: SessionUser) {
@@ -50,6 +85,10 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
             appProfilePhotoUrl: installation.appProfilePhotoUrl,
             hasRequiredScopes: this.slackClient.hasRequiredScopes(
                 installation.scopes,
+                {
+                    includeAiAgentSlackModernScopes:
+                        await this.isModernSlackAiAgentEnabled(user),
+                },
             ),
             slackChannelProjectMappings:
                 installation.slackChannelProjectMappings,

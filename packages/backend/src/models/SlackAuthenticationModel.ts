@@ -94,6 +94,23 @@ export class SlackAuthenticationModel {
         return row.installation.user.id;
     }
 
+    async getSlackTeamIdFromOrganizationUuid(organizationUuid: string) {
+        const [row] = await this.database(SlackAuthTokensTableName)
+            .leftJoin(
+                'organizations',
+                'slack_auth_tokens.organization_id',
+                'organizations.organization_id',
+            )
+            .select<DbSlackAuthTokens[]>('slack_team_id')
+            .where('organizations.organization_uuid', organizationUuid);
+        if (row === undefined) {
+            throw new NotFoundError(
+                `Could not find slack team for organization ${organizationUuid}`,
+            );
+        }
+        return row.slack_team_id;
+    }
+
     async getUserUuid(teamId: string) {
         const [row] = await this.database(SlackAuthTokensTableName)
             .leftJoin(
