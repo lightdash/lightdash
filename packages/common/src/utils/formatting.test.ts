@@ -8,9 +8,11 @@ import {
     Format,
     MetricType,
     NumberSeparator,
+    TableCalculationType,
     type CustomFormat,
     type Dimension,
     type Metric,
+    type TableCalculation,
 } from '../types/field';
 import { TimeFrames } from '../types/timeFrames';
 import {
@@ -27,7 +29,7 @@ import {
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
     getFormatterTimezone,
-    isCalendarValueDimension,
+    isCalendarValueItem,
     isMomentInput,
     isTimestampString,
     shouldShiftItemTimezone,
@@ -119,6 +121,30 @@ describe('Formatting', () => {
                     tz,
                 ),
             ).toBeUndefined();
+        });
+
+        test('DATE table calc does NOT shift even with a midnight-ISO value', () => {
+            // The bug: a date-typed table calc whose value arrives as a full
+            // timestamp must stay a calendar day (no off-by-one under -ve UTC).
+            const dateTableCalc = {
+                name: 'date_tc',
+                displayName: 'date_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.DATE,
+            } as TableCalculation;
+            expect(
+                getFormatterTimezone(dateTableCalc, tsString, tz),
+            ).toBeUndefined();
+        });
+
+        test('TIMESTAMP table calc shifts', () => {
+            const tsTableCalc = {
+                name: 'ts_tc',
+                displayName: 'ts_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.TIMESTAMP,
+            } as TableCalculation;
+            expect(getFormatterTimezone(tsTableCalc, tsString, tz)).toEqual(tz);
         });
     });
 
@@ -916,7 +942,7 @@ describe('Formatting', () => {
         });
     });
 
-    describe('isCalendarValueDimension', () => {
+    describe('isCalendarValueItem', () => {
         const dateBaseColumn: Dimension = {
             ...dimension,
             type: DimensionType.DATE,
@@ -956,20 +982,20 @@ describe('Formatting', () => {
 
         test('treats wall-clock DATE values as calendar values', () => {
             // plain DATE column (no interval, base undefined)
-            expect(isCalendarValueDimension(dateBaseColumn)).toBe(true);
+            expect(isCalendarValueItem(dateBaseColumn)).toBe(true);
             // DATE truncated from a DATE base — any grain
-            expect(isCalendarValueDimension(dateOverDateDay)).toBe(true);
-            expect(isCalendarValueDimension(dateOverDateWeek)).toBe(true);
+            expect(isCalendarValueItem(dateOverDateDay)).toBe(true);
+            expect(isCalendarValueItem(dateOverDateWeek)).toBe(true);
             // A date-typed metric (MetricType.DATE) — not a Dimension, still calendar
-            expect(isCalendarValueDimension(dateMetric)).toBe(true);
+            expect(isCalendarValueItem(dateMetric)).toBe(true);
         });
 
         test('treats real instants as non-calendar values', () => {
             // DATE truncated from a TIMESTAMP base is a bucketed instant
-            expect(isCalendarValueDimension(dateOverTimestampDay)).toBe(false);
+            expect(isCalendarValueItem(dateOverTimestampDay)).toBe(false);
             // plain + sub-day TIMESTAMP
-            expect(isCalendarValueDimension(timestampRaw)).toBe(false);
-            expect(isCalendarValueDimension(timestampHour)).toBe(false);
+            expect(isCalendarValueItem(timestampRaw)).toBe(false);
+            expect(isCalendarValueItem(timestampHour)).toBe(false);
         });
 
         test('skipTimezoneConversion does not make a TIMESTAMP a calendar value', () => {
@@ -983,14 +1009,34 @@ describe('Formatting', () => {
                 ...dateOverDateDay,
                 skipTimezoneConversion: true,
             };
-            expect(isCalendarValueDimension(timestampRawOptOut)).toBe(false);
-            expect(isCalendarValueDimension(dateOptOut)).toBe(true);
+            expect(isCalendarValueItem(timestampRawOptOut)).toBe(false);
+            expect(isCalendarValueItem(dateOptOut)).toBe(true);
         });
 
         test('non-temporal items and undefined are not calendar values', () => {
-            expect(isCalendarValueDimension(undefined)).toBe(false);
-            expect(isCalendarValueDimension(dimension)).toBe(false); // STRING
-            expect(isCalendarValueDimension(metric)).toBe(false); // COUNT
+            expect(isCalendarValueItem(undefined)).toBe(false);
+            expect(isCalendarValueItem(dimension)).toBe(false); // STRING
+            expect(isCalendarValueItem(metric)).toBe(false); // COUNT
+        });
+
+        test('classifies table calculations by their declared type', () => {
+            // Table calcs are not fields, but their `type` is reliable, so a
+            // DATE table calc is a calendar value (must not shift) while a
+            // TIMESTAMP one is a real instant.
+            const dateTableCalc = {
+                name: 'date_tc',
+                displayName: 'date_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.DATE,
+            } as TableCalculation;
+            const timestampTableCalc = {
+                name: 'ts_tc',
+                displayName: 'ts_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.TIMESTAMP,
+            } as TableCalculation;
+            expect(isCalendarValueItem(dateTableCalc)).toBe(true);
+            expect(isCalendarValueItem(timestampTableCalc)).toBe(false);
         });
     });
 

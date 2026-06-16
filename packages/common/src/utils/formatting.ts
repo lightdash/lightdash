@@ -242,36 +242,25 @@ export const shouldShiftItemTimezone = (
     );
 };
 
-// A calendar value is a bare wall-clock date (year/month/day, no instant) that
-// must never be timezone-shifted or anchored. True for plain DATE columns,
-// DATE-base truncations and DATE metrics; false for any TIMESTAMP (including
-// `skipTimezoneConversion` ones — those are TZ-immune but still real instants)
-// and for a DATE truncated from a TIMESTAMP base, which is a bucketed instant
-// that still anchors and shifts.
-export const isCalendarValueDimension = (
+// A bare wall-clock DATE that must never be shifted. Keyed off getItemType so it
+// also covers DATE metrics and table calcs; a DATE-base-TIMESTAMP dim still shifts.
+export const isCalendarValueItem = (
     item: Item | AdditionalMetric | undefined,
 ): boolean => {
-    if (!isField(item)) return false;
-    if (item.type !== DimensionType.DATE) return false;
+    if (!item) return false;
+    if (getItemType(item) !== DimensionType.DATE) return false;
     return !(
         isDimension(item) &&
         item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
     );
 };
 
-// True when a runtime value carries an instant: a Date, or a datetime string
-// with a time component. Date-only strings are deliberately NOT temporal here —
-// they are calendar days that must never be timezone-shifted.
+// A Date or a datetime string (not a date-only string).
 export const isTemporalValue = (value: unknown): boolean =>
     value instanceof Date || isTimestampString(value);
 
-// The single source of truth for which timezone a value FORMATTER should apply.
-// It composes the item-shape predicates with a by-value fallback: a MIN/MAX
-// metric's `type` is its aggregation, not its temporal base, and that base type
-// is not resolvable at the formatter layer (the item only carries an optional
-// base-dimension *name*, not a type, and the explore field map is unavailable).
-// So for type-opaque aggregations the value itself is the only signal. Returns
-// the zone to convert the value into, or undefined to leave it untouched.
+// Which timezone a formatter applies to a value: shape predicates, then a
+// by-value fallback for MIN/MAX (whose type hides its temporal base).
 export const getFormatterTimezone = (
     item: Item | AdditionalMetric | undefined,
     value: unknown,
@@ -279,7 +268,7 @@ export const getFormatterTimezone = (
 ): string | undefined => {
     if (!timezone) return undefined;
     if (isDimension(item) && item.skipTimezoneConversion) return undefined;
-    if (isCalendarValueDimension(item)) return undefined;
+    if (isCalendarValueItem(item)) return undefined;
     if (shouldShiftItemTimezone(item)) return timezone;
     if (isTemporalValue(value)) return timezone;
     return undefined;
@@ -732,12 +721,8 @@ export function applyCustomFormat(
 
     if (value === '') return '';
 
-    // Decide temporality by VALUE, not by format type: a MIN/MAX metric's type
-    // is its aggregation (MAX/MIN), not the underlying TIMESTAMP, so the only
-    // reliable signal is the value itself. isTemporalValue excludes date-only
-    // strings so calendar days are never shifted (off-by-one under -ve offsets).
-    // (applyCustomFormat has no `item`, so it uses the by-value gate directly;
-    // item-aware callers resolve the timezone via getFormatterTimezone first.)
+    // No `item` here, so gate the timezone by value; item-aware callers resolve
+    // it via getFormatterTimezone first.
     const effectiveTimezone = isTemporalValue(value) ? timezone : undefined;
 
     if (
@@ -749,11 +734,8 @@ export function applyCustomFormat(
         return formatTimestamp(value, undefined, false, effectiveTimezone);
     }
 
-    // A timestamp STRING (e.g. a MIN/MAX metric rehydrated from query results)
-    // is `valueIsNaN`, so the guard below would return it raw and drop both the
-    // display format and the timezone. When a timezone is supplied, route the
-    // string through the temporal formatters first so it renders shifted. With
-    // no timezone (flag off) this is skipped and behaviour is unchanged.
+    // Timestamp strings are `valueIsNaN`, so the guard below would return them
+    // raw. When a timezone is supplied, format them first so they render shifted.
     if (effectiveTimezone && isTimestampString(value)) {
         switch (format.type) {
             case CustomFormatType.DATE:
@@ -1102,8 +1084,7 @@ export function formatItemValue(
     if (value === null) return '∅';
     if (value === undefined) return '-';
     if (item) {
-        // One decision for every temporal branch below: shape predicates for
-        // dimensions/table-calcs, by-value fallback for type-opaque MIN/MAX.
+        // One timezone decision for every temporal branch below.
         const effectiveTimezone = getFormatterTimezone(item, value, timezone);
 
         if (hasValidFormatExpression(item)) {
@@ -1200,9 +1181,8 @@ export function formatItemValue(
                 case DimensionType.DATE:
                 case MetricType.DATE:
                 case TableCalculationType.DATE: {
-                    // Calendar values (wall-clock dates) have no time component
-                    // — getFormatterTimezone already returns undefined for them
-                    // (off-by-one guard), so effectiveTimezone is safe to use.
+                    // getFormatterTimezone returns undefined for calendar dates,
+                    // so effectiveTimezone is safe to pass here.
                     return isMomentInput(value)
                         ? formatDate(
                               value,
@@ -1226,12 +1206,8 @@ export function formatItemValue(
                         : 'NaT';
                 case MetricType.MAX:
                 case MetricType.MIN: {
-                    // MIN/MAX inherit the aggregated column's type. A temporal
-                    // result must render in the resolved project timezone like
-                    // a dimension does — whether it arrives as a Date (fresh
-                    // query) or an ISO datetime string (rehydrated from cached
-                    // results). The auto-derived numeric format must not
-                    // suppress this; a user-chosen display format still wins.
+                    // A temporal MIN/MAX shifts like a dimension; a user-chosen
+                    // display format wins and falls through to applyCustomFormat.
                     const formatType = customFormat?.type;
                     const userChoseDisplayFormat =
                         formatType === CustomFormatType.DATE ||

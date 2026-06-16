@@ -38,7 +38,7 @@ import {
     getValueLabelStyle,
     hashFieldReference,
     hasValidFormatExpression,
-    isCalendarValueDimension,
+    isCalendarValueItem,
     isCustomBinDimension,
     isCustomDimension,
     isCustomSqlDimension,
@@ -766,8 +766,7 @@ const seriesValueFormatter = (
                 ? evaluateConditionalFormatExpression(item.format, parameters)
                 : item.format;
 
-        // Resolve the timezone the same way formatItemValue does (shape for
-        // dimensions/table-calcs, by-value for type-opaque MIN/MAX metrics).
+        // Same timezone decision formatItemValue uses.
         const expressionTimezone = getFormatterTimezone(
             item,
             value,
@@ -1617,7 +1616,7 @@ export const getCategoryDateAxisConfig = (
 
     // Calendar values (wall-clock dates) are raw — snap in UTC to match.
     const tz =
-        isCalendarValueDimension(axisField) || !resolvedTimezone
+        isCalendarValueItem(axisField) || !resolvedTimezone
             ? 'UTC'
             : resolvedTimezone;
     // Skip dayjs.tz for UTC: .add() chains drift sub-ms vs fresh .tz() objects
