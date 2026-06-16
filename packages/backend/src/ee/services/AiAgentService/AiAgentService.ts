@@ -110,10 +110,12 @@ import {
     type Output,
     type ToolSet,
 } from 'ai';
+import { createCanvas, loadImage } from 'canvas';
 import { EventEmitter } from 'events';
 import _ from 'lodash';
 import { nanoid as nanoidGenerator } from 'nanoid';
 import slackifyMarkdown from 'slackify-markdown';
+import { Readable } from 'stream';
 import { z } from 'zod';
 import {
     AiAgentArtifactsRetrievedEvent,
@@ -135,6 +137,7 @@ import {
     LightdashAnalytics,
 } from '../../../analytics/LightdashAnalytics';
 import { fromSession } from '../../../auth/account';
+import { type FileStorageClient } from '../../../clients/FileStorage/FileStorageClient';
 import {
     getInstallationToken,
     getPullRequest,
@@ -166,6 +169,7 @@ import { ContentService } from '../../../services/ContentService/ContentService'
 import { DashboardService } from '../../../services/DashboardService/DashboardService';
 import { FeatureFlagService } from '../../../services/FeatureFlag/FeatureFlagService';
 import { GithubAppService } from '../../../services/GithubAppService/GithubAppService';
+import { PersistentDownloadFileService } from '../../../services/PersistentDownloadFileService/PersistentDownloadFileService';
 import { ProjectService } from '../../../services/ProjectService/ProjectService';
 import { SavedChartService } from '../../../services/SavedChartsService/SavedChartService';
 import { SearchService } from '../../../services/SearchService/SearchService';
@@ -280,6 +284,14 @@ type AgentResponseStream = {
 };
 
 const MAX_AI_PROMPT_CONTEXT_ITEMS = 10;
+const AGENT_AVATAR_MAX_BYTES = 5 * 1024 * 1024;
+const AGENT_AVATAR_SIZE_PX = 256;
+const AGENT_AVATAR_PERSISTENT_URL_EXPIRY_SECONDS = 10 * 365 * 24 * 60 * 60;
+const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
+    'image/png',
+    'image/jpeg',
+    'image/gif',
+]);
 
 // Web (SSE) agent streams are kept warm with a transient keepalive chunk on
 // this interval. A long, output-silent tool call — notably AI writeback, whose
@@ -321,6 +333,8 @@ type AiAgentServiceDependencies = {
     contentService: ContentService;
     aiOrganizationSettingsService: AiOrganizationSettingsService;
     shareService: ShareService;
+    fileStorageClient: FileStorageClient;
+    persistentDownloadFileService: PersistentDownloadFileService;
     aiAgentContentValidation: AiAgentContentValidation;
     aiWritebackService: AiWritebackService;
     previewDeploySetupService: PreviewDeploySetupService;
@@ -559,6 +573,10 @@ export class AiAgentService extends BaseService {
 
     private readonly shareService: ShareService;
 
+    private readonly fileStorageClient: FileStorageClient;
+
+    private readonly persistentDownloadFileService: PersistentDownloadFileService;
+
     private readonly aiAgentContentValidation: AiAgentContentValidation;
 
     private readonly aiWritebackService: AiWritebackService;
@@ -740,6 +758,9 @@ export class AiAgentService extends BaseService {
         this.aiOrganizationSettingsService =
             dependencies.aiOrganizationSettingsService;
         this.shareService = dependencies.shareService;
+        this.fileStorageClient = dependencies.fileStorageClient;
+        this.persistentDownloadFileService =
+            dependencies.persistentDownloadFileService;
         this.aiAgentContentValidation = dependencies.aiAgentContentValidation;
         this.aiWritebackService = dependencies.aiWritebackService;
         this.previewDeploySetupService = dependencies.previewDeploySetupService;
@@ -3182,31 +3203,8 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         body: ApiUpdateAiAgent,
     ) {
-        const { organizationUuid } = user;
-        if (!organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-        const agent = await this.getAgent(user, agentUuid);
-        if (agent.organizationUuid !== organizationUuid) {
-            throw new ForbiddenError('Organization not found');
-        }
-
-        const auditedAbility = this.createAuditedAbility(user);
-        if (
-            auditedAbility.cannot(
-                'manage',
-                subject('AiAgent', {
-                    organizationUuid,
-                    projectUuid: agent.projectUuid,
-                    metadata: {
-                        agentUuid,
-                        agentName: agent.name,
-                    },
-                }),
-            )
-        ) {
-            throw new ForbiddenError();
-        }
+        const { organizationUuid, agent } =
+            await this.getManageableAgentOrThrow(user, agentUuid);
 
         const nextEnableDataAccess =
             body.enableDataAccess ?? agent.enableDataAccess;
@@ -3247,6 +3245,153 @@ export class AiAgentService extends BaseService {
         });
 
         return updatedAgent;
+    }
+
+    private async getManageableAgentOrThrow(
+        user: SessionUser,
+        agentUuid: string,
+    ): Promise<{ organizationUuid: string; agent: AiAgent }> {
+        const { organizationUuid } = user;
+        if (!organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const agent = await this.getAgent(user, agentUuid);
+        if (agent.organizationUuid !== organizationUuid) {
+            throw new ForbiddenError('Organization not found');
+        }
+
+        const auditedAbility = this.createAuditedAbility(user);
+        if (
+            auditedAbility.cannot(
+                'manage',
+                subject('AiAgent', {
+                    organizationUuid,
+                    projectUuid: agent.projectUuid,
+                    metadata: {
+                        agentUuid,
+                        agentName: agent.name,
+                    },
+                }),
+            )
+        ) {
+            throw new ForbiddenError();
+        }
+
+        return { organizationUuid, agent };
+    }
+
+    private static async bufferAvatarUpload(
+        body: Readable,
+        contentLength: number,
+    ): Promise<Buffer> {
+        if (contentLength > AGENT_AVATAR_MAX_BYTES) {
+            throw new ParameterError(
+                `Avatar too large: ${contentLength} bytes. Maximum: ${AGENT_AVATAR_MAX_BYTES} bytes`,
+            );
+        }
+
+        const chunks: Buffer[] = [];
+        let totalBytes = 0;
+
+        for await (const chunk of body) {
+            const chunkBuffer = Buffer.isBuffer(chunk)
+                ? chunk
+                : Buffer.from(chunk);
+            totalBytes += chunkBuffer.length;
+            if (totalBytes > AGENT_AVATAR_MAX_BYTES) {
+                throw new ParameterError(
+                    `Avatar too large: ${totalBytes} bytes. Maximum: ${AGENT_AVATAR_MAX_BYTES} bytes`,
+                );
+            }
+            chunks.push(chunkBuffer);
+        }
+
+        if (totalBytes === 0) {
+            throw new ParameterError('Upload body is empty');
+        }
+
+        return Buffer.concat(chunks);
+    }
+
+    private static async normalizeAvatarImage(upload: Buffer): Promise<Buffer> {
+        let image;
+        try {
+            image = await loadImage(upload);
+        } catch (error) {
+            throw new ParameterError(
+                `Invalid avatar image: ${getErrorMessage(error)}`,
+            );
+        }
+
+        const canvas = createCanvas(AGENT_AVATAR_SIZE_PX, AGENT_AVATAR_SIZE_PX);
+        const context = canvas.getContext('2d');
+
+        const scale = Math.max(
+            AGENT_AVATAR_SIZE_PX / image.width,
+            AGENT_AVATAR_SIZE_PX / image.height,
+        );
+        const drawWidth = image.width * scale;
+        const drawHeight = image.height * scale;
+        const offsetX = (AGENT_AVATAR_SIZE_PX - drawWidth) / 2;
+        const offsetY = (AGENT_AVATAR_SIZE_PX - drawHeight) / 2;
+
+        context.clearRect(0, 0, AGENT_AVATAR_SIZE_PX, AGENT_AVATAR_SIZE_PX);
+        context.drawImage(image, offsetX, offsetY, drawWidth, drawHeight);
+
+        return canvas.toBuffer('image/png');
+    }
+
+    public async uploadAgentAvatar(
+        user: SessionUser,
+        projectUuid: string,
+        agentUuid: string,
+        mimeType: string,
+        body: Readable,
+        contentLength: number,
+    ): Promise<AiAgent> {
+        const { organizationUuid, agent } =
+            await this.getManageableAgentOrThrow(user, agentUuid);
+
+        if (agent.projectUuid !== projectUuid) {
+            throw new NotFoundError(`Agent not found: ${agentUuid}`);
+        }
+
+        const normalizedMimeType = mimeType.toLowerCase().split(';', 1)[0];
+        if (!ALLOWED_AGENT_AVATAR_MIME_TYPES.has(normalizedMimeType)) {
+            throw new ParameterError(
+                `Invalid avatar type: ${mimeType}. Allowed: ${Array.from(
+                    ALLOWED_AGENT_AVATAR_MIME_TYPES,
+                ).join(', ')}`,
+            );
+        }
+
+        const bufferedUpload = await AiAgentService.bufferAvatarUpload(
+            body,
+            contentLength,
+        );
+        const normalizedAvatar =
+            await AiAgentService.normalizeAvatarImage(bufferedUpload);
+        const storageId = `ai-agents/${agentUuid}/avatar`;
+        const s3Key = `${storageId}.png`;
+
+        await this.fileStorageClient.uploadImage(normalizedAvatar, storageId);
+
+        const imageUrl =
+            await this.persistentDownloadFileService.createPersistentUrl({
+                s3Key,
+                fileType: 'image',
+                organizationUuid,
+                projectUuid: agent.projectUuid,
+                createdByUserUuid: user.userUuid,
+                expirationSeconds: AGENT_AVATAR_PERSISTENT_URL_EXPIRY_SECONDS,
+            });
+
+        return this.aiAgentModel.updateAgent({
+            agentUuid,
+            organizationUuid,
+            imageUrl,
+        });
     }
 
     public async deleteAgent(user: SessionUser, agentUuid: string) {

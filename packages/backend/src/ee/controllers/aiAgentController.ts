@@ -4,6 +4,7 @@ import {
     ApiAgentReadinessScoreResponse,
     ApiAgentSuggestionsResponse,
     ApiAiAgentArtifactResponseTSOACompat,
+    ApiAiAgentAvatarUploadResponse,
     ApiAiAgentEvaluationResponse,
     ApiAiAgentEvaluationRunResponse,
     ApiAiAgentEvaluationRunResultsResponse,
@@ -60,6 +61,7 @@ import {
     ApiUpdateUserAgentPreferencesResponse,
     assertRegisteredAccount,
     KnexPaginateArgs,
+    ParameterError,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
@@ -681,6 +683,54 @@ export class AiAgentController extends BaseController {
             agentUuid,
             { ...body, projectUuid },
         );
+        return {
+            status: 'ok',
+            results: agent,
+        };
+    }
+
+    @Middlewares([
+        allowApiKeyAuthentication,
+        isAuthenticated,
+        unauthorisedInDemo,
+    ])
+    @SuccessResponse('200', 'Success')
+    @Post('/{agentUuid}/avatar')
+    @OperationId('uploadAgentAvatar')
+    async uploadAgentAvatar(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+        @Path() agentUuid: string,
+    ): Promise<ApiAiAgentAvatarUploadResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+
+        const mimeType = req.headers['content-type'];
+        if (!mimeType) {
+            throw new ParameterError('Content-Type header is required');
+        }
+
+        const contentLengthHeader = req.headers['content-length'];
+        if (!contentLengthHeader) {
+            throw new ParameterError('Content-Length header is required');
+        }
+
+        const contentLength = parseInt(contentLengthHeader, 10);
+        if (Number.isNaN(contentLength) || contentLength <= 0) {
+            throw new ParameterError(
+                'Content-Length must be a positive integer',
+            );
+        }
+
+        const agent = await this.getAiAgentService().uploadAgentAvatar(
+            toSessionUser(req.account),
+            projectUuid,
+            agentUuid,
+            mimeType,
+            req,
+            contentLength,
+        );
+
         return {
             status: 'ok',
             results: agent,

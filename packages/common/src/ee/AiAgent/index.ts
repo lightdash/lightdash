@@ -300,6 +300,8 @@ export type ApiAiAgentResponse = {
     results: AiAgent;
 };
 
+export type ApiAiAgentAvatarUploadResponse = ApiSuccess<AiAgent>;
+
 export type ApiAiAgentSummaryResponse = {
     status: 'ok';
     results: AiAgentSummary[];

@@ -7,6 +7,7 @@ import {
     Card,
     Code,
     Collapse,
+    FileButton,
     Group,
     HoverCard,
     LoadingOverlay,
@@ -33,9 +34,11 @@ import {
     IconPointFilled,
     IconSparkles,
     IconTrash,
+    IconUpload,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { z } from 'zod';
+import { LightdashUserAvatar } from '../../../../components/Avatar';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
@@ -82,6 +85,9 @@ export const AiAgentFormSetup = ({
     agentUuid,
     isSavingAgent,
     persistedMcpServerUuids,
+    avatarPreviewUrl,
+    onAvatarFileChange,
+    onAvatarRemove,
 }: {
     mode: 'create' | 'edit';
     form: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
@@ -89,6 +95,9 @@ export const AiAgentFormSetup = ({
     agentUuid?: string;
     isSavingAgent?: boolean;
     persistedMcpServerUuids?: string[];
+    avatarPreviewUrl: string | null;
+    onAvatarFileChange: (file: File | null) => void;
+    onAvatarRemove: () => void;
 }) => {
     const { data: project } = useProject(projectUuid);
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
@@ -240,23 +249,62 @@ export const AiAgentFormSetup = ({
                                     );
                                 }}
                             />
-                            <TextInput
-                                style={{ flexGrow: 1 }}
-                                miw={200}
-                                variant="subtle"
-                                label="Avatar image URL"
-                                description="Please provide an image url like https://example.com/avatar.jpg. If not provided, a default avatar will be used."
-                                placeholder="https://example.com/avatar.jpg"
-                                type="url"
-                                {...form.getInputProps('imageUrl')}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    form.setFieldValue(
-                                        'imageUrl',
-                                        value ? value : null,
-                                    );
-                                }}
-                            />
+                            <Box>
+                                <Text size="sm" fw={500}>
+                                    Avatar
+                                </Text>
+                                <Text size="xs" c="dimmed" mt={2}>
+                                    Upload an image for the agent avatar. If not
+                                    provided, a default avatar will be used.
+                                </Text>
+                                <Group align="center" gap="md" mt="xs">
+                                    <LightdashUserAvatar
+                                        src={avatarPreviewUrl ?? undefined}
+                                        name={form.values.name || 'Agent'}
+                                        size="lg"
+                                    />
+                                    <Group gap="xs">
+                                        <FileButton
+                                            accept="image/png,image/jpeg,image/gif"
+                                            onChange={onAvatarFileChange}
+                                        >
+                                            {(props) => (
+                                                <Button
+                                                    {...props}
+                                                    size="xs"
+                                                    variant="light"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconUpload}
+                                                        />
+                                                    }
+                                                >
+                                                    Upload image
+                                                </Button>
+                                            )}
+                                        </FileButton>
+                                        {avatarPreviewUrl && (
+                                            <Button
+                                                size="xs"
+                                                variant="subtle"
+                                                color="red"
+                                                leftSection={
+                                                    <MantineIcon
+                                                        icon={IconTrash}
+                                                    />
+                                                }
+                                                onClick={onAvatarRemove}
+                                            >
+                                                Remove
+                                            </Button>
+                                        )}
+                                    </Group>
+                                </Group>
+                            </Box>
+                            <Text size="xs" c="dimmed">
+                                Supported formats: PNG, JPG, GIF. Uploaded
+                                avatars are normalized to a square image.
+                            </Text>
                         </Stack>
                     </Paper>
 
