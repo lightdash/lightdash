@@ -51,6 +51,15 @@ import {
 import { useAgentAiMcpServers } from '../../features/aiCopilot/hooks/useProjectAiMcpServers';
 import { EvalsSetup } from './EvalsSetup';
 
+// Uploaded avatars open in upload mode (never expose the persistent file URL);
+// user-provided URLs open in link mode.
+const getAvatarModeForAgent = (
+    agent:
+        | { imageUrl: string | null; imageUrlSource: 'upload' | 'url' | null }
+        | undefined,
+): 'upload' | 'link' =>
+    agent?.imageUrl && agent.imageUrlSource !== 'upload' ? 'link' : 'upload';
+
 // Object URL lifecycle for a staged file: create on change, revoke on cleanup.
 const useObjectUrl = (file: File | null): string | null => {
     const [url, setUrl] = useState<string | null>(null);
@@ -175,11 +184,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             };
             form.setValues(values);
             form.resetDirty(values);
-            setAvatarMode(
-                agent.imageUrl && agent.imageUrlSource !== 'upload'
-                    ? 'link'
-                    : 'upload',
-            );
+            setAvatarMode(getAvatarModeForAgent(agent));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [agent, agentMcpServers, isAgentMcpServersFetched, isCreateMode]);
@@ -530,9 +535,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                                   agent?.imageUrl ?? null,
                                               );
                                               setAvatarMode(
-                                                  agent?.imageUrl
-                                                      ? 'link'
-                                                      : 'upload',
+                                                  getAvatarModeForAgent(agent),
                                               );
                                           }
                                         : null
