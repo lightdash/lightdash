@@ -380,6 +380,11 @@ export class AiWritebackService extends BaseService {
     }): Promise<{
         installationId: string;
         installationToken: string;
+        // The linked user's own GitHub token, if any — null when the
+        // user-credentials feature is off or they haven't linked. Code search
+        // is token-scoped, so the caller must search with this too or it misses
+        // repos only the user (not the org installation) can reach.
+        userToken: string | null;
         listRepos: () => Promise<
             {
                 owner: string;
@@ -446,6 +451,7 @@ export class AiWritebackService extends BaseService {
         return {
             installationId,
             installationToken,
+            userToken: userToken ?? null,
             listRepos: async () => {
                 const map = await loadRepoMap();
                 return [...map.entries()].map(([key, value]) => {

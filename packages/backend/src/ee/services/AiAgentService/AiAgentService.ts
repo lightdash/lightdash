@@ -5943,19 +5943,40 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
-                            this.prometheusMetrics?.incrementRepoFsGithubRequest(
-                                'search',
-                            );
-                            const { installationToken } =
+                            const { installationToken, userToken } =
                                 await getInstallationAccess();
-                            const hits = await searchRepoCode({
-                                owner,
-                                query,
-                                token: installationToken,
-                            }).catch(rethrowAsRecoverable);
-                            return hits.filter(
-                                (hit) => !isDeniedRepoPath(hit.path),
+                            // Code search is token-scoped: the installation
+                            // token only sees the org's repos, the user token
+                            // only the user's own. The VFS mounts the union, so
+                            // search both and merge — otherwise `/owner/repo`
+                            // reads work but `search /owner` silently omits the
+                            // same user-only repo.
+                            const tokens = [
+                                installationToken,
+                                ...(userToken ? [userToken] : []),
+                            ];
+                            const hitsPerToken = await Promise.all(
+                                tokens.map((token) => {
+                                    this.prometheusMetrics?.incrementRepoFsGithubRequest(
+                                        'search',
+                                    );
+                                    return searchRepoCode({
+                                        owner,
+                                        query,
+                                        token,
+                                    }).catch(rethrowAsRecoverable);
+                                }),
                             );
+                            const seen = new Set<string>();
+                            return hitsPerToken
+                                .flat()
+                                .filter((hit) => !isDeniedRepoPath(hit.path))
+                                .filter((hit) => {
+                                    const key = `${hit.owner}/${hit.repo}/${hit.path}`;
+                                    if (seen.has(key)) return false;
+                                    seen.add(key);
+                                    return true;
+                                });
                         },
                     });
                 })();
