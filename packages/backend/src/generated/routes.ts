@@ -9226,6 +9226,8 @@ const models: TsoaRoute.Models = {
                 {
                     dataType: 'nestedObjectLiteral',
                     nestedProperties: {
+                        parameters: { ref: 'ParametersValuesMap' },
+                        filters: { ref: 'Filters' },
                         appUuid: {
                             dataType: 'enum',
                             enums: [null],

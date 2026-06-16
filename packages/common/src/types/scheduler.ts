@@ -3,7 +3,11 @@ import { type AnyType } from './any';
 import { type ApiSuccess } from './api/success';
 import type { DownloadFileType } from './downloadFile';
 import { type Explore, type ExploreError } from './explore';
-import { type DashboardFilterRule, type DashboardFilters } from './filter';
+import {
+    type DashboardFilterRule,
+    type DashboardFilters,
+    type Filters,
+} from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfig } from './pivot';
@@ -136,6 +140,8 @@ export type ChartScheduler = SchedulerBase & {
     dashboardUuid: null;
     savedSqlUuid: null;
     appUuid: null;
+    filters?: Filters;
+    parameters?: ParametersValuesMap;
 };
 
 export const isDashboardScheduler = (
@@ -153,6 +159,10 @@ export type DashboardScheduler = SchedulerBase & {
     customViewportWidth?: number;
     selectedTabs: string[] | null;
 };
+
+// Filter overrides by scheduler type: chart-native Filters for charts,
+// DashboardFilterRule[] for dashboards.
+export type SchedulerFilters = Filters | DashboardFilterRule[];
 
 export type SqlChartScheduler = SchedulerBase & {
     savedChartUuid: null;
@@ -301,19 +311,18 @@ export type UpdateSchedulerAndTargets = Pick<
     | 'thresholds'
     | 'notificationFrequency'
     | 'includeLinks'
-> &
-    Pick<
-        DashboardScheduler,
-        'filters' | 'parameters' | 'customViewportWidth'
-    > & {
-        targets: Array<
-            | CreateSchedulerTarget
-            | UpdateSchedulerSlackTarget
-            | UpdateSchedulerEmailTarget
-            | UpdateSchedulerMsTeamsTarget
-            | UpdateSchedulerGoogleChatTarget
-        >;
-    };
+> & {
+    filters?: SchedulerFilters;
+    parameters?: ParametersValuesMap;
+    customViewportWidth?: number;
+    targets: Array<
+        | CreateSchedulerTarget
+        | UpdateSchedulerSlackTarget
+        | UpdateSchedulerEmailTarget
+        | UpdateSchedulerMsTeamsTarget
+        | UpdateSchedulerGoogleChatTarget
+    >;
+};
 
 export type UpdateSchedulerAndTargetsWithoutId = Omit<
     UpdateSchedulerAndTargets,

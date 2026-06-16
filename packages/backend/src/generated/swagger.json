@@ -10645,6 +10645,12 @@
                     },
                     {
                         "properties": {
+                            "parameters": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/Filters"
+                            },
                             "appUuid": {
                                 "type": "number",
                                 "enum": [null],

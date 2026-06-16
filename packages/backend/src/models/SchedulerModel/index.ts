@@ -3,10 +3,12 @@ import {
     CreateSchedulerAndTargets,
     CreateSchedulerLog,
     isAppCreateScheduler,
+    isChartCreateScheduler,
     isChartScheduler,
     isCreateSchedulerGoogleChatTarget,
     isCreateSchedulerMsTeamsTarget,
     isCreateSchedulerSlackTarget,
+    isDashboardCreateScheduler,
     isDashboardScheduler,
     isEmailTarget,
     isGoogleChatTarget,
@@ -23,6 +25,7 @@ import {
     NotFoundError,
     Scheduler,
     SchedulerAndTargets,
+    SchedulerBase,
     SchedulerEmailTarget,
     SchedulerFormat,
     SchedulerGoogleChatTarget,
@@ -37,6 +40,7 @@ import {
     SchedulerSlackTarget,
     SchedulerTaskName,
     SchedulerWithLogs,
+    UnexpectedServerError,
     UpdateSchedulerAndTargets,
     UserSchedulersSummary,
     type SchedulerCronUpdate,
@@ -50,11 +54,16 @@ import { ProjectTableName } from '../../database/entities/projects';
 import { SavedChartsTableName } from '../../database/entities/savedCharts';
 import { SavedSqlTableName } from '../../database/entities/savedSql';
 import {
+    isAppSchedulerDb,
+    isChartSchedulerDb,
+    isDashboardSchedulerDb,
+    isSqlChartSchedulerDb,
     SchedulerDb,
     SchedulerEmailTargetDb,
     SchedulerEmailTargetTableName,
     SchedulerGoogleChatTargetDb,
     SchedulerGoogleChatTargetTableName,
+    SchedulerInsert,
     SchedulerLogDb,
     SchedulerLogTableName,
     SchedulerMsTeamsTargetDb,
@@ -108,7 +117,7 @@ export class SchedulerModel {
     }
 
     static convertScheduler(scheduler: SelectScheduler): Scheduler {
-        return {
+        const base: SchedulerBase = {
             schedulerUuid: scheduler.scheduler_uuid,
             name: scheduler.name,
             message: scheduler.message,
@@ -130,17 +139,151 @@ export class SchedulerModel {
             appName: scheduler.app_name,
             format: scheduler.format,
             options: scheduler.options,
-            filters: scheduler.filters,
-            parameters: scheduler.parameters,
-            customViewportWidth: scheduler.custom_viewport_width,
-            thresholds: scheduler.thresholds || undefined,
+            thresholds: scheduler.thresholds ?? undefined,
             enabled: scheduler.enabled,
-            notificationFrequency: scheduler.notification_frequency,
-            selectedTabs: scheduler.selected_tabs,
+            notificationFrequency:
+                scheduler.notification_frequency ?? undefined,
             includeLinks: scheduler.include_links,
             projectUuid: scheduler.project_uuid ?? undefined,
             projectName: scheduler.project_name ?? undefined,
-        } as Scheduler;
+        };
+
+        // Discriminate by resource FK so `filters` is narrowed to the shape
+        // stored for that resource type (no shape-sniffing, no casts).
+        if (isDashboardSchedulerDb(scheduler)) {
+            return {
+                ...base,
+                savedChartUuid: null,
+                dashboardUuid: scheduler.dashboard_uuid,
+                savedSqlUuid: null,
+                appUuid: null,
+                filters: scheduler.filters ?? undefined,
+                parameters: scheduler.parameters ?? undefined,
+                customViewportWidth:
+                    scheduler.custom_viewport_width ?? undefined,
+                selectedTabs: scheduler.selected_tabs,
+            };
+        }
+        if (isChartSchedulerDb(scheduler)) {
+            return {
+                ...base,
+                savedChartUuid: scheduler.saved_chart_uuid,
+                dashboardUuid: null,
+                savedSqlUuid: null,
+                appUuid: null,
+                filters: scheduler.filters ?? undefined,
+                parameters: scheduler.parameters ?? undefined,
+            };
+        }
+        if (isSqlChartSchedulerDb(scheduler)) {
+            return {
+                ...base,
+                savedChartUuid: null,
+                dashboardUuid: null,
+                savedSqlUuid: scheduler.saved_sql_uuid,
+                appUuid: null,
+            };
+        }
+        if (isAppSchedulerDb(scheduler)) {
+            return {
+                ...base,
+                savedChartUuid: null,
+                dashboardUuid: null,
+                savedSqlUuid: null,
+                appUuid: scheduler.app_uuid,
+            };
+        }
+        throw new UnexpectedServerError(
+            `Scheduler ${scheduler.scheduler_uuid} has no resource reference`,
+        );
+    }
+
+    // Serialize a value for a JSONB column. Stringify (not raw object) so JS
+    // arrays aren't coerced to Postgres array literals.
+    private static toJsonColumn(value: unknown): string | null {
+        return value ? JSON.stringify(value) : null;
+    }
+
+    // Build the row to insert, choosing the resource FK and overrides by
+    // scheduler type. Only dashboard/chart schedulers carry filter & parameter
+    // overrides; only dashboards carry viewport width & selected tabs.
+    private static toSchedulerInsert(
+        newScheduler: CreateSchedulerAndTargets,
+    ): SchedulerInsert {
+        const common = {
+            name: newScheduler.name,
+            message: newScheduler.message,
+            format: newScheduler.format,
+            created_by: newScheduler.createdBy,
+            cron: newScheduler.cron,
+            timezone: newScheduler.timezone ?? null,
+            updated_at: new Date(),
+            options: newScheduler.options,
+            thresholds: SchedulerModel.toJsonColumn(newScheduler.thresholds),
+            enabled: true,
+            notification_frequency: newScheduler.notificationFrequency || null,
+            include_links: newScheduler.includeLinks !== false,
+        };
+
+        if (isDashboardCreateScheduler(newScheduler)) {
+            return {
+                ...common,
+                saved_chart_uuid: null,
+                dashboard_uuid: newScheduler.dashboardUuid,
+                saved_sql_uuid: null,
+                app_uuid: null,
+                filters: SchedulerModel.toJsonColumn(newScheduler.filters),
+                parameters: SchedulerModel.toJsonColumn(
+                    newScheduler.parameters,
+                ),
+                custom_viewport_width: newScheduler.customViewportWidth ?? null,
+                selected_tabs: newScheduler.selectedTabs ?? null,
+            };
+        }
+        if (isChartCreateScheduler(newScheduler)) {
+            return {
+                ...common,
+                saved_chart_uuid: newScheduler.savedChartUuid,
+                dashboard_uuid: null,
+                saved_sql_uuid: null,
+                app_uuid: null,
+                filters: SchedulerModel.toJsonColumn(newScheduler.filters),
+                parameters: SchedulerModel.toJsonColumn(
+                    newScheduler.parameters,
+                ),
+                custom_viewport_width: null,
+                selected_tabs: null,
+            };
+        }
+        if (isSqlChartScheduler(newScheduler)) {
+            return {
+                ...common,
+                saved_chart_uuid: null,
+                dashboard_uuid: null,
+                saved_sql_uuid: newScheduler.savedSqlUuid,
+                app_uuid: null,
+                filters: null,
+                parameters: null,
+                custom_viewport_width: null,
+                selected_tabs: null,
+            };
+        }
+        if (isAppCreateScheduler(newScheduler)) {
+            return {
+                ...common,
+                saved_chart_uuid: null,
+                dashboard_uuid: null,
+                saved_sql_uuid: null,
+                app_uuid: newScheduler.appUuid,
+                filters: null,
+                parameters: null,
+                custom_viewport_width: null,
+                selected_tabs: null,
+            };
+        }
+        throw new UnexpectedServerError(
+            'Cannot create scheduler without a resource reference',
+        );
     }
 
     static convertSlackTarget(
@@ -836,49 +979,7 @@ export class SchedulerModel {
     ): Promise<SchedulerAndTargets> {
         const schedulerUuid = await this.database.transaction(async (trx) => {
             const [scheduler] = await trx(SchedulerTableName)
-                .insert({
-                    name: newScheduler.name,
-                    message: newScheduler.message,
-                    format: newScheduler.format,
-                    created_by: newScheduler.createdBy,
-                    cron: newScheduler.cron,
-                    timezone: newScheduler.timezone ?? null,
-                    saved_chart_uuid: newScheduler.savedChartUuid,
-                    dashboard_uuid: newScheduler.dashboardUuid,
-                    saved_sql_uuid: newScheduler.savedSqlUuid,
-                    app_uuid: isAppCreateScheduler(newScheduler)
-                        ? newScheduler.appUuid
-                        : null,
-                    updated_at: new Date(),
-                    options: newScheduler.options,
-                    filters:
-                        isDashboardScheduler(newScheduler) &&
-                        newScheduler.filters
-                            ? JSON.stringify(newScheduler.filters)
-                            : null,
-                    parameters:
-                        isDashboardScheduler(newScheduler) &&
-                        newScheduler.parameters
-                            ? JSON.stringify(newScheduler.parameters)
-                            : null,
-                    custom_viewport_width:
-                        isDashboardScheduler(newScheduler) &&
-                        newScheduler.customViewportWidth
-                            ? newScheduler.customViewportWidth
-                            : null,
-                    thresholds: newScheduler.thresholds
-                        ? JSON.stringify(newScheduler.thresholds)
-                        : null,
-                    enabled: true,
-                    notification_frequency:
-                        newScheduler.notificationFrequency || null,
-                    selected_tabs:
-                        isDashboardScheduler(newScheduler) &&
-                        newScheduler.selectedTabs
-                            ? newScheduler.selectedTabs
-                            : null,
-                    include_links: newScheduler.includeLinks !== false,
-                })
+                .insert(SchedulerModel.toSchedulerInsert(newScheduler))
                 .returning('*');
             const targetPromises = newScheduler.targets.map(async (target) => {
                 if (isCreateSchedulerSlackTarget(target)) {
@@ -957,22 +1058,15 @@ export class SchedulerModel {
                     timezone: scheduler.timezone ?? null,
                     updated_at: new Date(),
                     options: scheduler.options,
-                    filters:
-                        'filters' in scheduler && scheduler.filters
-                            ? JSON.stringify(scheduler.filters)
-                            : null,
-                    parameters:
-                        'parameters' in scheduler && scheduler.parameters
-                            ? JSON.stringify(scheduler.parameters)
-                            : null,
+                    filters: SchedulerModel.toJsonColumn(scheduler.filters),
+                    parameters: SchedulerModel.toJsonColumn(
+                        scheduler.parameters,
+                    ),
                     custom_viewport_width:
-                        'customViewportWidth' in scheduler &&
-                        scheduler.customViewportWidth
-                            ? scheduler.customViewportWidth
-                            : null,
-                    thresholds: scheduler.thresholds
-                        ? JSON.stringify(scheduler.thresholds)
-                        : null,
+                        scheduler.customViewportWidth ?? null,
+                    thresholds: SchedulerModel.toJsonColumn(
+                        scheduler.thresholds,
+                    ),
                     notification_frequency:
                         scheduler.notificationFrequency || null,
                     selected_tabs:
