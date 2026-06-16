@@ -11,6 +11,7 @@ function buildXml(
 
     const attributes = props
         ? Object.entries(props)
+              .filter(([, value]) => value !== null && value !== undefined)
               .map(([key, value]) => `${key}="${value}"`)
               .join(' ')
         : '';
