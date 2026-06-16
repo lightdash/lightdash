@@ -1,6 +1,7 @@
 import type {
     AiAgent,
     AiAgentThreadFilters,
+    ApiAiAgentAvatarUploadResponse,
     ApiAiAgentProjectThreadSummaryListResponse,
     ApiAiAgentResponse,
     ApiAiAgentSummaryResponse,
@@ -155,7 +156,12 @@ const createProjectAgent = (projectUuid: string, data: ApiCreateAiAgent) =>
         body: JSON.stringify(data),
     });
 
-export const useProjectCreateAiAgentMutation = (projectUuid: string) => {
+export const useProjectCreateAiAgentMutation = (
+    projectUuid: string,
+    options?: {
+        skipNavigation?: boolean;
+    },
+) => {
     const navigate = useNavigate();
     const queryClient = useQueryClient();
     const { showToastApiError, showToastSuccess } = useToaster();
@@ -173,7 +179,11 @@ export const useProjectCreateAiAgentMutation = (projectUuid: string) => {
             void queryClient.invalidateQueries({
                 queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid],
             });
-            void navigate(`/projects/${projectUuid}/ai-agents/${result.uuid}`);
+            if (!options?.skipNavigation) {
+                void navigate(
+                    `/projects/${projectUuid}/ai-agents/${result.uuid}`,
+                );
+            }
         },
         onError: ({ error }) => {
             showToastApiError({
@@ -191,6 +201,33 @@ const updateProjectAgent = (projectUuid: string, data: ApiUpdateAiAgent) =>
         method: 'PATCH',
         body: JSON.stringify(data),
     });
+
+const uploadProjectAgentAvatar = async (
+    projectUuid: string,
+    agentUuid: string,
+    file: File,
+) => {
+    const response = await fetch(
+        `/api/v1/projects/${projectUuid}/aiAgents/${agentUuid}/avatar`,
+        {
+            method: 'POST',
+            body: file,
+            headers: {
+                'Content-Type': file.type,
+            },
+        },
+    );
+
+    const json = (await response.json()) as
+        | ApiAiAgentAvatarUploadResponse
+        | ApiError;
+
+    if (!response.ok) {
+        throw json as ApiError;
+    }
+
+    return (json as ApiAiAgentAvatarUploadResponse).results;
+};
 
 export const useProjectUpdateAiAgentMutation = (
     projectUuid: string,
@@ -271,6 +308,36 @@ export const useProjectUpdateAiAgentMutation = (
             showToastApiError({
                 title: 'Failed to update AI agent',
                 apiError: error,
+            });
+        },
+    });
+};
+
+export const useProjectUploadAiAgentAvatarMutation = (projectUuid: string) => {
+    const queryClient = useQueryClient();
+    const { showToastApiError } = useToaster();
+
+    return useMutation<
+        ApiAiAgentResponse['results'],
+        ApiError,
+        { agentUuid: string; file: File }
+    >({
+        mutationFn: ({ agentUuid, file }) =>
+            uploadProjectAgentAvatar(projectUuid, agentUuid, file),
+        onSuccess: async (result) => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid],
+                }),
+                queryClient.invalidateQueries({
+                    queryKey: [PROJECT_AI_AGENTS_KEY, projectUuid, result.uuid],
+                }),
+            ]);
+        },
+        onError: (error) => {
+            showToastApiError({
+                title: 'Failed to upload agent avatar',
+                apiError: error.error,
             });
         },
     });

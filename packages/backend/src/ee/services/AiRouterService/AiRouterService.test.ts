@@ -50,6 +50,7 @@ const createCandidate = (
     name: overrides.name,
     description: overrides.description ?? null,
     imageUrl: null,
+    imageUrlSource: null,
     tags: overrides.tags ?? null,
     integrations: [],
     createdAt: new Date('2026-01-01'),

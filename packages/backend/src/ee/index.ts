@@ -296,6 +296,9 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     aiOrganizationSettingsService:
                         repository.getAiOrganizationSettingsService(),
                     shareService: repository.getShareService(),
+                    fileStorageClient: clients.getFileStorageClient(),
+                    persistentDownloadFileService:
+                        repository.getPersistentDownloadFileService(),
                     aiAgentContentValidation: new AiAgentContentValidation(),
                     aiWritebackService:
                         repository.getAiWritebackService<AiWritebackService>(),

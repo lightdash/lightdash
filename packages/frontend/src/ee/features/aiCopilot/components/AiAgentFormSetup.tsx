@@ -7,6 +7,7 @@ import {
     Card,
     Code,
     Collapse,
+    FileButton,
     Group,
     HoverCard,
     LoadingOverlay,
@@ -33,6 +34,7 @@ import {
     IconPointFilled,
     IconSparkles,
     IconTrash,
+    IconUpload,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { z } from 'zod';
@@ -82,6 +84,12 @@ export const AiAgentFormSetup = ({
     agentUuid,
     isSavingAgent,
     persistedMcpServerUuids,
+    avatarMode,
+    avatarFileName,
+    onAvatarFileChange,
+    onAvatarModeChange,
+    onAvatarRemove,
+    onAvatarRevert,
 }: {
     mode: 'create' | 'edit';
     form: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
@@ -89,6 +97,12 @@ export const AiAgentFormSetup = ({
     agentUuid?: string;
     isSavingAgent?: boolean;
     persistedMcpServerUuids?: string[];
+    avatarMode: 'upload' | 'link';
+    avatarFileName: string | null;
+    onAvatarFileChange: (file: File | null) => void;
+    onAvatarModeChange: (mode: 'upload' | 'link') => void;
+    onAvatarRemove: () => void;
+    onAvatarRevert: (() => void) | null;
 }) => {
     const { data: project } = useProject(projectUuid);
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
@@ -240,23 +254,104 @@ export const AiAgentFormSetup = ({
                                     );
                                 }}
                             />
-                            <TextInput
-                                style={{ flexGrow: 1 }}
-                                miw={200}
-                                variant="subtle"
-                                label="Avatar image URL"
-                                description="Please provide an image url like https://example.com/avatar.jpg. If not provided, a default avatar will be used."
-                                placeholder="https://example.com/avatar.jpg"
-                                type="url"
-                                {...form.getInputProps('imageUrl')}
-                                onChange={(e) => {
-                                    const value = e.target.value;
-                                    form.setFieldValue(
-                                        'imageUrl',
-                                        value ? value : null,
-                                    );
-                                }}
-                            />
+                            <Box>
+                                <Text size="sm" fw={500}>
+                                    Avatar
+                                </Text>
+                                <Text size="xs" c="dimmed" mt={2}>
+                                    Upload an image (PNG, JPG, GIF) or use an
+                                    image URL. Images are cropped to a square; a
+                                    default avatar is used if none is set.
+                                </Text>
+
+                                {avatarMode === 'link' ? (
+                                    <TextInput
+                                        mt="sm"
+                                        variant="subtle"
+                                        label="Avatar image URL"
+                                        placeholder="https://example.com/avatar.jpg"
+                                        type="url"
+                                        {...form.getInputProps('imageUrl')}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            form.setFieldValue(
+                                                'imageUrl',
+                                                value ? value : null,
+                                            );
+                                        }}
+                                    />
+                                ) : (
+                                    <Group align="center" gap="sm" mt="sm">
+                                        <FileButton
+                                            accept="image/png,image/jpeg,image/gif"
+                                            onChange={onAvatarFileChange}
+                                        >
+                                            {(props) => (
+                                                <Button
+                                                    {...props}
+                                                    size="xs"
+                                                    variant="light"
+                                                    leftSection={
+                                                        <MantineIcon
+                                                            icon={IconUpload}
+                                                        />
+                                                    }
+                                                >
+                                                    Upload image
+                                                </Button>
+                                            )}
+                                        </FileButton>
+                                        {avatarFileName !== null && (
+                                            <Text size="xs" c="dimmed">
+                                                {avatarFileName}
+                                            </Text>
+                                        )}
+                                    </Group>
+                                )}
+
+                                <Group gap="md" mt="xs">
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        size="xs"
+                                        c="dimmed"
+                                        onClick={() =>
+                                            onAvatarModeChange(
+                                                avatarMode === 'link'
+                                                    ? 'upload'
+                                                    : 'link',
+                                            )
+                                        }
+                                    >
+                                        {avatarMode === 'link'
+                                            ? 'Upload an image instead'
+                                            : 'Use an image URL instead'}
+                                    </Anchor>
+                                    {onAvatarRevert !== null && (
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            size="xs"
+                                            c="dimmed"
+                                            onClick={onAvatarRevert}
+                                        >
+                                            Revert
+                                        </Anchor>
+                                    )}
+                                    {(avatarFileName !== null ||
+                                        form.values.imageUrl) && (
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            size="xs"
+                                            c="red"
+                                            onClick={onAvatarRemove}
+                                        >
+                                            Remove
+                                        </Anchor>
+                                    )}
+                                </Group>
+                            </Box>
                         </Stack>
                     </Paper>
 
