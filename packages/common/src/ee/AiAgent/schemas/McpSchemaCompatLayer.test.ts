@@ -1,13 +1,15 @@
+import z, { type ZodSchema } from 'zod';
+import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 import {
-    ToolFindFieldsArgs,
     toolFindFieldsArgsSchema,
     toolFindFieldsArgsSchemaTransformed,
-    ToolRunMetricQueryArgs,
+    type ToolFindFieldsArgs,
+} from './tools/toolFindFieldsArgs';
+import {
     toolRunMetricQueryArgsSchema,
     toolRunMetricQueryArgsSchemaTransformed,
-} from '@lightdash/common';
-import z, { ZodSchema } from 'zod';
-import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
+    type ToolRunMetricQueryArgs,
+} from './tools/toolRunMetricQueryArgs';
 
 const mcpSchemaCompatLayer = new McpSchemaCompatLayer();
 

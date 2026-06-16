@@ -127,26 +127,33 @@ describe('MCP tool contracts', () => {
         mockRegisteredMcpPrompts.length = 0;
         await mcpService.createServer({ aiWritebackEnabled: true });
 
-        expect({
-            prompts: mockRegisteredMcpPrompts.map(({ name, config }) => ({
-                name,
-                title: config.title,
-                description: config.description,
-                argsSchema: schemaToJson(config.argsSchema),
-                prompt:
-                    name === 'lightdash-analyst' ? MCP_ANALYST_PROMPT : null,
-            })),
-            tools: mockRegisteredMcpTools.map(({ name, config }) => ({
-                name,
-                agentName:
-                    name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
-                title: config.title,
-                description: config.description,
-                inputSchema: schemaToJson(config.inputSchema),
-                ...(config.outputSchema
-                    ? { outputSchema: schemaToJson(config.outputSchema) }
-                    : {}),
-            })),
-        }).toMatchSnapshot();
+        const prompts = mockRegisteredMcpPrompts.map(({ name, config }) => ({
+            name,
+            title: config.title,
+            description: config.description,
+            argsSchema: schemaToJson(config.argsSchema),
+            prompt: name === 'lightdash-analyst' ? MCP_ANALYST_PROMPT : null,
+        }));
+        const tools = mockRegisteredMcpTools.map(({ name, config }) => ({
+            name,
+            agentName:
+                name === McpToolName.RUN_METRIC_QUERY ? 'runQuery' : null,
+            title: config.title,
+            description: config.description,
+            inputSchema: schemaToJson(config.inputSchema),
+            ...(config.outputSchema
+                ? { outputSchema: schemaToJson(config.outputSchema) }
+                : {}),
+        }));
+
+        expect(
+            tools
+                .filter(({ inputSchema }) =>
+                    JSON.stringify(inputSchema).includes('"$ref"'),
+                )
+                .map(({ name }) => name),
+        ).toEqual([]);
+
+        expect({ prompts, tools }).toMatchSnapshot();
     });
 });

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { zodToJsonSchema } from 'zod-to-json-schema';
 import { defineTool } from './defineTool';
 import {
     agentToolNames,
@@ -45,8 +46,12 @@ describe('defineTool', () => {
         ).toEqual({ type: 'error-text', value: 'Nope' });
     });
 
-    it('wraps agent input schemas with JSON Schema references', () => {
+    it('keeps MCP input schemas ref-free', () => {
         const sharedSchema = z.object({ value: z.string() });
+        const input = {
+            first: { value: 'one' },
+            second: { value: 'two' },
+        };
         const inputSchema = z.object({
             first: sharedSchema,
             second: sharedSchema,
@@ -69,7 +74,13 @@ describe('defineTool', () => {
         expect(
             JSON.stringify(tool.for('agent').inputSchema.jsonSchema),
         ).toContain('"$ref"');
-        expect(tool.for('mcp').inputSchema).toBe(inputSchema);
+
+        const mcpInputSchema = tool.for('mcp').inputSchema;
+        expect(mcpInputSchema).not.toBe(inputSchema);
+        expect(JSON.stringify(zodToJsonSchema(mcpInputSchema))).not.toContain(
+            '"$ref"',
+        );
+        expect(mcpInputSchema.parse(input)).toEqual(input);
     });
 
     it('builds MCP result helpers', () => {

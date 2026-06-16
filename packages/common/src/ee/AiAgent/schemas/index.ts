@@ -32,6 +32,7 @@ import {
 export * from './customMetrics';
 export * from './defineTool';
 export * from './filters';
+export * from './McpSchemaCompatLayer';
 export * from './outputMetadata';
 export * from './sortField';
 export * from './tableCalcs/tableCalcs';
