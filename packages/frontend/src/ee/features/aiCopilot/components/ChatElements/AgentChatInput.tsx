@@ -471,16 +471,13 @@ export const AgentChatInput = ({
         (suggestionsQuery.isLoading || suggestionsQuery.isFetching);
 
     const renderChipRow = (extraClassName = '', reserve = false) =>
-        (chipRow || contentEditCallout || reserve) && (
+        (chipRow || reserve) && (
             <Box
                 className={`${styles.chipReveal} ${extraClassName} ${
                     chipsNearBottom ? '' : styles.chipHidden
-                } ${!chipRow && !contentEditCallout ? styles.chipReserved : ''}`}
-                aria-hidden={
-                    !chipsNearBottom || (!chipRow && !contentEditCallout)
-                }
+                } ${!chipRow ? styles.chipReserved : ''}`}
+                aria-hidden={!chipsNearBottom || !chipRow}
             >
-                {contentEditCallout}
                 {chipRow ?? <Box className={styles.chipTrayReserve} />}
             </Box>
         );
@@ -540,6 +537,7 @@ export const AgentChatInput = ({
                 }`}
                 ref={rootRef}
             >
+                {contentEditCallout}
                 {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
                 <Box className={styles.threadInputStack}>
@@ -621,6 +619,7 @@ export const AgentChatInput = ({
                 showDisabledBanner ? styles.disabledBannerVisible : ''
             }`}
         >
+            {contentEditCallout}
             {isThreadInput && renderChipRow(styles.threadChipFlow)}
 
             <Box
