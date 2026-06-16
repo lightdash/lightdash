@@ -2504,6 +2504,7 @@ export class AiAgentService extends BaseService {
             prompt: body.prompt,
             context,
             modelConfig: body.modelConfig,
+            hidden: body.hidden,
         });
 
         this.analytics.track<AiAgentPromptCreatedEvent>({
@@ -6138,6 +6139,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findFields: toolsRuntime.findFields,
             findExplores: toolsRuntime.findExplores,
             searchSemanticLayer: toolsRuntime.searchSemanticLayer,
+            analyzeFieldImpact: toolsRuntime.analyzeFieldImpact,
             updateProgress,
             getPrompt,
             runAsyncQuery: toolsRuntime.runAsyncQuery,
@@ -6289,6 +6291,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findFields,
             findExplores,
             searchSemanticLayer,
+            analyzeFieldImpact,
             updateProgress,
             getPrompt,
             runAsyncQuery,
@@ -6638,6 +6641,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             findFields,
             findExplores,
             searchSemanticLayer,
+            analyzeFieldImpact,
             runAsyncQuery,
             runSavedChartQuery,
             runSqlJob,

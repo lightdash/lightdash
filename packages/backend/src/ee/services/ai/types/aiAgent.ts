@@ -14,6 +14,7 @@ import type { AiMcpCredentialPayload } from '../../../models/AiAgentModel';
 import { AiModel, AiProvider } from '../models/types';
 import { AiAgentSkillReference } from '../skills/types';
 import {
+    AnalyzeFieldImpactFn,
     CreateContentFn,
     CreateOrUpdateArtifactFn,
     DescribeWarehouseTableFn,
@@ -147,6 +148,7 @@ export type AiAgentDependencies = {
     findExplores: FindExploresFn;
     findFields: FindFieldFn;
     searchSemanticLayer: SearchSemanticLayerFn;
+    analyzeFieldImpact: AnalyzeFieldImpactFn;
     getExplore: GetExploreFn;
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;

@@ -3089,6 +3089,7 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
+                    | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -3111,6 +3112,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
+                `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -3163,6 +3165,7 @@ export class AiAgentModel {
                     slackUserId: row.slack_user_id,
                 },
                 context: contextMap.get(row.ai_prompt_uuid) ?? [],
+                hidden: row.hidden ?? false,
             });
 
             const toolCalls = await this.getToolCallsForPrompt(
@@ -3788,6 +3791,7 @@ export class AiAgentModel {
                     | 'saved_query_uuid'
                     | 'model_config'
                     | 'token_usage'
+                    | 'hidden'
                 > &
                     Pick<DbUser, 'user_uuid'> &
                     Pick<DbAiThread, 'ai_thread_uuid'> &
@@ -3810,6 +3814,7 @@ export class AiAgentModel {
                 `${AiPromptTableName}.saved_query_uuid`,
                 `${AiPromptTableName}.model_config`,
                 `${AiPromptTableName}.token_usage`,
+                `${AiPromptTableName}.hidden`,
                 `${UserTableName}.user_uuid`,
                 `${AiThreadTableName}.ai_thread_uuid`,
                 `${AiSlackPromptTableName}.slack_user_id`,
@@ -3909,6 +3914,7 @@ export class AiAgentModel {
                                 row.ai_prompt_uuid,
                             ])
                         ).get(row.ai_prompt_uuid) ?? [],
+                    hidden: row.hidden ?? false,
                 } satisfies AiAgentMessageUser;
             case 'assistant':
                 const toolCalls = await this.getToolCallsForPrompt(
@@ -4590,6 +4596,7 @@ export class AiAgentModel {
                     created_by_user_uuid: data.createdByUserUuid,
                     prompt: data.prompt,
                     ...(data.modelConfig && { model_config: data.modelConfig }),
+                    ...(data.hidden !== undefined && { hidden: data.hidden }),
                 })
                 .returning('ai_prompt_uuid');
 

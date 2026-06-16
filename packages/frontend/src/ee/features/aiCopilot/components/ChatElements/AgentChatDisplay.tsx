@@ -132,60 +132,73 @@ export const AgentChatDisplay: FC<PropsWithChildren<Props>> = ({
                     style={{ flexGrow: 1 }}
                 >
                     <Stack flex={1} style={{ flexGrow: 1 }}>
-                        {thread.messages.map((message, i, xs) => (
-                            <Fragment key={`${message.role}-${message.uuid}`}>
-                                {message.role === 'user' &&
-                                    compactionsByTriggeringPromptUuid.has(
-                                        message.uuid,
-                                    ) && <CompactionDivider />}
+                        {thread.messages
+                            // Hidden turns (e.g. the post-merge migration prompt)
+                            // are received and answered by the agent but never
+                            // rendered as a user bubble.
+                            .filter(
+                                (message) =>
+                                    !(
+                                        message.role === 'user' &&
+                                        message.hidden
+                                    ),
+                            )
+                            .map((message, i, xs) => (
+                                <Fragment
+                                    key={`${message.role}-${message.uuid}`}
+                                >
+                                    {message.role === 'user' &&
+                                        compactionsByTriggeringPromptUuid.has(
+                                            message.uuid,
+                                        ) && <CompactionDivider />}
 
-                                {ChatElementsUtils.shouldRenderDivider(
-                                    message,
-                                    i,
-                                    xs,
-                                ) && (
-                                    <Divider
-                                        label={
-                                            message.createdAt
-                                                ? ChatElementsUtils.getDividerLabel(
-                                                      message.createdAt,
-                                                  )
-                                                : undefined
-                                        }
-                                        labelPosition="center"
-                                        my="sm"
-                                    />
-                                )}
+                                    {ChatElementsUtils.shouldRenderDivider(
+                                        message,
+                                        i,
+                                        xs,
+                                    ) && (
+                                        <Divider
+                                            label={
+                                                message.createdAt
+                                                    ? ChatElementsUtils.getDividerLabel(
+                                                          message.createdAt,
+                                                      )
+                                                    : undefined
+                                            }
+                                            labelPosition="center"
+                                            my="sm"
+                                        />
+                                    )}
 
-                                {message.role === 'user' ? (
-                                    <UserBubble message={message} />
-                                ) : (
-                                    <ErrorBoundary>
-                                        {projectUuid && agentUuid && (
-                                            <AssistantBubble
-                                                message={message}
-                                                debug={debug}
-                                                projectUuid={projectUuid}
-                                                agentUuid={agentUuid}
-                                                onAddToEvals={
-                                                    setAddToEvalsPromptUuid
-                                                }
-                                                showAddToEvalsButton={
-                                                    showAddToEvalsButton
-                                                }
-                                                mcpServers={mcpServers}
-                                                renderArtifactsInline={
-                                                    renderArtifactsInline
-                                                }
-                                                onDashboardLinkClick={
-                                                    onDashboardLinkClick
-                                                }
-                                            />
-                                        )}
-                                    </ErrorBoundary>
-                                )}
-                            </Fragment>
-                        ))}
+                                    {message.role === 'user' ? (
+                                        <UserBubble message={message} />
+                                    ) : (
+                                        <ErrorBoundary>
+                                            {projectUuid && agentUuid && (
+                                                <AssistantBubble
+                                                    message={message}
+                                                    debug={debug}
+                                                    projectUuid={projectUuid}
+                                                    agentUuid={agentUuid}
+                                                    onAddToEvals={
+                                                        setAddToEvalsPromptUuid
+                                                    }
+                                                    showAddToEvalsButton={
+                                                        showAddToEvalsButton
+                                                    }
+                                                    mcpServers={mcpServers}
+                                                    renderArtifactsInline={
+                                                        renderArtifactsInline
+                                                    }
+                                                    onDashboardLinkClick={
+                                                        onDashboardLinkClick
+                                                    }
+                                                />
+                                            )}
+                                        </ErrorBoundary>
+                                    )}
+                                </Fragment>
+                            ))}
                     </Stack>
 
                     {enableAutoScroll && projectUuid && agentUuid ? (

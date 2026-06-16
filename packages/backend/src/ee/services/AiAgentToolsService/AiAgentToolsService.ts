@@ -33,6 +33,7 @@ import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel'
 import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
+import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
 import { SpaceModel } from '../../../models/SpaceModel';
 import { UserAttributesModel } from '../../../models/UserAttributesModel';
@@ -58,6 +59,7 @@ import { AiAgentDocumentModel } from '../../models/AiAgentDocumentModel';
 import { ProjectContextModel } from '../../models/ProjectContextModel';
 import type { BuiltInSkills } from '../ai/skills/builtInSkills';
 import {
+    AnalyzeFieldImpactFn,
     CreateContentFn,
     DescribeWarehouseTableFn,
     EditContentFn,
@@ -127,6 +129,7 @@ export type AiAgentToolsRuntime = {
     findContent: FindContentFn;
     searchFieldValues: SearchFieldValuesFn;
     searchSemanticLayer: SearchSemanticLayerFn;
+    analyzeFieldImpact: AnalyzeFieldImpactFn;
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
@@ -176,6 +179,7 @@ type AiAgentToolsServiceDependencies = {
     spaceModel: SpaceModel;
     dashboardService: DashboardService;
     savedChartService: SavedChartService;
+    savedChartModel: SavedChartModel;
     coderService: CoderService;
     contentService: ContentService;
     aiAgentContentValidation: AiAgentContentValidation;
@@ -215,6 +219,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly dashboardService: DashboardService;
 
     private readonly savedChartService: SavedChartService;
+
+    private readonly savedChartModel: SavedChartModel;
 
     private readonly coderService: CoderService;
 
@@ -277,6 +283,7 @@ export class AiAgentToolsService extends BaseService {
         spaceModel,
         dashboardService,
         savedChartService,
+        savedChartModel,
         coderService,
         contentService,
         aiAgentContentValidation,
@@ -299,6 +306,7 @@ export class AiAgentToolsService extends BaseService {
         this.spaceModel = spaceModel;
         this.dashboardService = dashboardService;
         this.savedChartService = savedChartService;
+        this.savedChartModel = savedChartModel;
         this.coderService = coderService;
         this.contentService = contentService;
         this.aiAgentContentValidation = aiAgentContentValidation;
@@ -410,6 +418,8 @@ export class AiAgentToolsService extends BaseService {
             searchFieldValues: (args) => this.searchFieldValues(context, args),
             searchSemanticLayer: (args) =>
                 this.searchSemanticLayer(context, args),
+            analyzeFieldImpact: (args) =>
+                this.analyzeFieldImpact(context, args),
             runAsyncQuery: (metricQuery, additionalMetrics, parameters) =>
                 this.runAsyncQuery(
                     context,
@@ -653,6 +663,23 @@ export class AiAgentToolsService extends BaseService {
                     }));
 
                 return { fields, pagination };
+            },
+        );
+    }
+
+    private analyzeFieldImpact(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<AnalyzeFieldImpactFn>[0],
+    ): ReturnType<AnalyzeFieldImpactFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.analyzeFieldImpact`,
+            args,
+            async () => {
+                this.assertCanViewProject(context);
+                return this.savedChartModel.analyzeFieldImpact(
+                    context.projectUuid,
+                    args.fieldId,
+                );
             },
         );
     }
@@ -1086,6 +1113,17 @@ export class AiAgentToolsService extends BaseService {
                     slug,
                     type,
                 });
+                // Charts can be persisted with a null `chartConfig.config` (e.g.
+                // table charts with no viz settings). The chart-as-code schema
+                // accepts an object or an absent config but rejects null, so
+                // normalize null -> absent before patching/validating — matching
+                // how the i18n chart-as-code schema coalesces it.
+                if (
+                    currentContent.type === 'chart' &&
+                    currentContent.content.chartConfig.config == null
+                ) {
+                    delete currentContent.content.chartConfig.config;
+                }
                 const versionBefore =
                     await this.coderService.getCurrentContentVersionBySlug(
                         context.user,

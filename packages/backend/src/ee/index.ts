@@ -239,6 +239,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     spaceModel: models.getSpaceModel(),
                     dashboardService: repository.getDashboardService(),
                     savedChartService: repository.getSavedChartService(),
+                    savedChartModel: models.getSavedChartModel(),
                     coderService: repository.getCoderService(),
                     contentService: repository.getContentService(),
                     aiAgentContentValidation: new AiAgentContentValidation(),

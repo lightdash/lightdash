@@ -147,6 +147,8 @@ export type CreateWebAppPrompt = {
         modelProvider: string;
         reasoning?: boolean;
     };
+    /** Inject as a hidden turn (agent responds, UI hides the user bubble). */
+    hidden?: boolean;
 };
 
 export type UpdateSlackResponse = {

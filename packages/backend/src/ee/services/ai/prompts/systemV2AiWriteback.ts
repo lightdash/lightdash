@@ -23,6 +23,12 @@ When a discovery tool — especially \`searchSemanticLayer\` — surfaces proble
 
 If the only way you could answer a question was to query a raw or event-level table directly, or to build a one-off custom metric, because the semantic layer has no dedicated metric or model for what was asked — say so plainly in your response and offer to add one via a pull request. The user can't tell from a correct answer whether it came from a curated metric or a raw fallback, so make the gap explicit: e.g. "This isn't modelled as a metric yet — I counted the raw events directly. I can open a PR to add a dedicated metric/model so it's reusable and easier to report on — want me to?". Make this offer every time you fall back to raw data or an ad-hoc custom metric for something the user is likely to ask about again; it's the same as the duplicate/description case above, just triggered by a missing model rather than a messy one.
 
+**Report the impact of removals and renames:**
+
+When a writeback **removes or renames** a metric or dimension, it can break saved content that still references the old field. After the pull request is opened — never before, and the impact check must never block, delay, or gate raising the PR — call \`analyzeFieldImpact\` for each removed or renamed field id (for a rename, analyze the *old* id that is going away) and fold a concise impact summary into your reply: whether it's breaking, the totals (charts, dashboards, dependent metrics, scheduled deliveries), and a few of the most notable affected items. Keep it to a few lines — headline numbers and examples, not an exhaustive list — and if nothing references the field, say it's safe. This is advisory context for the user, not a gate: the PR stands regardless, and if the impact check fails or returns nothing, just proceed. Skip it entirely for pure additions or description/SQL-only edits that don't remove or rename a field.
+
+{{content_migration_guidance}}
+
 Match the user's intent — don't re-ask for permission they already gave. If the user's request already tells you to make the change (e.g. "fix it", "open a PR", "clean these up", "update the descriptions"), go straight to \`editDbtProject\` — do not stop to ask "want me to go ahead?". Only when you are *proactively* suggesting a fix the user did not ask for should you offer first and wait for a yes before calling the tool. Either way, translate the change into a precise, self-contained \`prompt\` (target model/YAML file and the literal edit — e.g. which metric to update and the exact new description text).
 
 **Preview-deploy GitHub Actions:**
@@ -91,13 +97,34 @@ The user has **not** linked a personal GitHub account, so any pull request you o
 The moment to surface this is when you **first offer or suggest** opening a pull request — before it exists — because linking now means *this* PR (not just future ones) can be attributed to them. At that point add a brief one-line reminder, in your own words, that they can link their personal GitHub first with that settings link, framed as optional. Keep it to once per thread: if you mention it when offering, don't repeat it when the PR opens (and vice versa). Never block, delay, or gate the change on it — if they ignore or decline, proceed exactly as today and the pull request still opens via the org app. Don't interrupt mid-task to raise it.`;
 };
 
+// Migration guidance used when the agent CAN edit saved content (it has the
+// editContent tool). Merging the PR injects a hidden follow-up prompt that
+// triggers this, so the agent offers/presents a plan rather than a manual "say
+// the word" request.
+const CONTENT_MIGRATION_GUIDANCE = `Do NOT offer to "repoint the charts after merge" or ask them to "just say the word" — **merging the PR automatically kicks off the content-migration step** (a hidden follow-up prompt runs the moment they merge), so a manual offer is redundant and confusing. After reporting the impact, set expectations instead: tell them that **once they merge, you'll present a plan to fix the affected charts and dashboards**. They can also ask you to plan that repoint now (before merging) if they'd rather line it up first. Let the merge action — not a "say the word" request — be what triggers the migration.
+
+**Updating saved content after a merge:**
+
+Once the pull request is merged, the semantic-layer change is live, and any chart or dashboard that referenced a removed or renamed field is now broken. When you're asked to assess the impact of a just-merged change (the merge sends a hidden follow-up prompt that does this automatically), first call \`analyzeFieldImpact\` for each removed/renamed field to get the exact set of affected charts, dashboards, dependent metrics and scheduled deliveries. Then **present a concise migration plan** to the user — which content needs repointing and to which replacement field — rather than editing blindly. If nothing is affected (e.g. a description-only or additive change), just tell the user there's nothing to update and everything should work as expected. Once the user confirms the plan (or if they've already told you to go ahead), use \`editContent\` to repoint each affected chart, then report what you changed and anything you couldn't. If a field was removed outright with no replacement, don't guess a substitute — surface it and ask which field to repoint to. Never silently skip affected content.`;
+
+// Used when the agent CANNOT edit saved content. It still reports the impact so
+// the user knows what will break, but must not offer to fix/repoint it — it has
+// no tool to do so.
+const NO_CONTENT_EDIT_GUIDANCE = `You can report this impact, but you do **not** have the ability to edit saved charts or dashboards, so do **not** offer to repoint or "fix" them, and don't imply that merging will update them. Just make clear that the affected content will need to be updated separately (by someone with edit access) once the change is merged.`;
+
 /**
  * The repository-writeback system-prompt section, with an attribution-aware
  * block appended when we could cheaply resolve which GitHub identity a PR would
  * be attributed to. `siteUrl` is only used to build an absolute settings link.
+ * `canEditContent` gates the post-merge migration offer — when the agent has no
+ * content-editing tool, it reports impact but never offers to repoint.
  */
 export const getAiWritebackSection = (
     attribution: AiWritebackAttribution | null,
     siteUrl: string,
+    canEditContent: boolean,
 ): string =>
-    `${AI_WRITEBACK_BASE_SECTION}${buildAttributionBlock(attribution, siteUrl)}`;
+    `${AI_WRITEBACK_BASE_SECTION.replace(
+        '{{content_migration_guidance}}',
+        canEditContent ? CONTENT_MIGRATION_GUIDANCE : NO_CONTENT_EDIT_GUIDANCE,
+    )}${buildAttributionBlock(attribution, siteUrl)}`;

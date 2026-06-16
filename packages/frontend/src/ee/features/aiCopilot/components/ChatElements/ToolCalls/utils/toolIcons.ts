@@ -34,6 +34,7 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             findExplores: IconDatabase,
             findFields: IconSearch,
             searchSemanticLayer: IconBooks,
+            analyzeFieldImpact: IconChartDots3,
             discoverFields: IconSearch,
             searchFieldValues: IconSelector,
             generateBarVizConfig: IconChartHistogram,

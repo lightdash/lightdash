@@ -1,4 +1,5 @@
 import {
+    type ToolAnalyzeFieldImpactOutput,
     type ToolDashboardOutput,
     type ToolDescribeWarehouseTableOutput,
     type ToolDiscoverFieldsOutput,
@@ -62,6 +63,7 @@ export type AgentToolOutput =
     | ToolRunSqlOutput
     | ToolSearchFieldValuesOutput
     | ToolSearchSemanticLayerOutput
+    | ToolAnalyzeFieldImpactOutput
     | ToolTableVizOutput
     | ToolTimeSeriesOutput
     | ToolVerticalBarOutput;

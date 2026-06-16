@@ -48,6 +48,7 @@ describe('AI context compaction helpers', () => {
                         chartKind: null,
                     },
                 ],
+                hidden: false,
             },
             {
                 role: 'assistant',

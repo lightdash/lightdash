@@ -17,6 +17,7 @@ import {
 } from 'ai';
 import Logger from '../../../../logging/logger';
 import { getSystemPromptV2 } from '../prompts/systemV2';
+import { getAnalyzeFieldImpact } from '../tools/analyzeFieldImpact';
 import { getCreateContent } from '../tools/createContent';
 import { getDescribeWarehouseTable } from '../tools/describeWarehouseTable';
 import { getDiscoverRepos } from '../tools/discoverRepos';
@@ -310,6 +311,11 @@ const getAgentTools = (
         searchFieldValues: dependencies.searchFieldValues,
     });
 
+    const analyzeFieldImpact = getAnalyzeFieldImpact({
+        analyzeFieldImpact: dependencies.analyzeFieldImpact,
+        updateProgress: dependencies.updateProgress,
+    });
+
     const searchSemanticLayer = getSearchSemanticLayer({
         searchSemanticLayer: dependencies.searchSemanticLayer,
         updateProgress: dependencies.updateProgress,
@@ -362,6 +368,7 @@ const getAgentTools = (
     const tools: ToolSet = {
         findContent,
         discoverFields,
+        analyzeFieldImpact,
         ...(args.enableSearchSemanticLayer ? { searchSemanticLayer } : {}),
         listProjects,
         getProjectInfo,

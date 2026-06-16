@@ -16,6 +16,7 @@ import {
     DashboardSearchResult,
     DbtProjectType,
     Explore,
+    FieldImpactReport,
     Filters,
     ItemsMap,
     KnexPaginateArgs,
@@ -99,6 +100,10 @@ export type SearchSemanticLayerFn = (args: {
     }>;
     pagination: Pagination | undefined;
 }>;
+
+export type AnalyzeFieldImpactFn = (args: {
+    fieldId: string;
+}) => Promise<FieldImpactReport>;
 
 export type GetExploreFn = (args: { table: string }) => Promise<Explore>;
 
