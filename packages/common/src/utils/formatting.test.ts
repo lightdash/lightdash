@@ -123,6 +123,25 @@ describe('Formatting', () => {
             ).toBeUndefined();
         });
 
+        test('STRING item carrying a timestamp value does NOT shift', () => {
+            // The by-value fallback is scoped to MIN/MAX; a known non-temporal
+            // type is trusted even when the value looks like an instant.
+            expect(
+                getFormatterTimezone(
+                    { ...dimension, type: DimensionType.STRING },
+                    tsString,
+                    tz,
+                ),
+            ).toBeUndefined();
+            expect(
+                getFormatterTimezone(
+                    { ...dimension, type: DimensionType.STRING },
+                    new Date(tsString),
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+
         test('DATE table calc does NOT shift even with a midnight-ISO value', () => {
             // The bug: a date-typed table calc whose value arrives as a full
             // timestamp must stay a calendar day (no off-by-one under -ve UTC).
@@ -1236,6 +1255,25 @@ describe('Formatting', () => {
             };
             expect(shouldShiftItemTimezone(dateOverTs)).toBe(true);
             expect(shouldShiftItemTimezone(dateOverTsOptOut)).toBe(false);
+        });
+
+        test('shouldShiftItemTimezone classifies table calcs by type', () => {
+            // Non-field items are keyed off getItemType: a TIMESTAMP table calc
+            // is a real instant (shift), a DATE one is a calendar value (stay).
+            const tsTableCalc = {
+                name: 'ts_tc',
+                displayName: 'ts_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.TIMESTAMP,
+            } as TableCalculation;
+            const dateTableCalc = {
+                name: 'date_tc',
+                displayName: 'date_tc',
+                sql: '${orders.order_date_day}',
+                type: TableCalculationType.DATE,
+            } as TableCalculation;
+            expect(shouldShiftItemTimezone(tsTableCalc)).toBe(true);
+            expect(shouldShiftItemTimezone(dateTableCalc)).toBe(false);
         });
 
         test('formatItemValue should return the right format when field is Metric', () => {

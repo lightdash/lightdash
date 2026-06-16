@@ -227,16 +227,19 @@ export const toIsoWithProjectOffset = (
     return m.tz(timezone).toISOString(true);
 };
 
-// TIMESTAMPs and TIMESTAMP-base DATE intervals shift; calendar DATEs and
-// dims with `skipTimezoneConversion` stay put. Used by spreadsheet exports.
+// TIMESTAMPs and TIMESTAMP-base DATE intervals shift; calendar DATEs and dims
+// with `skipTimezoneConversion` stay put. Keyed off getItemType so it classifies
+// non-field items (table calcs, custom dims) by their resolved type too. Used by
+// spreadsheet exports.
 export const shouldShiftItemTimezone = (
     item: Item | AdditionalMetric | undefined,
 ): boolean => {
-    if (!isField(item)) return false;
+    if (!item) return false;
     if (isDimension(item) && item.skipTimezoneConversion) return false;
-    if (item.type === DimensionType.TIMESTAMP) return true;
+    const type = getItemType(item);
+    if (type === DimensionType.TIMESTAMP) return true;
     return (
-        item.type === DimensionType.DATE &&
+        type === DimensionType.DATE &&
         isDimension(item) &&
         item.timeIntervalBaseDimensionType === DimensionType.TIMESTAMP
     );
@@ -259,8 +262,10 @@ export const isCalendarValueItem = (
 export const isTemporalValue = (value: unknown): boolean =>
     value instanceof Date || isTimestampString(value);
 
-// Which timezone a formatter applies to a value: shape predicates, then a
-// by-value fallback for MIN/MAX (whose type hides its temporal base).
+// Which timezone a formatter applies to a value. The shape predicate decides
+// every type-known item (dims, metrics, table calcs, custom dims). MIN/MAX are
+// the one opaque case — their aggregation type hides the temporal base — so only
+// there do we fall back to the value shape.
 export const getFormatterTimezone = (
     item: Item | AdditionalMetric | undefined,
     value: unknown,
@@ -270,7 +275,13 @@ export const getFormatterTimezone = (
     if (isDimension(item) && item.skipTimezoneConversion) return undefined;
     if (isCalendarValueItem(item)) return undefined;
     if (shouldShiftItemTimezone(item)) return timezone;
-    if (isTemporalValue(value)) return timezone;
+    const type = item ? getItemType(item) : undefined;
+    if (
+        (type === MetricType.MIN || type === MetricType.MAX) &&
+        isTemporalValue(value)
+    ) {
+        return timezone;
+    }
     return undefined;
 };
 
