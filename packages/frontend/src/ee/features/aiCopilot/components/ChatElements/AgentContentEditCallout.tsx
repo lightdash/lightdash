@@ -1,8 +1,10 @@
 import { Button, Group, Popover, Stack, Text } from '@mantine-8/core';
 import { IconPencilCog } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import Callout from '../../../../../components/common/Callout';
 import MantineIcon from '../../../../../components/common/MantineIcon';
+import { AGENT_SUGGESTIONS_KEY } from '../../hooks/useAgentSuggestions';
 import { useAiAgentPermission } from '../../hooks/useAiAgentPermission';
 import {
     useAiAgentThread,
@@ -39,6 +41,7 @@ export const AgentContentEditCallout: FC<Props> = ({
         useProjectUpdateAiAgentMutation(projectUuid, {
             showSuccessToast: false,
         });
+    const queryClient = useQueryClient();
     const [confirmOpened, setConfirmOpened] = useState(false);
 
     const lastUserMessage = useMemo(() => {
@@ -58,9 +61,19 @@ export const AgentContentEditCallout: FC<Props> = ({
             enableDataAccess: true,
             enableContentTools: true,
         });
+        await queryClient.invalidateQueries({
+            queryKey: [AGENT_SUGGESTIONS_KEY, projectUuid, agentUuid],
+        });
         setConfirmOpened(false);
         if (lastUserMessage) onResend(lastUserMessage);
-    }, [updateAgent, agentUuid, lastUserMessage, onResend]);
+    }, [
+        updateAgent,
+        agentUuid,
+        projectUuid,
+        queryClient,
+        lastUserMessage,
+        onResend,
+    ]);
 
     // Route action (capableAgent) is added in a later task.
     const actions = getContentEditCalloutActions({

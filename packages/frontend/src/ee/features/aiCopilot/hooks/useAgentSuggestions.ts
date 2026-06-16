@@ -2,7 +2,7 @@ import type { ApiAgentSuggestionsResponse, ApiError } from '@lightdash/common';
 import { useQuery } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 
-const AGENT_SUGGESTIONS_KEY = 'agentSuggestions';
+export const AGENT_SUGGESTIONS_KEY = 'agentSuggestions';
 
 const getAgentSuggestions = (
     projectUuid: string,
