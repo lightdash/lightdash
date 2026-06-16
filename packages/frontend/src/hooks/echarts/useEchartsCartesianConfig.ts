@@ -26,6 +26,7 @@ import {
     getCustomFormatFromLegacy,
     getDateGroupLabel,
     getFormattedValue,
+    getFormatterTimezone,
     getIndexFromEncode,
     getItemLabelWithoutTableName,
     getItemType,
@@ -48,7 +49,6 @@ import {
     isTableCalculation,
     LightdashParameters,
     MetricType,
-    shouldShiftItemTimezone,
     StackType,
     TableCalculationType,
     TimeFrames,
@@ -766,11 +766,13 @@ const seriesValueFormatter = (
                 ? evaluateConditionalFormatExpression(item.format, parameters)
                 : item.format;
 
-        // Only shift genuinely timezone-shiftable temporal fields, matching
-        // formatItemValue's own format-expression branch.
-        const expressionTimezone = shouldShiftItemTimezone(item)
-            ? resolvedTimezone
-            : undefined;
+        // Resolve the timezone the same way formatItemValue does (shape for
+        // dimensions/table-calcs, by-value for type-opaque MIN/MAX metrics).
+        const expressionTimezone = getFormatterTimezone(
+            item,
+            value,
+            resolvedTimezone,
+        );
         return formatValueWithExpression(
             formatExpression,
             value,

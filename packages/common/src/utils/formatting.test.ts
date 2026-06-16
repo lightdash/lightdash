@@ -26,6 +26,7 @@ import {
     formatValueWithExpression,
     getCustomFormatFromLegacy,
     getEffectiveSeparator,
+    getFormatterTimezone,
     isCalendarValueDimension,
     isMomentInput,
     isTimestampString,
@@ -40,6 +41,87 @@ import {
 } from './formatting.mock';
 
 describe('Formatting', () => {
+    describe('getFormatterTimezone (unified shift decision)', () => {
+        const tz = 'America/Anchorage';
+        const tsString = '2025-01-15T17:00:00.000Z';
+        const dateOnly = '2025-01-15';
+
+        test('returns undefined when no project timezone is supplied', () => {
+            expect(
+                getFormatterTimezone(
+                    { ...dimension, type: DimensionType.TIMESTAMP },
+                    tsString,
+                    undefined,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('TIMESTAMP dimension shifts by shape (value-independent)', () => {
+            const item = { ...dimension, type: DimensionType.TIMESTAMP };
+            expect(getFormatterTimezone(item, tsString, tz)).toEqual(tz);
+            // shape says shift even for a value the by-value gate would reject
+            expect(getFormatterTimezone(item, 12345, tz)).toEqual(tz);
+        });
+
+        test('bare DATE dimension never shifts (calendar guard)', () => {
+            expect(
+                getFormatterTimezone(
+                    { ...dimension, type: DimensionType.DATE },
+                    dateOnly,
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('DATE dimension truncated from a TIMESTAMP base shifts', () => {
+            const dateBaseTs: Dimension = {
+                ...dimension,
+                type: DimensionType.DATE,
+                timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+            };
+            expect(getFormatterTimezone(dateBaseTs, tsString, tz)).toEqual(tz);
+        });
+
+        test('skipTimezoneConversion opts out even for a TIMESTAMP', () => {
+            const skipTzDim: Dimension = {
+                ...dimension,
+                type: DimensionType.TIMESTAMP,
+                skipTimezoneConversion: true,
+            };
+            expect(
+                getFormatterTimezone(skipTzDim, tsString, tz),
+            ).toBeUndefined();
+        });
+
+        test('MIN/MAX over a timestamp shifts via the by-value fallback', () => {
+            const maxMetric = { ...additionalMetric, type: MetricType.MAX };
+            expect(getFormatterTimezone(maxMetric, tsString, tz)).toEqual(tz);
+            expect(
+                getFormatterTimezone(maxMetric, new Date(tsString), tz),
+            ).toEqual(tz);
+        });
+
+        test('MIN/MAX over a calendar date does NOT shift (date-only value)', () => {
+            expect(
+                getFormatterTimezone(
+                    { ...additionalMetric, type: MetricType.MAX },
+                    dateOnly,
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+
+        test('MIN/MAX over a number does NOT shift', () => {
+            expect(
+                getFormatterTimezone(
+                    { ...additionalMetric, type: MetricType.MAX },
+                    42,
+                    tz,
+                ),
+            ).toBeUndefined();
+        });
+    });
+
     describe('convert legacy Format type', () => {
         [Format.KM, Format.MI].forEach((format) => {
             test(`when it is ${format.toUpperCase()} getCustomFormatFromLegacy should return the correct CustomFormat options`, () => {
