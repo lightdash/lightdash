@@ -83,6 +83,33 @@ function withInteriorRowsScope(
     };
 }
 
+// Scope to specific boundary rows (ids 11+) for DST / year / month / day
+// boundary-crossing tests, bypassing the interior-rows scope.
+function withEventIdScope(
+    filters: Record<string, unknown> | undefined,
+    eventIds: number[],
+): Record<string, unknown> {
+    const existing =
+        (filters?.dimensions as { id?: string; and?: unknown[] } | undefined) ??
+        undefined;
+    const extraAnd = existing?.and ?? (existing ? [existing] : []);
+    return {
+        ...filters,
+        dimensions: {
+            id: 'tz-scope',
+            and: [
+                {
+                    id: 'tz-boundary-rows',
+                    target: { fieldId: 'timezone_test_event_id' },
+                    operator: 'equals',
+                    values: eventIds,
+                },
+                ...extraAnd,
+            ],
+        },
+    };
+}
+
 export async function runTimezoneTestQuery(
     client: ApiClient,
     options: {
@@ -93,6 +120,8 @@ export async function runTimezoneTestQuery(
         timezone?: string;
         projectUuid?: string;
         maxAttempts?: number;
+        // When set, scope to these boundary-row ids instead of interior rows.
+        eventIds?: number[];
     },
 ): Promise<
     Array<Record<string, { value: { raw: string; formatted: string } }>>
@@ -108,7 +137,9 @@ export async function runTimezoneTestQuery(
                     exploreName: 'timezone_test',
                     dimensions: options.dimensions,
                     metrics: options.metrics,
-                    filters: withInteriorRowsScope(options.filters),
+                    filters: options.eventIds
+                        ? withEventIdScope(options.filters, options.eventIds)
+                        : withInteriorRowsScope(options.filters),
                     sorts: options.sorts ?? [
                         {
                             fieldId: options.dimensions[0],
@@ -164,6 +195,21 @@ export function getRowCount(
         (r) => r[dimensionKey]?.value?.formatted === dayFormatted,
     );
     return row ? parseInt(row[metricKey]?.value?.raw ?? '0', 10) : 0;
+}
+
+// Map of bare-date `raw` bucket -> count, for boundary-crossing assertions
+// (the GLITCH-452 contract is a bare YYYY-MM-DD raw for day-or-coarser grains).
+export function getRawBucketMap(
+    rows: TimezoneTestRow[],
+    dimensionKey: string,
+    metricKey: string,
+): Record<string, number> {
+    return Object.fromEntries(
+        rows.map((r) => [
+            r[dimensionKey]?.value?.raw,
+            parseInt(r[metricKey]?.value?.raw ?? '0', 10),
+        ]),
+    );
 }
 
 export function getTotalCount(
