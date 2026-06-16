@@ -4960,14 +4960,15 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotResults,
         sessionTimezone,
+        preloadedSavedChart,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(
-            chartUuid,
-            undefined,
-            { projectUuid },
-        );
+        const savedChart =
+            preloadedSavedChart ??
+            (await this.savedChartModel.get(chartUuid, undefined, {
+                projectUuid,
+            }));
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
 

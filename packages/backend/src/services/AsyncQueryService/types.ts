@@ -16,6 +16,7 @@ import {
     type ResultColumns,
     type ResultsPaginationArgs,
     type RunQueryTags,
+    type SavedChartDAO,
     type SortField,
     type UserAccessControls,
     type UserAttributeValueMap,
@@ -96,6 +97,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     limit?: number | null | undefined;
     pivotResults?: boolean;
     sessionTimezone?: string | null;
+    preloadedSavedChart?: SavedChartDAO;
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {
