@@ -228,6 +228,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     lightdashConfig: context.lightdashConfig,
                     projectModel: models.getProjectModel(),
                     projectService: repository.getProjectService(),
+                    jobModel: models.getJobModel(),
                     userAttributesModel: models.getUserAttributesModel(),
                     asyncQueryService: repository.getAsyncQueryService(),
                     catalogService: repository.getCatalogService(),

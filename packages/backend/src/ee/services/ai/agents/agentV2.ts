@@ -47,6 +47,7 @@ import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
 import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
+import { getSyncDbtProject } from '../tools/syncDbtProject';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -289,6 +290,13 @@ const getAgentTools = (
           })
         : null;
 
+    const syncDbtProject = args.enableAiWriteback
+        ? getSyncDbtProject({
+              syncDbtProject: dependencies.syncDbtProject,
+              updateProgress: dependencies.updateProgress,
+          })
+        : null;
+
     const setupPreviewDeploy = args.enablePreviewDeploySetup
         ? getSetupPreviewDeploy({
               setupPreviewDeploy: dependencies.setupPreviewDeploy,
@@ -393,6 +401,7 @@ const getAgentTools = (
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
+        ...(syncDbtProject ? { syncDbtProject } : {}),
         ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
         ...(discoverRepos ? { discoverRepos } : {}),

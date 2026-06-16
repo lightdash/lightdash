@@ -51,6 +51,7 @@ import {
     StoreReasoningFn,
     StoreToolCallFn,
     StoreToolResultsFn,
+    SyncDbtProjectFn,
     TrackEventFn,
     UpdateProgressFn,
     UpdatePromptFn,
@@ -172,6 +173,7 @@ export type AiAgentDependencies = {
     trackEvent: TrackEventFn;
     createOrUpdateArtifact: CreateOrUpdateArtifactFn;
     editDbtProject: EditDbtProjectFn;
+    syncDbtProject: SyncDbtProjectFn;
     setupPreviewDeploy: SetupPreviewDeployFn;
     exploreRepo: ExploreRepoFn;
     discoverRepos: DiscoverReposFn;
