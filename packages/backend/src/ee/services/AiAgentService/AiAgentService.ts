@@ -7180,15 +7180,115 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                   )
                 : [];
 
+        const sqlRunnerBlocks = await this.getSqlRunnerLinkBlocks(
+            user,
+            slackPrompt,
+        );
+
         return [
             ...exploreBlocks,
             ...proposeChangeBlocks,
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
+            ...sqlRunnerBlocks,
             ...feedbackBlocks,
             ...historyBlocks,
         ];
+    }
+
+    // "Open in SQL Runner" link for the latest successful runSql. The SQL only
+    // lives in the browser's nav state on web; persisting it as a share URL lets
+    // the link work from Slack too (task cards can't carry links).
+    private async getSqlRunnerLinkBlocks(
+        user: SessionUser,
+        slackPrompt: SlackPrompt,
+    ): Promise<(Block | KnownBlock)[]> {
+        const toolCalls = await this.aiAgentModel.getToolCallsForPrompt(
+            slackPrompt.promptUuid,
+        );
+        const runSqlCalls = toolCalls.filter(
+            (call) => call.tool_name === 'runSql',
+        );
+        if (runSqlCalls.length === 0) return [];
+
+        const toolResults = await this.aiAgentModel.getToolResultsForPrompt(
+            slackPrompt.promptUuid,
+        );
+        const succeededCallIds = new Set(
+            toolResults
+                .filter(
+                    (result) =>
+                        result.toolName === 'runSql' &&
+                        (result.metadata as { status?: string } | null)
+                            ?.status === 'success',
+                )
+                .map((result) => result.toolCallId),
+        );
+
+        const latestSuccessful = [...runSqlCalls]
+            .reverse()
+            .find((call) => succeededCallIds.has(call.tool_call_id));
+        const sql = (
+            latestSuccessful?.tool_args as { sql?: string } | undefined
+        )?.sql;
+        if (!latestSuccessful || !sql) return [];
+        const limit = (
+            latestSuccessful.tool_args as { limit?: number } | undefined
+        )?.limit;
+
+        let shareUrl: string | undefined;
+        try {
+            shareUrl = await this.createSqlRunnerShareUrl(
+                user,
+                slackPrompt.projectUuid,
+                sql,
+                limit,
+            );
+        } catch (error) {
+            this.logger.warn('Failed to build SQL runner share url', error);
+            return [];
+        }
+
+        return [
+            {
+                type: 'actions',
+                elements: [
+                    {
+                        type: 'button',
+                        text: {
+                            type: 'plain_text',
+                            text: 'Open in SQL Runner',
+                        },
+                        url: shareUrl,
+                    },
+                ],
+            },
+        ];
+    }
+
+    private async createSqlRunnerShareUrl(
+        user: SessionUser,
+        projectUuid: string,
+        sql: string,
+        limit: number | undefined,
+    ): Promise<string> {
+        const path = `/projects/${projectUuid}/sql-runner`;
+        // `chartConfig` must be present (not undefined, which JSON.stringify
+        // drops) so the frontend hydrates this as a SQL-runner share.
+        const params = JSON.stringify({
+            sqlRunnerState: {
+                sql,
+                ...(typeof limit === 'number' ? { limit } : {}),
+            },
+            chartConfig: null,
+        });
+        const { nanoid } = await this.shareService.createShareUrl(
+            user,
+            path,
+            params,
+        );
+        return `${this.lightdashConfig.siteUrl}${path}?share=${nanoid}`;
     }
 
     private static isSlackModernStreamUnsupported(error: unknown) {
@@ -8045,6 +8145,11 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             '\n',
         );
 
+        const sqlRunnerBlocks = await this.getSqlRunnerLinkBlocks(
+            user,
+            slackPrompt,
+        );
+
         const blocks = [
             ...getMarkdownBlocks(response),
             ...exploreBlocks,
@@ -8052,6 +8157,7 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             ...editDbtProjectBlocks,
             ...referencedArtifactsBlocks,
             ...followUpToolBlocks,
+            ...sqlRunnerBlocks,
             ...feedbackBlocks,
             ...(historyBlocks || []),
         ];
