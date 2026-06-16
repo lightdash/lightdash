@@ -5,7 +5,7 @@ import {
     metricQueryTableViz,
     metricQueryTimeSeriesViz,
     metricQueryVerticalBarViz,
-    toolRunQueryArgsSchemaTransformed,
+    parsePersistedRunQueryArgs,
     toolTableVizArgsSchemaTransformed,
     toolTimeSeriesArgsSchemaTransformed,
     toolVerticalBarArgsSchemaTransformed,
@@ -39,6 +39,7 @@ export const parseVizConfig = (
             type: AiResultType.VERTICAL_BAR_RESULT,
             vizTool,
             metricQuery,
+            customMetrics: vizTool.customMetrics ?? null,
         } as const;
     }
 
@@ -59,6 +60,7 @@ export const parseVizConfig = (
             type: AiResultType.TIME_SERIES_RESULT,
             vizTool,
             metricQuery,
+            customMetrics: vizTool.customMetrics ?? null,
         } as const;
     }
 
@@ -79,15 +81,14 @@ export const parseVizConfig = (
             type: AiResultType.TABLE_RESULT,
             vizTool,
             metricQuery,
+            customMetrics: vizTool.customMetrics ?? null,
         } as const;
     }
 
-    // Parse runQuery tool
-    const toolRunQueryArgsParsed =
-        toolRunQueryArgsSchemaTransformed.safeParse(vizConfigUnknown);
-    if (toolRunQueryArgsParsed.success) {
-        const vizTool = toolRunQueryArgsParsed.data;
-
+    // Parse runQuery tool. Persisted artifacts may be V1 or V2;
+    // parsePersistedRunQueryArgs normalizes both to the V2 internal shape.
+    const vizTool = parsePersistedRunQueryArgs(vizConfigUnknown);
+    if (vizTool) {
         const metricQuery = {
             exploreName: vizTool.queryConfig.exploreName,
             dimensions: vizTool.queryConfig.dimensions,
@@ -100,12 +101,12 @@ export const parseVizConfig = (
                 vizTool.queryConfig.limit,
                 maxLimit ?? AI_DEFAULT_MAX_QUERY_LIMIT,
             ),
-            filters: vizTool.filters,
+            filters: vizTool.queryConfig.filters,
             additionalMetrics: filterAggregationCustomMetrics(
-                vizTool.customMetrics,
+                vizTool.queryConfig.customMetrics,
             ),
             tableCalculations: convertAiTableCalcsSchemaToTableCalcs(
-                vizTool.tableCalculations,
+                vizTool.queryConfig.tableCalculations,
             ),
         };
 
@@ -113,6 +114,10 @@ export const parseVizConfig = (
             type: AiResultType.QUERY_RESULT,
             vizTool,
             metricQuery,
+            // Full custom-metric set (incl. periodComparison) for SQL
+            // population; metricQuery.additionalMetrics is filtered to
+            // aggregations only via filterAggregationCustomMetrics.
+            customMetrics: vizTool.queryConfig.customMetrics,
         } as const;
     }
 

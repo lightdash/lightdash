@@ -3816,7 +3816,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             artifact.chartConfig,
-            parsedVizConfig.vizTool.customMetrics,
+            parsedVizConfig.customMetrics,
         );
 
         const metadata = {
@@ -3952,7 +3952,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             parsedVizConfig.metricQuery,
             chartConfig,
-            parsedVizConfig.vizTool.customMetrics,
+            parsedVizConfig.customMetrics,
         );
 
         const metadata = {

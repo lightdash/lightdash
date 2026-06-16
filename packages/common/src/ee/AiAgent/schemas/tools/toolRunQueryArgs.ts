@@ -18,7 +18,7 @@ import {
 import { mcpAsyncQueryUuidSchema } from './toolQueryResultSchemas';
 
 // Query configuration schema - what data to fetch
-const queryConfigSchema = z.object({
+const queryConfigBaseSchema = z.object({
     exploreName: z
         .string()
         .describe(
@@ -45,11 +45,19 @@ const queryConfigSchema = z.object({
         .describe(
             'The total number of data points / rows allowed on the chart.',
         ),
-    // External LLMs frequently nest filters inside queryConfig instead of at
-    // the top level. Accepting them here prevents Zod from silently stripping
-    // the key. The transform in `toolRunQueryArgsSchemaTransformed` lifts
-    // nested filters to the top level.
-    filters: filtersSchemaV2.optional(),
+});
+
+// V1 took filters/customMetrics/tableCalculations at the top level, but LLMs
+// kept nesting them (especially filters) inside queryConfig or emitting
+// invalid combinations. V2 makes queryConfig the canonical (and only) place.
+const queryConfigSchemaV1 = queryConfigBaseSchema.extend({
+    filters: filtersSchemaV2.nullable().default(null),
+});
+
+const queryConfigSchemaV2 = queryConfigBaseSchema.extend({
+    customMetrics: customMetricsSchema,
+    tableCalculations: tableCalcsSchema,
+    filters: filtersSchemaV2.nullable(),
 });
 
 // Chart-specific configuration for rendering hints
@@ -161,41 +169,101 @@ Notes:
 ${MCP_QUERY_COMMON_NOTES}
 `;
 
-export const toolRunQueryArgsSchema = createToolSchema()
+// Kept only for parsing historical persisted tool args.
+export const toolRunQueryArgsSchemaV1 = createToolSchema()
     .extend({
         ...visualizationMetadataSchema.shape,
-        customMetrics: customMetricsSchema,
-        tableCalculations: tableCalcsSchema,
-        queryConfig: queryConfigSchema,
-        chartConfig: chartConfigSchema,
-        filters: filtersSchemaV2.nullable(),
+        customMetrics: customMetricsSchema.default(null),
+        tableCalculations: tableCalcsSchema.default(null),
+        queryConfig: queryConfigSchemaV1,
+        chartConfig: chartConfigSchema.default(null),
+        filters: filtersSchemaV2.nullable().default(null),
     })
     .build();
 
-export type ToolRunQueryArgs = z.infer<typeof toolRunQueryArgsSchema>;
-
-export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchema
+export const toolRunQueryArgsSchemaV2 = createToolSchema()
     .extend({
-        customMetrics: customMetricsSchema
-            .default(null)
-            .pipe(customMetricsSchemaTransformed),
-        tableCalculations: tableCalcsSchema.default(null),
-        chartConfig: chartConfigSchema.default(null),
+        ...visualizationMetadataSchema.shape,
+        queryConfig: queryConfigSchemaV2,
+        chartConfig: chartConfigSchema,
     })
-    .transform((data) => {
-        // LLMs often nest filters inside queryConfig instead of at the top
-        // level. Prefer top-level filters, fall back to queryConfig.filters.
-        const resolvedFilters =
-            data.filters ?? data.queryConfig.filters ?? null;
-        return {
-            ...data,
-            filters: filtersSchemaTransformed.parse(resolvedFilters),
-        };
-    });
+    .build();
+
+// V2 is the only schema the tools accept; this is the LLM contract and the
+// canonical source of truth. V1 (below) is kept solely to parse already
+// persisted tool args from old chats.
+export const toolRunQueryArgsSchema = toolRunQueryArgsSchemaV2;
+
+export type ToolRunQueryArgsV1 = z.infer<typeof toolRunQueryArgsSchemaV1>;
+export type ToolRunQueryArgsV2 = z.infer<typeof toolRunQueryArgsSchemaV2>;
+export type ToolRunQueryArgs = ToolRunQueryArgsV2;
+
+// Converts the raw V2 args into the internal domain shape: customMetrics and
+// filters become Lightdash domain types. Piped (not transformed inline) so a
+// malformed persisted value surfaces as a ZodError instead of a thrown
+// exception out of safeParse.
+const runQueryInternalSchema = z.object({
+    ...visualizationMetadataSchema.shape,
+    queryConfig: queryConfigBaseSchema.extend({
+        customMetrics: customMetricsSchemaTransformed,
+        tableCalculations: tableCalcsSchema,
+        filters: filtersSchemaTransformed,
+    }),
+    chartConfig: chartConfigSchema.default(null),
+});
+
+export const toolRunQueryArgsSchemaTransformed = toolRunQueryArgsSchemaV2.pipe(
+    runQueryInternalSchema,
+);
 
 export type ToolRunQueryArgsTransformed = z.infer<
     typeof toolRunQueryArgsSchemaTransformed
 >;
+
+// --- Backward compatibility -------------------------------------------------
+// Only for parsing tool args persisted before V2. V1 put filters,
+// customMetrics and tableCalculations at the top level; V2 forbids them and
+// nests them inside queryConfig.
+
+export const isRunQueryArgsV1 = (
+    args: ToolRunQueryArgsV1 | ToolRunQueryArgsV2,
+): args is ToolRunQueryArgsV1 =>
+    'customMetrics' in args || 'tableCalculations' in args || 'filters' in args;
+
+export const migrateRunQueryArgsV1ToV2 = (
+    v1: ToolRunQueryArgsV1,
+): ToolRunQueryArgsV2 => ({
+    title: v1.title,
+    description: v1.description,
+    chartConfig: v1.chartConfig,
+    queryConfig: {
+        exploreName: v1.queryConfig.exploreName,
+        dimensions: v1.queryConfig.dimensions,
+        metrics: v1.queryConfig.metrics,
+        sorts: v1.queryConfig.sorts,
+        limit: v1.queryConfig.limit,
+        customMetrics: v1.customMetrics,
+        tableCalculations: v1.tableCalculations,
+        // V1 accepted filters at the top level and (loosely) nested in
+        // queryConfig; top level wins, matching the original behavior.
+        filters: v1.filters ?? v1.queryConfig.filters ?? null,
+    },
+});
+
+// Single entry point for re-parsing a persisted artifact of either version.
+export const parsePersistedRunQueryArgs = (
+    raw: unknown,
+): ToolRunQueryArgsTransformed | null => {
+    const v2 = toolRunQueryArgsSchemaTransformed.safeParse(raw);
+    if (v2.success) return v2.data;
+
+    const v1 = toolRunQueryArgsSchemaV1.safeParse(raw);
+    return v1.success
+        ? toolRunQueryArgsSchemaTransformed.parse(
+              migrateRunQueryArgsV1ToV2(v1.data),
+          )
+        : null;
+};
 
 export const TOOL_RENDER_CHART_DESCRIPTION = `Render a chart for a completed query result in MCP App-capable clients.
 
