@@ -1,4 +1,9 @@
-import { AgentToolOutput, assertUnreachable, Explore } from '@lightdash/common';
+import {
+    AgentToolOutput,
+    AnyType,
+    assertUnreachable,
+    Explore,
+} from '@lightdash/common';
 import * as Sentry from '@sentry/node';
 import {
     generateText,
@@ -52,6 +57,7 @@ import {
     AiAgentStepCapReachedError,
     getUserFacingErrorMessage,
 } from '../utils/errorMessages';
+import { summarizeToolCall, summarizeToolResult } from '../utils/toolSummaries';
 import { getDiscoverFields } from './discoverFields/tool';
 import { getAgentTelemetryConfig, getAiAgentModelName } from './telemetry';
 
@@ -238,6 +244,7 @@ const getAgentTools = (
               maxQueryLimit: args.runSqlMaxLimit,
               autoApproveSql: args.autoApproveSql,
               autoApproveSqlUserUuid: args.autoApproveSqlUserUuid,
+              useSlackStreamCard: args.useSlackStreamCard,
           })
         : null;
 
@@ -399,6 +406,46 @@ const getAgentTools = (
     return mergedTools;
 };
 
+// Fires an `in_progress` task update the moment a tool's execute() runs — i.e. as
+// soon as the model emits the call, before the (possibly slow) tool finishes.
+// generateText() only surfaces tool progress in onStepFinish, which lands after
+// the tool already returned, so without this the Slack/UI card stays empty until
+// the first tool completes. The streaming path emits this from its 'tool-call'
+// chunk instead, so this wrap is only applied in the non-streaming path.
+const withEarlyToolProgress = (
+    tools: ToolSet,
+    updateProgress: AiAgentDependencies['updateProgress'],
+): ToolSet =>
+    Object.fromEntries(
+        Object.entries(tools).map(([toolName, toolDef]) => {
+            const originalExecute = toolDef.execute;
+            if (typeof originalExecute !== 'function') {
+                return [toolName, toolDef];
+            }
+            return [
+                toolName,
+                {
+                    ...toolDef,
+                    execute: (input: AnyType, options: AnyType) => {
+                        void updateProgress(
+                            summarizeToolCall(toolName, input) ??
+                                `Running ${toolName}...`,
+                            toolName,
+                            options?.toolCallId,
+                            'in_progress',
+                        ).catch((error) => {
+                            Logger.debug(
+                                '[AiAgent] Failed to emit early tool progress:',
+                                error,
+                            );
+                        });
+                        return originalExecute(input, options);
+                    },
+                },
+            ];
+        }),
+    ) as ToolSet;
+
 const getAgentMessages = (args: AiAgentArgs, availableExplores: Explore[]) => {
     const logger = createAiAgentLogger(args.debugLoggingEnabled);
     logger('Agent Messages', 'Getting agent messages.');
@@ -486,11 +533,9 @@ export const generateAgentResponse = async ({
 
     try {
         const availableExplores = await dependencies.listExplores();
-        const tools = getAgentTools(
-            args,
-            dependencies,
-            availableExplores,
-            mcpToolSetup,
+        const tools = withEarlyToolProgress(
+            getAgentTools(args, dependencies, availableExplores, mcpToolSetup),
+            dependencies.updateProgress,
         );
         const messages = getAgentMessages(args, availableExplores);
         logger(
@@ -547,6 +592,8 @@ export const generateAgentResponse = async ({
                                     },
                                 });
 
+                                // in_progress is emitted at execute start by withEarlyToolProgress; re-emitting here double-sends it.
+
                                 await dependencies.storeToolCall({
                                     promptUuid: args.promptUuid,
                                     toolCallId: toolCall.toolCallId,
@@ -586,6 +633,22 @@ export const generateAgentResponse = async ({
                                         toolResult.toolCallId
                                     }) (RESULT: ${JSON.stringify(toolResult.output)})`,
                                 );
+                                void dependencies
+                                    .updateProgress(
+                                        summarizeToolResult(
+                                            toolResult.toolName,
+                                            toolResult.output as AnyType,
+                                        ),
+                                        toolResult.toolName,
+                                        toolResult.toolCallId,
+                                        'complete',
+                                    )
+                                    .catch((error) => {
+                                        Logger.debug(
+                                            '[AiAgent][On Step Finish] Failed to update tool progress:',
+                                            error,
+                                        );
+                                    });
                                 const output = normalizeToolOutput(
                                     toolResult.output,
                                 );
@@ -766,6 +829,23 @@ export const streamAgentResponse = async ({
                         }
 
                         void dependencies
+                            .updateProgress(
+                                summarizeToolCall(
+                                    event.chunk.toolName,
+                                    event.chunk.input as AnyType,
+                                ) ?? `Running ${event.chunk.toolName}...`,
+                                event.chunk.toolName,
+                                event.chunk.toolCallId,
+                                'in_progress',
+                            )
+                            .catch((error) => {
+                                Logger.debug(
+                                    '[AiAgent][Chunk Tool Call] Failed to update tool progress:',
+                                    error,
+                                );
+                            });
+
+                        void dependencies
                             .storeToolCall({
                                 promptUuid: args.promptUuid,
                                 toolCallId: event.chunk.toolCallId,
@@ -808,6 +888,22 @@ export const streamAgentResponse = async ({
                                 event.chunk.toolCallId
                             }) (RESULT: ${JSON.stringify(event.chunk.output)})`,
                         );
+                        void dependencies
+                            .updateProgress(
+                                summarizeToolResult(
+                                    event.chunk.toolName,
+                                    event.chunk.output as AnyType,
+                                ),
+                                event.chunk.toolName,
+                                event.chunk.toolCallId,
+                                'complete',
+                            )
+                            .catch((error) => {
+                                Logger.debug(
+                                    '[AiAgent][Chunk Tool Result] Failed to update tool progress:',
+                                    error,
+                                );
+                            });
                         void dependencies
                             .storeToolResults([
                                 {

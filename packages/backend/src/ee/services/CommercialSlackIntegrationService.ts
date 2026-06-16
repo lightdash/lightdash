@@ -25,6 +25,20 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
         this.aiAgentModel = aiAgentModel;
     }
 
+    async getSlackInstallOptions(user: SessionUser) {
+        const { slackOptions, metadata } = await super.getSlackInstallOptions(
+            user,
+        );
+
+        return {
+            slackOptions: {
+                ...slackOptions,
+                scopes: this.slackClient.getRequiredScopes(),
+            },
+            metadata,
+        };
+    }
+
     async getInstallationFromOrganizationUuid(user: SessionUser) {
         const organizationUuid = user?.organizationUuid;
         if (!organizationUuid) {

@@ -44,6 +44,7 @@ import { uniq } from 'lodash';
 import { nanoid as useNanoid } from 'nanoid';
 import fetch from 'node-fetch';
 import playwright, { type ElementHandle, type Page } from 'playwright';
+import { type Readable } from 'stream';
 import { LightdashAnalytics } from '../../analytics/LightdashAnalytics';
 import { type FileStorageClient } from '../../clients/FileStorage/FileStorageClient';
 import { SlackClient } from '../../clients/Slack/SlackClient';
@@ -380,6 +381,31 @@ export class UnfurlService extends BaseService {
         }
 
         return this.fileStorageClient.getFileUrl(record.s3_key, 300);
+    }
+
+    // AI agent card images need a stable Lightdash URL; classic Slack unfurls
+    // keep using signed-url redirects.
+    async getPreviewImageStream(previewId: string): Promise<Readable> {
+        const record = await this.slackUnfurlImageModel.get(previewId);
+
+        const exists = await this.fileStorageClient.objectExists(record.s3_key);
+        if (!exists) {
+            this.logger.info(
+                `Slack unfurl preview object missing from storage: ${previewId}`,
+            );
+            await this.slackUnfurlImageModel
+                .delete(previewId)
+                .catch((deleteError) => {
+                    this.logger.warn(
+                        `Failed to delete orphan slack_unfurl_images row ${previewId}: ${getErrorMessage(
+                            deleteError,
+                        )}`,
+                    );
+                });
+            throw new NotFoundError('Slack unfurl image object missing');
+        }
+
+        return this.fileStorageClient.getFileStream(record.s3_key);
     }
 
     async getTitleAndDescription(

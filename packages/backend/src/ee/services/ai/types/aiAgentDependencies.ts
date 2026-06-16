@@ -277,6 +277,8 @@ export type UpdateProgressFn = (
     // ignores it (single pinned message). Omitted by tools that don't need
     // attribution.
     toolName?: string,
+    progressId?: string,
+    progressStatus?: 'in_progress' | 'complete' | 'error',
 ) => Promise<void>;
 
 export type GetPromptFn = () => Promise<SlackPrompt | AiWebAppPrompt>;
@@ -303,7 +305,7 @@ export type RunSavedChartQueryFn = (args: {
 
 export type GetSavedChartFn = (chartUuidOrSlug: string) => Promise<SavedChart>;
 
-export type SendFileFn = (args: PostSlackFile) => Promise<void>;
+export type SendFileFn = (args: PostSlackFile) => Promise<string | undefined>;
 
 export type SendSlackBlocksFn = (args: {
     channelId: string;
@@ -430,6 +432,7 @@ export type EditDbtProjectFn = (args: {
     prompt: string | null;
     prUrl: string | null;
     fromActiveChangeset: boolean;
+    progressId?: string;
 }) => Promise<
     AiWritebackRunResult & {
         previewDeployConfigured: boolean | null;

@@ -297,6 +297,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiOrganizationSettingsService(),
                     shareService: repository.getShareService(),
                     fileStorageClient: clients.getFileStorageClient(),
+                    downloadFileModel: models.getDownloadFileModel(),
+                    slackUnfurlImageModel: models.getSlackUnfurlImageModel(),
                     persistentDownloadFileService:
                         repository.getPersistentDownloadFileService(),
                     aiAgentContentValidation: new AiAgentContentValidation(),

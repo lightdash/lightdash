@@ -320,7 +320,9 @@ export type ToolRenderChartArgsTransformed = z.infer<
 
 export const toolRunQueryOutputSchema = z.object({
     result: z.string(),
-    metadata: baseOutputMetadataSchema,
+    metadata: baseOutputMetadataSchema.extend({
+        chartImageUrl: z.string().nullish(),
+    }),
 });
 
 export type ToolRunQueryOutput = z.infer<typeof toolRunQueryOutputSchema>;
