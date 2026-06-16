@@ -6740,18 +6740,25 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let streamTs: string | undefined;
 
         try {
-            await this.slackClient.setAssistantStatus({
-                organizationUuid: slackPrompt.organizationUuid,
-                channelId: slackPrompt.slackChannelId,
-                threadTs,
-                status: 'thinking...',
-                loadingMessages: [
-                    'Checking the project context...',
-                    'Finding the relevant metrics...',
-                    'Reviewing available content...',
-                    'Preparing the answer...',
-                ],
-            });
+            void this.slackClient
+                .setAssistantStatus({
+                    organizationUuid: slackPrompt.organizationUuid,
+                    channelId: slackPrompt.slackChannelId,
+                    threadTs,
+                    status: 'thinking...',
+                    loadingMessages: [
+                        'Checking the project context...',
+                        'Finding the relevant metrics...',
+                        'Reviewing available content...',
+                        'Preparing the answer...',
+                    ],
+                })
+                .catch((error) => {
+                    Logger.debug(
+                        'Failed to set Slack assistant status:',
+                        error,
+                    );
+                });
             void this.slackClient
                 .setAssistantTitle({
                     organizationUuid: slackPrompt.organizationUuid,

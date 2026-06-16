@@ -183,10 +183,6 @@ export type PostSlackFile = {
     fileType?: string;
 };
 
-export type SlackScopeOptions = {
-    includeAiAgentSlackModernScopes?: boolean;
-};
-
 export type SlackClientArguments = {
     slackAuthenticationModel: SlackAuthenticationModel;
     slackChannelCacheModel: SlackChannelCacheModel;
@@ -250,7 +246,7 @@ export class SlackClient {
     }
 
     // eslint-disable-next-line class-methods-use-this
-    public getRequiredScopes(_options: SlackScopeOptions = {}) {
+    public getRequiredScopes() {
         return [
             'links:read',
             'links:write',
@@ -271,7 +267,7 @@ export class SlackClient {
         ];
     }
 
-    public getSlackOptions(options: SlackScopeOptions = {}) {
+    public getSlackOptions() {
         return {
             signingSecret: this.lightdashConfig.slack?.signingSecret || '',
             clientId: this.lightdashConfig.slack?.clientId || '',
@@ -285,15 +281,12 @@ export class SlackClient {
                 redirectUriPath: '/api/v1/slack/oauth_redirect',
                 userScopes: [],
             },
-            scopes: this.getRequiredScopes(options),
+            scopes: this.getRequiredScopes(),
         };
     }
 
-    public hasRequiredScopes(
-        installationScopes: string[],
-        options: SlackScopeOptions = {},
-    ) {
-        const requiredScopes = this.getRequiredScopes(options);
+    public hasRequiredScopes(installationScopes: string[]) {
+        const requiredScopes = this.getRequiredScopes();
         return without(requiredScopes, ...installationScopes).length === 0;
     }
 

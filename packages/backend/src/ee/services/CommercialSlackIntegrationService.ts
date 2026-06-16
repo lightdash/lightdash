@@ -42,9 +42,6 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
     }
 
     async getSlackInstallOptions(user: SessionUser) {
-        const includeAiAgentSlackModernScopes =
-            await this.isModernSlackAiAgentEnabled(user);
-
         const { slackOptions, metadata } = await super.getSlackInstallOptions(
             user,
         );
@@ -52,9 +49,7 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
         return {
             slackOptions: {
                 ...slackOptions,
-                scopes: this.slackClient.getRequiredScopes({
-                    includeAiAgentSlackModernScopes,
-                }),
+                scopes: this.slackClient.getRequiredScopes(),
             },
             metadata,
         };
@@ -85,10 +80,6 @@ export class CommercialSlackIntegrationService extends SlackIntegrationService<C
             appProfilePhotoUrl: installation.appProfilePhotoUrl,
             hasRequiredScopes: this.slackClient.hasRequiredScopes(
                 installation.scopes,
-                {
-                    includeAiAgentSlackModernScopes:
-                        await this.isModernSlackAiAgentEnabled(user),
-                },
             ),
             slackChannelProjectMappings:
                 installation.slackChannelProjectMappings,
