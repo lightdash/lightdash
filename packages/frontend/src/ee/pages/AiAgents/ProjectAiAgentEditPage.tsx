@@ -96,6 +96,7 @@ const formSchema = z.object({
     enableDataAccess: z.boolean(),
     enableSelfImprovement: z.boolean(),
     enableContentTools: z.boolean(),
+    adminOnly: z.boolean(),
     version: z.number(),
 });
 
@@ -149,6 +150,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             enableDataAccess: true,
             enableSelfImprovement: false,
             enableContentTools: true,
+            adminOnly: false,
             version: 2, // INFO: Default to v2 for now
         },
         validate: zodResolver(formSchema),
@@ -180,6 +182,7 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                 enableContentTools:
                     (agent.enableDataAccess ?? false) &&
                     (agent.enableContentTools ?? false),
+                adminOnly: agent.adminOnly ?? false,
                 version: agent.version ?? 2, // INFO: Default to v2 for now
             };
             form.setValues(values);

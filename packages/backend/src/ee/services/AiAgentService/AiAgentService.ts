@@ -921,6 +921,13 @@ export class AiAgentService extends BaseService {
             return true;
         }
 
+        // Admin-only agents are visible to admins/developers only (granted by
+        // the manage check above); everyone else is denied regardless of the
+        // user/group access lists below.
+        if (agent.adminOnly) {
+            return false;
+        }
+
         // Check if open access (no restrictions)
         const hasGroupAccess =
             agent.groupAccess && agent.groupAccess.length > 0;
@@ -2485,14 +2492,17 @@ export class AiAgentService extends BaseService {
             tags: body.tags,
             integrations: body.integrations,
             instruction: body.instruction,
-            groupAccess: body.groupAccess,
-            userAccess: body.userAccess,
+            // Admin-only agents ignore the user/group lists; clear them so the
+            // contradictory "admin-only + specific users" state never persists.
+            groupAccess: body.adminOnly ? [] : body.groupAccess,
+            userAccess: body.adminOnly ? [] : body.userAccess,
             spaceAccess: body.spaceAccess,
             mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
             enableSelfImprovement: body.enableSelfImprovement,
             enableContentTools:
                 body.enableDataAccess && (body.enableContentTools ?? false),
+            adminOnly: body.adminOnly ?? false,
             version: body.version,
         });
 
@@ -3389,8 +3399,10 @@ export class AiAgentService extends BaseService {
             instruction: body.instruction,
             imageUrl: body.imageUrl,
             imageUrlSource: nextImageUrlSource,
-            groupAccess: body.groupAccess,
-            userAccess: body.userAccess,
+            // Admin-only agents ignore the user/group lists; clear them so the
+            // contradictory "admin-only + specific users" state never persists.
+            groupAccess: body.adminOnly ? [] : body.groupAccess,
+            userAccess: body.adminOnly ? [] : body.userAccess,
             spaceAccess: body.spaceAccess,
             mcpServerUuids: body.mcpServerUuids,
             enableDataAccess: body.enableDataAccess,
@@ -3398,6 +3410,7 @@ export class AiAgentService extends BaseService {
             enableContentTools: nextEnableDataAccess
                 ? body.enableContentTools
                 : false,
+            adminOnly: body.adminOnly,
             version: body.version,
         });
 
@@ -7744,7 +7757,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         let filteredAgents: AiAgentSummary[];
 
         if (!slackSettings?.aiRequireOAuth) {
-            filteredAgents = allAgents;
+            // Without OAuth there is no per-user enforcement, so exclude
+            // admin-only agents to avoid leaking them to non-admin users.
+            // (With OAuth, checkAgentAccess below handles admin-only correctly.)
+            filteredAgents = allAgents.filter((agent) => !agent.adminOnly);
         } else {
             filteredAgents = await Promise.all(
                 allAgents.map(async (agent) => {
