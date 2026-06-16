@@ -51,6 +51,23 @@ import {
 import { useAgentAiMcpServers } from '../../features/aiCopilot/hooks/useProjectAiMcpServers';
 import { EvalsSetup } from './EvalsSetup';
 
+// Object URL lifecycle for a staged file: create on change, revoke on cleanup.
+const useObjectUrl = (file: File | null): string | null => {
+    const [url, setUrl] = useState<string | null>(null);
+    useEffect(() => {
+        if (!file) {
+            setUrl(null);
+            return;
+        }
+        const objectUrl = URL.createObjectURL(file);
+        setUrl(objectUrl);
+        return () => {
+            URL.revokeObjectURL(objectUrl);
+        };
+    }, [file]);
+    return url;
+};
+
 const formSchema = z.object({
     name: z.string().min(1),
     description: z.string().nullable(),
@@ -129,23 +146,8 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
     });
 
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
-    const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(
-        null,
-    );
-
-    useEffect(() => {
-        if (!avatarFile) {
-            setAvatarPreviewUrl(null);
-            return;
-        }
-
-        const objectUrl = URL.createObjectURL(avatarFile);
-        setAvatarPreviewUrl(objectUrl);
-
-        return () => {
-            URL.revokeObjectURL(objectUrl);
-        };
-    }, [avatarFile]);
+    const [avatarMode, setAvatarMode] = useState<'upload' | 'link'>('upload');
+    const avatarPreviewUrl = useObjectUrl(avatarFile);
 
     useEffect(() => {
         if (isCreateMode || !agent || !isAgentMcpServersFetched) {
@@ -173,6 +175,11 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
             };
             form.setValues(values);
             form.resetDirty(values);
+            setAvatarMode(
+                agent.imageUrl && agent.imageUrlSource !== 'upload'
+                    ? 'link'
+                    : 'upload',
+            );
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [agent, agentMcpServers, isAgentMcpServersFetched, isCreateMode]);
@@ -494,16 +501,42 @@ const ProjectAiAgentEditPage: FC<Props> = ({ isCreateMode = false }) => {
                                 persistedMcpServerUuids={agentMcpServers?.map(
                                     (mcpServer) => mcpServer.uuid,
                                 )}
-                                avatarPreviewUrl={
-                                    avatarPreviewUrl ?? form.values.imageUrl
-                                }
-                                onAvatarFileChange={(file) =>
-                                    setAvatarFile(file)
-                                }
+                                avatarMode={avatarMode}
+                                avatarFileName={avatarFile?.name ?? null}
+                                onAvatarFileChange={(file) => {
+                                    setAvatarFile(file);
+                                    setAvatarMode('upload');
+                                }}
+                                onAvatarModeChange={(nextMode) => {
+                                    if (nextMode === 'link') {
+                                        setAvatarFile(null);
+                                    }
+                                    setAvatarMode(nextMode);
+                                }}
                                 onAvatarRemove={() => {
                                     setAvatarFile(null);
                                     form.setFieldValue('imageUrl', null);
+                                    setAvatarMode('upload');
                                 }}
+                                onAvatarRevert={
+                                    !isCreateMode &&
+                                    (!!avatarFile ||
+                                        (form.values.imageUrl ?? null) !==
+                                            (agent?.imageUrl ?? null))
+                                        ? () => {
+                                              setAvatarFile(null);
+                                              form.setFieldValue(
+                                                  'imageUrl',
+                                                  agent?.imageUrl ?? null,
+                                              );
+                                              setAvatarMode(
+                                                  agent?.imageUrl
+                                                      ? 'link'
+                                                      : 'upload',
+                                              );
+                                          }
+                                        : null
+                                }
                             />
                         </Box>
                     )}

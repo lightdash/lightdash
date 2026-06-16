@@ -38,7 +38,6 @@ import {
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState } from 'react';
 import { z } from 'zod';
-import { LightdashUserAvatar } from '../../../../components/Avatar';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
 import { SlackChannelSelect } from '../../../../components/common/SlackChannelSelect';
@@ -85,9 +84,12 @@ export const AiAgentFormSetup = ({
     agentUuid,
     isSavingAgent,
     persistedMcpServerUuids,
-    avatarPreviewUrl,
+    avatarMode,
+    avatarFileName,
     onAvatarFileChange,
+    onAvatarModeChange,
     onAvatarRemove,
+    onAvatarRevert,
 }: {
     mode: 'create' | 'edit';
     form: ReturnType<typeof useForm<z.infer<typeof formSchema>>>;
@@ -95,9 +97,12 @@ export const AiAgentFormSetup = ({
     agentUuid?: string;
     isSavingAgent?: boolean;
     persistedMcpServerUuids?: string[];
-    avatarPreviewUrl: string | null;
+    avatarMode: 'upload' | 'link';
+    avatarFileName: string | null;
     onAvatarFileChange: (file: File | null) => void;
+    onAvatarModeChange: (mode: 'upload' | 'link') => void;
     onAvatarRemove: () => void;
+    onAvatarRevert: (() => void) | null;
 }) => {
     const { data: project } = useProject(projectUuid);
     const exploreAccessSummaryQuery = useGetAgentExploreAccessSummary(
@@ -254,16 +259,29 @@ export const AiAgentFormSetup = ({
                                     Avatar
                                 </Text>
                                 <Text size="xs" c="dimmed" mt={2}>
-                                    Upload an image for the agent avatar. If not
-                                    provided, a default avatar will be used.
+                                    Upload an image (PNG, JPG, GIF) or use an
+                                    image URL. Images are cropped to a square; a
+                                    default avatar is used if none is set.
                                 </Text>
-                                <Group align="center" gap="md" mt="xs">
-                                    <LightdashUserAvatar
-                                        src={avatarPreviewUrl ?? undefined}
-                                        name={form.values.name || 'Agent'}
-                                        size="lg"
+
+                                {avatarMode === 'link' ? (
+                                    <TextInput
+                                        mt="sm"
+                                        variant="subtle"
+                                        label="Avatar image URL"
+                                        placeholder="https://example.com/avatar.jpg"
+                                        type="url"
+                                        {...form.getInputProps('imageUrl')}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+                                            form.setFieldValue(
+                                                'imageUrl',
+                                                value ? value : null,
+                                            );
+                                        }}
                                     />
-                                    <Group gap="xs">
+                                ) : (
+                                    <Group align="center" gap="sm" mt="sm">
                                         <FileButton
                                             accept="image/png,image/jpeg,image/gif"
                                             onChange={onAvatarFileChange}
@@ -283,28 +301,57 @@ export const AiAgentFormSetup = ({
                                                 </Button>
                                             )}
                                         </FileButton>
-                                        {avatarPreviewUrl && (
-                                            <Button
-                                                size="xs"
-                                                variant="subtle"
-                                                color="red"
-                                                leftSection={
-                                                    <MantineIcon
-                                                        icon={IconTrash}
-                                                    />
-                                                }
-                                                onClick={onAvatarRemove}
-                                            >
-                                                Remove
-                                            </Button>
+                                        {avatarFileName !== null && (
+                                            <Text size="xs" c="dimmed">
+                                                {avatarFileName}
+                                            </Text>
                                         )}
                                     </Group>
+                                )}
+
+                                <Group gap="md" mt="xs">
+                                    <Anchor
+                                        component="button"
+                                        type="button"
+                                        size="xs"
+                                        c="dimmed"
+                                        onClick={() =>
+                                            onAvatarModeChange(
+                                                avatarMode === 'link'
+                                                    ? 'upload'
+                                                    : 'link',
+                                            )
+                                        }
+                                    >
+                                        {avatarMode === 'link'
+                                            ? 'Upload an image instead'
+                                            : 'Use an image URL instead'}
+                                    </Anchor>
+                                    {onAvatarRevert !== null && (
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            size="xs"
+                                            c="dimmed"
+                                            onClick={onAvatarRevert}
+                                        >
+                                            Revert
+                                        </Anchor>
+                                    )}
+                                    {(avatarFileName !== null ||
+                                        form.values.imageUrl) && (
+                                        <Anchor
+                                            component="button"
+                                            type="button"
+                                            size="xs"
+                                            c="red"
+                                            onClick={onAvatarRemove}
+                                        >
+                                            Remove
+                                        </Anchor>
+                                    )}
                                 </Group>
                             </Box>
-                            <Text size="xs" c="dimmed">
-                                Supported formats: PNG, JPG, GIF. Uploaded
-                                avatars are normalized to a square image.
-                            </Text>
                         </Stack>
                     </Paper>
 

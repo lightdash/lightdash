@@ -3209,6 +3209,12 @@ export class AiAgentService extends BaseService {
         const nextEnableDataAccess =
             body.enableDataAccess ?? agent.enableDataAccess;
 
+        // Leave the source untouched when imageUrl isn't part of the update.
+        let nextImageUrlSource: 'url' | null | undefined;
+        if (body.imageUrl !== undefined) {
+            nextImageUrlSource = body.imageUrl ? 'url' : null;
+        }
+
         const updatedAgent = await this.aiAgentModel.updateAgent({
             agentUuid,
             name: body.name,
@@ -3219,6 +3225,7 @@ export class AiAgentService extends BaseService {
             integrations: body.integrations,
             instruction: body.instruction,
             imageUrl: body.imageUrl,
+            imageUrlSource: nextImageUrlSource,
             groupAccess: body.groupAccess,
             userAccess: body.userAccess,
             spaceAccess: body.spaceAccess,
@@ -3391,6 +3398,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             organizationUuid,
             imageUrl,
+            imageUrlSource: 'upload',
         });
     }
 

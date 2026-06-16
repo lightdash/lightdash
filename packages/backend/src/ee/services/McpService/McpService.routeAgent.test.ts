@@ -80,6 +80,7 @@ const selectedAgent: AiAgentWithContext = {
     name: 'Finance',
     description: 'Finance specialist',
     imageUrl: null,
+    imageUrlSource: null,
     tags: ['finance'],
     integrations: [],
     createdAt: new Date('2026-01-01'),
