@@ -31,6 +31,7 @@ export interface AiAgentLauncherState {
     activeThreadId: string | null;
     activeAgentUuid: string | null;
     pendingContext: LauncherPendingContext | null;
+    pendingPrompt: string | null;
     currentDashboard: LauncherCurrentDashboard | null;
     dashboardRefreshRequest: DashboardRefreshRequest | null;
 }
@@ -40,6 +41,7 @@ const initialState: AiAgentLauncherState = {
     activeThreadId: null,
     activeAgentUuid: null,
     pendingContext: null,
+    pendingPrompt: null,
     currentDashboard: null,
     dashboardRefreshRequest: null,
 };
@@ -54,12 +56,14 @@ export const aiAgentLauncherSlice = createSlice({
                 threadId: string | null;
                 agentUuid: string | null;
                 pendingContext?: LauncherPendingContext | null;
+                pendingPrompt?: string | null;
             }>,
         ) => {
             state.mode = 'panel-open';
             state.activeThreadId = action.payload.threadId;
             state.activeAgentUuid = action.payload.agentUuid;
             state.pendingContext = action.payload.pendingContext ?? null;
+            state.pendingPrompt = action.payload.pendingPrompt ?? null;
         },
         closePanel: (state) => {
             state.mode = 'collapsed';
@@ -69,6 +73,7 @@ export const aiAgentLauncherSlice = createSlice({
             state.activeThreadId = null;
             state.activeAgentUuid = null;
             state.pendingContext = null;
+            state.pendingPrompt = null;
         },
         // Cascade-reset the active panel when a dock item is removed externally
         // (the dock itself is owned by `LauncherDockProvider`/localStorage).
@@ -81,6 +86,7 @@ export const aiAgentLauncherSlice = createSlice({
                 state.activeThreadId = null;
                 state.activeAgentUuid = null;
                 state.pendingContext = null;
+                state.pendingPrompt = null;
             }
         },
         setCurrentDashboard: (
@@ -102,6 +108,9 @@ export const aiAgentLauncherSlice = createSlice({
                 requestId: (state.dashboardRefreshRequest?.requestId ?? 0) + 1,
             };
         },
+        clearPendingPrompt: (state) => {
+            state.pendingPrompt = null;
+        },
     },
 });
 
@@ -112,4 +121,5 @@ export const {
     dockItemRemoved,
     setCurrentDashboard,
     requestDashboardRefresh,
+    clearPendingPrompt,
 } = aiAgentLauncherSlice.actions;
