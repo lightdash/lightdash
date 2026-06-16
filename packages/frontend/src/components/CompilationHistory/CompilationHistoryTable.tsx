@@ -37,8 +37,7 @@ import MantineIcon from '../common/MantineIcon';
 import { CompilationHistoryTopToolbar } from './CompilationHistoryTopToolbar';
 import { CompilationLogDrawer } from './CompilationLogDrawer';
 import { CompilationSourceBadge } from './CompilationSourceBadge';
-
-type CompilationSource = 'cli_deploy' | 'refresh_dbt' | 'create_project';
+import { type CompilationSource } from './types';
 
 type CompilationHistoryTableProps = {
     projectUuid: string;

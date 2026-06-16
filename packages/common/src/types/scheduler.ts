@@ -7,6 +7,7 @@ import { type DashboardFilterRule, type DashboardFilters } from './filter';
 import { type KnexPaginatedData } from './knex-paginate';
 import { type ParametersValuesMap } from './parameters';
 import { type PivotConfig } from './pivot';
+import type { CompilationSource } from './projectCompileLogs';
 import { SchedulerResourceType } from './schedulerLog';
 import type { PartialFailure, SchedulerRun } from './schedulerLog';
 import { type DateGranularity } from './timeFrames';
@@ -708,6 +709,7 @@ export type CompileProjectPayload = TraceTaskBase & {
     jobUuid: string;
     isPreview: boolean;
     validateAfterCompile?: boolean;
+    compilationSource?: CompilationSource;
 };
 
 export type PreAggregateMaterializationTrigger =

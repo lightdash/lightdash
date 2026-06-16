@@ -1814,6 +1814,7 @@ export default class SchedulerTask {
                 payload.projectUuid,
                 getRequestMethod(payload.requestMethod),
                 payload.jobUuid,
+                payload.compilationSource,
             );
 
             await this.schedulerService.logSchedulerJob({
