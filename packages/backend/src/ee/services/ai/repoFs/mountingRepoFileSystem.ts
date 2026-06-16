@@ -49,7 +49,7 @@ export const DBT_MOUNT = 'dbt';
 /** Default cap on how many repository trees a single run may materialise — the
  *  guard that bounds an unscoped recursive walk (`grep -r /`) across a large
  *  installation. Generous for deliberate multi-repo reads, far below "all". */
-export const DEFAULT_MAX_MATERIALISED_REPOS = 10;
+export const DEFAULT_MAX_MATERIALISED_REPOS = 3;
 
 const FILE_MODE = 0o100644;
 const DIR_MODE = 0o040755;
