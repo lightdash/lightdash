@@ -101,6 +101,9 @@ import { SubtotalsCalculator } from '../../../utils/SubtotalsCalculator';
 import { EmbedDashboardViewed, EmbedQueryViewed } from '../../analytics';
 import { EmbedModel } from '../../models/EmbedModel';
 
+const escapeEmbedJwtUserAttributeValue = (value: string): string =>
+    value.replaceAll("'", "''");
+
 type Dependencies = {
     lightdashConfig: LightdashConfig;
     analytics: LightdashAnalytics;
@@ -852,13 +855,21 @@ export class EmbedService extends BaseService {
                   if (value !== null && value !== undefined) {
                       let sanitizedValue: string[];
                       if (typeof value === 'string') {
-                          sanitizedValue = [value];
+                          sanitizedValue = [
+                              escapeEmbedJwtUserAttributeValue(value),
+                          ];
                       } else if (isArray(value)) {
                           sanitizedValue = (value as unknown[]).map((v) =>
-                              typeof v === 'string' ? v : JSON.stringify(v),
+                              escapeEmbedJwtUserAttributeValue(
+                                  typeof v === 'string' ? v : JSON.stringify(v),
+                              ),
                           );
                       } else {
-                          sanitizedValue = [JSON.stringify(value)];
+                          sanitizedValue = [
+                              escapeEmbedJwtUserAttributeValue(
+                                  JSON.stringify(value),
+                              ),
+                          ];
                       }
                       acc[key] = sanitizedValue;
                   }
@@ -872,7 +883,9 @@ export class EmbedService extends BaseService {
         };
 
         const intrinsicUserAttributes: IntrinsicUserAttributes = {
-            email: embedJwt.user?.email,
+            email: embedJwt.user?.email
+                ? escapeEmbedJwtUserAttributeValue(embedJwt.user.email)
+                : undefined,
         };
 
         return { userAttributes, intrinsicUserAttributes };
