@@ -16,9 +16,14 @@
  * construct.
  */
 import { getErrorMessage } from '@lightdash/common';
-import { Bash, type CommandName, type IFileSystem } from 'just-bash';
+import {
+    Bash,
+    defineCommand,
+    type CommandName,
+    type IFileSystem,
+} from 'just-bash';
 import { RepoFileSystem } from './repoFileSystem';
-import type { RepoFs } from './RepoFs';
+import type { RepoCodeSearchMatch, RepoFs } from './RepoFs';
 
 /**
  * An expected, agent-recoverable shell failure (unknown command, bad flag,
@@ -147,6 +152,47 @@ const getAdapter = (repoFs: RepoFs): Promise<RepoFileSystem> => {
 const leadingCommand = (command: string): string =>
     command.trim().split(/\s+/)[0] ?? '';
 
+export type RepoCodeSearchFn = (
+    path: string,
+    query: string,
+) => Promise<{ matches: RepoCodeSearchMatch[]; note: string | null }>;
+
+const MAX_FRAGMENTS_PER_MATCH = 3;
+const formatFragment = (fragment: string): string =>
+    fragment.replace(/\s+/g, ' ').trim().slice(0, 200);
+
+const buildSearchCommand = (search: RepoCodeSearchFn) =>
+    defineCommand('search', async (args, ctx) => {
+        const positional = args.filter((arg) => !arg.startsWith('-'));
+        if (positional.length === 0) {
+            return {
+                stdout: '',
+                stderr: 'search: missing search term. Usage: search <term> [path]',
+                exitCode: 2,
+            };
+        }
+        const [query, pathArg = '.'] = positional;
+        const absPath = ctx.fs.resolvePath(ctx.cwd, pathArg);
+        const { matches, note } = await search(absPath, query);
+        if (matches.length === 0) {
+            return {
+                stdout: note ?? `No matches for "${query}".`,
+                stderr: '',
+                exitCode: 0,
+            };
+        }
+        const body = matches
+            .map((match) => {
+                const fragments = match.fragments
+                    .slice(0, MAX_FRAGMENTS_PER_MATCH)
+                    .map((fragment) => `    ${formatFragment(fragment)}`)
+                    .join('\n');
+                return fragments ? `${match.path}\n${fragments}` : match.path;
+            })
+            .join('\n');
+        return { stdout: `${body}\n`, stderr: '', exitCode: 0 };
+    });
+
 /**
  * Execute one read-only shell command line against an arbitrary just-bash
  * {@link IFileSystem} and return combined output. The single-repo
@@ -165,12 +211,18 @@ export const runShellCommandOnFs = async (
     {
         cwd = '/',
         isTruncated,
-    }: { cwd?: string; isTruncated?: () => Promise<boolean> } = {},
+        search,
+    }: {
+        cwd?: string;
+        isTruncated?: () => Promise<boolean>;
+        search?: RepoCodeSearchFn;
+    } = {},
 ): Promise<string> => {
     const bash = new Bash({
         fs,
         cwd,
         commands: READ_ONLY_COMMANDS,
+        customCommands: search ? [buildSearchCommand(search)] : [],
         executionLimits: { maxOutputSize: MAX_INTERNAL_OUTPUT },
         // Defense-in-depth wraps ALL command execution and monkey-patches Node
         // globals (setImmediate, setTimeout, the Proxy constructor, eval,

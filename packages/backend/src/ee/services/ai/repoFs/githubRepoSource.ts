@@ -3,6 +3,7 @@ import {
     getFileContent,
     getRepoTree,
     isGithubRateLimitError,
+    searchRepoCode,
 } from '../../../../clients/github/Github';
 import Logger from '../../../../logging/logger';
 import { RepoSource } from './RepoFs';
@@ -18,7 +19,7 @@ const RATE_LIMIT_MESSAGE =
 
 /** Re-throw a GitHub error: a rate-limit becomes the recoverable ERATELIMIT
  *  error; anything else propagates unchanged. */
-const rethrowAsRecoverable = (error: unknown): never => {
+export const rethrowAsRecoverable = (error: unknown): never => {
     if (isGithubRateLimitError(error)) {
         throw Object.assign(new Error(RATE_LIMIT_MESSAGE), {
             code: 'ERATELIMIT',
@@ -135,6 +136,32 @@ export const createGithubRepoSource = ({
                 }))
                 .filter((f) => !isDeniedRepoPath(f.path));
             return { files: scoped, truncated };
+        },
+        searchCode: async (query) => {
+            const start = Date.now();
+            const items = await searchRepoCode({
+                owner,
+                repo,
+                query,
+                token,
+            }).catch(rethrowAsRecoverable);
+            const durationMs = Date.now() - start;
+            Logger.info(
+                `[repoShell] github code search in ${durationMs}ms (${items.length} matches): ${query}`,
+                {
+                    event: 'ai.repofs.github.search',
+                    repo: `${owner}/${repo}`,
+                    matches: items.length,
+                    durationMs,
+                },
+            );
+            return items
+                .filter((item) => !root || item.path.startsWith(prefix))
+                .map((item) => ({
+                    path: root ? item.path.slice(prefix.length) : item.path,
+                    fragments: item.fragments,
+                }))
+                .filter((item) => !isDeniedRepoPath(item.path));
         },
         readFile: async (path) => {
             // Never read a denied secret file, even if a truncated tree means it

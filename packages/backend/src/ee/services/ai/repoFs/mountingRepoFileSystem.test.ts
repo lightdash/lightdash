@@ -49,7 +49,7 @@ describe('MountingRepoFileSystem', () => {
     });
 
     const make = (
-        opts: { hasDbtMount?: boolean; maxRepos?: number } = {},
+        opts: { hasDbtMount?: boolean } = {},
     ): Promise<MountingRepoFileSystem> =>
         MountingRepoFileSystem.create({
             listRepos: async () => {
@@ -67,15 +67,10 @@ describe('MountingRepoFileSystem', () => {
                 if (!files) throw new Error(`unknown repo ${owner}/${repo}`);
                 return new RepoFs(fakeSource(files));
             },
-            maxRepos: opts.maxRepos ?? 10,
         });
 
-    // Mirror production: the exploreRepo closure resets the per-command budget
-    // before each command.
-    const run = (fs: MountingRepoFileSystem, command: string) => {
-        fs.beginCommand();
-        return runShellCommandOnFs(fs, command);
-    };
+    const run = (fs: MountingRepoFileSystem, command: string) =>
+        runShellCommandOnFs(fs, command);
 
     describe('construction is lazy', () => {
         it('fetches the repo list once and no trees', async () => {
@@ -138,60 +133,24 @@ describe('MountingRepoFileSystem', () => {
         });
     });
 
-    describe('materialisation budget', () => {
-        it('never materialises more repos than the budget allows', async () => {
-            // The cost guarantee: at most `maxRepos` trees are ever fetched per
-            // run. A multi-repo `cat` past the budget degrades the over-budget
-            // path to "absent" (host command tolerates a per-file miss), so the
-            // extra tree is simply never fetched.
-            const fs = await make({ maxRepos: 1 });
-            await run(
-                fs,
-                'cat /acme/web/package.json /acme/api/package.json',
-            ).catch(() => undefined);
+    describe('tree caching', () => {
+        it('fetches a repo tree once and reuses it across commands', async () => {
+            const fs = await make();
+            await run(fs, 'cat /acme/web/package.json');
+            await run(fs, 'cat /acme/web/src/index.ts');
             expect(materialised).toEqual(['acme/web']);
         });
 
-        it('surfaces a clear, recoverable error on an unscoped recursive walk', async () => {
-            // The actual footgun: `find /` / `grep -r /` recurse via readdir, so
-            // descending into the (budget+1)th repo throws — and find aborts the
-            // walk, so the agent gets the named limit instead of a silent cap.
-            const fs = await make({ maxRepos: 1 });
-            await expect(run(fs, 'find / -name "*.json"')).rejects.toThrow(
-                ShellError,
-            );
-            await expect(
-                run(await make({ maxRepos: 1 }), 'find / -name "*.json"'),
-            ).rejects.toThrow(/limit 1/);
-        });
-
-        it('resets the budget per command so a run can cover more repos than the cap', async () => {
-            // The budget bounds a single command, not the whole run. With the
-            // cache persisting, a second command can open a different repo even
-            // though the per-run total now exceeds maxRepos.
-            const fs = await make({ maxRepos: 1 });
-            expect(await run(fs, 'cat /acme/web/package.json')).toBe(
-                '{"name":"web"}',
-            );
-            expect(await run(fs, 'cat /globex/infra/README.md')).toContain(
-                '# infra',
-            );
-            expect(materialised.sort()).toEqual(['acme/web', 'globex/infra']);
-        });
-
-        it('a cached repo does not charge the budget on re-read', async () => {
-            const fs = await make({ maxRepos: 1 });
-            // First command opens acme/web (1, at the cap).
+        it('opens many repos across commands without limit', async () => {
+            const fs = await make();
             await run(fs, 'cat /acme/web/package.json');
-            // Second command re-reads the cached repo AND opens a new one — the
-            // cached read is free, so the single new repo stays within budget.
-            expect(
-                await run(
-                    fs,
-                    'cat /acme/web/src/index.ts /acme/api/package.json',
-                ),
-            ).toContain('{"name":"api"}');
-            expect(materialised.sort()).toEqual(['acme/api', 'acme/web']);
+            await run(fs, 'cat /acme/api/package.json');
+            await run(fs, 'cat /globex/infra/README.md');
+            expect(materialised.sort()).toEqual([
+                'acme/api',
+                'acme/web',
+                'globex/infra',
+            ]);
         });
     });
 
@@ -237,6 +196,134 @@ describe('MountingRepoFileSystem', () => {
             expect(await run(fs, 'ls /acme/web/*.json')).toContain(
                 'package.json',
             );
+        });
+    });
+
+    describe('search (server-side code search routing)', () => {
+        let treeFetches: string[];
+
+        const searchableSource = (
+            label: string,
+            files: Record<string, string>,
+        ): RepoSource => ({
+            label,
+            listAllPaths: async () => {
+                treeFetches.push(label);
+                return {
+                    files: Object.entries(files).map(([path, content]) => ({
+                        path,
+                        size: content.length,
+                    })),
+                    truncated: false,
+                };
+            },
+            readFile: async (path) => files[path] ?? null,
+            searchCode: async (query) =>
+                Object.entries(files)
+                    .filter(([, content]) => content.includes(query))
+                    .map(([path]) => ({ path, fragments: [`…${query}…`] })),
+        });
+
+        const makeSearchable = (): Promise<MountingRepoFileSystem> =>
+            MountingRepoFileSystem.create({
+                listRepos: async () => REPO_LIST,
+                hasDbtMount: true,
+                buildDbtRepoFs: async () =>
+                    new RepoFs(searchableSource('dbt', DBT_FILES)),
+                buildRepoFs: async (owner, repo) =>
+                    new RepoFs(
+                        searchableSource(
+                            `${owner}/${repo}`,
+                            REPO_FILES[`${owner}/${repo}`],
+                        ),
+                    ),
+                searchOwner: async (owner, query) =>
+                    Object.entries(REPO_FILES)
+                        .filter(([key]) => key.startsWith(`${owner}/`))
+                        .flatMap(([key, files]) => {
+                            const [o, r] = key.split('/');
+                            return Object.entries(files)
+                                .filter(([, content]) =>
+                                    content.includes(query),
+                                )
+                                .map(([path]) => ({
+                                    owner: o,
+                                    repo: r,
+                                    path,
+                                    fragments: [`…${query}…`],
+                                }));
+                        }),
+            });
+
+        beforeEach(() => {
+            treeFetches = [];
+        });
+
+        it('routes to the repo the path lands in and prefixes the mount path', async () => {
+            const fs = await makeSearchable();
+            const { matches, note } = await fs.search('/acme/web', 'export');
+            expect(note).toBeNull();
+            expect(matches).toEqual([
+                {
+                    path: '/acme/web/src/index.ts',
+                    fragments: ['…export…'],
+                },
+            ]);
+        });
+
+        it('does NOT fetch the repo tree (search is one API call)', async () => {
+            const fs = await makeSearchable();
+            await fs.search('/acme/web', 'export');
+            expect(treeFetches).toEqual([]);
+        });
+
+        it('confines results to the sub-path the search targets', async () => {
+            const fs = await makeSearchable();
+            const scoped = await fs.search('/dbt/models', 'order_id');
+            expect(scoped.matches.map((m) => m.path)).toEqual([
+                '/dbt/models/orders.sql',
+            ]);
+            const elsewhere = await fs.search('/dbt/seeds', 'order_id');
+            expect(elsewhere.matches).toEqual([]);
+        });
+
+        it('searches every repo of an owner in one call (owner-level)', async () => {
+            const fs = await makeSearchable();
+            const { matches, note } = await fs.search('/acme', 'name');
+            expect(note).toBeNull();
+            expect(matches.map((m) => m.path).sort()).toEqual([
+                '/acme/api/package.json',
+                '/acme/web/package.json',
+            ]);
+        });
+
+        it('returns a note (no matches) when the path is the virtual root', async () => {
+            const fs = await makeSearchable();
+            const { matches, note } = await fs.search('/', 'anything');
+            expect(matches).toEqual([]);
+            expect(note).toMatch(/owner or a repository/i);
+        });
+
+        it('returns a note when the source cannot search', async () => {
+            const fs = await make();
+            const { note } = await fs.search('/acme/web', 'anything');
+            expect(note).toMatch(/unavailable/i);
+        });
+
+        it('returns a note for an owner path when owner search is not wired', async () => {
+            const fs = await make();
+            const { matches, note } = await fs.search('/acme', 'anything');
+            expect(matches).toEqual([]);
+            expect(note).toMatch(/unavailable/i);
+        });
+
+        it('drives the `search` shell command end-to-end', async () => {
+            const fs = await makeSearchable();
+            const out = await runShellCommandOnFs(fs, 'search export', {
+                cwd: '/acme/web',
+                search: (path, query) => fs.search(path, query),
+            });
+            expect(out).toContain('/acme/web/src/index.ts');
         });
     });
 });

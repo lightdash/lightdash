@@ -11,6 +11,8 @@
 
 export type RepoEntryType = 'file' | 'dir';
 
+export type RepoCodeSearchMatch = { path: string; fragments: string[] };
+
 export interface RepoSource {
     /** Human-readable identifier, e.g. "owner/repo@main". */
     readonly label: string;
@@ -21,6 +23,7 @@ export interface RepoSource {
     }>;
     /** File content as UTF-8, or null if missing/too large/binary. */
     readFile(path: string): Promise<string | null>;
+    searchCode?(query: string): Promise<RepoCodeSearchMatch[]>;
 }
 
 export class RepoNotFoundError extends Error {}
@@ -286,6 +289,11 @@ export class RepoFs {
             this.cacheBytes -= this.fileCache.get(oldest)?.length ?? 0;
             this.fileCache.delete(oldest);
         }
+    }
+
+    async search(query: string): Promise<RepoCodeSearchMatch[] | null> {
+        if (!this.source.searchCode) return null;
+        return this.source.searchCode(query);
     }
 
     async readFile(path: string): Promise<string | null> {

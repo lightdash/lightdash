@@ -142,6 +142,7 @@ import { type FileStorageClient } from '../../../clients/FileStorage/FileStorage
 import {
     getInstallationToken,
     getPullRequest,
+    searchRepoCode,
 } from '../../../clients/github/Github';
 import { type SlackClient } from '../../../clients/Slack/SlackClient';
 import { LightdashConfig } from '../../../config/parseConfig';
@@ -221,11 +222,12 @@ import { matchesPreset } from '../ai/models/presets';
 import { parseRepoTarget, runShellCommandOnFs } from '../ai/repoFs/bashShell';
 import {
     createGithubRepoSource,
+    isDeniedRepoPath,
+    rethrowAsRecoverable,
     type RepoFsTimingEvent,
 } from '../ai/repoFs/githubRepoSource';
 import {
     DBT_MOUNT,
-    DEFAULT_MAX_MATERIALISED_REPOS,
     MountingRepoFileSystem,
 } from '../ai/repoFs/mountingRepoFileSystem';
 import { RepoFs } from '../ai/repoFs/RepoFs';
@@ -5935,7 +5937,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                         hasDbtMount,
                         buildDbtRepoFs,
                         buildRepoFs,
-                        maxRepos: DEFAULT_MAX_MATERIALISED_REPOS,
+                        searchOwner: async (owner, query) => {
+                            const { installationToken } =
+                                await getInstallationAccess();
+                            const hits = await searchRepoCode({
+                                owner,
+                                query,
+                                token: installationToken,
+                            }).catch(rethrowAsRecoverable);
+                            return hits.filter(
+                                (hit) => !isDeniedRepoPath(hit.path),
+                            );
+                        },
                     });
                 })();
             }
@@ -5956,13 +5969,10 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             } else if (fs.hasDbtMount) {
                 cwd = `/${DBT_MOUNT}`;
             }
-            // Reset the per-command repo budget so the cap bounds THIS command
-            // (e.g. a repo-spanning grep), not the whole run; the tree cache
-            // persists, so repos opened by earlier commands stay free.
-            fs.beginCommand();
             return runShellCommandOnFs(fs, command, {
                 cwd,
                 isTruncated: () => Promise.resolve(fs.isTruncated()),
+                search: (absPath, query) => fs.search(absPath, query),
             });
         };
 

@@ -3,6 +3,7 @@ import {
     getFileContent,
     getRepoTree,
     isGithubRateLimitError,
+    searchRepoCode,
 } from '../../../../clients/github/Github';
 import {
     createGithubRepoSource,
@@ -18,6 +19,9 @@ const mockGetFileContent = getFileContent as jest.MockedFunction<
 const mockGetRepoTree = getRepoTree as jest.MockedFunction<typeof getRepoTree>;
 const mockIsRateLimit = isGithubRateLimitError as jest.MockedFunction<
     typeof isGithubRateLimitError
+>;
+const mockSearchRepoCode = searchRepoCode as jest.MockedFunction<
+    typeof searchRepoCode
 >;
 
 const source = (onTiming?: RepoFsTimingCallback) =>
@@ -114,6 +118,95 @@ describe('githubRepoSource secrets denylist', () => {
         expect(isDeniedRepoPath('a/b/.npmrc')).toBe(true);
         expect(isDeniedRepoPath('models/orders.sql')).toBe(false);
         expect(isDeniedRepoPath('README.md')).toBe(false);
+    });
+});
+
+describe('githubRepoSource.searchCode', () => {
+    beforeEach(() => {
+        mockSearchRepoCode.mockReset();
+        mockIsRateLimit.mockReset();
+    });
+
+    it('returns repo-relative matches with fragments (no sub-path scoping)', async () => {
+        mockSearchRepoCode.mockResolvedValue([
+            {
+                owner: 'acme',
+                repo: 'jaffle',
+                path: 'models/orders.sql',
+                fragments: ['select customer_id'],
+            },
+            { owner: 'acme', repo: 'jaffle', path: 'README.md', fragments: [] },
+        ]);
+        const matches = await source().searchCode!('customer_id');
+        expect(mockSearchRepoCode).toHaveBeenCalledWith(
+            expect.objectContaining({
+                owner: 'acme',
+                repo: 'jaffle',
+                query: 'customer_id',
+                token: 'tok',
+            }),
+        );
+        expect(matches).toEqual([
+            { path: 'models/orders.sql', fragments: ['select customer_id'] },
+            { path: 'README.md', fragments: [] },
+        ]);
+    });
+
+    it('confines and re-roots hits to the sub-path, dropping those outside it', async () => {
+        mockSearchRepoCode.mockResolvedValue([
+            {
+                owner: 'acme',
+                repo: 'jaffle',
+                path: 'transform/dbt/models/orders.sql',
+                fragments: ['x'],
+            },
+            {
+                owner: 'acme',
+                repo: 'jaffle',
+                path: 'app/src/index.ts',
+                fragments: ['x'],
+            },
+        ]);
+        const scoped = createGithubRepoSource({
+            owner: 'acme',
+            repo: 'jaffle',
+            branch: 'main',
+            token: 'tok',
+            subPath: 'transform/dbt',
+        });
+        await expect(scoped.searchCode!('x')).resolves.toEqual([
+            { path: 'models/orders.sql', fragments: ['x'] },
+        ]);
+    });
+
+    it('never surfaces a denied secret path even when search returns it', async () => {
+        mockSearchRepoCode.mockResolvedValue([
+            {
+                owner: 'acme',
+                repo: 'jaffle',
+                path: '.env',
+                fragments: ['SECRET=1'],
+            },
+            {
+                owner: 'acme',
+                repo: 'jaffle',
+                path: 'models/x.sql',
+                fragments: [],
+            },
+        ]);
+        await expect(source().searchCode!('SECRET')).resolves.toEqual([
+            { path: 'models/x.sql', fragments: [] },
+        ]);
+    });
+
+    it('maps a rate limit to a recoverable ERATELIMIT error', async () => {
+        mockSearchRepoCode.mockRejectedValue(
+            new UnexpectedGitError('API rate limit exceeded for installation'),
+        );
+        mockIsRateLimit.mockReturnValue(true);
+        await expect(source().searchCode!('anything')).rejects.toMatchObject({
+            code: 'ERATELIMIT',
+        });
     });
 });
 

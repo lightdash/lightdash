@@ -13,9 +13,7 @@
  * synchronously. A repo's git tree is fetched only when the agent first descends
  * into its mount, by materialising a per-mount {@link RepoFileSystem} (which
  * reuses all the per-repo machinery: tree index, lazy file cache, denylist,
- * `..` guard). A per-run materialisation budget caps how many repos a single
- * `grep -r /` can pull before erroring, so an unscoped recursive walk can't fan
- * out across every accessible repo.
+ * `..` guard).
  *
  * All mutating methods throw `EROFS` (read-only by construction), mirroring
  * {@link RepoFileSystem}.
@@ -25,7 +23,7 @@
 /* eslint-disable class-methods-use-this */
 import type { FsStat, IFileSystem } from 'just-bash';
 import { RepoFileSystem } from './repoFileSystem';
-import type { RepoFs } from './RepoFs';
+import type { RepoCodeSearchMatch, RepoFs } from './RepoFs';
 
 // just-bash's optional readdirWithFileTypes return shape (not exported by name;
 // mirrors the local type in {@link ./repoFileSystem}).
@@ -42,16 +40,16 @@ export type MountableRepo = {
     repo: string;
 };
 
+export type RepoOwnerSearchFn = (
+    owner: string,
+    query: string,
+) => Promise<
+    { owner: string; repo: string; path: string; fragments: string[] }[]
+>;
+
 /** The `/dbt` mount key — a repo named `dbt` would collide, so dbt wins and the
  *  system prompt documents `/dbt` as the dbt project. */
 export const DBT_MOUNT = 'dbt';
-
-/** Default cap on how many repository trees a single *command* may newly
- *  materialise — the guard that bounds an unscoped recursive walk (`grep -r /`)
- *  across a large installation. Per-command (reset by {@link
- *  MountingRepoFileSystem.beginCommand}), so a run can still cover many repos
- *  across several commands; cached repos are free. */
-export const DEFAULT_MAX_MATERIALISED_REPOS = 10;
 
 const FILE_MODE = 0o100644;
 const DIR_MODE = 0o040755;
@@ -78,17 +76,6 @@ const erofs = (): never => {
     throw Object.assign(
         new Error('EROFS: read-only file system (repositories are read-only)'),
         { code: 'EROFS' },
-    );
-};
-/** Budget exhaustion: surfaced to the agent as a recoverable shell error (the
- *  `EACCES` code is mapped to a ShellError in {@link ./bashShell}). */
-const ebudget = (max: number): never => {
-    throw Object.assign(
-        new Error(
-            `EACCES: too many repositories opened in one command (limit ${max}). ` +
-                `Target a specific repository path (e.g. /owner/repo/...) instead of a repo-spanning walk.`,
-        ),
-        { code: 'EACCES' },
     );
 };
 
@@ -137,8 +124,6 @@ export class MountingRepoFileSystem implements IFileSystem {
         repo: string,
     ) => Promise<RepoFs>;
 
-    private readonly maxRepos: number;
-
     /** Distinct owners, sorted — the immediate children of `/`. */
     private readonly owners: string[];
 
@@ -148,16 +133,12 @@ export class MountingRepoFileSystem implements IFileSystem {
     /** Set of valid `owner/repo` mount keys for O(1) existence checks. */
     private readonly repoKeys: Set<string>;
 
+    private readonly repoFsByKey = new Map<string, Promise<RepoFs>>();
+
     /** Lazily-materialised per-mount adapters, keyed by mount key
      *  (`dbt` or `owner/repo`). Persists for the whole run as a tree cache;
-     *  re-reading a cached repo never re-fetches and never charges the budget. */
+     *  re-reading a cached repo never re-fetches. */
     private readonly mounts = new Map<string, Promise<RepoFileSystem>>();
-
-    /** Repos newly materialised in the CURRENT command, reset by
-     *  {@link beginCommand}. The budget is per-command (it bounds a single
-     *  `grep -r /`), not per-run — so a run can still cover many repos across
-     *  several commands, with the cache above making repeat reads free. */
-    private materialisedThisCommand = 0;
 
     /** Mounts whose adapter has finished building, for the synchronous
      *  {@link getAllPaths} (populated when each `mounts` promise resolves). */
@@ -167,18 +148,20 @@ export class MountingRepoFileSystem implements IFileSystem {
      *  "results may be incomplete" advisory after find/grep/ls. */
     private readonly truncatedMounts = new Set<string>();
 
+    private readonly searchOwnerFn: RepoOwnerSearchFn | null;
+
     private constructor(opts: {
         repos: MountableRepo[];
         hasDbtMount: boolean;
         buildDbtRepoFs: () => Promise<RepoFs>;
         buildRepoFs: (owner: string, repo: string) => Promise<RepoFs>;
-        maxRepos: number;
+        searchOwner: RepoOwnerSearchFn | null;
     }) {
         this.repos = opts.repos;
         this.hasDbtMount = opts.hasDbtMount;
         this.buildDbtRepoFs = opts.buildDbtRepoFs;
         this.buildRepoFs = opts.buildRepoFs;
-        this.maxRepos = opts.maxRepos;
+        this.searchOwnerFn = opts.searchOwner;
 
         this.reposByOwner = new Map();
         this.repoKeys = new Set();
@@ -204,10 +187,14 @@ export class MountingRepoFileSystem implements IFileSystem {
         hasDbtMount: boolean;
         buildDbtRepoFs: () => Promise<RepoFs>;
         buildRepoFs: (owner: string, repo: string) => Promise<RepoFs>;
-        maxRepos: number;
+        searchOwner?: RepoOwnerSearchFn;
     }): Promise<MountingRepoFileSystem> {
         const repos = await opts.listRepos();
-        return new MountingRepoFileSystem({ ...opts, repos });
+        return new MountingRepoFileSystem({
+            ...opts,
+            repos,
+            searchOwner: opts.searchOwner ?? null,
+        });
     }
 
     // ---- routing ----
@@ -242,33 +229,25 @@ export class MountingRepoFileSystem implements IFileSystem {
         return { type: 'missing' };
     }
 
-    /**
-     * Reset the per-command materialisation budget. Call once before each shell
-     * command so the cap bounds a single command (e.g. a repo-spanning
-     * `grep -r /`) rather than the whole run. Already-cached repos stay cached,
-     * so a run can read many repos across several commands without re-fetching.
-     */
-    beginCommand(): void {
-        this.materialisedThisCommand = 0;
+    private getRepoFs(key: string): Promise<RepoFs> {
+        const existing = this.repoFsByKey.get(key);
+        if (existing) return existing;
+        const promise =
+            key === DBT_MOUNT
+                ? this.buildDbtRepoFs()
+                : this.buildRepoFs(...(key.split('/') as [string, string]));
+        this.repoFsByKey.set(key, promise);
+        return promise;
     }
 
-    /** Materialise (or reuse) a mount's adapter. A cached repo is free; only a
-     *  NEW materialisation charges the per-command budget. */
+    /** Materialise (or reuse) a mount's adapter. A cached repo is free; a new
+     *  one fetches the repo's tree on first descent. */
     private getMount(key: string): Promise<RepoFileSystem> {
         const existing = this.mounts.get(key);
         if (existing) return existing;
-        if (this.materialisedThisCommand >= this.maxRepos) {
-            ebudget(this.maxRepos);
-        }
-        this.materialisedThisCommand += 1;
 
         const promise = (async () => {
-            const repoFs =
-                key === DBT_MOUNT
-                    ? await this.buildDbtRepoFs()
-                    : await this.buildRepoFs(
-                          ...(key.split('/') as [string, string]),
-                      );
+            const repoFs = await this.getRepoFs(key);
             const adapter = await RepoFileSystem.create(repoFs);
             if (await repoFs.isTruncated()) this.truncatedMounts.add(key);
             this.resolved.set(key, adapter);
@@ -276,6 +255,67 @@ export class MountingRepoFileSystem implements IFileSystem {
         })();
         this.mounts.set(key, promise);
         return promise;
+    }
+
+    async search(
+        absPath: string,
+        query: string,
+    ): Promise<{ matches: RepoCodeSearchMatch[]; note: string | null }> {
+        const r = this.resolve(resolveAbsolute('/', absPath));
+        if (r.type === 'missing') {
+            return { matches: [], note: `no such path: '${absPath}'` };
+        }
+        if (r.type === 'owner') {
+            return this.searchOwner(r.owner, query);
+        }
+        if (r.type === 'root') {
+            return {
+                matches: [],
+                note: 'search needs an owner or a repository — pass a path like /owner (all of an owner’s repos), /owner/repo, or /dbt.',
+            };
+        }
+        const repoFs = await this.getRepoFs(r.key);
+        const found = await repoFs.search(query);
+        if (found === null) {
+            return {
+                matches: [],
+                note: 'code search is unavailable for this repository — use `grep` instead.',
+            };
+        }
+        const mountPrefix = r.key === DBT_MOUNT ? `/${DBT_MOUNT}` : `/${r.key}`;
+        const sub = r.subPath.replace(/^\/+/, '').replace(/\/+$/, '');
+        const matches = found
+            .filter(
+                (m) =>
+                    sub === '' ||
+                    m.path === sub ||
+                    m.path.startsWith(`${sub}/`),
+            )
+            .map((m) => ({
+                path: `${mountPrefix}/${m.path}`,
+                fragments: m.fragments,
+            }));
+        return { matches, note: null };
+    }
+
+    private async searchOwner(
+        owner: string,
+        query: string,
+    ): Promise<{ matches: RepoCodeSearchMatch[]; note: string | null }> {
+        if (!this.searchOwnerFn) {
+            return {
+                matches: [],
+                note: `code search across /${owner} is unavailable — target a single repository (/${owner}/<repo>) instead.`,
+            };
+        }
+        const hits = await this.searchOwnerFn(owner, query);
+        const matches = hits
+            .filter((h) => this.repoKeys.has(`${h.owner}/${h.repo}`))
+            .map((h) => ({
+                path: `/${h.owner}/${h.repo}/${h.path}`,
+                fragments: h.fragments,
+            }));
+        return { matches, note: null };
     }
 
     // ---- reads ----

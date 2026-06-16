@@ -18,7 +18,7 @@
 // stubs and pure path helpers legitimately don't touch instance state.
 /* eslint-disable class-methods-use-this */
 import type { FsStat, IFileSystem } from 'just-bash';
-import type { RepoFs } from './RepoFs';
+import type { RepoCodeSearchMatch, RepoFs } from './RepoFs';
 
 // just-bash's optional readdirWithFileTypes return shape (not exported by name).
 type DirentEntry = {
@@ -150,6 +150,10 @@ export class RepoFileSystem implements IFileSystem {
 
     getAllPaths(): string[] {
         return this.snapshot;
+    }
+
+    search(query: string): Promise<RepoCodeSearchMatch[] | null> {
+        return this.repoFs.search(query);
     }
 
     async realpath(path: string): Promise<string> {

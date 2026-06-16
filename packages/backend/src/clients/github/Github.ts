@@ -384,6 +384,54 @@ export const getRepoTree = async ({
     }
 };
 
+export type GithubCodeSearchMatch = {
+    owner: string;
+    repo: string;
+    path: string;
+    fragments: string[];
+};
+
+export const searchRepoCode = async ({
+    owner,
+    repo,
+    query,
+    installationId,
+    token,
+    maxResults = 50,
+}: {
+    owner: string;
+    repo?: string;
+    query: string;
+    installationId?: string;
+    token?: string;
+    maxResults?: number;
+}): Promise<GithubCodeSearchMatch[]> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    const scope = repo ? `repo:${owner}/${repo}` : `user:${owner}`;
+    try {
+        const response = await octokit.rest.search.code({
+            q: `${query} ${scope}`,
+            per_page: Math.min(Math.max(maxResults, 1), 100),
+            mediaType: { format: 'text-match' },
+            headers,
+        });
+        return response.data.items.slice(0, maxResults).map((item) => ({
+            owner: item.repository.owner.login,
+            repo: item.repository.name,
+            path: item.path,
+            fragments: (item.text_matches ?? [])
+                .map((match) => match.fragment ?? '')
+                .filter((fragment) => fragment.length > 0),
+        }));
+    } catch (error) {
+        if ((error as { status?: number } | null)?.status === 422) {
+            return [];
+        }
+        logGithubRateLimit(error, `search.code ${owner}/${repo}`);
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
 export const getRepoWorkflowFiles = async ({
     owner,
     repo,

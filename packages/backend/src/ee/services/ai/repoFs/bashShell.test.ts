@@ -1,4 +1,11 @@
-import { parseRepoTarget, runRepoShellCommand, ShellError } from './bashShell';
+import {
+    parseRepoTarget,
+    runRepoShellCommand,
+    runShellCommandOnFs,
+    ShellError,
+    type RepoCodeSearchFn,
+} from './bashShell';
+import { RepoFileSystem } from './repoFileSystem';
 import { RepoFs, type RepoSource } from './RepoFs';
 
 describe('parseRepoTarget', () => {
@@ -157,6 +164,74 @@ describe('runRepoShellCommand (just-bash)', () => {
                 'cat models/x.sql',
             );
             expect(out).toBe('select 1');
+        });
+    });
+
+    describe('search (server-side code search command)', () => {
+        const fs = async () =>
+            RepoFileSystem.create(new RepoFs(fakeSource(REPO)));
+
+        const runSearch = async (
+            command: string,
+            search: RepoCodeSearchFn,
+        ): Promise<string> =>
+            runShellCommandOnFs(await fs(), command, { search });
+
+        const matchOrders: RepoCodeSearchFn = async (_path, query) => ({
+            matches:
+                query === 'orders'
+                    ? [
+                          {
+                              path: '/dbt/models/orders.sql',
+                              fragments: ['join payments on orders'],
+                          },
+                          { path: '/dbt/models/schema.yml', fragments: [] },
+                      ]
+                    : [],
+            note: null,
+        });
+
+        it('lists matching files with their fragments', async () => {
+            const out = await runSearch('search orders', matchOrders);
+            expect(out).toContain('/dbt/models/orders.sql');
+            expect(out).toContain('join payments on orders');
+            expect(out).toContain('/dbt/models/schema.yml');
+        });
+
+        it('passes the resolved path through to the resolver', async () => {
+            const search = jest.fn(matchOrders);
+            await runShellCommandOnFs(await fs(), 'search orders models', {
+                cwd: '/',
+                search,
+            });
+            expect(search).toHaveBeenCalledWith('/models', 'orders');
+        });
+
+        it('returns a terse no-match line (no quotable mechanism prose)', async () => {
+            const out = await runSearch('search nothing_here', matchOrders);
+            expect(out).toContain('No matches');
+            expect(out).toContain('nothing_here');
+            expect(out).not.toMatch(/default branch|regex/i);
+        });
+
+        it('relays the resolver note (no repo in scope / unavailable)', async () => {
+            const out = await runSearch('search foo', async () => ({
+                matches: [],
+                note: 'search needs a single repository.',
+            }));
+            expect(out).toContain('search needs a single repository');
+        });
+
+        it('errors on a missing search term', async () => {
+            await expect(
+                runSearch('search', matchOrders),
+            ).rejects.toBeInstanceOf(ShellError);
+        });
+
+        it('is unavailable when no resolver is wired (single-repo path)', async () => {
+            await expect(run('search orders')).rejects.toBeInstanceOf(
+                ShellError,
+            );
         });
     });
 
