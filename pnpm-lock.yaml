@@ -790,9 +790,6 @@ importers:
 
   packages/common:
     dependencies:
-      '@ai-sdk/provider-utils':
-        specifier: 4.0.27
-        version: 4.0.27(zod@3.25.55)
       '@casl/ability':
         specifier: 6.8.0
         version: 6.8.0
@@ -874,6 +871,9 @@ importers:
       zod:
         specifier: 3.25.55
         version: 3.25.55
+      zod-to-json-schema:
+        specifier: 3.25.1
+        version: 3.25.1(zod@3.25.55)
     devDependencies:
       '@types/handlebars':
         specifier: 4.1.0

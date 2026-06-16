@@ -34,7 +34,6 @@
     "release": "pnpm publish --no-git-checks --access public"
   },
   "dependencies": {
-    "@ai-sdk/provider-utils": "4.0.27",
     "@casl/ability": "6.8.0",
     "@types/lodash": "4.14.202",
     "ajv": "8.18.0",
@@ -61,7 +60,8 @@
     "type-fest": "4.32.0",
     "uuid": "11.1.1",
     "yaml": "2.8.3",
-    "zod": "3.25.55"
+    "zod": "3.25.55",
+    "zod-to-json-schema": "3.25.1"
   },
   "devDependencies": {
     "@types/handlebars": "4.1.0",
