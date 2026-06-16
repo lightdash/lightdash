@@ -1,3 +1,17 @@
+## [0.3167.2](https://github.com/lightdash/lightdash/compare/0.3167.1...0.3167.2) (2026-06-16)
+
+
+### Bug Fixes
+
+* **ai-agents:** hide edit suggestion chips for non-editing agents ([#24320](https://github.com/lightdash/lightdash/issues/24320)) ([14b7d65](https://github.com/lightdash/lightdash/commit/14b7d6563b3ce524aa89830c3d31d2774679c133))
+
+
+### Performance Improvements
+
+* **async-query:** dedup project_parameters query on dashboard chart path (SPK-498) ([#24301](https://github.com/lightdash/lightdash/issues/24301)) ([af395fb](https://github.com/lightdash/lightdash/commit/af395fbb65d0f0b429cf9344bdd3edce9fab4f54))
+* parallelize getUserAttributes + findExploresFromCache (SPK-505) ([#24300](https://github.com/lightdash/lightdash/issues/24300)) ([0dd9437](https://github.com/lightdash/lightdash/commit/0dd94379450836d4871d20408a12fcb7f470216c))
+* thread warehouse credentials into executePreparedAsyncQuery ([#24298](https://github.com/lightdash/lightdash/issues/24298)) ([864b03b](https://github.com/lightdash/lightdash/commit/864b03be8302aa66eb93587ecc945b68bd5bf24a))
+
 ## [0.3167.1](https://github.com/lightdash/lightdash/compare/0.3167.0...0.3167.1) (2026-06-16)
 
 
