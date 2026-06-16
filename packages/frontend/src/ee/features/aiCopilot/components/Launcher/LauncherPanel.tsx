@@ -89,6 +89,7 @@ export const LauncherPanel: FC<Props> = ({
         />
     ) : (
         <NewThreadPanel
+            key={agent.uuid}
             projectUuid={projectUuid}
             agent={agent}
             agents={agents}
