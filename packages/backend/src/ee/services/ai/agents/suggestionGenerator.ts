@@ -67,6 +67,29 @@ Tool guide:
 - \`generateDashboard\`: "build me an overview" or multi-chart
 - \`findContent\`: "is there already a saved chart for this", or to surface a verified chart`;
 
+// Appended when the agent cannot manage Lightdash content. The agent can run
+// queries and build NEW artifacts in chat, but cannot edit, update, overwrite,
+// or replace saved charts, dashboards, or dashboard tiles — so chips must never
+// offer those actions, even if the conversation drifts toward them.
+const NO_CONTENT_EDIT_RULE = `
+
+CAPABILITY LIMIT — This agent CANNOT manage Lightdash content. It can run queries, build NEW charts/dashboards in chat, and find existing content, but it CANNOT edit, update, overwrite, replace, or modify saved charts, dashboards, or dashboard tiles. NEVER write a chip that implies editing existing content (e.g. "Yes, update that dashboard tile", "Overwrite the chart", "Fix the saved filter", "Apply this to the dashboard"). If the conversation is heading toward changing existing content, pivot to what the agent CAN do — rebuild the corrected chart fresh in chat, or find related content.`;
+
+export function buildSuggestionSystemPrompt({
+    isPostResponse,
+    canManageContent,
+}: {
+    isPostResponse: boolean;
+    canManageContent: boolean;
+}): string {
+    const basePrompt = isPostResponse
+        ? POST_RESPONSE_PROMPT
+        : EMPTY_STATE_PROMPT;
+    return canManageContent
+        ? basePrompt
+        : `${basePrompt}${NO_CONTENT_EDIT_RULE}`;
+}
+
 export const SUGGESTION_FALLBACK_CHIPS: AgentSuggestion[] = [
     {
         kind: 'prompt',
@@ -126,6 +149,9 @@ type SuggestionFieldContext = {
 export type SuggestionPromptContext = {
     agentName: string;
     agentInstruction: string | null;
+    // When false, the agent has no content-editing tools — chips must not
+    // offer to edit/update/overwrite saved charts, dashboards, or tiles.
+    canManageContent: boolean;
     enabledTools: readonly string[];
     explores: Array<{
         name: string;
@@ -193,6 +219,11 @@ export async function generateAgentSuggestions(
         2,
     );
 
+    const systemContent = buildSuggestionSystemPrompt({
+        isPostResponse,
+        canManageContent: context.canManageContent,
+    });
+
     const result = await generateObject({
         model: modelOptions.model,
         ...modelOptions.callOptions,
@@ -201,9 +232,7 @@ export async function generateAgentSuggestions(
         messages: [
             {
                 role: 'system',
-                content: isPostResponse
-                    ? POST_RESPONSE_PROMPT
-                    : EMPTY_STATE_PROMPT,
+                content: systemContent,
             },
             {
                 role: 'user',
