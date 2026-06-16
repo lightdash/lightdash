@@ -57,7 +57,6 @@ import {
     selectCustomDimensions,
     selectMetricOverrides,
     selectParameters,
-    selectTimezone,
     selectSorts,
     selectTableCalculations,
     selectTableName,
@@ -485,7 +484,9 @@ export const useColumns = (): TableColumn[] => {
     const resultsFields = query.data?.fields;
 
     const parameters = useExplorerSelector(selectParameters);
-    const timezone = useExplorerSelector(selectTimezone);
+    // Format temporal cells in the flag-gated resolved timezone (null when
+    // timezone support is off), never the chart's unresolved state timezone.
+    const timezone = query.data?.resolvedTimezone ?? undefined;
 
     const { data: exploreData } = useExplore(tableName, {
         refetchOnMount: false,
