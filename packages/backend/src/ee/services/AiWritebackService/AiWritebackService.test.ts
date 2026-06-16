@@ -22,8 +22,12 @@ import {
     getOrRefreshToken,
     getRepoDefaultBranch,
     listReposAccessibleToInstallation,
+    listReposAccessibleToUser,
 } from '../../../clients/github/Github';
-import { AiWritebackService } from './AiWritebackService';
+import {
+    AiWritebackService,
+    mergeSourceCodeRepoAccess,
+} from './AiWritebackService';
 import {
     COMPILE_WRAPPER_PATH,
     PR_DESCRIPTION_CLOSE,
@@ -54,6 +58,7 @@ jest.mock('../../../clients/github/Github', () => ({
     getRepoDefaultBranch: jest.fn(),
     getRepoTree: jest.fn(),
     listReposAccessibleToInstallation: jest.fn(),
+    listReposAccessibleToUser: jest.fn(),
     updatePullRequest: jest.fn().mockResolvedValue(undefined),
 }));
 
@@ -678,10 +683,14 @@ describe('AiWritebackService repo read access', () => {
     });
 
     const buildWithInstallation = (project: AnyType = githubProject()) => {
+        const githubAppService = {
+            getValidUserToken: jest.fn().mockResolvedValue(undefined),
+        } as AnyType;
         const service = buildService({
             projectModel: {
                 get: jest.fn().mockResolvedValue(project),
             } as AnyType,
+            githubAppService,
         });
         const resolveInstallation = jest.spyOn(
             (service as AnyType).githubProvider,
@@ -695,7 +704,7 @@ describe('AiWritebackService repo read access', () => {
             commitAuthor: { name: 'n', email: 'e' },
             coAuthorTrailer: '',
         } as AnyType);
-        return { service, resolveInstallation };
+        return { service, resolveInstallation, githubAppService };
     };
 
     beforeEach(() => {
@@ -745,9 +754,7 @@ describe('AiWritebackService repo read access', () => {
 
         it('listRepos lists repos for the resolved installation and maps the shape', async () => {
             const { service } = buildWithInstallation();
-            (
-                listReposAccessibleToInstallation as jest.Mock
-            ).mockResolvedValue([
+            (listReposAccessibleToInstallation as jest.Mock).mockResolvedValue([
                 {
                     owner: 'lightdash',
                     repo: 'lightdash',
@@ -773,25 +780,130 @@ describe('AiWritebackService repo read access', () => {
                     private: false,
                 },
             ]);
-            expect(access.token).toBe('install-token');
+            expect(access.installationToken).toBe('install-token');
+            // No linked user token → the user listing is never fetched.
+            expect(listReposAccessibleToUser).not.toHaveBeenCalled();
         });
 
-        it('resolveBranch returns the repo default branch via the installation', async () => {
+        it('unions the linked user repos with the org repos (org wins on collision)', async () => {
+            const { service, githubAppService } = buildWithInstallation();
+            (githubAppService.getValidUserToken as jest.Mock).mockResolvedValue(
+                'user-token',
+            );
+            (listReposAccessibleToUser as jest.Mock).mockResolvedValue([
+                {
+                    owner: 'me',
+                    repo: 'personal',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'shared',
+                    defaultBranch: 'main',
+                    private: true,
+                },
+            ]);
+            (listReposAccessibleToInstallation as jest.Mock).mockResolvedValue([
+                {
+                    owner: 'acme',
+                    repo: 'shared',
+                    defaultBranch: 'main',
+                    private: false,
+                },
+                {
+                    owner: 'acme',
+                    repo: 'data',
+                    defaultBranch: 'main',
+                    private: false,
+                },
+            ]);
+
+            const access = await service.getInstallationRepoReadAccess({
+                user: userWithOrg(true),
+                projectUuid: 'p1',
+            });
+            const repos = await access.listRepos();
+
+            // union of both sources, deduped by owner/repo
+            expect(repos.map((r) => `${r.owner}/${r.repo}`).sort()).toEqual([
+                'acme/data',
+                'acme/shared',
+                'me/personal',
+            ]);
+            // personal repo reads with the user token...
+            expect(await access.resolveRepoAccess('me', 'personal')).toEqual({
+                branch: 'main',
+                token: 'user-token',
+            });
+            // ...the org installation wins the collision, so its token reads it.
+            expect(await access.resolveRepoAccess('acme', 'shared')).toEqual({
+                branch: 'main',
+                token: 'install-token',
+            });
+        });
+
+        it('resolveRepoAccess falls back to the installation token for a repo outside the union', async () => {
             const { service } = buildWithInstallation();
+            (listReposAccessibleToInstallation as jest.Mock).mockResolvedValue(
+                [],
+            );
             (getRepoDefaultBranch as jest.Mock).mockResolvedValue('develop');
 
             const access = await service.getInstallationRepoReadAccess({
                 user: userWithOrg(true),
                 projectUuid: 'p1',
             });
-            const branch = await access.resolveBranch('lightdash', 'lightdash');
+            const resolved = await access.resolveRepoAccess(
+                'lightdash',
+                'lightdash',
+            );
 
             expect(getRepoDefaultBranch).toHaveBeenCalledWith({
                 owner: 'lightdash',
                 repo: 'lightdash',
                 installationId: 'inst-1',
             });
-            expect(branch).toBe('develop');
+            expect(resolved).toEqual({
+                branch: 'develop',
+                token: 'install-token',
+            });
         });
+    });
+});
+
+describe('mergeSourceCodeRepoAccess', () => {
+    const u = (owner: string, repo: string) => ({
+        owner,
+        repo,
+        defaultBranch: 'main',
+        private: true,
+    });
+
+    it('returns only the installation repos when there is no user token', () => {
+        const map = mergeSourceCodeRepoAccess(
+            [u('me', 'personal')],
+            undefined,
+            [u('acme', 'data')],
+            'inst-token',
+        );
+        expect([...map.keys()]).toEqual(['acme/data']);
+        expect(map.get('acme/data')?.token).toBe('inst-token');
+    });
+
+    it('unions both sources and lets the installation win a collision', () => {
+        const map = mergeSourceCodeRepoAccess(
+            [u('me', 'personal'), u('acme', 'shared')],
+            'user-token',
+            [u('acme', 'shared'), u('acme', 'data')],
+            'inst-token',
+        );
+        expect([...map.keys()].sort()).toEqual([
+            'acme/data',
+            'acme/shared',
+            'me/personal',
+        ]);
+        expect(map.get('me/personal')?.token).toBe('user-token');
+        expect(map.get('acme/shared')?.token).toBe('inst-token'); // org wins
     });
 });

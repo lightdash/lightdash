@@ -680,6 +680,51 @@ export const listReposAccessibleToInstallation = async ({
     }
 };
 
+/**
+ * List every repository the authenticated *user* can reach through the GitHub
+ * App — across all installations they can access (their personal account plus
+ * the organizations they belong to where the app is installed). Uses the user's
+ * own OAuth (user-to-server) token, so it's scoped to that user and never leaks
+ * repos they can't see. Mirrors {@link listReposAccessibleToInstallation} but
+ * for the user side of the read-access union.
+ */
+export const listReposAccessibleToUser = async ({
+    token,
+}: {
+    token: string;
+}): Promise<
+    { owner: string; repo: string; defaultBranch: string; private: boolean }[]
+> => {
+    const { octokit, headers } = getOctokitRestForUser(token);
+    try {
+        const installations = await octokit.paginate(
+            octokit.rest.apps.listInstallationsForAuthenticatedUser,
+            { per_page: 100, headers },
+        );
+        const repoLists = await Promise.all(
+            installations.map((installation) =>
+                octokit.paginate(
+                    octokit.rest.apps.listInstallationReposForAuthenticatedUser,
+                    {
+                        installation_id: installation.id,
+                        per_page: 100,
+                        headers,
+                    },
+                ),
+            ),
+        );
+        return repoLists.flat().map((r) => ({
+            owner: r.owner.login,
+            repo: r.name,
+            defaultBranch: r.default_branch,
+            private: r.private,
+        }));
+    } catch (error) {
+        logGithubRateLimit(error, 'listReposAccessibleToUser');
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
 export const getInstallationToken = async (
     installationId: string,
 ): Promise<string> => {

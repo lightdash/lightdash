@@ -5902,13 +5902,18 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             repo: string,
         ): Promise<RepoFs> => {
             const access = await getInstallationAccess();
-            const branch = await access.resolveBranch(owner, repo);
+            // The token is per-repo: org-installation repos read with the
+            // installation token, the user's own repos with their user token.
+            const { branch, token } = await access.resolveRepoAccess(
+                owner,
+                repo,
+            );
             return new RepoFs(
                 createGithubRepoSource({
                     owner,
                     repo,
                     branch,
-                    token: access.token,
+                    token,
                     // No subPath => the whole repo is readable, root-relative.
                     onTiming: onRepoFsTiming,
                 }),
