@@ -1,3 +1,16 @@
+# [0.3178.0](https://github.com/lightdash/lightdash/compare/0.3177.0...0.3178.0) (2026-06-16)
+
+
+### Bug Fixes
+
+* **slack:** add Open in SQL Runner link to AI agent replies ([#24379](https://github.com/lightdash/lightdash/issues/24379)) ([38dca5a](https://github.com/lightdash/lightdash/commit/38dca5ae440f9e87223c25a4ee57ce3d16642203))
+* **slack:** clear :eyes: ack reaction when a prompt finishes ([#24375](https://github.com/lightdash/lightdash/issues/24375)) ([53c06fe](https://github.com/lightdash/lightdash/commit/53c06fed5aac1a76ef42d4864e2edd53a81ed1a3))
+
+
+### Features
+
+* **slack:** resolve SQL Runner link inline instead of a separate button ([#24381](https://github.com/lightdash/lightdash/issues/24381)) ([49ad758](https://github.com/lightdash/lightdash/commit/49ad7587d15363a33e2500a221b62920dac0982d))
+
 # [0.3177.0](https://github.com/lightdash/lightdash/compare/0.3176.0...0.3177.0) (2026-06-16)
 
 
