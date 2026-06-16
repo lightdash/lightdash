@@ -3271,6 +3271,9 @@ export class ProjectService extends BaseService {
             },
             data.dbtVersion || DefaultSupportedDbtVersion,
             this.analytics,
+            this.lightdashConfig.enabledFeatureFlags.has(
+                FeatureFlags.ArrayDimensions,
+            ),
         );
         try {
             await adapter.test();
@@ -3628,6 +3631,9 @@ export class ProjectService extends BaseService {
             },
             project.dbtVersion || DefaultSupportedDbtVersion,
             this.analytics,
+            this.lightdashConfig.enabledFeatureFlags.has(
+                FeatureFlags.ArrayDimensions,
+            ),
         );
         return { adapter, sshTunnel };
     }

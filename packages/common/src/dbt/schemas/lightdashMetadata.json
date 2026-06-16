@@ -156,7 +156,14 @@
                 },
                 "type": {
                     "type": "string",
-                    "enum": ["string", "number", "boolean", "date", "timestamp"]
+                    "enum": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "date",
+                        "timestamp",
+                        "array"
+                    ]
                 },
                 "description": {
                     "type": "string"
@@ -233,7 +240,14 @@
                 },
                 "type": {
                     "type": "string",
-                    "enum": ["string", "number", "boolean", "date", "timestamp"]
+                    "enum": [
+                        "string",
+                        "number",
+                        "boolean",
+                        "date",
+                        "timestamp",
+                        "array"
+                    ]
                 },
                 "description": {
                     "type": "string"

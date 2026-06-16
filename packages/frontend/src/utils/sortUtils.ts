@@ -101,6 +101,7 @@ export const getSortLabel = (
             return direction === SortDirection.ASC
                 ? NumericSortLabels.ASC
                 : NumericSortLabels.DESC;
+        case DimensionType.ARRAY:
         case DimensionType.STRING:
         case MetricType.STRING:
         case TableCalculationType.STRING:

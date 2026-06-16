@@ -667,6 +667,7 @@ export enum DimensionType {
     TIMESTAMP = 'timestamp',
     DATE = 'date',
     BOOLEAN = 'boolean',
+    ARRAY = 'array',
 }
 
 export interface Dimension extends Field {
@@ -689,6 +690,7 @@ export interface Dimension extends Field {
     aiHint?: string | string[];
     formatOptions?: CustomFormat;
     caseSensitive?: boolean; // When false, string filters on this dimension will be case insensitive. Default is true
+    unsupportedTypeWarning?: string; // Set when the resolved type isn't supported on the warehouse and was coerced (e.g. array -> string). Surfaced as a warning in the UI.
     image?: {
         url: string;
         width?: number;
@@ -755,7 +757,8 @@ export interface FilterableDimension extends Dimension {
         | DimensionType.NUMBER
         | DimensionType.DATE
         | DimensionType.TIMESTAMP
-        | DimensionType.BOOLEAN;
+        | DimensionType.BOOLEAN
+        | DimensionType.ARRAY;
 }
 
 export type FieldRef = string;
@@ -933,6 +936,7 @@ export const isFilterableDimension = (
         DimensionType.DATE,
         DimensionType.TIMESTAMP,
         DimensionType.BOOLEAN,
+        DimensionType.ARRAY,
     ].includes(dimension.type);
 
 export type DashboardFilterableField = FilterableDimension | Metric;

@@ -147,6 +147,21 @@ const convertDimension = (
             {},
         );
     }
+    // Array operations are only supported on Databricks. On other warehouses,
+    // fall back to treating the dimension as text (with a warning) rather than
+    // breaking when it is filtered or unnested.
+    const warehouseSupportsArrays =
+        targetWarehouse === SupportedDbtAdapter.DATABRICKS;
+    const arrayCoercedToString =
+        type === DimensionType.ARRAY && !warehouseSupportsArrays;
+    let unsupportedTypeWarning: string | undefined;
+    if (arrayCoercedToString) {
+        type = DimensionType.STRING;
+        const warehouseLabel =
+            targetWarehouse.charAt(0).toUpperCase() + targetWarehouse.slice(1);
+        unsupportedTypeWarning = `Defined as an array, but array operations aren't supported on ${warehouseLabel} — shown as text.`;
+    }
+
     let name = meta.dimension?.name || column.name;
     let sql = meta.dimension?.sql || defaultSql(column.name);
     let label = meta.dimension?.label || friendlyName(name);
@@ -196,6 +211,7 @@ const convertDimension = (
         tableLabel,
         type,
         description: meta.dimension?.description || column.description,
+        ...(unsupportedTypeWarning ? { unsupportedTypeWarning } : {}),
         source,
         timeInterval,
         timeIntervalBaseDimensionName,

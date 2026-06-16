@@ -29,6 +29,7 @@ const resultFieldTypeToDuckdbType = (type: DimensionType): string => {
         case DimensionType.TIMESTAMP:
             return 'TIMESTAMP';
         case DimensionType.STRING:
+        case DimensionType.ARRAY:
             return 'VARCHAR';
         default:
             return assertUnreachable(type, `Unknown DimensionType: ${type}`);

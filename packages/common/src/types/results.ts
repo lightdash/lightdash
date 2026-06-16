@@ -27,6 +27,7 @@ export function convertItemTypeToDimensionType(item: Item): DimensionType {
     const type = getItemType(item);
     switch (type) {
         case DimensionType.STRING:
+        case DimensionType.ARRAY:
         case MetricType.STRING:
         case TableCalculationType.STRING:
             return DimensionType.STRING;

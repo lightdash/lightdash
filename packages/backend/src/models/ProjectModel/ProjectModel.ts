@@ -16,6 +16,7 @@ import {
     Explore,
     ExploreError,
     ExploreType,
+    FeatureFlags,
     getLtreePathFromSlug,
     GroupType,
     IdContentMapping,
@@ -3590,9 +3591,12 @@ export class ProjectModel {
     }
 
     // Easier to mock in ProjectService
-    // eslint-disable-next-line class-methods-use-this
     getWarehouseClientFromCredentials(credentials: CreateWarehouseCredentials) {
-        return warehouseClientFromCredentials(credentials);
+        return warehouseClientFromCredentials(credentials, {
+            enableArrayDimensions: this.lightdashConfig.enabledFeatureFlags.has(
+                FeatureFlags.ArrayDimensions,
+            ),
+        });
     }
 
     async createVirtualView(

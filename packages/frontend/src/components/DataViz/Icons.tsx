@@ -2,6 +2,7 @@ import { type DimensionType } from '@lightdash/common';
 import {
     Icon123,
     IconAbc,
+    IconBrackets,
     IconCalendar,
     IconClockHour4,
     IconQuestionMark,
@@ -18,6 +19,8 @@ export const TableFieldIcon: FC<{
         switch (getItemIconName(fieldType)) {
             case 'citation':
                 return IconAbc;
+            case 'array':
+                return IconBrackets;
             case 'numerical':
                 return Icon123;
             case 'calendar':

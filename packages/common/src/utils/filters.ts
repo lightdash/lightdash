@@ -152,6 +152,11 @@ export const getFilterTypeFromItemType = (
         case MetricType.BOOLEAN:
         case TableCalculationType.BOOLEAN:
             return FilterType.BOOLEAN;
+        // Array dimensions exist only on warehouses with native array support
+        // (currently Databricks); container-aware filtering arrives in a later
+        // slice, so for now they behave as text.
+        case DimensionType.ARRAY:
+            return FilterType.STRING;
         default: {
             return assertUnreachable(
                 type,

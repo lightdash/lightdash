@@ -5,6 +5,7 @@ import {
     CreateWarehouseCredentials,
     DatabricksAuthenticationType,
     DuckdbConnectionType,
+    FeatureFlags,
     getErrorMessage,
     isSupportedDbtAdapterType,
     isWeekDay,
@@ -34,6 +35,19 @@ import {
 import GlobalState from '../../globalState';
 import * as styles from '../../styles';
 import { lightdashApi } from './apiClient';
+
+/**
+ * Array-dimension support is gated by the array-dimensions feature flag. The CLI
+ * attaches column types at compile time, so it must honour the same instance flag
+ * as the backend — set LIGHTDASH_ENABLE_FEATURE_FLAGS=array-dimensions in the
+ * deploy environment to opt in. Off by default (array columns map to STRING).
+ */
+const getCliWarehouseClientOptions = () => ({
+    enableArrayDimensions: (process.env.LIGHTDASH_ENABLE_FEATURE_FLAGS ?? '')
+        .split(',')
+        .map((flag) => flag.trim())
+        .includes(FeatureFlags.ArrayDimensions),
+});
 
 /**
  * Cache warehouse clients to avoid repeated authentication prompts
@@ -284,12 +298,15 @@ export default async function getWarehouseClient(
         GlobalState.debug(`> Using ${dbtAdaptorType} client mock`);
         credentials = getMockCredentials(dbtAdaptorType);
 
-        warehouseClient = warehouseClientFromCredentials({
-            ...credentials,
-            startOfWeek: isWeekDay(options.startOfWeek)
-                ? options.startOfWeek
-                : undefined,
-        });
+        warehouseClient = warehouseClientFromCredentials(
+            {
+                ...credentials,
+                startOfWeek: isWeekDay(options.startOfWeek)
+                    ? options.startOfWeek
+                    : undefined,
+            },
+            getCliWarehouseClientOptions(),
+        );
         const config = await getConfig();
         // Overwrite methods that need to connect to the warehouse
         warehouseClient.getCatalog = async (refs) =>
@@ -435,12 +452,15 @@ export default async function getWarehouseClient(
                 `> Creating new warehouse client to cache (${credentials.type})`,
             );
 
-            warehouseClient = warehouseClientFromCredentials({
-                ...credentials,
-                startOfWeek: isWeekDay(options.startOfWeek)
-                    ? options.startOfWeek
-                    : undefined,
-            });
+            warehouseClient = warehouseClientFromCredentials(
+                {
+                    ...credentials,
+                    startOfWeek: isWeekDay(options.startOfWeek)
+                        ? options.startOfWeek
+                        : undefined,
+                },
+                getCliWarehouseClientOptions(),
+            );
 
             warehouseClientCache.set(cacheKey, {
                 warehouseClient,

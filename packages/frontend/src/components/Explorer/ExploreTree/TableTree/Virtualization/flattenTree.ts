@@ -307,12 +307,24 @@ function flattenTable(
     }
 
     if (hasDimensions) {
+        const dimensionAlerts = Object.values(table.dimensions).reduce<
+            Record<string, { warnings: { message: string }[] }>
+        >((acc, dimension) => {
+            if (dimension.unsupportedTypeWarning) {
+                acc[getItemId(dimension)] = {
+                    warnings: [{ message: dimension.unsupportedTypeWarning }],
+                };
+            }
+            return acc;
+        }, {});
+
         const dimensionItems = flattenSection(
             {
                 type: TreeSection.Dimensions,
                 label: 'Dimensions',
                 color: LD_FIELD_COLORS.dimension.color,
                 itemsMap: dimensionsMap,
+                itemsAlerts: dimensionAlerts,
                 orderFieldsBy: table.orderFieldsBy,
             },
             tableName,

@@ -881,6 +881,16 @@ export const renderFilterRuleSql = (
         case MetricType.BOOLEAN: {
             return renderBooleanFilterSql(fieldSql, escapedFilterRule);
         }
+        // Array dimensions degrade to text filtering until native array
+        // containment filters are added in a later slice.
+        case DimensionType.ARRAY: {
+            return renderStringFilterSql(
+                fieldSql,
+                escapedFilterRule,
+                stringQuoteChar,
+                caseSensitive,
+            );
+        }
         default: {
             return assertUnreachable(
                 fieldType,

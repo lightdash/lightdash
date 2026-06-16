@@ -335,7 +335,8 @@
                         "number",
                         "timestamp",
                         "date",
-                        "boolean"
+                        "boolean",
+                        "array"
                     ],
                     "description": "Data type of the dimension"
                 },
@@ -766,7 +767,8 @@
                         "number",
                         "timestamp",
                         "date",
-                        "boolean"
+                        "boolean",
+                        "array"
                     ],
                     "description": "Data type of the additional dimension"
                 },

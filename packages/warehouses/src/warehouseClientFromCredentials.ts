@@ -4,7 +4,7 @@ import {
     UnexpectedServerError,
     WarehouseTypes,
 } from '@lightdash/common';
-import { WarehouseClient } from './types';
+import { WarehouseClient, WarehouseClientOptions } from './types';
 import { AthenaWarehouseClient } from './warehouseClients/AthenaWarehouseClient';
 import { BigqueryWarehouseClient } from './warehouseClients/BigqueryWarehouseClient';
 import { ClickhouseWarehouseClient } from './warehouseClients/ClickhouseWarehouseClient';
@@ -17,6 +17,7 @@ import { TrinoWarehouseClient } from './warehouseClients/TrinoWarehouseClient';
 
 export const warehouseClientFromCredentials = (
     credentials: CreateWarehouseCredentials,
+    options?: WarehouseClientOptions,
 ): WarehouseClient => {
     switch (credentials.type) {
         case WarehouseTypes.SNOWFLAKE:
@@ -28,7 +29,7 @@ export const warehouseClientFromCredentials = (
         case WarehouseTypes.BIGQUERY:
             return new BigqueryWarehouseClient(credentials);
         case WarehouseTypes.DATABRICKS:
-            return new DatabricksWarehouseClient(credentials);
+            return new DatabricksWarehouseClient(credentials, options);
         case WarehouseTypes.TRINO:
             return new TrinoWarehouseClient(credentials);
         case WarehouseTypes.CLICKHOUSE:

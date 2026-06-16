@@ -19,6 +19,7 @@ const getSqlRunnerFieldTypeFromDimensionType = (
     type: DimensionType,
 ): SqlRunnerFieldType => {
     switch (type) {
+        case DimensionType.ARRAY:
         case DimensionType.STRING:
             return SqlRunnerFieldType.STRING;
         case DimensionType.NUMBER:
