@@ -1408,6 +1408,8 @@ export class AppGenerateService extends BaseService {
         responseText: string | null;
         toolCallCount: number;
         usage: ClaudeGenerationUsage | null;
+        timeToFirstTokenMs: number | null;
+        turnDurationsMs: number[];
     }> {
         const start = performance.now();
 
@@ -1428,6 +1430,8 @@ export class AppGenerateService extends BaseService {
             responseText: string | null;
             toolCallCount: number;
             usage: ClaudeGenerationUsage | null;
+            timeToFirstTokenMs: number | null;
+            turnDurationsMs: number[];
         }> => {
             const sessionFlags =
                 continueSession || forceContinue ? '--continue -p' : '-p';
@@ -1522,9 +1526,13 @@ export class AppGenerateService extends BaseService {
                 });
             const toolCallCount = processor.totalToolCalls;
             const usage = processor.lastUsage;
+            const { timeToFirstTokenMs, turnDurationsMs } = processor;
             const durationMs = AppGenerateService.elapsed(start);
             this.logger.info(
                 `App ${appUuid}: Claude code generation completed (model=${claudeModel}, exit=${result.exitCode}, toolCalls=${toolCallCount}, turns=${usage?.numTurns ?? 0}, outputTokens=${usage?.outputTokens ?? 0}, cacheReadTokens=${usage?.cacheReadInputTokens ?? 0}, ${durationMs}ms, attempt ${attempt}/${AppGenerateService.MAX_GENERATION_ATTEMPTS})`,
+            );
+            this.logger.info(
+                `App ${appUuid}: claude turn timeline (ttft=${timeToFirstTokenMs ?? 'n/a'}ms, turnsMs=[${turnDurationsMs.join(', ')}])`,
             );
 
             if (result.exitCode === 0) {
@@ -1533,7 +1541,14 @@ export class AppGenerateService extends BaseService {
                         `App ${appUuid}: Claude generation recovered after ${attempt - 1} retry(ies)`,
                     );
                 }
-                return { durationMs, responseText, toolCallCount, usage };
+                return {
+                    durationMs,
+                    responseText,
+                    toolCallCount,
+                    usage,
+                    timeToFirstTokenMs,
+                    turnDurationsMs,
+                };
             }
 
             const stderrTail = AppGenerateService.truncateEnd(
@@ -2341,6 +2356,11 @@ export class AppGenerateService extends BaseService {
         // build (main generation + build-fix re-runs + metadata). Reported on
         // the completion analytics event to decompose `generateMs`.
         let generationUsage: ClaudeGenerationUsage = ZERO_CLAUDE_USAGE;
+        // Time-to-first-token and slowest single turn, captured from the main
+        // generation call only (a per-call latency shape; not meaningful to
+        // sum across the build-fix and metadata calls).
+        let timeToFirstTokenMs: number | null = null;
+        let slowestTurnMs = 0;
 
         // --- Stage: catalog ---
         if (shouldRun('catalog')) {
@@ -2430,6 +2450,10 @@ export class AppGenerateService extends BaseService {
                     generationUsage,
                     generation.usage,
                 );
+                timeToFirstTokenMs = generation.timeToFirstTokenMs;
+                slowestTurnMs = generation.turnDurationsMs.length
+                    ? Math.max(...generation.turnDurationsMs)
+                    : 0;
             } catch (error) {
                 const totalMs = AppGenerateService.elapsed(overallStart);
                 this.logger.error(
@@ -2695,6 +2719,8 @@ export class AppGenerateService extends BaseService {
                 numTurns: generationUsage.numTurns,
                 durationApiMs: generationUsage.durationApiMs,
                 totalCostUsd: generationUsage.costUsd,
+                timeToFirstTokenMs: timeToFirstTokenMs ?? 0,
+                slowestTurnMs,
                 catalogTableCount: catalogStats.tableCount,
                 catalogDimensionCount: catalogStats.dimensionCount,
                 catalogMetricCount: catalogStats.metricCount,
