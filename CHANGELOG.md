@@ -1,3 +1,20 @@
+# [0.3173.0](https://github.com/lightdash/lightdash/compare/0.3172.0...0.3173.0) (2026-06-16)
+
+
+### Bug Fixes
+
+* sync app viewport with iframe for deliveries ([#24363](https://github.com/lightdash/lightdash/issues/24363)) ([8da2498](https://github.com/lightdash/lightdash/commit/8da249814f5cfffa2fde020628ed2e55c7b27b9b))
+
+
+### Features
+
+* **alerts:** support filter & parameter overrides on chart threshold alerts ([#24334](https://github.com/lightdash/lightdash/issues/24334)) ([d74c100](https://github.com/lightdash/lightdash/commit/d74c100a2b6d087b7b1b3e84ef267def8314de41))
+
+
+### Performance Improvements
+
+* **backend:** dedup getSummary in searchFieldUniqueValues ([#24359](https://github.com/lightdash/lightdash/issues/24359)) ([ddb6051](https://github.com/lightdash/lightdash/commit/ddb60512eb386e6a09aa83ef0c6910a48dcf2a02))
+
 # [0.3172.0](https://github.com/lightdash/lightdash/compare/0.3171.0...0.3172.0) (2026-06-16)
 
 
