@@ -273,6 +273,8 @@ export const getRunQuery = ({
 
                 await createOrUpdateArtifactHook();
 
+                let chartImageUrl: string | undefined;
+
                 // Render chart as image for Slack, or send CSV for tables
                 if (isSlackPrompt(prompt)) {
                     const echartsOptions = await getSlackAiEchartsConfig({
@@ -286,7 +288,7 @@ export const getRunQuery = ({
 
                     if (echartsOptions) {
                         const chartImage = await renderEcharts(echartsOptions);
-                        await sendFile({
+                        chartImageUrl = await sendFile({
                             channelId: prompt.slackChannelId,
                             threadTs: prompt.slackThreadTs,
                             organizationUuid: prompt.organizationUuid,
@@ -317,14 +319,14 @@ export const getRunQuery = ({
                 if (!enableDataAccess) {
                     return {
                         result: `Success.`,
-                        metadata: { status: 'success' },
+                        metadata: { status: 'success', chartImageUrl },
                     };
                 }
 
                 const csv = convertQueryResultsToCsv(queryResults);
                 return {
                     result: serializeData(csv, 'csv'),
-                    metadata: { status: 'success' },
+                    metadata: { status: 'success', chartImageUrl },
                 };
             } catch (e) {
                 return {

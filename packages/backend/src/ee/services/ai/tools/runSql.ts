@@ -33,6 +33,7 @@ type Dependencies = {
     maxQueryLimit: number;
     autoApproveSql?: boolean;
     autoApproveSqlUserUuid?: string | null;
+    useSlackStreamCard?: boolean;
 };
 
 const toolDefinition = runSqlToolDefinition.for('agent');
@@ -83,6 +84,7 @@ export const getRunSql = ({
     maxQueryLimit,
     autoApproveSql = false,
     autoApproveSqlUserUuid = null,
+    useSlackStreamCard = false,
 }: Dependencies) => {
     let sqlApprovalTimedOut = false;
 
@@ -126,6 +128,8 @@ export const getRunSql = ({
             // moves on, the next updateProgress overwrites with the bolt gif.
             const renderState = async (state: SectionState) => {
                 if (!isSlack) return;
+                // Modern card shows progress itself; only the approval buttons still need the legacy placeholder.
+                if (useSlackStreamCard && state.kind !== 'pending') return;
                 await updateSlackMessage({
                     channelId: prompt.slackChannelId,
                     organizationUuid: prompt.organizationUuid,
@@ -200,7 +204,7 @@ export const getRunSql = ({
                                 ? ` Columns: ${columns.join(', ')}`
                                 : ''
                         }`,
-                        metadata: { status: 'success' },
+                        metadata: { status: 'success', rowCount: 0 },
                     };
                 }
 
@@ -272,7 +276,7 @@ export const getRunSql = ({
                     result: `${rowCount} rows. Columns: ${columns.join(
                         ', ',
                     )}.${truncatedNote}\n${serializeData(previewCsv, 'csv')}`,
-                    metadata: { status: 'success' },
+                    metadata: { status: 'success', rowCount },
                 };
             } catch (e) {
                 // Post-section errors (runSqlJob threw, Slack call failed,

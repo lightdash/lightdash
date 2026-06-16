@@ -297,6 +297,8 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         repository.getAiOrganizationSettingsService(),
                     shareService: repository.getShareService(),
                     fileStorageClient: clients.getFileStorageClient(),
+                    downloadFileModel: models.getDownloadFileModel(),
+                    slackUnfurlImageModel: models.getSlackUnfurlImageModel(),
                     persistentDownloadFileService:
                         repository.getPersistentDownloadFileService(),
                     aiAgentContentValidation: new AiAgentContentValidation(),
@@ -415,6 +417,7 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     slackClient: clients.getSlackClient(),
                     aiAgentModel: models.getAiAgentModel(),
+                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             supportService: ({ models, context, repository, clients }) =>
                 new SupportService({

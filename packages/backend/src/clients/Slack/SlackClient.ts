@@ -18,16 +18,17 @@ import {
 } from '@lightdash/common';
 import {
     App,
-    Block,
     ExpressReceiver,
     LogLevel as SlackLogLevel,
     type InstallationStore,
 } from '@slack/bolt';
 import { InstallProvider } from '@slack/oauth';
 import {
+    Block,
     ChatPostMessageArguments,
     ChatUpdateArguments,
     FilesCompleteUploadExternalResponse,
+    KnownBlock,
     WebAPICallResult,
     WebClient,
     type FilesUploadV2Arguments,
@@ -42,6 +43,36 @@ import Logger from '../../logging/logger';
 import { SlackAuthenticationModel } from '../../models/SlackAuthenticationModel';
 import { SlackChannelCacheModel } from '../../models/SlackChannelCacheModel';
 import { SchedulerClient } from '../../scheduler/SchedulerClient';
+
+export type SlackStreamChunk =
+    | {
+          type: 'markdown_text';
+          text: string;
+      }
+    | {
+          type: 'task_update';
+          id: string;
+          title: string;
+          status: 'pending' | 'in_progress' | 'complete' | 'error';
+          details?: string;
+          output?: string;
+          sources?: Array<{ type: 'url'; text: string; url: string }>;
+      }
+    | {
+          type: 'plan_update';
+          title: string;
+      }
+    | {
+          type: 'blocks';
+          blocks: SlackBlock[];
+      };
+
+export type SlackStreamResponse = WebAPICallResult & {
+    ts?: string;
+    channel?: string;
+};
+
+export type SlackBlock = Block | KnownBlock;
 
 const DEFAULT_CACHE_TIME = 1000 * 60 * 10; // 10 minutes
 const CHANNELS_LIMIT = 200;
@@ -1008,7 +1039,7 @@ export class SlackClient {
     }: {
         organizationUuid: string;
         text: string;
-        blocks?: Block[];
+        blocks?: SlackBlock[];
     }): Promise<void> {
         try {
             const channelId =
@@ -1057,6 +1088,179 @@ export class SlackClient {
             text,
             blocks,
             ts: messageTs,
+        });
+    }
+
+    async setAssistantStatus({
+        organizationUuid,
+        channelId,
+        threadTs,
+        status,
+        loadingMessages,
+    }: {
+        organizationUuid: string;
+        channelId: string;
+        threadTs: string;
+        status: string;
+        loadingMessages?: string[];
+    }) {
+        const webClient = await this.getWebClient(organizationUuid);
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channelId,
+        );
+        return webClient.apiCall('assistant.threads.setStatus', {
+            channel_id: resolvedChannel,
+            thread_ts: threadTs,
+            status,
+            ...(loadingMessages ? { loading_messages: loadingMessages } : {}),
+        });
+    }
+
+    async setAssistantTitle({
+        organizationUuid,
+        channelId,
+        threadTs,
+        title,
+    }: {
+        organizationUuid: string;
+        channelId: string;
+        threadTs: string;
+        title: string;
+    }) {
+        const webClient = await this.getWebClient(organizationUuid);
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channelId,
+        );
+        return webClient.apiCall('assistant.threads.setTitle', {
+            channel_id: resolvedChannel,
+            thread_ts: threadTs,
+            title,
+        });
+    }
+
+    async setSuggestedPrompts({
+        organizationUuid,
+        channelId,
+        threadTs,
+        title,
+        prompts,
+    }: {
+        organizationUuid: string;
+        channelId: string;
+        threadTs: string;
+        title: string;
+        prompts: Array<{ title: string; message: string }>;
+    }) {
+        const webClient = await this.getWebClient(organizationUuid);
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channelId,
+        );
+        return webClient.apiCall('assistant.threads.setSuggestedPrompts', {
+            channel_id: resolvedChannel,
+            thread_ts: threadTs,
+            title,
+            prompts,
+        });
+    }
+
+    async startAgentStream({
+        organizationUuid,
+        channelId,
+        threadTs,
+        username,
+        recipientUserId,
+        chunks,
+    }: {
+        organizationUuid: string;
+        channelId: string;
+        threadTs: string;
+        username?: string;
+        recipientUserId?: string;
+        chunks?: SlackStreamChunk[];
+    }): Promise<SlackStreamResponse> {
+        const webClient = await this.getWebClient(organizationUuid);
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channelId,
+        );
+        const recipientArgs =
+            recipientUserId && !resolvedChannel.startsWith('D')
+                ? {
+                      recipient_user_id: recipientUserId,
+                      recipient_team_id:
+                          await this.slackAuthenticationModel.getSlackTeamIdFromOrganizationUuid(
+                              organizationUuid,
+                          ),
+                  }
+                : {};
+        return webClient.apiCall('chat.startStream', {
+            channel: resolvedChannel,
+            thread_ts: threadTs,
+            task_display_mode: 'plan',
+            ...recipientArgs,
+            ...(username ? { username } : {}),
+            ...(chunks ? { chunks } : {}),
+        });
+    }
+
+    async appendAgentStream({
+        organizationUuid,
+        channelId,
+        threadTs,
+        messageTs,
+        chunks,
+    }: {
+        organizationUuid: string;
+        channelId: string;
+        threadTs: string;
+        messageTs: string;
+        chunks: SlackStreamChunk[];
+    }): Promise<SlackStreamResponse> {
+        const webClient = await this.getWebClient(organizationUuid);
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channelId,
+        );
+        return webClient.apiCall('chat.appendStream', {
+            channel: resolvedChannel,
+            thread_ts: threadTs,
+            ts: messageTs,
+            chunks,
+        });
+    }
+
+    async stopAgentStream({
+        organizationUuid,
+        channelId,
+        threadTs,
+        messageTs,
+        text,
+        blocks,
+        chunks,
+    }: {
+        organizationUuid: string;
+        channelId: string;
+        threadTs: string;
+        messageTs: string;
+        text?: string;
+        blocks?: SlackBlock[];
+        chunks?: SlackStreamChunk[];
+    }): Promise<SlackStreamResponse> {
+        const webClient = await this.getWebClient(organizationUuid);
+        const resolvedChannel = await this.resolveChannelToId(
+            organizationUuid,
+            channelId,
+        );
+        return webClient.apiCall('chat.stopStream', {
+            channel: resolvedChannel,
+            thread_ts: threadTs,
+            ts: messageTs,
+            ...(text && !chunks ? { markdown_text: text } : {}),
+            ...(blocks && !chunks ? { blocks } : {}),
+            ...(chunks ? { chunks } : {}),
         });
     }
 

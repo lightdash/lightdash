@@ -103,6 +103,9 @@ export type AiAgentArgs = AnyAiModel & {
     canRunSql: boolean;
     autoApproveSql: boolean;
     autoApproveSqlUserUuid: string | null;
+    // When the modern Slack streaming card is driving progress, tools render
+    // their state into the card instead of the legacy bolt-gif placeholder.
+    useSlackStreamCard: boolean;
     warehouseType: WarehouseTypes | null;
     warehouseSchema: string | null;
     availableSkills: AiAgentSkillReference[];

@@ -47,11 +47,10 @@ const toolDefinition = editDbtProjectToolDefinition.for('agent');
 export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
     tool({
         ...toolDefinition,
-        execute: async ({
-            prompt,
-            prUrl: pastedPrUrl,
-            fromActiveChangeset,
-        }) => {
+        execute: async (
+            { prompt, prUrl: pastedPrUrl, fromActiveChangeset },
+            { toolCallId },
+        ) => {
             try {
                 const {
                     prUrl,
@@ -69,6 +68,7 @@ export const getEditDbtProject = ({ editDbtProject }: Dependencies) =>
                     prompt,
                     prUrl: pastedPrUrl,
                     fromActiveChangeset,
+                    progressId: toolCallId,
                 });
 
                 // Surface which Lightdash project + repo were used so the
