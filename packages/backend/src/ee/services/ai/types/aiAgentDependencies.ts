@@ -20,7 +20,6 @@ import {
     ItemsMap,
     KnexPaginateArgs,
     ParametersValuesMap,
-    PreviewDeploySetupResult,
     ProjectType,
     SavedChart,
     SlackPrompt,
@@ -432,13 +431,10 @@ export type EditDbtProjectFn = (args: {
     fromActiveChangeset: boolean;
 }) => Promise<
     AiWritebackRunResult & {
-        previewDeployConfigured: boolean | null;
         /** Server-side preview built from the PR's head branch; null when unsupported or failed. */
         previewUrl: string | null;
     }
 >;
-
-export type SetupPreviewDeployFn = () => Promise<PreviewDeploySetupResult>;
 
 /**
  * Run one read-only shell command (ls/cat/find/grep/head/wc) against a repo
@@ -487,14 +483,5 @@ export type GetProjectInfoFn = () => Promise<{
         branch: string;
         projectSubPath: string;
         hostDomain: string | null;
-    } | null;
-    /**
-     * Whether the git-backed repo deploys Lightdash preview projects via GitHub
-     * Actions. Null when it can't be determined (not a git project, GitHub App
-     * not installed, or the host has no preview-deploy support).
-     */
-    previewDeployCi: {
-        hasPreviewDeployWorkflow: boolean;
-        workflowPath: string | null;
     } | null;
 }>;

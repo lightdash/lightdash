@@ -32,10 +32,9 @@ export const stageChanges = async (
         scopedToProject ? { files: [projectSubPath] } : { all: true },
     );
     if (scopedToProject) {
-        // Also stage Lightdash CI workflow files the agent may have added when
-        // setting up preview deploys — they live at the repo root, outside the
-        // dbt subtree. `.github/workflows` is a known-safe path; tolerate its
-        // absence when no preview-deploy setup happened this turn.
+        // Also stage any CI workflow files the agent may have added — they live
+        // at the repo root, outside the dbt subtree. `.github/workflows` is a
+        // known-safe path; tolerate its absence when none were touched.
         await sandbox.commands.run(
             `git -C ${CWD} add .github/workflows 2>/dev/null || true`,
         );

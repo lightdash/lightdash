@@ -319,7 +319,6 @@ export const ToolCallDescription: FC<{
         case 'discoverRepos':
         case 'proposeChange':
         case 'editDbtProject':
-        case 'setupPreviewDeploy':
         case 'runSavedChart':
         case 'readPinnedThread':
             return <> </>;

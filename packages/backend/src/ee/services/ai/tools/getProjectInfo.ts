@@ -46,23 +46,6 @@ export const getGetProjectInfo = ({ getProjectInfo }: Dependencies) =>
                     }
                 }
 
-                // Preview-deploy GitHub Actions status — lets the assistant
-                // answer "are preview deploys set up?" from the git-backed repo.
-                // This only detects the Lightdash GitHub Actions workflow (the
-                // only setup the agent automates today); preview deploys wired
-                // via another CI aren't detected. Null when undeterminable.
-                if (info.previewDeployCi) {
-                    lines.push(
-                        info.previewDeployCi.hasPreviewDeployWorkflow
-                            ? `Preview-deploy GitHub Actions: configured${
-                                  info.previewDeployCi.workflowPath
-                                      ? ` (${info.previewDeployCi.workflowPath})`
-                                      : ''
-                              }`
-                            : 'Preview-deploy GitHub Actions: not found — no Lightdash preview-deploy workflow in the repo. You can offer to add one with the `setupPreviewDeploy` tool (GitHub Actions only).',
-                    );
-                }
-
                 return {
                     result: lines.join('\n'),
                     metadata: { status: 'success' as const },

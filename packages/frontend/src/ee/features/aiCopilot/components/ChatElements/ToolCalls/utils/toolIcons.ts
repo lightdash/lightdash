@@ -60,7 +60,6 @@ export const getToolIcon = (toolName: AiAgentToolName) => {
             exploreRepo: IconTerminal2,
             discoverRepos: IconFolders,
             generateVisualization: IconTable,
-            setupPreviewDeploy: IconPlugConnected,
             runQuery: IconTable,
             runContentQuery: IconPlayerPlay,
             runSavedChart: IconChartHistogram,

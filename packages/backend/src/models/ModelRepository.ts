@@ -143,7 +143,6 @@ export type ModelManifest = {
     aiAgentModel: unknown;
     aiAgentDocumentModel: unknown;
     aiWritebackThreadModel: unknown;
-    projectCiStatusModel: unknown;
     aiAgentReviewClassifierModel: unknown;
     projectContextModel: unknown;
     aiRouterModel: unknown;
@@ -761,10 +760,6 @@ export class ModelRepository
 
     public getAiWritebackThreadModel<ModelImplT>(): ModelImplT {
         return this.getModel('aiWritebackThreadModel');
-    }
-
-    public getProjectCiStatusModel<ModelImplT>(): ModelImplT {
-        return this.getModel('projectCiStatusModel');
     }
 
     public getProjectContextModel<ModelImplT>(): ModelImplT {

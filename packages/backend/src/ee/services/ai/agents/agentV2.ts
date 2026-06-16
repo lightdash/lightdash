@@ -40,7 +40,6 @@ import { getRunSavedChart } from '../tools/runSavedChart';
 import { getRunSql } from '../tools/runSql';
 import { getSearchFieldValues } from '../tools/searchFieldValues';
 import { getSearchSemanticLayer } from '../tools/searchSemanticLayer';
-import { getSetupPreviewDeploy } from '../tools/setupPreviewDeploy';
 import type {
     AiAgentArgs,
     AiAgentDependencies,
@@ -281,12 +280,6 @@ const getAgentTools = (
           })
         : null;
 
-    const setupPreviewDeploy = args.enablePreviewDeploySetup
-        ? getSetupPreviewDeploy({
-              setupPreviewDeploy: dependencies.setupPreviewDeploy,
-          })
-        : null;
-
     const exploreRepo = args.enableRepoDiscovery
         ? getExploreRepo({
               exploreRepo: dependencies.exploreRepo,
@@ -379,7 +372,6 @@ const getAgentTools = (
         generateUuids,
         ...(args.canManageAgent ? { improveContext } : {}),
         ...(editDbtProject ? { editDbtProject } : {}),
-        ...(setupPreviewDeploy ? { setupPreviewDeploy } : {}),
         ...(exploreRepo ? { exploreRepo } : {}),
         ...(discoverRepos ? { discoverRepos } : {}),
         ...(args.enableDataAccess ? { searchFieldValues } : {}),

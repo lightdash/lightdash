@@ -3685,67 +3685,6 @@ Parameters:
     },
   },
   {
-    "description": "Open a pull request that sets up Lightdash preview-project deploys for this project via GitHub Actions. Call this whenever the user wants to add Lightdash preview deploys — EITHER when they accept the offer surfaced by editDbtProject, OR when they ask directly (e.g. "set up preview deploys", "add the Lightdash preview GitHub Action", "deploy a preview project for each PR"). A prior writeback or offer is NOT required. It adds the canonical Lightdash preview workflow (a temporary preview project per pull request, torn down when the PR closes) on its own pull request. The target repository and dbt sub-folder are resolved server-side; this tool takes no arguments. The run is synchronous and can take a few minutes.",
-    "inputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {},
-      "type": "object",
-    },
-    "name": "setupPreviewDeploy",
-    "outputSchema": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "additionalProperties": false,
-      "properties": {
-        "metadata": {
-          "anyOf": [
-            {
-              "additionalProperties": false,
-              "properties": {
-                "prUrl": {
-                  "type": [
-                    "string",
-                    "null",
-                  ],
-                },
-                "status": {
-                  "const": "success",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-                "prUrl",
-              ],
-              "type": "object",
-            },
-            {
-              "additionalProperties": false,
-              "properties": {
-                "status": {
-                  "const": "error",
-                  "type": "string",
-                },
-              },
-              "required": [
-                "status",
-              ],
-              "type": "object",
-            },
-          ],
-        },
-        "result": {
-          "type": "string",
-        },
-      },
-      "required": [
-        "result",
-        "metadata",
-      ],
-      "type": "object",
-    },
-  },
-  {
     "description": "Read-only access to source code via a real bash shell restricted to a read-only command set, over a single virtual filesystem that mounts every repository this organization can access. The dbt project is mounted at \`/dbt\` (its files at the top, e.g. \`/dbt/dbt_project.yml\`, \`/dbt/models\`). Every other accessible repository is mounted whole on its default branch at \`/<owner>/<repo>\` (e.g. \`/lightdash/lightdash\`). Run \`ls /\` to see what is mounted, or use \`discoverRepos\` to list repositories. Do NOT ask the user to connect the GitHub MCP for this. The \`target\` argument only sets your starting directory: an "owner/repo" target starts you in \`/owner/repo\`; no target starts you in \`/dbt\`. Absolute paths reach any mount, so one command can span repositories. Use this to INSPECT actual files before answering questions about source code, diagnosing a build/compile error, or proposing a change — do not guess at file contents or the cause of an error you have not read. This is read-only: anything that writes, deletes, runs the network, or executes scripts is unavailable and will error (use editDbtProject for changes). Available commands include file reading (\`ls\`, \`cat <path...>\` — pass MULTIPLE paths to read them in one call, \`head\`, \`tail\`, \`find\`, \`tree\`, \`wc\`, \`stat\`), search (\`grep\`/\`egrep\` with \`-r\`/\`-i\`/\`-n\`/\`-E\`/\`-l\` and \`--include=GLOB\`, \`rg\`), and text processing (\`sed\`, \`awk\`, \`cut\`, \`sort\`, \`uniq\`, \`tr\`, \`jq\`, \`diff\`, \`xargs\`). Full bash syntax works: pipes, \`&&\`/\`||\`, quoting, globs, and \`2>/dev/null\`. Prefer one command that does the job over many small ones: read several files with a single \`cat a b c\`, and locate files with one scoped command (e.g. \`find /dbt -name "*.yml" | xargs grep -l orders\`) rather than repeatedly re-listing. Trees are fetched lazily per repository, so target a specific mount rather than an unscoped \`grep -r /\` across everything. Examples: \`cat dbt_project.yml\` (from the default \`/dbt\` start), \`grep -rln "stg_api_error" /dbt/models\`, \`find /lightdash/lightdash/packages/common -name "*.ts" | head -n 20\`.",
     "inputSchema": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -6626,7 +6565,6 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "editDbtProject",
   "exploreRepo",
   "discoverRepos",
-  "setupPreviewDeploy",
   "runSavedChart",
   "listWarehouseTables",
   "describeWarehouseTable",
