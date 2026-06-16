@@ -292,7 +292,10 @@ $4.00,value_4,2020-03-16
         expect(csv).toEqual(['value_1', '2020-03-16']);
     });
 
-    it('Should shift date dimensions that are day-truncated from a TIMESTAMP base', async () => {
+    it('Should not shift date dimensions day-truncated from a TIMESTAMP base (real DATE post-cast)', async () => {
+        // GLITCH-452: a day-or-coarser TIMESTAMP-base trunc compiles to a real
+        // DATE (a calendar value), so it is not timezone-shifted — same as a
+        // native DATE column, even under a non-UTC project tz.
         const columnDay: Dimension = {
             name: 'column_day',
             description: undefined,
@@ -322,7 +325,7 @@ $4.00,value_4,2020-03-16
             'America/New_York',
         );
 
-        expect(csv).toEqual(['value_1', '2020-03-15']);
+        expect(csv).toEqual(['value_1', '2020-03-16']);
     });
 
     it('Should generate csv file ids', async () => {
