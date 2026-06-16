@@ -236,38 +236,41 @@ describe('createFilterRuleFromField — time-interval DATE dims', () => {
             timeIntervalBaseDimensionType: baseType,
         }) as const;
 
-    // Paris Nov 2024 = 2024-10-31T23:00:00Z (UTC instant emitted by the
-    // DATE_TRUNC round-trip for a TIMESTAMP-base interval).
-    const parisNovInstant = '2024-10-31T23:00:00Z';
-    // NY Nov 2024 = 2024-11-01T05:00:00Z.
-    const nyNovInstant = '2024-11-01T05:00:00Z';
+    // GLITCH-452: a day-or-coarser trunc of a TIMESTAMP base now compiles to a
+    // real DATE, so the drill receives a bare calendar value ("2024-11-01"), not
+    // the old UTC instant. Calendar values are never timezone-shifted — even when
+    // a project tz is supplied — so the drill filter matches the displayed month.
+    const calendarNov = '2024-11-01';
     // DATE-base interval emits a calendar value anchored at UTC midnight.
     const dateBaseNov = '2024-11-01T00:00:00Z';
 
-    test('TIMESTAMP-base: positive offset filter value matches displayed month', () => {
+    test('TIMESTAMP-base (cast to DATE): calendar value is not shifted under a positive offset', () => {
         const rule = createFilterRuleFromField(
             monthDim(DimensionType.TIMESTAMP),
-            parisNovInstant,
+            calendarNov,
             'Europe/Paris',
         );
         expect(rule.values).toEqual(['2024-11']);
     });
 
-    test('TIMESTAMP-base: negative offset filter value matches displayed month', () => {
+    test('TIMESTAMP-base (cast to DATE): calendar value is not shifted under a negative offset', () => {
         const rule = createFilterRuleFromField(
             monthDim(DimensionType.TIMESTAMP),
-            nyNovInstant,
+            calendarNov,
             'America/New_York',
         );
         expect(rule.values).toEqual(['2024-11']);
     });
 
-    test('TIMESTAMP-base: no timezone falls back to UTC extraction (pre-fix behavior)', () => {
+    test('TIMESTAMP-base: legacy UTC-instant value (flag off) is read at UTC, never shifted', () => {
+        // Before the cast, a TIMESTAMP-base trunc emitted a UTC instant. With the
+        // correction layer removed it is read at UTC — matching the unshifted
+        // flag-off grid — regardless of any project tz supplied.
         const rule = createFilterRuleFromField(
             monthDim(DimensionType.TIMESTAMP),
-            parisNovInstant,
+            '2024-10-31T23:00:00Z',
+            'Europe/Paris',
         );
-        // Without project TZ, the UTC instant's calendar month is October.
         expect(rule.values).toEqual(['2024-10']);
     });
 
