@@ -4554,10 +4554,20 @@ export class AiAgentModel {
             await trx(AiWebAppThreadTableName).insert({
                 ai_thread_uuid: row.ai_thread_uuid,
                 user_uuid: data.userUuid,
+                embed_space_uuid: data.embedSpaceUuid ?? null,
             });
 
             return row.ai_thread_uuid;
         });
+    }
+
+    async getWebAppThreadEmbedSpace(threadUuid: string) {
+        const row = await this.database(AiWebAppThreadTableName)
+            .select('embed_space_uuid')
+            .where('ai_thread_uuid', threadUuid)
+            .first();
+
+        return row?.embed_space_uuid ?? null;
     }
 
     async createWebAppPrompt(

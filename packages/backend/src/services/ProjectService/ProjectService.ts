@@ -796,7 +796,7 @@ export class ProjectService extends BaseService {
             : account.organization.organizationUuid;
         const email = user ? user.email : account.user.email;
         const isServiceAccountPrincipal =
-            account?.isServiceAccount() || user?.serviceAccount !== undefined;
+            account?.isServiceAccount() || !!user?.serviceAccount;
 
         // Service-account principals have no email row, so they have no
         // intrinsic email attributes to attach.

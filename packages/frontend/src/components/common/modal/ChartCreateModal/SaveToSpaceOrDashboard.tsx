@@ -167,10 +167,14 @@ export const SaveToSpaceOrDashboard: FC<Props> = ({
         data: dashboards,
         isLoading: isLoadingDashboards,
         isSuccess: isDashboardsSuccess,
-    } = useDashboards(projectUuid, {
-        enabled: !forcedSpaceUuid,
-        staleTime: 0,
-    });
+    } = useDashboards(
+        projectUuid,
+        {
+            enabled: !forcedSpaceUuid,
+            staleTime: 0,
+        },
+        !forcedSpaceUuid,
+    );
 
     const {
         data: spaces,

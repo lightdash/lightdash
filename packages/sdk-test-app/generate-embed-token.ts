@@ -270,7 +270,6 @@ async function main() {
         console.log(`\nAdd to packages/sdk-test-app/.env.local:`);
         console.log(`VITE_EMBED_URL="${embedUrl}"`);
         if (aiAgent) {
-            console.log(`VITE_AI_AGENT_UUID="${aiAgent.ai_agent_uuid}"`);
             console.log(`VITE_AI_AGENT_EMBED_URL="${aiAgentEmbedUrl}"`);
         }
     } finally {

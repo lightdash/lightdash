@@ -10,7 +10,6 @@ import {
     contextItemsToContentMentionSuggestions,
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
-import { ThreadPullRequestCard } from '../../features/aiCopilot/components/ThreadPullRequestCard';
 import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import {
     useAiAgentReviewItemByPreviewThread,
@@ -324,17 +323,6 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                     onRetry={handleRetryOriginalQuestion}
                     onMarkDone={handleMarkFixed}
                 />
-            ) : (
-                !isEmbed &&
-                agentUuid &&
-                threadUuid &&
-                projectUuid && (
-                    <ThreadPullRequestCard
-                        projectUuid={projectUuid}
-                        agentUuid={agentUuid}
-                        threadUuid={threadUuid}
-                    />
-                )
             )}
         </Flex>
     );

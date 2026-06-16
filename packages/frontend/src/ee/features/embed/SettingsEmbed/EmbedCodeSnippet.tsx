@@ -1225,8 +1225,6 @@ export const EmbeddedChart = ({ embedJwt }: EmbeddedChartProps) => (
 );
 `;
         case 'dataApp':
-            // No SDK component for standalone data app embeds yet — they use
-            // the iframe URL directly.
         case 'aiAgent':
             return '';
         default:

@@ -885,7 +885,14 @@ export class AsyncQueryService extends ProjectService {
             account,
         );
 
+        const canReadEmbedAiQuery =
+            isJwtUser(account) &&
+            account.embedWriteContext?.canUseAiAgent === true &&
+            queryHistory.context === QueryExecutionContext.AI &&
+            queryHistory.createdByUserUuid === account.embedWriteUser?.userUuid;
+
         const isForbidden =
+            !canReadEmbedAiQuery &&
             !canViewProject &&
             auditedAbility.cannot(
                 'view',

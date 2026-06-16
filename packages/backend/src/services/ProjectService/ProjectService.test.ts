@@ -2242,6 +2242,20 @@ describe('ProjectService', () => {
             );
             expect(result.intrinsicUserAttributes).not.toEqual({});
         });
+
+        test('still attaches intrinsic email attributes when session user has no service account identity', async () => {
+            const result = await service.getUserAttributes({
+                user: {
+                    ...user,
+                    serviceAccount: undefined,
+                },
+            });
+
+            expect(emailModel.getPrimaryEmailStatus).toHaveBeenCalledWith(
+                user.userUuid,
+            );
+            expect(result.intrinsicUserAttributes).not.toEqual({});
+        });
     });
 
     describe('previewDataTimezone', () => {

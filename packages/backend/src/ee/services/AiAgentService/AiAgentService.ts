@@ -304,6 +304,7 @@ const ALLOWED_AGENT_AVATAR_MIME_TYPES = new Set([
 const STREAM_KEEPALIVE_INTERVAL_MS = 15_000;
 
 type EmbedAiAgentRuntimeOptions = {
+    embedSpaceUuid: string;
     spaceAccess: string[];
     userAttributeOverrides: UserAttributeValueMap;
 };
@@ -1118,7 +1119,8 @@ export class AiAgentService extends BaseService {
             account.embed.projectUuid !== projectUuid
         ) {
             throw new ForbiddenError(
-                'Embed token does not allow AI agent actions',
+                account.embedWriteContext?.aiAgentErrorMessage ??
+                    'Embed token does not allow AI agent actions',
             );
         }
 
@@ -1127,6 +1129,7 @@ export class AiAgentService extends BaseService {
             spaceUuid,
             tokenAgentUuid: content.agentUuid,
             runtimeOptions: {
+                embedSpaceUuid: spaceUuid,
                 spaceAccess: [spaceUuid],
                 userAttributeOverrides:
                     account.access.controls?.userAttributes ?? {},
@@ -1164,6 +1167,21 @@ export class AiAgentService extends BaseService {
         const agent = await this.getAgent(user, agentUuid, projectUuid);
         AiAgentService.assertAgentAvailableInEmbedSpace(agent, spaceUuid);
         return { user, agent, runtimeOptions };
+    }
+
+    private async assertEmbedThreadInSpace(
+        threadUuid: string,
+        runtimeOptions?: EmbedAiAgentRuntimeOptions,
+    ) {
+        if (!runtimeOptions) return;
+
+        const embedSpaceUuid =
+            await this.aiAgentModel.getWebAppThreadEmbedSpace(threadUuid);
+        if (embedSpaceUuid !== runtimeOptions.embedSpaceUuid) {
+            throw new ForbiddenError(
+                'AI agent thread is outside the embedded space',
+            );
+        }
     }
 
     async listEmbedAgents(account: AnonymousAccount, projectUuid: string) {
@@ -2314,6 +2332,7 @@ export class AiAgentService extends BaseService {
             userUuid: user.userUuid,
             createdFrom,
             agentUuid,
+            embedSpaceUuid: runtimeOptions?.embedSpaceUuid,
         });
 
         if (body.prompt) {
@@ -3942,18 +3961,23 @@ export class AiAgentService extends BaseService {
         artifactUuid: string,
         versionUuid?: string,
     ) {
-        const { user } = await this.getEmbedAgent(
+        const { user, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
         );
-        return this.getArtifact(
+        const artifact = await this.getArtifact(
             user,
             projectUuid,
             agentUuid,
             artifactUuid,
             versionUuid,
         );
+        await this.assertEmbedThreadInSpace(
+            artifact.threadUuid,
+            runtimeOptions,
+        );
+        return artifact;
     }
 
     async getEmbedArtifactVizQuery(
@@ -3963,7 +3987,7 @@ export class AiAgentService extends BaseService {
         artifactUuid: string,
         versionUuid: string,
     ) {
-        const { user } = await this.getEmbedAgent(
+        const { user, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
@@ -3973,6 +3997,7 @@ export class AiAgentService extends BaseService {
             agentUuid,
             artifactUuid,
             versionUuid,
+            runtimeOptions,
         });
     }
 
@@ -3984,7 +4009,7 @@ export class AiAgentService extends BaseService {
         versionUuid: string,
         chartIndex: number,
     ) {
-        const { user } = await this.getEmbedAgent(
+        const { user, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
@@ -3995,6 +4020,7 @@ export class AiAgentService extends BaseService {
             artifactUuid,
             versionUuid,
             chartIndex,
+            runtimeOptions,
         });
     }
 
@@ -4004,11 +4030,12 @@ export class AiAgentService extends BaseService {
         agentUuid: string,
         threadUuid: string,
     ) {
-        const { user } = await this.getEmbedAgent(
+        const { user, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
         );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
         return this.getAgentThread(user, agentUuid, threadUuid);
     }
 
@@ -4044,6 +4071,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
         );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
         return this.createAgentThreadMessage(
             user,
             agentUuid,
@@ -4068,11 +4096,12 @@ export class AiAgentService extends BaseService {
             savedQueryUuid: string | null;
         },
     ): Promise<void> {
-        const { user } = await this.getEmbedAgent(
+        const { user, runtimeOptions } = await this.getEmbedAgent(
             account,
             projectUuid,
             agentUuid,
         );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
         return this.updateMessageSavedQuery(user, {
             agentUuid,
             threadUuid,
@@ -4099,6 +4128,7 @@ export class AiAgentService extends BaseService {
             projectUuid,
             agentUuid,
         );
+        await this.assertEmbedThreadInSpace(threadUuid, runtimeOptions);
         return this.streamAgentThreadResponse(user, {
             agentUuid,
             threadUuid,
@@ -4256,11 +4286,13 @@ export class AiAgentService extends BaseService {
             agentUuid,
             artifactUuid,
             versionUuid,
+            runtimeOptions,
         }: {
             projectUuid: string;
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<ApiAiAgentThreadMessageVizQuery> {
         const { organizationUuid } = user;
@@ -4290,6 +4322,10 @@ export class AiAgentService extends BaseService {
             agentUuid,
             artifactUuid,
             versionUuid,
+        );
+        await this.assertEmbedThreadInSpace(
+            artifact.threadUuid,
+            runtimeOptions,
         );
 
         if (!artifact.chartConfig) {
@@ -4350,12 +4386,14 @@ export class AiAgentService extends BaseService {
             artifactUuid,
             versionUuid,
             chartIndex,
+            runtimeOptions,
         }: {
             projectUuid: string;
             agentUuid: string;
             artifactUuid: string;
             versionUuid: string;
             chartIndex: number;
+            runtimeOptions?: EmbedAiAgentRuntimeOptions;
         },
     ): Promise<ApiAiAgentThreadMessageVizQuery> {
         const { organizationUuid } = user;
@@ -4385,6 +4423,10 @@ export class AiAgentService extends BaseService {
             agentUuid,
             artifactUuid,
             versionUuid,
+        );
+        await this.assertEmbedThreadInSpace(
+            artifact.threadUuid,
+            runtimeOptions,
         );
 
         if (

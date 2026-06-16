@@ -83,7 +83,7 @@ The script:
 - reads or creates the project's embedding secret in the `embedding` table
 - signs a 24 hour JWT for dashboard embed content
 - signs a separate 24 hour JWT for AI-agent embed content when it finds an agent in the dashboard project
-- prints `VITE_EMBED_URL="..."`, `VITE_AI_AGENT_UUID="..."`, and `VITE_AI_AGENT_EMBED_URL="..."` values for `packages/sdk-test-app/.env.local`
+- prints `VITE_EMBED_URL="..."` and `VITE_AI_AGENT_EMBED_URL="..."` values for `packages/sdk-test-app/.env.local`
 
 To target a specific agent, set `AI_AGENT_UUID` or `AI_AGENT_NAME` before
 running the generator.
