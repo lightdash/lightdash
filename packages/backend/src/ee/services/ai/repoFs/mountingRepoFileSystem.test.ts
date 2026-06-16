@@ -49,7 +49,7 @@ describe('MountingRepoFileSystem', () => {
     });
 
     const make = (
-        opts: { hasDbtMount?: boolean } = {},
+        opts: { hasDbtMount?: boolean; maxFilesPerCommand?: number } = {},
     ): Promise<MountingRepoFileSystem> =>
         MountingRepoFileSystem.create({
             listRepos: async () => {
@@ -67,10 +67,16 @@ describe('MountingRepoFileSystem', () => {
                 if (!files) throw new Error(`unknown repo ${owner}/${repo}`);
                 return new RepoFs(fakeSource(files));
             },
+            maxFilesPerCommand: opts.maxFilesPerCommand,
         });
 
-    const run = (fs: MountingRepoFileSystem, command: string) =>
-        runShellCommandOnFs(fs, command);
+    // Mirror production: reset the per-command file budget and wire its probe.
+    const run = (fs: MountingRepoFileSystem, command: string) => {
+        fs.beginCommand();
+        return runShellCommandOnFs(fs, command, {
+            budgetHit: () => Promise.resolve(fs.wasBudgetHit()),
+        });
+    };
 
     describe('construction is lazy', () => {
         it('fetches the repo list once and no trees', async () => {
@@ -151,6 +157,40 @@ describe('MountingRepoFileSystem', () => {
                 'acme/web',
                 'globex/infra',
             ]);
+        });
+    });
+
+    describe('per-command file budget', () => {
+        it('stops a crawl past the file limit and steers to search', async () => {
+            // A crawl past the budget surfaces the steer either as an appended
+            // note (grep keeps its partial output) or as a thrown ShellError
+            // (find aborts) — both mention `search`.
+            const fs = await make({ maxFilesPerCommand: 2 });
+            const outcome = await run(
+                fs,
+                'grep -rln "name" /acme /globex',
+            ).catch((e: Error) => e.message);
+            expect(outcome).toMatch(/search/i);
+        });
+
+        it('resets the budget each command', async () => {
+            const fs = await make({ maxFilesPerCommand: 1 });
+            expect(await run(fs, 'cat /acme/web/package.json')).toBe(
+                '{"name":"web"}',
+            );
+            expect(await run(fs, 'cat /globex/infra/README.md')).toContain(
+                '# infra',
+            );
+        });
+
+        it('allows reads within the budget', async () => {
+            const fs = await make({ maxFilesPerCommand: 5 });
+            const out = await run(
+                fs,
+                'cat /acme/web/package.json /acme/api/package.json',
+            );
+            expect(out).toContain('{"name":"web"}');
+            expect(out).toContain('{"name":"api"}');
         });
     });
 

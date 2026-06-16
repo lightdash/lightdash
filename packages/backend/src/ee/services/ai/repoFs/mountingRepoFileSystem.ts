@@ -51,6 +51,16 @@ export type RepoOwnerSearchFn = (
  *  system prompt documents `/dbt` as the dbt project. */
 export const DBT_MOUNT = 'dbt';
 
+/** Max files a single command may read before it's stopped and steered to
+ *  `search`. Each read is a GitHub Contents round-trip, so an unscoped
+ *  `grep -r` over many repos (or one huge repo) would otherwise read thousands
+ *  of files and exhaust the installation's rate limit. Sized to the intended
+ *  workflow — `search` to locate, then `cat` the hits, or a narrow grep within
+ *  one directory — which sits well under this; a whole-repo or repo-spanning
+ *  crawl trips it and is steered to `search`. (`find`/`ls`/`tree` read no file
+ *  content, so navigating the tree is free and doesn't count toward this.) */
+export const DEFAULT_MAX_FILES_PER_COMMAND = 100;
+
 const FILE_MODE = 0o100644;
 const DIR_MODE = 0o040755;
 const EPOCH = new Date(0);
@@ -76,6 +86,17 @@ const erofs = (): never => {
     throw Object.assign(
         new Error('EROFS: read-only file system (repositories are read-only)'),
         { code: 'EROFS' },
+    );
+};
+/** File-budget exhaustion: surfaced to the agent as a recoverable shell error
+ *  (the `EACCES` code is mapped to a ShellError in {@link ./bashShell}). */
+const efilebudget = (max: number): never => {
+    throw Object.assign(
+        new Error(
+            `EACCES: this command tried to read more than ${max} files. ` +
+                "That's a repo-spanning or whole-repo crawl — use `search <term>` to find which files/repositories mention a string in one call, then read only those. Keep `grep`/`cat` within a single file or directory.",
+        ),
+        { code: 'EACCES' },
     );
 };
 
@@ -150,18 +171,32 @@ export class MountingRepoFileSystem implements IFileSystem {
 
     private readonly searchOwnerFn: RepoOwnerSearchFn | null;
 
+    private readonly maxFilesPerCommand: number;
+
+    /** Files read in the CURRENT command (reset by {@link beginCommand}). Each
+     *  read is a GitHub round-trip, so this bounds the cost of one command. */
+    private filesReadThisCommand = 0;
+
+    /** Whether the current command hit the file budget — `find` aborts on the
+     *  thrown error, but `grep -r` swallows the per-file error and returns
+     *  first-N-files results, so the caller reads this to annotate that result
+     *  ("stopped early, use search") instead of trusting a partial crawl. */
+    private budgetHitThisCommand = false;
+
     private constructor(opts: {
         repos: MountableRepo[];
         hasDbtMount: boolean;
         buildDbtRepoFs: () => Promise<RepoFs>;
         buildRepoFs: (owner: string, repo: string) => Promise<RepoFs>;
         searchOwner: RepoOwnerSearchFn | null;
+        maxFilesPerCommand: number;
     }) {
         this.repos = opts.repos;
         this.hasDbtMount = opts.hasDbtMount;
         this.buildDbtRepoFs = opts.buildDbtRepoFs;
         this.buildRepoFs = opts.buildRepoFs;
         this.searchOwnerFn = opts.searchOwner;
+        this.maxFilesPerCommand = opts.maxFilesPerCommand;
 
         this.reposByOwner = new Map();
         this.repoKeys = new Set();
@@ -188,13 +223,32 @@ export class MountingRepoFileSystem implements IFileSystem {
         buildDbtRepoFs: () => Promise<RepoFs>;
         buildRepoFs: (owner: string, repo: string) => Promise<RepoFs>;
         searchOwner?: RepoOwnerSearchFn;
+        maxFilesPerCommand?: number;
     }): Promise<MountingRepoFileSystem> {
         const repos = await opts.listRepos();
         return new MountingRepoFileSystem({
             ...opts,
             repos,
             searchOwner: opts.searchOwner ?? null,
+            maxFilesPerCommand:
+                opts.maxFilesPerCommand ?? DEFAULT_MAX_FILES_PER_COMMAND,
         });
+    }
+
+    /** Reset the per-command file-read budget. Call once before each shell
+     *  command so a single command (e.g. an unscoped `grep -r`) can't read more
+     *  than {@link DEFAULT_MAX_FILES_PER_COMMAND} files before being steered to
+     *  `search`. The tree/file caches persist, so a run still covers many files
+     *  across several commands. */
+    beginCommand(): void {
+        this.filesReadThisCommand = 0;
+        this.budgetHitThisCommand = false;
+    }
+
+    /** True once the current command hit the file budget — used to annotate a
+     *  `grep` that stopped early so the agent switches to `search`. */
+    wasBudgetHit(): boolean {
+        return this.budgetHitThisCommand;
     }
 
     // ---- routing ----
@@ -323,6 +377,13 @@ export class MountingRepoFileSystem implements IFileSystem {
     async readFile(path: string): Promise<string> {
         const r = this.resolve(resolveAbsolute('/', path));
         if (r.type !== 'mount') throw enoent(path); // dirs / missing aren't files
+        // Per-command file budget: every read is a GitHub round-trip, so stop a
+        // crawl before it drains the rate limit and steer it to `search`.
+        this.filesReadThisCommand += 1;
+        if (this.filesReadThisCommand > this.maxFilesPerCommand) {
+            this.budgetHitThisCommand = true;
+            efilebudget(this.maxFilesPerCommand);
+        }
         const fs = await this.getMount(r.key);
         return fs.readFile(r.subPath);
     }

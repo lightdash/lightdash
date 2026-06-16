@@ -5865,11 +5865,12 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         // tool's `target` just picks the starting directory, so a repo target
         // reads exactly as before while absolute paths can cross repos.
         const onRepoFsTiming = (event: RepoFsTimingEvent) => {
+            this.prometheusMetrics?.incrementRepoFsGithubRequest(event.kind);
             if (event.kind === 'tree') {
                 this.prometheusMetrics?.observeRepoFsGithubTreeDuration(
                     event.durationMs,
                 );
-            } else {
+            } else if (event.kind === 'file') {
                 this.prometheusMetrics?.observeRepoFsGithubFileDuration(
                     event.durationMs,
                     event.outcome,
@@ -5932,12 +5933,19 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     const hasDbtMount =
                         project.dbtConnection.type === DbtProjectType.GITHUB;
                     return MountingRepoFileSystem.create({
-                        listRepos: async () =>
-                            (await getInstallationAccess()).listRepos(),
+                        listRepos: async () => {
+                            this.prometheusMetrics?.incrementRepoFsGithubRequest(
+                                'list',
+                            );
+                            return (await getInstallationAccess()).listRepos();
+                        },
                         hasDbtMount,
                         buildDbtRepoFs,
                         buildRepoFs,
                         searchOwner: async (owner, query) => {
+                            this.prometheusMetrics?.incrementRepoFsGithubRequest(
+                                'search',
+                            );
                             const { installationToken } =
                                 await getInstallationAccess();
                             const hits = await searchRepoCode({
@@ -5969,15 +5977,22 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
             } else if (fs.hasDbtMount) {
                 cwd = `/${DBT_MOUNT}`;
             }
+            // Reset the per-command file budget so a single command (e.g. an
+            // unscoped `grep -r`) can't crawl thousands of files and drain the
+            // GitHub rate limit before being steered to `search`.
+            fs.beginCommand();
             return runShellCommandOnFs(fs, command, {
                 cwd,
                 isTruncated: () => Promise.resolve(fs.isTruncated()),
+                budgetHit: () => Promise.resolve(fs.wasBudgetHit()),
                 search: (absPath, query) => fs.search(absPath, query),
             });
         };
 
-        const discoverRepos: DiscoverReposFn = async () =>
-            (await getInstallationAccess()).listRepos();
+        const discoverRepos: DiscoverReposFn = async () => {
+            this.prometheusMetrics?.incrementRepoFsGithubRequest('list');
+            return (await getInstallationAccess()).listRepos();
+        };
 
         return {
             listExplores: toolsRuntime.listExplores,

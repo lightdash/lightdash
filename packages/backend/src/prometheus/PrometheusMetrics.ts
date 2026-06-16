@@ -99,6 +99,10 @@ export default class PrometheusMetrics {
     public repoFsGithubFileDurationHistogram: prometheus.Histogram<'outcome'> | null =
         null;
 
+    // repoShell GitHub API request count by kind (tree | file | search | list),
+    // so a runaway crawl that drains the installation's rate limit is visible.
+    public repoFsGithubRequestCounter: prometheus.Counter<'kind'> | null = null;
+
     // AI writeback (E2B sandbox) latency
     public aiWritebackSandboxCreateDurationHistogram: prometheus.Histogram | null =
         null;
@@ -416,6 +420,13 @@ export default class PrometheusMetrics {
                         ...rest,
                     });
 
+                this.repoFsGithubRequestCounter = new prometheus.Counter({
+                    name: 'ai_repofs_github_requests_total',
+                    help: 'repoShell GitHub API requests by kind (tree | file | search | list)',
+                    labelNames: ['kind'],
+                    ...rest,
+                });
+
                 // AI writeback (E2B sandbox) latency
                 this.aiWritebackSandboxCreateDurationHistogram =
                     new prometheus.Histogram({
@@ -477,6 +488,11 @@ export default class PrometheusMetrics {
                 (['found', 'missing', 'error'] as const).forEach((outcome) => {
                     this.repoFsGithubFileDurationHistogram?.zero({ outcome });
                 });
+                (['tree', 'file', 'search', 'list'] as const).forEach(
+                    (kind) => {
+                        this.repoFsGithubRequestCounter?.inc({ kind }, 0);
+                    },
+                );
                 (['success', 'error'] as const).forEach((status) => {
                     this.aiWritebackCompileDurationHistogram?.zero({ status });
                     this.aiWritebackRunDurationHistogram?.zero({ status });
@@ -1139,6 +1155,12 @@ export default class PrometheusMetrics {
             { outcome },
             durationMs,
         );
+    }
+
+    public incrementRepoFsGithubRequest(
+        kind: 'tree' | 'file' | 'search' | 'list',
+    ) {
+        this.repoFsGithubRequestCounter?.inc({ kind });
     }
 
     public observeAiWritebackSandboxCreateDuration(durationMs: number) {

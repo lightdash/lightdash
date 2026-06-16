@@ -211,10 +211,12 @@ export const runShellCommandOnFs = async (
     {
         cwd = '/',
         isTruncated,
+        budgetHit,
         search,
     }: {
         cwd?: string;
         isTruncated?: () => Promise<boolean>;
+        budgetHit?: () => Promise<boolean>;
         search?: RepoCodeSearchFn;
     } = {},
 ): Promise<string> => {
@@ -285,6 +287,14 @@ export const runShellCommandOnFs = async (
             (await isTruncated())
                 ? '\n… note: this repository is large and GitHub truncated its file listing, so find/grep/ls results may be incomplete — narrow to a subdirectory.'
                 : '';
+        // A grep that hit the per-command file budget stopped early and returned
+        // first-N-files results; `find` aborts on it, but grep swallows the
+        // per-file error and keeps going, so annotate that the result is partial
+        // and steer the broad lookup to `search`.
+        const budgetNote =
+            budgetHit && (await budgetHit())
+                ? '\n… note: stopped after reading the per-command file limit — this result is incomplete. Use `search <term>` to find which files/repositories mention a string in one call instead of grepping across many.'
+                : '';
         // A non-zero exit alongside real output is a partial failure — e.g.
         // `cat good.sql missing.sql` prints the first file but errors on the
         // second. Surface the stderr diagnostic so the agent sees what failed
@@ -292,7 +302,7 @@ export const runShellCommandOnFs = async (
         // first so the error note is never the part that gets truncated away.
         const errorNote =
             result.exitCode !== 0 && stderr.length > 0 ? `\n${stderr}` : '';
-        return clamp(stdout) + errorNote + truncationNote;
+        return clamp(stdout) + errorNote + truncationNote + budgetNote;
     }
 
     // No stdout: a non-zero exit with a diagnostic is an expected agent mistake

@@ -38,7 +38,8 @@ export type RepoFsTimingEvent =
           kind: 'file';
           durationMs: number;
           outcome: 'found' | 'missing' | 'error';
-      };
+      }
+    | { kind: 'search'; durationMs: number };
 
 export type RepoFsTimingCallback = (event: RepoFsTimingEvent) => void;
 
@@ -155,6 +156,7 @@ export const createGithubRepoSource = ({
                     durationMs,
                 },
             );
+            onTiming?.({ kind: 'search', durationMs });
             return items
                 .filter((item) => !root || item.path.startsWith(prefix))
                 .map((item) => ({
