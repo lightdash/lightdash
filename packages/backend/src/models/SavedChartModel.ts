@@ -61,6 +61,7 @@ import {
     DashboardsTableName,
     DashboardTileChartTableName,
     DashboardVersionsTableName,
+    DashboardViewsTableName,
 } from '../database/entities/dashboards';
 import { resolveColorPalette } from '../database/entities/organizationColorPalettes';
 import { OrganizationTableName } from '../database/entities/organizations';
@@ -1067,8 +1068,11 @@ export class SavedChartModel {
                           .orderBy('d.name')
                     : Promise.resolve([]);
 
-                // Dashboard filters can target the field even with no chart using it;
-                // filter targets live in dashboard_versions.config (scanned by text).
+                // Dashboard filters can target the field even with no chart using it.
+                // Filters live in dashboard_views.filters (one row per saved view of a
+                // version), not dashboard_versions.config. Match the latest version of
+                // each dashboard and test target.fieldId exactly via a jsonpath over the
+                // dimensions/metrics/tableCalculations arrays (not a fuzzy text LIKE).
                 const dashboardFilterTargets = this.database
                     .with('latest_dash_versions', (qb) =>
                         qb
@@ -1081,6 +1085,11 @@ export class SavedChartModel {
                     .innerJoin(
                         'latest_dash_versions as ldv',
                         'ldv.vid',
+                        'dv.dashboard_version_id',
+                    )
+                    .innerJoin(
+                        `${DashboardViewsTableName} as dvw`,
+                        'dvw.dashboard_version_id',
                         'dv.dashboard_version_id',
                     )
                     .innerJoin(
@@ -1102,8 +1111,12 @@ export class SavedChartModel {
                         's.project_id',
                     )
                     .where('p.project_uuid', projectUuid)
-                    .whereNotNull('dv.config')
-                    .whereRaw(`dv.config::text LIKE '%' || ? || '%'`, [fieldId])
+                    .whereRaw(
+                        // The jsonpath filter operator '?' must be escaped as '\\?'
+                        // so knex does not treat it as a bind placeholder.
+                        `jsonb_path_exists(dvw.filters, '$.*[*].target.fieldId \\? (@ == $fid)', jsonb_build_object('fid', ?::text))`,
+                        [fieldId],
+                    )
                     .distinct<FieldImpactReport['dashboardFilterTargets']>({
                         uuid: 'd.dashboard_uuid',
                         name: 'd.name',
@@ -1157,6 +1170,7 @@ export class SavedChartModel {
                     chartUuids.length || dashboardUuids.length
                         ? await this.database
                               .from(SchedulerTableName)
+                              .whereNull('deleted_at')
                               .where((qb) => {
                                   if (chartUuids.length) {
                                       void qb.orWhereIn(
