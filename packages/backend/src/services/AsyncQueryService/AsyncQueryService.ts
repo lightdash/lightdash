@@ -4961,6 +4961,7 @@ export class AsyncQueryService extends ProjectService {
         pivotResults,
         sessionTimezone,
         preloadedSavedChart,
+        preloadedProjectParameters,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
@@ -5121,7 +5122,8 @@ export class AsyncQueryService extends ProjectService {
                 resolvedDashboardUuid,
                 projectUuid,
             ),
-            this.projectParametersModel.find(projectUuid),
+            preloadedProjectParameters ??
+                this.projectParametersModel.find(projectUuid),
         ]);
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
