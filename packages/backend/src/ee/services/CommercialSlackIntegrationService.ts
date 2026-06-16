@@ -1,11 +1,9 @@
 import {
     Account,
-    FeatureFlags,
     ForbiddenError,
     SessionUser,
     SlackSettings,
 } from '@lightdash/common';
-import { FeatureFlagModel } from '../../models/FeatureFlagModel/FeatureFlagModel';
 import {
     SlackIntegrationService,
     SlackIntegrationServiceArguments,
@@ -16,29 +14,15 @@ import { CommercialSlackAuthenticationModel } from '../models/CommercialSlackAut
 export class CommercialSlackIntegrationService extends SlackIntegrationService<CommercialSlackAuthenticationModel> {
     private readonly aiAgentModel: AiAgentModel;
 
-    private readonly featureFlagModel: FeatureFlagModel;
-
     constructor({
         aiAgentModel,
-        featureFlagModel,
         ...rest
     }: SlackIntegrationServiceArguments<CommercialSlackAuthenticationModel> & {
         aiAgentModel: AiAgentModel;
-        featureFlagModel: FeatureFlagModel;
     }) {
         super(rest);
 
         this.aiAgentModel = aiAgentModel;
-        this.featureFlagModel = featureFlagModel;
-    }
-
-    private async isModernSlackAiAgentEnabled(user: SessionUser) {
-        const flag = await this.featureFlagModel.get({
-            user,
-            featureFlagId: FeatureFlags.AiAgentSlackModernBlocks,
-        });
-
-        return flag.enabled;
     }
 
     async getSlackInstallOptions(user: SessionUser) {

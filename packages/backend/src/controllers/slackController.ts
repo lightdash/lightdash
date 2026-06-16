@@ -265,6 +265,12 @@ export class SlackController extends BaseController {
     /**
      * Get a Slack AI agent card image.
      * Falls back to a placeholder image if the image is not found.
+     *
+     * Intentionally public (no auth): Slack's unfurl bot fetches preview images
+     * without user credentials. Access is guarded by an unguessable 21-char
+     * nanoid (only minted server-side and shared with Slack during the unfurl of
+     * a resource the user already has access to), strict `{id}` validation, and
+     * no-store / noindex response headers.
      * @summary Get Slack card image
      */
     @SuccessResponse('200', 'Success')

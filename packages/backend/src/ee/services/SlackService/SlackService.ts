@@ -1,4 +1,3 @@
-import { AnyType } from '@lightdash/common';
 import {
     SlackService,
     SlackServiceArguments,
@@ -28,16 +27,6 @@ export class CommercialSlackService extends SlackService {
 
         slackApp.event('app_mention', (m) =>
             this.aiAgentService.handleAppMention(m),
-        );
-        // Bolt's current event typings lag Slack's assistant events, so keep
-        // these registrations typed loosely until the SDK exposes them.
-        (slackApp as AnyType).event('assistant_thread_started', (m: AnyType) =>
-            this.aiAgentService.handleAssistantThreadStarted(m),
-        );
-        (slackApp as AnyType).event(
-            'assistant_thread_context_changed',
-            (m: AnyType) =>
-                this.aiAgentService.handleAssistantThreadContextChanged(m),
         );
         slackApp.event('message', (m) =>
             this.aiAgentService.handleMultiAgentChannelMessage(m),

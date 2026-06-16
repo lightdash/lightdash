@@ -417,7 +417,6 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                     analytics: context.lightdashAnalytics,
                     slackClient: clients.getSlackClient(),
                     aiAgentModel: models.getAiAgentModel(),
-                    featureFlagModel: models.getFeatureFlagModel(),
                 }),
             supportService: ({ models, context, repository, clients }) =>
                 new SupportService({
