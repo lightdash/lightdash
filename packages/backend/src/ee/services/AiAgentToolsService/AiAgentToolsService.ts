@@ -1113,6 +1113,17 @@ export class AiAgentToolsService extends BaseService {
                     slug,
                     type,
                 });
+                // Charts can be persisted with a null `chartConfig.config` (e.g.
+                // table charts with no viz settings). The chart-as-code schema
+                // accepts an object or an absent config but rejects null, so
+                // normalize null -> absent before patching/validating — matching
+                // how the i18n chart-as-code schema coalesces it.
+                if (
+                    currentContent.type === 'chart' &&
+                    currentContent.content.chartConfig.config == null
+                ) {
+                    delete currentContent.content.chartConfig.config;
+                }
                 const versionBefore =
                     await this.coderService.getCurrentContentVersionBySlug(
                         context.user,

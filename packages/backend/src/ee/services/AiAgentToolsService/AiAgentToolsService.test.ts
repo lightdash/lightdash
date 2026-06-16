@@ -7,6 +7,7 @@ import {
     SessionUser,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
+import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
 import { AiAgentToolsService } from './AiAgentToolsService';
 
 const organizationUuid = 'organization-uuid';
@@ -607,5 +608,76 @@ describe('AiAgentToolsService', () => {
             }),
         ).rejects.toThrow(NotFoundError);
         expect(upsertDashboard).not.toHaveBeenCalled();
+    });
+
+    // Charts (commonly table charts) can be stored with a null chartConfig.config.
+    // The chart-as-code schema rejects null, so without normalization any patch —
+    // even one that never touches config — fails validation. This exercises the
+    // real validator to guard the null -> absent normalization in editContent.
+    const makeChartContent = (config: unknown) => ({
+        name: 'Null config table chart',
+        description: 'Original description',
+        tableName: 'orders',
+        slug: 'null-config-chart',
+        metricQuery: {
+            exploreName: 'orders',
+            dimensions: [],
+            metrics: ['orders_count'],
+            filters: {},
+            sorts: [],
+            limit: 500,
+            tableCalculations: [],
+        },
+        chartConfig: { type: 'table', config },
+        tableConfig: { columnOrder: [] },
+        spaceSlug: 'allowed-space',
+        dashboardSlug: null,
+        version: 1,
+        updatedAt: '2026-01-01T00:00:00.000Z',
+    });
+
+    it('edits a chart whose stored chartConfig.config is null', async () => {
+        const upsertChart = jest.fn().mockResolvedValue({
+            charts: [{ data: { uuid: 'chart-uuid' } }],
+        });
+        const service = makeService({
+            savedChartService: {
+                get: jest.fn().mockResolvedValue({ uuid: 'chart-uuid' }),
+            },
+            coderService: {
+                getCharts: jest
+                    .fn()
+                    .mockResolvedValue({ charts: [makeChartContent(null)] }),
+                getCurrentContentVersionBySlug: jest
+                    .fn()
+                    .mockResolvedValue({ versionUuid: 'version' }),
+                upsertChart,
+            },
+            // Use the real validator so the null-config normalization is exercised.
+            aiAgentContentValidation:
+                new AiAgentContentValidation() as unknown as Record<
+                    string,
+                    unknown
+                >,
+        });
+        const runtime = service.createRuntime(makeRuntimeContext());
+
+        await expect(
+            runtime.editContent({
+                slug: 'null-config-chart',
+                type: 'chart',
+                patch: [
+                    {
+                        op: 'replace',
+                        path: '/description',
+                        value: 'Updated description',
+                    },
+                ],
+            }),
+        ).resolves.toBeDefined();
+
+        expect(upsertChart).toHaveBeenCalledTimes(1);
+        const upsertedContent = upsertChart.mock.calls[0][3];
+        expect(upsertedContent.chartConfig.config).toBeUndefined();
     });
 });
