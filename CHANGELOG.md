@@ -1,3 +1,15 @@
+# [0.3169.0](https://github.com/lightdash/lightdash/compare/0.3168.0...0.3169.0) (2026-06-16)
+
+
+### Features
+
+* embed AI agent support ([#24282](https://github.com/lightdash/lightdash/issues/24282)) ([998824b](https://github.com/lightdash/lightdash/commit/998824bc88c68a0079408bcacf317008b93ad2f6)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Performance Improvements
+
+* **backend:** fire-and-forget chart-view event in SavedChartService.get ([#24331](https://github.com/lightdash/lightdash/issues/24331)) ([fda1695](https://github.com/lightdash/lightdash/commit/fda1695d570cc2bdae776afcbd0e0bb546dbbce9))
+
 # [0.3168.0](https://github.com/lightdash/lightdash/compare/0.3167.3...0.3168.0) (2026-06-16)
 
 
