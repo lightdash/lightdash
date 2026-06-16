@@ -1,4 +1,7 @@
+import { zodSchema } from '@ai-sdk/provider-utils';
+import { type z } from 'zod';
 import {
+    type AgentInputSchema,
     type AgentToModelOutput,
     type McpErrorResult,
     type McpStructuredResult,
@@ -33,6 +36,13 @@ export const defaultAgentToModelOutput: AgentToModelOutput<
     output.metadata.status === 'error'
         ? { type: 'error-text', value: output.result }
         : { type: 'text', value: output.result };
+
+export const createAgentInputSchema = <TInput extends z.ZodTypeAny>(
+    inputSchema: TInput,
+): AgentInputSchema<TInput> =>
+    zodSchema(inputSchema, {
+        useReferences: true,
+    });
 
 const text = (textContent: string): McpTextResult => ({
     content: [{ type: 'text', text: textContent }],

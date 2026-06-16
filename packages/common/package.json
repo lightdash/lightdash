@@ -34,6 +34,7 @@
     "release": "pnpm publish --no-git-checks --access public"
   },
   "dependencies": {
+    "@ai-sdk/provider-utils": "4.0.27",
     "@casl/ability": "6.8.0",
     "@types/lodash": "4.14.202",
     "ajv": "8.18.0",

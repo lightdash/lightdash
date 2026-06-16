@@ -1,3 +1,4 @@
+import { type Schema } from '@ai-sdk/provider-utils';
 import { type z } from 'zod';
 import {
     ToolDefinitionWithMcpOutputImpl,
@@ -80,6 +81,10 @@ export type McpToolConfig =
     | McpToolConfigWithoutOutput
     | McpToolConfigWithOutput<McpOutputSchema>;
 
+export type AgentInputSchema<TInput extends z.ZodTypeAny> = Schema<
+    z.infer<TInput>
+>;
+
 type AgentToolViewBase<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
@@ -87,7 +92,7 @@ type AgentToolViewBase<
     name: TName;
     title: string;
     description: string;
-    inputSchema: TInput;
+    inputSchema: AgentInputSchema<TInput>;
 };
 
 export type AgentToolView<
