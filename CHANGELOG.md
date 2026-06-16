@@ -1,3 +1,10 @@
+# [0.3177.0](https://github.com/lightdash/lightdash/compare/0.3176.0...0.3177.0) (2026-06-16)
+
+
+### Features
+
+* **slack:** modern AI agent streaming cards behind a flag ([#24374](https://github.com/lightdash/lightdash/issues/24374)) ([ac488e8](https://github.com/lightdash/lightdash/commit/ac488e876ff8a72658469d96648ffa3f4fdcdd64))
+
 # [0.3176.0](https://github.com/lightdash/lightdash/compare/0.3175.0...0.3176.0) (2026-06-16)
 
 
