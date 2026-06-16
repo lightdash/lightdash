@@ -8,7 +8,7 @@ import { RepoSource } from './RepoFs';
  * service) can record metrics without coupling this layer to Prometheus.
  */
 export type RepoFsTimingEvent =
-    | { kind: 'tree'; durationMs: number }
+    | { kind: 'tree'; durationMs: number; outcome: 'success' | 'error' }
     | {
           kind: 'file';
           durationMs: number;
@@ -52,12 +52,25 @@ export const createGithubRepoSource = ({
         label: `${owner}/${repo}@${branch}${root ? `/${root}` : ''}`,
         listAllPaths: async () => {
             const start = Date.now();
-            const { files, truncated } = await getRepoTree({
-                owner,
-                repo,
-                branch,
-                token,
-            });
+            let treeResult;
+            try {
+                treeResult = await getRepoTree({
+                    owner,
+                    repo,
+                    branch,
+                    token,
+                });
+            } catch (error) {
+                // Count the request even when it fails (e.g. rate limit) so the
+                // GitHub request metric reflects every round-trip, then rethrow.
+                onTiming?.({
+                    kind: 'tree',
+                    durationMs: Date.now() - start,
+                    outcome: 'error',
+                });
+                throw error;
+            }
+            const { files, truncated } = treeResult;
             const durationMs = Date.now() - start;
             Logger.info(
                 `[repoShell] github tree fetched in ${durationMs}ms (${
@@ -72,7 +85,7 @@ export const createGithubRepoSource = ({
                     durationMs,
                 },
             );
-            onTiming?.({ kind: 'tree', durationMs });
+            onTiming?.({ kind: 'tree', durationMs, outcome: 'success' });
             if (!root) return { files, truncated };
             const scoped = files
                 .filter((f) => f.path.startsWith(prefix))
