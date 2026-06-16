@@ -51,6 +51,11 @@ import {
     toolDiscoverFieldsOutputSchema,
 } from './toolDiscoverFieldsArgs';
 import {
+    TOOL_DISCOVER_REPOS_DESCRIPTION,
+    toolDiscoverReposArgsSchema,
+    toolDiscoverReposOutputSchema,
+} from './toolDiscoverReposArgs';
+import {
     TOOL_EDIT_CONTENT_DESCRIPTION,
     toolEditContentArgsSchema,
     toolEditContentOutputSchema,
@@ -60,6 +65,11 @@ import {
     toolEditDbtProjectArgsSchema,
     toolEditDbtProjectOutputSchema,
 } from './toolEditDbtProjectArgs';
+import {
+    TOOL_EXPLORE_REPO_DESCRIPTION,
+    toolExploreRepoArgsSchema,
+    toolExploreRepoOutputSchema,
+} from './toolExploreRepoArgs';
 import {
     TOOL_FIND_CHARTS_DESCRIPTION,
     toolFindChartsArgsSchema,
@@ -170,16 +180,6 @@ import {
     toolReadPinnedThreadArgsSchema,
     toolReadPinnedThreadOutputSchema,
 } from './toolReadPinnedThreadArgs';
-import {
-    TOOL_EXPLORE_REPO_DESCRIPTION,
-    toolExploreRepoArgsSchema,
-    toolExploreRepoOutputSchema,
-} from './toolExploreRepoArgs';
-import {
-    TOOL_DISCOVER_REPOS_DESCRIPTION,
-    toolDiscoverReposArgsSchema,
-    toolDiscoverReposOutputSchema,
-} from './toolDiscoverReposArgs';
 import {
     TOOL_RUN_CONTENT_QUERY_DESCRIPTION,
     toolRunContentQueryArgsSchema,
