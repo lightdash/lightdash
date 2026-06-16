@@ -10,7 +10,7 @@ overrides:
   '@types/react-dom': 19.2.2
   linkifyjs: 4.3.2
   axios: 1.16.0
-  form-data@2.5.3: 2.5.5
+  form-data@2.5.3: 2.5.6
   form-data@3.0.1: 3.0.5
   form-data@4.0.0: 4.0.6
   form-data@4.0.2: 4.0.6
@@ -10212,8 +10212,8 @@ packages:
   form-data-encoder@1.7.2:
     resolution: {integrity: sha512-qfqtYan3rxrnCk1VYaA4H+Ms9xdpPqvLZa6xmMgFvhO32x7/3J/ExcTd6qpxM0vH2GdMI+poehyBZvqfMTto8A==}
 
-  form-data@2.5.5:
-    resolution: {integrity: sha512-jqdObeR2rxZZbPSGL+3VckHMYtu+f9//KXBsVny6JSX/pa38Fy+bGjuG8eW/H6USNQWhLi8Num++cU2yOCNz4A==}
+  form-data@2.5.6:
+    resolution: {integrity: sha512-Ogz/E85h9tlfJzpI6TuFpGcHZFhLrb9Gw8wq9v40CxSCPnv7ahKr6Xgtkn0KYCDQJ8DNn5VoMO8EXr9V5PadyA==}
     engines: {node: '>= 0.12'}
 
   form-data@3.0.5:
@@ -21921,7 +21921,7 @@ snapshots:
       '@types/node': 22.13.1
       axios: 1.16.0
       eventemitter3: 3.1.2
-      form-data: 2.5.5
+      form-data: 2.5.6
       is-electron: 2.2.2
       is-stream: 1.1.0
       p-queue: 6.6.2
@@ -23471,7 +23471,7 @@ snapshots:
       '@types/caseless': 0.12.5
       '@types/node': 22.13.1
       '@types/tough-cookie': 4.0.5
-      form-data: 2.5.5
+      form-data: 2.5.6
 
   '@types/resolve@1.20.2': {}
 
@@ -27395,12 +27395,12 @@ snapshots:
 
   form-data-encoder@1.7.2: {}
 
-  form-data@2.5.5:
+  form-data@2.5.6:
     dependencies:
       asynckit: 0.4.0
       combined-stream: 1.0.8
       es-set-tostringtag: 2.1.0
-      hasown: 2.0.2
+      hasown: 2.0.4
       mime-types: 2.1.35
       safe-buffer: 5.2.1
 
