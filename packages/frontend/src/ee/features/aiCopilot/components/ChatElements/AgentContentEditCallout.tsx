@@ -95,6 +95,7 @@ export const AgentContentEditCallout: FC<Props> = ({
                                     size="xs"
                                     variant="default"
                                     loading={isEnabling}
+                                    disabled={isEnabling}
                                     onClick={() => setConfirmOpened((o) => !o)}
                                 >
                                     Enable content editing
