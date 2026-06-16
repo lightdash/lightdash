@@ -10,21 +10,16 @@
 }
 
 .filterButtonSelected {
-    border: 1px solid var(--mantine-color-indigo-2);
-    background: var(--mantine-color-indigo-0);
+    border: 1px solid var(--mantine-color-indigo-outline);
+    background: var(--mantine-color-indigo-light);
     box-shadow: var(--mantine-shadow-subtle);
-
-    @mixin dark {
-        background: var(--mantine-color-indigo-8);
-        border-color: var(--mantine-color-indigo-4);
-    }
 }
 
 .filterButtonSelected:hover {
-    border: 1px solid var(--mantine-color-indigo-3);
-    background: var(--mantine-color-indigo-1);
+    border: 1px solid var(--mantine-color-indigo-outline);
+    background: var(--mantine-color-indigo-light-hover);
+}
 
-    @mixin dark {
-        background: var(--mantine-color-indigo-9);
-    }
+.filterButtonLabel {
+    height: 24px;
 }
