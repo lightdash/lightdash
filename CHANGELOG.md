@@ -1,3 +1,10 @@
+# [0.3174.0](https://github.com/lightdash/lightdash/compare/0.3173.0...0.3174.0) (2026-06-16)
+
+
+### Features
+
+* **timezone:** cast day-or-coarser DATE_TRUNCs to a real DATE (GLITCH-452) ([#24251](https://github.com/lightdash/lightdash/issues/24251)) ([e149743](https://github.com/lightdash/lightdash/commit/e149743086556de99ede821d471d6674da748dd4)), closes [#22895](https://github.com/lightdash/lightdash/issues/22895) [#17](https://github.com/lightdash/lightdash/issues/17) [#18](https://github.com/lightdash/lightdash/issues/18) [#11](https://github.com/lightdash/lightdash/issues/11)
+
 # [0.3173.0](https://github.com/lightdash/lightdash/compare/0.3172.0...0.3173.0) (2026-06-16)
 
 
