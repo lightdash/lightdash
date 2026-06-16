@@ -24,6 +24,7 @@ import { useAgentSuggestions } from '../../hooks/useAgentSuggestions';
 import { AgentSelector } from '../AgentSelector';
 import { type Agent } from '../AgentSelector/AgentSelectorUtils';
 import styles from './AgentChatInput.module.css';
+import { AgentContentEditCallout } from './AgentContentEditCallout';
 import { AgentSuggestionChips } from './AgentSuggestionChips';
 import {
     createContentMentionExtension,
@@ -446,6 +447,22 @@ export const AgentChatInput = ({
         handleImpression,
         isThreadInput,
     ]);
+    const contentEditCallout =
+        postResponseMode &&
+        suggestionsQuery.data?.contentEditBlocked &&
+        projectUuid &&
+        agentUuid &&
+        threadUuid ? (
+            <AgentContentEditCallout
+                projectUuid={projectUuid}
+                agentUuid={agentUuid}
+                threadUuid={threadUuid}
+                onResend={(message) =>
+                    onSubmitRef.current({ message, toolHints: [] })
+                }
+            />
+        ) : null;
+
     const shouldReserveEmptyStateSuggestions =
         !isThreadInput &&
         emptyStateMode &&
@@ -454,13 +471,16 @@ export const AgentChatInput = ({
         (suggestionsQuery.isLoading || suggestionsQuery.isFetching);
 
     const renderChipRow = (extraClassName = '', reserve = false) =>
-        (chipRow || reserve) && (
+        (chipRow || contentEditCallout || reserve) && (
             <Box
                 className={`${styles.chipReveal} ${extraClassName} ${
                     chipsNearBottom ? '' : styles.chipHidden
-                } ${!chipRow ? styles.chipReserved : ''}`}
-                aria-hidden={!chipsNearBottom || !chipRow}
+                } ${!chipRow && !contentEditCallout ? styles.chipReserved : ''}`}
+                aria-hidden={
+                    !chipsNearBottom || (!chipRow && !contentEditCallout)
+                }
             >
+                {contentEditCallout}
                 {chipRow ?? <Box className={styles.chipTrayReserve} />}
             </Box>
         );
