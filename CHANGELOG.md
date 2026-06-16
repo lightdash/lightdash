@@ -1,3 +1,15 @@
+## [0.3170.2](https://github.com/lightdash/lightdash/compare/0.3170.1...0.3170.2) (2026-06-16)
+
+
+### Bug Fixes
+
+* improve compilation source filter ([#24354](https://github.com/lightdash/lightdash/issues/24354)) ([e01aef3](https://github.com/lightdash/lightdash/commit/e01aef330053168211a7b976641d73816987b0f0)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Performance Improvements
+
+* **backend:** parallelize setup loads in getAsyncQueryResults ([#24345](https://github.com/lightdash/lightdash/issues/24345)) ([88527dc](https://github.com/lightdash/lightdash/commit/88527dcf2818fd84b33f9453fdc038425ef2619b))
+
 ## [0.3170.1](https://github.com/lightdash/lightdash/compare/0.3170.0...0.3170.1) (2026-06-16)
 
 
