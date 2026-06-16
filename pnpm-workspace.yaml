@@ -49,3 +49,5 @@ minimumReleaseAgeExclude:
   - form-data@4.0.6 || 3.0.5
   # Renovate security update: js-yaml@4.2.0
   - js-yaml@4.2.0
+  # Renovate security update: vite@7.3.5
+  - vite@7.3.5
