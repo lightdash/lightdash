@@ -1262,6 +1262,7 @@ export class SchedulerClient {
                 requestMethod: payload.requestMethod,
                 isPreview: payload.isPreview,
                 jobUuid: payload.jobUuid,
+                compilationSource: payload.compilationSource,
             },
         });
 

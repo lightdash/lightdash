@@ -26,6 +26,7 @@ import {
     calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
+    CompilationSource,
     CompiledDimension,
     ContentType,
     convertCustomMetricToDbt,
@@ -1929,7 +1930,7 @@ export class ProjectService extends BaseService {
         userUuid: string;
         projectUuid: string;
         explores: (Explore | ExploreError)[];
-        compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project';
+        compilationSource: CompilationSource;
         jobUuid?: string | null;
         requestMethod?: string | null;
         projectConfigDefaults?: ProjectDefaults;
@@ -2935,6 +2936,7 @@ export class ProjectService extends BaseService {
                 jobUuid: job.jobUuid,
                 isPreview: savedProject.type === ProjectType.PREVIEW,
                 userUuid: account.user.id,
+                compilationSource: 'project_connection_form',
             });
         } else {
             // Nothing to test and compile, just update the job status
@@ -3045,6 +3047,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         method: RequestMethod,
         jobUuid: string,
+        compilationSource: CompilationSource = 'refresh_dbt',
     ) {
         const totalStartTime = performance.now();
 
@@ -3183,7 +3186,7 @@ export class ProjectService extends BaseService {
                                 userUuid: user.userUuid,
                                 projectUuid,
                                 explores,
-                                compilationSource: 'refresh_dbt',
+                                compilationSource,
                                 jobUuid: job.jobUuid,
                                 requestMethod: method,
                                 projectConfigDefaults:

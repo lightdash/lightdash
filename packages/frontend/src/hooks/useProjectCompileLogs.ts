@@ -20,7 +20,11 @@ const getProjectCompileLogs = async (
     paginateArgs: KnexPaginateArgs,
     sortBy?: 'created_at',
     sortDirection?: 'asc' | 'desc',
-    source?: 'cli_deploy' | 'refresh_dbt' | 'create_project',
+    source?:
+        | 'cli_deploy'
+        | 'refresh_dbt'
+        | 'create_project'
+        | 'project_connection_form',
 ): Promise<ApiProjectCompileLogsResponse['results']> => {
     const params = new URLSearchParams({
         page: paginateArgs.page.toString(),
@@ -55,7 +59,11 @@ export const useProjectCompileLogs = ({
     paginateArgs?: KnexPaginateArgs;
     sortBy?: 'created_at';
     sortDirection?: 'asc' | 'desc';
-    source?: 'cli_deploy' | 'refresh_dbt' | 'create_project';
+    source?:
+        | 'cli_deploy'
+        | 'refresh_dbt'
+        | 'create_project'
+        | 'project_connection_form';
 }): UseInfiniteQueryResult<
     ApiProjectCompileLogsResponse['results'],
     ApiError
