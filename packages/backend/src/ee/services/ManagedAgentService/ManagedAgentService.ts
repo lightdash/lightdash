@@ -1528,21 +1528,23 @@ export class ManagedAgentService extends BaseService {
             // Main message: compact summary with CTA
             const mainBlocks: KnownBlock[] = [
                 {
-                    type: 'section',
-                    text: {
-                        type: 'mrkdwn',
-                        text: `:zap: *Autopilot completed a health check*\n${summaryParts.length > 0 ? summaryParts.join('  ·  ') : '_No actions this run_'}`,
-                    },
-                    accessory: {
-                        type: 'button',
-                        text: {
-                            type: 'plain_text',
-                            text: 'View activity',
-                            emoji: true,
+                    type: 'markdown',
+                    text: `### Autopilot health check\n${summaryParts.length > 0 ? summaryParts.join('  ·  ') : '_No actions this run_'}`,
+                } as unknown as KnownBlock,
+                {
+                    type: 'actions',
+                    elements: [
+                        {
+                            type: 'button',
+                            text: {
+                                type: 'plain_text',
+                                text: 'View activity',
+                                emoji: true,
+                            },
+                            url: activityUrl,
                         },
-                        url: activityUrl,
-                    },
-                },
+                    ],
+                } as KnownBlock,
             ];
 
             const mainMessage = await this.slackClient.postMessage({
@@ -1576,12 +1578,9 @@ export class ManagedAgentService extends BaseService {
                         text: chunk,
                         blocks: [
                             {
-                                type: 'section',
-                                text: {
-                                    type: 'mrkdwn',
-                                    text: chunk,
-                                },
-                            },
+                                type: 'markdown',
+                                text: chunk,
+                            } as unknown as KnownBlock,
                         ],
                     });
                 }

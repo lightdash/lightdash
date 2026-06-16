@@ -812,7 +812,7 @@ export class AiAgentService extends BaseService {
             });
 
             return new URL(
-                `/api/v1/slack/preview/${previewId}`,
+                `/api/v1/slack/card-image/${previewId}`,
                 this.lightdashConfig.siteUrl,
             ).href;
         }
