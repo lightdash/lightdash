@@ -1345,11 +1345,11 @@ export class AiAgentService extends BaseService {
             },
         });
 
-        const contentEditBlocked = Boolean(
+        const latestText = threadContext?.latestAssistantTurn?.text;
+        const contentEditBlocked =
             !agent.enableContentTools &&
-                threadContext?.latestAssistantTurn?.text != null &&
-                detectContentEditBlock(threadContext.latestAssistantTurn.text),
-        );
+            latestText !== undefined &&
+            detectContentEditBlock(latestText);
 
         return { chips, contentEditBlocked };
     }
