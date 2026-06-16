@@ -10,6 +10,7 @@ import {
     ClientProviderMap,
     ClientRepository,
 } from './clients/ClientRepository';
+import { setGithubRateLimitObserver } from './clients/github/Github';
 import { LightdashConfig } from './config/parseConfig';
 import Logger from './logging/logger';
 import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
@@ -187,6 +188,9 @@ export default class SchedulerApp {
         registerOAuthRefreshStrategies();
 
         this.prometheusMetrics.start();
+        setGithubRateLimitObserver((rl) =>
+            this.prometheusMetrics.observeGithubRateLimit(rl),
+        );
         this.prometheusMetrics.monitorDatabase(this.database);
         this.prometheusMetrics.monitorPreAggregates(this.database);
         this.prometheusMetrics.monitorEventMetrics(this.analyticsEventEmitter);

@@ -82,10 +82,68 @@ export const userTokenHasRepoAccess = async (
     }
 };
 
+export type GithubRateLimitObservation = {
+    resource: string;
+    limit: number;
+    remaining: number;
+    used: number;
+};
+
+let githubRateLimitObserver:
+    | ((observation: GithubRateLimitObservation) => void)
+    | null = null;
+
+/** Register a sink for GitHub rate-limit headers (e.g. Prometheus gauges). The
+ *  installation limit is shared across all GitHub usage, so every Octokit
+ *  response (success or error) reports `x-ratelimit-*` here. */
+export const setGithubRateLimitObserver = (
+    observer: ((observation: GithubRateLimitObservation) => void) | null,
+): void => {
+    githubRateLimitObserver = observer;
+};
+
+const reportRateLimitHeaders = (
+    headers: Record<string, string | number | undefined> | undefined,
+): void => {
+    if (!githubRateLimitObserver || !headers) return;
+    const resource = headers['x-ratelimit-resource'];
+    const limit = Number(headers['x-ratelimit-limit']);
+    if (typeof resource !== 'string' || Number.isNaN(limit)) return;
+    githubRateLimitObserver({
+        resource,
+        limit,
+        remaining: Number(headers['x-ratelimit-remaining']),
+        used: Number(headers['x-ratelimit-used']),
+    });
+};
+
+/** Report `x-ratelimit-*` from every response (success and error) of an Octokit
+ *  instance to the registered observer, then return it. */
+const withRateLimitObserver = (octokit: OctokitRest): OctokitRest => {
+    octokit.hook.after('request', (response) => {
+        reportRateLimitHeaders(
+            response.headers as Record<string, string | number | undefined>,
+        );
+    });
+    octokit.hook.error('request', (error) => {
+        reportRateLimitHeaders(
+            (
+                error as {
+                    response?: {
+                        headers?: Record<string, string | number | undefined>;
+                    };
+                }
+            )?.response?.headers,
+        );
+        throw error;
+    });
+    return octokit;
+};
+
 export const getOctokitRestForUser = (
     authToken: string,
 ): { octokit: OctokitRest; headers: { authorization: string } } => {
-    const octokit = new OctokitRest();
+    const octokit = withRateLimitObserver(new OctokitRest());
     const headers = {
         authorization: `Bearer ${authToken}`,
     };
@@ -113,14 +171,16 @@ export const getOctokitRestForApp = (installationId: string): OctokitRest => {
     if (appId === undefined)
         throw new Error('Github integration not configured');
 
-    return new OctokitRest({
-        authStrategy: createAppAuth,
-        auth: {
-            appId,
-            privateKey,
-            installationId,
-        },
-    });
+    return withRateLimitObserver(
+        new OctokitRest({
+            authStrategy: createAppAuth,
+            auth: {
+                appId,
+                privateKey,
+                installationId,
+            },
+        }),
+    );
 };
 
 /** Resolve the GitHub App's bot account (login + numeric id) for an
