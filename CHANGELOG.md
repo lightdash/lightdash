@@ -1,3 +1,18 @@
+# [0.3172.0](https://github.com/lightdash/lightdash/compare/0.3171.0...0.3172.0) (2026-06-16)
+
+
+### Features
+
+* **data-apps:** add per-turn timeline (TTFT + slowest turn) to generation telemetry ([#24349](https://github.com/lightdash/lightdash/issues/24349)) ([95484c9](https://github.com/lightdash/lightdash/commit/95484c9311cfdccb4bf28862dd458066b97ae979))
+* **formatting:** render timestamp metrics in the project timezone ([#24351](https://github.com/lightdash/lightdash/issues/24351)) ([83f1806](https://github.com/lightdash/lightdash/commit/83f18068cbd003ae316d76e526d34f8e55f61e35))
+
+
+### Performance Improvements
+
+* **backend:** dedup getSummary in searchFieldUniqueValues ([#24355](https://github.com/lightdash/lightdash/issues/24355)) ([aee6618](https://github.com/lightdash/lightdash/commit/aee6618178e69593a53158e22feed693f6366ba1))
+* **content-as-code:** reduce redundant reloads on chart upsert ([#24357](https://github.com/lightdash/lightdash/issues/24357)) ([57859dd](https://github.com/lightdash/lightdash/commit/57859dd5dad97dc3144b329848bcc06f3c52311b))
+* **embed:** thread preloaded saved chart across service boundary ([#24356](https://github.com/lightdash/lightdash/issues/24356)) ([45cdd21](https://github.com/lightdash/lightdash/commit/45cdd21063941012edb7989cc9c268456d4136c5))
+
 # [0.3171.0](https://github.com/lightdash/lightdash/compare/0.3170.2...0.3171.0) (2026-06-16)
 
 
