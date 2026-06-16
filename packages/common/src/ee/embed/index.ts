@@ -171,6 +171,11 @@ export const EmbedJwtSchema = z
                 appUuid: z.string(),
                 isPreview: z.boolean().optional(),
             }),
+            z.object({
+                type: z.literal('aiAgent'),
+                projectUuid: z.string().optional(),
+                agentUuid: z.string(),
+            }),
         ]),
         writeActions: EmbedWriteActionsSchema.optional(),
         iat: z.number().optional(),
@@ -246,12 +251,19 @@ export type EmbedJwtContentDataApp = CommonDataAppEmbedJwtContent & {
     appUuid: string;
 };
 
+export type EmbedJwtContentAiAgent = {
+    type: 'aiAgent';
+    projectUuid?: string;
+    agentUuid: string;
+};
+
 export type CreateEmbedJwt = {
     content:
         | EmbedJwtContentDashboardUuid
         | EmbedJwtContentDashboardSlug
         | EmbedJwtContentChart
-        | EmbedJwtContentDataApp;
+        | EmbedJwtContentDataApp
+        | EmbedJwtContentAiAgent;
     writeActions?: EmbedWriteActions;
     userAttributes?: { [key: string]: string };
     user?: {
@@ -279,6 +291,12 @@ export function isChartContent(
     content: CreateEmbedJwt['content'],
 ): content is EmbedJwtContentChart {
     return content.type === 'chart';
+}
+
+export function isAiAgentContent(
+    content: CreateEmbedJwt['content'],
+): content is EmbedJwtContentAiAgent {
+    return content.type === 'aiAgent';
 }
 
 export function isDashboardContent(

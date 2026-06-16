@@ -4,8 +4,10 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { getDiscoverFields } from '../agents/discoverFields/tool';
 import { getCreateContent } from './createContent';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
+import { getDiscoverRepos } from './discoverRepos';
 import { getEditContent } from './editContent';
 import { getEditDbtProject } from './editDbtProject';
+import { getExploreRepo } from './exploreRepo';
 import { getFindContent } from './findContent';
 import { getFindExplores } from './findExplores';
 import { getFindFields } from './findFields';
@@ -23,7 +25,6 @@ import { getListProjects } from './listProjects';
 import { getListWarehouseTables } from './listWarehouseTables';
 import { getLoadSkill } from './loadSkill';
 import { getReadContent } from './readContent';
-import { getRepoShell } from './repoShell';
 import { getRunContentQuery } from './runContentQuery';
 import { getRunSavedChart } from './runSavedChart';
 import { getRunSql } from './runSql';
@@ -145,7 +146,8 @@ const makeAgentTools = () => {
         setupPreviewDeploy: getSetupPreviewDeploy({
             setupPreviewDeploy: noop,
         }),
-        repoShell: getRepoShell({ repoShell: noop }),
+        exploreRepo: getExploreRepo({ exploreRepo: noop }),
+        discoverRepos: getDiscoverRepos({ discoverRepos: noop }),
         readContent: getReadContent({ readContent: noop }),
         runContentQuery: getRunContentQuery({
             enableDataAccess: true,

@@ -307,15 +307,16 @@ export const ToolCallDescription: FC<{
         case 'improveContext':
         case 'loadSkill':
         case 'loadProjectContext':
-        case 'repoShell':
-            const toolArgsRepoShell = toolCall.toolArgs as {
+        case 'exploreRepo':
+            const toolArgsExploreRepo = toolCall.toolArgs as {
                 command?: string;
             };
             return (
                 <RepoShellToolCallDescription
-                    command={toolArgsRepoShell.command ?? null}
+                    command={toolArgsExploreRepo.command ?? null}
                 />
             );
+        case 'discoverRepos':
         case 'proposeChange':
         case 'editDbtProject':
         case 'setupPreviewDeploy':

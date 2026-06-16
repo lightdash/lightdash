@@ -59,6 +59,7 @@ import {
     ApiUpdateEvaluationRequest,
     ApiUpdateUserAgentPreferences,
     ApiUpdateUserAgentPreferencesResponse,
+    assertEmbeddedAuth,
     assertRegisteredAccount,
     KnexPaginateArgs,
     ParameterError,
@@ -101,9 +102,20 @@ export class AiAgentController extends BaseController {
         @Request() req: express.Request,
         @Path() projectUuid: string,
     ): Promise<ApiAiAgentSummaryResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results: await this.getAiAgentService().listEmbedAgents(
+                    req.account,
+                    projectUuid,
+                ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.getAiAgentService().listAgents(
@@ -416,8 +428,21 @@ export class AiAgentController extends BaseController {
         @Path() projectUuid: string,
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results: await this.getAiAgentService().getEmbedAgentDetails(
+                    req.account,
+                    projectUuid,
+                    agentUuid,
+                ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         const agent = await this.getAiAgentService().getAgent(
             toSessionUser(req.account),
             agentUuid,
@@ -511,8 +536,22 @@ export class AiAgentController extends BaseController {
         @Path() projectUuid: string,
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentModelOptionsResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedAgentModelOptions(
+                        req.account,
+                        projectUuid,
+                        agentUuid,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         const models = await this.getAiAgentService().getModelOptions(
             toSessionUser(req.account),
             projectUuid,
@@ -536,8 +575,22 @@ export class AiAgentController extends BaseController {
         @Query() afterMessageUuid?: string,
         @Query() enableSqlMode?: boolean,
     ): Promise<ApiAgentSuggestionsResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            await this.getAiAgentService().getEmbedAgentDetails(
+                req.account,
+                projectUuid,
+                agentUuid,
+            );
+            return {
+                status: 'ok',
+                results: { chips: [] },
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         const results = await this.getAiAgentService().getAgentSuggestions(
             toSessionUser(req.account),
             {
@@ -623,8 +676,22 @@ export class AiAgentController extends BaseController {
         @Path() projectUuid: string,
         @Path() agentUuid: string,
     ): Promise<ApiAiAgentVerifiedQuestionsResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedVerifiedQuestions(
+                        req.account,
+                        projectUuid,
+                        agentUuid,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.getAiAgentService().getVerifiedQuestions(
@@ -795,8 +862,22 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() threadUuid: string,
     ): Promise<ApiAiAgentThreadResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results: await this.getAiAgentService().getEmbedAgentThread(
+                    req.account,
+                    projectUuid,
+                    agentUuid,
+                    threadUuid,
+                ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.getAiAgentService().getAgentThread(
@@ -844,8 +925,22 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Body() body: ApiAiAgentThreadCreateRequest,
     ): Promise<ApiAiAgentThreadCreateResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results: await this.getAiAgentService().createEmbedAgentThread(
+                    req.account,
+                    projectUuid,
+                    agentUuid,
+                    body,
+                ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.getAiAgentService().createAgentThread(
@@ -867,8 +962,24 @@ export class AiAgentController extends BaseController {
         @Path() threadUuid: string,
         @Body() body: ApiAiAgentThreadMessageCreateRequest,
     ): Promise<ApiAiAgentThreadMessageCreateResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().createEmbedAgentThreadMessage(
+                        req.account,
+                        projectUuid,
+                        agentUuid,
+                        threadUuid,
+                        body,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.getAiAgentService().createAgentThreadMessage(
@@ -925,16 +1036,32 @@ export class AiAgentController extends BaseController {
         @Path() threadUuid: string,
         @Body() body?: ApiAiAgentThreadStreamRequest,
     ): Promise<void> {
-        assertRegisteredAccount(req.account);
-        const stream = await this.getAiAgentService().streamAgentThreadResponse(
-            toSessionUser(req.account),
-            {
-                agentUuid,
-                threadUuid,
-                enableSqlMode: body?.enableSqlMode ?? false,
-                toolHints: body?.toolHints ?? [],
-            },
-        );
+        const stream =
+            req.account?.authentication.type === 'jwt'
+                ? await (() => {
+                      assertEmbeddedAuth(req.account);
+                      return this.getAiAgentService().streamEmbedAgentThreadResponse(
+                          req.account,
+                          projectUuid,
+                          {
+                              agentUuid,
+                              threadUuid,
+                              toolHints: body?.toolHints ?? [],
+                          },
+                      );
+                  })()
+                : await (() => {
+                      assertRegisteredAccount(req.account);
+                      return this.getAiAgentService().streamAgentThreadResponse(
+                          toSessionUser(req.account),
+                          {
+                              agentUuid,
+                              threadUuid,
+                              enableSqlMode: body?.enableSqlMode ?? false,
+                              toolHints: body?.toolHints ?? [],
+                          },
+                      );
+                  })();
 
         /**
          * @ref https://github.com/lukeautry/tsoa/issues/44#issuecomment-357784246
@@ -1088,18 +1215,32 @@ export class AiAgentController extends BaseController {
         @Path() messageUuid: string,
         @Body() body: { savedQueryUuid: string | null },
     ): Promise<ApiSuccessEmpty> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
-        await this.getAiAgentService().updateMessageSavedQuery(
-            toSessionUser(req.account),
-            {
-                savedQueryUuid: body.savedQueryUuid,
-                agentUuid,
-                threadUuid,
-                messageUuid,
-            },
-        );
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            await this.getAiAgentService().updateEmbedMessageSavedQuery(
+                req.account,
+                projectUuid,
+                {
+                    savedQueryUuid: body.savedQueryUuid,
+                    agentUuid,
+                    threadUuid,
+                    messageUuid,
+                },
+            );
+        } else {
+            assertRegisteredAccount(req.account);
+            await this.getAiAgentService().updateMessageSavedQuery(
+                toSessionUser(req.account),
+                {
+                    savedQueryUuid: body.savedQueryUuid,
+                    agentUuid,
+                    threadUuid,
+                    messageUuid,
+                },
+            );
+        }
 
         return {
             status: 'ok',
@@ -1168,9 +1309,22 @@ export class AiAgentController extends BaseController {
         @Path() agentUuid: string,
         @Path() artifactUuid: string,
     ): Promise<ApiAiAgentArtifactResponseTSOACompat> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results: (await this.getAiAgentService().getEmbedArtifact(
+                    req.account,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                )) as unknown as AiArtifactTSOACompat,
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: (await this.getAiAgentService().getArtifact(
@@ -1193,9 +1347,23 @@ export class AiAgentController extends BaseController {
         @Path() artifactUuid: string,
         @Path() versionUuid: string,
     ): Promise<ApiAiAgentArtifactResponseTSOACompat> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
 
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results: (await this.getAiAgentService().getEmbedArtifact(
+                    req.account,
+                    projectUuid,
+                    agentUuid,
+                    artifactUuid,
+                    versionUuid,
+                )) as unknown as AiArtifactTSOACompat,
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             // Use simplified type for TSOA Compat
@@ -1223,8 +1391,24 @@ export class AiAgentController extends BaseController {
         @Path() artifactUuid: string,
         @Path() versionUuid: string,
     ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedArtifactVizQuery(
+                        req.account,
+                        projectUuid,
+                        agentUuid,
+                        artifactUuid,
+                        versionUuid,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results: await this.getAiAgentService().getArtifactVizQuery(
@@ -1311,8 +1495,25 @@ export class AiAgentController extends BaseController {
         @Path() versionUuid: string,
         @Path() chartIndex: number,
     ): Promise<ApiAiAgentThreadMessageVizQueryResponse> {
-        assertRegisteredAccount(req.account);
         this.setStatus(200);
+
+        if (req.account?.authentication.type === 'jwt') {
+            assertEmbeddedAuth(req.account);
+            return {
+                status: 'ok',
+                results:
+                    await this.getAiAgentService().getEmbedDashboardArtifactChartVizQuery(
+                        req.account,
+                        projectUuid,
+                        agentUuid,
+                        artifactUuid,
+                        versionUuid,
+                        chartIndex,
+                    ),
+            };
+        }
+
+        assertRegisteredAccount(req.account);
         return {
             status: 'ok',
             results:

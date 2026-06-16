@@ -37,8 +37,7 @@ import MantineIcon from '../common/MantineIcon';
 import { CompilationHistoryTopToolbar } from './CompilationHistoryTopToolbar';
 import { CompilationLogDrawer } from './CompilationLogDrawer';
 import { CompilationSourceBadge } from './CompilationSourceBadge';
-
-type CompilationSource = 'cli_deploy' | 'refresh_dbt' | 'create_project';
+import { type CompilationSource } from './types';
 
 type CompilationHistoryTableProps = {
     projectUuid: string;
@@ -90,12 +89,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
         if (sorting.length === 0) return undefined;
         return sorting[0].desc ? 'desc' : 'asc';
     }, [sorting]);
-
-    const hasActiveFilters = selectedSource !== null;
-
-    const resetFilters = useCallback(() => {
-        setSelectedSource(null);
-    }, []);
 
     const { data, fetchNextPage, isError, isFetching, isLoading } =
         useProjectCompileLogs({
@@ -292,10 +285,6 @@ const CompilationHistoryTable: FC<CompilationHistoryTableProps> = ({
             <CompilationHistoryTopToolbar
                 selectedSource={selectedSource}
                 setSelectedSource={setSelectedSource}
-                isFetching={isFetching || isLoading}
-                currentResultsCount={totalFetched}
-                hasActiveFilters={hasActiveFilters}
-                resetFilters={resetFilters}
             />
         ),
         mantinePaperProps: {

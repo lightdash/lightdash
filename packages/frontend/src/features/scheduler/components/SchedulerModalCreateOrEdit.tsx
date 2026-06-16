@@ -181,7 +181,7 @@ const useSchedulerFormModal = ({
                         : null;
                 },
             },
-            filters: (value) => {
+            dashboardFilters: (value) => {
                 if (!value) {
                     // Dashboard filters are undefined/null for charts
                     return null;
@@ -222,7 +222,9 @@ const useSchedulerFormModal = ({
     const isThresholdAlertWithNoFields =
         isThresholdAlert && Object.keys(numericMetrics).length === 0;
 
-    const requiredFiltersWithoutValues = (form.values.filters ?? []).filter(
+    const requiredFiltersWithoutValues = (
+        form.values.dashboardFilters ?? []
+    ).filter(
         (filter) =>
             filter.required && (!filter.values || filter.values.length === 0),
     );
@@ -416,6 +418,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
 }) => {
     // URL param handling is done in SchedulerModal parent component
     const schedulerUuid = schedulerUuidToEdit;
+    const projectUuid = useProjectUuid();
 
     const {
         isLoading,
@@ -567,6 +570,7 @@ export const SchedulerModalCreateOrEdit: FC<Props> = ({
                                 resource={formResource}
                                 savedSchedulerData={savedSchedulerData}
                                 isThresholdAlert={isThresholdAlert}
+                                projectUuid={projectUuid}
                                 onSubmit={handleSubmit}
                                 onSendNow={handleSendNow}
                                 loading={isMutating || isLoading}

@@ -222,7 +222,7 @@ export type ApiPullRequestPreviewResponse = {
 
 /**
  * The project's source files, read from the read-only repo virtual file system
- * (the same VFS the agent's repoShell sees). Used by the chat input's
+ * (the same VFS the agent's exploreRepo tool sees). Used by the chat input's
  * `@`-mention file picker. Paths are relative to the project's dbt sub-folder,
  * so an @-mentioned path is one the agent can act on directly. `truncated` is
  * true when the file tree exceeded the listing cap.
@@ -235,6 +235,18 @@ export type ProjectFiles = {
 export type ApiProjectFilesResponse = {
     status: 'ok';
     results: ProjectFiles;
+};
+
+/**
+ * The repositories the agent can read for a project, used by the chat input's
+ * `@`-mention repository picker. This is the same union the agent's repo VFS
+ * mounts (the org installation's repos plus the linked user's own), gated by the
+ * project's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`
+ * endpoint, it never exposes repo names to users without source-code access.
+ */
+export type ApiProjectRepositoriesResponse = {
+    status: 'ok';
+    results: GitRepo[];
 };
 
 const PREVIEW_PROJECT_UUID =

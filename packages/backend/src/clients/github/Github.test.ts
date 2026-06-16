@@ -6,6 +6,7 @@ jest.mock('@octokit/rest');
 const mockGetTree = jest.fn();
 (Octokit as unknown as jest.Mock).mockImplementation(() => ({
     rest: { git: { getTree: mockGetTree } },
+    hook: { after: jest.fn(), error: jest.fn() },
 }));
 
 const octokitError = (

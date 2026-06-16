@@ -48,7 +48,8 @@ const TOOL_NAME_TO_DB_TOOL_NAME = {
     getProjectInfo: 'get_project_info',
     proposeChange: 'propose_change',
     editDbtProject: 'edit_dbt_project',
-    repoShell: 'repo_shell',
+    exploreRepo: 'explore_repo',
+    discoverRepos: 'discover_repos',
     setupPreviewDeploy: 'setup_preview_deploy',
 } satisfies Record<ToolName, string>;
 

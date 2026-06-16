@@ -2,6 +2,7 @@ import { subject } from '@casl/ability';
 import {
     Account,
     addDashboardFiltersToMetricQuery,
+    addFiltersToMetricQuery,
     AnonymousAccount,
     ApiExecuteAsyncDashboardChartQueryResults,
     ApiExecuteAsyncDashboardSqlChartQueryResults,
@@ -866,8 +867,10 @@ export class AsyncQueryService extends ProjectService {
     }: GetAsyncQueryResultsArgs): Promise<ApiGetAsyncQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const [{ organizationUuid }, queryHistory] = await Promise.all([
+            this.projectModel.getSummary(projectUuid),
+            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+        ]);
 
         const auditedAbility = this.createAuditedAbility(account);
         const canViewProject = auditedAbility.can(
@@ -879,13 +882,14 @@ export class AsyncQueryService extends ProjectService {
             }),
         );
 
-        const queryHistory = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
+        const canReadEmbedAiQuery =
+            isJwtUser(account) &&
+            account.embedWriteContext?.canUseAiAgent === true &&
+            queryHistory.context === QueryExecutionContext.AI &&
+            queryHistory.createdByUserUuid === account.embedWriteUser?.userUuid;
 
         const isForbidden =
+            !canReadEmbedAiQuery &&
             !canViewProject &&
             auditedAbility.cannot(
                 'view',
@@ -2052,6 +2056,7 @@ export class AsyncQueryService extends ProjectService {
                               const rawValue = formatRawValue(
                                   field,
                                   row[c.reference],
+                                  displayTimezone ?? undefined,
                               );
                               const formattedValue = field
                                   ? formatItemValue(
@@ -4315,14 +4320,10 @@ export class AsyncQueryService extends ProjectService {
         // `get` enforces the query belongs to this project and was created by
         // this account — that ownership authorizes the totals query, so we skip
         // the explore-level CASL gate (which embed JWT callers can't pass).
-        const source = await this.queryHistoryModel.get(
-            queryUuid,
-            projectUuid,
-            account,
-        );
-
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const [source, { organizationUuid }] = await Promise.all([
+            this.queryHistoryModel.get(queryUuid, projectUuid, account),
+            this.projectModel.getSummary(projectUuid),
+        ]);
 
         const sourceInputs = {
             metricQuery: source.metricQuery,
@@ -4541,6 +4542,7 @@ export class AsyncQueryService extends ProjectService {
         limit,
         parameters,
         pivotResults,
+        filterOverrides,
     }: ExecuteAsyncSavedChartQueryArgs): Promise<ApiExecuteAsyncMetricQueryResults> {
         // Check user is in organization
         assertIsAccountWithOrg(account);
@@ -4556,9 +4558,12 @@ export class AsyncQueryService extends ProjectService {
             projectUuid: savedChartProjectUuid,
             spaceUuid: savedChartSpaceUuid,
             tableName: savedChartTableName,
-            metricQuery,
             parameters: savedChartParameters,
         } = savedChart;
+
+        const metricQuery = filterOverrides
+            ? addFiltersToMetricQuery(savedChart.metricQuery, filterOverrides)
+            : savedChart.metricQuery;
 
         // Check chart belongs to project
         if (savedChartProjectUuid !== projectUuid) {
@@ -4961,14 +4966,15 @@ export class AsyncQueryService extends ProjectService {
         parameters,
         pivotResults,
         sessionTimezone,
+        preloadedSavedChart,
     }: ExecuteAsyncDashboardChartQueryArgs): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
         assertIsAccountWithOrg(account);
 
-        const savedChart = await this.savedChartModel.get(
-            chartUuid,
-            undefined,
-            { projectUuid },
-        );
+        const savedChart =
+            preloadedSavedChart ??
+            (await this.savedChartModel.get(chartUuid, undefined, {
+                projectUuid,
+            }));
         const { organizationUuid, projectUuid: savedChartProjectUuid } =
             savedChart;
 
@@ -6861,6 +6867,20 @@ export class AsyncQueryService extends ProjectService {
                 pivotDimensions,
             );
 
+        // GLITCH-452: format subtotal raw values with the same resolved display
+        // timezone as the main rows so DATE dimensions compare and render
+        // identically (null when the timezone flag is off → legacy ISO output).
+        const { displayTimezone } = await this.resolveTimezoneContext({
+            projectUuid,
+            organizationUuid,
+            userUuid: account.user.id,
+            userTimezone: getAccountUserTimezone(account),
+            // Only used as a presence gate for DATE raw formatting; the flag
+            // null-vs-set gating is independent of sessionTimezone.
+            sessionTimezone: null,
+            metricQuery,
+        });
+
         const subtotalsPromises = dimensionGroupsToSubtotal.map<
             Promise<[string, Record<string, unknown>[]]>
         >(async (subtotalDimensions) => {
@@ -6889,7 +6909,11 @@ export class AsyncQueryService extends ProjectService {
                         userAccessControls,
                     });
 
-                subtotals = formatRawRows(rows, fields);
+                subtotals = formatRawRows(
+                    rows,
+                    fields,
+                    displayTimezone ?? undefined,
+                );
             } catch (e) {
                 this.logger.error(
                     `Error running subtotal query for dimensions ${subtotalDimensions.join(

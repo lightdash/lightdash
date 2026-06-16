@@ -13,6 +13,7 @@ import {
     WarehouseTypes,
     type AiWritebackRunResult,
     type AiWritebackStep,
+    type GitRepo,
     type PullRequestWritebackAction,
     type SessionUser,
 } from '@lightdash/common';
@@ -25,6 +26,8 @@ import type {
 import {
     getRepoDefaultBranch,
     getRepoTree,
+    listReposAccessibleToInstallation,
+    listReposAccessibleToUser,
 } from '../../../clients/github/Github';
 import type { LightdashConfig } from '../../../config/parseConfig';
 import type { FeatureFlagModel } from '../../../models/FeatureFlagModel/FeatureFlagModel';
@@ -126,6 +129,54 @@ type AiWritebackServiceDeps = {
     prometheusMetrics?: PrometheusMetrics;
 };
 
+/** One repository in the source-code read union, plus the token that reads it. */
+export type SourceCodeRepoAccess = {
+    defaultBranch: string;
+    private: boolean;
+    token: string;
+};
+
+type RepoListing = {
+    owner: string;
+    repo: string;
+    defaultBranch: string;
+    private: boolean;
+};
+
+/**
+ * Merge the repositories the linked user can reach (read with their own token)
+ * with the repositories the org installation can reach (read with the
+ * installation token), keyed by `owner/repo`. The org installation is applied
+ * last so it **wins on collision** — org-level access takes priority over the
+ * user's personal access for the same repo. `userToken` undefined (user not
+ * linked / feature off) yields the installation set only.
+ */
+export const mergeSourceCodeRepoAccess = (
+    userRepos: RepoListing[],
+    userToken: string | undefined,
+    orgRepos: RepoListing[],
+    installationToken: string,
+): Map<string, SourceCodeRepoAccess> => {
+    const map = new Map<string, SourceCodeRepoAccess>();
+    if (userToken) {
+        for (const r of userRepos) {
+            map.set(`${r.owner}/${r.repo}`, {
+                defaultBranch: r.defaultBranch,
+                private: r.private,
+                token: userToken,
+            });
+        }
+    }
+    for (const r of orgRepos) {
+        map.set(`${r.owner}/${r.repo}`, {
+            defaultBranch: r.defaultBranch,
+            private: r.private,
+            token: installationToken,
+        });
+    }
+    return map;
+};
+
 export class AiWritebackService extends BaseService {
     private readonly lightdashConfig: LightdashConfig;
 
@@ -144,6 +195,8 @@ export class AiWritebackService extends BaseService {
     private readonly githubProvider: GithubProvider;
 
     private readonly gitlabProvider: GitlabProvider;
+
+    private readonly githubAppService: GithubAppService;
 
     constructor({
         lightdashConfig,
@@ -165,6 +218,7 @@ export class AiWritebackService extends BaseService {
         this.aiWritebackThreadModel = aiWritebackThreadModel;
         this.pullRequestsModel = pullRequestsModel;
         this.prometheusMetrics = prometheusMetrics;
+        this.githubAppService = githubAppService;
         this.githubProvider = new GithubProvider({
             githubAppInstallationsModel,
             githubAppService,
@@ -202,26 +256,31 @@ export class AiWritebackService extends BaseService {
      * writeback but never creates a sandbox or clone. GitHub-only for now;
      * throws {@link WritebackGitNotConnectedError} for any other connection.
      */
-    async getRepoReadAccess({
+    /**
+     * Resolve the org's GitHub App installation for read-only source access,
+     * gated by view:SourceCode. The dbt-independent core shared by
+     * {@link getRepoReadAccess} (the dbt project repo) and
+     * {@link getInstallationRepoReadAccess} (any accessible repo): org check →
+     * view:SourceCode ability gate → installation token. GitHub-only for now.
+     */
+    private async resolveSourceCodeInstallation({
         user,
         projectUuid,
     }: {
         user: SessionUser;
         projectUuid: string;
     }): Promise<{
-        owner: string;
-        repo: string;
-        branch: string;
+        installationId: string;
         token: string;
-        subPath: string;
+        project: Awaited<ReturnType<ProjectModel['get']>>;
     }> {
         if (!isUserWithOrg(user)) {
             throw new ForbiddenError('User is not part of an organization');
         }
         const project = await this.projectModel.get(projectUuid);
         // Reading repo source requires view:SourceCode (writeback requires the
-        // stricter manage:SourceCode). Gate the read so the repoShell tool can't
-        // expose dbt source to users without source-code access.
+        // stricter manage:SourceCode). Gate the read so the explore/discover
+        // tools can't expose source to users without source-code access.
         if (
             this.createAuditedAbility(user).cannot(
                 'view',
@@ -235,14 +294,6 @@ export class AiWritebackService extends BaseService {
                 'You do not have permission to view this project source code',
             );
         }
-        const provider = this.getGitProvider(project.dbtConnection.type);
-        if (provider.provider !== PullRequestProvider.GITHUB) {
-            throw new WritebackGitNotConnectedError(
-                provider.provider,
-                'Repository read access is currently only supported for GitHub dbt connections',
-            );
-        }
-        const connection = parseGithubConnection(project.dbtConnection);
         const installation = await this.githubProvider.resolveInstallation(
             user.organizationUuid,
         );
@@ -252,7 +303,37 @@ export class AiWritebackService extends BaseService {
                 'GitHub App is not installed for this organization',
             );
         }
-        // Read the project's configured dbt branch so repoShell inspects the
+        return {
+            installationId: installation.installationId,
+            token: installation.token,
+            project,
+        };
+    }
+
+    async getRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        owner: string;
+        repo: string;
+        branch: string;
+        token: string;
+        subPath: string;
+    }> {
+        const { installationId, token, project } =
+            await this.resolveSourceCodeInstallation({ user, projectUuid });
+        const provider = this.getGitProvider(project.dbtConnection.type);
+        if (provider.provider !== PullRequestProvider.GITHUB) {
+            throw new WritebackGitNotConnectedError(
+                provider.provider,
+                'Repository read access is currently only supported for GitHub dbt connections',
+            );
+        }
+        const connection = parseGithubConnection(project.dbtConnection);
+        // Read the project's configured dbt branch so the shell inspects the
         // same source the Lightdash project compiles from. Only fall back to the
         // repo's default branch when the project left the branch unset.
         const branch =
@@ -260,17 +341,144 @@ export class AiWritebackService extends BaseService {
             (await getRepoDefaultBranch({
                 owner: connection.owner,
                 repo: connection.repo,
-                installationId: installation.installationId,
+                installationId,
             }));
         return {
             owner: connection.owner,
             repo: connection.repo,
             branch,
-            token: installation.token,
+            token,
             // Scope the read-only VFS to the dbt project subdirectory so it
             // can't expose secrets/other files elsewhere in the repo. '.' (repo
             // root) means no scoping.
             subPath: connection.projectSubPath,
+        };
+    }
+
+    /**
+     * Generalized read-only access for the agent's repo discovery, gated by the
+     * same view:SourceCode check as {@link getRepoReadAccess} but independent of
+     * the project's dbt connection. Exposes the **union** of every repository the
+     * agent can read: the org installation's repos (read with the installation
+     * token) AND the repos the linked user can reach through their own GitHub
+     * (read with the user token, via {@link GithubAppService.getValidUserToken} —
+     * only when they've linked a personal account). Org installation access wins
+     * on collision. Each repo carries the token that reads it, so the VFS uses
+     * the right one per mount; whole-repo reads are guarded by the secrets
+     * denylist in the GitHub RepoSource.
+     *
+     * `resolveRepoAccess` resolves a single repo's branch + token; for a repo
+     * outside the discovered union (e.g. an explicitly targeted public repo) it
+     * falls back to the installation token.
+     */
+    async getInstallationRepoReadAccess({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<{
+        installationId: string;
+        installationToken: string;
+        // The linked user's own GitHub token, if any — null when the
+        // user-credentials feature is off or they haven't linked. Code search
+        // is token-scoped, so the caller must search with this too or it misses
+        // repos only the user (not the org installation) can reach.
+        userToken: string | null;
+        listRepos: () => Promise<
+            {
+                owner: string;
+                repo: string;
+                defaultBranch: string;
+                private: boolean;
+            }[]
+        >;
+        resolveRepoAccess: (
+            owner: string,
+            repo: string,
+        ) => Promise<{ branch: string; token: string }>;
+    }> {
+        const { installationId, token: installationToken } =
+            await this.resolveSourceCodeInstallation({ user, projectUuid });
+
+        // The linked user's own GitHub token, if any, so the union also surfaces
+        // repos accessible to THEM — not just the org installation. Undefined
+        // when the user-credentials feature is off or they haven't linked.
+        const userToken = isUserWithOrg(user)
+            ? await this.githubAppService.getValidUserToken(
+                  user.userUuid,
+                  user.organizationUuid,
+              )
+            : undefined;
+
+        // Build the union once per access object and memoise it — listRepos and
+        // resolveRepoAccess share it, so the GitHub listing happens at most once.
+        let repoMapPromise: Promise<Map<string, SourceCodeRepoAccess>> | null =
+            null;
+        const loadRepoMap = () => {
+            if (!repoMapPromise) {
+                repoMapPromise = (async () => {
+                    let userRepos: RepoListing[] = [];
+                    if (userToken) {
+                        try {
+                            userRepos = await listReposAccessibleToUser({
+                                token: userToken,
+                            });
+                        } catch (error) {
+                            // Degrade to org-only — a failed personal listing
+                            // must never block reading the org's repos.
+                            this.logger.warn(
+                                `Failed to list user-accessible repos for source access: ${getErrorMessage(
+                                    error,
+                                )}`,
+                            );
+                        }
+                    }
+                    const orgRepos = await listReposAccessibleToInstallation({
+                        installationId,
+                    });
+                    return mergeSourceCodeRepoAccess(
+                        userRepos,
+                        userToken,
+                        orgRepos,
+                        installationToken,
+                    );
+                })();
+            }
+            return repoMapPromise;
+        };
+
+        return {
+            installationId,
+            installationToken,
+            userToken: userToken ?? null,
+            listRepos: async () => {
+                const map = await loadRepoMap();
+                return [...map.entries()].map(([key, value]) => {
+                    const slash = key.indexOf('/');
+                    return {
+                        owner: key.slice(0, slash),
+                        repo: key.slice(slash + 1),
+                        defaultBranch: value.defaultBranch,
+                        private: value.private,
+                    };
+                });
+            },
+            resolveRepoAccess: async (owner, repo) => {
+                const map = await loadRepoMap();
+                const entry = map.get(`${owner}/${repo}`);
+                if (entry) {
+                    return { branch: entry.defaultBranch, token: entry.token };
+                }
+                // Outside the discovered union — fall back to the installation
+                // token and fetch the default branch on demand.
+                const branch = await getRepoDefaultBranch({
+                    owner,
+                    repo,
+                    installationId,
+                });
+                return { branch, token: installationToken };
+            },
         };
     }
 
@@ -315,6 +523,34 @@ export class AiWritebackService extends BaseService {
             files: sorted.slice(0, MAX_FILES),
             truncated: truncated || sorted.length > MAX_FILES,
         };
+    }
+
+    /**
+     * List the repositories the agent can read, for the chat input's
+     * `@`-mention repository picker. Returns the same union the agent's repo VFS
+     * mounts — gated by the project's `view:SourceCode` ability via
+     * {@link getInstallationRepoReadAccess} — so a user without source-code
+     * access can't enumerate repo names (unlike the org-wide
+     * `/github/repos/list` endpoint).
+     */
+    async listProjectRepositories({
+        user,
+        projectUuid,
+    }: {
+        user: SessionUser;
+        projectUuid: string;
+    }): Promise<GitRepo[]> {
+        const access = await this.getInstallationRepoReadAccess({
+            user,
+            projectUuid,
+        });
+        const repos = await access.listRepos();
+        return repos.map(({ owner, repo, defaultBranch }) => ({
+            name: repo,
+            ownerLogin: owner,
+            fullName: `${owner}/${repo}`,
+            defaultBranch,
+        }));
     }
 
     private async assertEnabled(

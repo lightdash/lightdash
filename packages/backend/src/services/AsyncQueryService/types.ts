@@ -16,6 +16,7 @@ import {
     type ResultColumns,
     type ResultsPaginationArgs,
     type RunQueryTags,
+    type SavedChartDAO,
     type SortField,
     type UserAccessControls,
     type UserAttributeValueMap,
@@ -84,6 +85,7 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     versionUuid?: string;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    filterOverrides?: Filters;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
@@ -96,6 +98,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     limit?: number | null | undefined;
     pivotResults?: boolean;
     sessionTimezone?: string | null;
+    preloadedSavedChart?: SavedChartDAO;
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {

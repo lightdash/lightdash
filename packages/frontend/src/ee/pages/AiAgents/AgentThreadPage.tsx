@@ -10,6 +10,7 @@ import {
     contextItemsToContentMentionSuggestions,
     mergeContentMentionSuggestionItems,
 } from '../../features/aiCopilot/components/ChatElements/contentMentions';
+import { isEmbedAiAgentRoute } from '../../features/aiCopilot/hooks/aiAgentRouting';
 import {
     useAiAgentReviewItemByPreviewThread,
     useUpdateAiAgentReviewItemStatus,
@@ -39,6 +40,7 @@ import { type AgentContext } from './AgentPage';
 
 const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
     const { agentUuid, threadUuid, projectUuid, promptUuid } = useParams();
+    const isEmbed = isEmbedAiAgentRoute();
     const { user } = useApp();
 
     const {
@@ -73,7 +75,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 projectUuid,
                 toolResult,
             );
-            if (!dashboardUrl) return;
+            if (!dashboardUrl || isEmbed) return;
 
             navigateFromAgentChat(dashboardUrl, {
                 threadUuid,
@@ -82,6 +84,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
         },
         [
             navigateFromAgentChat,
+            isEmbed,
             projectUuid,
             thread?.firstMessage?.message,
             thread?.title,
@@ -91,12 +94,14 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
 
     const handleDashboardLinkClick = useCallback(
         (dashboardUrl: string) => {
+            if (isEmbed) return;
             navigateFromAgentChat(dashboardUrl, {
                 threadUuid,
                 title: thread?.title || thread?.firstMessage?.message,
             });
         },
         [
+            isEmbed,
             navigateFromAgentChat,
             thread?.firstMessage?.message,
             thread?.title,
@@ -167,7 +172,7 @@ const AiAgentThreadPage = ({ debug }: { debug?: boolean }) => {
                 'This thread is read-only. To continue the conversation, reply in Slack.',
         },
         {
-            when: !!thread && !isThreadFromCurrentUser,
+            when: !isEmbed && !!thread && !isThreadFromCurrentUser,
             message: 'This thread is read-only. It belongs to another user.',
         },
         {

@@ -143,10 +143,14 @@ export const getToolCallChipLabel = (
             const args = toolArgs as ToolCreateContentArgs;
             return args.content?.slug ?? null;
         }
-        case 'repoShell': {
-            const args = toolArgs as { command?: string };
-            return args.command ?? null;
+        case 'exploreRepo': {
+            const args = toolArgs as { command?: string; target?: string };
+            if (args.target && args.command)
+                return `${args.target}: ${args.command}`;
+            return args.command ?? args.target ?? null;
         }
+        case 'discoverRepos':
+            return null;
         case 'runSql':
         case 'runSavedChart':
         case 'generateHashes':

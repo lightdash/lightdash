@@ -73,6 +73,7 @@ const makeService = ({
     },
     dashboardService = {},
     savedChartService = {},
+    asyncQueryService = {},
     coderService = {},
     aiAgentContentValidation = {},
 }: {
@@ -85,6 +86,7 @@ const makeService = ({
     spaceModel?: Record<string, unknown>;
     dashboardService?: Record<string, unknown>;
     savedChartService?: Record<string, unknown>;
+    asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
     aiAgentContentValidation?: Record<string, unknown>;
 } = {}) =>
@@ -150,7 +152,7 @@ const makeService = ({
         featureFlagService: {},
         previewDeploySetupService: {},
         shareService: {},
-        asyncQueryService: {},
+        asyncQueryService,
     } as unknown as ConstructorParameters<typeof AiAgentToolsService>[0]);
 
 const makeRuntimeContext = (
@@ -348,6 +350,200 @@ describe('AiAgentToolsService', () => {
             runtime.readContent({ slug: 'test-dashboard', type: 'dashboard' }),
         ).rejects.toThrow(NotFoundError);
         expect(dashboardService.getByIdOrSlug).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch dashboard charts outside the scoped agent spaces', async () => {
+        const getDashboardCharts = jest.fn();
+        const service = makeService({
+            dashboardService: {
+                getByIdOrSlug: jest.fn().mockResolvedValue({
+                    spaceUuid: 'blocked-space-uuid',
+                }),
+                getDashboardCharts,
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.getDashboardCharts({
+                dashboardUuid: 'blocked-dashboard-uuid',
+                page: 1,
+                pageSize: 20,
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(getDashboardCharts).not.toHaveBeenCalled();
+    });
+
+    it('fetches dashboard charts inside the scoped agent spaces', async () => {
+        const getDashboardCharts = jest.fn().mockResolvedValue({
+            dashboardName: 'Allowed Dashboard',
+            charts: [],
+            pagination: {
+                page: 1,
+                pageSize: 20,
+                totalResults: 0,
+                totalPageCount: 0,
+            },
+        });
+        const service = makeService({
+            dashboardService: {
+                getByIdOrSlug: jest.fn().mockResolvedValue({
+                    spaceUuid: 'allowed-space-uuid',
+                }),
+                getDashboardCharts,
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.getDashboardCharts({
+                dashboardUuid: 'allowed-dashboard-uuid',
+                page: 1,
+                pageSize: 20,
+            }),
+        ).resolves.toEqual({
+            dashboardName: 'Allowed Dashboard',
+            charts: [],
+            pagination: {
+                page: 1,
+                pageSize: 20,
+                totalResults: 0,
+                totalPageCount: 0,
+            },
+        });
+        expect(getDashboardCharts).toHaveBeenCalledWith(
+            user,
+            projectUuid,
+            'allowed-dashboard-uuid',
+            1,
+            20,
+        );
+    });
+
+    it('does not run saved chart queries outside the scoped agent spaces', async () => {
+        const executeSavedChartQueryAndGetResults = jest.fn();
+        const service = makeService({
+            savedChartService: {
+                get: jest.fn().mockResolvedValue({
+                    spaceUuid: 'blocked-space-uuid',
+                }),
+            },
+            asyncQueryService: {
+                executeSavedChartQueryAndGetResults,
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.runSavedChartQuery({
+                chartUuid: 'blocked-chart-uuid',
+                dashboardSlug: null,
+                limit: 100,
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(executeSavedChartQueryAndGetResults).not.toHaveBeenCalled();
+    });
+
+    it('does not return saved charts outside the scoped agent spaces', async () => {
+        const get = jest.fn().mockResolvedValue({
+            uuid: 'blocked-chart-uuid',
+            spaceUuid: 'blocked-space-uuid',
+        });
+        const service = makeService({
+            savedChartService: { get },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.getSavedChart('blocked-chart-uuid'),
+        ).rejects.toThrow(NotFoundError);
+    });
+
+    it('returns saved charts inside the scoped agent spaces', async () => {
+        const savedChart = {
+            uuid: 'allowed-chart-uuid',
+            spaceUuid: 'allowed-space-uuid',
+        };
+        const get = jest.fn().mockResolvedValue(savedChart);
+        const service = makeService({
+            savedChartService: { get },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(runtime.getSavedChart('allowed-chart-uuid')).resolves.toBe(
+            savedChart,
+        );
+    });
+
+    it('runs saved chart queries inside the scoped agent spaces', async () => {
+        const executeSavedChartQueryAndGetResults = jest
+            .fn()
+            .mockResolvedValue({ rows: [] });
+        const service = makeService({
+            savedChartService: {
+                get: jest.fn().mockResolvedValue({
+                    spaceUuid: 'allowed-space-uuid',
+                }),
+            },
+            asyncQueryService: {
+                executeSavedChartQueryAndGetResults,
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.runSavedChartQuery({
+                chartUuid: 'allowed-chart-uuid',
+                dashboardSlug: null,
+                limit: 100,
+            }),
+        ).resolves.toEqual({ rows: [] });
+        expect(executeSavedChartQueryAndGetResults).toHaveBeenCalledWith({
+            account,
+            projectUuid,
+            chartUuid: 'allowed-chart-uuid',
+            limit: 100,
+            context: QueryExecutionContext.AI,
+        });
+    });
+
+    it('does not run dashboard chart queries outside the scoped agent spaces', async () => {
+        const executeDashboardChartQueryAndGetResults = jest.fn();
+        const service = makeService({
+            dashboardService: {
+                getByIdOrSlug: jest.fn().mockResolvedValue({
+                    spaceUuid: 'blocked-space-uuid',
+                    tiles: [],
+                }),
+            },
+            asyncQueryService: {
+                executeDashboardChartQueryAndGetResults,
+            },
+        });
+        const runtime = service.createRuntime(
+            makeRuntimeContext({ spaceAccess: ['allowed-space-uuid'] }),
+        );
+
+        await expect(
+            runtime.runSavedChartQuery({
+                chartUuid: 'blocked-chart-uuid',
+                dashboardSlug: 'blocked-dashboard',
+                limit: 100,
+            }),
+        ).rejects.toThrow(NotFoundError);
+        expect(executeDashboardChartQueryAndGetResults).not.toHaveBeenCalled();
     });
 
     it('does not create content outside the scoped agent spaces', async () => {

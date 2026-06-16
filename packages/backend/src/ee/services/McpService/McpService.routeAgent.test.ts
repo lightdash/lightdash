@@ -92,6 +92,7 @@ const selectedAgent: AiAgentWithContext = {
     enableDataAccess: true,
     enableSelfImprovement: true,
     enableContentTools: true,
+    adminOnly: false,
     version: 1,
     context: {
         uuid: 'agent-uuid',

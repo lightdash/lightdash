@@ -1,3 +1,109 @@
+# [0.3176.0](https://github.com/lightdash/lightdash/compare/0.3175.0...0.3176.0) (2026-06-16)
+
+
+### Features
+
+* **ai:** generalize repo discovery so the agent can read any connect… ([#24324](https://github.com/lightdash/lightdash/issues/24324)) ([ce95b0f](https://github.com/lightdash/lightdash/commit/ce95b0f21c9fa055955d7dc529538104e1dc3d11))
+
+# [0.3175.0](https://github.com/lightdash/lightdash/compare/0.3174.0...0.3175.0) (2026-06-16)
+
+
+### Features
+
+* **ai:** admin-only access control for AI agents ([#24369](https://github.com/lightdash/lightdash/issues/24369)) ([a59e9c2](https://github.com/lightdash/lightdash/commit/a59e9c272712583f1e8c66c726483890a613a630))
+
+# [0.3174.0](https://github.com/lightdash/lightdash/compare/0.3173.0...0.3174.0) (2026-06-16)
+
+
+### Features
+
+* **timezone:** cast day-or-coarser DATE_TRUNCs to a real DATE (GLITCH-452) ([#24251](https://github.com/lightdash/lightdash/issues/24251)) ([e149743](https://github.com/lightdash/lightdash/commit/e149743086556de99ede821d471d6674da748dd4)), closes [#22895](https://github.com/lightdash/lightdash/issues/22895) [#17](https://github.com/lightdash/lightdash/issues/17) [#18](https://github.com/lightdash/lightdash/issues/18) [#11](https://github.com/lightdash/lightdash/issues/11)
+
+# [0.3173.0](https://github.com/lightdash/lightdash/compare/0.3172.0...0.3173.0) (2026-06-16)
+
+
+### Bug Fixes
+
+* sync app viewport with iframe for deliveries ([#24363](https://github.com/lightdash/lightdash/issues/24363)) ([8da2498](https://github.com/lightdash/lightdash/commit/8da249814f5cfffa2fde020628ed2e55c7b27b9b))
+
+
+### Features
+
+* **alerts:** support filter & parameter overrides on chart threshold alerts ([#24334](https://github.com/lightdash/lightdash/issues/24334)) ([d74c100](https://github.com/lightdash/lightdash/commit/d74c100a2b6d087b7b1b3e84ef267def8314de41))
+
+
+### Performance Improvements
+
+* **backend:** dedup getSummary in searchFieldUniqueValues ([#24359](https://github.com/lightdash/lightdash/issues/24359)) ([ddb6051](https://github.com/lightdash/lightdash/commit/ddb60512eb386e6a09aa83ef0c6910a48dcf2a02))
+
+# [0.3172.0](https://github.com/lightdash/lightdash/compare/0.3171.0...0.3172.0) (2026-06-16)
+
+
+### Features
+
+* **data-apps:** add per-turn timeline (TTFT + slowest turn) to generation telemetry ([#24349](https://github.com/lightdash/lightdash/issues/24349)) ([95484c9](https://github.com/lightdash/lightdash/commit/95484c9311cfdccb4bf28862dd458066b97ae979))
+* **formatting:** render timestamp metrics in the project timezone ([#24351](https://github.com/lightdash/lightdash/issues/24351)) ([83f1806](https://github.com/lightdash/lightdash/commit/83f18068cbd003ae316d76e526d34f8e55f61e35))
+
+
+### Performance Improvements
+
+* **backend:** dedup getSummary in searchFieldUniqueValues ([#24355](https://github.com/lightdash/lightdash/issues/24355)) ([aee6618](https://github.com/lightdash/lightdash/commit/aee6618178e69593a53158e22feed693f6366ba1))
+* **content-as-code:** reduce redundant reloads on chart upsert ([#24357](https://github.com/lightdash/lightdash/issues/24357)) ([57859dd](https://github.com/lightdash/lightdash/commit/57859dd5dad97dc3144b329848bcc06f3c52311b))
+* **embed:** thread preloaded saved chart across service boundary ([#24356](https://github.com/lightdash/lightdash/issues/24356)) ([45cdd21](https://github.com/lightdash/lightdash/commit/45cdd21063941012edb7989cc9c268456d4136c5))
+
+# [0.3171.0](https://github.com/lightdash/lightdash/compare/0.3170.2...0.3171.0) (2026-06-16)
+
+
+### Features
+
+* track project connection form compiles ([#24343](https://github.com/lightdash/lightdash/issues/24343)) ([08be7db](https://github.com/lightdash/lightdash/commit/08be7dbb76160af2ddb967253f2ef63e64548c82)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+## [0.3170.2](https://github.com/lightdash/lightdash/compare/0.3170.1...0.3170.2) (2026-06-16)
+
+
+### Bug Fixes
+
+* improve compilation source filter ([#24354](https://github.com/lightdash/lightdash/issues/24354)) ([e01aef3](https://github.com/lightdash/lightdash/commit/e01aef330053168211a7b976641d73816987b0f0)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Performance Improvements
+
+* **backend:** parallelize setup loads in getAsyncQueryResults ([#24345](https://github.com/lightdash/lightdash/issues/24345)) ([88527dc](https://github.com/lightdash/lightdash/commit/88527dcf2818fd84b33f9453fdc038425ef2619b))
+
+## [0.3170.1](https://github.com/lightdash/lightdash/compare/0.3170.0...0.3170.1) (2026-06-16)
+
+
+### Performance Improvements
+
+* **backend:** parallelize queryHistory get and getSummary in calculate-total ([#24346](https://github.com/lightdash/lightdash/issues/24346)) ([a180c87](https://github.com/lightdash/lightdash/commit/a180c8763aad47db84b29d4063a93bf3f28bee51))
+* **backend:** parallelize setup loads in searchFieldUniqueValues ([#24347](https://github.com/lightdash/lightdash/issues/24347)) ([4783d0c](https://github.com/lightdash/lightdash/commit/4783d0ce4ac078415c6b80d4c8869b0e68a45a44))
+
+# [0.3170.0](https://github.com/lightdash/lightdash/compare/0.3169.0...0.3170.0) (2026-06-16)
+
+
+### Features
+
+* **data-apps:** capture Claude generation token/turn/cost usage in analytics ([#24348](https://github.com/lightdash/lightdash/issues/24348)) ([3222e35](https://github.com/lightdash/lightdash/commit/3222e357e1a77e79d02be1d0791603ab5fd6cbe8))
+
+# [0.3169.0](https://github.com/lightdash/lightdash/compare/0.3168.0...0.3169.0) (2026-06-16)
+
+
+### Features
+
+* embed AI agent support ([#24282](https://github.com/lightdash/lightdash/issues/24282)) ([998824b](https://github.com/lightdash/lightdash/commit/998824bc88c68a0079408bcacf317008b93ad2f6)), closes [#150](https://github.com/lightdash/lightdash/issues/150)
+
+
+### Performance Improvements
+
+* **backend:** fire-and-forget chart-view event in SavedChartService.get ([#24331](https://github.com/lightdash/lightdash/issues/24331)) ([fda1695](https://github.com/lightdash/lightdash/commit/fda1695d570cc2bdae776afcbd0e0bb546dbbce9))
+
+# [0.3168.0](https://github.com/lightdash/lightdash/compare/0.3167.3...0.3168.0) (2026-06-16)
+
+
+### Features
+
+* **ai-agents:** support uploaded agent avatars ([#24321](https://github.com/lightdash/lightdash/issues/24321)) ([d96f6b0](https://github.com/lightdash/lightdash/commit/d96f6b000bbe714355bf00c22d73fbbaba285e36))
+
 ## [0.3167.3](https://github.com/lightdash/lightdash/compare/0.3167.2...0.3167.3) (2026-06-16)
 
 

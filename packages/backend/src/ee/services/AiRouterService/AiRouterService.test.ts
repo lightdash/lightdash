@@ -62,6 +62,7 @@ const createCandidate = (
     enableDataAccess: true,
     enableSelfImprovement: true,
     enableContentTools: true,
+    adminOnly: false,
     version: 1,
     context: overrides.context ?? {
         uuid: overrides.uuid,

@@ -200,6 +200,13 @@ const viewport = {
     height: 768,
 };
 
+const appViewport = {
+    ...viewport,
+    height: 4000,
+};
+
+const APP_SCREENSHOT_MIN_HEIGHT = 600;
+
 const bigNumberViewport = {
     width: 768,
     height: 500,
@@ -1014,6 +1021,7 @@ export class UnfurlService extends BaseService {
 
                 let browser: playwright.Browser | undefined;
                 let page: playwright.Page | undefined;
+                let appContentHeight: number | undefined;
 
                 try {
                     const { browserEndpoint } =
@@ -1055,8 +1063,8 @@ export class UnfurlService extends BaseService {
                         initialViewport = bigNumberViewport;
                     } else if (lightdashPage === LightdashPage.APP) {
                         initialViewport = {
-                            width: gridWidth ?? viewport.width,
-                            height: 4000,
+                            ...appViewport,
+                            width: gridWidth ?? appViewport.width,
                         };
                     } else {
                         initialViewport = {
@@ -1530,16 +1538,12 @@ export class UnfurlService extends BaseService {
 
                     if (lightdashPage === LightdashPage.APP) {
                         // The app is rendered inside a sandboxed iframe sized
-                        // to 100vh on the parent. The browser doesn't expose
-                        // the iframe's internal scroll height to the parent
-                        // body's boundingBox, so a normal screenshot only
-                        // captures the visible portion. Reach into the
-                        // iframe (Playwright bypasses sandbox same-origin
-                        // restrictions via CDP), measure its content height,
-                        // and stretch the iframe element on the parent so
-                        // the parent body grows to match — then the existing
-                        // boundingBox + setViewportSize path captures it
-                        // all.
+                        // to 100vh on the parent. The initial app viewport is
+                        // deliberately tall enough to hold normal app content,
+                        // so measure the iframe's inner content but do not
+                        // resize the iframe here. Post-load iframe/viewport
+                        // resizes force cross-origin OOPIF apps to re-layout
+                        // and can race with the screenshot paint.
                         try {
                             const frames = page!.frames();
                             const mainFrame = page!.mainFrame();
@@ -1605,21 +1609,17 @@ export class UnfurlService extends BaseService {
                                 this.logger.info(
                                     `App content measured at ${contentHeight}px - unfurlId: ${imageId}`,
                                 );
-                                if (contentHeight > 0) {
-                                    await page!.evaluate((h) => {
-                                        const iframe =
-                                            document.querySelector('iframe');
-                                        if (iframe) {
-                                            iframe.style.height = `${h}px`;
-                                        }
-                                    }, contentHeight);
-                                    // Layout settle.
-                                    await page!.waitForTimeout(150);
-                                }
+                                appContentHeight = Math.min(
+                                    Math.max(
+                                        contentHeight,
+                                        APP_SCREENSHOT_MIN_HEIGHT,
+                                    ),
+                                    appViewport.height,
+                                );
                             }
                         } catch (err) {
                             this.logger.warn(
-                                `App full-content stretch failed; falling back to viewport capture - unfurlId: ${imageId}, err: ${getErrorMessage(
+                                `App content measurement failed; falling back to viewport capture - unfurlId: ${imageId}, err: ${getErrorMessage(
                                     err,
                                 )}`,
                             );
@@ -1695,6 +1695,7 @@ export class UnfurlService extends BaseService {
 
                     if (
                         chartType !== ChartType.BIG_NUMBER &&
+                        lightdashPage !== LightdashPage.APP &&
                         fullPageSize?.height
                     ) {
                         await page.setViewportSize({
@@ -1798,23 +1799,53 @@ export class UnfurlService extends BaseService {
                                 timeout: RESPONSE_TIMEOUT_MS,
                             });
                     } else if (lightdashPage === LightdashPage.APP) {
-                        // Screenshot the iframe element directly. The iframe
-                        // was stretched above to fit its inner contentHeight,
-                        // so this captures exactly the app surface with no
-                        // surrounding parent-page whitespace. A `fullPage`
-                        // shot here picks up `documentElement.scrollHeight`,
-                        // which is consistently a few px taller than the
-                        // iframe (parent Box stays at 100vh, body/html scroll
-                        // bounds extend past the iframe bottom) — producing
-                        // a thin white sliver at the bottom of the delivery.
-                        imageBuffer = await page
+                        // Leave the iframe at the initial tall viewport and
+                        // crop the screenshot to the measured app content.
+                        // Cropping avoids another iframe or page viewport
+                        // resize after the app has painted.
+                        const iframeBox = await page
                             .locator('iframe')
                             .first()
-                            .screenshot({
+                            .boundingBox({ timeout: RESPONSE_TIMEOUT_MS });
+
+                        if (iframeBox) {
+                            const clipWidth = Math.max(
+                                1,
+                                Math.min(
+                                    Math.round(iframeBox.width),
+                                    gridWidth ?? appViewport.width,
+                                ),
+                            );
+                            const clipHeight = Math.max(
+                                1,
+                                Math.min(
+                                    Math.round(iframeBox.height),
+                                    Math.round(
+                                        appContentHeight ?? appViewport.height,
+                                    ),
+                                ),
+                            );
+                            imageBuffer = await page.screenshot({
                                 path,
                                 animations: 'disabled',
                                 timeout: RESPONSE_TIMEOUT_MS,
+                                clip: {
+                                    x: iframeBox.x,
+                                    y: iframeBox.y,
+                                    width: clipWidth,
+                                    height: clipHeight,
+                                },
                             });
+                        } else {
+                            imageBuffer = await page
+                                .locator('iframe')
+                                .first()
+                                .screenshot({
+                                    path,
+                                    animations: 'disabled',
+                                    timeout: RESPONSE_TIMEOUT_MS,
+                                });
+                        }
                     } else {
                         // Full page screenshot for charts
                         imageBuffer = await page.screenshot({

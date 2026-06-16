@@ -54,6 +54,11 @@ import {
     type AiAgentToolResultHandler,
 } from '../types';
 import {
+    getAiAgentApiBase,
+    getAiAgentPageBase,
+    isEmbedAiAgentRoute,
+} from './aiAgentRouting';
+import {
     AGENT_AI_MCP_SERVERS_KEY,
     PROJECT_AI_MCP_SERVERS_KEY,
 } from './useProjectAiMcpServers';
@@ -65,7 +70,7 @@ const AI_AGENTS_KEY = 'aiAgents';
 const listProjectAgents = (projectUuid: string) =>
     lightdashApi<ApiAiAgentSummaryResponse['results']>({
         version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents`,
+        url: getAiAgentApiBase(projectUuid),
         method: 'GET',
         body: undefined,
     });
@@ -76,7 +81,7 @@ const getProjectAgent = async (
 ): Promise<ApiAiAgentResponse['results']> =>
     lightdashApi<ApiAiAgentResponse['results']>({
         version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}`,
+        url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}`,
         method: 'GET',
         body: undefined,
     });
@@ -107,7 +112,7 @@ export const useProjectAiAgents = ({
                 });
             } else if (redirectOnUnauthorized) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid!)}/not-authorized`,
                 );
             }
         },
@@ -128,7 +133,7 @@ export const useProjectAiAgent = (
         onError: (error) => {
             if (error.error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid!)}/not-authorized`,
                 );
             } else {
                 showToastApiError({
@@ -401,7 +406,9 @@ const getAgentThread = async (
     threadUuid: string,
 ) =>
     lightdashApi<ApiAiAgentThreadResponse['results']>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}`,
+        url: `${getAiAgentApiBase(
+            projectUuid,
+        )}/${agentUuid}/threads/${threadUuid}`,
         method: 'GET',
         body: undefined,
     });
@@ -536,7 +543,7 @@ export const useInfiniteAiAgentThreads = (
         onError: (error) => {
             if (error.error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
             } else {
                 showToastApiError({
@@ -573,7 +580,7 @@ export const useAiAgentThread = (
         onError: (error) => {
             if (error.error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
             } else {
                 showToastApiError({
@@ -631,11 +638,19 @@ const toOptimisticContextItem = (
     }
 };
 
+const getOptimisticUserName = (user: UserWithAbility | undefined) => {
+    const name = [user?.firstName?.trim(), user?.lastName?.trim()]
+        .filter(Boolean)
+        .join(' ');
+
+    return name || user?.email || (isEmbedAiAgentRoute() ? '' : 'Unknown user');
+};
+
 const createOptimisticMessages = (
     threadUuid: string,
     promptUuid: string,
     prompt: string,
-    user: UserWithAbility,
+    user: UserWithAbility | undefined,
     agent: AiAgent,
     context: AiPromptContext = [],
 ) => {
@@ -647,7 +662,7 @@ const createOptimisticMessages = (
             message: prompt,
             createdAt: new Date().toISOString(),
             user: {
-                name: `${user?.firstName} ${user?.lastName}`,
+                name: getOptimisticUserName(user),
                 uuid: user?.userUuid ?? 'unknown',
             },
             context,
@@ -759,7 +774,7 @@ const createAgentThread = async (
     data: ApiAiAgentThreadCreateRequest,
 ) =>
     lightdashApi<ApiAiAgentThreadCreateResponse['results']>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads`,
+        url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/threads`,
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -811,7 +826,12 @@ export const useCreateAgentThreadMutation = (
                 queryKey: [AI_AGENTS_KEY, projectUuid, PROJECT_THREADS_KEY],
             });
 
-            void generateThreadTitle({ agentUuid, threadUuid: thread.uuid });
+            if (!isEmbedAiAgentRoute()) {
+                void generateThreadTitle({
+                    agentUuid,
+                    threadUuid: thread.uuid,
+                });
+            }
 
             // The agent is loaded by whichever page kicked off this mutation —
             // read it from the cache instead of re-fetching here.
@@ -848,7 +868,7 @@ export const useCreateAgentThreadMutation = (
                         ),
                         createdAt: new Date().toISOString(),
                         user: {
-                            name: `${user?.data?.firstName} ${user?.data?.lastName}`,
+                            name: getOptimisticUserName(user?.data),
                             uuid: user?.data?.userUuid ?? 'unknown',
                         },
                     } satisfies ApiAiAgentThreadResponse['results'];
@@ -921,7 +941,9 @@ export const useCreateAgentThreadMutation = (
 
             if (!options?.skipNavigation) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/${agentUuid}/threads/${thread.uuid}`,
+                    `${getAiAgentPageBase(
+                        projectUuid,
+                    )}/${agentUuid}/threads/${thread.uuid}`,
                     { viewTransition: true },
                 );
             }
@@ -929,7 +951,7 @@ export const useCreateAgentThreadMutation = (
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
             } else {
                 showToastApiError({
@@ -948,7 +970,9 @@ const createAgentThreadMessage = async (
     data: ApiAiAgentThreadMessageCreateRequest,
 ) =>
     lightdashApi<ApiAiAgentThreadMessageCreateResponse['results']>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/messages`,
+        url: `${getAiAgentApiBase(
+            projectUuid,
+        )}/${agentUuid}/threads/${threadUuid}/messages`,
         method: 'POST',
         body: JSON.stringify(data),
     });
@@ -1117,7 +1141,7 @@ export const useCreateAgentThreadMessageMutation = (
         onError: ({ error }) => {
             if (error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${projectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(projectUuid)}/not-authorized`,
                 );
             } else {
                 showToastApiError({
@@ -1285,7 +1309,9 @@ const savePromptQuery = async ({
     savedQueryUuid: string | null;
 }) =>
     lightdashApi<ApiSuccessEmpty>({
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/savedQuery`,
+        url: `${getAiAgentApiBase(
+            projectUuid,
+        )}/${agentUuid}/threads/${threadUuid}/messages/${messageUuid}/savedQuery`,
         method: `PATCH`,
         body: JSON.stringify({
             savedQueryUuid,
@@ -1492,7 +1518,11 @@ const getAiAgentArtifactVizQuery = async (args: {
     versionUuid: string;
 }) =>
     lightdashApi<ApiAiAgentThreadMessageVizQuery>({
-        url: `/projects/${args.projectUuid}/aiAgents/${args.agentUuid}/artifacts/${args.artifactUuid}/versions/${args.versionUuid}/viz-query`,
+        url: `${getAiAgentApiBase(args.projectUuid)}/${
+            args.agentUuid
+        }/artifacts/${args.artifactUuid}/versions/${
+            args.versionUuid
+        }/viz-query`,
         method: 'GET',
         body: undefined,
     });
@@ -1519,6 +1549,7 @@ export const useAiAgentArtifactVizQuery = (
     const health = useHealth();
     const org = useOrganization();
     const { showToastApiError } = useToaster();
+    const isEmbed = isEmbedAiAgentRoute();
 
     return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: [
@@ -1543,7 +1574,9 @@ export const useAiAgentArtifactVizQuery = (
         onError: (error: ApiError) => {
             if (error.error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(
+                        activeProjectUuid ?? projectUuid,
+                    )}/not-authorized`,
                 );
             } else {
                 showToastApiError({
@@ -1553,7 +1586,9 @@ export const useAiAgentArtifactVizQuery = (
             }
             useQueryOptions?.onError?.(error);
         },
-        enabled: !!health.data && !!org.data && useQueryOptions?.enabled,
+        enabled:
+            (isEmbed || (!!health.data && !!org.data)) &&
+            useQueryOptions?.enabled !== false,
     });
 };
 
@@ -1566,7 +1601,11 @@ const getAiAgentDashboardChartVizQuery = async (args: {
     chartIndex: number;
 }) =>
     lightdashApi<ApiAiAgentThreadMessageVizQuery>({
-        url: `/projects/${args.projectUuid}/aiAgents/${args.agentUuid}/artifacts/${args.artifactUuid}/versions/${args.versionUuid}/charts/${args.chartIndex}/viz-query`,
+        url: `${getAiAgentApiBase(args.projectUuid)}/${
+            args.agentUuid
+        }/artifacts/${args.artifactUuid}/versions/${
+            args.versionUuid
+        }/charts/${args.chartIndex}/viz-query`,
         method: 'GET',
         body: undefined,
     });
@@ -1614,6 +1653,7 @@ export const useAiAgentDashboardChartVizQuery = (
     const health = useHealth();
     const org = useOrganization();
     const { showToastApiError } = useToaster();
+    const isEmbed = isEmbedAiAgentRoute();
 
     return useQuery<ApiAiAgentThreadMessageVizQuery, ApiError>({
         queryKey: getAiAgentDashboardChartVizQueryKey({
@@ -1636,7 +1676,9 @@ export const useAiAgentDashboardChartVizQuery = (
         onError: (error: ApiError) => {
             if (error.error?.statusCode === 403) {
                 void navigate(
-                    `/projects/${activeProjectUuid}/ai-agents/not-authorized`,
+                    `${getAiAgentPageBase(
+                        activeProjectUuid ?? projectUuid,
+                    )}/not-authorized`,
                 );
             } else {
                 showToastApiError({
@@ -1646,7 +1688,9 @@ export const useAiAgentDashboardChartVizQuery = (
             }
             useQueryOptions?.onError?.(error);
         },
-        enabled: !!health.data && !!org.data && useQueryOptions?.enabled,
+        enabled:
+            (isEmbed || (!!health.data && !!org.data)) &&
+            useQueryOptions?.enabled !== false,
     });
 };
 
@@ -1692,7 +1736,7 @@ const getVerifiedQuestions = async (
 ): Promise<ApiAiAgentVerifiedQuestionsResponse['results']> =>
     lightdashApi<ApiAiAgentVerifiedQuestionsResponse['results']>({
         version: 'v1',
-        url: `/projects/${projectUuid}/aiAgents/${agentUuid}/verified-questions`,
+        url: `${getAiAgentApiBase(projectUuid)}/${agentUuid}/verified-questions`,
         method: 'GET',
         body: undefined,
     });

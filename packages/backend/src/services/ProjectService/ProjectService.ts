@@ -26,6 +26,7 @@ import {
     calculateExploreWarningReport,
     ChartSourceType,
     ChartSummary,
+    CompilationSource,
     CompiledDimension,
     ContentType,
     convertCustomMetricToDbt,
@@ -795,11 +796,12 @@ export class ProjectService extends BaseService {
             ? user.organizationUuid
             : account.organization.organizationUuid;
         const email = user ? user.email : account.user.email;
+        const isServiceAccountPrincipal =
+            account?.isServiceAccount() || !!user?.serviceAccount;
 
-        // Service accounts have no email and no row in the `emails` table —
-        // `getPrimaryEmailStatus` would 404. They also have no intrinsic
-        // email attributes to attach.
-        if (account?.isServiceAccount()) {
+        // Service-account principals have no email row, so they have no
+        // intrinsic email attributes to attach.
+        if (isServiceAccountPrincipal || !email) {
             const userAttributes =
                 await this.userAttributesModel.getAttributeValuesForOrgMember({
                     organizationUuid: organizationUuid || '',
@@ -1928,7 +1930,7 @@ export class ProjectService extends BaseService {
         userUuid: string;
         projectUuid: string;
         explores: (Explore | ExploreError)[];
-        compilationSource: 'cli_deploy' | 'refresh_dbt' | 'create_project';
+        compilationSource: CompilationSource;
         jobUuid?: string | null;
         requestMethod?: string | null;
         projectConfigDefaults?: ProjectDefaults;
@@ -2934,6 +2936,7 @@ export class ProjectService extends BaseService {
                 jobUuid: job.jobUuid,
                 isPreview: savedProject.type === ProjectType.PREVIEW,
                 userUuid: account.user.id,
+                compilationSource: 'project_connection_form',
             });
         } else {
             // Nothing to test and compile, just update the job status
@@ -3044,6 +3047,7 @@ export class ProjectService extends BaseService {
         projectUuid: string,
         method: RequestMethod,
         jobUuid: string,
+        compilationSource: CompilationSource = 'refresh_dbt',
     ) {
         const totalStartTime = performance.now();
 
@@ -3182,7 +3186,7 @@ export class ProjectService extends BaseService {
                                 userUuid: user.userUuid,
                                 projectUuid,
                                 explores,
-                                compilationSource: 'refresh_dbt',
+                                compilationSource,
                                 jobUuid: job.jobUuid,
                                 requestMethod: method,
                                 projectConfigDefaults:
@@ -5474,6 +5478,7 @@ export class ProjectService extends BaseService {
         search,
         limit,
         filters,
+        organizationUuid: organizationUuidArg,
     }: {
         projectUuid: string;
         table: string;
@@ -5481,9 +5486,11 @@ export class ProjectService extends BaseService {
         search: string;
         limit: unknown;
         filters: AndFilterGroup | undefined;
+        organizationUuid?: string;
     }) {
-        const { organizationUuid } =
-            await this.projectModel.getSummary(projectUuid);
+        const { organizationUuid } = organizationUuidArg
+            ? { organizationUuid: organizationUuidArg }
+            : await this.projectModel.getSummary(projectUuid);
         const { maxLimit } = await resolveOrganizationExportLimits(
             this.organizationSettingsModel,
             this.lightdashConfig.query,
@@ -5535,13 +5542,29 @@ export class ProjectService extends BaseService {
                 search,
                 limit,
                 filters,
+                organizationUuid,
             });
 
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: user.userUuid,
-            isRegisteredUser: true,
-        });
+        const [
+            warehouseCredentials,
+            { userAttributes, intrinsicUserAttributes },
+            availableParameterDefinitions,
+            combinedParameters,
+            projectTimezone,
+            useTimezoneAwareDateTrunc,
+        ] = await Promise.all([
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: user.userUuid,
+                isRegisteredUser: true,
+            }),
+            this.getUserAttributes({ user }),
+            this.getAvailableParameters(projectUuid, explore),
+            this.combineParameters(projectUuid, explore, parameters),
+            this.getQueryTimezoneForProject(projectUuid),
+            this.isTimezoneSupportEnabled(user),
+        ]);
+
         const { warehouseClient, sshTunnel } = await this._getWarehouseClient(
             projectUuid,
             warehouseCredentials,
@@ -5550,8 +5573,6 @@ export class ProjectService extends BaseService {
                 databricksCompute: explore.databricksCompute,
             },
         );
-        const { userAttributes, intrinsicUserAttributes } =
-            await this.getUserAttributes({ user });
 
         const mergedUserAttributes = userAttributeOverrides
             ? {
@@ -5560,28 +5581,12 @@ export class ProjectService extends BaseService {
               }
             : userAttributes;
 
-        const availableParameterDefinitions = await this.getAvailableParameters(
-            projectUuid,
-            explore,
-        );
-
-        // Combine request parameters with defaults from parameter definitions
-        const combinedParameters = await this.combineParameters(
-            projectUuid,
-            explore,
-            parameters,
-        );
-
-        const projectTimezone =
-            await this.getQueryTimezoneForProject(projectUuid);
         const timezone = resolveQueryTimezone({
             sessionTimezone: null,
             metricQuery,
             projectTimezone,
             userTimezone: user.timezone,
         });
-        const useTimezoneAwareDateTrunc =
-            await this.isTimezoneSupportEnabled(user);
 
         const { query } = await ProjectService._compileQuery({
             metricQuery,

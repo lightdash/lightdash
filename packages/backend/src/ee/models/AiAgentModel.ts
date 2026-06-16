@@ -409,6 +409,7 @@ export class AiAgentModel {
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
+                adminOnly: `${AiAgentTableName}.admin_only`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -544,6 +545,7 @@ export class AiAgentModel {
                 enableDataAccess: `${AiAgentTableName}.enable_data_access`,
                 enableSelfImprovement: `${AiAgentTableName}.enable_self_improvement`,
                 enableContentTools: `${AiAgentTableName}.enable_content_tools`,
+                adminOnly: `${AiAgentTableName}.admin_only`,
                 version: `${AiAgentTableName}.version`,
                 groupAccess: this.database.raw(`
                     COALESCE(
@@ -1702,6 +1704,7 @@ export class AiAgentModel {
             | 'enableDataAccess'
             | 'enableSelfImprovement'
             | 'enableContentTools'
+            | 'adminOnly'
             | 'version'
             | 'mcpServerUuids'
         > & {
@@ -1729,6 +1732,7 @@ export class AiAgentModel {
                     enable_data_access: args.enableDataAccess,
                     enable_self_improvement: args.enableSelfImprovement,
                     enable_content_tools: args.enableContentTools ?? false,
+                    admin_only: args.adminOnly ?? false,
                     version: args.version,
                     is_system: args.isSystem ?? false,
                 })
@@ -1830,6 +1834,7 @@ export class AiAgentModel {
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
+                adminOnly: agent.admin_only,
                 version: agent.version,
             };
         });
@@ -1941,6 +1946,9 @@ export class AiAgentModel {
                         : {}),
                     ...(args.enableContentTools !== undefined
                         ? { enable_content_tools: args.enableContentTools }
+                        : {}),
+                    ...(args.adminOnly !== undefined
+                        ? { admin_only: args.adminOnly }
                         : {}),
                     ...(args.version !== undefined
                         ? { version: args.version }
@@ -2109,6 +2117,7 @@ export class AiAgentModel {
                 enableDataAccess: agent.enable_data_access,
                 enableSelfImprovement: agent.enable_self_improvement,
                 enableContentTools: agent.enable_content_tools,
+                adminOnly: agent.admin_only,
                 version: agent.version,
             };
         });
@@ -4554,10 +4563,20 @@ export class AiAgentModel {
             await trx(AiWebAppThreadTableName).insert({
                 ai_thread_uuid: row.ai_thread_uuid,
                 user_uuid: data.userUuid,
+                embed_space_uuid: data.embedSpaceUuid ?? null,
             });
 
             return row.ai_thread_uuid;
         });
+    }
+
+    async getWebAppThreadEmbedSpace(threadUuid: string) {
+        const row = await this.database(AiWebAppThreadTableName)
+            .select('embed_space_uuid')
+            .where('ai_thread_uuid', threadUuid)
+            .first();
+
+        return row?.embed_space_uuid ?? null;
     }
 
     async createWebAppPrompt(

@@ -715,6 +715,82 @@ describe('TimeFrames', () => {
             );
         });
 
+        // GLITCH-452: with castDayGrainToDate, a day-or-coarser trunc casts the
+        // project-wall-clock value to DATE and drops the toUTC round-trip-back.
+        test('day grain with castDayGrainToDate casts the wall-clock trunc to DATE (Postgres)', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    undefined,
+                    true, // castDayGrainToDate
+                ),
+            ).toEqual(
+                `CAST(DATE_TRUNC('DAY', (${col})::timestamptz AT TIME ZONE '${tz}') AS DATE)`,
+            );
+        });
+
+        // GLITCH-452: sub-day grains are real instants — castDayGrainToDate must
+        // not cast them; they keep the TIMESTAMP round-trip.
+        test('sub-day grain ignores castDayGrainToDate and keeps the timestamp round-trip (Postgres)', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.HOUR,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    undefined,
+                    true, // castDayGrainToDate — ignored for sub-day
+                ),
+            ).toEqual(
+                `(DATE_TRUNC('HOUR', (${col})::timestamptz AT TIME ZONE '${tz}')) AT TIME ZONE '${tz}'`,
+            );
+        });
+
+        // GLITCH-452: a UTC project short-circuits the round-trip, but day-grain
+        // output must still be a real DATE.
+        test('UTC project (no round-trip) still casts day grain to DATE (Postgres)', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.POSTGRES,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    'UTC',
+                    undefined,
+                    true, // castDayGrainToDate
+                ),
+            ).toEqual(`CAST(DATE_TRUNC('DAY', ${col}) AS DATE)`);
+        });
+
+        // GLITCH-452: BigQuery's TIMESTAMP_TRUNC returns the tz-midnight UTC
+        // instant, so the day grain must DATE(expr, tz) — CAST(... AS DATE) reads
+        // the UTC date and lands a day early in positive offsets (verified
+        // against BigQuery: Asia/Tokyo bucketed 15:00Z to the previous day).
+        test('BigQuery day grain casts via DATE(expr, tz), not CAST AS DATE', () => {
+            expect(
+                getSqlForTruncatedDate(
+                    SupportedDbtAdapter.BIGQUERY,
+                    TimeFrames.DAY,
+                    col,
+                    DimensionType.TIMESTAMP,
+                    null,
+                    tz,
+                    undefined,
+                    true, // castDayGrainToDate
+                ),
+            ).toEqual(
+                `DATE(TIMESTAMP_TRUNC(TIMESTAMP(${col}), DAY, '${tz}'), '${tz}')`,
+            );
+        });
+
         test('TIMESTAMP dimension with timezone still gets tz round-trip (Snowflake)', () => {
             expect(
                 getSqlForTruncatedDate(

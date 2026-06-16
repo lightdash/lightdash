@@ -44,6 +44,7 @@ import { useProjectColorPalette } from '../../../../../hooks/appearance/useProje
 import useHealth from '../../../../../hooks/health/useHealth';
 import { useExplore } from '../../../../../hooks/useExplore';
 import { type InfiniteQueryResults } from '../../../../../hooks/useQueryResults';
+import { isEmbedAiAgentRoute } from '../../hooks/aiAgentRouting';
 import { AgentVisualizationChartTypeSwitcher } from './AgentVisualizationChartTypeSwitcher';
 import AgentVisualizationFilters from './AgentVisualizationFilters';
 import AgentVisualizationMetricsAndDimensions from './AgentVisualizationMetricsAndDimensions';
@@ -87,7 +88,14 @@ export const AiVisualizationRenderer: FC<Props> = ({
 }) => {
     const { data: health } = useHealth();
     const { projectUuid } = useParams<{ projectUuid: string }>();
-    const { data: resolvedPalette } = useProjectColorPalette(projectUuid);
+    const isEmbed = isEmbedAiAgentRoute();
+    const { data: resolvedPalette } = useProjectColorPalette(
+        projectUuid,
+        {},
+        {
+            enabled: !isEmbed,
+        },
+    );
     const { colorScheme } = useMantineColorScheme();
 
     const colorPalette = useMemo(() => {

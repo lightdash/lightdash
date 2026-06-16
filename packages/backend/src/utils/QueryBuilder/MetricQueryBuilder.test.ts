@@ -5119,6 +5119,134 @@ describe('Nested aggregate metrics', () => {
 
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+describe('Timezone-aware DATE_TRUNC day-or-coarser → DATE cast (GLITCH-452)', () => {
+    const buildDayExplore = (
+        baseType: DimensionType = DimensionType.TIMESTAMP,
+        adapter: SupportedDbtAdapter = SupportedDbtAdapter.POSTGRES,
+    ): Explore => ({
+        targetDatabase: adapter,
+        name: 'events',
+        label: 'events',
+        baseTable: 'events',
+        tags: [],
+        joinedTables: [],
+        tables: {
+            events: {
+                name: 'events',
+                label: 'events',
+                database: 'db',
+                schema: 's',
+                sqlTable: '"events"',
+                primaryKey: ['id'],
+                dimensions: {
+                    occurred_at: {
+                        type: baseType,
+                        name: 'occurred_at',
+                        label: 'occurred_at',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: '${TABLE}.occurred_at',
+                        compiledSql: '"events".occurred_at',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                    occurred_at_day: {
+                        type: DimensionType.DATE,
+                        name: 'occurred_at_day',
+                        label: 'occurred_at_day',
+                        table: 'events',
+                        tableLabel: 'events',
+                        fieldType: FieldType.DIMENSION,
+                        sql: `DATE_TRUNC('DAY', \${TABLE}.occurred_at)`,
+                        compiledSql: `DATE_TRUNC('DAY', "events".occurred_at)`,
+                        tablesReferences: ['events'],
+                        hidden: false,
+                        timeInterval: TimeFrames.DAY,
+                        timeIntervalBaseDimensionName: 'occurred_at',
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    },
+                },
+                metrics: {
+                    event_count: {
+                        type: MetricType.COUNT,
+                        fieldType: FieldType.METRIC,
+                        table: 'events',
+                        tableLabel: 'events',
+                        name: 'event_count',
+                        label: 'event_count',
+                        sql: '${TABLE}.id',
+                        compiledSql: 'COUNT("events".id)',
+                        tablesReferences: ['events'],
+                        hidden: false,
+                    },
+                },
+                lineageGraph: {},
+            },
+        },
+    });
+
+    const dayQuery: CompiledMetricQuery = {
+        exploreName: 'events',
+        dimensions: ['events_occurred_at_day'],
+        metrics: ['events_event_count'],
+        filters: {},
+        sorts: [],
+        limit: 100,
+        tableCalculations: [],
+        compiledTableCalculations: [],
+        compiledAdditionalMetrics: [],
+        compiledCustomDimensions: [],
+    };
+
+    test('TIMESTAMP base + flag on + non-UTC TZ casts day-grain SELECT to DATE (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: dayQuery,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(query).toContain(
+            `CAST(DATE_TRUNC('DAY', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE)`,
+        );
+    });
+
+    test('TIMESTAMP base + flag on: day-grain EQUALS filter uses a bare date literal, not timestamptz (Postgres)', () => {
+        const { query } = buildQuery({
+            explore: buildDayExplore(),
+            compiledMetricQuery: {
+                ...dayQuery,
+                filters: {
+                    dimensions: {
+                        id: 'root',
+                        and: [
+                            {
+                                id: 'f1',
+                                target: { fieldId: 'events_occurred_at_day' },
+                                operator: FilterOperator.EQUALS,
+                                values: ['2024-01-15'],
+                            },
+                        ],
+                    },
+                },
+            },
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: 'America/New_York',
+            useTimezoneAwareDateTrunc: true,
+        });
+        // WHERE LHS is the DATE-cast expression…
+        expect(query).toContain(
+            `CAST(DATE_TRUNC('DAY', ("events".occurred_at)::timestamptz AT TIME ZONE 'America/New_York') AS DATE)`,
+        );
+        // …and the literal must be a bare date, not wrapped as a timestamptz
+        // (LHS is a DATE now — a timestamptz literal would re-introduce a tz drift).
+        expect(query).not.toContain(`'2024-01-15'::timestamp`);
+    });
+});
+
 describe('Timezone-aware EXTRACT-based time dimensions', () => {
     const buildExtractExplore = (
         baseType: DimensionType,

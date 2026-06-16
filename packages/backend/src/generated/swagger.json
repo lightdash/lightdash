@@ -2058,6 +2058,23 @@
                     }
                 ]
             },
+            "EmbedJwtContentAiAgent": {
+                "properties": {
+                    "agentUuid": {
+                        "type": "string"
+                    },
+                    "projectUuid": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["aiAgent"],
+                        "nullable": false
+                    }
+                },
+                "required": ["agentUuid", "type"],
+                "type": "object"
+            },
             "EmbedWriteActions": {
                 "properties": {
                     "spaceUuid": {
@@ -2120,6 +2137,9 @@
                             },
                             {
                                 "$ref": "#/components/schemas/EmbedJwtContentDataApp"
+                            },
+                            {
+                                "$ref": "#/components/schemas/EmbedJwtContentAiAgent"
                             }
                         ]
                     }
@@ -10625,6 +10645,12 @@
                     },
                     {
                         "properties": {
+                            "parameters": {
+                                "$ref": "#/components/schemas/ParametersValuesMap"
+                            },
+                            "filters": {
+                                "$ref": "#/components/schemas/Filters"
+                            },
                             "appUuid": {
                                 "type": "number",
                                 "enum": [null],
@@ -12293,7 +12319,7 @@
                 "required": ["content", "mimeType", "originalFilename", "name"],
                 "type": "object"
             },
-            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_": {
+            "Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -12359,7 +12385,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["upload", "url", null],
+                        "enum": ["url", "upload", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -12381,6 +12407,9 @@
                         "type": "boolean"
                     },
                     "enableContentTools": {
+                        "type": "boolean"
+                    },
+                    "adminOnly": {
                         "type": "boolean"
                     },
                     "version": {
@@ -12407,13 +12436,14 @@
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
+                    "adminOnly",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgentSummary": {
-                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_"
+                "$ref": "#/components/schemas/Pick_AiAgent.uuid-or-name-or-description-or-integrations-or-tags-or-projectUuid-or-organizationUuid-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version_"
             },
             "ApiAiAgentSummaryResponse": {
                 "properties": {
@@ -12902,7 +12932,7 @@
             "ApiAiAgentProjectThreadSummaryListResponse": {
                 "$ref": "#/components/schemas/ApiSuccess_KnexPaginatedData_AiAgentProjectThreadSummary-Array__"
             },
-            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_": {
+            "Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version_": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -12968,7 +12998,7 @@
                     },
                     "imageUrlSource": {
                         "type": "string",
-                        "enum": ["upload", "url", null],
+                        "enum": ["url", "upload", null],
                         "nullable": true
                     },
                     "groupAccess": {
@@ -12990,6 +13020,9 @@
                         "type": "boolean"
                     },
                     "enableContentTools": {
+                        "type": "boolean"
+                    },
+                    "adminOnly": {
                         "type": "boolean"
                     },
                     "version": {
@@ -13016,13 +13049,14 @@
                     "enableDataAccess",
                     "enableSelfImprovement",
                     "enableContentTools",
+                    "adminOnly",
                     "version"
                 ],
                 "type": "object",
                 "description": "From T, pick a set of properties whose keys are in the union K"
             },
             "AiAgent": {
-                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version_"
+                "$ref": "#/components/schemas/Pick_BaseAiAgent.uuid-or-projectUuid-or-organizationUuid-or-integrations-or-tags-or-name-or-description-or-createdAt-or-updatedAt-or-instruction-or-imageUrl-or-imageUrlSource-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version_"
             },
             "ApiAiAgentResponse": {
                 "properties": {
@@ -13615,6 +13649,9 @@
                                 },
                                 "type": "array"
                             },
+                            "adminOnly": {
+                                "type": "boolean"
+                            },
                             "enableContentTools": {
                                 "type": "boolean"
                             }
@@ -13623,7 +13660,7 @@
                     }
                 ]
             },
-            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version__": {
+            "Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version__": {
                 "properties": {
                     "description": {
                         "type": "string",
@@ -13694,6 +13731,9 @@
                     "enableContentTools": {
                         "type": "boolean"
                     },
+                    "adminOnly": {
+                        "type": "boolean"
+                    },
                     "version": {
                         "type": "number",
                         "format": "double"
@@ -13705,7 +13745,7 @@
             "ApiUpdateAiAgent": {
                 "allOf": [
                     {
-                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-version__"
+                        "$ref": "#/components/schemas/Partial_Pick_AiAgent.projectUuid-or-integrations-or-tags-or-name-or-description-or-instruction-or-imageUrl-or-groupAccess-or-userAccess-or-spaceAccess-or-enableDataAccess-or-enableSelfImprovement-or-enableContentTools-or-adminOnly-or-version__"
                     },
                     {
                         "properties": {
@@ -14146,7 +14186,8 @@
                     "loadSkill",
                     "loadProjectContext",
                     "editDbtProject",
-                    "repoShell",
+                    "exploreRepo",
+                    "discoverRepos",
                     "setupPreviewDeploy",
                     "runQuery",
                     "runSavedChart",
@@ -14174,8 +14215,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -14233,8 +14274,8 @@
                                                     "userFeedback": {
                                                         "type": "string",
                                                         "enum": [
-                                                            "rejected",
-                                                            "accepted"
+                                                            "accepted",
+                                                            "rejected"
                                                         ]
                                                     },
                                                     "changeUuid": {
@@ -20440,7 +20481,7 @@
                 },
                 "required": ["truncated", "files"],
                 "type": "object",
-                "description": "The project's source files, read from the read-only repo virtual file system\n(the same VFS the agent's repoShell sees). Used by the chat input's\n`@`-mention file picker. Paths are relative to the project's dbt sub-folder,\nso an"
+                "description": "The project's source files, read from the read-only repo virtual file system\n(the same VFS the agent's exploreRepo tool sees). Used by the chat input's\n`@`-mention file picker. Paths are relative to the project's dbt sub-folder,\nso an"
             },
             "ApiProjectFilesResponse": {
                 "properties": {
@@ -20455,6 +20496,42 @@
                 },
                 "required": ["results", "status"],
                 "type": "object"
+            },
+            "GitRepo": {
+                "properties": {
+                    "defaultBranch": {
+                        "type": "string"
+                    },
+                    "ownerLogin": {
+                        "type": "string"
+                    },
+                    "fullName": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": ["defaultBranch", "ownerLogin", "fullName", "name"],
+                "type": "object"
+            },
+            "ApiProjectRepositoriesResponse": {
+                "properties": {
+                    "results": {
+                        "items": {
+                            "$ref": "#/components/schemas/GitRepo"
+                        },
+                        "type": "array"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": ["ok"],
+                        "nullable": false
+                    }
+                },
+                "required": ["results", "status"],
+                "type": "object",
+                "description": "The repositories the agent can read for a project, used by the chat input's\n`@`-mention repository picker. This is the same union the agent's repo VFS\nmounts (the org installation's repos plus the linked user's own), gated by the\nproject's `view:SourceCode` ability — unlike the org-wide `/github/repos/list`\nendpoint, it never exposes repo names to users without source-code access."
             },
             "Pick_AiAgentThreadSummary_AiAgentUser-and-_slackUserId-string-or-null--email-string-or-null__.user-or-createdAt-or-createdFrom-or-title-or-uuid_": {
                 "properties": {
@@ -31157,7 +31234,12 @@
             },
             "CompilationSource": {
                 "type": "string",
-                "enum": ["cli_deploy", "refresh_dbt", "create_project"]
+                "enum": [
+                    "cli_deploy",
+                    "refresh_dbt",
+                    "create_project",
+                    "project_connection_form"
+                ]
             },
             "Partial_Explore_": {
                 "properties": {
@@ -33891,24 +33973,6 @@
                     "exploreId",
                     "projectUuid"
                 ],
-                "type": "object"
-            },
-            "GitRepo": {
-                "properties": {
-                    "defaultBranch": {
-                        "type": "string"
-                    },
-                    "ownerLogin": {
-                        "type": "string"
-                    },
-                    "fullName": {
-                        "type": "string"
-                    },
-                    "name": {
-                        "type": "string"
-                    }
-                },
-                "required": ["defaultBranch", "ownerLogin", "fullName", "name"],
                 "type": "object"
             },
             "GithubUserCredential": {
@@ -39558,7 +39622,7 @@
     },
     "info": {
         "title": "Lightdash API",
-        "version": "0.3167.1",
+        "version": "0.3175.0",
         "description": "Open API documentation for all public Lightdash API endpoints. # Authentication Before you get started, you might need to create a Personal Access Token to authenticate via the API. You can create a token by following this guide: https://docs.lightdash.com/references/personal_tokens\n",
         "license": {
             "name": "MIT"
@@ -55475,7 +55539,7 @@
                         }
                     },
                     {
-                        "description": "filter by source (\"cli_deploy\", \"refresh_dbt\")",
+                        "description": "filter by source (\"cli_deploy\", \"refresh_dbt\", \"create_project\", \"project_connection_form\")",
                         "in": "query",
                         "name": "source",
                         "required": false,
@@ -55484,7 +55548,8 @@
                             "enum": [
                                 "cli_deploy",
                                 "refresh_dbt",
-                                "create_project"
+                                "create_project",
+                                "project_connection_form"
                             ]
                         }
                     }

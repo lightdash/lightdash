@@ -11,6 +11,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../../api';
 import useToaster from '../../../../hooks/toaster/useToaster';
+import { isEmbedAiAgentRoute } from './aiAgentRouting';
 
 const ROUTER_BASE = '/org/aiRouter';
 
@@ -27,6 +28,7 @@ export const useAiRouterConfig = () =>
     useQuery<AiRouter, ApiError>({
         queryKey: ['ai-router'],
         queryFn: getAiRouterConfig,
+        enabled: !isEmbedAiAgentRoute(),
         retry: false,
     });
 

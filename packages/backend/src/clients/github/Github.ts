@@ -82,10 +82,68 @@ export const userTokenHasRepoAccess = async (
     }
 };
 
+export type GithubRateLimitObservation = {
+    resource: string;
+    limit: number;
+    remaining: number;
+    used: number;
+};
+
+let githubRateLimitObserver:
+    | ((observation: GithubRateLimitObservation) => void)
+    | null = null;
+
+/** Register a sink for GitHub rate-limit headers (e.g. Prometheus gauges). The
+ *  installation limit is shared across all GitHub usage, so every Octokit
+ *  response (success or error) reports `x-ratelimit-*` here. */
+export const setGithubRateLimitObserver = (
+    observer: ((observation: GithubRateLimitObservation) => void) | null,
+): void => {
+    githubRateLimitObserver = observer;
+};
+
+const reportRateLimitHeaders = (
+    headers: Record<string, string | number | undefined> | undefined,
+): void => {
+    if (!githubRateLimitObserver || !headers) return;
+    const resource = headers['x-ratelimit-resource'];
+    const limit = Number(headers['x-ratelimit-limit']);
+    if (typeof resource !== 'string' || Number.isNaN(limit)) return;
+    githubRateLimitObserver({
+        resource,
+        limit,
+        remaining: Number(headers['x-ratelimit-remaining']),
+        used: Number(headers['x-ratelimit-used']),
+    });
+};
+
+/** Report `x-ratelimit-*` from every response (success and error) of an Octokit
+ *  instance to the registered observer, then return it. */
+const withRateLimitObserver = (octokit: OctokitRest): OctokitRest => {
+    octokit.hook.after('request', (response) => {
+        reportRateLimitHeaders(
+            response.headers as Record<string, string | number | undefined>,
+        );
+    });
+    octokit.hook.error('request', (error) => {
+        reportRateLimitHeaders(
+            (
+                error as {
+                    response?: {
+                        headers?: Record<string, string | number | undefined>;
+                    };
+                }
+            )?.response?.headers,
+        );
+        throw error;
+    });
+    return octokit;
+};
+
 export const getOctokitRestForUser = (
     authToken: string,
 ): { octokit: OctokitRest; headers: { authorization: string } } => {
-    const octokit = new OctokitRest();
+    const octokit = withRateLimitObserver(new OctokitRest());
     const headers = {
         authorization: `Bearer ${authToken}`,
     };
@@ -113,14 +171,16 @@ export const getOctokitRestForApp = (installationId: string): OctokitRest => {
     if (appId === undefined)
         throw new Error('Github integration not configured');
 
-    return new OctokitRest({
-        authStrategy: createAppAuth,
-        auth: {
-            appId,
-            privateKey,
-            installationId,
-        },
-    });
+    return withRateLimitObserver(
+        new OctokitRest({
+            authStrategy: createAppAuth,
+            auth: {
+                appId,
+                privateKey,
+                installationId,
+            },
+        }),
+    );
 };
 
 /** Resolve the GitHub App's bot account (login + numeric id) for an
@@ -384,6 +444,54 @@ export const getRepoTree = async ({
     }
 };
 
+export type GithubCodeSearchMatch = {
+    owner: string;
+    repo: string;
+    path: string;
+    fragments: string[];
+};
+
+export const searchRepoCode = async ({
+    owner,
+    repo,
+    query,
+    installationId,
+    token,
+    maxResults = 50,
+}: {
+    owner: string;
+    repo?: string;
+    query: string;
+    installationId?: string;
+    token?: string;
+    maxResults?: number;
+}): Promise<GithubCodeSearchMatch[]> => {
+    const { octokit, headers } = getOctokit(installationId, token);
+    const scope = repo ? `repo:${owner}/${repo}` : `user:${owner}`;
+    try {
+        const response = await octokit.rest.search.code({
+            q: `${query} ${scope}`,
+            per_page: Math.min(Math.max(maxResults, 1), 100),
+            mediaType: { format: 'text-match' },
+            headers,
+        });
+        return response.data.items.slice(0, maxResults).map((item) => ({
+            owner: item.repository.owner.login,
+            repo: item.repository.name,
+            path: item.path,
+            fragments: (item.text_matches ?? [])
+                .map((match) => match.fragment ?? '')
+                .filter((fragment) => fragment.length > 0),
+        }));
+    } catch (error) {
+        if ((error as { status?: number } | null)?.status === 422) {
+            return [];
+        }
+        logGithubRateLimit(error, `search.code ${owner}/${repo}`);
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
 export const getRepoWorkflowFiles = async ({
     owner,
     repo,
@@ -642,6 +750,86 @@ export const createSignedCommitOnBranch = async ({
         return response.createCommitOnBranch.commit;
     } catch (e) {
         throw new UnexpectedGitError(getErrorMessage(e));
+    }
+};
+
+/**
+ * List every repository the org's GitHub App installation can read, using the
+ * installation-scoped token. Powers the agent's `discoverRepos` tool so it can
+ * find a repo to inspect with `exploreRepo` — not just the dbt project repo.
+ * `octokit.paginate` normalizes this endpoint's `{ total_count, repositories }`
+ * envelope and walks every page.
+ */
+export const listReposAccessibleToInstallation = async ({
+    installationId,
+}: {
+    installationId: string;
+}): Promise<
+    { owner: string; repo: string; defaultBranch: string; private: boolean }[]
+> => {
+    const octokit = getOctokitRestForApp(installationId);
+    try {
+        const repos = await octokit.paginate(
+            octokit.rest.apps.listReposAccessibleToInstallation,
+            { per_page: 100 },
+        );
+        return repos.map((r) => ({
+            owner: r.owner.login,
+            repo: r.name,
+            defaultBranch: r.default_branch,
+            private: r.private,
+        }));
+    } catch (error) {
+        logGithubRateLimit(
+            error,
+            `listReposAccessibleToInstallation ${installationId}`,
+        );
+        throw new UnexpectedGitError(getErrorMessage(error));
+    }
+};
+
+/**
+ * List every repository the authenticated *user* can reach through the GitHub
+ * App — across all installations they can access (their personal account plus
+ * the organizations they belong to where the app is installed). Uses the user's
+ * own OAuth (user-to-server) token, so it's scoped to that user and never leaks
+ * repos they can't see. Mirrors {@link listReposAccessibleToInstallation} but
+ * for the user side of the read-access union.
+ */
+export const listReposAccessibleToUser = async ({
+    token,
+}: {
+    token: string;
+}): Promise<
+    { owner: string; repo: string; defaultBranch: string; private: boolean }[]
+> => {
+    const { octokit, headers } = getOctokitRestForUser(token);
+    try {
+        const installations = await octokit.paginate(
+            octokit.rest.apps.listInstallationsForAuthenticatedUser,
+            { per_page: 100, headers },
+        );
+        const repoLists = await Promise.all(
+            installations.map((installation) =>
+                octokit.paginate(
+                    octokit.rest.apps.listInstallationReposForAuthenticatedUser,
+                    {
+                        installation_id: installation.id,
+                        per_page: 100,
+                        headers,
+                    },
+                ),
+            ),
+        );
+        return repoLists.flat().map((r) => ({
+            owner: r.owner.login,
+            repo: r.name,
+            defaultBranch: r.default_branch,
+            private: r.private,
+        }));
+    } catch (error) {
+        logGithubRateLimit(error, 'listReposAccessibleToUser');
+        throw new UnexpectedGitError(getErrorMessage(error));
     }
 };
 

@@ -1282,6 +1282,22 @@ export type DataAppVersionCompletedEvent = BaseTrack & {
         buildFixAttempts: number;
         buildFixGenerationMs: number;
         toolCallCount: number;
+        // Token/turn/cost usage summed across every `claude` invocation in the
+        // build (main generation + build-fix re-runs + metadata). Used to
+        // decompose `generateMs` into output volume vs turn count and to
+        // confirm prompt caching is landing (`cacheReadInputTokens > 0`).
+        inputTokens: number;
+        outputTokens: number;
+        cacheReadInputTokens: number;
+        cacheCreationInputTokens: number;
+        numTurns: number;
+        durationApiMs: number;
+        totalCostUsd: number;
+        // Latency shape of the main generation call: time-to-first-token and
+        // the slowest single turn. Captured from the main generation only
+        // (per-call metrics, not summed across build-fix / metadata).
+        timeToFirstTokenMs: number;
+        slowestTurnMs: number;
         catalogTableCount: number;
         catalogDimensionCount: number;
         catalogMetricCount: number;

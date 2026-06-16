@@ -9,11 +9,59 @@
  * react to events.
  */
 
+/**
+ * Usage summary for a single `claude` run, extracted from the stream-json
+ * `result` event. Token counts, turn count, API time, and cost — the pieces
+ * needed to decompose `generateMs` into "too much output" vs "too many turns"
+ * and to confirm prompt caching is landing (`cacheReadInputTokens > 0`).
+ */
+export type ClaudeGenerationUsage = {
+    inputTokens: number;
+    outputTokens: number;
+    cacheReadInputTokens: number;
+    cacheCreationInputTokens: number;
+    numTurns: number;
+    durationApiMs: number;
+    costUsd: number;
+};
+
+export const ZERO_CLAUDE_USAGE: ClaudeGenerationUsage = {
+    inputTokens: 0,
+    outputTokens: 0,
+    cacheReadInputTokens: 0,
+    cacheCreationInputTokens: 0,
+    numTurns: 0,
+    durationApiMs: 0,
+    costUsd: 0,
+};
+
+/**
+ * Sum two usage records field-by-field. One build can invoke `claude` several
+ * times (main generation, build-fix re-runs, metadata), so the pipeline totals
+ * them. Treats `null` as all-zero.
+ */
+export function addClaudeUsage(
+    a: ClaudeGenerationUsage,
+    b: ClaudeGenerationUsage | null,
+): ClaudeGenerationUsage {
+    if (!b) return a;
+    return {
+        inputTokens: a.inputTokens + b.inputTokens,
+        outputTokens: a.outputTokens + b.outputTokens,
+        cacheReadInputTokens: a.cacheReadInputTokens + b.cacheReadInputTokens,
+        cacheCreationInputTokens:
+            a.cacheCreationInputTokens + b.cacheCreationInputTokens,
+        numTurns: a.numTurns + b.numTurns,
+        durationApiMs: a.durationApiMs + b.durationApiMs,
+        costUsd: a.costUsd + b.costUsd,
+    };
+}
+
 export type ClaudeStreamEvent =
     | { kind: 'thinking_started'; turn: number }
     | { kind: 'thinking_snippet'; snippet: string }
     | { kind: 'tool_use'; index: number; description: string }
-    | { kind: 'result_text'; text: string };
+    | { kind: 'result'; text: string };
 
 const STATUS_THROTTLE_MS = 3000;
 const SNIPPET_SENTENCES = 1;
@@ -151,10 +199,20 @@ function parsePartialDeltaText(
     return undefined;
 }
 
+function asFiniteNumber(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
 /**
- * Parse a stream-json `result` event and return the final response text.
+ * Parse a stream-json `result` event: the final response text plus the run's
+ * usage summary (token counts, turn count, API time, cost). Returns
+ * `undefined` for non-result lines. Missing numeric fields default to 0 —
+ * the `result` event is emitted once per run and always carries usage, but
+ * we parse defensively in case a field is absent on older CLI versions.
  */
-function parseResultText(line: string): string | undefined {
+function parseResult(
+    line: string,
+): { text: string | null; usage: ClaudeGenerationUsage } | undefined {
     let event: Record<string, unknown>;
     try {
         event = JSON.parse(line);
@@ -162,7 +220,21 @@ function parseResultText(line: string): string | undefined {
         return undefined;
     }
     if (event.type !== 'result') return undefined;
-    return typeof event.result === 'string' ? event.result : undefined;
+    const usage = (event.usage ?? {}) as Record<string, unknown>;
+    return {
+        text: typeof event.result === 'string' ? event.result : null,
+        usage: {
+            inputTokens: asFiniteNumber(usage.input_tokens),
+            outputTokens: asFiniteNumber(usage.output_tokens),
+            cacheReadInputTokens: asFiniteNumber(usage.cache_read_input_tokens),
+            cacheCreationInputTokens: asFiniteNumber(
+                usage.cache_creation_input_tokens,
+            ),
+            numTurns: asFiniteNumber(event.num_turns),
+            durationApiMs: asFiniteNumber(event.duration_api_ms),
+            costUsd: asFiniteNumber(event.total_cost_usd),
+        },
+    };
 }
 
 export class ClaudeStreamProcessor {
@@ -180,14 +252,26 @@ export class ClaudeStreamProcessor {
 
     private lastEmittedSnippet = '';
 
+    private lastUsageValue: ClaudeGenerationUsage | null = null;
+
+    private firstMessageStartAt: number | null = null;
+
+    private lastTurnStartAt: number | null = null;
+
+    private readonly turnDurations: number[] = [];
+
     private readonly now: () => number;
 
+    private readonly createdAt: number;
+
     /**
-     * `now` is injectable purely for future testability — defaults to
-     * `Date.now`. Not used in production code paths.
+     * `now` is injectable for testing the time-based outputs (snippet
+     * throttling, time-to-first-token, per-turn durations) — defaults to
+     * `Date.now`.
      */
     constructor(now: () => number = () => Date.now()) {
         this.now = now;
+        this.createdAt = now();
     }
 
     /**
@@ -196,6 +280,35 @@ export class ClaudeStreamProcessor {
      */
     get totalToolCalls(): number {
         return this.toolCallCount;
+    }
+
+    /**
+     * Usage summary from the run's `result` event, or `null` if no result
+     * event was seen (e.g. the CLI died before finishing). Read after the
+     * run completes — same pattern as `totalToolCalls`.
+     */
+    get lastUsage(): ClaudeGenerationUsage | null {
+        return this.lastUsageValue;
+    }
+
+    /**
+     * Wall-clock ms from processor creation to the first assistant turn — a
+     * proxy for time-to-first-token (how long Claude took to start
+     * responding). `null` if the model never produced a turn.
+     */
+    get timeToFirstTokenMs(): number | null {
+        return this.firstMessageStartAt === null
+            ? null
+            : this.firstMessageStartAt - this.createdAt;
+    }
+
+    /**
+     * Per-turn wall-clock durations in ms, in turn order. A turn spans from
+     * its `message_start` to the next turn's start (or to the final `result`
+     * event for the last turn).
+     */
+    get turnDurationsMs(): number[] {
+        return [...this.turnDurations];
     }
 
     /**
@@ -218,6 +331,14 @@ export class ClaudeStreamProcessor {
     private consumeLine(line: string, events: ClaudeStreamEvent[]): void {
         const partialKind = parsePartialStreamEventKind(line);
         if (partialKind === 'message_start') {
+            const turnStart = this.now();
+            if (this.firstMessageStartAt === null) {
+                this.firstMessageStartAt = turnStart;
+            }
+            if (this.lastTurnStartAt !== null) {
+                this.turnDurations.push(turnStart - this.lastTurnStartAt);
+            }
+            this.lastTurnStartAt = turnStart;
             this.turnCount += 1;
             this.thinkingStartedThisTurn = false;
             this.thinkingTextBuffer = '';
@@ -263,9 +384,14 @@ export class ClaudeStreamProcessor {
             return;
         }
 
-        const resultText = parseResultText(line);
-        if (resultText) {
-            events.push({ kind: 'result_text', text: resultText });
+        const result = parseResult(line);
+        if (result) {
+            if (this.lastTurnStartAt !== null) {
+                this.turnDurations.push(this.now() - this.lastTurnStartAt);
+                this.lastTurnStartAt = null;
+            }
+            this.lastUsageValue = result.usage;
+            events.push({ kind: 'result', text: result.text ?? '' });
         }
     }
 }

@@ -841,12 +841,6 @@ export const renderFilterRuleSql = (
         }
         case DimensionType.DATE:
         case MetricType.DATE: {
-            // Only truncations over a TIMESTAMP base carry a timestamptz
-            // SQL expression; pure DATE columns stay bare DATE, so wrapping
-            // the literal would break BigQuery's DATE vs TIMESTAMP check.
-            const wrapLiteralAsTimestamptz =
-                !!useTimezoneAwareDateTrunc &&
-                baseTimeIntervalDimensionType === DimensionType.TIMESTAMP;
             return renderDateFilterSql({
                 dimensionSql: fieldSql,
                 filter: escapedFilterRule,
@@ -857,7 +851,11 @@ export const renderFilterRuleSql = (
                     : undefined,
                 startOfWeek,
                 baseDimensionSql,
-                useTimezoneAwareDateTrunc: wrapLiteralAsTimestamptz,
+                // GLITCH-452: day-or-coarser dims now compile to a real DATE
+                // (CAST(... AS DATE)), so the literal stays a bare date —
+                // wrapping it as a timestamptz would re-introduce the tz drift
+                // the cast removes (and break BigQuery's DATE vs TIMESTAMP check).
+                useTimezoneAwareDateTrunc: false,
                 sourceTimezone,
             });
         }

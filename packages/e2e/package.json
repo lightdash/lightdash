@@ -1,6 +1,6 @@
 {
     "name": "e2e",
-    "version": "0.3167.3",
+    "version": "0.3176.0",
     "private": true,
     "license": "MIT",
     "main": "index.js",
@@ -22,7 +22,7 @@
         "cypress-file-upload": "5.0.8",
         "cypress-split": "1.24.29",
         "dayjs": "1.11.10",
-        "js-yaml": "4.1.1"
+        "js-yaml": "4.2.0"
     },
     "devDependencies": {
         "typescript": "6.0.3"

@@ -1,12 +1,17 @@
 import { z } from 'zod';
 import { type CompilationHistoryReport } from '../compiler/compilationReport';
 
-export type CompilationSource = 'cli_deploy' | 'refresh_dbt' | 'create_project';
+export type CompilationSource =
+    | 'cli_deploy'
+    | 'refresh_dbt'
+    | 'create_project'
+    | 'project_connection_form';
 
 export const CompilationSourceSchema = z.enum([
     'cli_deploy',
     'refresh_dbt',
     'create_project',
+    'project_connection_form',
 ]);
 
 export type ProjectCompileLog = {

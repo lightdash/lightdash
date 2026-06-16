@@ -9,6 +9,7 @@ import {
     type ApiMergePullRequestResponse,
     type ApiProjectCiStatusResponse,
     type ApiProjectFilesResponse,
+    type ApiProjectRepositoriesResponse,
     type ApiPullRequestDiffResponse,
     type ClosePullRequestRequestBody,
     type MergePullRequestRequestBody,
@@ -288,6 +289,32 @@ export class AiWritebackController extends BaseController {
             user: toSessionUser(req.account),
             projectUuid,
         });
+        return {
+            status: 'ok',
+            results,
+        };
+    }
+
+    /**
+     * List the repositories the agent can read for this project, for the chat
+     * input's `@`-mention repository picker.
+     * @summary List project repositories
+     */
+    @Middlewares([allowApiKeyAuthentication, isAuthenticated])
+    @SuccessResponse('200', 'Success')
+    @Get('/repositories')
+    @OperationId('listProjectRepositories')
+    async listProjectRepositories(
+        @Request() req: express.Request,
+        @Path() projectUuid: string,
+    ): Promise<ApiProjectRepositoriesResponse> {
+        assertRegisteredAccount(req.account);
+        this.setStatus(200);
+        const results =
+            await this.getAiWritebackService().listProjectRepositories({
+                user: toSessionUser(req.account),
+                projectUuid,
+            });
         return {
             status: 'ok',
             results,

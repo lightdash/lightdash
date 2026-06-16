@@ -275,7 +275,10 @@ describe('resolveAxisTimezone', () => {
         expect(result.timeAxisField).toBeUndefined();
     });
 
-    test('shifts a DATE day bucket derived from a TIMESTAMP base', () => {
+    test('does not shift a DATE day bucket derived from a TIMESTAMP base (GLITCH-452)', () => {
+        // GLITCH-452: a day-or-coarser TIMESTAMP-base trunc now compiles to a
+        // real DATE, so it is a calendar value and the time axis must not shift
+        // it — same as a native DATE day bucket.
         const fieldId = 'orders_created_day';
         const result = resolveAxisTimezone({
             validCartesianConfig: makeCartesian({ xField: fieldId }),
@@ -288,12 +291,7 @@ describe('resolveAxisTimezone', () => {
             },
             resolvedTimezone: TZ,
         });
-        expect(result.timeAxisField).toEqual({
-            fieldId,
-            timezone: TZ,
-            flipAxes: false,
-            mode: 'shift',
-        });
+        expect(result.timeAxisField).toBeUndefined();
     });
 
     test('uses yField[0] when flipAxes is true', () => {
