@@ -84,6 +84,7 @@ export type ExecuteAsyncSavedChartQueryArgs = CommonAsyncQueryArgs & {
     versionUuid?: string;
     limit?: number | null | undefined;
     pivotResults?: boolean;
+    filterOverrides?: Filters;
 };
 
 export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {

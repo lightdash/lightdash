@@ -1,4 +1,5 @@
 import {
+    isDashboardScheduler,
     SchedulerFormat,
     type CreateSchedulerAndTargetsWithoutIds,
     type Dashboard,
@@ -143,7 +144,7 @@ const SchedulerForm: FC<Props> = ({
                                 isEditMode={savedSchedulerData !== undefined}
                                 savedFilters={
                                     savedSchedulerData &&
-                                    'filters' in savedSchedulerData
+                                    isDashboardScheduler(savedSchedulerData)
                                         ? savedSchedulerData.filters
                                         : []
                                 }
