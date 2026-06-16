@@ -5685,6 +5685,12 @@ Table calculations perform row-by-row calculations on query results without coll
         "metadata": {
           "additionalProperties": false,
           "properties": {
+            "chartImageUrl": {
+              "type": [
+                "string",
+                "null",
+              ],
+            },
             "status": {
               "enum": [
                 "success",

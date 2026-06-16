@@ -311,6 +311,21 @@ export class SlackClient {
         await webClient.reactions.add({ channel, timestamp, name });
     }
 
+    public async removeReaction({
+        organizationUuid,
+        channel,
+        timestamp,
+        name,
+    }: {
+        organizationUuid: string;
+        channel: string;
+        timestamp: string;
+        name: string;
+    }): Promise<void> {
+        const webClient = await this.getWebClient(organizationUuid);
+        await webClient.reactions.remove({ channel, timestamp, name });
+    }
+
     async getWebClient(organizationUuid: string): Promise<WebClient> {
         if (!this.isEnabled) {
             throw new MissingConfigError('Slack is not configured');

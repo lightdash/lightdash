@@ -7793,10 +7793,37 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
     // TODO: user permissions
     async replyToSlackPrompt(promptUuid: string): Promise<void> {
-        let slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
+        const slackPrompt = await this.aiAgentModel.findSlackPrompt(promptUuid);
         if (slackPrompt === undefined) {
             throw new Error('Prompt not found');
         }
+        // Always clear the :eyes: ack (added on app_mention) once we finish —
+        // success or failure — so prompts don't keep a stale reaction forever.
+        try {
+            await this.generateSlackPromptReply(promptUuid, slackPrompt);
+        } finally {
+            await this.cleanupAckReaction(slackPrompt);
+        }
+    }
+
+    private async cleanupAckReaction(slackPrompt: SlackPrompt): Promise<void> {
+        try {
+            await this.slackClient.removeReaction({
+                organizationUuid: slackPrompt.organizationUuid,
+                channel: slackPrompt.slackChannelId,
+                timestamp: slackPrompt.promptSlackTs,
+                name: 'eyes',
+            });
+        } catch (err) {
+            Logger.debug('Failed to remove :eyes: ack reaction:', err);
+        }
+    }
+
+    private async generateSlackPromptReply(
+        promptUuid: string,
+        initialSlackPrompt: SlackPrompt,
+    ): Promise<void> {
+        let slackPrompt: SlackPrompt | undefined = initialSlackPrompt;
 
         const user = await this.userModel.findSessionUserAndOrgByUuid(
             slackPrompt.createdByUserUuid,
