@@ -11,13 +11,16 @@ import {
 import { useForm } from '@mantine/form';
 import {
     IconArrowUp,
+    IconArrowRight,
     IconCornerDownLeft,
+    IconGitPullRequest,
     IconSettings,
     IconSparkles,
 } from '@tabler/icons-react';
 import { useState, type FC } from 'react';
 import { Provider } from 'react-redux';
 import { Link, useNavigate } from 'react-router';
+import { CategoryBadge } from '../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
 import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
@@ -26,6 +29,7 @@ import {
     AI_ROUTING_SEARCH_PARAM,
 } from '../../../features/aiCopilot/components/AgentSelector/AgentSelectorUtils';
 import { usePendingPrompt } from '../../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
+import { useAiAgentAdminReviewItems } from '../../../features/aiCopilot/hooks/useAiAgentAdmin';
 import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../../features/aiCopilot/hooks/useAiOrganizationSettings';
 import { useAiRouterConfig } from '../../../features/aiCopilot/hooks/useAiRouter';
@@ -41,9 +45,13 @@ import { SearchDropdown } from './SearchDropdown';
 
 type Props = {
     projectUuid: string;
+    showAiReviewsPromo?: boolean;
 };
 
-const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
+const AiSearchBoxInner: FC<Props> = ({
+    projectUuid,
+    showAiReviewsPromo = false,
+}) => {
     const navigate = useNavigate();
 
     const { data: agents, isLoading: isLoadingAgents } = useProjectAiAgents({
@@ -54,6 +62,8 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
     const isTrial =
         aiOrganizationSettingsQuery.isSuccess &&
         aiOrganizationSettingsQuery.data.isTrial;
+    const reviewsEnabled =
+        aiOrganizationSettingsQuery.data?.aiAgentReviewsEnabled === true;
     const {
         data: userAgentPreferences,
         isLoading: isLoadingUserAgentPreferences,
@@ -65,9 +75,37 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
         action: 'manage',
         projectUuid,
     });
+    const canViewReviews = useAiAgentPermission({
+        action: 'manage',
+    });
+    const showReviewsPromo =
+        showAiReviewsPromo && canViewReviews && reviewsEnabled;
+    const { data: reviewItems } = useAiAgentAdminReviewItems(
+        { statuses: ['open'] },
+        { enabled: showReviewsPromo },
+    );
+    const projectReviewItems =
+        reviewItems?.filter(
+            (item) =>
+                item.projectUuid === projectUuid ||
+                item.latestFinding?.projectUuid === projectUuid,
+        ) ?? [];
+    const prReadyCount = projectReviewItems.filter(
+        (item) => item.writebackEligibility.eligible,
+    ).length;
+    const linkedPrCount = projectReviewItems.filter(
+        (item) => !!item.linkedPrUrl,
+    ).length;
+    const reviewsPromoLabel =
+        prReadyCount > 0
+            ? 'Review findings, ship PRs, improve agents'
+            : 'Review AI findings to improve future answers';
 
     const noAgentsAvailable =
         !isLoadingAgents && (!agents || agents.length === 0);
+    const showAgentSetupPrompt =
+        canManageAgents && (isTrial || noAgentsAvailable);
+    const showFooter = canManageAgents || showReviewsPromo;
 
     const showAutoOption =
         (agents?.length ?? 0) > 1 && aiRouterConfigQuery.data?.enabled === true;
@@ -256,20 +294,13 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                     </Group>
                 </form>
             </Box>
-            {canManageAgents && (
+            {showFooter && (
                 <>
                     <Divider color="ldGray.2" />
                     <Box bg="ldGray.0" px="md" py="5px">
-                        <Group
-                            flex={1}
-                            justify={
-                                isTrial || noAgentsAvailable
-                                    ? 'space-between'
-                                    : 'flex-end'
-                            }
-                        >
-                            <Group gap={2}>
-                                {noAgentsAvailable ? (
+                        <Group flex={1} justify="space-between">
+                            <Group gap="xs">
+                                {showAgentSetupPrompt && noAgentsAvailable ? (
                                     <Button
                                         size="compact-xs"
                                         variant="subtle"
@@ -296,7 +327,7 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                             </Text>
                                         </Group>
                                     </Button>
-                                ) : isTrial ? (
+                                ) : showAgentSetupPrompt && isTrial ? (
                                     <Group gap="xs">
                                         <MantineIcon
                                             icon={IconSparkles}
@@ -309,27 +340,83 @@ const AiSearchBoxInner: FC<Props> = ({ projectUuid }) => {
                                         </Text>
                                     </Group>
                                 ) : null}
+
+                                {showReviewsPromo && (
+                                    <Button
+                                        size="compact-xs"
+                                        variant="transparent"
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconGitPullRequest}
+                                                color="ldGray.7"
+                                                strokeWidth={1.7}
+                                            />
+                                        }
+                                        rightSection={
+                                            <MantineIcon
+                                                icon={IconArrowRight}
+                                                size={13}
+                                                color="ldGray.7"
+                                            />
+                                        }
+                                        component={Link}
+                                        to={`/generalSettings/ai/reviews?projects=${projectUuid}`}
+                                        className={styles.reviewsPromoButton}
+                                    >
+                                        <Group gap="xs" wrap="nowrap">
+                                            <Text span fz="xs" fw={700}>
+                                                {reviewsPromoLabel}
+                                            </Text>
+                                            <CategoryBadge
+                                                label={`${projectReviewItems.length} open`}
+                                                color="yellow.5"
+                                                className={
+                                                    styles.reviewsPromoBadge
+                                                }
+                                            />
+                                            <CategoryBadge
+                                                label={`${prReadyCount} PR-ready`}
+                                                color="green.5"
+                                                className={
+                                                    styles.reviewsPromoBadge
+                                                }
+                                            />
+                                            {linkedPrCount > 0 && (
+                                                <CategoryBadge
+                                                    label={`${linkedPrCount} linked`}
+                                                    color="blue.5"
+                                                    className={
+                                                        styles.reviewsPromoBadge
+                                                    }
+                                                />
+                                            )}
+                                        </Group>
+                                    </Button>
+                                )}
                             </Group>
 
-                            <Button
-                                size="compact-xs"
-                                variant="subtle"
-                                leftSection={
-                                    <MantineIcon
-                                        color="ldGray.7"
-                                        icon={IconSettings}
-                                        strokeWidth={1.5}
-                                    />
-                                }
-                                component={Link}
-                                to="/generalSettings/ai/agents"
-                                classNames={{
-                                    label: styles.adminSettingsButtonLabel,
-                                    section: styles.adminSettingsButtonSection,
-                                }}
-                            >
-                                Admin Settings
-                            </Button>
+                            {canManageAgents && (
+                                <Button
+                                    size="compact-xs"
+                                    variant="subtle"
+                                    leftSection={
+                                        <MantineIcon
+                                            color="ldGray.7"
+                                            icon={IconSettings}
+                                            strokeWidth={1.5}
+                                        />
+                                    }
+                                    component={Link}
+                                    to="/generalSettings/ai/agents"
+                                    classNames={{
+                                        label: styles.adminSettingsButtonLabel,
+                                        section:
+                                            styles.adminSettingsButtonSection,
+                                    }}
+                                >
+                                    Admin Settings
+                                </Button>
+                            )}
                         </Group>
                     </Box>
                 </>
