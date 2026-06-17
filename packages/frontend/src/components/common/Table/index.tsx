@@ -38,6 +38,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
     className,
     minimal = false,
     showSubtotals = true,
+    showRowGrouping = false,
     'data-testid': dataTestId,
     errorDetail,
     ...rest
@@ -65,6 +66,7 @@ const Table: FC<React.PropsWithChildren<Props>> = ({
                 <ScrollableTable
                     minimal={minimal}
                     showSubtotals={showSubtotals}
+                    showRowGrouping={showRowGrouping}
                     isDashboard={isDashboard}
                 />
 

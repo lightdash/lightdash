@@ -71,6 +71,7 @@ export type ProviderProps = {
     };
     showSubtotals?: boolean;
     showSubtotalsExpanded?: boolean;
+    showRowGrouping?: boolean;
     hideRowNumbers?: boolean;
     showColumnCalculation?: boolean;
     conditionalFormattings?: ConditionalFormattingConfig[];

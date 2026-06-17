@@ -8,12 +8,14 @@ import TableHeader from './TableHeader';
 interface ScrollableTableProps {
     minimal?: boolean;
     showSubtotals?: boolean;
+    showRowGrouping?: boolean;
     isDashboard?: boolean;
 }
 
 const ScrollableTable: FC<ScrollableTableProps> = ({
     minimal = true,
     showSubtotals = true,
+    showRowGrouping = false,
     isDashboard = false,
 }) => {
     const { footer } = useTableContext();
@@ -29,6 +31,8 @@ const ScrollableTable: FC<ScrollableTableProps> = ({
                 <TableBody
                     tableContainerRef={tableContainerRef}
                     minimal={minimal}
+                    showSubtotals={showSubtotals}
+                    showRowGrouping={showRowGrouping}
                 />
                 <TableFooter />
             </Table>
