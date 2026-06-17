@@ -1,3 +1,22 @@
+# [0.3184.0](https://github.com/lightdash/lightdash/compare/0.3183.0...0.3184.0) (2026-06-17)
+
+
+### Bug Fixes
+
+* **ai:** keep mcp schemas ref-free ([#24380](https://github.com/lightdash/lightdash/issues/24380)) ([c2c8736](https://github.com/lightdash/lightdash/commit/c2c8736d9fffb05273a93615dec5c99aa31ec4d1))
+* **ai:** upgrade ai version ([#24382](https://github.com/lightdash/lightdash/issues/24382)) ([ba5f140](https://github.com/lightdash/lightdash/commit/ba5f1407cd8c629695758c28e35a718a63d0c62a))
+* hide "View chart" action in embed mode ([#24425](https://github.com/lightdash/lightdash/issues/24425)) ([49f457a](https://github.com/lightdash/lightdash/commit/49f457a140b1ee4df137a657e55f2b29fd1265de))
+* hide "View saved chart" in embed mode ([#24426](https://github.com/lightdash/lightdash/issues/24426)) ([73688d7](https://github.com/lightdash/lightdash/commit/73688d79c9484036ed5ef04c0cb897de8ee80c9a))
+* upgrade nodemailer 8.0.5→8.0.9 (CRLF injection) ([#24350](https://github.com/lightdash/lightdash/issues/24350)) ([7c30112](https://github.com/lightdash/lightdash/commit/7c30112f4868d0fb5c733dbe91d37e5c0c629b0e))
+
+
+### Features
+
+* **ai:** add syncDbtProject agent tool to close the writeback loop ([#24386](https://github.com/lightdash/lightdash/issues/24386)) ([042172b](https://github.com/lightdash/lightdash/commit/042172b89ccbc05ac0f1fb49595f4c6f442d5b7e))
+* **ai:** describe filter permutations ([#24384](https://github.com/lightdash/lightdash/issues/24384)) ([adab80e](https://github.com/lightdash/lightdash/commit/adab80eb0126a345938b764d4563a9970f1a8918))
+* **backend:** warn on sub-day table calcs over cast date dims (GLITCH-506) ([#24420](https://github.com/lightdash/lightdash/issues/24420)) ([959f5b3](https://github.com/lightdash/lightdash/commit/959f5b3b6bf05cc41789674f6ebaea0b945e51d6))
+* **timezone:** merge DST fall-back hour on BigQuery behind flag ([#24416](https://github.com/lightdash/lightdash/issues/24416)) ([89e14dc](https://github.com/lightdash/lightdash/commit/89e14dcd0764ac740c6bec85e909344fd9738d67))
+
 # [0.3183.0](https://github.com/lightdash/lightdash/compare/0.3182.0...0.3183.0) (2026-06-17)
 
 
