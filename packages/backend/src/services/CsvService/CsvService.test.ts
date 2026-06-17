@@ -328,6 +328,25 @@ $4.00,value_4,2020-03-16
         expect(csv).toEqual(['value_1', '2020-03-16']);
     });
 
+    it('GLITCH-503: raw mode (onlyRaw) already emits bare YYYY-MM-DD for DATE fields', async () => {
+        // CSV runs formatTemporalCellForSpreadsheet before the onlyRaw check, so
+        // a day-grain DATE is bare in raw mode too (the XLSX gap was Excel-only).
+        const row = {
+            column_string: `value_1`,
+            column_date: '2020-03-16T02:32:55.000Z',
+        };
+
+        const csv = CsvService.convertRowToCsv(
+            row,
+            itemMap,
+            true,
+            ['column_string', 'column_date'],
+            'America/New_York',
+        );
+
+        expect(csv).toEqual(['value_1', '2020-03-16']);
+    });
+
     it('Should generate csv file ids', async () => {
         const time = moment('2023-09-07 12:13:45.123');
         const timestamp = time.format('YYYY-MM-DD-HH-mm-ss-SSSS');

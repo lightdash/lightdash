@@ -3,6 +3,7 @@ import {
     DimensionType,
     DownloadFileType,
     formatItemValue,
+    formatRawValue,
     formatRows,
     getErrorMessage,
     getExcelFormatExpression,
@@ -88,7 +89,15 @@ export class ExcelService {
             const rawValue = row[fieldId];
 
             if (onlyRaw) {
-                return rawValue;
+                const item = itemMap[fieldId];
+                // GLITCH-452/503: a day-or-coarser DATE field's raw is a bare
+                // YYYY-MM-DD in tz-aware mode (matching the API `raw`). Flag off
+                // (no timezone) keeps the passthrough — byte-identical.
+                return timezone &&
+                    isField(item) &&
+                    item.type === DimensionType.DATE
+                    ? formatRawValue(item, rawValue, timezone)
+                    : rawValue;
             }
 
             if (rawValue === null || rawValue === undefined) {
