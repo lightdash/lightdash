@@ -96,7 +96,7 @@ describe('TimeFrames', () => {
             );
         });
 
-        test('BigQuery 3-arg TIMESTAMP_TRUNC wraps inner expr in TIMESTAMP() so DATETIME inputs coerce', () => {
+        test('BigQuery wrapped path shifts to a naive DATETIME, truncates, and re-attaches the zone (merge)', () => {
             expect(
                 getSqlForTruncatedDate(
                     SupportedDbtAdapter.BIGQUERY,
@@ -107,7 +107,7 @@ describe('TimeFrames', () => {
                     'America/New_York',
                 ),
             ).toEqual(
-                "TIMESTAMP_TRUNC(TIMESTAMP(${TABLE}.created), DAY, 'America/New_York')",
+                "TIMESTAMP(DATETIME_TRUNC(DATETIME(TIMESTAMP(${TABLE}.created), 'America/New_York'), DAY), 'America/New_York')",
             );
         });
 
@@ -660,6 +660,22 @@ describe('TimeFrames', () => {
             );
         });
 
+        test('BigQuery toProjectTz shifts a TIMESTAMP-coerced instant into a naive project-TZ DATETIME (merge)', () => {
+            const { toProjectTz } =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.BIGQUERY];
+            expect(toProjectTz('col', 'America/New_York')).toEqual(
+                `DATETIME(TIMESTAMP(col), 'America/New_York')`,
+            );
+        });
+
+        test('BigQuery toUTC re-attaches the project zone to recover a real instant (merge)', () => {
+            const { toUTC } =
+                dateTruncTimezoneConversions[SupportedDbtAdapter.BIGQUERY];
+            expect(toUTC('truncated', 'America/New_York')).toEqual(
+                `TIMESTAMP(truncated, 'America/New_York')`,
+            );
+        });
+
         test('Snowflake toProjectTz defaults sourceTimezone to UTC', () => {
             const { toProjectTz } =
                 dateTruncTimezoneConversions[SupportedDbtAdapter.SNOWFLAKE];
@@ -778,11 +794,12 @@ describe('TimeFrames', () => {
             ).toEqual(`CAST(DATE_TRUNC('DAY', ${col}) AS DATE)`);
         });
 
-        // GLITCH-452: BigQuery's TIMESTAMP_TRUNC returns the tz-midnight UTC
-        // instant, so the day grain must DATE(expr, tz) — CAST(... AS DATE) reads
-        // the UTC date and lands a day early in positive offsets (verified
-        // against BigQuery: Asia/Tokyo bucketed 15:00Z to the previous day).
-        test('BigQuery day grain casts via DATE(expr, tz), not CAST AS DATE', () => {
+        // GLITCH-509: BigQuery now shifts to a naive DATETIME before truncating,
+        // so the day-grain trunc is already a tz-midnight wall-clock value and the
+        // generic CAST(... AS DATE) reads the right calendar date (no positive-
+        // offset off-by-one). Verified on BigQuery: Asia/Tokyo 15:00Z buckets to
+        // the same calendar day.
+        test('BigQuery day grain casts the naive DATETIME trunc to DATE (merge)', () => {
             expect(
                 getSqlForTruncatedDate(
                     SupportedDbtAdapter.BIGQUERY,
@@ -795,7 +812,7 @@ describe('TimeFrames', () => {
                     true, // castDayOrCoarserToDate
                 ),
             ).toEqual(
-                `DATE(TIMESTAMP_TRUNC(TIMESTAMP(${col}), DAY, '${tz}'), '${tz}')`,
+                `CAST(DATETIME_TRUNC(DATETIME(TIMESTAMP(${col}), '${tz}'), DAY) AS DATE)`,
             );
         });
 
