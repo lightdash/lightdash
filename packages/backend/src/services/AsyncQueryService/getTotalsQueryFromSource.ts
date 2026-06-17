@@ -92,6 +92,22 @@ const getTotalableTableCalculations = (
         );
     });
 
+// Drop value columns that reference fields not present in the totals query:
+// PoP metrics and non-totalable table calcs are stripped from the metric query,
+// but the pivot still lists them. Keeping them makes PivotQueryBuilder aggregate
+// a column that was never selected, failing the whole totals SQL.
+const filterTotalsValuesColumns = (
+    valuesColumns: PivotConfiguration['valuesColumns'],
+    keptMetricIds: Set<string>,
+    totalableCalcs: TableCalculation[],
+): PivotConfiguration['valuesColumns'] => {
+    const allowed = new Set<string>([
+        ...keptMetricIds,
+        ...totalableCalcs.map((calc) => calc.name),
+    ]);
+    return valuesColumns.filter((col) => allowed.has(col.reference));
+};
+
 const assertNoBlockingFilters = (
     metricQuery: MetricQuery,
     errorMessage: string,
@@ -181,15 +197,17 @@ export const getColumnTotalQueryFromSource = (
     const keptMetrics = source.metricQuery.metrics.filter(
         (id) => !popMetricIds.has(id),
     );
+    const keptMetricIds = new Set(keptMetrics);
+    const totalableCalcs = getTotalableTableCalculations(
+        source.metricQuery,
+        keptMetricIds,
+    );
 
     const totalsMetricQuery: MetricQuery = {
         ...source.metricQuery,
         dimensions: groupByFieldIds,
         sorts: [],
-        tableCalculations: getTotalableTableCalculations(
-            source.metricQuery,
-            new Set(keptMetrics),
-        ),
+        tableCalculations: totalableCalcs,
         metrics: keptMetrics,
         additionalMetrics: (source.metricQuery.additionalMetrics ?? []).filter(
             (am) => !isPeriodOverPeriodAdditionalMetric(am),
@@ -207,6 +225,11 @@ export const getColumnTotalQueryFromSource = (
         // once the pivot collapses to a single wide row.
         indexColumn: undefined,
         sortOnlyDimensions: undefined,
+        valuesColumns: filterTotalsValuesColumns(
+            source.pivotConfiguration!.valuesColumns,
+            keptMetricIds,
+            totalableCalcs,
+        ),
     };
 
     return {
@@ -330,15 +353,17 @@ export const getRowTotalQueryFromSource = (
     const keptMetrics = source.metricQuery.metrics.filter(
         (id) => !popMetricIds.has(id),
     );
+    const keptMetricIds = new Set(keptMetrics);
+    const totalableCalcs = getTotalableTableCalculations(
+        source.metricQuery,
+        keptMetricIds,
+    );
 
     const totalsMetricQuery: MetricQuery = {
         ...source.metricQuery,
         dimensions: indexFieldIds,
         sorts: [],
-        tableCalculations: getTotalableTableCalculations(
-            source.metricQuery,
-            new Set(keptMetrics),
-        ),
+        tableCalculations: totalableCalcs,
         metrics: keptMetrics,
         additionalMetrics: (source.metricQuery.additionalMetrics ?? []).filter(
             (am) => !isPeriodOverPeriodAdditionalMetric(am),
@@ -366,6 +391,11 @@ export const getRowTotalQueryFromSource = (
         ),
         sortOnlyDimensions: undefined,
         passthroughDimensions: undefined,
+        valuesColumns: filterTotalsValuesColumns(
+            source.pivotConfiguration!.valuesColumns,
+            keptMetricIds,
+            totalableCalcs,
+        ),
     };
 
     return {

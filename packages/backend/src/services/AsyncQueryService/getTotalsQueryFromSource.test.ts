@@ -365,6 +365,49 @@ describe('getColumnTotalQueryFromSource', () => {
             ).toEqual(['rev_per_customer']);
         });
 
+        it('drops non-totalable value columns so the pivot query never aggregates a dropped column', () => {
+            const result = getColumnTotalQueryFromSource({
+                metricQuery: {
+                    ...baseMetricQuery,
+                    tableCalculations: [
+                        {
+                            name: 'rev_per_customer',
+                            displayName: 'Rev per customer',
+                            sql: '${orders.total_revenue} / ${orders.unique_customer_count}',
+                        } as never,
+                        {
+                            name: 'prev_revenue',
+                            displayName: 'Prev revenue',
+                            sql: 'lag(${orders.total_revenue}) over(order by ${orders.created_at})',
+                        } as never,
+                    ],
+                },
+                pivotConfiguration: {
+                    ...pivotConfiguration,
+                    valuesColumns: [
+                        {
+                            reference: 'orders_total_revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                        {
+                            reference: 'rev_per_customer',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                        {
+                            reference: 'prev_revenue',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                },
+            });
+
+            expect(
+                result.pivotConfiguration?.valuesColumns.map(
+                    (col) => col.reference,
+                ),
+            ).toEqual(['orders_total_revenue', 'rev_per_customer']);
+        });
+
         it('throws when groupByColumns reference dimensions not in the source query', () => {
             expect(() =>
                 getColumnTotalQueryFromSource({
@@ -510,6 +553,49 @@ describe('getRowTotalQueryFromSource', () => {
             expect(
                 result.metricQuery.tableCalculations.map((tc) => tc.name),
             ).toEqual(['rev_per_customer']);
+        });
+
+        it('drops non-totalable value columns so the pivot query never aggregates a dropped column', () => {
+            const result = getRowTotalQueryFromSource({
+                metricQuery: {
+                    ...baseMetricQuery,
+                    tableCalculations: [
+                        {
+                            name: 'rev_per_customer',
+                            displayName: 'Rev per customer',
+                            sql: '${orders.total_revenue} / ${orders.unique_customer_count}',
+                        } as never,
+                        {
+                            name: 'prev_revenue',
+                            displayName: 'Prev revenue',
+                            sql: 'lag(${orders.total_revenue}) over(order by ${orders.created_at})',
+                        } as never,
+                    ],
+                },
+                pivotConfiguration: {
+                    ...pivotConfiguration,
+                    valuesColumns: [
+                        {
+                            reference: 'orders_total_revenue',
+                            aggregation: VizAggregationOptions.SUM,
+                        },
+                        {
+                            reference: 'rev_per_customer',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                        {
+                            reference: 'prev_revenue',
+                            aggregation: VizAggregationOptions.ANY,
+                        },
+                    ],
+                },
+            });
+
+            expect(
+                result.pivotConfiguration?.valuesColumns.map(
+                    (col) => col.reference,
+                ),
+            ).toEqual(['orders_total_revenue', 'rev_per_customer']);
         });
 
         it('handles an indexColumn array by expanding all references into dimensions', () => {
