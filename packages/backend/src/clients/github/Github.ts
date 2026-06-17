@@ -2,6 +2,7 @@ import {
     AlreadyExistsError,
     ForbiddenError,
     getErrorMessage,
+    InsufficientGitPermissionsError,
     LightdashError,
     NotFoundError,
     ParameterError,
@@ -555,6 +556,25 @@ export const getRepoWorkflowFiles = async ({
     }
 };
 
+// A 403 permission denial on a Git write means the repo credentials lack write
+// access (terminal) → InsufficientGitPermissionsError; anything else stays an
+// UnexpectedGitError. REST errors carry `status`, GraphQL only the message.
+const toGitWriteError = (error: unknown): LightdashError => {
+    const message = getErrorMessage(error);
+    const status =
+        error instanceof Error && 'status' in error
+            ? (error as { status?: number }).status
+            : undefined;
+    const isPermissionDenied =
+        message.includes('Resource not accessible by integration') ||
+        (status === 403 &&
+            /permission|not accessible|forbidden|write access/i.test(message));
+    if (isPermissionDenied) {
+        return new InsufficientGitPermissionsError(message);
+    }
+    return new UnexpectedGitError(message);
+};
+
 export const createBranch = async ({
     owner,
     repo,
@@ -586,7 +606,7 @@ export const createBranch = async ({
         });
         return response;
     } catch (error) {
-        throw new UnexpectedGitError(getErrorMessage(error));
+        throw toGitWriteError(error);
     }
 };
 export const getBranchHeadSha = async ({
@@ -749,7 +769,7 @@ export const createSignedCommitOnBranch = async ({
         });
         return response.createCommitOnBranch.commit;
     } catch (e) {
-        throw new UnexpectedGitError(getErrorMessage(e));
+        throw toGitWriteError(e);
     }
 };
 
@@ -972,7 +992,7 @@ export const createPullRequest = async ({
 
         return response.data;
     } catch (e) {
-        throw new UnexpectedGitError(getErrorMessage(e));
+        throw toGitWriteError(e);
     }
 };
 
@@ -1007,7 +1027,7 @@ export const updatePullRequest = async ({
 
         return response.data;
     } catch (e) {
-        throw new UnexpectedGitError(getErrorMessage(e));
+        throw toGitWriteError(e);
     }
 };
 

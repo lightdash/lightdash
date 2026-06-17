@@ -3652,6 +3652,7 @@ Parameters:
                         "gitlab_not_installed",
                         "unsupported_source_control",
                         "pull_request_not_open",
+                        "git_write_permission",
                         "unknown",
                       ],
                       "type": "string",
