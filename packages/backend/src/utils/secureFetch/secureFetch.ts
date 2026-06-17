@@ -35,9 +35,32 @@ export type SecureFetchResult = {
     truncated: boolean;
 };
 
+const parseHttpsUrl = (rawUrl: string): URL => {
+    if (!rawUrl) {
+        throw new SecureFetchError('invalid_url', 'URL is required');
+    }
+    let parsedUrl: URL;
+    try {
+        parsedUrl = new URL(rawUrl);
+    } catch {
+        throw new SecureFetchError('invalid_url', 'Invalid URL format');
+    }
+    if (parsedUrl.protocol !== 'https:') {
+        throw new SecureFetchError(
+            'non_https',
+            'Only HTTPS protocol is allowed',
+        );
+    }
+    return parsedUrl;
+};
+
 export async function secureFetch(
     rawUrl: string,
     options: SecureFetchOptions,
 ): Promise<SecureFetchResult> {
-    throw new SecureFetchError('request_failed', 'secureFetch not implemented');
+    const parsedUrl = parseHttpsUrl(rawUrl);
+    throw new SecureFetchError(
+        'request_failed',
+        `not implemented for ${parsedUrl.hostname}`,
+    );
 }
