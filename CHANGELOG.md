@@ -1,3 +1,24 @@
+# [0.3182.0](https://github.com/lightdash/lightdash/compare/0.3181.0...0.3182.0) (2026-06-17)
+
+
+### Bug Fixes
+
+* **ai:** use referenced agent tool schemas ([#24378](https://github.com/lightdash/lightdash/issues/24378)) ([837c228](https://github.com/lightdash/lightdash/commit/837c228a2065dda7eef2eea6214db6e8d592d957))
+* **date-zoom:** tz-wrap + DATE-cast when zooming a raw base TIMESTAMP dim in place ([#24406](https://github.com/lightdash/lightdash/issues/24406)) ([0fedc48](https://github.com/lightdash/lightdash/commit/0fedc4859c46f60d8ee14c2058bb9a318e93410e))
+* disable "Explore from here" in embed mode ([#24411](https://github.com/lightdash/lightdash/issues/24411)) ([890151d](https://github.com/lightdash/lightdash/commit/890151d23ac9e9f933ca4823dfd02dfe9dfe6fbb))
+
+
+### Features
+
+* **ai-agents:** add gradient Ask AI icon ([#24414](https://github.com/lightdash/lightdash/issues/24414)) ([df9e734](https://github.com/lightdash/lightdash/commit/df9e734ec85ca7e8f68dac25522538f83abad5bc))
+* **ai:** promote reviews from homepage ([#24418](https://github.com/lightdash/lightdash/issues/24418)) ([693713e](https://github.com/lightdash/lightdash/commit/693713e3db2f1e6407d75a48c25d409164b6a573))
+* **ai:** support GitLab repos in the read-only repo VFS ([#24413](https://github.com/lightdash/lightdash/issues/24413)) ([ad985a6](https://github.com/lightdash/lightdash/commit/ad985a6de09e5df26575aef02bca4f74aee5fecd))
+
+
+### Performance Improvements
+
+* **backend:** parallelize dashboard SQL chart query prepare ([#24408](https://github.com/lightdash/lightdash/issues/24408)) ([ac187ab](https://github.com/lightdash/lightdash/commit/ac187ab13e9c0e6b1cc4b711d35c81ec5fdab9d4))
+
 # [0.3181.0](https://github.com/lightdash/lightdash/compare/0.3180.1...0.3181.0) (2026-06-17)
 
 
