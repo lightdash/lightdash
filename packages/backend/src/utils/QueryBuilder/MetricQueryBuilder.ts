@@ -323,6 +323,14 @@ export class MetricQueryBuilder {
         CompiledDimension
     > = {};
 
+    // Pre-zoom dimensions. Date Zoom can re-grain the base dim in place, so its
+    // timeIntervalBaseDimensionName self-references the now-rewritten dim — the
+    // original map recovers the untouched base for the timezone-aware recompute.
+    private readonly originalExploreDimensions: Record<
+        string,
+        CompiledDimension
+    > = {};
+
     /** Query timezone when timezone-aware DATE_TRUNC is active, undefined otherwise.
      *  The target-vs-source equality short-circuit lives in `getSqlForTruncatedDate`
      *  (and its EXTRACT siblings) so any call site that passes a timezone gets the
@@ -346,6 +354,9 @@ export class MetricQueryBuilder {
         this.exploreDimensionsWithoutAccess = getDimensionMapFromTables(
             explore.unfilteredTables ?? {},
         );
+        this.originalExploreDimensions = this.args.originalExplore
+            ? getDimensionMapFromTables(this.args.originalExplore.tables)
+            : {};
         this.availableMetrics = {
             ...getMetricsMapFromTables(explore.tables),
             ...compiledMetricQuery.compiledAdditionalMetrics.reduce<
@@ -655,7 +666,8 @@ export class MetricQueryBuilder {
             : undefined;
 
         const baseDimension = baseDimensionId
-            ? this.exploreDimensions[baseDimensionId]
+            ? (this.originalExploreDimensions[baseDimensionId] ??
+              this.exploreDimensions[baseDimensionId])
             : undefined;
 
         // DATE base: no time component to shift, so the wrap would drift at midnight.
