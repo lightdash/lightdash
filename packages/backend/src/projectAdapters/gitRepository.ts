@@ -6,7 +6,7 @@
  * should be refactored onto this so dbt and YAML share a single clone (today
  * the dbt branch re-clones — see GitProjectAdapter).
  */
-import { getErrorMessage } from '@lightdash/common';
+import { getErrorMessage, UnexpectedGitError } from '@lightdash/common';
 import fs from 'fs';
 import * as fspromises from 'fs-extra';
 import * as path from 'path';
@@ -55,7 +55,7 @@ export class GitRepository {
         } catch (e) {
             // simple-git errors can include the clone command (and thus the
             // tokenised remote URL); strip credentials before it propagates.
-            throw new Error(
+            throw new UnexpectedGitError(
                 `Git clone failed: ${stripCredentials(getErrorMessage(e))}`,
             );
         }
