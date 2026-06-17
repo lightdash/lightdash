@@ -304,6 +304,15 @@ export const AiChartQuickOptions = ({
     if (!metricQuery) return null;
 
     const canVerify = !!artifactData && canManageAgent;
+    const hasSavedChartAction = !!message.savedQueryUuid && !isEmbed;
+    const hasSaveActions = !message.savedQueryUuid;
+    const hasExploreAction = !isEmbed;
+    const hasSqlActions = !!compiledSql;
+    const hasQuickActions =
+        hasSavedChartAction ||
+        hasSaveActions ||
+        hasExploreAction ||
+        hasSqlActions;
 
     return (
         <Fragment>
@@ -333,112 +342,122 @@ export const AiChartQuickOptions = ({
                     </ActionIcon>
                 </Tooltip>
             )}
-            <Menu withArrow position="bottom-end">
-                <Menu.Target>
-                    <ActionIcon size="sm" variant="subtle" color="ldGray.9">
-                        <MantineIcon icon={IconDots} size="lg" />
-                    </ActionIcon>
-                </Menu.Target>
-                <Menu.Dropdown>
-                    <Menu.Label>Quick actions</Menu.Label>
-                    {message.savedQueryUuid ? (
-                        <Menu.Item
-                            component={Link}
-                            to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
-                            target="_blank"
-                            leftSection={
-                                <MantineIcon icon={IconTableShortcut} />
-                            }
-                        >
-                            View saved chart
-                        </Menu.Item>
-                    ) : (
-                        <>
-                            {quickSaveDashboard && (
+            {hasQuickActions && (
+                <Menu withArrow position="bottom-end">
+                    <Menu.Target>
+                        <ActionIcon size="sm" variant="subtle" color="ldGray.9">
+                            <MantineIcon icon={IconDots} size="lg" />
+                        </ActionIcon>
+                    </Menu.Target>
+                    <Menu.Dropdown>
+                        <Menu.Label>Quick actions</Menu.Label>
+                        {message.savedQueryUuid ? (
+                            !isEmbed && (
                                 <Menu.Item
-                                    onClick={() =>
-                                        void handleSaveToCurrentDashboard()
-                                    }
-                                    disabled={isDisabled || isSavingToDashboard}
+                                    component={Link}
+                                    to={`/projects/${projectUuid}/saved/${message.savedQueryUuid}`}
+                                    target="_blank"
                                     leftSection={
-                                        <MantineIcon
-                                            icon={IconLayoutDashboard}
-                                        />
+                                        <MantineIcon icon={IconTableShortcut} />
                                     }
                                 >
-                                    Save to current dashboard
+                                    View saved chart
                                 </Menu.Item>
-                            )}
+                            )
+                        ) : (
+                            <>
+                                {quickSaveDashboard && (
+                                    <Menu.Item
+                                        onClick={() =>
+                                            void handleSaveToCurrentDashboard()
+                                        }
+                                        disabled={
+                                            isDisabled || isSavingToDashboard
+                                        }
+                                        leftSection={
+                                            <MantineIcon
+                                                icon={IconLayoutDashboard}
+                                            />
+                                        }
+                                    >
+                                        Save to current dashboard
+                                    </Menu.Item>
+                                )}
+                                <Menu.Item
+                                    onClick={() => open()}
+                                    leftSection={
+                                        <MantineIcon icon={IconDeviceFloppy} />
+                                    }
+                                >
+                                    {quickSaveDashboard ? 'Save to…' : 'Save'}
+                                </Menu.Item>
+                            </>
+                        )}
+
+                        {!isEmbed && (
                             <Menu.Item
-                                onClick={() => open()}
                                 leftSection={
-                                    <MantineIcon icon={IconDeviceFloppy} />
+                                    <MantineIcon icon={IconExternalLink} />
+                                }
+                                disabled={isDisabled}
+                                onClick={handleExploreFromHere}
+                            >
+                                Explore from here
+                            </Menu.Item>
+                        )}
+
+                        {!!compiledSql && (
+                            <HoverCard
+                                shadow="subtle"
+                                radius="md"
+                                position="left-start"
+                                withinPortal
+                                openDelay={120}
+                            >
+                                <HoverCard.Target>
+                                    <Menu.Item
+                                        leftSection={
+                                            <MantineIcon icon={IconEye} />
+                                        }
+                                        closeMenuOnClick={false}
+                                    >
+                                        View SQL
+                                    </Menu.Item>
+                                </HoverCard.Target>
+                                <HoverCard.Dropdown p={0} maw={500}>
+                                    <Prism
+                                        language="sql"
+                                        withLineNumbers
+                                        noCopy
+                                        styles={{
+                                            lineContent: {
+                                                fontSize: 10,
+                                            },
+                                        }}
+                                    >
+                                        {compiledSql}
+                                    </Prism>
+                                </HoverCard.Dropdown>
+                            </HoverCard>
+                        )}
+
+                        {!!compiledSql ? (
+                            <Menu.Item
+                                component={Link}
+                                to={{
+                                    pathname: `/projects/${projectUuid}/sql-runner`,
+                                }}
+                                state={{ sql: compiledSql }}
+                                leftSection={
+                                    <MantineIcon icon={IconTerminal2} />
                                 }
                             >
-                                {quickSaveDashboard ? 'Save to…' : 'Save'}
+                                Open in SQL Runner
                             </Menu.Item>
-                        </>
-                    )}
-
-                    {!isEmbed && (
-                        <Menu.Item
-                            leftSection={
-                                <MantineIcon icon={IconExternalLink} />
-                            }
-                            disabled={isDisabled}
-                            onClick={handleExploreFromHere}
-                        >
-                            Explore from here
-                        </Menu.Item>
-                    )}
-
-                    {!!compiledSql && (
-                        <HoverCard
-                            shadow="subtle"
-                            radius="md"
-                            position="left-start"
-                            withinPortal
-                            openDelay={120}
-                        >
-                            <HoverCard.Target>
-                                <Menu.Item
-                                    leftSection={<MantineIcon icon={IconEye} />}
-                                    closeMenuOnClick={false}
-                                >
-                                    View SQL
-                                </Menu.Item>
-                            </HoverCard.Target>
-                            <HoverCard.Dropdown p={0} maw={500}>
-                                <Prism
-                                    language="sql"
-                                    withLineNumbers
-                                    noCopy
-                                    styles={{
-                                        lineContent: {
-                                            fontSize: 10,
-                                        },
-                                    }}
-                                >
-                                    {compiledSql}
-                                </Prism>
-                            </HoverCard.Dropdown>
-                        </HoverCard>
-                    )}
-
-                    {!!compiledSql ? (
-                        <Menu.Item
-                            component={Link}
-                            to={{
-                                pathname: `/projects/${projectUuid}/sql-runner`,
-                            }}
-                            state={{ sql: compiledSql }}
-                            leftSection={<MantineIcon icon={IconTerminal2} />}
-                        >
-                            Open in SQL Runner
-                        </Menu.Item>
-                    ) : null}
-                </Menu.Dropdown>
-            </Menu>
+                        ) : null}
+                    </Menu.Dropdown>
+                </Menu>
+            )}
             <MantineModal
                 opened={opened}
                 onClose={close}
