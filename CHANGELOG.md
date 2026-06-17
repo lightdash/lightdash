@@ -1,3 +1,23 @@
+# [0.3180.0](https://github.com/lightdash/lightdash/compare/0.3179.1...0.3180.0) (2026-06-17)
+
+
+### Bug Fixes
+
+* **backend:** emit bare YYYY-MM-DD for DATE fields in raw XLSX export (GLITCH-503) ([#24398](https://github.com/lightdash/lightdash/issues/24398)) ([8103700](https://github.com/lightdash/lightdash/commit/8103700065da07809c234a597d3075853fe7646e))
+* **totals:** drop non-totalable value columns from pivot totals query ([#24395](https://github.com/lightdash/lightdash/issues/24395)) ([1b513bd](https://github.com/lightdash/lightdash/commit/1b513bd9375f80be02e0d3501cc7e806fe42b98e))
+
+
+### Features
+
+* add `--auth` flag to diagnostics command ([#24396](https://github.com/lightdash/lightdash/issues/24396)) ([af41c62](https://github.com/lightdash/lightdash/commit/af41c62a7e792755165d0081044e497603a50fb8))
+
+
+### Performance Improvements
+
+* **backend:** dedup explore load and timezone query in runExploreQuery ([#24399](https://github.com/lightdash/lightdash/issues/24399)) ([a04d553](https://github.com/lightdash/lightdash/commit/a04d553e876b6bd4fed88ffccc782fbf28610f05))
+* **backend:** dedup project parameters fetch in metric query path ([#24400](https://github.com/lightdash/lightdash/issues/24400)) ([3f297b8](https://github.com/lightdash/lightdash/commit/3f297b8bfd004a51c3765019ab96ac86b14a5434))
+* **embed:** drop redundant param pre-combination for dashboard-tile ([#24401](https://github.com/lightdash/lightdash/issues/24401)) ([ece2aa9](https://github.com/lightdash/lightdash/commit/ece2aa90cfea2578555346c1417b73554a36257d))
+
 ## [0.3179.1](https://github.com/lightdash/lightdash/compare/0.3179.0...0.3179.1) (2026-06-17)
 
 
