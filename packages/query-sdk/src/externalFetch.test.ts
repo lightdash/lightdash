@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createApiTransport, type FetchAdapter } from './apiTransport';
+import { LightdashClient } from './client';
 import {
     createPostMessageTransport,
     type SdkExternalFetchRequest,
 } from './postMessageTransport';
-import type { ExternalFetchResult } from './types';
+import type { ExternalFetchResult, Transport } from './types';
 
 describe('externalFetch types', () => {
     it('apiTransport exposes externalFetch on the Transport', () => {
@@ -89,9 +90,36 @@ function installParentStub(
         });
 }
 
+describe('LightdashClient.externalFetch', () => {
+    it('delegates to the transport', async () => {
+        const result = {
+            status: 200,
+            contentType: 'application/json',
+            body: 1,
+            truncated: false,
+        };
+        const transport: Transport = {
+            executeQuery: vi.fn(),
+            getUser: vi.fn(),
+            externalFetch: vi.fn().mockResolvedValue(result),
+        };
+        const client = new LightdashClient(
+            { apiKey: 'k', baseUrl: 'http://x', projectUuid: 'p' },
+            transport,
+        );
+        const out = await client.externalFetch('stripe', {
+            path: '/v1/charges',
+        });
+        expect(out).toEqual(result);
+        expect(transport.externalFetch).toHaveBeenCalledWith('stripe', {
+            path: '/v1/charges',
+        });
+    });
+});
+
 describe('postMessageTransport.externalFetch', () => {
     it('posts an external-fetch request to the parent and resolves the matching response', async () => {
-        let seen: SdkExternalFetchRequest | null = null;
+        let seen: SdkExternalFetchRequest | undefined;
         const restore = installParentStub((req) => {
             seen = req;
             return {
@@ -126,7 +154,7 @@ describe('postMessageTransport.externalFetch', () => {
                 query: { limit: '5' },
                 body: { amount: 100 },
             });
-            expect(typeof (seen as SdkExternalFetchRequest).id).toBe('string');
+            expect(typeof seen?.id).toBe('string');
         } finally {
             restore();
         }
