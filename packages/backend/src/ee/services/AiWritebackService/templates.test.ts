@@ -1,7 +1,7 @@
 import { WarehouseTypes } from '@lightdash/common';
 import { SHARED_SKILL_PATH, WAREHOUSE_SKILL_PATH } from './constants';
 import { warehouseTypeToSkillKey } from './skills';
-import { buildSystemPrompt } from './templates';
+import { buildSystemPrompt, type WritebackProjectFormat } from './templates';
 
 const DBT_PROJECT_DIR = 'analytics/dbt';
 const BASE_CONTEXT = {
@@ -13,12 +13,14 @@ const BASE_CONTEXT = {
 const buildFor = (
     warehouseType: WarehouseTypes | null,
     profilesStaged = false,
+    projectFormat: WritebackProjectFormat = 'dbt',
 ) =>
     buildSystemPrompt(DBT_PROJECT_DIR, {
         ...BASE_CONTEXT,
         warehouseType,
         hasWarehouseSkill: warehouseTypeToSkillKey(warehouseType) !== null,
         profilesStaged,
+        projectFormat,
     });
 
 describe('buildSystemPrompt — staged profiles', () => {
@@ -36,6 +38,25 @@ describe('buildSystemPrompt — staged profiles', () => {
         const notStaged = buildFor(WarehouseTypes.POSTGRES, false);
         expect(notStaged).toContain('Discover the profiles directory');
         expect(notStaged).toContain('Prepare a TEMPORARY profiles directory');
+    });
+});
+
+describe('buildSystemPrompt — Lightdash YAML projects', () => {
+    const yaml = buildFor(WarehouseTypes.POSTGRES, false, 'lightdash_yaml');
+
+    it('describes a Lightdash YAML project and not a dbt project', () => {
+        expect(yaml).toContain('**Lightdash YAML** project (no dbt)');
+        expect(yaml).toContain('top-level `metrics:` and `dimensions:`');
+        expect(yaml).not.toContain('The dbt project lives at');
+    });
+
+    it('skips the profiles.yml dance entirely', () => {
+        expect(yaml).not.toContain('Discover the profiles directory');
+        expect(yaml).not.toContain('Prepare a TEMPORARY profiles directory');
+        expect(yaml).not.toContain('--profiles-dir');
+        // still compiles (catalog skipped) and still emits the PR blocks
+        expect(yaml).toContain('--skip-warehouse-catalog');
+        expect(yaml).toMatch(/single-line PR title/);
     });
 });
 
