@@ -88,7 +88,7 @@
         "@tsoa/runtime": "6.6.0",
         "@types/async": "3.2.16",
         "@types/sshpk": "1.17.1",
-        "ai": "6.0.198",
+        "ai": "6.0.205",
         "ajv": "8.18.0",
         "ajv-formats": "2.1.1",
         "apache-arrow": "16.1.0",
