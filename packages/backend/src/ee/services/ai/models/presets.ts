@@ -44,6 +44,22 @@ export const MODEL_PRESETS: {
             },
         },
         {
+            name: 'gpt-5.4-mini',
+            provider: 'openai',
+            modelId: 'gpt-5.4-mini-2026-03-17',
+            displayName: 'GPT-5.4 Mini',
+            description:
+                'Fast and cost-effective GPT-5.4 model for simple tasks',
+            contextWindowTokens: 400000,
+            supportsReasoning: true,
+            callOptions: {},
+            providerOptions: {
+                // strictJsonSchema: provider default is true
+                parallelToolCalls: true,
+                reasoningEffort: 'medium',
+            },
+        },
+        {
             name: 'gpt-5.2',
             provider: 'openai',
             modelId: 'gpt-5.2-2025-12-11',
