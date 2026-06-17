@@ -2,13 +2,16 @@ import {
     BinType,
     CompiledExploreJoin,
     CustomDimensionType,
+    DimensionType,
     Explore,
     ForbiddenError,
     isCustomBinDimension,
     JoinRelationship,
     MetricType,
     SupportedDbtAdapter,
+    TimeFrames,
     WeekDay,
+    type TableCalculation,
 } from '@lightdash/common';
 import {
     bigqueryClientMock,
@@ -28,6 +31,7 @@ import {
 import {
     applyLimitToSqlQuery,
     assertValidDimensionRequiredAttribute,
+    findDateGrainTableCalcWarnings,
     findMetricInflationWarnings,
     getCustomBinDimensionSql,
     getCustomSqlDimensionSql,
@@ -1445,5 +1449,115 @@ describe('getJoinedTables', () => {
         const result = getJoinedTables(explore, ['orders', 'users']);
 
         expect(result).toContain('intermediary_table');
+    });
+});
+
+describe('findDateGrainTableCalcWarnings (GLITCH-506)', () => {
+    // A day-or-coarser DATE_TRUNC of a TIMESTAMP base column: this is the
+    // dimension the GLITCH-452 cast collapses to a real DATE (loses time-of-day).
+    const dimensions = {
+        orders_order_date_day: {
+            type: DimensionType.DATE,
+            timeInterval: TimeFrames.DAY,
+            timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+            label: 'Order date day',
+        },
+        // A plain string dimension — never a cast target.
+        orders_status: {
+            type: DimensionType.STRING,
+            label: 'Status',
+        },
+    };
+
+    const sqlCalc = (name: string, sql: string): TableCalculation => ({
+        name,
+        displayName: name,
+        sql,
+    });
+
+    it('warns when a sql calc applies sub-day ops to a cast date dimension', () => {
+        const warnings = findDateGrainTableCalcWarnings({
+            tableCalculations: [
+                sqlCalc(
+                    'hours_in',
+                    'EXTRACT(HOUR FROM ${orders.order_date_day})',
+                ),
+            ],
+            dimensions,
+            useTimezoneAwareDateTrunc: true,
+        });
+        expect(warnings).toHaveLength(1);
+        expect(warnings[0].fields).toContain('orders_order_date_day');
+        expect(warnings[0].message).toMatch(/raw timestamp/i);
+    });
+
+    it('warns for + interval hours and ::timestamp casts', () => {
+        expect(
+            findDateGrainTableCalcWarnings({
+                tableCalculations: [
+                    sqlCalc(
+                        'shift',
+                        "${orders.order_date_day} + interval '6 hours'",
+                    ),
+                ],
+                dimensions,
+                useTimezoneAwareDateTrunc: true,
+            }),
+        ).toHaveLength(1);
+        expect(
+            findDateGrainTableCalcWarnings({
+                tableCalculations: [
+                    sqlCalc('recast', '${orders.order_date_day}::timestamp'),
+                ],
+                dimensions,
+                useTimezoneAwareDateTrunc: true,
+            }),
+        ).toHaveLength(1);
+    });
+
+    it('does NOT warn for day-or-coarser date math (no spam)', () => {
+        expect(
+            findDateGrainTableCalcWarnings({
+                tableCalculations: [
+                    sqlCalc(
+                        'next_week',
+                        "${orders.order_date_day} + interval '7 days'",
+                    ),
+                    sqlCalc(
+                        'is_nye',
+                        "CASE WHEN ${orders.order_date_day} = '2024-01-01' THEN 1 END",
+                    ),
+                ],
+                dimensions,
+                useTimezoneAwareDateTrunc: true,
+            }),
+        ).toEqual([]);
+    });
+
+    it('does NOT warn when the timezone-aware flag is off', () => {
+        expect(
+            findDateGrainTableCalcWarnings({
+                tableCalculations: [
+                    sqlCalc(
+                        'hours_in',
+                        'EXTRACT(HOUR FROM ${orders.order_date_day})',
+                    ),
+                ],
+                dimensions,
+                useTimezoneAwareDateTrunc: false,
+            }),
+        ).toEqual([]);
+    });
+
+    it('does NOT warn for sub-day ops on a non-cast dimension', () => {
+        expect(
+            findDateGrainTableCalcWarnings({
+                tableCalculations: [
+                    sqlCalc('hours_in', 'EXTRACT(HOUR FROM ${orders.status})'),
+                ],
+                dimensions,
+                useTimezoneAwareDateTrunc: true,
+            }),
+        ).toEqual([]);
     });
 });

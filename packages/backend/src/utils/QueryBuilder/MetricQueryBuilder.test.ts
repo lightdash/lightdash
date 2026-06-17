@@ -5632,3 +5632,80 @@ describe('Timezone-aware EXTRACT-based time dimensions', () => {
         expect(whereClause).toContain(wrapped);
     });
 });
+
+describe('compileQuery date-grain table calc warnings (GLITCH-506)', () => {
+    // created_at as a day-grain DATE cast of a TIMESTAMP base — the dimension
+    // GLITCH-452 collapses to a real DATE, dropping time-of-day.
+    const exploreWithCastDate: Explore = {
+        ...EXPLORE_WITH_DATE_DIMENSION,
+        tables: {
+            ...EXPLORE_WITH_DATE_DIMENSION.tables,
+            orders: {
+                ...EXPLORE_WITH_DATE_DIMENSION.tables.orders,
+                dimensions: {
+                    ...EXPLORE_WITH_DATE_DIMENSION.tables.orders.dimensions,
+                    created_at: {
+                        ...EXPLORE_WITH_DATE_DIMENSION.tables.orders.dimensions
+                            .created_at,
+                        timeInterval: TimeFrames.DAY,
+                        timeIntervalBaseDimensionType: DimensionType.TIMESTAMP,
+                    },
+                },
+            },
+        },
+    };
+
+    const metricQueryWithSubDayTableCalc: CompiledMetricQuery = {
+        ...METRIC_QUERY_WITH_DATE_FILTER,
+        sorts: [],
+        filters: {},
+        tableCalculations: [
+            {
+                name: 'hour_of_day',
+                displayName: 'Hour of day',
+                sql: 'EXTRACT(HOUR FROM ${orders.created_at})',
+            },
+        ],
+        compiledTableCalculations: [
+            {
+                name: 'hour_of_day',
+                displayName: 'Hour of day',
+                sql: 'EXTRACT(HOUR FROM ${orders.created_at})',
+                compiledSql: 'EXTRACT(HOUR FROM "orders_created_at")',
+                dependsOn: ['orders_created_at'],
+            },
+        ],
+    };
+
+    it('surfaces the warning through compileQuery().warnings when the flag is on', () => {
+        const { warnings } = buildQuery({
+            explore: exploreWithCastDate,
+            compiledMetricQuery: metricQueryWithSubDayTableCalc,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            useTimezoneAwareDateTrunc: true,
+        });
+
+        const dateGrainWarning = warnings.find((w) =>
+            /raw timestamp/i.test(w.message),
+        );
+        expect(dateGrainWarning).toBeDefined();
+        expect(dateGrainWarning?.fields).toContain('orders_created_at');
+    });
+
+    it('emits no such warning when the flag is off', () => {
+        const { warnings } = buildQuery({
+            explore: exploreWithCastDate,
+            compiledMetricQuery: metricQueryWithSubDayTableCalc,
+            warehouseSqlBuilder: warehouseClientMock,
+            intrinsicUserAttributes: INTRINSIC_USER_ATTRIBUTES,
+            timezone: QUERY_BUILDER_UTC_TIMEZONE,
+            useTimezoneAwareDateTrunc: false,
+        });
+
+        expect(warnings.some((w) => /raw timestamp/i.test(w.message))).toBe(
+            false,
+        );
+    });
+});
