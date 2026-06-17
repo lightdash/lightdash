@@ -1235,6 +1235,7 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
                     metadata: { slug },
@@ -1471,6 +1472,7 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
                     metadata: { slug },
@@ -1768,6 +1770,7 @@ export class CoderService extends BaseService {
                 subject('ContentAsCode', {
                     projectUuid: project.projectUuid,
                     organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
                     metadata: { slug },

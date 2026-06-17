@@ -79,6 +79,7 @@ export class DeployService extends BaseService {
                 subject('DeployProject', {
                     projectUuid,
                     organizationUuid: project.organizationUuid,
+                    upstreamProjectUuid: project.upstreamProjectUuid,
                     type: project.type,
                     createdByUserUuid: project.createdByUserUuid,
                     metadata: {
