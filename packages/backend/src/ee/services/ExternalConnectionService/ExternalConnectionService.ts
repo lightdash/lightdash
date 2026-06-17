@@ -378,6 +378,11 @@ export class ExternalConnectionService extends BaseService {
         if (app.project_uuid !== projectUuid) {
             throw new NotFoundError('Data app not found');
         }
+        if (!/^[a-z0-9_-]+$/i.test(alias) || alias.length > 64) {
+            throw new ParameterError(
+                'Alias must contain only letters, numbers, hyphens, and underscores (max 64 chars)',
+            );
+        }
         const connection = await this.getOwnedConnection(
             account,
             projectUuid,
