@@ -19,6 +19,7 @@ import CreateProject from './pages/CreateProject';
 import Dashboard from './pages/Dashboard';
 import DashboardHistory from './pages/DashboardHistory';
 import Explorer from './pages/Explorer';
+import FullAppEmbedRedirect from './pages/FullAppEmbedRedirect';
 import Home from './pages/Home';
 import Invite from './pages/Invite';
 import JoinOrganization from './pages/JoinOrganization';
@@ -54,6 +55,10 @@ const FALLBACK_ROUTE: RouteObject = {
 };
 
 const PUBLIC_ROUTES: RouteObject[] = [
+    {
+        path: '/embed/full-app/:projectUuid',
+        element: <FullAppEmbedRedirect />,
+    },
     {
         path: '/auth/popup/:status',
         element: <AuthPopupResult />,

@@ -125,7 +125,7 @@ vi.mock('../src/features/comments', () => ({
 }));
 
 import { FilterOperator } from '@lightdash/common';
-import { AiAgent, Dashboard } from './index';
+import { AiAgent, App, Dashboard } from './index';
 
 describe('SDK Dashboard - URL Sync Behavior', () => {
     const mockToken =
@@ -344,6 +344,30 @@ describe('SDK AI agent', () => {
 
         expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
             `${mockInstanceUrl}/embed/test-project-uuid/ai-agents/test-agent-uuid/threads#${mockToken}`,
+        );
+    });
+});
+
+describe('SDK App', () => {
+    const mockToken = 'full-app-token';
+    const mockInstanceUrl = 'http://localhost:3000';
+
+    it('renders the full app iframe with the bootstrap token and path', async () => {
+        const { container } = render(
+            <App
+                token={mockToken}
+                instanceUrl={mockInstanceUrl}
+                projectUuid="test-project-uuid"
+                path="/projects/test-project-uuid/sql-runner"
+            />,
+        );
+
+        await waitFor(() => {
+            expect(container.querySelector('iframe')).toBeTruthy();
+        });
+
+        expect(container.querySelector('iframe')?.getAttribute('src')).toBe(
+            `${mockInstanceUrl}/embed/full-app/test-project-uuid?token=${mockToken}&path=%2Fprojects%2Ftest-project-uuid%2Fsql-runner`,
         );
     });
 });

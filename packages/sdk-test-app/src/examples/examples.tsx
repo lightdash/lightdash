@@ -3,6 +3,7 @@ import type { EmbedConfigState } from '../hooks/useEmbedConfig';
 import { AiAgentExamplePage } from './AiAgentExamplePage';
 import { DashboardBuilderExamplePage } from './DashboardBuilderExamplePage';
 import { FiltersExamplePage } from './FiltersExamplePage';
+import { FullAppEmbedExamplePage } from './FullAppEmbedExamplePage';
 import { I18nExamplePage } from './I18nExamplePage';
 import { PaletteUuidExamplePage } from './PaletteUuidExamplePage';
 import { ThemeExamplePage } from './ThemeExamplePage';
@@ -17,6 +18,15 @@ export type ExampleDefinition = {
 };
 
 export const examples: ExampleDefinition[] = [
+    {
+        slug: 'full-app',
+        path: '/examples/full-app',
+        title: 'Full app embed demo',
+        description:
+            'Embed the normal Lightdash web app with a real user session created from a signed user UUID token.',
+        sourcePath: 'packages/sdk-test-app/src/examples/FullAppEmbedExamplePage.tsx',
+        component: FullAppEmbedExamplePage,
+    },
     {
         slug: 'ai-agent',
         path: '/examples/ai-agent',

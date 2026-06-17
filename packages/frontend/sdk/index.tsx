@@ -15,16 +15,16 @@ import {
     type PropsWithChildren,
 } from 'react';
 import { MemoryRouter } from 'react-router';
+import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import { type SdkFilter } from '../src/ee/features/embed/EmbedDashboard/types';
 import EmbedChart from '../src/ee/pages/EmbedChart';
 import EmbedDashboard from '../src/ee/pages/EmbedDashboard';
 import EmbedExplore from '../src/ee/pages/EmbedExplore';
 import EmbedProvider from '../src/ee/providers/Embed/EmbedProvider';
 import useEmbed from '../src/ee/providers/Embed/useEmbed';
-import SuboptimalState from '../src/components/common/SuboptimalState/SuboptimalState';
 import ErrorBoundary from '../src/features/errorBoundary/ErrorBoundary';
-import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import { useCreateMutation } from '../src/hooks/dashboard/useDashboard';
+import ChartColorMappingContextProvider from '../src/hooks/useChartColorConfig/ChartColorMappingContextProvider';
 import AbilityProvider from '../src/providers/Ability/AbilityProvider';
 import ActiveJobProvider from '../src/providers/ActiveJob/ActiveJobProvider';
 import AppProvider from '../src/providers/App/AppProvider';
@@ -68,6 +68,14 @@ type AiAgentProps = Omit<
 > & {
     agentUuid: string;
     threadUuid?: string;
+};
+
+type AppProps = Omit<
+    BaseProps,
+    'contentOverrides' | 'filters' | 'onExplore'
+> & {
+    path?: string;
+    projectUuid: string;
 };
 
 const decodeJWT = (token: string) => {
@@ -198,6 +206,34 @@ const getAiAgentEmbedUrl = ({
     }
 
     url.hash = token;
+    return url.toString();
+};
+
+const getFullAppEmbedUrl = ({
+    instanceUrl,
+    path = '/projects',
+    projectUuid,
+    theme,
+    token,
+}: {
+    instanceUrl: string;
+    path?: string;
+    projectUuid: string;
+    theme: AppProps['theme'];
+    token: string;
+}) => {
+    const normalizedInstanceUrl = instanceUrl.endsWith('/')
+        ? instanceUrl
+        : `${instanceUrl}/`;
+    const url = new URL(`embed/full-app/${projectUuid}`, normalizedInstanceUrl);
+
+    url.searchParams.set('token', token);
+    url.searchParams.set('path', path);
+
+    if (theme) {
+        url.searchParams.set('theme', theme);
+    }
+
     return url.toString();
 };
 
@@ -343,7 +379,9 @@ const DashboardBuilderContent: FC<{
                 spaceUuid: writeActions.spaceUuid,
                 tiles: [],
                 tabs: [],
-            }).then((createdDashboard) => createdDashboard as EmbedDashboardType);
+            }).then(
+                (createdDashboard) => createdDashboard as EmbedDashboardType,
+            );
 
         dashboardBuilderCreatePromises.set(createKey, createPromise);
 
@@ -435,7 +473,9 @@ const DashboardBuilder: FC<DashboardBuilderProps> = ({
     );
 };
 
-const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = ({
+const Explore: FC<
+    BaseProps & { exploreId: string; savedChart: SavedChart }
+> = ({
     token: tokenOrTokenPromise,
     instanceUrl,
     styles,
@@ -504,9 +544,7 @@ const Explore: FC<BaseProps & { exploreId: string; savedChart: SavedChart }> = (
                         overflow: 'auto',
                         backgroundColor:
                             styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
+                            (theme ? 'var(--mantine-color-body)' : undefined),
                     }}
                 />
             </EmbedProvider>
@@ -577,9 +615,7 @@ const Chart: FC<Omit<BaseProps, 'filters' | 'onExplore'> & { id: string }> = ({
                         overflow: 'auto',
                         backgroundColor:
                             styles?.backgroundColor ??
-                            (theme
-                                ? 'var(--mantine-color-body)'
-                                : undefined),
+                            (theme ? 'var(--mantine-color-body)' : undefined),
                     }}
                 />
             </EmbedProvider>
@@ -624,8 +660,71 @@ const AiAgent: FC<AiAgentProps> = ({
     );
 };
 
+const App: FC<AppProps> = ({
+    instanceUrl,
+    path,
+    projectUuid,
+    styles,
+    theme,
+    token: tokenOrTokenPromise,
+}) => {
+    const [token, setToken] = useState<string | null>(null);
+
+    useEffect(() => {
+        let isMounted = true;
+
+        persistInstanceUrl(instanceUrl);
+
+        const resolveToken = async () =>
+            typeof tokenOrTokenPromise === 'string'
+                ? tokenOrTokenPromise
+                : tokenOrTokenPromise;
+
+        resolveToken()
+            .then((resolvedToken) => {
+                if (isMounted) {
+                    setToken(resolvedToken);
+                }
+            })
+            .catch((error) => {
+                console.error(error);
+                throw new Error('Error retrieving token');
+            });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [instanceUrl, tokenOrTokenPromise]);
+
+    if (!token) {
+        return null;
+    }
+
+    return (
+        <iframe
+            title="Lightdash app"
+            src={getFullAppEmbedUrl({
+                instanceUrl,
+                path,
+                projectUuid,
+                theme,
+                token,
+            })}
+            style={{
+                width: '100%',
+                height: '100%',
+                border: 0,
+                backgroundColor:
+                    styles?.backgroundColor ??
+                    (theme ? 'var(--mantine-color-body)' : undefined),
+            }}
+        />
+    );
+};
+
 const Lightdash = {
     AiAgent,
+    App,
     Dashboard,
     DashboardBuilder,
     Explore,
@@ -634,6 +733,14 @@ const Lightdash = {
 };
 
 // ts-unused-exports:disable-next-line
-export { AiAgent, Chart, Dashboard, DashboardBuilder, Explore, FilterOperator };
+export {
+    AiAgent,
+    App,
+    Chart,
+    Dashboard,
+    DashboardBuilder,
+    Explore,
+    FilterOperator,
+};
 // ts-unused-exports:disable-next-line
 export default Lightdash;

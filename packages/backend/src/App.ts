@@ -65,6 +65,7 @@ import { ModelProviderMap, ModelRepository } from './models/ModelRepository';
 import PrometheusMetrics from './prometheus/PrometheusMetrics';
 import { apiV1Router } from './routers/apiV1Router';
 import { createAppPreviewRouter } from './routers/appPreviewRouter';
+import { fullAppEmbedRouter } from './routers/fullAppEmbedRouter';
 import {
     oauthAuthorizationServerHandler,
     oauthProtectedResourceHandler,
@@ -652,6 +653,8 @@ export default class App {
             }
             next();
         });
+
+        expressApp.use('/embed/full-app', fullAppEmbedRouter);
 
         // api router
         expressApp.use('/api/v1', apiV1Router);

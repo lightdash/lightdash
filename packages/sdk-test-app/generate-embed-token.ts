@@ -102,9 +102,15 @@ async function main() {
                 'dashboards.name',
                 'spaces.space_uuid',
                 'projects.project_uuid',
+                'organizations.organization_uuid',
             )
             .join('spaces', 'dashboards.space_id', 'spaces.space_id')
             .join('projects', 'spaces.project_id', 'projects.project_id')
+            .join(
+                'organizations',
+                'projects.organization_id',
+                'organizations.organization_id',
+            )
             .whereNull('dashboards.deleted_at')
             .modify((queryBuilder) => {
                 if (process.env.DASHBOARD_UUID) {
@@ -132,6 +138,49 @@ async function main() {
         const projectUuid = dashboard.project_uuid;
         const dashboardUuid = dashboard.dashboard_uuid;
         const spaceUuid = dashboard.space_uuid;
+        const userQuery = db('users')
+            .select(
+                'users.user_uuid',
+                'emails.email',
+                'users.first_name',
+                'users.last_name',
+            )
+            .join(
+                'organization_memberships',
+                'users.user_id',
+                'organization_memberships.user_id',
+            )
+            .join(
+                'organizations',
+                'organization_memberships.organization_id',
+                'organizations.organization_id',
+            )
+            .joinRaw(
+                'LEFT JOIN emails ON users.user_id = emails.user_id AND emails.is_primary',
+            )
+            .where('organizations.organization_uuid', dashboard.organization_uuid)
+            .where('users.is_active', true)
+            .where('users.is_internal', false)
+            .modify((queryBuilder) => {
+                if (process.env.EMBED_USER_UUID) {
+                    void queryBuilder.where(
+                        'users.user_uuid',
+                        process.env.EMBED_USER_UUID,
+                    );
+                }
+            })
+            .first();
+        const user = await userQuery;
+
+        if (!user) {
+            console.error(
+                process.env.EMBED_USER_UUID
+                    ? `No active user ${process.env.EMBED_USER_UUID} found in project organization`
+                    : 'No active users found in project organization',
+            );
+            process.exit(1);
+        }
+
         const aiAgent =
             requestedAiAgent ??
             (await db('ai_agent')
@@ -145,12 +194,29 @@ async function main() {
 
         let rawSecret: string;
         if (existing) {
-            rawSecret = decrypt(existing.encoded_secret, LIGHTDASH_SECRET);
+            try {
+                rawSecret = decrypt(existing.encoded_secret, LIGHTDASH_SECRET);
+            } catch {
+                rawSecret = randomBytes(32).toString('hex');
+                const encodedSecret = encrypt(rawSecret, LIGHTDASH_SECRET);
+
+                await db('embedding')
+                    .where({ project_uuid: projectUuid })
+                    .update({
+                        encoded_secret: encodedSecret,
+                        dashboard_uuids: db.raw(
+                            `ARRAY['${dashboardUuid}']::text[]`,
+                        ),
+                        allow_all_dashboards: true,
+                        created_by: user.user_uuid,
+                    });
+                console.warn(
+                    'Existing embedding secret could not be decrypted; rotated it for this local demo.',
+                );
+            }
         } else {
             rawSecret = randomBytes(32).toString('hex');
             const encodedSecret = encrypt(rawSecret, LIGHTDASH_SECRET);
-
-            const user = await db('users').select('user_uuid').first();
 
             await db('embedding').insert({
                 project_uuid: projectUuid,
@@ -159,13 +225,6 @@ async function main() {
                 allow_all_dashboards: true,
                 created_by: user?.user_uuid,
             });
-        }
-
-        const user = await db('users').select('user_uuid').first();
-
-        if (!user) {
-            console.error('No users found in database');
-            process.exit(1);
         }
 
         const serviceAccount = await db('service_accounts')
@@ -218,7 +277,7 @@ async function main() {
                 spaceUuid,
             },
             user: {
-                email: 'demo@lightdash.com',
+                email: user.email ?? 'demo@lightdash.com',
             },
         };
 
@@ -226,6 +285,23 @@ async function main() {
             expiresIn: '24h',
         });
         const embedUrl = `${LIGHTDASH_URL}/embed/${projectUuid}#${dashboardToken}`;
+        const fullAppPath =
+            process.env.FULL_APP_PATH || `/projects/${projectUuid}/home`;
+        const fullAppPayload = {
+            content: {
+                type: 'fullApp',
+                projectUuid,
+            },
+            user: {
+                userUuid: user.user_uuid,
+            },
+        };
+        const fullAppToken = jwt.sign(fullAppPayload, rawSecret, {
+            expiresIn: process.env.FULL_APP_EXPIRES_IN || '15m',
+        });
+        const fullAppEmbedUrl = `${LIGHTDASH_URL}/embed/full-app/${projectUuid}?token=${encodeURIComponent(
+            fullAppToken,
+        )}&path=${encodeURIComponent(fullAppPath)}`;
         const aiAgentPayload = aiAgent
             ? {
                   content: {
@@ -238,7 +314,7 @@ async function main() {
                       spaceUuid,
                   },
                   user: {
-                      email: 'demo@lightdash.com',
+                      email: user.email ?? 'demo@lightdash.com',
                   },
               }
             : null;
@@ -257,6 +333,10 @@ async function main() {
                     projectUuid,
                     dashboardUuid,
                     dashboardName: dashboard.name,
+                    fullAppEmbedUrl,
+                    fullAppPath,
+                    fullAppUserUuid: user.user_uuid,
+                    fullAppUserEmail: user.email ?? null,
                     aiAgentUuid: aiAgent?.ai_agent_uuid ?? null,
                     aiAgentName: aiAgent?.name ?? null,
                     embedUrl,
@@ -269,6 +349,7 @@ async function main() {
 
         console.log(`\nAdd to packages/sdk-test-app/.env.local:`);
         console.log(`VITE_EMBED_URL="${embedUrl}"`);
+        console.log(`VITE_FULL_APP_EMBED_URL="${fullAppEmbedUrl}"`);
         if (aiAgent) {
             console.log(`VITE_AI_AGENT_EMBED_URL="${aiAgentEmbedUrl}"`);
         }

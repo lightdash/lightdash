@@ -50,10 +50,13 @@ Once the app is running in your browser:
 
 The examples currently include:
 
+- `Full app embed demo`
 - `AI agent demo`
+- `Dashboard builder demo`
 - `I18n demo`
 - `Filters demo`
 - `Palette UUID demo`
+- `Theme demo`
 
 The palette demo uses a select with three stable options:
 
@@ -82,11 +85,18 @@ The script:
 - finds the `Jaffle dashboard`
 - reads or creates the project's embedding secret in the `embedding` table
 - signs a 24 hour JWT for dashboard embed content
+- signs a short-lived JWT for full-app embedding, mapped to a real Lightdash user UUID
 - signs a separate 24 hour JWT for AI-agent embed content when it finds an agent in the dashboard project
-- prints `VITE_EMBED_URL="..."` and `VITE_AI_AGENT_EMBED_URL="..."` values for `packages/sdk-test-app/.env.local`
+- prints `VITE_EMBED_URL="..."`, `VITE_FULL_APP_EMBED_URL="..."`, and `VITE_AI_AGENT_EMBED_URL="..."` values for `packages/sdk-test-app/.env.local`
 
 To target a specific agent, set `AI_AGENT_UUID` or `AI_AGENT_NAME` before
 running the generator.
+
+To map the full-app embed session to a specific real Lightdash user, set
+`EMBED_USER_UUID` before running the generator. If it is omitted, the generator
+uses the first active human user in the dashboard project's organization. Set
+`FULL_APP_PATH` to choose the initial app route, for example
+`/projects/<project_uuid>/sql-runner` or `/generalSettings/profile`.
 
 ## Available Scripts
 
