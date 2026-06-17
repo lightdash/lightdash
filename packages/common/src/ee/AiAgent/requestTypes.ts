@@ -107,6 +107,19 @@ export type AiPromptContextItemInput =
           threadUuid: string;
           // The turn the reference points at (e.g. a flagged prompt).
           promptUuid?: string | null;
+      }
+    | {
+          // A dbt source file the user @-mentioned. `path` is relative to the
+          // dbt sub-folder (as the project-files endpoint returns it); the
+          // agent's repo filesystem mounts that folder at `/dbt`.
+          type: 'file';
+          path: string;
+      }
+    | {
+          // A GitHub repository the user @-mentioned, as `owner/repo`. The
+          // agent's repo filesystem mounts it at `/owner/repo`.
+          type: 'repository';
+          fullName: string;
       };
 
 export type AiPromptContextInput = AiPromptContextItemInput[];
@@ -133,6 +146,17 @@ export type AiPromptContextItem =
           threadUuid: string;
           promptUuid: string | null;
           displayName: string | null;
+      }
+    | {
+          // Resolved file reference — a passthrough of the input (the path is
+          // self-contained, there is nothing to look up server-side).
+          type: 'file';
+          path: string;
+      }
+    | {
+          // Resolved repository reference — a passthrough of the input.
+          type: 'repository';
+          fullName: string;
       };
 
 export type AiPromptContext = AiPromptContextItem[];

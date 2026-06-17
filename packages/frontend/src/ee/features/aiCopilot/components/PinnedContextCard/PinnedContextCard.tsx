@@ -8,7 +8,7 @@ type Props = {
 };
 
 type ItemMeta = {
-    kind: 'chart' | 'dashboard' | 'thread';
+    kind: 'chart' | 'dashboard' | 'thread' | 'file' | 'repository';
     label: string;
     href: string | null;
 };
@@ -38,6 +38,10 @@ const getItemMeta = (
                 label: item.displayName ?? 'Conversation',
                 href: null,
             };
+        case 'file':
+            return { kind: 'file', label: item.path, href: null };
+        case 'repository':
+            return { kind: 'repository', label: item.fullName, href: null };
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }

@@ -261,6 +261,10 @@ const getContextKey = (item: AiPromptContextInput[number]) => {
             return `dashboard:${item.dashboardUuid}`;
         case 'thread':
             return `thread:${item.threadUuid}`;
+        case 'file':
+            return `file:${item.path}`;
+        case 'repository':
+            return `repository:${item.fullName}`;
         default:
             return assertUnreachable(
                 item,
@@ -826,7 +830,10 @@ export const extractContentMentionContext = (
         if (node.type.name !== CONTENT_MENTION_NAME) return;
 
         const attrs = node.attrs as {
-            contentType?: ContentType;
+            contentType?:
+                | ContentType
+                | typeof FILE_MENTION_CONTENT_TYPE
+                | typeof REPOSITORY_MENTION_CONTENT_TYPE;
             uuid?: string;
             slug?: string | null;
             label?: string | null;
@@ -881,6 +888,30 @@ export const extractContentMentionContext = (
                 dashboardSlug: attrs.slug ?? null,
                 displayName: attrs.label ?? null,
                 pinnedVersionUuid: null,
+            });
+            return;
+        }
+
+        // File / repository mentions carry their reference in `label` (the path
+        // / `owner/repo`) — emit a structured context item so the agent knows
+        // it's a file or a repo, never having to disambiguate from the text.
+        if (
+            attrs.contentType === FILE_MENTION_CONTENT_TYPE &&
+            typeof attrs.label === 'string'
+        ) {
+            context.push({ type: 'file', path: attrs.label });
+            optimisticContext.push({ type: 'file', path: attrs.label });
+            return;
+        }
+
+        if (
+            attrs.contentType === REPOSITORY_MENTION_CONTENT_TYPE &&
+            typeof attrs.label === 'string'
+        ) {
+            context.push({ type: 'repository', fullName: attrs.label });
+            optimisticContext.push({
+                type: 'repository',
+                fullName: attrs.label,
             });
         }
     });

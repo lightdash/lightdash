@@ -61,4 +61,27 @@ describe('contentReferenceUtils', () => {
             'chart:chart-2',
         ]);
     });
+
+    it('renders a reference chip for every occurrence of a repeated tag', () => {
+        const result = buildContentReferenceSegments(
+            'test charliedowler/Slugger charliedowler/Slugger charliedowler/Slugger',
+            [{ type: 'repository', fullName: 'charliedowler/Slugger' }],
+        );
+
+        const references = result.segments.filter(
+            (segment) => segment.type === 'reference',
+        );
+        expect(references).toHaveLength(3);
+        expect(
+            references.every(
+                (segment) =>
+                    segment.type === 'reference' &&
+                    segment.label === 'charliedowler/Slugger',
+            ),
+        ).toBe(true);
+        // The key is still recorded once for pinned-card accounting.
+        expect([...result.matchedKeys]).toEqual([
+            'repository:charliedowler/Slugger',
+        ]);
+    });
 });

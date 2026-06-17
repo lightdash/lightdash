@@ -4801,6 +4801,25 @@ export class AiAgentModel {
                             thread?.title ?? thread?.first_prompt ?? null,
                     };
                 }
+                // File / repository references are self-contained — the path /
+                // `owner/repo` is the natural key, stored in entity_ref (no
+                // uuid, nothing to resolve).
+                case 'file':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'file' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.path,
+                        display_name: ctx.path,
+                    };
+                case 'repository':
+                    return {
+                        ai_prompt_uuid: promptUuid,
+                        entity_type: 'repository' as AiPromptContextEntityType,
+                        entity_uuid: null,
+                        entity_ref: ctx.fullName,
+                        display_name: ctx.fullName,
+                    };
                 default:
                     return assertUnreachable(
                         ctx,
@@ -4825,7 +4844,8 @@ export class AiAgentModel {
 
         const chartUuids = rows
             .filter((r) => r.entity_type === 'chart')
-            .map((r) => r.entity_uuid);
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
         const chartDataByUuid = new Map(
             (
                 await this.database(SavedChartsTableName)
@@ -4853,7 +4873,8 @@ export class AiAgentModel {
         );
         const dashboardUuids = rows
             .filter((r) => r.entity_type === 'dashboard')
-            .map((r) => r.entity_uuid);
+            .map((r) => r.entity_uuid)
+            .filter((u): u is string => u !== null);
         const dashboardSlugByUuid = new Map(
             (
                 await this.database(DashboardsTableName)
@@ -4891,10 +4912,11 @@ export class AiAgentModel {
     ): AiPromptContextItem {
         switch (row.entity_type) {
             case 'chart': {
-                const chartData = chartDataByUuid.get(row.entity_uuid);
+                const entityUuid = row.entity_uuid ?? '';
+                const chartData = chartDataByUuid.get(entityUuid);
                 return {
                     type: 'chart',
-                    chartUuid: row.entity_uuid,
+                    chartUuid: entityUuid,
                     chartSlug: chartData?.slug ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
@@ -4902,22 +4924,29 @@ export class AiAgentModel {
                     chartKind: chartData?.chartKind ?? null,
                 };
             }
-            case 'dashboard':
+            case 'dashboard': {
+                const entityUuid = row.entity_uuid ?? '';
                 return {
                     type: 'dashboard',
-                    dashboardUuid: row.entity_uuid,
-                    dashboardSlug:
-                        dashboardSlugByUuid.get(row.entity_uuid) ?? null,
+                    dashboardUuid: entityUuid,
+                    dashboardSlug: dashboardSlugByUuid.get(entityUuid) ?? null,
                     pinnedVersionUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };
+            }
             case 'thread':
                 return {
                     type: 'thread',
-                    threadUuid: row.entity_uuid,
+                    threadUuid: row.entity_uuid ?? '',
                     promptUuid: row.pinned_version_uuid,
                     displayName: row.display_name,
                 };
+            // File / repository references store their natural key in
+            // entity_ref; there is nothing to join back to.
+            case 'file':
+                return { type: 'file', path: row.entity_ref ?? '' };
+            case 'repository':
+                return { type: 'repository', fullName: row.entity_ref ?? '' };
             default:
                 return assertUnreachable(
                     row.entity_type,

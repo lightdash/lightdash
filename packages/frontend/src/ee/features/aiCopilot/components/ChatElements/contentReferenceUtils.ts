@@ -20,20 +20,27 @@ export const getPromptContextItemKey = (item: AiPromptContextItem) => {
             return `dashboard:${item.dashboardUuid}`;
         case 'thread':
             return `thread:${item.threadUuid}`;
+        case 'file':
+            return `file:${item.path}`;
+        case 'repository':
+            return `repository:${item.fullName}`;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
 };
 
 const getPromptContextItemLabel = (item: AiPromptContextItem) => {
-    if (item.displayName) return item.displayName;
     switch (item.type) {
         case 'chart':
-            return item.chartSlug ?? 'Chart';
+            return item.displayName ?? item.chartSlug ?? 'Chart';
         case 'dashboard':
-            return item.dashboardSlug ?? 'Dashboard';
+            return item.displayName ?? item.dashboardSlug ?? 'Dashboard';
         case 'thread':
-            return 'Conversation';
+            return item.displayName ?? 'Conversation';
+        case 'file':
+            return item.path;
+        case 'repository':
+            return item.fullName;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
     }
@@ -51,6 +58,11 @@ export const getPromptContextItemHref = (
         // A pinned thread can live in another project, so there is no
         // reliable in-project URL to offer.
         case 'thread':
+            return null;
+        // File / repository references point at source the agent reads, not at
+        // an in-app route, so there is no link to offer.
+        case 'file':
+        case 'repository':
             return null;
         default:
             return assertUnreachable(item, 'Unknown AiPromptContextItem type');
@@ -75,8 +87,11 @@ export const buildContentReferenceSegments = (
     let cursor = 0;
 
     while (cursor < message.length) {
+        // Match every occurrence of a reference, not just the first — the same
+        // file/repo/chart can be tagged multiple times in one message. We still
+        // record each key in matchedKeys (a Set) so the caller knows which
+        // pinned items were referenced inline.
         const nextMatch = candidates
-            .filter(({ key }) => !matchedKeys.has(key))
             .map((candidate) => ({
                 ...candidate,
                 start: message.indexOf(candidate.label, cursor),
