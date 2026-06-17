@@ -906,6 +906,11 @@ export interface Metric extends Field {
     distinctKeys?: string[]; // dimension references for sum_distinct deduplication key
     formatOptions?: CustomFormat;
     dimensionReference?: string; // field id of the dimension this metric is based on
+    // Temporal base of a MIN/MAX metric over a single DATE/TIMESTAMP dimension,
+    // set at compile time so the formatter and query builder can tell a calendar
+    // DATE aggregation from a TIMESTAMP instant. Undefined for arbitrary-SQL metrics.
+    baseDimensionType?: DimensionType;
+    baseDimensionTimeInterval?: TimeFrames;
     requiredAttributes?: Record<string, string | string[]>; // Required attributes for the dimension this metric is based on
     anyAttributes?: Record<string, string | string[]>; // Any of these attributes must match (OR logic)
     defaultTimeDimension?: DefaultTimeDimension; // Default time dimension for the metric when the user has not specified a time dimension
@@ -922,6 +927,26 @@ export interface Metric extends Field {
     aiHint?: string | string[];
     richText?: string; // The markdown/HTML template with LiquidJS variables
 }
+
+// The base-type metadata a MIN/MAX metric carries when it aggregates a single
+// DATE/TIMESTAMP dimension. Returns an empty object for any other metric type or
+// a non-temporal base, so callers can spread it unconditionally. See the
+// baseDimensionType field on Metric for why this is denormalized at compile time.
+export const getMinMaxBaseDimensionMetadata = (
+    metricType: MetricType,
+    base: { type: DimensionType; timeInterval?: TimeFrames } | undefined,
+): Pick<Metric, 'baseDimensionType' | 'baseDimensionTimeInterval'> => {
+    const isMinMax =
+        metricType === MetricType.MIN || metricType === MetricType.MAX;
+    const isTemporalBase =
+        base?.type === DimensionType.DATE ||
+        base?.type === DimensionType.TIMESTAMP;
+    if (!isMinMax || !base || !isTemporalBase) return {};
+    return {
+        baseDimensionType: base.type,
+        baseDimensionTimeInterval: base.timeInterval,
+    };
+};
 
 export const isFilterableDimension = (
     dimension: Dimension | undefined,
