@@ -28,7 +28,7 @@ import QueryWarnings from './QueryWarnings';
 const ExplorerHeader: FC = memo(() => {
     const projectUuid = useProjectUuid();
     const { user } = useApp();
-    const { onBackToDashboard } = useEmbed();
+    const { exploreBackLabel, onBackToDashboard } = useEmbed();
     const ability = useAbilityContext();
 
     // Get state from Redux and new hook
@@ -130,7 +130,7 @@ const ExplorerHeader: FC = memo(() => {
                     leftSection={<MantineIcon icon={IconArrowLeft} />}
                     onClick={onBackToDashboard}
                 >
-                    Back to Dashboard
+                    {exploreBackLabel ?? 'Back to Dashboard'}
                 </Button>
             )}
 

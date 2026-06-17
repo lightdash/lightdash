@@ -3,6 +3,8 @@ import {
     ApiShareResponse,
     assertRegisteredAccount,
     CreateShareUrl,
+    ForbiddenError,
+    isJwtUser,
 } from '@lightdash/common';
 import {
     Body,
@@ -18,7 +20,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../auth/account';
+import { getAccountWriteContext } from '../auth/account';
 import { allowApiKeyAuthentication, isAuthenticated } from './authentication';
 import { BaseController } from './baseController';
 
@@ -63,10 +65,18 @@ export class ShareController extends BaseController {
         @Body() body: CreateShareUrl,
         @Request() req: express.Request,
     ): Promise<ApiShareResponse> {
-        assertRegisteredAccount(req.account);
+        const { user } = getAccountWriteContext(req.account!);
+        if (
+            isJwtUser(req.account) &&
+            req.account.embedWriteContext?.canUseAiAgent !== true
+        ) {
+            throw new ForbiddenError(
+                req.account.embedWriteContext?.aiAgentErrorMessage,
+            );
+        }
         const shareUrl = await this.services
             .getShareService()
-            .createShareUrl(toSessionUser(req.account), body.path, body.params);
+            .createShareUrl(user, body.path, body.params);
         this.setStatus(201);
         return {
             status: 'ok',

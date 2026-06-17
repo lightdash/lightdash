@@ -82,7 +82,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../auth/account';
+import { getAiAgentEmbedAccount, toSessionUser } from '../auth/account';
 import type { DbTagUpdate } from '../database/entities/tags';
 import {
     allowApiKeyAuthentication,
@@ -819,11 +819,12 @@ Migrate to the v2 async query flow: [Execute SQL query](https://docs.lightdash.c
         @Query() dashboardUuid?: string,
         @Query() chartUuid?: string,
     ): Promise<ApiProjectColorPaletteResponse> {
-        assertRegisteredAccount(req.account);
+        const account = getAiAgentEmbedAccount(req.account!);
+        assertRegisteredAccount(account);
         this.setStatus(200);
         const palette = await this.services
             .getProjectService()
-            .getResolvedColorPalette(toSessionUser(req.account), projectUuid, {
+            .getResolvedColorPalette(toSessionUser(account), projectUuid, {
                 spaceUuid,
                 dashboardUuid,
                 chartUuid,

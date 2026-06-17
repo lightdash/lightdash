@@ -245,6 +245,26 @@ export const fromSession = (
     });
 };
 
+export const getAiAgentEmbedAccount = (account: Account): Account => {
+    if (!isJwtUser(account)) {
+        return account;
+    }
+
+    if (account.embedWriteContext?.canUseAiAgent !== true) {
+        throw new ForbiddenError(
+            account.embedWriteContext?.aiAgentErrorMessage,
+        );
+    }
+
+    const { user } = getAccountWriteContext(account);
+
+    if (user.serviceAccount) {
+        return fromServiceAccount(user, account.authentication.source);
+    }
+
+    return fromSession(user, account.authentication.source);
+};
+
 export const fromOauth = (
     sessionUser: SessionUser,
     token: {

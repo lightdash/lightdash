@@ -1,5 +1,6 @@
 export {
     fromJwt,
+    getAiAgentEmbedAccount,
     getAccountWriteContext,
     fromServiceAccount,
     fromSession,

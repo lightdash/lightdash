@@ -29,7 +29,7 @@ import {
     Tags,
 } from '@tsoa/runtime';
 import express from 'express';
-import { toSessionUser } from '../auth/account';
+import { getAiAgentEmbedAccount, toSessionUser } from '../auth/account';
 import {
     allowApiKeyAuthentication,
     isAuthenticated,
@@ -88,10 +88,11 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiExploresResults }> {
         this.setStatus(200);
+        const account = getAiAgentEmbedAccount(req.account!);
         const results: ApiExploresResults = await this.services
             .getProjectService()
             .getAllExploresSummary(
-                req.account!,
+                account,
                 projectUuid,
                 req.query.filtered === 'true',
                 true,
@@ -119,9 +120,10 @@ export class ExploreController extends BaseController {
         @Request() req: express.Request,
     ): Promise<{ status: 'ok'; results: ApiExploreResults }> {
         this.setStatus(200);
+        const account = getAiAgentEmbedAccount(req.account!);
         const results = await this.services
             .getProjectService()
-            .getExplore(req.account!, projectUuid, exploreId, undefined, false);
+            .getExplore(account, projectUuid, exploreId, undefined, false);
 
         return {
             status: 'ok',
@@ -150,11 +152,12 @@ export class ExploreController extends BaseController {
         },
     ): Promise<{ status: 'ok'; results: ApiCompiledQueryResults }> {
         this.setStatus(200);
+        const account = getAiAgentEmbedAccount(req.account!);
 
         const { parameterReferences, query, pivotQuery } = await this.services
             .getProjectService()
             .compileQuery({
-                account: req.account!,
+                account,
                 body,
                 projectUuid,
                 exploreName: exploreId,
@@ -189,13 +192,14 @@ export class ExploreController extends BaseController {
         },
     ): Promise<ApiPreAggregateCheckResponse> {
         this.setStatus(200);
+        const account = getAiAgentEmbedAccount(req.account!);
 
         const { usePreAggregateCache, ...metricQuery } = body;
 
         const result = await this.services
             .getProjectService()
             .checkPreAggregateMatch({
-                account: req.account!,
+                account,
                 projectUuid,
                 exploreName: exploreId,
                 metricQuery,
@@ -230,11 +234,12 @@ export class ExploreController extends BaseController {
         results: ApiFormulaValidationResults;
     }> {
         this.setStatus(200);
+        const account = getAiAgentEmbedAccount(req.account!);
 
         const results = await this.services
             .getProjectService()
             .validateFormula({
-                account: req.account!,
+                account,
                 projectUuid,
                 exploreName: exploreId,
                 formula: body.formula,
@@ -260,14 +265,15 @@ export class ExploreController extends BaseController {
         @Path() projectUuid: string,
         @Request() req: express.Request,
     ): Promise<ApiChartSummaryListResponse> {
-        assertRegisteredAccount(req.account);
+        const account = getAiAgentEmbedAccount(req.account!);
+        assertRegisteredAccount(account);
         this.setStatus(200);
         return {
             status: 'ok',
             results: await this.services
                 .getProjectService()
                 .getChartsByExploreName(
-                    toSessionUser(req.account),
+                    toSessionUser(account),
                     projectUuid,
                     exploreId,
                 ),

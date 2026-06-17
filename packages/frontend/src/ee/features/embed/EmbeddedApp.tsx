@@ -37,17 +37,22 @@ const EmbedBackgroundColorSync: FC<React.PropsWithChildren> = ({
 const EmbeddedApp: FC = () => {
     const { projectUuid } = useParams<{ projectUuid: string }>();
     const [savedChart, setSavedChart] = useState<SavedChart>();
+    const [exploreReturnUrl, setExploreReturnUrl] = useState<string>();
     const navigate = useNavigate();
 
-    const handleExplore = (options: { chart: SavedChart }) => {
+    const handleExplore = (options: {
+        chart: SavedChart;
+        returnUrl?: string;
+    }) => {
         setSavedChart(options.chart);
+        setExploreReturnUrl(options.returnUrl);
         void navigate(
             `/embed/${projectUuid}/explore/${options.chart.tableName}`,
         );
     };
 
     const handleBackToDashboard = async () => {
-        await navigate(`/embed/${projectUuid}`);
+        await navigate(exploreReturnUrl ?? `/embed/${projectUuid}`);
     };
 
     return (
@@ -56,6 +61,9 @@ const EmbeddedApp: FC = () => {
             projectUuid={projectUuid}
             onExplore={handleExplore}
             onBackToDashboard={handleBackToDashboard}
+            exploreBackLabel={
+                exploreReturnUrl ? 'Back to agent' : 'Back to Dashboard'
+            }
         >
             <EmbedBackgroundColorSync>
                 <Outlet />

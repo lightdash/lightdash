@@ -27,8 +27,13 @@ function useEmbed(): EmbedContext {
             projectUuid: undefined,
             paletteUuid: undefined,
             languageMap: undefined,
-            onExplore: (_options: { chart: SavedChart }) => {},
+            onExplore: (_options: {
+                chart: SavedChart;
+                returnUrl?: string;
+            }) => {},
             t: (_input: string) => undefined,
+            onBackToDashboard: undefined,
+            exploreBackLabel: undefined,
             mode: 'direct',
             theme: 'light',
             backgroundColor: null,

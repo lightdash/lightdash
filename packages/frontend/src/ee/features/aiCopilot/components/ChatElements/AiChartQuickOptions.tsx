@@ -69,7 +69,7 @@ export const AiChartQuickOptions = ({
 }: Props) => {
     const { track } = useTracking();
     const { user } = useApp();
-    const { writeActions } = useEmbed();
+    const { onExplore, writeActions } = useEmbed();
     const isEmbed = isEmbedAiAgentRoute();
     const { showToastSuccess, showToastApiError } = useToaster();
 
@@ -238,12 +238,27 @@ export const AiChartQuickOptions = ({
     const { mutateAsync: createShareUrl } = useCreateShareMutation();
 
     const handleExploreFromHere = useCallback(async () => {
-        if (!openInExploreUrl) return;
-        const shareUrl = await createShareUrl({
-            path: openInExploreUrl.pathname,
-            params: `?${openInExploreUrl.search}`,
-        });
-        window.open(`/share/${shareUrl.nanoid}`, '_blank');
+        if (!openInExploreUrl || !savedData) return;
+
+        if (isEmbed) {
+            onExplore?.({
+                chart: {
+                    ...savedData,
+                    name: saveChartOptions.name ?? '',
+                    description: saveChartOptions.description ?? undefined,
+                } as SavedChart,
+                returnUrl: `${window.location.pathname}${window.location.search}`,
+            });
+        } else {
+            const shareUrl = await createShareUrl({
+                path: openInExploreUrl.pathname,
+                params: `?${openInExploreUrl.search}`,
+            });
+            window.open(
+                shareUrl.shareUrl ?? `/share/${shareUrl.nanoid}`,
+                '_blank',
+            );
+        }
         if (
             user?.data?.userUuid &&
             user?.data?.organizationUuid &&
@@ -266,6 +281,11 @@ export const AiChartQuickOptions = ({
         }
     }, [
         openInExploreUrl,
+        savedData,
+        isEmbed,
+        onExplore,
+        saveChartOptions.name,
+        saveChartOptions.description,
         createShareUrl,
         user?.data?.userUuid,
         user?.data?.organizationUuid,

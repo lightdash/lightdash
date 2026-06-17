@@ -27,8 +27,9 @@ type Props = {
     paletteUuid?: string;
     contentOverrides?: LanguageMap;
     embedHeaders?: Record<string, string>;
-    onExplore?: (options: { chart: SavedChart }) => void;
+    onExplore?: (options: { chart: SavedChart; returnUrl?: string }) => void;
     onBackToDashboard?: () => void;
+    exploreBackLabel?: string;
     savedChart?: SavedChart;
     savedQueryUuid?: string;
     appUuid?: string;
@@ -66,6 +67,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
     contentOverrides,
     onExplore,
     onBackToDashboard,
+    exploreBackLabel,
     savedChart,
     savedQueryUuid,
     appUuid,
@@ -158,6 +160,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
             savedQueryUuid,
             appUuid,
             onBackToDashboard,
+            exploreBackLabel,
             mode,
             theme: embedThemeParams.theme,
             backgroundColor: embedThemeParams.backgroundColor,
@@ -178,6 +181,7 @@ const EmbedProvider: FC<React.PropsWithChildren<Props>> = ({
         savedQueryUuid,
         appUuid,
         onBackToDashboard,
+        exploreBackLabel,
         mode,
         embedThemeParams.theme,
         embedThemeParams.backgroundColor,

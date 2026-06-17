@@ -35,11 +35,12 @@ export interface EmbedContext {
     // Powers localization of the dashboard
     languageMap?: LanguageMap;
     // The function to call when the user clicks "Explore from here"
-    onExplore?: (options: { chart: SavedChart }) => void;
+    onExplore?: (options: { chart: SavedChart; returnUrl?: string }) => void;
     // Localization function
     t: (input: string) => string | undefined;
     // The function to call when the user clicks "Back to dashboard" from an Explore
     onBackToDashboard?: () => void;
+    exploreBackLabel?: string;
     // The chart that the user is exploring
     savedChart?: SavedChart;
     // The UUID of the saved query being viewed in an embedded Chart
