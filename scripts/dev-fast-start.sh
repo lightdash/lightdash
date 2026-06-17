@@ -144,6 +144,10 @@ if test -f .env.development.local; then
             && mv .env.development.local.tmp .env.development.local
         ENV_PORTS_CHANGED=1
     }
+    # LD_INSTANCE_ID namespaces PM2 process names (ecosystem.config.js). If it's empty
+    # or wrong (e.g. the heredoc expanded it before the slot env was sourced), ecosystem
+    # defaults to "lightdash" and collides with another worktree's generic stack.
+    reconcile_env LD_INSTANCE_ID "${LD_INSTANCE_ID}"
     reconcile_env PGPORT "${LD_PG_PORT}"
     reconcile_env PORT "${PORT}"
     reconcile_env FE_PORT "${FE_PORT}"
