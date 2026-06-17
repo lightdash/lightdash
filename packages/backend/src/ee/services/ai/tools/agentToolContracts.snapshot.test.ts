@@ -1,6 +1,5 @@
 import { agentToolDefinitions } from '@lightdash/common';
-import type { ZodTypeAny } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+import { asSchema, type FlexibleSchema } from 'ai';
 import { getDiscoverFields } from '../agents/discoverFields/tool';
 import { getCreateContent } from './createContent';
 import { getDescribeWarehouseTable } from './describeWarehouseTable';
@@ -31,20 +30,18 @@ import { getRunSql } from './runSql';
 import { getSearchFieldValues } from './searchFieldValues';
 import { getSetupPreviewDeploy } from './setupPreviewDeploy';
 
-const schemaToJson = (schema: ZodTypeAny | undefined): unknown => {
+const schemaToJson = (schema: FlexibleSchema | undefined): unknown => {
     if (!schema) {
         return null;
     }
 
-    return zodToJsonSchema(schema, {
-        target: 'jsonSchema7',
-    });
+    return asSchema(schema).jsonSchema;
 };
 
 type SnapshotTool = {
     description?: string;
-    inputSchema?: ZodTypeAny;
-    outputSchema?: ZodTypeAny;
+    inputSchema?: FlexibleSchema;
+    outputSchema?: FlexibleSchema;
 };
 
 const agentToolSnapshot = (name: string, toolDefinition: SnapshotTool) => ({

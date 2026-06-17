@@ -10,6 +10,7 @@ import {
 } from './defineTool';
 import {
     assertAvailable,
+    createAgentInputSchema,
     createMcpToolResultBuilders,
     defaultAgentToModelOutput,
     resolveDescription,
@@ -66,7 +67,7 @@ export class ToolDefinitionWithoutMcpOutputImpl<
             name: this.name,
             title: this.title,
             description: this.description,
-            inputSchema: this.inputSchema,
+            inputSchema: createAgentInputSchema(this.inputSchema),
             toModelOutput:
                 this.agentConfig?.toModelOutput ?? defaultAgentToModelOutput,
         };

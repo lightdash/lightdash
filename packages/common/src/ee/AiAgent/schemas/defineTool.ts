@@ -80,6 +80,37 @@ export type McpToolConfig =
     | McpToolConfigWithoutOutput
     | McpToolConfigWithOutput<McpOutputSchema>;
 
+export type AgentInputSchema<TInput extends z.ZodTypeAny> = {
+    readonly [key: symbol]: true | undefined;
+    readonly _type: z.infer<TInput>;
+    readonly jsonSchema: Record<string, unknown>;
+    readonly validate: (
+        value: unknown,
+    ) =>
+        | { readonly success: true; readonly value: z.infer<TInput> }
+        | { readonly success: false; readonly error: Error };
+    readonly '~standard': {
+        readonly version: 1;
+        readonly vendor: 'lightdash';
+        readonly types: {
+            readonly input: z.input<TInput>;
+            readonly output: z.infer<TInput>;
+        };
+        readonly validate: (value: unknown) =>
+            | { readonly value: z.infer<TInput>; readonly issues?: undefined }
+            | {
+                  readonly issues: ReadonlyArray<{
+                      readonly message: string;
+                      readonly path?: ReadonlyArray<PropertyKey>;
+                  }>;
+              };
+        readonly jsonSchema: {
+            readonly input: () => Record<string, unknown>;
+            readonly output: () => Record<string, unknown>;
+        };
+    };
+};
+
 type AgentToolViewBase<
     TName extends string,
     TInput extends z.ZodObject<z.ZodRawShape>,
@@ -87,7 +118,7 @@ type AgentToolViewBase<
     name: TName;
     title: string;
     description: string;
-    inputSchema: TInput;
+    inputSchema: AgentInputSchema<TInput>;
 };
 
 export type AgentToolView<

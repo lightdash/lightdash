@@ -45,6 +45,33 @@ describe('defineTool', () => {
         ).toEqual({ type: 'error-text', value: 'Nope' });
     });
 
+    it('wraps agent input schemas with JSON Schema references', () => {
+        const sharedSchema = z.object({ value: z.string() });
+        const inputSchema = z.object({
+            first: sharedSchema,
+            second: sharedSchema,
+        });
+        const tool = defineTool({
+            name: 'referencedSchemaTool',
+            title: 'Referenced schema tool',
+            description: 'Sample',
+            availability: ['agent', 'mcp'],
+            inputSchema,
+            mcp: {
+                annotations: {
+                    readOnlyHint: true,
+                    destructiveHint: false,
+                    idempotentHint: true,
+                },
+            },
+        });
+
+        expect(
+            JSON.stringify(tool.for('agent').inputSchema.jsonSchema),
+        ).toContain('"$ref"');
+        expect(tool.for('mcp').inputSchema).toBe(inputSchema);
+    });
+
     it('builds MCP result helpers', () => {
         const outputSchema = z.object({ count: z.number() });
         const tool = defineTool({
