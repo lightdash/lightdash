@@ -152,6 +152,7 @@ export type ModelManifest = {
     embedModel: unknown;
     dashboardSummaryModel: unknown;
     serviceAccountModel: unknown;
+    externalConnectionModel: unknown;
 };
 
 /**
@@ -804,6 +805,10 @@ export class ModelRepository
 
     public getServiceAccountModel<ModelImplT>(): ModelImplT {
         return this.getModel('serviceAccountModel');
+    }
+
+    public getExternalConnectionModel<ModelImplT>(): ModelImplT {
+        return this.getModel('externalConnectionModel');
     }
 
     public getSpotlightTableConfigModel(): SpotlightTableConfigModel {

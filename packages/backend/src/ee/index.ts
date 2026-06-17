@@ -36,6 +36,7 @@ import { CommercialFeatureFlagModel } from './models/CommercialFeatureFlagModel'
 import { CommercialSlackAuthenticationModel } from './models/CommercialSlackAuthenticationModel';
 import { DashboardSummaryModel } from './models/DashboardSummaryModel';
 import { EmbedModel } from './models/EmbedModel';
+import { ExternalConnectionModel } from './models/ExternalConnectionModel';
 import { ManagedAgentModel } from './models/ManagedAgentModel';
 import { ProjectCiStatusModel } from './models/ProjectCiStatusModel';
 import { ProjectContextModel } from './models/ProjectContextModel';
@@ -62,6 +63,7 @@ import { PreAggregationDuckDbClient } from './services/AsyncQueryService/PreAggr
 import { CommercialCacheService } from './services/CommercialCacheService';
 import { CommercialSlackIntegrationService } from './services/CommercialSlackIntegrationService';
 import { EmbedService } from './services/EmbedService/EmbedService';
+import { ExternalConnectionService } from './services/ExternalConnectionService/ExternalConnectionService';
 import { ManagedAgentService } from './services/ManagedAgentService/ManagedAgentService';
 import { McpService } from './services/McpService/McpService';
 import { OrganizationWarehouseCredentialsService } from './services/OrganizationWarehouseCredentialsService';
@@ -414,6 +416,14 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                         models.getFeatureFlagModel() as CommercialFeatureFlagModel,
                     projectModel: models.getProjectModel(),
                 }),
+            externalConnectionService: ({ models, context, repository }) =>
+                new ExternalConnectionService({
+                    analytics: context.lightdashAnalytics,
+                    externalConnectionModel:
+                        models.getExternalConnectionModel(),
+                    spacePermissionService:
+                        repository.getSpacePermissionService(),
+                }),
             slackIntegrationService: ({ models, context, clients }) =>
                 new CommercialSlackIntegrationService({
                     slackAuthenticationModel:
@@ -738,6 +748,11 @@ export async function getEnterpriseAppArguments(): Promise<EnterpriseAppArgument
                 new CommercialSlackAuthenticationModel({ database }),
             serviceAccountModel: ({ database }) =>
                 new ServiceAccountModel({ database }),
+            externalConnectionModel: ({ database, utils }) =>
+                new ExternalConnectionModel({
+                    database,
+                    encryptionUtil: utils.getEncryptionUtil(),
+                }),
             managedAgentModel: ({ database, utils }) =>
                 new ManagedAgentModel({
                     database,
