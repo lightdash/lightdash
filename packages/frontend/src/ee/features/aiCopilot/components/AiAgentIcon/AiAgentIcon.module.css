@@ -12,9 +12,9 @@
     isolation: isolate;
     background:
         radial-gradient(
-            120% 120% at 26% 18%,
-            rgba(255, 255, 255, 0.9) 0%,
-            transparent 34%
+            120% 120% at 28% 24%,
+            rgba(255, 255, 255, 0.6) 0%,
+            transparent 40%
         ),
         radial-gradient(115% 130% at 82% 24%, #c9b6ff 0%, transparent 52%),
         radial-gradient(130% 120% at 84% 84%, #5e4cff 0%, transparent 56%),
@@ -56,16 +56,16 @@
     opacity: 0;
     pointer-events: none;
     transition:
-        opacity 200ms ease,
-        transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
+        opacity 320ms ease,
+        transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .root::before {
     background:
-        radial-gradient(40% 55% at 30% 42%, #ffffff 0%, transparent 60%),
-        radial-gradient(45% 60% at 62% 28%, #9836ff 0%, transparent 62%),
-        radial-gradient(50% 60% at 54% 70%, #c9b6ff 0%, transparent 64%),
-        radial-gradient(42% 55% at 80% 62%, #5e4cff 0%, transparent 60%);
+        radial-gradient(46% 56% at 30% 28%, #ffffff 0%, transparent 60%),
+        radial-gradient(48% 60% at 66% 34%, #b18cff 0%, transparent 64%),
+        radial-gradient(46% 58% at 60% 70%, #9836ff 0%, transparent 64%),
+        radial-gradient(44% 56% at 24% 66%, #5e4cff 0%, transparent 62%);
     filter: blur(6px);
     mix-blend-mode: screen;
 }
@@ -113,8 +113,8 @@
 :global([data-combobox-selected='true']) .root::before,
 :global([data-combobox-selected='true']) .root::after {
     opacity: 1;
-    animation: ai-agent-icon-drift 2s cubic-bezier(0.45, 0, 0.55, 1) infinite
-        alternate;
+    animation: ai-agent-icon-drift 2.4s cubic-bezier(0.45, 0, 0.55, 1) 280ms
+        infinite alternate;
 }
 
 .root:hover::after,
@@ -143,11 +143,11 @@
 
 @keyframes ai-agent-icon-drift {
     from {
-        transform: translate3d(-6%, -2%, 0) rotate(-8deg) scale(1);
+        transform: translate3d(-2%, -1%, 0) rotate(-3deg) scale(1);
     }
 
     to {
-        transform: translate3d(5%, 4%, 0) rotate(14deg) scale(1.06);
+        transform: translate3d(5%, 4%, 0) rotate(12deg) scale(1.05);
     }
 }
 

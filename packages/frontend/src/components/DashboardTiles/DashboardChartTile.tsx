@@ -93,7 +93,7 @@ const getDashboardTileErrorMessage = (
     return error.error?.message;
 };
 
-import { AskAiAgentMenuItem } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentMenuItem';
+import { AskAiAgentButton } from '../../ee/features/aiCopilot/components/AskAiAgentMenuItem/AskAiAgentButton';
 import { DashboardTileComments } from '../../features/comments';
 import { FilterDashboardTo } from '../../features/dashboardFilters/FilterDashboardTo';
 import { DateZoomInfoOnTile } from '../../features/dateZoom';
@@ -1452,17 +1452,25 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                         </>
                     }
                     titleLeftIcon={
-                        metricQuery?.metadata?.hasADateDimension &&
-                        savedChartUuid &&
-                        dateZoomGranularity &&
-                        chartsWithDateZoomApplied?.has(savedChartUuid) ? (
-                            <DateZoomInfoOnTile
-                                dateDimension={
-                                    metricQuery.metadata.hasADateDimension
-                                }
-                                dateZoomGranularity={dateZoomGranularity}
+                        <>
+                            <AskAiAgentButton
+                                projectUuid={projectUuid}
+                                chartUuid={savedChartUuid ?? undefined}
+                                dashboardUuid={dashboardUuid}
+                                clickedFrom="dashboard_chart_tile"
                             />
-                        ) : null
+                            {metricQuery?.metadata?.hasADateDimension &&
+                            savedChartUuid &&
+                            dateZoomGranularity &&
+                            chartsWithDateZoomApplied?.has(savedChartUuid) ? (
+                                <DateZoomInfoOnTile
+                                    dateDimension={
+                                        metricQuery.metadata.hasADateDimension
+                                    }
+                                    dateZoomGranularity={dateZoomGranularity}
+                                />
+                            ) : null}
+                        </>
                     }
                     title={title || chart.name || ''}
                     chartName={chart.name}
@@ -1476,13 +1484,6 @@ const DashboardChartTileMain: FC<DashboardChartTileMainProps> = memo(
                             userCanManageChart ||
                             userCanExportData) && (
                             <>
-                                <AskAiAgentMenuItem
-                                    projectUuid={projectUuid}
-                                    chartUuid={savedChartUuid ?? undefined}
-                                    dashboardUuid={dashboardUuid}
-                                    clickedFrom="dashboard_chart_tile"
-                                />
-
                                 <Tooltip
                                     disabled={!isEditMode}
                                     label="Finish editing dashboard to use these actions"

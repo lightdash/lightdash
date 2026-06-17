@@ -1,4 +1,4 @@
-import { Menu } from '@mantine-8/core';
+import { ActionIcon, type ActionIconProps, Tooltip } from '@mantine-8/core';
 import { type FC } from 'react';
 import { type AiAgentAskClickedSource } from '../../../../../providers/Tracking/types';
 import { AiAgentIcon } from '../AiAgentIcon';
@@ -9,24 +9,26 @@ type Props = {
     chartUuid?: string;
     dashboardUuid?: string;
     clickedFrom: AiAgentAskClickedSource;
-    /**
-     * Render a `<Menu.Divider />` after the item. The divider is only rendered
-     * when the item itself is visible, so callers don't need to gate it.
-     */
-    withDivider?: boolean;
+    variant?: ActionIconProps['variant'];
+    size?: ActionIconProps['size'];
+    radius?: ActionIconProps['radius'];
+    iconSize?: number;
 };
 
 /**
- * Menu item that opens the AI agent launcher panel for a new conversation.
+ * Icon button that opens the AI agent launcher panel for a new conversation.
  * Renders nothing when AI agents are not enabled, the user lacks permission,
  * or no default agent can be resolved.
  */
-export const AskAiAgentMenuItem: FC<Props> = ({
+export const AskAiAgentButton: FC<Props> = ({
     projectUuid,
     chartUuid,
     dashboardUuid,
     clickedFrom,
-    withDivider = false,
+    variant = 'subtle',
+    size = 'sm',
+    radius,
+    iconSize = 16,
 }) => {
     const { canAsk, handleClick } = useAskAiAgentAction({
         projectUuid,
@@ -38,15 +40,16 @@ export const AskAiAgentMenuItem: FC<Props> = ({
     if (!canAsk) return null;
 
     return (
-        <>
-            <Menu.Item
-                leftSection={<AiAgentIcon size={13} />}
+        <Tooltip label="Ask AI Agent" variant="xs" withinPortal>
+            <ActionIcon
+                variant={variant}
+                size={size}
+                radius={radius}
+                color="gray"
                 onClick={handleClick}
-                fw={550}
             >
-                Ask AI Agent
-            </Menu.Item>
-            {withDivider && <Menu.Divider />}
-        </>
+                <AiAgentIcon size={iconSize} />
+            </ActionIcon>
+        </Tooltip>
     );
 };
