@@ -1,5 +1,5 @@
-import { type ExternalConnection } from '@lightdash/common';
-import { ActionIcon, Group, Paper, Table, Text } from '@mantine/core';
+import { assertUnreachable, type ExternalConnection } from '@lightdash/common';
+import { ActionIcon, Group, Paper, Table, Text } from '@mantine-8/core';
 import { IconEdit, IconTrash } from '@tabler/icons-react';
 import { type Dispatch, type FC, type SetStateAction } from 'react';
 import { useTableStyles } from '../../../hooks/styles/useTableStyles';
@@ -16,9 +16,16 @@ type Props = {
 };
 
 const authLabel = (type: ExternalConnection['type']): string => {
-    if (type === 'api_key') return 'API key';
-    if (type === 'bearer_token') return 'Bearer token';
-    return 'None';
+    switch (type) {
+        case 'none':
+            return 'None';
+        case 'api_key':
+            return 'API key';
+        case 'bearer_token':
+            return 'Bearer token';
+        default:
+            return assertUnreachable(type, `Unknown auth type ${type}`);
+    }
 };
 
 const ConnectionRow: FC<
@@ -27,21 +34,15 @@ const ConnectionRow: FC<
         'setConnectionToEdit' | 'setConnectionToDelete'
     >
 > = ({ connection, setConnectionToEdit, setConnectionToDelete }) => (
-    <tr>
-        <Text component="td" fw={500}>
-            {connection.name}
-        </Text>
-        <td>{connection.origin}</td>
-        <td>{authLabel(connection.type)}</td>
-        <td>{connection.allowedMethods.join(', ')}</td>
-        <td
-            style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-            }}
-        >
-            <Group>
+    <Table.Tr>
+        <Table.Td>
+            <Text fw={500}>{connection.name}</Text>
+        </Table.Td>
+        <Table.Td>{connection.origin}</Table.Td>
+        <Table.Td>{authLabel(connection.type)}</Table.Td>
+        <Table.Td>{connection.allowedMethods.join(', ')}</Table.Td>
+        <Table.Td>
+            <Group justify="flex-end">
                 <ActionIcon onClick={() => setConnectionToEdit(connection)}>
                     <MantineIcon icon={IconEdit} />
                 </ActionIcon>
@@ -49,8 +50,8 @@ const ConnectionRow: FC<
                     <MantineIcon icon={IconTrash} />
                 </ActionIcon>
             </Group>
-        </td>
-    </tr>
+        </Table.Td>
+    </Table.Tr>
 );
 
 export const ConnectionsTable: FC<Props> = ({
@@ -60,21 +61,21 @@ export const ConnectionsTable: FC<Props> = ({
 }) => {
     const { cx, classes } = useTableStyles();
     return (
-        <Paper withBorder sx={{ overflow: 'hidden' }}>
+        <Paper withBorder style={{ overflow: 'hidden' }}>
             <Table
                 className={cx(classes.root, classes.alignLastTdRight)}
                 ta="left"
             >
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Origin</th>
-                        <th>Auth</th>
-                        <th>Methods</th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody>
+                <Table.Thead>
+                    <Table.Tr>
+                        <Table.Th>Name</Table.Th>
+                        <Table.Th>Origin</Table.Th>
+                        <Table.Th>Auth</Table.Th>
+                        <Table.Th>Methods</Table.Th>
+                        <Table.Th></Table.Th>
+                    </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
                     {connections.map((connection) => (
                         <ConnectionRow
                             key={connection.externalConnectionUuid}
@@ -83,7 +84,7 @@ export const ConnectionsTable: FC<Props> = ({
                             setConnectionToDelete={setConnectionToDelete}
                         />
                     ))}
-                </tbody>
+                </Table.Tbody>
             </Table>
         </Paper>
     );
