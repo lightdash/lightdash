@@ -96,7 +96,12 @@ import {
     type SuggestionValidationCatalog,
 } from '@lightdash/common';
 import * as Sentry from '@sentry/node';
-import { AllMiddlewareArgs, App, SlackEventMiddlewareArgs } from '@slack/bolt';
+import {
+    AllMiddlewareArgs,
+    App,
+    ModalView,
+    SlackEventMiddlewareArgs,
+} from '@slack/bolt';
 import { Block, KnownBlock, WebClient } from '@slack/web-api';
 import { MessageElement } from '@slack/web-api/dist/response/ConversationsHistoryResponse';
 import {
@@ -8581,6 +8586,76 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         );
     }
 
+    private static buildDownvoteFeedbackModalView(
+        promptUuid: string,
+    ): ModalView {
+        return {
+            type: 'modal',
+            callback_id: 'downvote_feedback_modal',
+            private_metadata: JSON.stringify({ promptUuid }),
+            title: { type: 'plain_text', text: 'Feedback' },
+            submit: { type: 'plain_text', text: 'Submit' },
+            close: { type: 'plain_text', text: 'Skip' },
+            blocks: [
+                {
+                    type: 'section',
+                    text: {
+                        type: 'mrkdwn',
+                        text: 'Help us improve! What went wrong with this answer?',
+                    },
+                },
+                {
+                    type: 'input',
+                    block_id: 'feedback_input',
+                    optional: false,
+                    element: {
+                        type: 'plain_text_input',
+                        action_id: 'feedback_text',
+                        multiline: true,
+                        placeholder: {
+                            type: 'plain_text',
+                            text: 'Your feedback will help improve the AI agent',
+                        },
+                    },
+                    label: { type: 'plain_text', text: 'Feedback' },
+                },
+            ],
+        };
+    }
+
+    public handleDownvoteFeedbackModalSubmit(app: App) {
+        app.view('downvote_feedback_modal', async ({ ack, view, body }) => {
+            await ack();
+
+            const metadata = JSON.parse(view.private_metadata);
+            const { promptUuid } = metadata;
+
+            const feedbackValue =
+                view.state.values.feedback_input?.feedback_text?.value;
+
+            if (feedbackValue) {
+                await this.aiAgentModel.updateHumanScore({
+                    promptUuid,
+                    humanScore: -1,
+                    humanFeedback: feedbackValue,
+                });
+
+                const promptContext =
+                    await this.aiAgentModel.findPromptContext(promptUuid);
+
+                this.enqueueReviewClassifierEvent({
+                    eventType: 'feedback_changed',
+                    organizationUuid: promptContext?.organizationUuid,
+                    projectUuid: promptContext?.projectUuid,
+                    agentUuid: promptContext?.agentUuid,
+                    threadUuid: promptContext?.threadUuid,
+                    promptUuid,
+                    userUuid: body.user.id,
+                });
+            }
+        });
+    }
+
     public handlePromptUpvote(app: App) {
         app.action(
             'prompt_human_score.upvote',
@@ -8733,52 +8808,9 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 if (score < 0) {
                     await client.views.open({
                         trigger_id: body.trigger_id,
-                        view: {
-                            type: 'modal',
-                            callback_id: 'downvote_feedback_modal',
-                            private_metadata: JSON.stringify({
-                                promptUuid,
-                            }),
-                            title: {
-                                type: 'plain_text',
-                                text: 'Feedback',
-                            },
-                            submit: {
-                                type: 'plain_text',
-                                text: 'Submit',
-                            },
-                            close: {
-                                type: 'plain_text',
-                                text: 'Skip',
-                            },
-                            blocks: [
-                                {
-                                    type: 'section',
-                                    text: {
-                                        type: 'mrkdwn',
-                                        text: 'Help us improve. What went wrong with this answer?',
-                                    },
-                                },
-                                {
-                                    type: 'input',
-                                    block_id: 'feedback_input',
-                                    optional: false,
-                                    element: {
-                                        type: 'plain_text_input',
-                                        action_id: 'feedback_text',
-                                        multiline: true,
-                                        placeholder: {
-                                            type: 'plain_text',
-                                            text: 'Your feedback will help improve the AI agent',
-                                        },
-                                    },
-                                    label: {
-                                        type: 'plain_text',
-                                        text: 'Feedback',
-                                    },
-                                },
-                            ],
-                        },
+                        view: AiAgentService.buildDownvoteFeedbackModalView(
+                            promptUuid,
+                        ),
                     });
                 }
             },
@@ -8850,89 +8882,14 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
 
                         await client.views.open({
                             trigger_id: body.trigger_id,
-                            view: {
-                                type: 'modal',
-                                callback_id: 'downvote_feedback_modal',
-                                private_metadata: JSON.stringify({
-                                    promptUuid,
-                                }),
-                                title: {
-                                    type: 'plain_text',
-                                    text: 'Feedback',
-                                },
-                                submit: {
-                                    type: 'plain_text',
-                                    text: 'Submit',
-                                },
-                                close: {
-                                    type: 'plain_text',
-                                    text: 'Skip',
-                                },
-                                blocks: [
-                                    {
-                                        type: 'section',
-                                        text: {
-                                            type: 'mrkdwn',
-                                            text: 'Help us improve! What went wrong with this answer?',
-                                        },
-                                    },
-                                    {
-                                        type: 'input',
-                                        block_id: 'feedback_input',
-                                        optional: false,
-                                        element: {
-                                            type: 'plain_text_input',
-                                            action_id: 'feedback_text',
-                                            multiline: true,
-                                            placeholder: {
-                                                type: 'plain_text',
-                                                text: 'Your feedback will help improve the AI agent (optional)',
-                                            },
-                                        },
-                                        label: {
-                                            type: 'plain_text',
-                                            text: 'Feedback',
-                                        },
-                                    },
-                                ],
-                            },
+                            view: AiAgentService.buildDownvoteFeedbackModalView(
+                                promptUuid,
+                            ),
                         });
                     }
                 }
             },
         );
-
-        // Handle modal submission
-        app.view('downvote_feedback_modal', async ({ ack, view, body }) => {
-            await ack();
-
-            const metadata = JSON.parse(view.private_metadata);
-            const { promptUuid } = metadata;
-
-            const feedbackValue =
-                view.state.values.feedback_input?.feedback_text?.value;
-
-            if (feedbackValue) {
-                await this.aiAgentModel.updateHumanScore({
-                    promptUuid,
-                    humanScore: -1,
-                    humanFeedback: feedbackValue,
-                });
-
-                const promptContext =
-                    await this.aiAgentModel.findPromptContext(promptUuid);
-
-                this.enqueueReviewClassifierEvent({
-                    eventType: 'feedback_changed',
-                    organizationUuid: promptContext?.organizationUuid,
-                    projectUuid: promptContext?.projectUuid,
-                    agentUuid: promptContext?.agentUuid,
-                    threadUuid: promptContext?.threadUuid,
-                    promptUuid,
-                    userUuid: body.user.id,
-                });
-            }
-        });
     }
 
     // eslint-disable-next-line class-methods-use-this
