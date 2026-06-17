@@ -21,6 +21,7 @@ import {
     type UserAccessControls,
     type UserAttributeValueMap,
 } from '@lightdash/common';
+import type { DbProjectParameter } from '../../database/entities/projectParameters';
 
 export type CommonAsyncQueryArgs = {
     account: Account;
@@ -99,6 +100,7 @@ export type ExecuteAsyncDashboardChartQueryArgs = CommonAsyncQueryArgs & {
     pivotResults?: boolean;
     sessionTimezone?: string | null;
     preloadedSavedChart?: SavedChartDAO;
+    preloadedProjectParameters?: DbProjectParameter[];
 };
 
 export type ExecuteAsyncUnderlyingDataQueryArgs = CommonAsyncQueryArgs & {

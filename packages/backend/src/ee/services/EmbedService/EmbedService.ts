@@ -1195,9 +1195,6 @@ export class EmbedService extends BaseService {
         | 'parameters'
         | 'limit'
     >): Promise<ApiExecuteAsyncDashboardChartQueryResults> {
-        const { dashboardUuids, allowAllDashboards, user } =
-            await this.embedModel.get(projectUuid);
-
         const { dashboardUuid } = account.access.content;
 
         if (!dashboardUuid) {
@@ -1206,10 +1203,13 @@ export class EmbedService extends BaseService {
             );
         }
 
-        const dashboard = await this.dashboardModel.getByIdOrSlug(
-            dashboardUuid,
-            { projectUuid },
-        );
+        const [{ dashboardUuids, allowAllDashboards, user }, dashboard] =
+            await Promise.all([
+                this.embedModel.get(projectUuid),
+                this.dashboardModel.getByIdOrSlug(dashboardUuid, {
+                    projectUuid,
+                }),
+            ]);
 
         const chart = await this._getChartFromDashboardTiles(
             dashboard,
@@ -1217,22 +1217,30 @@ export class EmbedService extends BaseService {
         );
 
         const { organizationUuid } = chart;
-        await this.isFeatureEnabled({
-            userUuid: user?.userUuid ?? account.user.id,
-            organizationUuid,
-        });
+        const userUuid = user?.userUuid ?? account.user.id;
 
-        await this._permissionsGetChartAndResults(
-            { allowAllDashboards, dashboardUuids },
-            projectUuid,
-            chart.uuid,
-            dashboardUuid,
-        );
+        // Resolve feature/permission/explore/org-context in parallel — these
+        // are independent once the chart is known.
+        const [, , explore, isTimezoneSupportEnabled, projectParameters] =
+            await Promise.all([
+                this.isFeatureEnabled({ userUuid, organizationUuid }),
+                this._permissionsGetChartAndResults(
+                    { allowAllDashboards, dashboardUuids },
+                    projectUuid,
+                    chart.uuid,
+                    dashboardUuid,
+                ),
+                this.projectModel.getExploreFromCache(
+                    projectUuid,
+                    chart.tableName,
+                ),
+                this.projectService.isTimezoneSupportEnabled({
+                    userUuid,
+                    organizationUuid,
+                }),
+                this.projectService.projectParametersModel.find(projectUuid),
+            ]);
 
-        const explore = await this.projectModel.getExploreFromCache(
-            projectUuid,
-            chart.tableName,
-        );
         if (isExploreError(explore)) {
             throw new ForbiddenError(
                 `Explore ${chart.tableName} on project ${projectUuid} has errors : ${explore.errors}`,
@@ -1268,22 +1276,18 @@ export class EmbedService extends BaseService {
             explore,
             acceptedUserParameters,
             dashboardParameters,
+            projectParameters,
         );
 
+        // Execute using AsyncQueryService method with embed context.
         // The session timezone only takes effect when timezone support is
         // enabled for the org; otherwise it is dropped so the param is inert.
-        const isTimezoneSupportEnabled =
-            await this.projectService.isTimezoneSupportEnabled({
-                userUuid: user?.userUuid ?? account.user.id,
-                organizationUuid,
-            });
-
-        // Execute using AsyncQueryService method with embed context
         return this.asyncQueryService.executeAsyncDashboardChartQuery({
             account,
             projectUuid,
             chartUuid: chart.uuid,
             preloadedSavedChart: chart,
+            preloadedProjectParameters: projectParameters,
             tileUuid,
             dashboardSorts: dashboardSorts ?? [],
             dashboardUuid,
