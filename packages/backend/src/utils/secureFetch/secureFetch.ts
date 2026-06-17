@@ -220,11 +220,45 @@ export async function secureFetch(
         );
     }
 
+    const contentLength = response.headers.get('content-length');
+    if (
+        contentLength &&
+        Number.parseInt(contentLength, 10) > options.maxResponseBytes
+    ) {
+        throw new SecureFetchError(
+            'too_large',
+            `Response too large (max ${options.maxResponseBytes} bytes)`,
+        );
+    }
+
     const contentType = (response.headers.get('content-type') ?? '')
         .split(';')[0]
         .trim()
         .toLowerCase();
-    const bodyText = await response.text();
+    const allowed = options.allowedContentTypes.map((t) =>
+        t.split(';')[0].trim().toLowerCase(),
+    );
+    if (!allowed.includes(contentType)) {
+        throw new SecureFetchError(
+            'disallowed_content_type',
+            `Disallowed content-type: ${contentType || '(none)'}`,
+        );
+    }
+
+    let bodyText: string;
+    try {
+        bodyText = await response.text();
+    } catch (error) {
+        // node-fetch's `size` option throws FetchError type 'max-size' when the
+        // streamed body exceeds the limit.
+        if (error instanceof FetchError && error.type === 'max-size') {
+            throw new SecureFetchError(
+                'too_large',
+                `Response too large (max ${options.maxResponseBytes} bytes)`,
+            );
+        }
+        throw new SecureFetchError('request_failed', 'Failed to read response');
+    }
 
     return {
         status: response.status,

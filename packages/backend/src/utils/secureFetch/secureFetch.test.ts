@@ -292,3 +292,65 @@ describe('secureFetch timeout', () => {
         jest.useRealTimers();
     });
 });
+
+describe('secureFetch size and content-type', () => {
+    it('rejects when content-length exceeds maxResponseBytes', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('{}', {
+                headers: { 'content-length': String(50 * 1024 * 1024) },
+            }),
+        );
+        await expectReason(
+            secureFetch('https://example.com/x.json', {
+                ...BASE_OPTIONS,
+                maxResponseBytes: 1024,
+            }),
+            'too_large',
+        );
+    });
+
+    it('rejects when the streamed body exceeds maxResponseBytes (node-fetch max-size)', async () => {
+        const fakeResponse = {
+            status: 200,
+            ok: true,
+            headers: { get: () => 'application/json' },
+            text: jest
+                .fn()
+                .mockRejectedValue(
+                    new FetchError('content size over limit', 'max-size'),
+                ),
+        };
+        mockedFetch.mockResolvedValue(fakeResponse);
+        await expectReason(
+            secureFetch('https://example.com/x.json', BASE_OPTIONS),
+            'too_large',
+        );
+    });
+
+    it('rejects a disallowed content-type', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('<html></html>', { contentType: 'text/html' }),
+        );
+        await expectReason(
+            secureFetch('https://example.com/x.json', {
+                ...BASE_OPTIONS,
+                allowedContentTypes: ['application/json'],
+            }),
+            'disallowed_content_type',
+        );
+    });
+
+    it('accepts an allowed content-type ignoring charset suffix', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('{"ok":true}', {
+                contentType: 'application/json; charset=utf-8',
+            }),
+        );
+        const result = await secureFetch('https://example.com/x.json', {
+            ...BASE_OPTIONS,
+            allowedContentTypes: ['application/json'],
+        });
+        expect(result.contentType).toBe('application/json');
+        expect(result.bodyText).toBe('{"ok":true}');
+    });
+});
