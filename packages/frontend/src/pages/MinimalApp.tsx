@@ -188,6 +188,8 @@ export default function MinimalApp() {
             <AppIframePreview
                 src={previewUrl}
                 expectedPreviewOrigin={previewOrigin}
+                projectUuid={projectUuid}
+                appUuid={appUuid}
                 identityKey={`${appUuid}:${latestReadyVersion}`}
                 onIframeLoad={handleIframeLoad}
                 onQueryEvent={handleQueryEvent}

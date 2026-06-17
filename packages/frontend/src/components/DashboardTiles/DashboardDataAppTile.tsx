@@ -214,6 +214,8 @@ const DataAppTile: FC<Props> = (props) => {
                     <AppIframePreview
                         src={previewUrl}
                         expectedPreviewOrigin={previewOrigin}
+                        projectUuid={projectUuid ?? ''}
+                        appUuid={appUuid}
                         identityKey={`${appUuid}:${latestReadyVersion}`}
                         dashboardFilters={dashboardFiltersForApp}
                         invalidateCache={invalidateCache}
