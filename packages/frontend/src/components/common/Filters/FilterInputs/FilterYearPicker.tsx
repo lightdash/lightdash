@@ -1,16 +1,56 @@
-import { YearPickerInput, type YearPickerInputProps } from '@mantine/dates';
+import {
+    YearPicker,
+    YearPickerInput,
+    type YearPickerInputProps,
+} from '@mantine/dates';
 import { useDisclosure } from '@mantine/hooks';
 import dayjs from 'dayjs';
 import { type FC } from 'react';
+import InvalidDateInput from './InvalidDateInput';
 
 type Props = Omit<YearPickerInputProps, 'value' | 'onChange'> & {
     value: Date | null;
     onChange: (value: Date) => void;
+    invalidValue?: string;
 };
-const FilterYearPicker: FC<Props> = ({ value, onChange, ...props }) => {
+const FilterYearPicker: FC<Props> = ({
+    value,
+    onChange,
+    invalidValue,
+    ...props
+}) => {
     const [isPopoverOpen, { open, close, toggle }] = useDisclosure();
 
     const yearValue = value ? dayjs(value).toDate() : null;
+    const handleChange = (date: Date | null | Date[]) => {
+        if (!date || Array.isArray(date)) return;
+        onChange(date);
+        close();
+    };
+
+    if (invalidValue) {
+        return (
+            <InvalidDateInput
+                value={invalidValue}
+                disabled={props.disabled}
+                popoverProps={props.popoverProps}
+                autoFocus={props.autoFocus}
+            >
+                {({ close: closeInvalidInput }) => (
+                    <YearPicker
+                        value={null}
+                        minDate={dayjs().year(1000).toDate()}
+                        maxDate={dayjs().year(9999).toDate()}
+                        onChange={(date) => {
+                            if (!date || Array.isArray(date)) return;
+                            onChange(date);
+                            closeInvalidInput();
+                        }}
+                    />
+                )}
+            </InvalidDateInput>
+        );
+    }
 
     return (
         <YearPickerInput
@@ -36,11 +76,7 @@ const FilterYearPicker: FC<Props> = ({ value, onChange, ...props }) => {
                 },
             }}
             value={yearValue}
-            onChange={(date) => {
-                if (!date || Array.isArray(date)) return;
-                onChange(date);
-                close();
-            }}
+            onChange={handleChange}
         />
     );
 };

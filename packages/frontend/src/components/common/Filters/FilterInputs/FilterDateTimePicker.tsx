@@ -12,7 +12,7 @@ import {
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
-import { useCallback, useMemo, type FC } from 'react';
+import { useCallback, useMemo, useState, type FC } from 'react';
 import { useProject } from '../../../../hooks/useProject';
 import { useServerFeatureFlag } from '../../../../hooks/useServerOrClientFeatureFlag';
 import useFiltersContext from '../useFiltersContext';
@@ -21,6 +21,7 @@ import {
     shiftToProjectTimezone,
     unshiftFromProjectTimezone,
 } from './FilterDateTimePicker.utils';
+import InvalidDateInput from './InvalidDateInput';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -35,6 +36,7 @@ interface Props extends Omit<
     onChange: (value: Date) => void;
     firstDayOfWeek: DayOfWeek;
     showTimezone?: boolean;
+    invalidValue?: string;
 }
 
 const FilterDateTimePicker: FC<Props> = ({
@@ -42,9 +44,11 @@ const FilterDateTimePicker: FC<Props> = ({
     onChange,
     firstDayOfWeek,
     showTimezone = true,
+    invalidValue,
     ...rest
 }) => {
     const displayFormat = 'YYYY-MM-DD HH:mm:ss';
+    const [replacementValue, setReplacementValue] = useState<Date | null>(null);
 
     const { projectUuid, metricQueryTimezone } = useFiltersContext();
     const { data: enableTimezoneSupportFlag } = useServerFeatureFlag(
@@ -93,6 +97,55 @@ const FilterDateTimePicker: FC<Props> = ({
     const sideLabel = projectTimezone
         ? (getTimezoneLabel(projectTimezone) ?? projectTimezone)
         : browserTimezone;
+
+    if (invalidValue) {
+        return (
+            <Group wrap="nowrap" gap="xs" align="start" w="100%">
+                <InvalidDateInput
+                    value={invalidValue}
+                    disabled={rest.disabled}
+                    popoverProps={rest.popoverProps}
+                    autoFocus={rest.autoFocus}
+                >
+                    {({ close }) => (
+                        // FIXME: until mantine 7.4: https://github.com/mantinedev/mantine/issues/5401#issuecomment-1874906064
+                        // @ts-ignore
+                        <DateTimePicker
+                            size="xs"
+                            w="100%"
+                            miw={185}
+                            placeholder={invalidValue}
+                            valueFormat={displayFormat}
+                            firstDayOfWeek={firstDayOfWeek}
+                            minDate={rest.minDate}
+                            maxDate={rest.maxDate}
+                            value={replacementValue}
+                            withSeconds={rest.withSeconds}
+                            timeInputProps={rest.timeInputProps}
+                            submitButtonProps={{
+                                ...rest.submitButtonProps,
+                                onClick: (event) => {
+                                    rest.submitButtonProps?.onClick?.(event);
+                                    if (replacementValue) {
+                                        handleChange(replacementValue);
+                                        close();
+                                    }
+                                },
+                            }}
+                            onChange={(date) => {
+                                setReplacementValue(date);
+                            }}
+                        />
+                    )}
+                </InvalidDateInput>
+                {showTimezone && (
+                    <Text fz="xs" c="dimmed" mt={7} className={styles.noWrap}>
+                        {sideLabel}
+                    </Text>
+                )}
+            </Group>
+        );
+    }
 
     return (
         <Group wrap="nowrap" gap="xs" align="start" w="100%">
