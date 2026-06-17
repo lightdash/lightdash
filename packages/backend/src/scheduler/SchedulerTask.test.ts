@@ -1,5 +1,8 @@
 import {
     FieldReferenceError,
+    ForbiddenError,
+    GoogleSheetsQuotaError,
+    GoogleSheetsTransientError,
     NotEnoughResults,
     ThresholdOperator,
 } from '@lightdash/common';
@@ -7,6 +10,8 @@ import ExecutionContext from 'node-execution-context';
 import type { ExecutionContextInfo } from '../logging/winston';
 import SchedulerTask, {
     buildSchedulerLogContext,
+    GSHEET_UPLOAD_MAX_ATTEMPTS,
+    retryTransientGoogleSheetsWrite,
     setSchedulerJobLogContext,
 } from './SchedulerTask';
 import {
@@ -16,6 +21,12 @@ import {
     thresholdIncreasedByMock,
     thresholdLessThanMock,
 } from './SchedulerTask.mock';
+
+jest.mock('@lightdash/common', () => ({
+    ...jest.requireActual('@lightdash/common'),
+    // Skip real backoff delays so the retry loop runs instantly.
+    sleep: jest.fn().mockResolvedValue(undefined),
+}));
 
 describe('buildSchedulerLogContext', () => {
     it('returns null when no attribution fields are set', () => {
@@ -456,5 +467,47 @@ describe('evaluateThreshold', () => {
                 [{ m: 100 }],
             ),
         ).toThrow(FieldReferenceError);
+    });
+});
+
+describe('retryTransientGoogleSheetsWrite', () => {
+    it('writes once and resolves when the upload succeeds', async () => {
+        const write = jest.fn().mockResolvedValue(undefined);
+
+        await retryTransientGoogleSheetsWrite(write);
+
+        expect(write).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries a transient Google error and succeeds without re-running the query', async () => {
+        const write = jest
+            .fn()
+            .mockRejectedValueOnce(new GoogleSheetsTransientError())
+            .mockResolvedValueOnce(undefined);
+
+        await retryTransientGoogleSheetsWrite(write);
+
+        // The query is not part of `write` — only the upload step retries.
+        expect(write).toHaveBeenCalledTimes(2);
+    });
+
+    it('gives up after the max attempts when the transient error persists', async () => {
+        const write = jest.fn().mockRejectedValue(new GoogleSheetsQuotaError());
+
+        await expect(retryTransientGoogleSheetsWrite(write)).rejects.toThrow(
+            GoogleSheetsQuotaError,
+        );
+        expect(write).toHaveBeenCalledTimes(GSHEET_UPLOAD_MAX_ATTEMPTS);
+    });
+
+    it('does not retry a non-transient error', async () => {
+        const write = jest
+            .fn()
+            .mockRejectedValue(new ForbiddenError('no access'));
+
+        await expect(retryTransientGoogleSheetsWrite(write)).rejects.toThrow(
+            ForbiddenError,
+        );
+        expect(write).toHaveBeenCalledTimes(1);
     });
 });

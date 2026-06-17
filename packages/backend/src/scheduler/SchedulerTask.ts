@@ -35,6 +35,8 @@ import {
     getRequestMethod,
     getSchedulerResourceTypeAndId,
     getSchedulerUuid,
+    GoogleSheetsQuotaError,
+    GoogleSheetsTransientError,
     GsheetsNotificationPayload,
     isChartScheduler,
     isChartValidationError,
@@ -83,6 +85,7 @@ import {
     setUuidParam,
     SlackInstallationNotFoundError,
     SlackNotificationPayload,
+    sleep,
     SqlRunnerPayload,
     SqlRunnerPivotQueryPayload,
     SyncSlackChannelsPayload,
@@ -104,12 +107,14 @@ import {
     type EmailBatchNotificationPayload,
     type GoogleChatBatchNotificationPayload,
     type GoogleChatNotificationPayload,
+    type ItemsMap,
     type MaterializePreAggregatePayload,
     type MetricQuery,
     type MsTeamsBatchNotificationPayload,
     type MsTeamsNotificationPayload,
     type PartialFailure,
     type PivotConfiguration,
+    type ReadyQueryResultsPage,
     type SchedulerIndexCatalogJobPayload,
     type SlackBatchNotificationPayload,
 } from '@lightdash/common';
@@ -266,6 +271,27 @@ export function setSchedulerJobLogContext(
     const scheduler = buildSchedulerLogContext(args);
     if (!scheduler) return;
     update({ scheduler });
+}
+
+export const GSHEET_UPLOAD_MAX_ATTEMPTS = 3;
+const GSHEET_UPLOAD_RETRY_BASE_MS = 2000;
+
+export async function retryTransientGoogleSheetsWrite(
+    write: () => Promise<void>,
+    attempt = 1,
+): Promise<void> {
+    try {
+        await write();
+    } catch (e) {
+        const isTransient =
+            e instanceof GoogleSheetsTransientError ||
+            e instanceof GoogleSheetsQuotaError;
+        if (!isTransient || attempt >= GSHEET_UPLOAD_MAX_ATTEMPTS) {
+            throw e;
+        }
+        await sleep(GSHEET_UPLOAD_RETRY_BASE_MS * attempt);
+        await retryTransientGoogleSheetsWrite(write, attempt + 1);
+    }
 }
 
 export default class SchedulerTask {
@@ -2356,6 +2382,8 @@ export default class SchedulerTask {
             fileType: SchedulerFormat.GSHEETS,
         };
 
+        let failureStage: 'query' | 'upload' = 'query';
+
         try {
             if (!this.googleDriveClient.isEnabled) {
                 throw new Error(
@@ -2422,6 +2450,8 @@ export default class SchedulerTask {
                 SCHEDULER_POLLING_OPTIONS,
             );
 
+            failureStage = 'upload';
+
             const refreshToken = await this.userService.getRefreshToken(
                 payload.userUuid,
             );
@@ -2435,50 +2465,15 @@ export default class SchedulerTask {
                 throw new Error('Unable to create new sheet');
             }
 
-            if (payload.pivotConfig) {
-                if (!pivotDetails) {
-                    throw new UnexpectedServerError(
-                        'Cannot export pivoted results without SQL pivot details',
-                    );
-                }
-                // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
-                const formattedRows = formatRows(
-                    rows,
-                    itemMap,
-                    undefined,
-                    undefined,
-                    displayTimezone ?? undefined,
-                );
-
-                const pivotedResults = pivotResultsAsCsv({
-                    pivotConfig: payload.pivotConfig,
-                    rows: formattedRows,
-                    itemMap,
-                    customLabels: payload.customLabels,
-                    onlyRaw: true,
-                    pivotDetails,
-                    timezone: displayTimezone ?? undefined,
-                });
-
-                await this.googleDriveClient.appendCsvToSheet(
-                    refreshToken,
-                    spreadsheetId,
-                    pivotedResults,
-                );
-            } else {
-                await this.googleDriveClient.appendToSheet(
-                    refreshToken,
-                    spreadsheetId,
-                    rows,
-                    itemMap,
-                    payload.showTableNames,
-                    undefined, // tabName
-                    payload.columnOrder,
-                    payload.customLabels,
-                    payload.hiddenFields,
-                    displayTimezone ?? undefined,
-                );
-            }
+            await this.uploadResultsToGoogleSheet({
+                refreshToken,
+                spreadsheetId,
+                rows,
+                itemMap,
+                pivotDetails,
+                displayTimezone,
+                payload,
+            });
 
             const { csvCellsLimit } = await resolveOrganizationExportLimits(
                 this.organizationSettingsModel,
@@ -2508,12 +2503,18 @@ export default class SchedulerTask {
                 properties: analyticsProperties,
             });
         } catch (e) {
+            const userFacingError =
+                failureStage === 'query'
+                    ? "This export couldn't be completed because the query took too long or failed."
+                    : "We couldn't write the results to Google Sheets.";
+
             await this.schedulerService.logSchedulerJob({
                 ...baseLog,
                 status: SchedulerJobStatus.ERROR,
                 details: {
                     createdByUserUuid: payload.userUuid,
                     error: getErrorMessage(e),
+                    userFacingError,
                     projectUuid: payload.projectUuid,
                     organizationUuid: payload.organizationUuid,
                 },
@@ -2527,6 +2528,74 @@ export default class SchedulerTask {
 
             throw e;
         }
+    }
+
+    private async uploadResultsToGoogleSheet({
+        refreshToken,
+        spreadsheetId,
+        rows,
+        itemMap,
+        pivotDetails,
+        displayTimezone,
+        payload,
+    }: {
+        refreshToken: string;
+        spreadsheetId: string;
+        rows: Record<string, unknown>[];
+        itemMap: ItemsMap;
+        pivotDetails: ReadyQueryResultsPage['pivotDetails'];
+        displayTimezone: string | null;
+        payload: UploadMetricGsheetPayload;
+    }): Promise<void> {
+        if (payload.pivotConfig) {
+            if (!pivotDetails) {
+                throw new UnexpectedServerError(
+                    'Cannot export pivoted results without SQL pivot details',
+                );
+            }
+            // pivotResultsAsCsv expects a formatted ResultRow[] type, so we need to convert it first
+            const formattedRows = formatRows(
+                rows,
+                itemMap,
+                undefined,
+                undefined,
+                displayTimezone ?? undefined,
+            );
+
+            const pivotedResults = pivotResultsAsCsv({
+                pivotConfig: payload.pivotConfig,
+                rows: formattedRows,
+                itemMap,
+                customLabels: payload.customLabels,
+                onlyRaw: true,
+                pivotDetails,
+                timezone: displayTimezone ?? undefined,
+            });
+
+            await retryTransientGoogleSheetsWrite(() =>
+                this.googleDriveClient.appendCsvToSheet(
+                    refreshToken,
+                    spreadsheetId,
+                    pivotedResults,
+                ),
+            );
+            return;
+        }
+
+        await retryTransientGoogleSheetsWrite(() =>
+            this.googleDriveClient.appendToSheet(
+                refreshToken,
+                spreadsheetId,
+                rows,
+                itemMap,
+                payload.showTableNames,
+                undefined, // tabName
+                payload.columnOrder,
+                payload.customLabels,
+                payload.hiddenFields,
+                displayTimezone ?? undefined,
+            ),
+        );
     }
 
     protected async sendEmailNotification(

@@ -1139,7 +1139,8 @@ export class SchedulerClient {
             payload,
             now,
             JobPriority.HIGH,
-            3,
+            // Single attempt: a retry would re-run the slow warehouse query.
+            1,
         );
 
         await this.schedulerModel.logSchedulerJob({
