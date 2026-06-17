@@ -1,5 +1,5 @@
 import dns from 'dns/promises';
-import fetch from 'node-fetch';
+import fetch, { Response } from 'node-fetch';
 import { secureFetch, SecureFetchError } from './secureFetch';
 
 jest.mock('dns/promises', () => ({
@@ -138,5 +138,76 @@ describe('secureFetch blocks private/internal resolved IPs', () => {
             secureFetch('https://empty.example.com/x.json', BASE_OPTIONS),
             'blocked_ip',
         );
+    });
+});
+
+const jsonResponse = (
+    body: string,
+    init: {
+        status?: number;
+        contentType?: string;
+        headers?: Record<string, string>;
+    } = {},
+): InstanceType<typeof Response> =>
+    new Response(body, {
+        status: init.status ?? 200,
+        headers: {
+            'content-type': init.contentType ?? 'application/json',
+            ...(init.headers ?? {}),
+        },
+    });
+
+describe('secureFetch GET behavior', () => {
+    it('rejects a 3xx redirect with reason redirect', async () => {
+        mockedFetch.mockResolvedValue(
+            new Response('', {
+                status: 302,
+                headers: { location: 'https://elsewhere.example.com/x.json' },
+            }),
+        );
+        await expectReason(
+            secureFetch('https://example.com/x.json', BASE_OPTIONS),
+            'redirect',
+        );
+    });
+
+    it('rejects a non-ok status (>=400) with reason request_failed', async () => {
+        mockedFetch.mockResolvedValue(jsonResponse('nope', { status: 503 }));
+        await expectReason(
+            secureFetch('https://example.com/x.json', BASE_OPTIONS),
+            'request_failed',
+        );
+    });
+
+    it('returns a SecureFetchResult on a happy-path GET', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('{"hello":"world"}', { status: 200 }),
+        );
+        const result = await secureFetch(
+            'https://example.com/x.json',
+            BASE_OPTIONS,
+        );
+        expect(result).toEqual({
+            status: 200,
+            contentType: 'application/json',
+            bodyText: '{"hello":"world"}',
+            truncated: false,
+        });
+    });
+
+    it('pins the agent to the validated IP and disables redirects', async () => {
+        mockedLookup.mockResolvedValue([
+            { address: '93.184.216.34', family: 4 },
+        ]);
+        mockedFetch.mockResolvedValue(jsonResponse('{}'));
+        await secureFetch('https://example.com/x.json', BASE_OPTIONS);
+
+        expect(mockedFetch).toHaveBeenCalledTimes(1);
+        const [calledUrl, calledOpts] = mockedFetch.mock.calls[0];
+        expect(calledUrl).toBe('https://example.com/x.json');
+        expect(calledOpts.redirect).toBe('manual');
+        expect(calledOpts.method).toBe('GET');
+        expect(calledOpts.size).toBe(BASE_OPTIONS.maxResponseBytes);
+        expect(calledOpts.agent).toBeDefined();
     });
 });

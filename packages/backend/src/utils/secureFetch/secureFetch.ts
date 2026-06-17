@@ -1,4 +1,7 @@
 import dns from 'dns/promises';
+import https from 'https';
+import { LookupFunction } from 'net';
+import fetch, { FetchError } from 'node-fetch';
 
 export type SecureFetchReason =
     | 'non_https'
@@ -135,6 +138,28 @@ const resolveAndValidateHost = async (
     return { address, family: family === 6 ? 6 : 4 };
 };
 
+// HTTPS agent whose DNS lookup is pinned to a single pre-validated IP. This
+// defeats DNS rebinding between validation and socket open: the kernel never
+// resolves the hostname a second time.
+const createPinnedHttpsAgent = (
+    address: string,
+    family: 4 | 6,
+): https.Agent => {
+    const lookup: LookupFunction = (_hostname, lookupOptions, callback) => {
+        if (lookupOptions && (lookupOptions as { all?: boolean }).all) {
+            (
+                callback as (
+                    err: NodeJS.ErrnoException | null,
+                    addrs: Array<{ address: string; family: number }>,
+                ) => void
+            )(null, [{ address, family }]);
+            return;
+        }
+        callback(null, address, family);
+    };
+    return new https.Agent({ lookup } as https.AgentOptions);
+};
+
 export async function secureFetch(
     rawUrl: string,
     options: SecureFetchOptions,
@@ -143,8 +168,53 @@ export async function secureFetch(
     const { address, family } = await resolveAndValidateHost(
         parsedUrl.hostname,
     );
-    throw new SecureFetchError(
-        'request_failed',
-        `not implemented (resolved ${address}/${family})`,
-    );
+    const agent = createPinnedHttpsAgent(address, family);
+
+    let response: import('node-fetch').Response;
+    try {
+        response = await fetch(rawUrl, {
+            method: options.method,
+            body: options.body,
+            headers: options.headers,
+            agent,
+            redirect: 'manual',
+            size: options.maxResponseBytes,
+        });
+    } catch (error) {
+        if (error instanceof FetchError) {
+            throw new SecureFetchError(
+                'request_failed',
+                `Request failed: ${error.message}`,
+            );
+        }
+        throw new SecureFetchError('request_failed', 'Request failed');
+    }
+
+    // Validation only covered the initial URL; any redirect target is
+    // unvalidated, so the chain ends here.
+    if (response.status >= 300 && response.status < 400) {
+        throw new SecureFetchError(
+            'redirect',
+            'Redirects are not allowed for security reasons',
+        );
+    }
+    if (!response.ok) {
+        throw new SecureFetchError(
+            'request_failed',
+            `Request failed with status ${response.status}`,
+        );
+    }
+
+    const contentType = (response.headers.get('content-type') ?? '')
+        .split(';')[0]
+        .trim()
+        .toLowerCase();
+    const bodyText = await response.text();
+
+    return {
+        status: response.status,
+        contentType,
+        bodyText,
+        truncated: false,
+    };
 }
