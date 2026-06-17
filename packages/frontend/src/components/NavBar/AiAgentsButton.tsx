@@ -18,7 +18,7 @@ export const AiAgentsButton = () => {
             size="xs"
             variant="default"
             fz="sm"
-            leftSection={<AiAgentIcon size={16} />}
+            leftSection={<AiAgentIcon size={14} />}
             onClick={() => navigate(`/projects/${projectUuid}/ai-agents`)}
         >
             <Text span truncate="end" maw={150} size="sm">

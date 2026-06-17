@@ -1,6 +1,7 @@
 import { Box, Highlight, Stack, Text, Title } from '@mantine-8/core';
 import { type FC } from 'react';
 import { useLocation } from 'react-router';
+import { AiAgentIcon } from '../../ee/features/aiCopilot/components/AiAgentIcon';
 import {
     type SettingsNavigationItem,
     type SettingsNavigationSection,
@@ -21,7 +22,11 @@ const SettingsNavigation: FC<SettingsNavigationProps> = ({
     const isFiltering = searchQuery.trim().length > 0;
 
     const renderItem = (item: SettingsNavigationItem) => {
-        const leftSection = <MantineIcon icon={item.icon} />;
+        const leftSection = item.aiAgentIcon ? (
+            <AiAgentIcon muted size={14} />
+        ) : (
+            <MantineIcon icon={item.icon} />
+        );
         const label = isFiltering ? (
             <Highlight span inherit highlight={searchQuery}>
                 {item.label}

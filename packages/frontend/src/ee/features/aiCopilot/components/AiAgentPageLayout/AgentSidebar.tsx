@@ -19,7 +19,6 @@ import {
     IconChevronDown,
     IconCirclePlus,
     IconInfoCircle,
-    IconSparkles,
 } from '@tabler/icons-react';
 import { type FC } from 'react';
 import { Link } from 'react-router';
@@ -27,6 +26,7 @@ import MantineIcon from '../../../../../components/common/MantineIcon';
 import { useAiOrganizationSettings } from '../../hooks/useAiOrganizationSettings';
 import { useInfiniteAiAgentThreads } from '../../hooks/useProjectAiAgents';
 import { AgentNamePill } from '../AgentNamePill';
+import { AiAgentIcon } from '../AiAgentIcon';
 import classes from './agentSidebar.module.css';
 import { SidebarButton } from './SidebarButton';
 
@@ -146,7 +146,7 @@ const ThreadList: FC<ThreadListProps> = ({
 
 const TrialAlert = () => (
     <Alert
-        icon={<MantineIcon icon={IconSparkles} />}
+        icon={<AiAgentIcon size={14} />}
         variant="outline"
         color="indigo.6"
         bg="indigo.0"

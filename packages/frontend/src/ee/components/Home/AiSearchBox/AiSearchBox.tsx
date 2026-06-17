@@ -22,12 +22,12 @@ import { Link, useNavigate } from 'react-router';
 import { CategoryBadge } from '../../../../components/common/CategoryBadge';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import { PolymorphicGroupButton } from '../../../../components/common/PolymorphicGroupButton';
-import { AiAgentIcon } from '../../../features/aiCopilot/components/AiAgentIcon';
 import { CompactAgentSelector } from '../../../features/aiCopilot/components/AgentSelector';
 import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
 } from '../../../features/aiCopilot/components/AgentSelector/AgentSelectorUtils';
+import { AiAgentIcon } from '../../../features/aiCopilot/components/AiAgentIcon';
 import { usePendingPrompt } from '../../../features/aiCopilot/components/PendingPromptContext/PendingPromptContext';
 import { useAiAgentAdminReviewItems } from '../../../features/aiCopilot/hooks/useAiAgentAdmin';
 import { useAiAgentPermission } from '../../../features/aiCopilot/hooks/useAiAgentPermission';
@@ -241,7 +241,7 @@ const AiSearchBoxInner: FC<Props> = ({
                                                 flexShrink: 0,
                                                 marginTop: 4,
                                             }}
-                                            size={16}
+                                            size={14}
                                         />
                                         <Text
                                             size="sm"

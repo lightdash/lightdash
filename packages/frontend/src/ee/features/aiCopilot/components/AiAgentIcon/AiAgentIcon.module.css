@@ -1,6 +1,6 @@
 .root {
-    --ai-agent-icon-size: 18px;
-    --ai-agent-icon-shadow: color-mix(in oklch, #5e4cff 34%, transparent);
+    --ai-agent-icon-size: 16px;
+    --ai-agent-icon-shadow: color-mix(in oklch, #5e4cff 26%, transparent);
 
     position: relative;
     display: inline-block;
@@ -12,53 +12,61 @@
     isolation: isolate;
     background:
         radial-gradient(
-            circle at 30% 23%,
-            rgba(255, 255, 255, 0.98) 0 11%,
-            rgba(224, 210, 255, 0.88) 12% 24%,
-            transparent 36%
+            120% 120% at 26% 18%,
+            rgba(255, 255, 255, 0.9) 0%,
+            transparent 34%
         ),
-        radial-gradient(
-            circle at 72% 70%,
-            rgba(255, 255, 255, 0.72) 0 8%,
-            transparent 30%
-        ),
+        radial-gradient(115% 130% at 82% 24%, #c9b6ff 0%, transparent 52%),
+        radial-gradient(130% 120% at 84% 84%, #5e4cff 0%, transparent 56%),
+        radial-gradient(120% 130% at 16% 82%, #9836ff 0%, transparent 56%),
         conic-gradient(
-            from 218deg at 52% 52%,
-            #9836ff 0deg,
-            #e0d2ff 72deg,
-            #ffffff 116deg,
-            #5e4cff 176deg,
-            #9836ff 230deg,
-            #e0d2ff 292deg,
-            #5e4cff 360deg
+            from 210deg at 50% 50%,
+            #7a4cff,
+            #b18cff,
+            #5e4cff,
+            #9836ff,
+            #7a4cff
         );
+    background-size: 180% 180%;
+    background-position: 50% 50%;
     box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.68),
-        inset 0 -5px 10px rgba(94, 76, 255, 0.22),
-        0 1px 2px rgba(94, 76, 255, 0.2),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+        inset 0 -4px 9px rgba(94, 76, 255, 0.18),
+        0 1px 2px rgba(94, 76, 255, 0.16),
         0 0 0 1px var(--ai-agent-icon-shadow);
     transform: translateZ(0);
+    transition:
+        background-position 500ms ease,
+        box-shadow 220ms ease,
+        filter 240ms ease;
+}
+
+.muted {
+    filter: grayscale(1) brightness(0.98);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+        0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
 .root::before,
 .root::after {
     position: absolute;
-    inset: -34%;
+    inset: -40%;
     content: '';
     opacity: 0;
     pointer-events: none;
     transition:
-        opacity 180ms ease,
-        transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+        opacity 200ms ease,
+        transform 240ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .root::before {
     background:
-        radial-gradient(circle at 28% 44%, #ffffff 0 9%, transparent 24%),
-        radial-gradient(circle at 60% 30%, #9836ff 0 11%, transparent 30%),
-        radial-gradient(circle at 56% 68%, #e0d2ff 0 13%, transparent 32%),
-        radial-gradient(circle at 78% 60%, #5e4cff 0 10%, transparent 28%);
-    filter: blur(5px);
+        radial-gradient(40% 55% at 30% 42%, #ffffff 0%, transparent 60%),
+        radial-gradient(45% 60% at 62% 28%, #9836ff 0%, transparent 62%),
+        radial-gradient(50% 60% at 54% 70%, #c9b6ff 0%, transparent 64%),
+        radial-gradient(42% 55% at 80% 62%, #5e4cff 0%, transparent 60%);
+    filter: blur(6px);
     mix-blend-mode: screen;
 }
 
@@ -66,14 +74,14 @@
     background: conic-gradient(
         from 90deg,
         transparent,
-        rgba(255, 255, 255, 0.86),
-        rgba(224, 210, 255, 0.6),
+        rgba(255, 255, 255, 0.7),
+        rgba(201, 182, 255, 0.5),
         transparent,
-        rgba(152, 54, 255, 0.72),
-        rgba(94, 76, 255, 0.7),
+        rgba(152, 54, 255, 0.62),
+        rgba(94, 76, 255, 0.6),
         transparent
     );
-    filter: blur(7px);
+    filter: blur(8px);
     mix-blend-mode: soft-light;
 }
 
@@ -83,11 +91,13 @@
 :global(.mantine-Group-root:hover) .root,
 :global([role='menuitem']:hover) .root,
 :global([data-combobox-selected='true']) .root {
+    filter: none;
     box-shadow:
-        inset 0 0 0 1px rgba(255, 255, 255, 0.82),
-        inset 0 -5px 11px rgba(94, 76, 255, 0.28),
-        0 2px 7px rgba(152, 54, 255, 0.26),
-        0 0 0 1px color-mix(in oklch, #9836ff 42%, transparent);
+        inset 0 0 0 1px rgba(255, 255, 255, 0.66),
+        inset 0 -4px 10px rgba(94, 76, 255, 0.24),
+        0 2px 6px rgba(152, 54, 255, 0.22),
+        0 0 0 1px color-mix(in oklch, #9836ff 36%, transparent);
+    animation: ai-agent-icon-morph 6s ease infinite;
 }
 
 .root:hover::before,
@@ -103,7 +113,7 @@
 :global([data-combobox-selected='true']) .root::before,
 :global([data-combobox-selected='true']) .root::after {
     opacity: 1;
-    animation: ai-agent-icon-drift 1.6s cubic-bezier(0.22, 1, 0.36, 1) infinite
+    animation: ai-agent-icon-drift 2s cubic-bezier(0.45, 0, 0.55, 1) infinite
         alternate;
 }
 
@@ -113,21 +123,36 @@
 :global(.mantine-Group-root:hover) .root::after,
 :global([role='menuitem']:hover) .root::after,
 :global([data-combobox-selected='true']) .root::after {
-    animation-duration: 2.1s;
+    animation-duration: 2.6s;
     animation-direction: alternate-reverse;
+}
+
+@keyframes ai-agent-icon-morph {
+    0% {
+        background-position: 43% 0%;
+    }
+
+    50% {
+        background-position: 58% 100%;
+    }
+
+    100% {
+        background-position: 43% 0%;
+    }
 }
 
 @keyframes ai-agent-icon-drift {
     from {
-        transform: translate3d(-7%, -3%, 0) rotate(-10deg) scale(1);
+        transform: translate3d(-6%, -2%, 0) rotate(-8deg) scale(1);
     }
 
     to {
-        transform: translate3d(6%, 5%, 0) rotate(18deg) scale(1.08);
+        transform: translate3d(5%, 4%, 0) rotate(14deg) scale(1.06);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .root,
     .root::before,
     .root::after {
         animation: none !important;

@@ -65,7 +65,7 @@ export const AskAiAgentMenuItem: FC<Props> = ({
     return (
         <>
             <Menu.Item
-                leftSection={<AiAgentIcon size={16} />}
+                leftSection={<AiAgentIcon size={13} />}
                 onClick={handleClick}
             >
                 Ask AI Agent

@@ -3,12 +3,14 @@ import styles from './AiAgentIcon.module.css';
 
 type Props = {
     size?: number | string;
+    muted?: boolean;
     className?: string;
     style?: CSSProperties;
 };
 
 export const AiAgentIcon: FC<Props> = ({
-    size = 18,
+    size = 16,
+    muted = false,
     className,
     style,
 }) => {
@@ -17,7 +19,9 @@ export const AiAgentIcon: FC<Props> = ({
     return (
         <span
             aria-hidden="true"
-            className={[styles.root, className].filter(Boolean).join(' ')}
+            className={[styles.root, muted && styles.muted, className]
+                .filter(Boolean)
+                .join(' ')}
             style={
                 {
                     '--ai-agent-icon-size': resolvedSize,

@@ -172,7 +172,7 @@ export const MobileNavBar: FC = () => {
                         exact
                         label="Ask AI"
                         to={`/projects/${activeProjectUuid}/ai-agents`}
-                        leftSection={<AiAgentIcon size={18} />}
+                        leftSection={<AiAgentIcon size={16} />}
                         onClick={toggleMenu}
                     />
                 )}
