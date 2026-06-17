@@ -1,5 +1,5 @@
 import { type ApiError } from '@lightdash/common';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { lightdashApi } from '../../../api';
 import useToaster from '../../../hooks/toaster/useToaster';
 
@@ -21,10 +21,14 @@ const saveSample = async ({
     });
 
 export const useSaveConnectionSample = () => {
+    const queryClient = useQueryClient();
     const { showToastSuccess, showToastApiError } = useToaster();
     return useMutation<undefined, ApiError, SaveSampleParams>({
         mutationFn: saveSample,
-        onSuccess: () => {
+        onSuccess: async (_data, variables) => {
+            await queryClient.invalidateQueries({
+                queryKey: ['external-connections', variables.projectUuid],
+            });
             showToastSuccess({ title: 'Sample saved' });
         },
         onError: ({ error }) => {
