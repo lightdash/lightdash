@@ -18,7 +18,11 @@ export const AxisMinInterval: FC<Props> = ({ label, value, onChange }) => (
             step={1}
             w={80}
             onChange={(newValue) =>
-                onChange(typeof newValue === 'number' ? newValue : undefined)
+                onChange(
+                    typeof newValue === 'number' && newValue > 0
+                        ? newValue
+                        : undefined,
+                )
             }
         />
     </Group>
