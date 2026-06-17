@@ -168,7 +168,7 @@ If the app is linked to one or more **external connections** (third-party HTTP A
 
 - Each file is a **saved sample of that API's response** — use it to learn the response shape (field names, nesting, value formats) so your fetch/render code matches reality. Never guess field names.
 - Samples are **illustrative of structure, not exhaustive of values** and may be truncated. Don't hardcode sample values into the app.
-- At runtime the app fetches **live** data through the SDK's external-fetch bridge (`useLightdash().externalFetch(alias, path, options)`) — it does **not** read these files. The files exist only to ground your code generation. See the SDK Reference section for the external-fetch call signature.
+- At runtime the app fetches **live** data through the SDK's external-fetch bridge (`useLightdash().externalFetch(alias, { path, query?, method?, body? })`) — it does **not** read these files. The files exist only to ground your code generation. See the SDK Reference section for the external-fetch call signature.
 - A connection with no saved sample has no file; build defensively against the documented/known shape in that case.
 
 ## Attached images
