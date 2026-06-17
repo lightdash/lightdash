@@ -1,3 +1,11 @@
+# [0.3187.0](https://github.com/lightdash/lightdash/compare/0.3186.0...0.3187.0) (2026-06-17)
+
+
+### Features
+
+* gsheets sync from data apps ([#24424](https://github.com/lightdash/lightdash/issues/24424)) ([650b0ac](https://github.com/lightdash/lightdash/commit/650b0ac849e17581bd49ee0563b79487ac4efdb4))
+* **table:** row grouping (merge repeated row values) on non-pivoted tables (PROD-8296) ([#24435](https://github.com/lightdash/lightdash/issues/24435)) ([a202a43](https://github.com/lightdash/lightdash/commit/a202a437b68ec891bbcb8de54c56291dfee852e3)), closes [#24253](https://github.com/lightdash/lightdash/issues/24253) [#23680](https://github.com/lightdash/lightdash/issues/23680)
+
 # [0.3186.0](https://github.com/lightdash/lightdash/compare/0.3185.0...0.3186.0) (2026-06-17)
 
 
