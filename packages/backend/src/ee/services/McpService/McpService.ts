@@ -12,6 +12,7 @@ import {
     convertAiTableCalcsSchemaToTableCalcs,
     convertFieldRefToFieldId,
     createContentToolDefinition,
+    createMcpCompatibleInputShape,
     createToolRunSqlArgsSchema,
     editContentToolDefinition,
     Explore,
@@ -80,7 +81,7 @@ import * as Sentry from '@sentry/node';
 import { stringify } from 'csv-stringify/sync';
 import fs from 'fs/promises';
 import path from 'path';
-import { z, ZodRawShape } from 'zod';
+import { z } from 'zod';
 import {
     LightdashAnalytics,
     McpToolCallEvent,
@@ -139,7 +140,6 @@ import {
     registerAppTool,
     RESOURCE_MIME_TYPE,
 } from './mcpAppHelpers';
-import { McpSchemaCompatLayer } from './McpSchemaCompatLayer';
 
 export enum McpToolName {
     GET_LIGHTDASH_VERSION = 'get_lightdash_version',
@@ -306,8 +306,6 @@ export class McpService extends BaseService {
 
     private mcpServer: McpServer;
 
-    private mcpCompatLayer: McpSchemaCompatLayer;
-
     constructor({
         lightdashConfig,
         analytics,
@@ -347,7 +345,6 @@ export class McpService extends BaseService {
         this.aiAgentToolsService = aiAgentToolsService;
         this.aiRouterService = aiRouterService;
         this.aiWritebackService = aiWritebackService;
-        this.mcpCompatLayer = new McpSchemaCompatLayer();
         try {
             this.mcpServer = Sentry.wrapMcpServerWithSentry(
                 new McpServer({
@@ -1067,12 +1064,6 @@ export class McpService extends BaseService {
         );
     }
 
-    private getMcpCompatibleSchema<TShape extends ZodRawShape>(
-        schema: z.ZodObject<TShape>,
-    ): TShape {
-        return this.mcpCompatLayer.processZodType(schema).shape;
-    }
-
     /**
      * Registers the run_ai_writeback tool on the current server. Kept separate
      * so setupHandlers can register it conditionally (dark launch — see the
@@ -1084,9 +1075,7 @@ export class McpService extends BaseService {
             {
                 title: mcpRunAiWritebackTool.title,
                 description: mcpRunAiWritebackTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpRunAiWritebackTool.inputSchema,
-                ),
+                inputSchema: mcpRunAiWritebackTool.inputSchema.shape,
                 outputSchema: mcpRunAiWritebackTool.outputSchema.shape,
                 annotations: mcpRunAiWritebackTool.annotations,
             },
@@ -1147,9 +1136,7 @@ export class McpService extends BaseService {
             {
                 title: mcpCreateContentTool.title,
                 description: mcpCreateContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpCreateContentTool.inputSchema,
-                ),
+                inputSchema: mcpCreateContentTool.inputSchema.shape,
                 annotations: mcpCreateContentTool.annotations,
             },
             async (args, extra) => {
@@ -1193,9 +1180,7 @@ export class McpService extends BaseService {
             {
                 title: mcpEditContentTool.title,
                 description: mcpEditContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpEditContentTool.inputSchema,
-                ),
+                inputSchema: mcpEditContentTool.inputSchema.shape,
                 annotations: mcpEditContentTool.annotations,
             },
             async (args, extra) => {
@@ -1244,9 +1229,7 @@ export class McpService extends BaseService {
             {
                 title: mcpGetLightdashVersionTool.title,
                 description: mcpGetLightdashVersionTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpGetLightdashVersionTool.inputSchema,
-                ),
+                inputSchema: mcpGetLightdashVersionTool.inputSchema.shape,
                 annotations: mcpGetLightdashVersionTool.annotations,
             },
             async (_args, extra) => {
@@ -1269,9 +1252,7 @@ export class McpService extends BaseService {
             {
                 title: mcpListExploresTool.title,
                 description: mcpListExploresTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpListExploresTool.inputSchema,
-                ),
+                inputSchema: mcpListExploresTool.inputSchema.shape,
                 annotations: mcpListExploresTool.annotations,
             },
             async (_args, extra) => {
@@ -1324,9 +1305,7 @@ export class McpService extends BaseService {
             {
                 title: mcpFindExploresTool.title,
                 description: mcpFindExploresTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpFindExploresTool.inputSchema,
-                ),
+                inputSchema: mcpFindExploresTool.inputSchema.shape,
                 annotations: mcpFindExploresTool.annotations,
             },
             async (args, extra) => {
@@ -1397,9 +1376,7 @@ export class McpService extends BaseService {
             {
                 title: mcpFindFieldsTool.title,
                 description: mcpFindFieldsTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpFindFieldsTool.inputSchema,
-                ),
+                inputSchema: mcpFindFieldsTool.inputSchema.shape,
                 annotations: mcpFindFieldsTool.annotations,
             },
             async (args, extra) => {
@@ -1440,9 +1417,7 @@ export class McpService extends BaseService {
             {
                 title: mcpFindContentTool.title,
                 description: mcpFindContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpFindContentTool.inputSchema,
-                ),
+                inputSchema: mcpFindContentTool.inputSchema.shape,
                 annotations: mcpFindContentTool.annotations,
             },
             async (args, extra) => {
@@ -1482,9 +1457,7 @@ export class McpService extends BaseService {
             {
                 title: mcpListContentTool.title,
                 description: mcpListContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpListContentTool.inputSchema,
-                ),
+                inputSchema: mcpListContentTool.inputSchema.shape,
                 annotations: mcpListContentTool.annotations,
             },
             async (args, extra) => {
@@ -1522,9 +1495,7 @@ export class McpService extends BaseService {
             {
                 title: mcpReadContentTool.title,
                 description: mcpReadContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpReadContentTool.inputSchema,
-                ),
+                inputSchema: mcpReadContentTool.inputSchema.shape,
                 annotations: mcpReadContentTool.annotations,
             },
             async (args, extra) => {
@@ -1570,9 +1541,7 @@ export class McpService extends BaseService {
                 {
                     title: mcpListProjectsTool.title,
                     description: mcpListProjectsTool.description,
-                    inputSchema: this.getMcpCompatibleSchema(
-                        mcpListProjectsTool.inputSchema,
-                    ),
+                    inputSchema: mcpListProjectsTool.inputSchema.shape,
                     annotations: mcpListProjectsTool.annotations,
                 },
                 async (
@@ -1629,9 +1598,7 @@ export class McpService extends BaseService {
                 {
                     title: mcpSetProjectTool.title,
                     description: mcpSetProjectTool.description,
-                    inputSchema: this.getMcpCompatibleSchema(
-                        mcpSetProjectTool.inputSchema,
-                    ),
+                    inputSchema: mcpSetProjectTool.inputSchema.shape,
                     annotations: mcpSetProjectTool.annotations,
                 },
                 async (
@@ -1718,9 +1685,7 @@ export class McpService extends BaseService {
             {
                 title: mcpGetCurrentProjectTool.title,
                 description: mcpGetCurrentProjectTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpGetCurrentProjectTool.inputSchema,
-                ),
+                inputSchema: mcpGetCurrentProjectTool.inputSchema.shape,
                 annotations: mcpGetCurrentProjectTool.annotations,
             },
             async (_args, extra) => {
@@ -1778,9 +1743,7 @@ export class McpService extends BaseService {
             {
                 title: mcpListAgentsTool.title,
                 description: mcpListAgentsTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpListAgentsTool.inputSchema,
-                ),
+                inputSchema: mcpListAgentsTool.inputSchema.shape,
                 annotations: mcpListAgentsTool.annotations,
             },
             async (args, extra) => {
@@ -1825,9 +1788,7 @@ export class McpService extends BaseService {
             {
                 title: mcpRouteAgentTool.title,
                 description: mcpRouteAgentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpRouteAgentTool.inputSchema,
-                ),
+                inputSchema: mcpRouteAgentTool.inputSchema.shape,
                 annotations: mcpRouteAgentTool.annotations,
                 outputSchema: mcpRouteAgentTool.outputSchema.shape,
             },
@@ -1904,9 +1865,7 @@ export class McpService extends BaseService {
             {
                 title: mcpSetAgentTool.title,
                 description: mcpSetAgentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpSetAgentTool.inputSchema,
-                ),
+                inputSchema: mcpSetAgentTool.inputSchema.shape,
                 annotations: mcpSetAgentTool.annotations,
             },
             async (args, extra) => {
@@ -1964,9 +1923,7 @@ export class McpService extends BaseService {
             {
                 title: mcpClearAgentTool.title,
                 description: mcpClearAgentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpClearAgentTool.inputSchema,
-                ),
+                inputSchema: mcpClearAgentTool.inputSchema.shape,
                 annotations: mcpClearAgentTool.annotations,
             },
             async (_args, extra) => {
@@ -2016,9 +1973,7 @@ export class McpService extends BaseService {
             {
                 title: mcpGetCurrentAgentTool.title,
                 description: mcpGetCurrentAgentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpGetCurrentAgentTool.inputSchema,
-                ),
+                inputSchema: mcpGetCurrentAgentTool.inputSchema.shape,
                 annotations: mcpGetCurrentAgentTool.annotations,
             },
             async (_args, extra) => {
@@ -2106,9 +2061,7 @@ export class McpService extends BaseService {
             {
                 title: mcpRunMetricQueryTool.title,
                 description: mcpRunMetricQueryTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpRunMetricQueryTool.inputSchema,
-                ),
+                inputSchema: mcpRunMetricQueryTool.inputSchema.shape,
                 outputSchema: mcpRunMetricQueryTool.outputSchema,
                 annotations: mcpRunMetricQueryTool.annotations,
             },
@@ -2216,9 +2169,7 @@ export class McpService extends BaseService {
             {
                 title: mcpRenderChartTool.title,
                 description: mcpRenderChartTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpRenderChartTool.inputSchema,
-                ),
+                inputSchema: mcpRenderChartTool.inputSchema.shape,
                 outputSchema: mcpRenderChartTool.outputSchema,
                 annotations: mcpRenderChartTool.annotations,
                 _meta: { ui: { resourceUri: chartResourceUri } },
@@ -2310,9 +2261,7 @@ export class McpService extends BaseService {
             {
                 title: mcpSearchFieldValuesTool.title,
                 description: mcpSearchFieldValuesTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpSearchFieldValuesTool.inputSchema,
-                ),
+                inputSchema: mcpSearchFieldValuesTool.inputSchema.shape,
                 annotations: mcpSearchFieldValuesTool.annotations,
             },
             async (args, extra) => {
@@ -2366,7 +2315,7 @@ export class McpService extends BaseService {
                     500,
                     this.lightdashConfig.mcp.runSqlMaxLimit,
                 ),
-                inputSchema: this.getMcpCompatibleSchema(runSqlArgsSchema),
+                inputSchema: createMcpCompatibleInputShape(runSqlArgsSchema),
                 outputSchema: mcpRunSqlTool.outputSchema,
                 annotations: mcpRunSqlTool.annotations,
             },
@@ -2449,9 +2398,7 @@ export class McpService extends BaseService {
             {
                 title: mcpGetQueryResultTool.title,
                 description: mcpGetQueryResultTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpGetQueryResultTool.inputSchema,
-                ),
+                inputSchema: mcpGetQueryResultTool.inputSchema.shape,
                 outputSchema: mcpGetQueryResultTool.outputSchema,
                 annotations: mcpGetQueryResultTool.annotations,
             },
@@ -2612,9 +2559,7 @@ export class McpService extends BaseService {
             {
                 title: mcpListVerifiedContentTool.title,
                 description: mcpListVerifiedContentTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpListVerifiedContentTool.inputSchema,
-                ),
+                inputSchema: mcpListVerifiedContentTool.inputSchema.shape,
                 annotations: mcpListVerifiedContentTool.annotations,
             },
             async (_args, extra) => {
@@ -3043,9 +2988,7 @@ export class McpService extends BaseService {
             {
                 title: mcpListSkillsTool.title,
                 description: mcpListSkillsTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpListSkillsTool.inputSchema,
-                ),
+                inputSchema: mcpListSkillsTool.inputSchema.shape,
                 outputSchema: mcpListSkillsTool.outputSchema.shape,
                 annotations: mcpListSkillsTool.annotations,
             },
@@ -3066,9 +3009,7 @@ export class McpService extends BaseService {
             {
                 title: mcpReadSkillTool.title,
                 description: mcpReadSkillTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpReadSkillTool.inputSchema,
-                ),
+                inputSchema: mcpReadSkillTool.inputSchema.shape,
                 outputSchema: mcpReadSkillTool.outputSchema.shape,
                 annotations: mcpReadSkillTool.annotations,
             },
@@ -3098,9 +3039,7 @@ export class McpService extends BaseService {
             {
                 title: mcpReadSkillResourceTool.title,
                 description: mcpReadSkillResourceTool.description,
-                inputSchema: this.getMcpCompatibleSchema(
-                    mcpReadSkillResourceTool.inputSchema,
-                ),
+                inputSchema: mcpReadSkillResourceTool.inputSchema.shape,
                 outputSchema: mcpReadSkillResourceTool.outputSchema.shape,
                 annotations: mcpReadSkillResourceTool.annotations,
             },

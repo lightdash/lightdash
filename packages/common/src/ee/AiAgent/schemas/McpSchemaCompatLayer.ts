@@ -1,5 +1,4 @@
-/* eslint-disable class-methods-use-this */
-import { AnyType } from '@lightdash/common';
+/* eslint-disable class-methods-use-this, no-underscore-dangle, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access */
 import {
     isArr,
     isNumber,
@@ -13,10 +12,11 @@ import {
 import {
     z,
     ZodDefault,
-    ZodDiscriminatedUnion,
-    ZodNullable,
+    type ZodDiscriminatedUnion,
+    type ZodNullable,
     type ZodTypeAny,
 } from 'zod';
+import { type AnyType } from '../../../types/any';
 
 const isNullable = (v: ZodTypeAny): v is ZodNullable<AnyType> =>
     v._def.typeName === 'ZodNullable';
@@ -85,7 +85,7 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
             return z.preprocess((val) => Number(val), v);
         }
 
-        // Identical to packages/backend/node_modules/@mastra/schema-compat/src/provider-compats/anthropic.ts
+        // Identical to @mastra/schema-compat/src/provider-compats/anthropic.ts
         if (isOptional(v)) {
             const handleTypes: AllZodType[] = [
                 'ZodObject',
@@ -130,3 +130,30 @@ export class McpSchemaCompatLayer extends SchemaCompatLayer {
         ]);
     }
 }
+
+const mcpSchemaCompatLayer = new McpSchemaCompatLayer();
+
+export type McpCompatibleInputSchema<
+    TInput extends z.ZodObject<z.ZodRawShape>,
+> = z.ZodObject<
+    TInput['shape'],
+    z.UnknownKeysParam,
+    z.ZodTypeAny,
+    z.output<TInput>,
+    z.input<TInput>
+>;
+
+export const createMcpCompatibleInputSchema = <
+    TInput extends z.ZodObject<z.ZodRawShape>,
+>(
+    inputSchema: TInput,
+): McpCompatibleInputSchema<TInput> =>
+    mcpSchemaCompatLayer.processZodType(
+        inputSchema,
+    ) as McpCompatibleInputSchema<TInput>;
+
+export const createMcpCompatibleInputShape = <
+    TInput extends z.ZodObject<z.ZodRawShape>,
+>(
+    inputSchema: TInput,
+): TInput['shape'] => createMcpCompatibleInputSchema(inputSchema).shape;

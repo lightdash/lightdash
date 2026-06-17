@@ -1,5 +1,6 @@
 import { type Schema } from 'ai';
 import { type z } from 'zod';
+import { type McpCompatibleInputSchema } from './McpSchemaCompatLayer';
 import {
     ToolDefinitionWithMcpOutputImpl,
     ToolDefinitionWithoutMcpOutputImpl,
@@ -108,7 +109,7 @@ type McpToolViewBase<
     canonicalName: TName;
     title: string;
     description: string;
-    inputSchema: TInput;
+    inputSchema: McpCompatibleInputSchema<TInput>;
     annotations: McpToolAnnotations;
     meta: Record<string, unknown> | undefined;
     result: McpToolResultBuilders;

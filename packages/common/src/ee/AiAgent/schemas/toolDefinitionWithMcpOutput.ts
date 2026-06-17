@@ -9,6 +9,7 @@ import {
     type ToolDescription,
     type ToolRuntime,
 } from './defineTool';
+import { createMcpCompatibleInputSchema } from './McpSchemaCompatLayer';
 import {
     assertAvailable,
     createAgentInputSchema,
@@ -107,7 +108,7 @@ export class ToolDefinitionWithMcpOutputImpl<
             canonicalName: this.name,
             title: this.title,
             description: resolveDescription(this.descriptionConfig, mcpName),
-            inputSchema: this.inputSchema,
+            inputSchema: createMcpCompatibleInputSchema(this.inputSchema),
             annotations: this.mcpConfig.annotations,
             outputSchema: this.outputSchema,
             meta: this.mcpConfig.meta,
