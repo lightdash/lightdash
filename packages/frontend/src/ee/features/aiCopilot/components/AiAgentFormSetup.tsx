@@ -19,6 +19,7 @@ import {
     TagsInput,
     Text,
     Textarea,
+    type TextareaProps,
     TextInput,
     Title,
     Tooltip,
@@ -38,7 +39,7 @@ import {
     IconUpload,
     IconUsers,
 } from '@tabler/icons-react';
-import { useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { z } from 'zod';
 import MantineIcon from '../../../../components/common/MantineIcon';
 import MantineModal from '../../../../components/common/MantineModal';
@@ -79,6 +80,24 @@ const formSchema = z.object({
     adminOnly: z.boolean(),
     version: z.number(),
 });
+
+type CommitOnBlurTextareaProps = Omit<
+    TextareaProps,
+    'defaultValue' | 'value' | 'onChange'
+> & {
+    defaultValue: string;
+    onCommit: (value: string) => void;
+};
+
+const CommitOnBlurTextarea = memo(
+    ({ defaultValue, onCommit, ...props }: CommitOnBlurTextareaProps) => (
+        <Textarea
+            defaultValue={defaultValue}
+            onBlur={(e) => onCommit(e.currentTarget.value)}
+            {...props}
+        />
+    ),
+);
 
 export const AiAgentFormSetup = ({
     mode,
@@ -273,21 +292,24 @@ export const AiAgentFormSetup = ({
                                     />
                                 </Tooltip>
                             </Group>
-                            <Textarea
+                            <CommitOnBlurTextarea
+                                key={`description-${
+                                    form.values.description != null
+                                }`}
                                 variant="subtle"
                                 label="Description"
                                 description="A brief description of what this agent does and its purpose."
                                 placeholder="Describe what this agent specializes in..."
                                 minRows={3}
                                 maxRows={6}
-                                {...form.getInputProps('description')}
-                                onChange={(e) => {
-                                    const value = e.target.value;
+                                error={form.errors.description}
+                                defaultValue={form.values.description ?? ''}
+                                onCommit={(value) =>
                                     form.setFieldValue(
                                         'description',
                                         value ? value : null,
-                                    );
-                                }}
+                                    )
+                                }
                             />
                             <Box>
                                 <Text size="sm" fw={500}>
@@ -515,7 +537,10 @@ export const AiAgentFormSetup = ({
                                 </Title>
                             </Group>
                             <Stack gap="xs">
-                                <Textarea
+                                <CommitOnBlurTextarea
+                                    key={`instruction-${
+                                        form.values.instruction != null
+                                    }`}
                                     variant="subtle"
                                     label="Instructions"
                                     description="Set the overall behavior and task for the agent. This defines how it should respond and what its purpose is."
@@ -524,12 +549,15 @@ export const AiAgentFormSetup = ({
                                     autosize
                                     minRows={3}
                                     maxRows={8}
-                                    {...form.getInputProps('instruction')}
+                                    error={form.errors.instruction}
+                                    defaultValue={form.values.instruction ?? ''}
+                                    onCommit={(value) =>
+                                        form.setFieldValue(
+                                            'instruction',
+                                            value ? value : null,
+                                        )
+                                    }
                                 />
-                                <Text size="xs" c="dimmed">
-                                    {form.values.instruction?.length ?? 0}{' '}
-                                    characters
-                                </Text>
                             </Stack>
                             <Stack gap="sm">
                                 <Box>

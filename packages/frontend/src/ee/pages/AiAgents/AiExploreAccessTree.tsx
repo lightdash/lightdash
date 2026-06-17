@@ -1,7 +1,7 @@
 import { type AiAgentExploreAccessSummary } from '@lightdash/common';
-import { Group, Stack, Text, Tree, type TreeNodeData } from '@mantine-8/core';
+  import { Group, Stack, Text, Tree, type TreeNodeData } from '@mantine-8/core';
 import { IconChevronDown, IconChevronRight } from '@tabler/icons-react';
-import { type FC } from 'react';
+import { memo, useMemo, type FC } from 'react';
 import MantineIcon from '../../../components/common/MantineIcon';
 
 const convertToTree = (exploreAccessSummary: AiAgentExploreAccessSummary[]) => {
@@ -38,10 +38,14 @@ type Props = {
     exploreAccessSummary: AiAgentExploreAccessSummary[];
 };
 
-const AiExploreAccessTree: FC<Props> = ({ exploreAccessSummary }) => {
+const AiExploreAccessTree: FC<Props> = memo(({ exploreAccessSummary }) => {
+    const treeData = useMemo(
+        () => convertToTree(exploreAccessSummary),
+        [exploreAccessSummary],
+    );
     return (
         <Tree
-            data={convertToTree(exploreAccessSummary)}
+            data={treeData}
             renderNode={({
                 node,
                 expanded,
@@ -94,6 +98,6 @@ const AiExploreAccessTree: FC<Props> = ({ exploreAccessSummary }) => {
             )}
         />
     );
-};
+});
 
 export default AiExploreAccessTree;
