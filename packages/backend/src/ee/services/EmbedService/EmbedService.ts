@@ -1265,19 +1265,13 @@ export class EmbedService extends BaseService {
             },
         });
 
-        const dashboardParameters = getDashboardParametersValuesMap(dashboard);
+        // Forward only the gated user parameters; AsyncQueryService combines
+        // them with dashboard/project params, so pre-combining here is redundant.
         const acceptedUserParameters =
             isParameterInteractivityEnabled(account.access.parameters) &&
             parameters
                 ? parameters
                 : {};
-        const combinedParameters = await this.projectService.combineParameters(
-            projectUuid,
-            explore,
-            acceptedUserParameters,
-            dashboardParameters,
-            projectParameters,
-        );
 
         // Execute using AsyncQueryService method with embed context.
         // The session timezone only takes effect when timezone support is
@@ -1296,7 +1290,7 @@ export class EmbedService extends BaseService {
             invalidateCache,
             limit,
             context: QueryExecutionContext.EMBED,
-            parameters: combinedParameters,
+            parameters: acceptedUserParameters,
             pivotResults,
             sessionTimezone: isTimezoneSupportEnabled
                 ? (timezone ?? null)
