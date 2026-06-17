@@ -16,7 +16,8 @@ Short summary of how v2 changes user-facing behavior vs. today's published docs 
 
 - Disabling the user-TZ feature flag actually stops honoring stored `users.timezone`. (GLITCH-451)
 - DST boundaries render correctly in ECharts. (GLITCH-449)
-- Sub-day time-axis ticks are adaptive again — density responds to the data span and to zoom instead of one tick per bar — while keeping the DST-correct positioning. (GLITCH-502)
+- Sub-day time-axis ticks are adaptive again — density responds to the data span and to zoom instead of one tick per bar — while keeping the DST-correct positioning. (GLITCH-502) *(Superseded by GLITCH-509: sub-day axes now shift to project wall-clock like DAY+, so ticks land on real day boundaries; the raw-UTC carve-out is gone.)*
+- **DST fall-back buckets identically on every warehouse.** A fall-back hour now collapses into one `count = 2` bucket everywhere (BigQuery and ClickHouse previously split it into two `count = 1` bars). Hour-grain charts plot on the project wall-clock timeline: the axis shows dates on real day boundaries, the fall-back reads as one doubled bar, and spring-forward leaves the skipped hour empty. (GLITCH-509)
 - Half- and 45-minute offset zones (India, Nepal, Eucla) work on BigQuery + ClickHouse. (GLITCH-453)
 - Timestamp metrics (a MIN or MAX over a timestamp column) render in the project timezone instead of raw UTC, matching the same column shown as a dimension — across the explore table, Big Number tiles, and cartesian tooltips. (GLITCH-498)
 

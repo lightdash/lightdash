@@ -203,7 +203,7 @@ A chart grouped by **day, week, month, quarter, or year** buckets data by calend
 
 A chart grouped by **hour, minute, or smaller** buckets data by instants. The boundaries are the same for every viewer — only the labels shift (your "9am EDT" is someone else's "2pm BST," but the bar contains the same events).
 
-**Implication:** sub-day grouping is naturally consistent across viewers. The only exception is half-hour and 45-minute offset zones (India, Nepal, parts of Australia), where bucket boundaries don't align with whole-hour zones. Hour-grain charts spanning a daylight-saving transition may also render with a one-hour visual jump at the boundary. *— [GLITCH-453](https://linear.app/lightdash/issue/GLITCH-453), [GLITCH-449](https://linear.app/lightdash/issue/GLITCH-449)*
+**Implication:** sub-day grouping is naturally consistent across viewers. The only exception is half-hour and 45-minute offset zones (India, Nepal, parts of Australia), where bucket boundaries don't align with whole-hour zones. Hour-grain charts plot on the project wall-clock timeline, so a daylight-saving transition shows directly: at a fall-back the repeated 1 AM hour is one taller bar (both hours merged, `count` doubled), and at a spring-forward the skipped `02:00` hour is simply absent. *— [GLITCH-453](https://linear.app/lightdash/issue/GLITCH-453), [GLITCH-449](https://linear.app/lightdash/issue/GLITCH-449), [GLITCH-509](https://linear.app/lightdash/issue/GLITCH-509)*
 
 ## Sharing charts: pinning vs viewer timezone
 
