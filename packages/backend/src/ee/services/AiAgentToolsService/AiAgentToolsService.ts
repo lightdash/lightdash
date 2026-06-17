@@ -16,10 +16,12 @@ import {
     isDashboardChartTileType,
     isExploreError,
     isGitProjectType,
+    JobStatusType,
     NotFoundError,
     ParameterError,
     QueryExecutionContext,
     QueryHistoryStatus,
+    RequestMethod,
     SessionUser,
     TimeoutError,
     UserAttributeValueMap,
@@ -32,6 +34,7 @@ import Logger from '../../../logging/logger';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
 import { ChangesetModel } from '../../../models/ChangesetModel';
 import { ContentVerificationModel } from '../../../models/ContentVerificationModel';
+import { JobModel } from '../../../models/JobModel/JobModel';
 import { ProjectModel } from '../../../models/ProjectModel/ProjectModel';
 import { SavedChartModel } from '../../../models/SavedChartModel';
 import { SearchModel } from '../../../models/SearchModel';
@@ -86,6 +89,7 @@ import {
     SearchFieldValuesFn,
     SearchSemanticLayerFn,
     SetupPreviewDeployFn,
+    SyncDbtProjectFn,
     ValidateContentFn,
 } from '../ai/types/aiAgentDependencies';
 import { AiAgentContentValidation } from '../ai/utils/AiAgentContentValidation';
@@ -130,6 +134,7 @@ export type AiAgentToolsRuntime = {
     searchFieldValues: SearchFieldValuesFn;
     searchSemanticLayer: SearchSemanticLayerFn;
     analyzeFieldImpact: AnalyzeFieldImpactFn;
+    syncDbtProject: SyncDbtProjectFn;
     runAsyncQuery: RunAsyncQueryFn;
     runSavedChartQuery: RunSavedChartQueryFn;
     runSqlJob: RunSqlJobFn;
@@ -169,6 +174,7 @@ type AiAgentToolsServiceDependencies = {
     builtInSkills: BuiltInSkillsClient;
     projectModel: ProjectModel;
     projectService: ProjectService;
+    jobModel: JobModel;
     userAttributesModel: UserAttributesModel;
     asyncQueryService: AsyncQueryService;
     catalogService: CatalogService;
@@ -199,6 +205,8 @@ export class AiAgentToolsService extends BaseService {
     private readonly projectModel: ProjectModel;
 
     private readonly projectService: ProjectService;
+
+    private readonly jobModel: JobModel;
 
     private readonly userAttributesModel: UserAttributesModel;
 
@@ -273,6 +281,7 @@ export class AiAgentToolsService extends BaseService {
         builtInSkills,
         projectModel,
         projectService,
+        jobModel,
         userAttributesModel,
         asyncQueryService,
         catalogService,
@@ -296,6 +305,7 @@ export class AiAgentToolsService extends BaseService {
         this.builtInSkills = builtInSkills;
         this.projectModel = projectModel;
         this.projectService = projectService;
+        this.jobModel = jobModel;
         this.userAttributesModel = userAttributesModel;
         this.asyncQueryService = asyncQueryService;
         this.catalogService = catalogService;
@@ -420,6 +430,7 @@ export class AiAgentToolsService extends BaseService {
                 this.searchSemanticLayer(context, args),
             analyzeFieldImpact: (args) =>
                 this.analyzeFieldImpact(context, args),
+            syncDbtProject: (args) => this.syncDbtProject(context, args),
             runAsyncQuery: (metricQuery, additionalMetrics, parameters) =>
                 this.runAsyncQuery(
                     context,
@@ -680,6 +691,81 @@ export class AiAgentToolsService extends BaseService {
                     context.projectUuid,
                     args.fieldId,
                 );
+            },
+        );
+    }
+
+    private syncDbtProject(
+        context: AiAgentToolsRuntimeContext,
+        args: Parameters<SyncDbtProjectFn>[0],
+    ): ReturnType<SyncDbtProjectFn> {
+        return wrapSentryTransaction(
+            `${AiAgentToolsService.transactionPrefix(context)}.syncDbtProject`,
+            args,
+            async () => {
+                // scheduleCompileProject runs its own CASL check (create Job +
+                // manage CompileProject) for the runtime user, so we delegate
+                // permission enforcement to it rather than checking here.
+                const { jobUuid } =
+                    await this.projectService.scheduleCompileProject(
+                        context.user,
+                        context.projectUuid,
+                        RequestMethod.BACKEND,
+                    );
+
+                const timeoutMs = 90_000;
+                const pollIntervalMs = 2_000;
+                const deadline = Date.now() + timeoutMs;
+
+                let job = await this.jobModel.get(jobUuid);
+                while (
+                    (job.jobStatus === JobStatusType.STARTED ||
+                        job.jobStatus === JobStatusType.RUNNING) &&
+                    Date.now() < deadline
+                ) {
+                    // eslint-disable-next-line no-await-in-loop
+                    await new Promise<void>((resolve) => {
+                        setTimeout(resolve, pollIntervalMs);
+                    });
+                    // eslint-disable-next-line no-await-in-loop
+                    job = await this.jobModel.get(jobUuid);
+                }
+
+                switch (job.jobStatus) {
+                    case JobStatusType.DONE:
+                        return {
+                            status: 'success',
+                            jobUuid,
+                            message:
+                                'The dbt project compiled successfully and is now up to date.',
+                        };
+                    case JobStatusType.ERROR: {
+                        const stepError = job.steps
+                            .map((step) => step.stepError)
+                            .filter((error): error is string => Boolean(error))
+                            .join('; ');
+                        return {
+                            status: 'error',
+                            jobUuid,
+                            message: stepError
+                                ? `The dbt project sync failed: ${stepError}`
+                                : 'The dbt project sync failed during compilation.',
+                        };
+                    }
+                    case JobStatusType.STARTED:
+                    case JobStatusType.RUNNING:
+                        return {
+                            status: 'in_progress',
+                            jobUuid,
+                            message:
+                                'The dbt project is still syncing — the compile has not finished yet.',
+                        };
+                    default:
+                        return assertUnreachable(
+                            job.jobStatus,
+                            `Unknown job status ${job.jobStatus}`,
+                        );
+                }
             },
         );
     }

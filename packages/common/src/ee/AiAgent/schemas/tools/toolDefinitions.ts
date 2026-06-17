@@ -232,6 +232,11 @@ import {
     toolSetupPreviewDeployOutputSchema,
 } from './toolSetupPreviewDeployArgs';
 import {
+    TOOL_SYNC_DBT_PROJECT_DESCRIPTION,
+    toolSyncDbtProjectArgsSchema,
+    toolSyncDbtProjectOutputSchema,
+} from './toolSyncDbtProjectArgs';
+import {
     TOOL_TABLE_VIZ_DESCRIPTION,
     toolTableVizArgsSchema,
     toolTableVizArgsSchemaTransformed,
@@ -610,6 +615,15 @@ export const editDbtProjectToolDefinition = defineTool({
     agent: { outputSchema: toolEditDbtProjectOutputSchema },
 });
 
+export const syncDbtProjectToolDefinition = defineTool({
+    name: 'syncDbtProject',
+    title: 'Sync dbt project',
+    description: TOOL_SYNC_DBT_PROJECT_DESCRIPTION,
+    availability: ['agent'],
+    inputSchema: toolSyncDbtProjectArgsSchema,
+    agent: { outputSchema: toolSyncDbtProjectOutputSchema },
+});
+
 export const exploreRepoToolDefinition = defineTool({
     name: 'exploreRepo',
     title: 'Explore repository',
@@ -935,6 +949,7 @@ type AgentToolDefinitionsByName = {
     loadProjectContext: typeof loadProjectContextToolDefinition;
     proposeChange: typeof proposeChangeToolDefinition;
     editDbtProject: typeof editDbtProjectToolDefinition;
+    syncDbtProject: typeof syncDbtProjectToolDefinition;
     exploreRepo: typeof exploreRepoToolDefinition;
     discoverRepos: typeof discoverReposToolDefinition;
     setupPreviewDeploy: typeof setupPreviewDeployToolDefinition;
@@ -978,6 +993,7 @@ export const agentToolDefinitionsByName: AgentToolDefinitionsByName = {
     loadProjectContext: loadProjectContextToolDefinition,
     proposeChange: proposeChangeToolDefinition,
     editDbtProject: editDbtProjectToolDefinition,
+    syncDbtProject: syncDbtProjectToolDefinition,
     exploreRepo: exploreRepoToolDefinition,
     discoverRepos: discoverReposToolDefinition,
     setupPreviewDeploy: setupPreviewDeployToolDefinition,
@@ -1023,6 +1039,7 @@ export const builtInToolDefinitions: readonly ToolDefinitionInstance[] = [
     loadProjectContextToolDefinition,
     proposeChangeToolDefinition,
     editDbtProjectToolDefinition,
+    syncDbtProjectToolDefinition,
     exploreRepoToolDefinition,
     discoverReposToolDefinition,
     setupPreviewDeployToolDefinition,

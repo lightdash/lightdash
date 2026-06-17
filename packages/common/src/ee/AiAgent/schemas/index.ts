@@ -24,6 +24,7 @@ import {
     type ToolRunSqlOutput,
     type ToolSearchFieldValuesOutput,
     type ToolSearchSemanticLayerOutput,
+    type ToolSyncDbtProjectOutput,
     type ToolTableVizOutput,
     type ToolTimeSeriesOutput,
     type ToolVerticalBarOutput,
@@ -58,6 +59,7 @@ export type AgentToolOutput =
     | ToolLoadSkillOutput
     | ToolProposeChangeOutput
     | ToolEditDbtProjectOutput
+    | ToolSyncDbtProjectOutput
     | ToolReadContentOutput
     | ToolRunQueryOutput
     | ToolRunSavedChartOutput

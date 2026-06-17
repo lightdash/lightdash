@@ -39,8 +39,14 @@ print(api[0]['pm2_env'].get('LIGHTDASH_SECRET', '') if api else '')
 " 2>/dev/null)"
 if [ -z "$RUNNING_SECRET" ]; then
     # Fall back to the env-file value (dequoted) if the api isn't up yet.
+    # dotenv strips surrounding quotes at load time, so the running backend uses
+    # the unquoted value. .env.development quotes the secret with SINGLE quotes
+    # (e.g. 'not very secret'), so we must strip both ' and " — stripping only "
+    # leaves literal single quotes and seals rows with a secret the backend can
+    # never decrypt.
     RUNNING_SECRET="$(grep '^LIGHTDASH_SECRET=' .env.development 2>/dev/null | head -1 | cut -d= -f2-)"
     RUNNING_SECRET="${RUNNING_SECRET%\"}"; RUNNING_SECRET="${RUNNING_SECRET#\"}"
+    RUNNING_SECRET="${RUNNING_SECRET%\'}"; RUNNING_SECRET="${RUNNING_SECRET#\'}"
     [ -n "$RUNNING_SECRET" ] && echo "WARN: pm2 api not found; using .env.development secret (may differ from a running backend)"
 fi
 [ -n "$RUNNING_SECRET" ] || { echo "FAIL: reconcile -- could not determine LIGHTDASH_SECRET" >&2; exit 1; }

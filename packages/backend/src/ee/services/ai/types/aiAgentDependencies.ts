@@ -105,6 +105,16 @@ export type AnalyzeFieldImpactFn = (args: {
     fieldId: string;
 }) => Promise<FieldImpactReport>;
 
+export type SyncDbtProjectResult = {
+    status: 'success' | 'in_progress' | 'error';
+    jobUuid: string;
+    message: string;
+};
+
+export type SyncDbtProjectFn = (args: {
+    reason: string | null;
+}) => Promise<SyncDbtProjectResult>;
+
 export type GetExploreFn = (args: { table: string }) => Promise<Explore>;
 
 export type FindContentSpaceBreadcrumb = {
