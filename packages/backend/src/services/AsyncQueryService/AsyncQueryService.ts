@@ -4132,8 +4132,18 @@ export class AsyncQueryService extends ProjectService {
 
         const metricQueryStart = Date.now();
 
-        const { explore, userAccessControls: preloadedUserAccessControls } =
-            await this.getExploreForMetricQueryExecution({
+        // Load project warehouse config once, shared by warehouse credentials and timezone resolution
+        const { organizationWarehouseCredentialsUuid, queryTimezone } =
+            await this.projectModel.getProjectWarehouseConfig(projectUuid);
+        const projectTimezone =
+            queryTimezone ?? this.lightdashConfig.query.timezone ?? 'UTC';
+
+        // Explore load and warehouse credentials are independent, run them in parallel
+        const [
+            { explore, userAccessControls: preloadedUserAccessControls },
+            warehouseCredentials,
+        ] = await Promise.all([
+            this.getExploreForMetricQueryExecution({
                 account,
                 projectUuid,
                 exploreName: inputMetricQuery.exploreName,
@@ -4143,8 +4153,17 @@ export class AsyncQueryService extends ProjectService {
                     QueryExecutionContext.PRE_AGGREGATE_MATERIALIZATION
                         ? materializationRole
                         : undefined,
-            });
-        const getExploreMs = Date.now() - metricQueryStart;
+            }),
+            this.getWarehouseCredentials({
+                projectUuid,
+                userId: account.user.id,
+                isRegisteredUser: account.isRegisteredUser(),
+                isServiceAccount: account.isServiceAccount(),
+                preloadedOrgWarehouseCredentialsUuid:
+                    organizationWarehouseCredentialsUuid,
+            }),
+        ]);
+        const prepLoadMs = Date.now() - metricQueryStart;
 
         // Dashboard filters (e.g. from a data-app tile) are merged once the
         // explore is known so we can drop filters that target fields outside
@@ -4171,15 +4190,6 @@ export class AsyncQueryService extends ProjectService {
                 explore,
             );
         }
-
-        const whCredStart = Date.now();
-        const warehouseCredentials = await this.getWarehouseCredentials({
-            projectUuid,
-            userId: account.user.id,
-            isRegisteredUser: account.isRegisteredUser(),
-            isServiceAccount: account.isServiceAccount(),
-        });
-        const getWarehouseCredentialsMs = Date.now() - whCredStart;
 
         const warehouseSqlBuilder = warehouseSqlBuilderFromType(
             warehouseCredentials.type,
@@ -4220,6 +4230,7 @@ export class AsyncQueryService extends ProjectService {
             materializationRole,
             columnTimezone: getColumnTimezone(warehouseCredentials),
             preloadedUserAccessControls,
+            preloadedProjectTimezone: projectTimezone,
         });
         const prepareMs = Date.now() - prepareStart;
 
@@ -4238,7 +4249,7 @@ export class AsyncQueryService extends ProjectService {
         });
 
         this.logger.info(
-            `Metric query prep for ${metricQuery.exploreName}: get_explore=${getExploreMs}ms get_wh_credentials=${getWarehouseCredentialsMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
+            `Metric query prep for ${metricQuery.exploreName}: explore_and_wh_credentials=${prepLoadMs}ms prepare_query=${prepareMs}ms routing=${routingDecision.target} total=${Date.now() - metricQueryStart}ms`,
         );
 
         if (routingDecision.preAggregateMetadata) {
