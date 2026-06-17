@@ -212,6 +212,41 @@ describe('secureFetch GET behavior', () => {
     });
 });
 
+describe('secureFetch POST behavior', () => {
+    it('returns a SecureFetchResult on a happy-path POST', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('{"accepted":true}', { status: 200 }),
+        );
+        const result = await secureFetch('https://example.com/x.json', {
+            ...BASE_OPTIONS,
+            method: 'POST',
+            body: '{"amount":500}',
+        });
+        expect(result).toEqual({
+            status: 200,
+            contentType: 'application/json',
+            bodyText: '{"accepted":true}',
+            truncated: false,
+        });
+    });
+
+    it('passes method and body through to fetch on a POST', async () => {
+        mockedFetch.mockResolvedValue(
+            jsonResponse('{"accepted":true}', { status: 200 }),
+        );
+        await secureFetch('https://example.com/x.json', {
+            ...BASE_OPTIONS,
+            method: 'POST',
+            body: '{"amount":500}',
+        });
+
+        expect(mockedFetch).toHaveBeenCalledTimes(1);
+        const [, calledOpts] = mockedFetch.mock.calls[0];
+        expect(calledOpts.method).toBe('POST');
+        expect(calledOpts.body).toBe('{"amount":500}');
+    });
+});
+
 describe('secureFetch timeout', () => {
     it('maps an aborted request to reason timeout', async () => {
         const abortError = new FetchError(
