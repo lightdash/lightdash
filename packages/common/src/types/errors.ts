@@ -185,6 +185,28 @@ export class UnexpectedGitError extends LightdashError {
     }
 }
 
+/**
+ * Thrown when a Git write operation (create branch, commit, open/update PR) is
+ * rejected because the credentials backing the connection lack write access —
+ * e.g. GitHub returns 403 "Resource not accessible by integration". This is a
+ * terminal setup problem (a personal access token without write scope, or a
+ * GitHub App installation missing Contents/Pull-requests write), not a transient
+ * failure, so callers should surface a one-time fix rather than retry.
+ */
+export class InsufficientGitPermissionsError extends LightdashError {
+    constructor(
+        message = 'The Git connection does not have write access to this repository',
+        data: { [key: string]: AnyType } = {},
+    ) {
+        super({
+            message,
+            name: 'InsufficientGitPermissionsError',
+            statusCode: 403,
+            data,
+        });
+    }
+}
+
 export class UnexpectedDatabaseError extends LightdashError {
     constructor(
         message = 'Unexpected error in Lightdash database.',

@@ -13,7 +13,6 @@ import {
     ThemeIcon,
 } from '@mantine-8/core';
 import {
-    IconAlertTriangle,
     IconBrandGithub,
     IconBrandGitlab,
     IconCheck,
@@ -480,29 +479,12 @@ export const AiEditDbtProjectToolCall: FC<Props> = ({
                 </Paper>
             );
         }
-        return (
-            <Paper withBorder p="sm" radius="md" bg="red.0">
-                <Group gap="xs" align="center" wrap="nowrap">
-                    <ThemeIcon
-                        variant="light"
-                        color="red"
-                        radius="md"
-                        size="md"
-                    >
-                        <MantineIcon icon={IconAlertTriangle} size={16} />
-                    </ThemeIcon>
-                    <Stack gap={0}>
-                        <Text size="sm" fw={500} c="red.7">
-                            Writeback failed
-                        </Text>
-                        <Text size="xs" c="red.6">
-                            The agent's run hit an error and no pull request was
-                            opened.
-                        </Text>
-                    </Stack>
-                </Group>
-            </Paper>
-        );
+        // Any other error (e.g. a write-permission 403, or an unclassified
+        // failure): the agent's own reply already explains what went wrong and,
+        // where relevant, how to fix it — so a separate red "Writeback failed"
+        // card would only duplicate that prose without adding an action. Render
+        // nothing and let the agent's message carry the explanation.
+        return null;
     }
 
     if (!metadata.prUrl) {

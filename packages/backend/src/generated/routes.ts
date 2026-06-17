@@ -13983,6 +13983,12 @@ const models: TsoaRoute.Models = {
                                                         },
                                                         {
                                                             dataType: 'enum',
+                                                            enums: [
+                                                                'git_write_permission',
+                                                            ],
+                                                        },
+                                                        {
+                                                            dataType: 'enum',
                                                             enums: [null],
                                                         },
                                                         {

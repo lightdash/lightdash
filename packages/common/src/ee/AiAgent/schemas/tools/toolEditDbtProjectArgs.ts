@@ -84,6 +84,7 @@ export const toolEditDbtProjectOutputSchema = z.object({
                     'gitlab_not_installed',
                     'unsupported_source_control',
                     'pull_request_not_open',
+                    'git_write_permission',
                     'unknown',
                 ])
                 .nullish(),
