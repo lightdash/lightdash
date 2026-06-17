@@ -99,6 +99,40 @@ describe('normalizeAndValidatePath', () => {
             '/v1/users',
         );
     });
+
+    describe('segment-aware prefix matching', () => {
+        const segmentPrefixes = ['/v1/users'];
+
+        it('rejects a path that starts with the prefix but continues with non-separator chars', () => {
+            expect(() =>
+                normalizeAndValidatePath('/v1/users-admin', segmentPrefixes),
+            ).toThrow(ParameterError);
+            expect(() =>
+                normalizeAndValidatePath('/v1/usersecrets', segmentPrefixes),
+            ).toThrow(ParameterError);
+            expect(() =>
+                normalizeAndValidatePath('/v1/usersxxx', segmentPrefixes),
+            ).toThrow(ParameterError);
+        });
+
+        it('accepts the exact prefix', () => {
+            expect(normalizeAndValidatePath('/v1/users', segmentPrefixes)).toBe(
+                '/v1/users',
+            );
+        });
+
+        it('accepts the prefix with a trailing slash', () => {
+            expect(
+                normalizeAndValidatePath('/v1/users/', segmentPrefixes),
+            ).toBe('/v1/users/');
+        });
+
+        it('accepts a path that extends the prefix after a slash', () => {
+            expect(
+                normalizeAndValidatePath('/v1/users/123', segmentPrefixes),
+            ).toBe('/v1/users/123');
+        });
+    });
 });
 
 describe('buildOutboundUrl', () => {
@@ -141,6 +175,51 @@ describe('buildOutboundUrl', () => {
     it('omits the query string when query is empty', () => {
         const url = buildOutboundUrl('https://api.example.com', '/v1/x', {});
         expect(url).toBe('https://api.example.com/v1/x');
+    });
+
+    describe('self-enforces origin host invariant (defense-in-depth SSRF)', () => {
+        // These tests call buildOutboundUrl DIRECTLY, bypassing normalizeAndValidatePath,
+        // to prove the builder defends independently against host-escaping paths.
+
+        it('throws on a path that looks like "@evil.com"', () => {
+            expect(() =>
+                buildOutboundUrl(
+                    'https://api.example.com',
+                    '@evil.com',
+                    undefined,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('throws on a path that looks like "//evil.com"', () => {
+            expect(() =>
+                buildOutboundUrl(
+                    'https://api.example.com',
+                    '//evil.com',
+                    undefined,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('throws on a path that looks like "https://evil.com"', () => {
+            expect(() =>
+                buildOutboundUrl(
+                    'https://api.example.com',
+                    'https://evil.com',
+                    undefined,
+                ),
+            ).toThrow(ParameterError);
+        });
+
+        it('throws on a path that looks like "\\\\evil.com"', () => {
+            expect(() =>
+                buildOutboundUrl(
+                    'https://api.example.com',
+                    '\\\\evil.com',
+                    undefined,
+                ),
+            ).toThrow(ParameterError);
+        });
     });
 });
 

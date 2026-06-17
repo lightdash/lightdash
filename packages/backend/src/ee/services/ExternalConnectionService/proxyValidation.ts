@@ -71,9 +71,12 @@ export function normalizeAndValidatePath(
     }
 
     // Prefix allowlist match against the decoded, host-free path.
-    const matches = allowedPathPrefixes.some((prefix) =>
-        decoded.startsWith(prefix),
-    );
+    // Use segment-aware matching so /v1/users does not allow /v1/users-admin.
+    const matches = allowedPathPrefixes.some((prefix) => {
+        if (decoded === prefix) return true;
+        const boundary = prefix.endsWith('/') ? prefix : `${prefix}/`;
+        return decoded.startsWith(boundary);
+    });
     if (!matches) {
         throw new ParameterError('path is not allowed by this connection');
     }
@@ -90,8 +93,36 @@ export function buildOutboundUrl(
     validatedPath: string,
     query: Record<string, string> | undefined,
 ): string {
+    // Defense-in-depth: reject obviously hostile path shapes before parsing.
+    // These can escape the origin host or smuggle credentials during URL
+    // construction, even if they survived normalizeAndValidatePath.
+    if (validatedPath.includes('\\') || validatedPath.startsWith('//')) {
+        throw new ParameterError(
+            'Resolved URL host does not match the connection origin',
+        );
+    }
+    if (/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(validatedPath)) {
+        throw new ParameterError(
+            'Resolved URL host does not match the connection origin',
+        );
+    }
+    if (validatedPath.includes('@')) {
+        throw new ParameterError(
+            'Resolved URL host does not match the connection origin',
+        );
+    }
+
+    const originUrl = new URL(origin);
     const base = origin.endsWith('/') ? origin.slice(0, -1) : origin;
     const url = new URL(`${base}${validatedPath}`);
+
+    // Final check: the constructed URL's host must still match the origin.
+    if (url.protocol !== originUrl.protocol || url.host !== originUrl.host) {
+        throw new ParameterError(
+            'Resolved URL host does not match the connection origin',
+        );
+    }
+
     if (query) {
         const params = new URLSearchParams();
         for (const [key, value] of Object.entries(query)) {
