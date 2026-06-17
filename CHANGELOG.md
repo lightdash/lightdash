@@ -1,3 +1,10 @@
+# [0.3186.0](https://github.com/lightdash/lightdash/compare/0.3185.0...0.3186.0) (2026-06-17)
+
+
+### Features
+
+* **backend:** warn at startup when timezone support is on but process tz isn't UTC (GLITCH-507) ([#24430](https://github.com/lightdash/lightdash/issues/24430)) ([101d2ee](https://github.com/lightdash/lightdash/commit/101d2ee9771804b9e8afcc40434ea467c6ecda58))
+
 # [0.3185.0](https://github.com/lightdash/lightdash/compare/0.3184.1...0.3185.0) (2026-06-17)
 
 
