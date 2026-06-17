@@ -7859,20 +7859,15 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                 finalizeToolTasksForSuccess();
                 await flushTaskUpdates();
                 await updatePlanTitle('Waiting for SQL approval');
+                // Finalize the task card without extra copy — its header plus
+                // the approval card below already say we're waiting.
                 await this.slackClient.stopAgentStream({
                     organizationUuid: slackPrompt.organizationUuid,
                     channelId: slackPrompt.slackChannelId,
                     threadTs,
                     messageTs: streamTs,
                     text: 'Waiting for approval to run SQL.',
-                    chunks: [
-                        {
-                            type: 'blocks',
-                            blocks: getMarkdownBlocks(
-                                '_Waiting for approval to run SQL…_',
-                            ),
-                        },
-                    ],
+                    chunks: [],
                 });
                 await this.postSqlApprovalCard({
                     slackPrompt,
