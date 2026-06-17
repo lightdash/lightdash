@@ -186,7 +186,7 @@ describe('resolveAxisTimezone', () => {
     });
 
     test.each([TimeFrames.SECOND, TimeFrames.MINUTE, TimeFrames.HOUR])(
-        'keeps raw UTC positioning via a sub-day-format timeAxisField for interval %s',
+        'shifts sub-day buckets to wall-clock like DAY+ for interval %s (merge removes the fall-back collision)',
         (interval) => {
             const fieldId = `orders_created_${interval.toLowerCase()}`;
             const result = resolveAxisTimezone({
@@ -201,10 +201,9 @@ describe('resolveAxisTimezone', () => {
                 fieldId,
                 timezone: TZ,
                 flipAxes: false,
-                mode: 'sub-day-format',
             });
-            expect(result.axisTimezone).toBe(TZ);
-            expect(result.axisDisplayTimezone).toBeUndefined();
+            expect(result.axisTimezone).toBeUndefined();
+            expect(result.axisDisplayTimezone).toBe(TZ);
         },
     );
 
@@ -222,7 +221,6 @@ describe('resolveAxisTimezone', () => {
             fieldId,
             timezone: TZ,
             flipAxes: false,
-            mode: 'shift',
         });
         expect(result.axisTimezone).toBeUndefined();
         expect(result.axisDisplayTimezone).toBe(TZ);
@@ -307,7 +305,6 @@ describe('resolveAxisTimezone', () => {
             fieldId: 'orders_created_day',
             timezone: TZ,
             flipAxes: true,
-            mode: 'shift',
         });
     });
 
@@ -611,5 +608,58 @@ describe('applyTimezoneShiftToEchartsOptions', () => {
 
         expect(result.xAxis).toEqual({ type: 'time' });
         expect(result.yAxis).toEqual({ type: 'value' });
+    });
+});
+
+// Sub-day grains now ride the same shift path as DAY+. These confirm the shift
+// handles the per-instant DST offset so the wall-clock axis renders the merge
+// route correctly: the fall-back collapses to one position, spring-forward
+// leaves the skipped hour empty. America/New_York is -04:00 (EDT) / -05:00 (EST).
+describe('applyTimezoneShiftToEchartsOptions across DST (sub-day, America/New_York)', () => {
+    const nyHour: TimezoneShiftedField = {
+        fieldId: 'orders_created_hour',
+        timezone: 'America/New_York',
+        flipAxes: false,
+    };
+    const dim = 'orders_created_hour_ld_tz_shifted';
+    const shiftedColumn = (
+        sourceRows: Record<string, unknown>[],
+    ): unknown[] => {
+        const result = applyTimezoneShiftToEchartsOptions(
+            { dataset: { source: sourceRows }, series: [] },
+            nyHour,
+        );
+        const source = (result.dataset as { source: Record<string, unknown>[] })
+            .source;
+        return source.map((row) => row[dim]);
+    };
+
+    test('fall-back: both folded 01:30 instants shift to the same wall-clock position', () => {
+        // 05:30Z is 01:30 EDT, 06:30Z is 01:30 EST — one real hour apart, same
+        // wall-clock. Under merge there is only one bucket; either folded instant
+        // shifts to the single 01:30 position (no split collision).
+        expect(
+            shiftedColumn([
+                { orders_created_hour: '2024-11-03T05:30:00Z' },
+                { orders_created_hour: '2024-11-03T06:30:00Z' },
+            ]),
+        ).toEqual([
+            Date.parse('2024-11-03T01:30:00Z'),
+            Date.parse('2024-11-03T01:30:00Z'),
+        ]);
+    });
+
+    test('spring-forward: instants shift to 01:30 and 03:30, leaving the skipped 02:00 hour empty', () => {
+        // 06:30Z is 01:30 EST; 07:30Z is 03:30 EDT. The 02:00–03:00 wall-clock
+        // hour never happened, so no bucket lands there.
+        const shifted = shiftedColumn([
+            { orders_created_hour: '2024-03-10T06:30:00Z' },
+            { orders_created_hour: '2024-03-10T07:30:00Z' },
+        ]);
+        expect(shifted).toEqual([
+            Date.parse('2024-03-10T01:30:00Z'),
+            Date.parse('2024-03-10T03:30:00Z'),
+        ]);
+        expect(shifted).not.toContain(Date.parse('2024-03-10T02:30:00Z'));
     });
 });
