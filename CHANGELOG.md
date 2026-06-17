@@ -1,3 +1,11 @@
+## [0.3179.1](https://github.com/lightdash/lightdash/compare/0.3179.0...0.3179.1) (2026-06-17)
+
+
+### Performance Improvements
+
+* **backend:** preload warehouse config + parallelize explore/creds in metric query ([#24366](https://github.com/lightdash/lightdash/issues/24366)) ([f552bf6](https://github.com/lightdash/lightdash/commit/f552bf6a3ba0fc34c609b31cffa450033bfba1a0))
+* **embed:** preload project/org context for dashboard-tile query ([#24368](https://github.com/lightdash/lightdash/issues/24368)) ([513a6d4](https://github.com/lightdash/lightdash/commit/513a6d47a04cf18d50bd404f1825ad8eca3a7079))
+
 # [0.3179.0](https://github.com/lightdash/lightdash/compare/0.3178.0...0.3179.0) (2026-06-16)
 
 
