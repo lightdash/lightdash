@@ -182,11 +182,23 @@ export class ExternalConnectionModel {
     /**
      * INTERNAL ONLY — returns the decrypted secret. Used by the M2 proxy
      * (`ExternalConnectionService.proxyFetch`). Never exposed via the API.
+     * Returns null if the connection is soft-deleted or has no secret.
      */
     async getDecryptedSecret(uuid: string): Promise<string | null> {
         const row = await this.database(ExternalConnectionSecretsTableName)
-            .where('external_connection_uuid', uuid)
-            .first();
+            .join(
+                ExternalConnectionsTableName,
+                `${ExternalConnectionsTableName}.external_connection_uuid`,
+                `${ExternalConnectionSecretsTableName}.external_connection_uuid`,
+            )
+            .whereNull(`${ExternalConnectionsTableName}.deleted_at`)
+            .where(
+                `${ExternalConnectionSecretsTableName}.external_connection_uuid`,
+                uuid,
+            )
+            .first<{ encrypted_payload: Buffer } | undefined>(
+                `${ExternalConnectionSecretsTableName}.encrypted_payload`,
+            );
         if (!row) {
             return null;
         }
