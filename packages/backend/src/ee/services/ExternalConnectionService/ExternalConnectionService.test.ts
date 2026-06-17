@@ -1,6 +1,7 @@
 import {
     ForbiddenError,
     NotFoundError,
+    ParameterError,
     type ExternalConnection,
     type ExternalFetchResponse,
     type RegisteredAccount,
@@ -58,6 +59,8 @@ function buildService(opts: {
     connection?: ExternalConnection | null;
     secret?: string | null;
     saveSampleFn?: jest.Mock;
+    linkToAppFn?: jest.Mock;
+    findAppFn?: jest.Mock;
 }) {
     const model = {
         findByUuid: jest
@@ -69,11 +72,23 @@ function buildService(opts: {
             .fn()
             .mockResolvedValue(opts.secret ?? 's3cr3t'),
         saveSample: opts.saveSampleFn ?? jest.fn().mockResolvedValue(undefined),
+        linkToApp: opts.linkToAppFn ?? jest.fn().mockResolvedValue(undefined),
+        findApp:
+            opts.findAppFn ??
+            jest.fn().mockResolvedValue({
+                app_id: 'app-1',
+                project_uuid: projectUuid,
+                space_uuid: null,
+                created_by_user_uuid: 'user-1',
+                organization_uuid: orgUuid,
+            }),
     };
     const service = new ExternalConnectionService({
         externalConnectionModel: model as never,
         appModel: {} as never,
-        spacePermissionService: {} as never,
+        spacePermissionService: {
+            getSpaceAccessContext: jest.fn().mockResolvedValue({}),
+        } as never,
         analytics: { track: jest.fn() } as never,
     });
     return { service, model };
@@ -303,20 +318,29 @@ describe('ExternalConnectionService.saveSample', () => {
         );
     });
 
-    it('never persists known secret keys even if the sample echoes them', async () => {
+    it('never persists the decrypted secret even if the response body echoes it', async () => {
         const saveSampleFn = jest.fn().mockResolvedValue(undefined);
-        const { service } = buildService({ saveSampleFn });
+        // Use a distinctive sentinel so any leak is unambiguous
+        const { service, model } = buildService({
+            saveSampleFn,
+            secret: 'SENTINEL_SECRET_abc123',
+        });
         mockAbility(service, true);
 
+        // The response body contains the sentinel under a normal (non-redacted) key
+        // and also under the known-secret key 'authorization' — both must not appear.
         await service.saveSample(adminAccount, projectUuid, connectionUuid, {
-            note: 'token is my-secret-value embedded here',
-            authorization: 'Bearer my-secret-value',
+            note: 'some data',
+            data_value: 'SENTINEL_SECRET_abc123',
+            authorization: `Bearer SENTINEL_SECRET_abc123`,
         });
 
         const persistedJson = JSON.stringify(saveSampleFn.mock.calls[0][1]);
-        // The key 'authorization' is in the redact list; value must be replaced
-        expect(persistedJson).not.toContain('Bearer my-secret-value');
+        // The 'authorization' key is in the redact list; its value must be replaced.
+        expect(persistedJson).not.toContain('Bearer SENTINEL_SECRET_abc123');
         expect(persistedJson).toContain('[redacted]');
+        // saveSample must never call getDecryptedSecret — it never reads the secret.
+        expect(model.getDecryptedSecret).not.toHaveBeenCalled();
     });
 
     it('does not call getDecryptedSecret — saveSample never reads the connection secret', async () => {
@@ -329,5 +353,83 @@ describe('ExternalConnectionService.saveSample', () => {
         });
 
         expect(model.getDecryptedSecret).not.toHaveBeenCalled();
+    });
+});
+
+// -------------------------------------------------------------------
+// linkToApp — alias validation
+// -------------------------------------------------------------------
+describe('ExternalConnectionService.linkToApp alias validation', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    it('rejects alias containing path-traversal characters (../prompt)', async () => {
+        const linkToAppFn = jest.fn();
+        const { service } = buildService({ linkToAppFn });
+        mockAbility(service, true);
+
+        await expect(
+            service.linkToApp(
+                adminAccount,
+                projectUuid,
+                'app-uuid-1',
+                connectionUuid,
+                '../prompt',
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(linkToAppFn).not.toHaveBeenCalled();
+    });
+
+    it('rejects alias containing a forward slash (a/b)', async () => {
+        const linkToAppFn = jest.fn();
+        const { service } = buildService({ linkToAppFn });
+        mockAbility(service, true);
+
+        await expect(
+            service.linkToApp(
+                adminAccount,
+                projectUuid,
+                'app-uuid-1',
+                connectionUuid,
+                'a/b',
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(linkToAppFn).not.toHaveBeenCalled();
+    });
+
+    it('rejects alias longer than 64 characters', async () => {
+        const linkToAppFn = jest.fn();
+        const { service } = buildService({ linkToAppFn });
+        mockAbility(service, true);
+
+        const longAlias = 'a'.repeat(65);
+        await expect(
+            service.linkToApp(
+                adminAccount,
+                projectUuid,
+                'app-uuid-1',
+                connectionUuid,
+                longAlias,
+            ),
+        ).rejects.toThrow(ParameterError);
+        expect(linkToAppFn).not.toHaveBeenCalled();
+    });
+
+    it('accepts a valid alias of letters, numbers, hyphens, and underscores', async () => {
+        const linkToAppFn = jest.fn().mockResolvedValue(undefined);
+        const { service } = buildService({ linkToAppFn });
+        mockAbility(service, true);
+
+        await expect(
+            service.linkToApp(
+                adminAccount,
+                projectUuid,
+                'app-uuid-1',
+                connectionUuid,
+                'my-api_v2',
+            ),
+        ).resolves.toBeUndefined();
+        expect(linkToAppFn).toHaveBeenCalled();
     });
 });
