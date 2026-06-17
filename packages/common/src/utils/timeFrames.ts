@@ -83,12 +83,17 @@ type WarehouseConfig = {
 
 /** Per-warehouse SQL for the DATE_TRUNC timezone round-trip. `toProjectTz`
  *  shifts into project-local wall-clock before truncation; `toUTC` converts
- *  the truncated value back into a proper UTC instant. `sourceTimezone` is
- *  the timezone the column is in — only Snowflake uses it explicitly (in
- *  `CONVERT_TIMEZONE`); other adapters ignore it. */
+ *  the truncated value back into a proper UTC instant. `castAsDate` casts a
+ *  truncated wall-clock value to a real DATE (GLITCH-452) — default
+ *  `CAST(x AS DATE)`, but BigQuery needs `DATE(x, tz)` because its
+ *  `TIMESTAMP_TRUNC` returns a UTC instant (a plain cast would read its UTC
+ *  date — off by one on positive offsets). `sourceTimezone` is the timezone the
+ *  column is in — only Snowflake uses it explicitly (in `CONVERT_TIMEZONE`);
+ *  other adapters ignore it. */
 type DateTruncTimezoneConversion = {
     toProjectTz: (sql: string, tz: string, sourceTimezone?: string) => string;
     toUTC: (sql: string, tz: string) => string;
+    castAsDate: (sql: string, tz: string) => string;
 };
 
 export const dateTruncTimezoneConversions: Record<
@@ -100,33 +105,40 @@ export const dateTruncTimezoneConversions: Record<
     [SupportedDbtAdapter.BIGQUERY]: {
         toProjectTz: (sql) => sql,
         toUTC: (sql) => sql,
+        castAsDate: (sql, tz) => `DATE(${sql}, '${tz}')`,
     },
     [SupportedDbtAdapter.SNOWFLAKE]: {
         toProjectTz: (sql, tz, sourceTimezone = 'UTC') =>
             `CONVERT_TIMEZONE('${sourceTimezone}', '${tz}', ${sql})`,
         toUTC: (sql, tz) => `CONVERT_TIMEZONE('${tz}', 'UTC', ${sql})`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     [SupportedDbtAdapter.POSTGRES]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     [SupportedDbtAdapter.REDSHIFT]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     [SupportedDbtAdapter.DUCKDB]: {
         toProjectTz: (sql, tz) => `(${sql})::timestamptz AT TIME ZONE '${tz}'`,
         toUTC: (sql, tz) => `(${sql}) AT TIME ZONE '${tz}'`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     [SupportedDbtAdapter.DATABRICKS]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
         toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     [SupportedDbtAdapter.SPARK]: {
         toProjectTz: (sql, tz) =>
             `from_utc_timestamp(to_utc_timestamp(${sql}, current_timezone()), '${tz}')`,
         toUTC: (sql, tz) => `to_utc_timestamp(${sql}, '${tz}')`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     // Trino returns `timestamp with time zone` values as strings like
     // "2024-01-14 00:00:00.000 America/New_York", which dayjs/moment can't
@@ -138,18 +150,21 @@ export const dateTruncTimezoneConversions: Record<
             `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
         toUTC: (sql, tz) =>
             `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     [SupportedDbtAdapter.ATHENA]: {
         toProjectTz: (sql, tz) =>
             `CAST(${sql} AT TIME ZONE '${tz}' AS timestamp)`,
         toUTC: (sql, tz) =>
             `CAST(with_timezone(${sql}, '${tz}') AT TIME ZONE 'UTC' AS timestamp)`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
     // Relabel to UTC so the wire value is the real instant. toDateTime lifts
     // Date truncs (month/year/etc.) into DateTime; no-op for DateTime inputs.
     [SupportedDbtAdapter.CLICKHOUSE]: {
         toProjectTz: (sql, tz) => `toTimeZone(${sql}, '${tz}')`,
         toUTC: (sql, tz) => `toTimeZone(toDateTime(${sql}, '${tz}'), 'UTC')`,
+        castAsDate: (sql) => `CAST(${sql} AS DATE)`,
     },
 };
 
@@ -735,7 +750,8 @@ export const getSqlForTruncatedDate = (
         return castToDate ? `CAST(${bare} AS DATE)` : bare;
     }
 
-    const { toProjectTz, toUTC } = dateTruncTimezoneConversions[adapterType];
+    const { toProjectTz, toUTC, castAsDate } =
+        dateTruncTimezoneConversions[adapterType];
     const input = toProjectTz(originalSql, wrap.timezone, wrap.sourceTimezone);
     const truncated = warehouseConfigs[adapterType].getSqlForTruncatedDate(
         timeFrame,
@@ -745,16 +761,12 @@ export const getSqlForTruncatedDate = (
         wrap.timezone,
     );
     // Day-or-coarser grains return a real DATE (drop the toUTC round-trip).
-    // Most adapters truncate to a wall-clock value, so CAST(... AS DATE) yields
-    // the right calendar date. BigQuery's TIMESTAMP_TRUNC returns the tz-midnight
-    // UTC instant, so CAST(... AS DATE) would read its UTC date — off by one in
-    // positive offsets; DATE(expr, tz) reads the calendar date in the project tz.
+    // The per-adapter cast lives on the Record — most use CAST(... AS DATE);
+    // BigQuery needs DATE(expr, tz). See `castAsDate` in dateTruncTimezoneConversions.
     if (!castToDate) {
         return toUTC(truncated, wrap.timezone);
     }
-    return adapterType === SupportedDbtAdapter.BIGQUERY
-        ? `DATE(${truncated}, '${wrap.timezone}')`
-        : `CAST(${truncated} AS DATE)`;
+    return castAsDate(truncated, wrap.timezone);
 };
 
 // DATE base dimensions short-circuit: no time component to shift.
