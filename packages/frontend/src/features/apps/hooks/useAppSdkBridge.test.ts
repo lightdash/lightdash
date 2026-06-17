@@ -515,4 +515,40 @@ describe('external-fetch branch', () => {
             ).toBeDefined(),
         );
     });
+
+    it('rejects external-fetch messages from a spoofed sender (wrong source AND wrong origin)', async () => {
+        // Security invariant: the bridge guard checks BOTH event.source
+        // (must match iframeRef.current.contentWindow) AND event.origin
+        // (must match expectedPreviewOrigin or "null"). A message arriving
+        // from a foreign window with a foreign origin — even with a
+        // well-formed payload — must never trigger a fetch or post a
+        // response.
+        renderBridge(() => undefined);
+        const { responses } = captureResponses();
+
+        // Dispatch with source=null (not the iframe contentWindow) and a
+        // foreign origin (not window.location.origin, not "null").
+        const spoofedEvent = new MessageEvent('message', {
+            data: {
+                type: 'lightdash:sdk:external-fetch',
+                id: POST_ID,
+                alias: 'stripe',
+                method: 'POST',
+                path: '/v1/charges',
+                body: { amount: 500 },
+            },
+            origin: 'https://evil.example.com',
+            source: null,
+        });
+        window.dispatchEvent(spoofedEvent);
+
+        // Give the (async) handler a chance to run — if it ran, it would
+        // call fetch() and/or postMessage() before we reach this point.
+        await vi.waitFor(() => expect(fetch).not.toHaveBeenCalled());
+        expect(
+            responses.find(
+                (r) => r['type'] === 'lightdash:sdk:external-fetch-response',
+            ),
+        ).toBeUndefined();
+    });
 });
