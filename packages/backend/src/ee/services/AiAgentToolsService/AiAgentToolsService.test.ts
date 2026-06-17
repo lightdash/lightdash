@@ -2,8 +2,11 @@ import {
     Account,
     CatalogType,
     Explore,
+    ForbiddenError,
+    JobStatusType,
     NotFoundError,
     QueryExecutionContext,
+    RequestMethod,
     SessionUser,
 } from '@lightdash/common';
 import { CatalogSearchContext } from '../../../models/CatalogModel/CatalogModel';
@@ -77,6 +80,8 @@ const makeService = ({
     asyncQueryService = {},
     coderService = {},
     aiAgentContentValidation = {},
+    scheduleCompileProject = jest.fn().mockResolvedValue({ jobUuid: 'job-1' }),
+    jobModel = { get: jest.fn() },
 }: {
     explores?: Record<string, Explore>;
     userAttributes?: Record<string, string[]>;
@@ -90,6 +95,8 @@ const makeService = ({
     asyncQueryService?: Record<string, unknown>;
     coderService?: Record<string, unknown>;
     aiAgentContentValidation?: Record<string, unknown>;
+    scheduleCompileProject?: jest.Mock;
+    jobModel?: Record<string, unknown>;
 } = {}) =>
     new AiAgentToolsService({
         builtInSkills: {
@@ -126,7 +133,9 @@ const makeService = ({
         projectService: {
             searchFieldUniqueValues,
             getSpaces: jest.fn().mockResolvedValue(projectSpaces),
+            scheduleCompileProject,
         },
+        jobModel,
         userAttributesModel: {
             getAttributeValuesForOrgMember: jest
                 .fn()
@@ -675,5 +684,181 @@ describe('AiAgentToolsService', () => {
                 ],
             }),
         ).resolves.toBeDefined();
+    });
+
+    describe('syncDbtProject', () => {
+        afterEach(() => {
+            jest.restoreAllMocks();
+        });
+
+        it('returns success when the compile job reaches DONE without polling', async () => {
+            const scheduleCompileProject = jest
+                .fn()
+                .mockResolvedValue({ jobUuid: 'job-done' });
+            const get = jest.fn().mockResolvedValue({
+                jobStatus: JobStatusType.DONE,
+                steps: [],
+            });
+            const service = makeService({
+                scheduleCompileProject,
+                jobModel: { get },
+            });
+
+            const result = await service
+                .createRuntime(makeRuntimeContext())
+                .syncDbtProject({ reason: 'picking up net_revenue' });
+
+            expect(scheduleCompileProject).toHaveBeenCalledWith(
+                user,
+                projectUuid,
+                RequestMethod.BACKEND,
+            );
+            expect(get).toHaveBeenCalledTimes(1);
+            expect(result).toEqual({
+                status: 'success',
+                jobUuid: 'job-done',
+                message:
+                    'The dbt project compiled successfully and is now up to date.',
+            });
+        });
+
+        it('returns error with joined step errors when the compile fails', async () => {
+            const get = jest.fn().mockResolvedValue({
+                jobStatus: JobStatusType.ERROR,
+                steps: [
+                    { stepError: 'dbt compile failed: model x' },
+                    { stepError: null },
+                    { stepError: 'ref not found' },
+                ],
+            });
+            const service = makeService({
+                scheduleCompileProject: jest
+                    .fn()
+                    .mockResolvedValue({ jobUuid: 'job-err' }),
+                jobModel: { get },
+            });
+
+            const result = await service
+                .createRuntime(makeRuntimeContext())
+                .syncDbtProject({ reason: null });
+
+            expect(result).toEqual({
+                status: 'error',
+                jobUuid: 'job-err',
+                message:
+                    'The dbt project sync failed: dbt compile failed: model x; ref not found',
+            });
+        });
+
+        it('falls back to a generic error message when there are no step errors', async () => {
+            const get = jest.fn().mockResolvedValue({
+                jobStatus: JobStatusType.ERROR,
+                steps: [],
+            });
+            const service = makeService({
+                scheduleCompileProject: jest
+                    .fn()
+                    .mockResolvedValue({ jobUuid: 'job-err2' }),
+                jobModel: { get },
+            });
+
+            const result = await service
+                .createRuntime(makeRuntimeContext())
+                .syncDbtProject({ reason: null });
+
+            expect(result).toEqual({
+                status: 'error',
+                jobUuid: 'job-err2',
+                message: 'The dbt project sync failed during compilation.',
+            });
+        });
+
+        it('polls while the job is RUNNING and returns success once it is DONE', async () => {
+            jest.useFakeTimers();
+            try {
+                const get = jest
+                    .fn()
+                    .mockResolvedValueOnce({
+                        jobStatus: JobStatusType.RUNNING,
+                        steps: [],
+                    })
+                    .mockResolvedValueOnce({
+                        jobStatus: JobStatusType.RUNNING,
+                        steps: [],
+                    })
+                    .mockResolvedValue({
+                        jobStatus: JobStatusType.DONE,
+                        steps: [],
+                    });
+                const service = makeService({
+                    scheduleCompileProject: jest
+                        .fn()
+                        .mockResolvedValue({ jobUuid: 'job-poll' }),
+                    jobModel: { get },
+                });
+
+                const promise = service
+                    .createRuntime(makeRuntimeContext())
+                    .syncDbtProject({ reason: null });
+                await jest.advanceTimersByTimeAsync(6_000);
+                const result = await promise;
+
+                expect(get.mock.calls.length).toBeGreaterThan(1);
+                expect(result.status).toBe('success');
+                expect(result.jobUuid).toBe('job-poll');
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('returns in_progress when the job is still running at the deadline', async () => {
+            jest.useFakeTimers();
+            try {
+                const get = jest.fn().mockResolvedValue({
+                    jobStatus: JobStatusType.RUNNING,
+                    steps: [],
+                });
+                const service = makeService({
+                    scheduleCompileProject: jest
+                        .fn()
+                        .mockResolvedValue({ jobUuid: 'job-running' }),
+                    jobModel: { get },
+                });
+
+                const promise = service
+                    .createRuntime(makeRuntimeContext())
+                    .syncDbtProject({ reason: null });
+                // Advance past the 90s deadline; the loop polls every 2s but
+                // never sees a terminal status, so it must time out.
+                await jest.advanceTimersByTimeAsync(90_000);
+                const result = await promise;
+
+                expect(result).toEqual({
+                    status: 'in_progress',
+                    jobUuid: 'job-running',
+                    message:
+                        'The dbt project is still syncing — the compile has not finished yet.',
+                });
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
+        it('propagates a ForbiddenError from scheduleCompileProject without polling', async () => {
+            const get = jest.fn();
+            const service = makeService({
+                scheduleCompileProject: jest
+                    .fn()
+                    .mockRejectedValue(new ForbiddenError()),
+                jobModel: { get },
+            });
+
+            await expect(
+                service
+                    .createRuntime(makeRuntimeContext())
+                    .syncDbtProject({ reason: null }),
+            ).rejects.toBeInstanceOf(ForbiddenError);
+            expect(get).not.toHaveBeenCalled();
+        });
     });
 });

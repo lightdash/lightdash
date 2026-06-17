@@ -6631,6 +6631,7 @@ exports[`AI agent tool contracts matches the shared agent tool definition names 
   "loadProjectContext",
   "proposeChange",
   "editDbtProject",
+  "syncDbtProject",
   "exploreRepo",
   "discoverRepos",
   "setupPreviewDeploy",
