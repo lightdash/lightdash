@@ -22,7 +22,7 @@ Output:
 - A structured impact report with counts plus the named charts, dashboards, dependent metrics and scheduled deliveries.
 
 Important:
-This tool reports field REFERENCES. It cannot detect silent value-drift — a field whose id stays the same but whose underlying SQL/aggregation changes (so numbers move without breaking anything). Call that out separately when relevant.
+This tool reports field REFERENCES, not field VALUES. It cannot detect silent value-drift — a field whose id stays the same but whose underlying SQL/aggregation changes (so numbers move without breaking anything), nor whether a value-affecting change preserves the numbers it claims to (merging onto another field, splitting a metric into parts, replacing or refactoring a definition). A "safe" reference result does NOT prove a change is value-correct. When a change rests on a value claim — fields are equivalent, a split reconstructs the original, a refactor leaves results unchanged — prove it separately before calling the change safe: by construction (the same aggregation/column/model, a uniqueness guarantee such as a row_number() = 1 dedup or a primary key, or a true partition) or by data (run the relevant fields at a total grain and across a time dimension and confirm the expected relationship). Surface any divergence instead of asserting safety.
 `;
 
 export const toolAnalyzeFieldImpactArgsSchema = createToolSchema()

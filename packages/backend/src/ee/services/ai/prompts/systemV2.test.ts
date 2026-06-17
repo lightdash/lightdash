@@ -114,3 +114,59 @@ describe('getSystemPromptV2 writeback attribution', () => {
         expect(content).not.toContain('/generalSettings/profile');
     });
 });
+
+describe('getSystemPromptV2 change-validation policy', () => {
+    const writebackArgs = {
+        availableExplores: [],
+        enableAiWriteback: true,
+        writebackAttribution: null,
+        siteUrl: 'https://app.lightdash.cloud',
+    };
+
+    test('requires validating a value-affecting change before calling it safe', () => {
+        const content = promptText(writebackArgs);
+        expect(content).toContain(
+            'Validate that a value-affecting change is correct before calling it safe',
+        );
+    });
+
+    test('frames the policy beyond consolidation (split / replace / refactor)', () => {
+        const content = promptText(writebackArgs);
+        // the trigger is any value claim, not just merging duplicates
+        expect(content).toContain('splitting');
+        expect(content).toContain('refactoring');
+    });
+
+    test('spells out both halves of "safe": reference impact AND value correctness', () => {
+        const content = promptText(writebackArgs);
+        expect(content).toContain('Reference impact');
+        expect(content).toContain('Value correctness');
+        // both proof methods the policy offers
+        expect(content).toContain('By construction');
+        expect(content).toContain('By data');
+    });
+
+    test('names the real tools the agent uses to prove value correctness', () => {
+        const content = promptText(writebackArgs);
+        expect(content).toContain('runQuery');
+        expect(content).toContain('generateVisualization');
+        expect(content).toContain('total grain');
+        expect(content).toContain('time dimension');
+    });
+
+    test('requires surfacing divergence rather than asserting safety', () => {
+        const content = promptText(writebackArgs);
+        expect(content).toContain('diverge');
+        expect(content).toContain('do **not** call it safe');
+    });
+
+    test('omits the change-validation policy when writeback is disabled', () => {
+        const content = promptText({
+            ...writebackArgs,
+            enableAiWriteback: false,
+        });
+        expect(content).not.toContain(
+            'Validate that a value-affecting change is correct before calling it safe',
+        );
+    });
+});
