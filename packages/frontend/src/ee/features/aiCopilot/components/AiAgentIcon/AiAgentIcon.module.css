@@ -1,0 +1,161 @@
+.root {
+    --ai-agent-icon-size: 16px;
+    --ai-agent-icon-shadow: color-mix(in oklch, #5e4cff 26%, transparent);
+
+    position: relative;
+    display: inline-block;
+    width: var(--ai-agent-icon-size);
+    height: var(--ai-agent-icon-size);
+    flex-shrink: 0;
+    overflow: hidden;
+    border-radius: 50%;
+    isolation: isolate;
+    background:
+        radial-gradient(
+            120% 120% at 28% 24%,
+            rgba(255, 255, 255, 0.6) 0%,
+            transparent 40%
+        ),
+        radial-gradient(115% 130% at 82% 24%, #c9b6ff 0%, transparent 52%),
+        radial-gradient(130% 120% at 84% 84%, #5e4cff 0%, transparent 56%),
+        radial-gradient(120% 130% at 16% 82%, #9836ff 0%, transparent 56%),
+        conic-gradient(
+            from 210deg at 50% 50%,
+            #7a4cff,
+            #b18cff,
+            #5e4cff,
+            #9836ff,
+            #7a4cff
+        );
+    background-size: 180% 180%;
+    background-position: 50% 50%;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.5),
+        inset 0 -4px 9px rgba(94, 76, 255, 0.18),
+        0 1px 2px rgba(94, 76, 255, 0.16),
+        0 0 0 1px var(--ai-agent-icon-shadow);
+    transform: translateZ(0);
+    transition:
+        background-position 500ms ease,
+        box-shadow 220ms ease,
+        filter 240ms ease;
+}
+
+.muted {
+    filter: grayscale(1) brightness(0.98);
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.4),
+        0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.root::before,
+.root::after {
+    position: absolute;
+    inset: -40%;
+    content: '';
+    opacity: 0;
+    pointer-events: none;
+    transition:
+        opacity 320ms ease,
+        transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.root::before {
+    background:
+        radial-gradient(46% 56% at 30% 28%, #ffffff 0%, transparent 60%),
+        radial-gradient(48% 60% at 66% 34%, #b18cff 0%, transparent 64%),
+        radial-gradient(46% 58% at 60% 70%, #9836ff 0%, transparent 64%),
+        radial-gradient(44% 56% at 24% 66%, #5e4cff 0%, transparent 62%);
+    filter: blur(6px);
+    mix-blend-mode: screen;
+}
+
+.root::after {
+    background: conic-gradient(
+        from 90deg,
+        transparent,
+        rgba(255, 255, 255, 0.7),
+        rgba(201, 182, 255, 0.5),
+        transparent,
+        rgba(152, 54, 255, 0.62),
+        rgba(94, 76, 255, 0.6),
+        transparent
+    );
+    filter: blur(8px);
+    mix-blend-mode: soft-light;
+}
+
+.root:hover,
+:global(button:hover) .root,
+:global(a:hover) .root,
+:global(.mantine-Group-root:hover) .root,
+:global([role='menuitem']:hover) .root,
+:global([data-combobox-selected='true']) .root {
+    filter: none;
+    box-shadow:
+        inset 0 0 0 1px rgba(255, 255, 255, 0.66),
+        inset 0 -4px 10px rgba(94, 76, 255, 0.24),
+        0 2px 6px rgba(152, 54, 255, 0.22),
+        0 0 0 1px color-mix(in oklch, #9836ff 36%, transparent);
+    animation: ai-agent-icon-morph 6s ease infinite;
+}
+
+.root:hover::before,
+.root:hover::after,
+:global(button:hover) .root::before,
+:global(button:hover) .root::after,
+:global(a:hover) .root::before,
+:global(a:hover) .root::after,
+:global(.mantine-Group-root:hover) .root::before,
+:global(.mantine-Group-root:hover) .root::after,
+:global([role='menuitem']:hover) .root::before,
+:global([role='menuitem']:hover) .root::after,
+:global([data-combobox-selected='true']) .root::before,
+:global([data-combobox-selected='true']) .root::after {
+    opacity: 1;
+    animation: ai-agent-icon-drift 2.4s cubic-bezier(0.45, 0, 0.55, 1) 280ms
+        infinite alternate;
+}
+
+.root:hover::after,
+:global(button:hover) .root::after,
+:global(a:hover) .root::after,
+:global(.mantine-Group-root:hover) .root::after,
+:global([role='menuitem']:hover) .root::after,
+:global([data-combobox-selected='true']) .root::after {
+    animation-duration: 2.6s;
+    animation-direction: alternate-reverse;
+}
+
+@keyframes ai-agent-icon-morph {
+    0% {
+        background-position: 43% 0%;
+    }
+
+    50% {
+        background-position: 58% 100%;
+    }
+
+    100% {
+        background-position: 43% 0%;
+    }
+}
+
+@keyframes ai-agent-icon-drift {
+    from {
+        transform: translate3d(-2%, -1%, 0) rotate(-3deg) scale(1);
+    }
+
+    to {
+        transform: translate3d(5%, 4%, 0) rotate(12deg) scale(1.05);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .root,
+    .root::before,
+    .root::after {
+        animation: none !important;
+        transition: opacity 120ms ease;
+    }
+}

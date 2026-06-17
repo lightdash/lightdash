@@ -12,6 +12,8 @@ export type SettingsNavigationItem = {
     label: string;
     to: string;
     icon: TablerIcon;
+    /** Render the gradient AI orb instead of `icon` in the sidebar. */
+    aiAgentIcon?: boolean;
     /** Hidden search aliases so e.g. "sso" finds "Single Sign-On". */
     keywords: string[];
     children: SettingsNavigationItem[];

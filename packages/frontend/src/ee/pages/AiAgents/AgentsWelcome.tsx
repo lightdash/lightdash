@@ -16,7 +16,6 @@ import {
     IconClipboardData,
     IconMessageChatbot,
     IconPlus,
-    IconRobot,
 } from '@tabler/icons-react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router';
 import MantineIcon from '../../../components/common/MantineIcon';
@@ -24,6 +23,7 @@ import {
     AI_ROUTING_AUTO_VALUE,
     AI_ROUTING_SEARCH_PARAM,
 } from '../../features/aiCopilot/components/AgentSelector/AgentSelectorUtils';
+import { AiAgentIcon } from '../../features/aiCopilot/components/AiAgentIcon';
 import { AiAgentPageLayout } from '../../features/aiCopilot/components/AiAgentPageLayout/AiAgentPageLayout';
 import { useAiAgentPermission } from '../../features/aiCopilot/hooks/useAiAgentPermission';
 import { useAiOrganizationSettings } from '../../features/aiCopilot/hooks/useAiOrganizationSettings';
@@ -169,9 +169,7 @@ const AgentsWelcome = () => {
             <Center mt="xl">
                 <Stack gap={32}>
                     <Stack align="center" gap="xxs">
-                        <Avatar size="lg" color="gray">
-                            <MantineIcon icon={IconRobot} size="xxl" />
-                        </Avatar>
+                        <AiAgentIcon size={48} />
                         <Title order={2}>Welcome to AI Agents</Title>
                         <Text c="dimmed" size="sm">
                             Your AI-powered BI assistants

@@ -22,7 +22,6 @@ import {
 import {
     IconFileText,
     IconFolderOpen,
-    IconSparkles,
     IconTrash,
     IconUpload,
 } from '@tabler/icons-react';
@@ -38,6 +37,7 @@ import {
     useDeleteAiAgentDocument,
 } from '../hooks/useAiAgentDocuments';
 import { AiAgentDocumentRelevanceCard } from './AiAgentDocumentRelevanceCard';
+import { AiAgentIcon } from './AiAgentIcon';
 import styles from './AiAgentKnowledgeFilesSection.module.css';
 
 const ACCEPT_ATTR =
@@ -470,11 +470,7 @@ export const AiAgentKnowledgeFilesSection = ({
                                     </Group>
 
                                     <Group gap={6}>
-                                        <MantineIcon
-                                            icon={IconSparkles}
-                                            size="sm"
-                                            color="gray"
-                                        />
+                                        <AiAgentIcon size={14} />
                                         <Text
                                             size="xs"
                                             c="dimmed"

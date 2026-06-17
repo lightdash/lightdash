@@ -426,6 +426,7 @@ export const useSettingsNavigation = (
                 label: 'Ask AI',
                 to: '/generalSettings/ai',
                 icon: IconBrain,
+                aiAgentIcon: true,
                 keywords: ['copilot', 'agents', 'ai'],
                 children: aiChildren,
             });

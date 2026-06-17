@@ -16,7 +16,6 @@ import {
     IconHome,
     IconLayoutDashboard,
     IconLogout,
-    IconRobot,
 } from '@tabler/icons-react';
 import { useCallback, useMemo, useState, type FC } from 'react';
 import {
@@ -35,6 +34,7 @@ import ProjectSwitcher from './components/NavBar/ProjectSwitcher';
 import { ThemeSwitcher } from './components/NavBar/ThemeSwitcher';
 import PrivateRoute from './components/PrivateRoute';
 import ProjectRoute from './components/ProjectRoute';
+import { AiAgentIcon } from './ee/features/aiCopilot/components/AiAgentIcon';
 import { useAiAgentButtonVisibility } from './ee/features/aiCopilot/hooks/useAiAgentsButtonVisibility';
 import { useActiveProjectUuid } from './hooks/useActiveProject';
 import useLogoutMutation from './hooks/user/useUserLogoutMutation';
@@ -172,7 +172,7 @@ export const MobileNavBar: FC = () => {
                         exact
                         label="Ask AI"
                         to={`/projects/${activeProjectUuid}/ai-agents`}
-                        leftSection={<MantineIcon icon={IconRobot} />}
+                        leftSection={<AiAgentIcon size={16} />}
                         onClick={toggleMenu}
                     />
                 )}
