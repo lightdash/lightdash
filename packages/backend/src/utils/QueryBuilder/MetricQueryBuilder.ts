@@ -2434,6 +2434,11 @@ export class MetricQueryBuilder {
                             timezone: this.timezoneForDateTrunc,
                             columnTimezone: this.columnTimezone,
                         });
+                        const popFieldSql = this.getTimezoneAwareDimensionSql(
+                            popField,
+                            adapterType,
+                            startOfWeek,
+                        );
                         const popDimensionFilters =
                             this.getPopDimensionsFilterSQL(popFieldId);
                         const popKeysCteParts = [
@@ -2454,7 +2459,7 @@ export class MetricQueryBuilder {
                                 popDimensionFilters,
                                 `WHERE ${getIntervalSyntax(
                                     adapterType,
-                                    popField.compiledSql,
+                                    popFieldSql,
                                     `${popMinMaxCteName}.min_date`,
                                     '>=',
                                     cfg.periodOffset,
@@ -2462,7 +2467,7 @@ export class MetricQueryBuilder {
                                     false,
                                 )} AND ${getIntervalSyntax(
                                     adapterType,
-                                    popField.compiledSql,
+                                    popFieldSql,
                                     `${popMinMaxCteName}.max_date`,
                                     '<=',
                                     cfg.periodOffset,
@@ -2651,6 +2656,11 @@ export class MetricQueryBuilder {
                         timezone: this.timezoneForDateTrunc,
                         columnTimezone: this.columnTimezone,
                     });
+                    const popFieldSql = this.getTimezoneAwareDimensionSql(
+                        popField,
+                        adapterType,
+                        startOfWeek,
+                    );
                     const popDimensionFilters =
                         this.getPopDimensionsFilterSQL(popFieldId);
 
@@ -2683,7 +2693,7 @@ export class MetricQueryBuilder {
                             popDimensionFilters,
                             `WHERE ${getIntervalSyntax(
                                 adapterType,
-                                popField.compiledSql,
+                                popFieldSql,
                                 `${popUnaffectedMinMaxCteName}.min_date`,
                                 '>=',
                                 cfg.periodOffset,
@@ -2691,7 +2701,7 @@ export class MetricQueryBuilder {
                                 false,
                             )} AND ${getIntervalSyntax(
                                 adapterType,
-                                popField.compiledSql,
+                                popFieldSql,
                                 `${popUnaffectedMinMaxCteName}.max_date`,
                                 '<=',
                                 cfg.periodOffset,
@@ -4250,6 +4260,11 @@ export class MetricQueryBuilder {
                     timezone: this.timezoneForDateTrunc,
                     columnTimezone: this.columnTimezone,
                 });
+                const popFieldSql = this.getTimezoneAwareDimensionSql(
+                    popField,
+                    adapterType,
+                    startOfWeek,
+                );
                 const popDimensionFilters =
                     this.getPopDimensionsFilterSQL(popFieldId);
 
@@ -4271,7 +4286,7 @@ export class MetricQueryBuilder {
                         popDimensionFilters,
                         `WHERE ${getIntervalSyntax(
                             adapterType,
-                            popField.compiledSql,
+                            popFieldSql,
                             `${popMinMaxCteName}.min_date`,
                             '>=',
                             cfg.periodOffset,
@@ -4279,7 +4294,7 @@ export class MetricQueryBuilder {
                             false,
                         )} AND ${getIntervalSyntax(
                             adapterType,
-                            popField.compiledSql,
+                            popFieldSql,
                             `${popMinMaxCteName}.max_date`,
                             '<=',
                             cfg.periodOffset,
