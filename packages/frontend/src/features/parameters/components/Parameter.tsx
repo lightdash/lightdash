@@ -34,6 +34,7 @@ type Props = {
     isRequired?: boolean;
     isEditMode?: boolean;
     isDraggable?: boolean;
+    dropdownClassName?: string;
 };
 
 const Parameter: FC<Props> = ({
@@ -48,6 +49,7 @@ const Parameter: FC<Props> = ({
     projectUuid,
     isRequired = false,
     isDraggable = false,
+    dropdownClassName,
 }) => {
     const popoverId = useId();
     const isPopoverOpen = openPopoverId === popoverId;
@@ -119,6 +121,7 @@ const Parameter: FC<Props> = ({
             offset={1}
             arrowOffset={14}
             withinPortal
+            classNames={{ dropdown: dropdownClassName }}
         >
             <Popover.Target>
                 <Tooltip

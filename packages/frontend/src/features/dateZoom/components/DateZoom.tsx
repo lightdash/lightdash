@@ -114,9 +114,10 @@ const ViewModeGranularityItem: FC<ViewModeGranularityItemProps> = ({
 
 type Props = {
     isEditMode: boolean;
+    dropdownClassName?: string;
 };
 
-export const DateZoom: FC<Props> = ({ isEditMode }) => {
+export const DateZoom: FC<Props> = ({ isEditMode, dropdownClassName }) => {
     const [showOpenIcon, setShowOpenIcon] = useState(false);
 
     const dateZoomGranularity = useDashboardContext(
@@ -257,6 +258,7 @@ export const DateZoom: FC<Props> = ({ isEditMode }) => {
                 closeOnClickOutside
                 offset={-1}
                 position="bottom-end"
+                classNames={{ dropdown: dropdownClassName }}
                 onOpen={() => setShowOpenIcon(true)}
                 onClose={() => setShowOpenIcon(false)}
             >

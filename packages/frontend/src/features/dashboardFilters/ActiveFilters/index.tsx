@@ -28,6 +28,7 @@ interface ActiveFiltersProps {
     openPopoverId: string | undefined;
     onPopoverOpen: (popoverId: string) => void;
     onPopoverClose: () => void;
+    dropdownClassName?: string;
 }
 
 const DraggableItem: FC<{
@@ -93,6 +94,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
     openPopoverId,
     onPopoverOpen,
     onPopoverClose,
+    dropdownClassName,
 }) => {
     const dashboardTiles = useDashboardContext((c) => c.dashboardTiles);
     const dashboardFilters = useDashboardContext((c) => c.dashboardFilters);
@@ -288,6 +290,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                         )}
                                         field={field}
                                         filterRule={item}
+                                        dropdownClassName={dropdownClassName}
                                         openPopoverId={openPopoverId}
                                         onPopoverOpen={onPopoverOpen}
                                         onPopoverClose={onPopoverClose}
@@ -347,6 +350,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                                     {...getOrphanedState(item, appliesToTabs)}
                                     field={metricField}
                                     filterRule={item}
+                                    dropdownClassName={dropdownClassName}
                                     openPopoverId={openPopoverId}
                                     onPopoverOpen={onPopoverOpen}
                                     onPopoverClose={onPopoverClose}
@@ -394,6 +398,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         {...getOrphanedState(item, appliesToTabs)}
                         field={metricField}
                         filterRule={item}
+                        dropdownClassName={dropdownClassName}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}
@@ -443,6 +448,7 @@ const ActiveFilters: FC<ActiveFiltersProps> = ({
                         isEditMode={isEditMode}
                         field={field}
                         filterRule={item}
+                        dropdownClassName={dropdownClassName}
                         openPopoverId={openPopoverId}
                         onPopoverOpen={onPopoverOpen}
                         onPopoverClose={onPopoverClose}
