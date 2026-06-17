@@ -5489,6 +5489,108 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
         } satisfies UserModelMessage;
     }
 
+    // A turn suspended mid SQL-approval has a tool call with a decision but no
+    // result yet. Its partial `response` text must not be replayed (it would
+    // leave the runSql tool_use without a following tool_result on resume).
+    static hasUnresolvedSqlApproval(
+        toolCallsAndResults: Awaited<
+            ReturnType<
+                typeof AiAgentModel.prototype.getToolCallsAndResultsForPrompt
+            >
+        >,
+    ): boolean {
+        return toolCallsAndResults.some(
+            ({ toolResult, approvalDecision }) =>
+                approvalDecision !== null && toolResult === null,
+        );
+    }
+
+    // Rebuilds the assistant/tool turns for a prompt's tool calls. SQL-approval
+    // calls replay a tool-approval-request (assistant) + tool-approval-response
+    // (tool) so the SDK resumes — executing runSql on approve, skipping on
+    // reject — and the real tool-result is appended once it exists.
+    static buildToolCallTurnMessages(
+        toolCallsAndResults: Awaited<
+            ReturnType<
+                typeof AiAgentModel.prototype.getToolCallsAndResultsForPrompt
+            >
+        >,
+    ): ModelMessage[] {
+        return toolCallsAndResults.flatMap(
+            ({ toolCall, toolResult, approvalDecision }) => {
+                const assistantContent: AssistantModelMessage['content'] = [
+                    {
+                        type: 'tool-call' as const,
+                        toolCallId: toolCall.toolCallId,
+                        toolName: toolCall.toolName,
+                        input: toolCall.toolArgs,
+                    },
+                    ...(approvalDecision
+                        ? [
+                              {
+                                  type: 'tool-approval-request' as const,
+                                  approvalId: sqlApprovalId(
+                                      toolCall.toolCallId,
+                                  ),
+                                  toolCallId: toolCall.toolCallId,
+                              },
+                          ]
+                        : []),
+                ];
+
+                const toolTurnMessages: ModelMessage[] = [
+                    {
+                        role: 'assistant',
+                        content: assistantContent,
+                    } satisfies AssistantModelMessage,
+                ];
+
+                if (approvalDecision) {
+                    toolTurnMessages.push({
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-approval-response' as const,
+                                approvalId: sqlApprovalId(toolCall.toolCallId),
+                                approved: approvalDecision === 'approved',
+                            },
+                        ],
+                    } satisfies ToolModelMessage);
+                }
+
+                if (toolResult) {
+                    toolTurnMessages.push({
+                        role: 'tool',
+                        content: [
+                            {
+                                type: 'tool-result',
+                                toolCallId: toolResult.toolCallId,
+                                toolName: toolResult.toolName,
+                                output:
+                                    isToolProposeChangeSuccessResult(
+                                        toolResult,
+                                    ) &&
+                                    toolResult.metadata.userFeedback ===
+                                        'rejected'
+                                        ? {
+                                              type: 'json',
+                                              value: `${toolResult.result}\nUser rejected proposed change.`,
+                                          }
+                                        : {
+                                              type: 'json',
+                                              // TODO :: based on tool, if there's a need for it we can use the metadata here
+                                              value: toolResult.result,
+                                          },
+                            },
+                        ],
+                    } satisfies ToolModelMessage);
+                }
+
+                return toolTurnMessages;
+            },
+        );
+    }
+
     async getChatHistoryFromThreadMessages(
         // TODO: move getThreadMessages to AiAgentModel and improve types
         // also, it should be called through a service method...
@@ -5555,97 +5657,20 @@ Use your existing tools to inspect them when relevant to the user's question. Wh
                     await this.aiAgentModel.getToolCallsAndResultsForPrompt(
                         message.ai_prompt_uuid,
                     );
-                const toolCallmessages = toolCallsAndResults.flatMap(
-                    ({ toolCall, toolResult, approvalDecision }) => {
-                        // Native SQL-approval: replay the request on the
-                        // assistant turn and the response on a tool turn so the
-                        // SDK can resume (execute on approve, skip on reject).
-                        const assistantContent: AssistantModelMessage['content'] =
-                            [
-                                {
-                                    type: 'tool-call' as const,
-                                    toolCallId: toolCall.toolCallId,
-                                    toolName: toolCall.toolName,
-                                    input: toolCall.toolArgs,
-                                },
-                                ...(approvalDecision
-                                    ? [
-                                          {
-                                              type: 'tool-approval-request' as const,
-                                              approvalId: sqlApprovalId(
-                                                  toolCall.toolCallId,
-                                              ),
-                                              toolCallId: toolCall.toolCallId,
-                                          },
-                                      ]
-                                    : []),
-                            ];
-
-                        const toolTurnMessages: ModelMessage[] = [
-                            {
-                                role: 'assistant',
-                                content: assistantContent,
-                            } satisfies AssistantModelMessage,
-                        ];
-
-                        if (approvalDecision) {
-                            toolTurnMessages.push({
-                                role: 'tool',
-                                content: [
-                                    {
-                                        type: 'tool-approval-response' as const,
-                                        approvalId: sqlApprovalId(
-                                            toolCall.toolCallId,
-                                        ),
-                                        approved:
-                                            approvalDecision === 'approved',
-                                    },
-                                ],
-                            } satisfies ToolModelMessage);
-                        }
-
-                        if (toolResult) {
-                            toolTurnMessages.push({
-                                role: 'tool',
-                                content: [
-                                    {
-                                        type: 'tool-result',
-                                        toolCallId: toolResult.toolCallId,
-                                        toolName: toolResult.toolName,
-                                        output:
-                                            isToolProposeChangeSuccessResult(
-                                                toolResult,
-                                            ) &&
-                                            toolResult.metadata.userFeedback ===
-                                                'rejected'
-                                                ? {
-                                                      type: 'json',
-                                                      value: `${toolResult.result}\nUser rejected proposed change.`,
-                                                  }
-                                                : {
-                                                      type: 'json',
-                                                      // TODO :: based on tool, if there's a need for it we can use the metadata here
-                                                      value: toolResult.result,
-                                                  },
-                                    },
-                                ],
-                            } satisfies ToolModelMessage);
-                        }
-
-                        return toolTurnMessages;
-                    },
+                messages.push(
+                    ...AiAgentService.buildToolCallTurnMessages(
+                        toolCallsAndResults,
+                    ),
                 );
-
-                messages.push(...toolCallmessages);
 
                 // A turn suspended mid SQL-approval has a partial `response`
                 // (text emitted before the runSql call). Replaying it would
                 // leave the runSql tool_use without a following tool_result, so
                 // skip it — the resumed run regenerates from the approval.
-                const hasUnresolvedApproval = toolCallsAndResults.some(
-                    ({ toolResult, approvalDecision }) =>
-                        approvalDecision !== null && toolResult === null,
-                );
+                const hasUnresolvedApproval =
+                    AiAgentService.hasUnresolvedSqlApproval(
+                        toolCallsAndResults,
+                    );
 
                 if (
                     message.response &&
