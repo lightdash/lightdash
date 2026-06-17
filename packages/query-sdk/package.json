@@ -29,6 +29,7 @@
         "lint": "eslint src/",
         "format": "oxfmt ./src --check",
         "fix-format": "oxfmt ./src",
+        "test": "jest --config jest.config.cjs",
         "release": "pnpm publish --no-git-checks --access public"
     },
     "peerDependencies": {

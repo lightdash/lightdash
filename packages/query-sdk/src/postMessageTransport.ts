@@ -61,6 +61,48 @@ export type SdkScreenshotAvailableMessage = {
 };
 
 // ---------------------------------------------------------------------------
+// Google Sheets export protocol
+// ---------------------------------------------------------------------------
+
+export type SdkGsheetExportColumnType =
+    | 'string'
+    | 'number'
+    | 'date'
+    | 'timestamp'
+    | 'boolean';
+
+export type SdkGsheetExportColumn = {
+    key: string;
+    label?: string;
+    type?: SdkGsheetExportColumnType;
+};
+
+export type SdkGsheetExportRow = Record<string, string | number | boolean | null>;
+
+/**
+ * Iframe → parent. The parent host (useAppSdkBridge) runs the Google OAuth
+ * popup if needed, POSTs to /api/v1/gdrive/upload-gsheet-from-rows, polls
+ * the resulting job, and posts back an SdkGsheetExportResponse.
+ *
+ * Capability-gated on the parent side: hosts that don't opt in respond with
+ * an error message.
+ */
+export type SdkGsheetExportRequest = {
+    type: 'lightdash:sdk:gsheet-export-request';
+    id: string;
+    title: string;
+    columns: SdkGsheetExportColumn[];
+    rows: SdkGsheetExportRow[];
+};
+
+export type SdkGsheetExportResponse = {
+    type: 'lightdash:sdk:gsheet-export-response';
+    id: string;
+    fileUrl?: string;
+    error?: string;
+};
+
+// ---------------------------------------------------------------------------
 // postMessage FetchAdapter
 // ---------------------------------------------------------------------------
 

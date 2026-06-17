@@ -1,6 +1,18 @@
 import { JWT_HEADER_NAME, type DashboardFilters } from '@lightdash/common';
 import { useCallback, useEffect, useRef, type RefObject } from 'react';
+import { lightdashApi } from '../../../api';
 import useEmbed from '../../../ee/providers/Embed/useEmbed';
+import {
+    getGdriveAccessToken,
+    triggerGdriveLogin,
+} from '../../../hooks/gdrive/useGdrive';
+import { useProjectUuid } from '../../../hooks/useProjectUuid';
+import useApp from '../../../providers/App/useApp';
+import {
+    handleGsheetExport,
+    type GsheetExportColumn,
+    type GsheetExportRow,
+} from './handleGsheetExport';
 
 // Same key the SDK persists `instanceUrl` under (sdk/index.tsx, api.ts).
 // Duplicated rather than imported to avoid threading a shared export through
@@ -161,6 +173,12 @@ export function useAppSdkBridge(
      * pressed. Set by `DashboardDataAppTile`; left undefined elsewhere.
      */
     invalidateCache?: boolean,
+    /**
+     * Feature capabilities the host page opts into. Currently gates the
+     * Google Sheets export flow — hosts that don't pass `gsheetExport: true`
+     * will receive an error response for those requests.
+     */
+    capabilities?: { gsheetExport?: boolean },
 ) {
     // Embed mode adapts the bridge's outgoing fetches in two ways:
     //   - Attaches the embed JWT header in lieu of session cookies
@@ -170,6 +188,8 @@ export function useAppSdkBridge(
     //     don't break on `client.auth.getUser()`. The SDK protocol is
     //     unchanged — the rewrite happens entirely on the parent side.
     const { embedToken, projectUuid: embedProjectUuid } = useEmbed();
+    const { health, user } = useApp();
+    const projectUuid = useProjectUuid();
 
     // Maps queryUuid → POST request id. The SDK transport assigns a fresh
     // request id to the POST (`/metric-query`) and again to each GET poll
@@ -213,6 +233,67 @@ export function useAppSdkBridge(
                 const label = typeof data.label === 'string' ? data.label : '';
                 if (label && onElementSelected) {
                     onElementSelected({ label });
+                }
+                return;
+            }
+
+            if (data?.type === 'lightdash:sdk:gsheet-export-request') {
+                const req = data as {
+                    id: string;
+                    title: string;
+                    columns: GsheetExportColumn[];
+                    rows: GsheetExportRow[];
+                };
+                const respondGsheet = (resp: {
+                    fileUrl?: string;
+                    error?: string;
+                }) =>
+                    iframeRef.current?.contentWindow?.postMessage(
+                        {
+                            type: 'lightdash:sdk:gsheet-export-response',
+                            id: req.id,
+                            ...resp,
+                        },
+                        '*',
+                    );
+                // Guard against iframe requests that arrive before health/user
+                // queries resolve — otherwise the non-null assertions below
+                // throw a TypeError that the app developer sees as a generic
+                // "Export failed" with no diagnostic.
+                if (!health.data || !user.data) {
+                    respondGsheet({
+                        error: 'Lightdash is still loading, try again shortly',
+                    });
+                    return;
+                }
+                try {
+                    const { fileUrl } = await handleGsheetExport(
+                        {
+                            title: req.title,
+                            columns: req.columns,
+                            rows: req.rows,
+                        },
+                        {
+                            capability: capabilities?.gsheetExport === true,
+                            health: health.data,
+                            ability: user.data.ability,
+                            projectUuid: projectUuid ?? '',
+                            organizationUuid: user.data.organizationUuid ?? '',
+                            getAccessToken: getGdriveAccessToken,
+                            triggerLogin: triggerGdriveLogin,
+                            lightdashApi: ({ url, method, body }) =>
+                                lightdashApi({
+                                    url,
+                                    method,
+                                    body: body ?? undefined,
+                                }),
+                        },
+                    );
+                    respondGsheet({ fileUrl });
+                } catch (e) {
+                    respondGsheet({
+                        error: e instanceof Error ? e.message : 'Export failed',
+                    });
                 }
                 return;
             }
@@ -489,6 +570,10 @@ export function useAppSdkBridge(
             invalidateCache,
             embedToken,
             embedProjectUuid,
+            capabilities,
+            health.data,
+            user.data,
+            projectUuid,
         ],
     );
 

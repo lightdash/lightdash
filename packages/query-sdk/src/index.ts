@@ -53,6 +53,11 @@ export type {
     SdkScreenshotAvailableMessage,
     SdkScreenshotRequest,
     SdkScreenshotResponse,
+    SdkGsheetExportRequest,
+    SdkGsheetExportResponse,
+    SdkGsheetExportColumn,
+    SdkGsheetExportColumnType,
+    SdkGsheetExportRow,
 } from './postMessageTransport';
 
 // Element inspector (click-to-edit) — protocol types for parent bridge.
@@ -60,3 +65,10 @@ export type {
     InspectAvailableMessage,
     InspectSelectedMessage,
 } from './inspector';
+
+// Google Sheets export (data apps)
+export { exportToSheets } from './exportToSheets';
+export type {
+    ExportToSheetsOptions,
+    ExportToSheetsResult,
+} from './exportToSheets';

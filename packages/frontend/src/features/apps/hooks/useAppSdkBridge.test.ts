@@ -18,6 +18,17 @@ vi.mock('../../../ee/providers/Embed/useEmbed', () => ({
     }),
 }));
 
+vi.mock('../../../providers/App/useApp', () => ({
+    default: () => ({
+        health: { data: undefined },
+        user: { data: undefined },
+    }),
+}));
+
+vi.mock('../../../hooks/useProjectUuid', () => ({
+    useProjectUuid: () => undefined,
+}));
+
 const PROJECT_UUID = 'project-uuid';
 const POST_PATH = `/api/v2/projects/${PROJECT_UUID}/query/metric-query`;
 const UNDERLYING_DATA_PATH = `/api/v2/projects/${PROJECT_UUID}/query/underlying-data`;

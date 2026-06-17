@@ -46,6 +46,7 @@ import {
     SyncSlackChannelsPayload,
     TaskPayloadMap,
     TraceTaskBase,
+    UploadGsheetFromRowsPayload,
     UploadMetricGsheetPayload,
     ValidateProjectPayload,
     type DownloadAsyncQueryResultsPayload,
@@ -1154,6 +1155,35 @@ export class SchedulerClient {
                 exploreId: payload.exploreId,
                 metricQuery: payload.metricQuery,
                 organizationUuid: payload.organizationUuid,
+            },
+        });
+
+        return { jobId };
+    }
+
+    async uploadGsheetFromRowsJob(payload: UploadGsheetFromRowsPayload) {
+        const graphileClient = await this.graphileUtils;
+        const now = new Date();
+        const jobId = await SchedulerClient.addJob(
+            graphileClient,
+            SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
+            payload,
+            now,
+            JobPriority.HIGH,
+            3,
+        );
+
+        await this.schedulerModel.logSchedulerJob({
+            task: SCHEDULER_TASKS.UPLOAD_GSHEET_FROM_QUERY,
+            jobId,
+            scheduledTime: now,
+            status: SchedulerJobStatus.SCHEDULED,
+            details: {
+                createdByUserUuid: payload.userUuid,
+                projectUuid: payload.projectUuid,
+                organizationUuid: payload.organizationUuid,
+                title: payload.title,
+                rowCount: payload.rows.length,
             },
         });
 
