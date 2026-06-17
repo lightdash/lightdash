@@ -99,11 +99,9 @@ export class GeoJsonProxyController extends BaseController {
                 method: 'GET',
                 timeoutMs: TIMEOUT_MS,
                 maxResponseBytes: MAX_FILE_SIZE,
-                allowedContentTypes: [
-                    'application/json',
-                    'application/geo+json',
-                    'text/plain',
-                ],
+                // Empty list = no content-type restriction: parity with the
+                // original controller, which accepted any content-type.
+                allowedContentTypes: [],
             });
             bodyText = result.bodyText;
         } catch (error) {

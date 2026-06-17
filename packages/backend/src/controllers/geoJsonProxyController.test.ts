@@ -82,9 +82,8 @@ describe('GeoJsonProxyController parity', () => {
             'https://example.com/data.geojson',
             expect.objectContaining({
                 method: 'GET',
-                allowedContentTypes: expect.arrayContaining([
-                    'application/json',
-                ]),
+                // Empty list = no content-type restriction (parity with original).
+                allowedContentTypes: [],
             }),
         );
     });
@@ -113,5 +112,44 @@ describe('GeoJsonProxyController parity', () => {
         await expect(
             controller.get('https://example.com/data.json'),
         ).rejects.toBeInstanceOf(ParameterError);
+    });
+
+    it('accepts GeoJSON served with application/octet-stream content-type (parity)', async () => {
+        // Real-world GeoJSON sources often serve with generic binary or missing
+        // content-types. The original controller accepted any type; parity requires
+        // allowedContentTypes: [] so secureFetch never rejects on content-type.
+        mockedSecureFetch.mockResolvedValue({
+            status: 200,
+            contentType: 'application/octet-stream',
+            bodyText: '{"type":"FeatureCollection","features":[]}',
+            truncated: false,
+        });
+        const controller = makeController();
+        const result = await controller.get('https://example.com/data.geojson');
+        expect(result).toEqual({ type: 'FeatureCollection', features: [] });
+    });
+
+    it('accepts GeoJSON served with a missing content-type (parity)', async () => {
+        mockedSecureFetch.mockResolvedValue({
+            status: 200,
+            contentType: '',
+            bodyText: '{"type":"FeatureCollection","features":[]}',
+            truncated: false,
+        });
+        const controller = makeController();
+        const result = await controller.get('https://example.com/data.geojson');
+        expect(result).toEqual({ type: 'FeatureCollection', features: [] });
+    });
+
+    it('accepts GeoJSON served with application/vnd.geo+json content-type (parity)', async () => {
+        mockedSecureFetch.mockResolvedValue({
+            status: 200,
+            contentType: 'application/vnd.geo+json',
+            bodyText: '{"type":"FeatureCollection","features":[]}',
+            truncated: false,
+        });
+        const controller = makeController();
+        const result = await controller.get('https://example.com/data.geojson');
+        expect(result).toEqual({ type: 'FeatureCollection', features: [] });
     });
 });
