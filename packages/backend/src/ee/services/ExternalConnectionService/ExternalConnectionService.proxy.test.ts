@@ -383,6 +383,36 @@ describe('ExternalConnectionService.proxyFetch', () => {
         expect(res.body).toBe('not json{');
     });
 
+    it('rejects a GET when the serialized query string exceeds requestMaxBytes', async () => {
+        const { service } = buildService({
+            connection: baseConnection({ requestMaxBytes: 10 }),
+        });
+        // A query string longer than 10 bytes should be rejected before secureFetch.
+        await expect(
+            service.proxyFetch(user, 'proj-1', 'app-1', {
+                connectionAlias: 'weather',
+                method: 'GET',
+                path: '/v1/today',
+                query: { city: 'this-is-a-very-long-city-name' },
+            }),
+        ).rejects.toBeInstanceOf(ParameterError);
+        expect(mockSecureFetch).not.toHaveBeenCalled();
+    });
+
+    it('maps a malformed connection origin to a generic ParameterError (no stack exposed)', async () => {
+        const { service } = buildService({
+            connection: baseConnection({ origin: 'not-a-valid-url' }),
+        });
+        const promise = service.proxyFetch(user, 'proj-1', 'app-1', {
+            connectionAlias: 'weather',
+            path: '/v1/x',
+        });
+        await expect(promise).rejects.toBeInstanceOf(ParameterError);
+        // The raw TypeError from new URL() must not reach the client.
+        const err = await promise.catch((e) => e);
+        expect(err.message).not.toMatch(/Invalid URL/i);
+    });
+
     it('emits an audit event without bodies or secrets', async () => {
         const { service, analytics } = buildService({
             connection: baseConnection({ type: 'bearer_token' }),

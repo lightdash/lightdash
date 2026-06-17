@@ -520,8 +520,10 @@ export class ExternalConnectionService extends BaseService {
                 body: req.body,
             });
         } catch (error) {
-            const outcome =
-                error instanceof ParameterError ? 'rejected' : 'upstream_error';
+            const isKnown =
+                error instanceof ParameterError ||
+                error instanceof SecureFetchError;
+            const outcome = isKnown ? 'rejected' : 'upstream_error';
             this.trackFetch({
                 user,
                 projectUuid,
@@ -536,7 +538,13 @@ export class ExternalConnectionService extends BaseService {
                 requestBytes: 0,
                 responseBytes: 0,
             });
-            throw error;
+            if (error instanceof ParameterError) {
+                throw error;
+            }
+            // Map any unexpected error (e.g. malformed origin, serialization
+            // failure) to a generic ParameterError — no stack or upstream detail
+            // reaches the client.
+            throw new ParameterError('Proxy request failed');
         }
 
         // 7. Audit success — never bodies, never the secret.
@@ -602,7 +610,23 @@ export class ExternalConnectionService extends BaseService {
         // type === 'none' → no auth injected.
 
         // Build the outbound URL server-side (host pinned to origin).
-        const url = buildOutboundUrl(connection.origin, validatedPath, query);
+        let url: string;
+        try {
+            url = buildOutboundUrl(connection.origin, validatedPath, query);
+        } catch (error) {
+            if (error instanceof ParameterError) {
+                throw error;
+            }
+            throw new ParameterError('Failed to build outbound URL');
+        }
+
+        // Cap the serialized query string length for all methods (incl. GET).
+        const urlObj = new URL(url);
+        if (urlObj.search.length > connection.requestMaxBytes) {
+            throw new ParameterError(
+                `Query string exceeds the maximum of ${connection.requestMaxBytes} bytes`,
+            );
+        }
 
         // Non-GET body: server-serialized JSON with server-set Content-Type.
         let body: string | undefined;
@@ -658,6 +682,8 @@ export class ExternalConnectionService extends BaseService {
                 status: fetched.status,
                 contentType: fetched.contentType,
                 body: parsedBody,
+                // Reserved for future use; always false in v1 — oversize responses
+                // are rejected (SecureFetchError too_large), not truncated.
                 truncated: fetched.truncated,
             },
             requestBytes,
