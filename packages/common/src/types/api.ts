@@ -232,6 +232,7 @@ import {
     type ApiReassignUserSchedulersResponse,
     type ApiSchedulersResponse,
     type ApiUserSchedulersSummaryResponse,
+    type GsheetExportProgress,
     type SchedulerAndTargets,
     type SchedulerJobStatus,
 } from './scheduler';
@@ -850,6 +851,7 @@ export type ApiDownloadCsv = {
     url: string;
     status: SchedulerJobStatus;
     truncated: boolean;
+    progress: GsheetExportProgress | null;
 };
 
 export type ProjectCatalog = {

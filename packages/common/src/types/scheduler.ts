@@ -691,12 +691,18 @@ export type BatchDeliveryResult = {
     results: DeliveryResult[];
 };
 
+export type GsheetExportProgress = {
+    phase: 'query' | 'upload';
+    attempt: number;
+};
+
 export type ApiCsvUrlResponse = {
     status: 'ok';
     results: {
         url: string;
         status: string;
         truncated: boolean;
+        progress: GsheetExportProgress | null;
     };
 };
 

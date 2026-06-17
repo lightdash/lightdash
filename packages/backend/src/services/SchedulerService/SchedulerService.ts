@@ -9,6 +9,7 @@ import {
     getTzMinutesOffset,
     GoogleSheetsScopeError,
     GoogleSheetsTransientError,
+    GsheetExportProgress,
     InvalidUser,
     isAppScheduler,
     isChartScheduler,
@@ -1359,6 +1360,13 @@ export class SchedulerService extends BaseService {
             );
         }
         return job;
+    }
+
+    async updateGsheetExportProgress(
+        jobId: string,
+        progress: GsheetExportProgress,
+    ): Promise<void> {
+        await this.schedulerModel.updateGsheetExportProgress(jobId, progress);
     }
 
     async getSchedulerLogs(

@@ -3,11 +3,20 @@ import {
     type ApiDownloadCsv,
     type ApiError,
     type ApiScheduledDownloadCsv,
+    type GsheetExportProgress,
 } from '@lightdash/common';
 import { notifications } from '@mantine/notifications';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { getCsvFileUrl } from '../../../api/csv';
 import useToaster from '../../../hooks/toaster/useToaster';
+
+const getProgressSubtitle = (progress: GsheetExportProgress | null): string => {
+    if (!progress) return 'This may take a few minutes...';
+    if (progress.phase === 'query') return 'Running query...';
+    return progress.attempt > 1
+        ? `Writing to Google Sheets... (retry ${progress.attempt})`
+        : 'Writing to Google Sheets...';
+};
 
 const useExportToGoogleSheetStart = ({
     getGsheetLink,
@@ -45,7 +54,7 @@ export const useExportToGoogleSheet = ({
 }: {
     getGsheetLink: () => Promise<ApiScheduledDownloadCsv>;
 }) => {
-    const { showToastApiError } = useToaster();
+    const { showToastApiError, showToastInfo } = useToaster();
 
     const exportToGoogleSheetStartMutation = useExportToGoogleSheetStart({
         getGsheetLink,
@@ -87,7 +96,15 @@ export const useExportToGoogleSheet = ({
             if (data?.url && data.status === SchedulerJobStatus.COMPLETED) {
                 window.open(data.url, '_blank');
                 notifications.hide('exporting-gsheets');
+                return;
             }
+            showToastInfo({
+                title: 'Exporting Google Sheets',
+                subtitle: getProgressSubtitle(data?.progress ?? null),
+                loading: true,
+                key: 'exporting-gsheets',
+                autoClose: false,
+            });
         },
         onError: () => {
             notifications.hide('exporting-gsheets');

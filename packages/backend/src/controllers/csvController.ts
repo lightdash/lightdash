@@ -49,6 +49,7 @@ export class CsvController extends BaseController {
                 url: csvDetails.details?.fileUrl,
                 status: csvDetails.status,
                 truncated: !!csvDetails.details?.truncated,
+                progress: csvDetails.details?.progress ?? null,
             },
         };
     }
